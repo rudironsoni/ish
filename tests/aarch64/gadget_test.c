@@ -159,18 +159,18 @@ TEST(simd_registers) {
 
     // Set vector registers
     for (int i = 0; i < 32; i++) {
-        test_cpu.v[i].q = ((__int128)(0x100 + i) << 64) | (0x200 + i);
+        test_cpu.vregs[i].q = ((__int128)(0x100 + i) << 64) | (0x200 + i);
     }
 
     // Verify
     for (int i = 0; i < 32; i++) {
-        ASSERT_EQ(test_cpu.v[i].d[0], 0x200 + i);
-        ASSERT_EQ(test_cpu.v[i].d[1], 0x100 + i);
+        ASSERT_EQ(test_cpu.vregs[i].d[0], 0x200 + i);
+        ASSERT_EQ(test_cpu.vregs[i].d[1], 0x100 + i);
     }
 
     // Test accessing as floats
-    test_cpu.v[0].f32[0] = 1.5f;
-    ASSERT(test_cpu.v[0].f32[0] == 1.5f);
+    test_cpu.vregs[0].f32[0] = 1.5f;
+    ASSERT(test_cpu.vregs[0].f32[0] == 1.5f);
 }
 
 /*
