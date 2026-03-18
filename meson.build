@@ -22,9 +22,8 @@ endforeach
 add_project_arguments('-DLOG_HANDLER_' + get_option('log_handler').to_upper() + '=1', language: 'c')
 add_project_arguments('-DENGINE_' + get_option('engine').to_upper() + '=1', language: 'c')
 
-# Architecture selection
-arch = get_option('arch')
-add_project_arguments('-DARCH_' + arch.to_upper() + '=1', language: 'c')
+# Architecture: aarch64 only (iOS migration)
+add_project_arguments('-DARCH_AARCH64=1', language: 'c')
 
 if get_option('no_crlf')
     add_project_arguments('-DNO_CRLF', language: 'c')
@@ -43,62 +42,43 @@ dependencies = [librt, libm, libdl, threads, sqlite3]
 
 subdir('vdso') # ish depends on the vdso
 
-# Architecture-specific emulator sources
-if arch == 'x86'
-    offsets = custom_target('offsets',
-        output: 'cpu-offsets.h', input: 'asbestos/offsets.c', depfile: 'cpu-offsets.h.d',
-        command: [find_program('tools/staticdefine.sh'), '@OUTDIR@/compile_commands.json', '@INPUT@', '@OUTPUT@', '@DEPFILE@'])
+# aarch64 emulator sources (iOS migration - x86 replaced)
+# TCTI gadget generation
+tcti_gadget_gen = custom_target('tcti_gadgets',
+    output: ['gadgets_tcti.h', 'gadgets_tcti_impl.c'],
+    input: 'asbestos/aarch64/tcti-gadget-gen.py',
+    command: [find_program('python3'), '@INPUT@', '-o', 'asbestos/aarch64'],
+    build_by_default: true,
+)
 
-    emu_src = [
-        'emu/tlb.c',
-        'emu/fpu.c',
-        'emu/vec.c',
-        'emu/mmx.c',
-        'emu/float80.c',
-    ]
-    gadgets = 'asbestos/gadgets-' + host_machine.cpu_family()
-    emu_src += [
-        'asbestos/asbestos.c',
-        'asbestos/gen.c',
-        'asbestos/helpers.c',
-        gadgets+'/entry.S',
-        gadgets+'/memory.S',
-        gadgets+'/control.S',
-        gadgets+'/math.S',
-        gadgets+'/bits.S',
-        gadgets+'/string.S',
-        gadgets+'/misc.S',
-        offsets,
-    ]
-elif arch == 'aarch64'
-    # aarch64 offset generation
-    aarch64_offsets = custom_target('aarch64_offsets',
-        output: 'aarch64-cpu-offsets.h',
-        input: 'asbestos/aarch64/offsets.c',
-        depfile: 'aarch64-cpu-offsets.h.d',
-        command: [find_program('tools/staticdefine.sh'), '@OUTDIR@/compile_commands.json', '@INPUT@', '@OUTPUT@', '@DEPFILE@'],
-    )
+# aarch64 CPU offsets (for TCTI register mapping)
+aarch64_offsets = custom_target('aarch64_offsets',
+    output: 'aarch64-cpu-offsets.h',
+    input: 'asbestos/aarch64/offsets.c',
+    depfile: 'aarch64-cpu-offsets.h.d',
+    command: [find_program('tools/staticdefine.sh'), '@OUTDIR@/compile_commands.json', '@INPUT@', '@OUTPUT@', '@DEPFILE@'],
+)
 
-    # TCTI gadget generation
-    tcti_gadget_gen = custom_target('tcti_gadgets',
-        output: ['gadgets_tcti.h', 'gadgets_tcti_impl.c'],
-        input: 'asbestos/aarch64/tcti-gadget-gen.py',
-        command: [find_program('python3'), '@INPUT@', '-o', 'asbestos/aarch64'],
-        build_by_default: true,
-    )
+emu_src = [
+    # Core emulator
+    'emu/tlb.c',
+    'emu/aarch64/cpu.c',
+    'emu/aarch64/decode.c',
+    'emu/aarch64/memory.c',
+    'emu/aarch64/tls.c',
+    'emu/aarch64/block-cache.c',
 
-    emu_src = [
-        'emu/aarch64/decode.c',
-        'emu/aarch64/tls.c',
-        'asbestos/aarch64/gen.c',
-        'asbestos/aarch64/gadgets_entry.c',
-        'asbestos/aarch64/gadgets_arith.c',
-        tcti_gadget_gen,
-        aarch64_offsets,
-    ]
-else
-    error('Unsupported architecture: ' + arch)
-endif
+    # TCTI code generator
+    'asbestos/aarch64/gen.c',
+    'asbestos/aarch64/gadgets_entry.c',
+    'asbestos/aarch64/gadgets_arith.c',
+    'asbestos/aarch64/gadgets_math.c',
+    'asbestos/aarch64/gadgets_memory.c',
+    'asbestos/aarch64/gadgets_tcti_impl.c',
+
+    tcti_gadget_gen,
+    aarch64_offsets,
+]
 
 libish_emu = library('ish_emu', emu_src, include_directories: includes)
 
@@ -119,6 +99,10 @@ if get_option('kernel') == 'ish'
         'kernel/errno.c',
 
         'kernel/calls.c',
+        'kernel/aarch64/calls.c',
+        'kernel/aarch64/syscall_dispatch.c',
+        'kernel/aarch64/signal.c',
+        'kernel/aarch64/vdso.c',
         'kernel/memory.c',
         'kernel/user.c',
         'kernel/vdso.c', vdso,
