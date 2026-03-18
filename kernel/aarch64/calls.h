@@ -1,6 +1,9 @@
 #ifndef AARCH64_CALLS_H
 #define AARCH64_CALLS_H
 
+// Maximum syscall number for aarch64
+#define A64_SYS_MAX 450
+
 // aarch64 Linux syscall numbers
 // Reference: arch/arm64/include/uapi/asm/unistd.h
 
