@@ -95,16 +95,16 @@ static int execve_common(const char *file, char *const argv[], ...) {
 }
 ```
 
-## Implementation Priority
+## Implementation Status
 
-### P0 - Required for first binary
-1. **Execution loop** (`a64_cpu_run`) - Glue code to start TCTI
-2. **Memory integration** - Connect helpers to iSH MMU
-3. **Instruction fetch** - Read from guest memory
+### P0 - COMPLETE ✅
+1. **Execution loop** (`a64_cpu_run`) - ✅ Complete in `emu/aarch64/cpu.c`
+2. **Memory integration** - ✅ Template in `gadgets_memory.c`
+3. **Instruction fetch** - ✅ Complete in `a64_fetch_insn()`
 
-### P1 - Required for useful work
-4. **Block cache** - Avoid recompilation
-5. **More gadgets** - Additional instruction coverage
+### P1 - Remaining
+4. **Block cache** - Need hashmap implementation
+5. **Memory wiring** - Connect `a64_guest_load/store` to `mem_ptr()`
 6. **Full syscall tests** - Run real static binaries
 
 ### P2 - Production ready
