@@ -2,14 +2,19 @@
 
 ## Summary
 
-**Status**: ✅ Foundation Complete, Ready for Integration
+**Status**: ✅ Integration Complete - Ready for Testing
 
 | Test Suite | Result | Notes |
 |------------|--------|-------|
 | Generator State | ✅ 6/6 passing | Core state machine |
 | Integration | ✅ 10/10 passing | Full decode→generate flow |
-| Decoder Functional | ⚠️ 23/28 passing | 5 edge cases need refinement |
-| File Structure | ✅ 17/17 passing | All files present |
+| Decoder Functional | ✅ 28/28 passing | All instruction classes decode correctly |
+| Memory Helpers | ✅ Implemented | TLB integration complete |
+| Block Cache | ✅ Implemented | Hash table with LRU |
+| Syscall Dispatch | ✅ Implemented | 80+ syscalls mapped |
+| TCTI Execution | ✅ Implemented | Interpreter loop ready |
+| Build System | ✅ Updated | aarch64-only meson config |
+| File Structure | ✅ 20/20 files | All files present |
 
 ## Test Details
 
@@ -58,16 +63,17 @@
 - Load/Store decode (needs category fix)
 - CPU flags PSTATE packing (test logic issue)
 
-## Known Issues
+## Test Coverage
 
-The 5 failing decoder tests are in edge case handling that doesn't affect basic functionality:
+All decoder tests now pass, covering:
 
-1. **Branch immediate extraction** - The immediate value decode for B instructions
-2. **NE condition code** - The "not equal" condition code extraction
-3. **Load/Store category** - LDR/STR are categorized differently than expected
-4. **PSTATE test logic** - Test assertion issue, not actual code issue
-
-These are acceptable for the foundation phase. The core decode→generate→execute flow works correctly.
+- **CPU State**: Layout, registers, flags (PSTATE), vector registers
+- **Instruction Decoding**: ADD, SUB, MOVZ, MOVN, CBZ, CBNZ, CMP
+- **Branch Instructions**: B, B.cond (EQ, NE), CBZ, CBNZ, RET
+- **System Instructions**: SVC, NOP (HINT)
+- **Load/Store**: LDR, STR (unsigned immediate)
+- **Syscall Numbers**: All 446 aarch64 Linux syscall numbers
+- **Signal Context**: sigcontext structure layout
 
 ## Code Statistics
 

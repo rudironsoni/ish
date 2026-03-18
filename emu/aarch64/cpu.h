@@ -58,19 +58,8 @@ struct cpu_state {
     union {
         qword_t pstate;
         struct {
-            // Bits 0-3: Reserved (must be 0 in EL0)
-            bitfield _pad0:4;
-            // Bits 4-5: M[4:0] mode field (not used in user space much)
-            bitfield _pad1:2;
-            // Bit 6: FIQ mask
-            bitfield f:1;
-            // Bit 7: IRQ mask
-            bitfield i:1;
-            // Bit 8: SError mask
-            bitfield a:1;
-            // Bit 9: Debug mask
-            bitfield d:1;
-            bitfield _pad2:22;
+            // Bits 0-27: Various control bits, mostly unused in user space
+            bitfield _pad0:28;
             // Bit 28: V (overflow) flag
             bitfield v:1;
             // Bit 29: C (carry) flag
@@ -79,6 +68,8 @@ struct cpu_state {
             bitfield z:1;
             // Bit 31: N (negative) flag
             bitfield n:1;
+            // Bits 32+: Mode bits and other EL0 state
+            bitfield _pad1:32;
         };
     };
 

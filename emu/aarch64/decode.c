@@ -7,38 +7,50 @@ int a64_decode(uint32_t insn, a64_instr_t *out) {
     memset(out, 0, sizeof(*out));
     out->raw = insn;
 
+    // Check for system instructions first (SVC, HVC, hints, barriers)
+    // These have top 8 bits = 0xD4 or 0xD5 (exception and system)
+    uint8_t top_byte = (insn >> 24) & 0xFF;
+    if (top_byte == 0xD4 || top_byte == 0xD5) {
+        return a64_decode_system(insn, out);
+    }
+
     // Get main category from bits 28:25
     a64_category_t cat = a64_get_category(insn);
     out->cat = cat;
 
     switch (cat) {
-        case A64_DP_IMM:
-        case A64_DP_IMM2:
+        case A64_DP_IMM:      // 0x9
+        case A64_DP_IMM2:     // 0xD
             return a64_decode_dp_imm(insn, out);
 
-        case A64_DP_REG:
-        case A64_DP_REG2:
-        case A64_DP_SCALAR:
-        case A64_DP_SCALAR2:
+        case A64_DP_REG:      // 0x4
+        case A64_DP_REG2:     // 0x5 (most register ops)
+        case A64_DP_REG3:     // 0x6
+        case A64_DP_REG4:     // 0x7
             return a64_decode_dp_reg(insn, out);
 
-        case A64_BRANCH:
-        case A64_BRANCH2:
+        case A64_BRANCH:      // 0xA
+        case A64_BRANCH2:     // 0xB
             return a64_decode_branch(insn, out);
 
-        case A64_LD_ST:
-        case A64_LD_ST2:
+        case A64_LD_ST:       // 0xC
             return a64_decode_ldst(insn, out);
 
-        case A64_SIMD_SCALAR:
-        case A64_SIMD_SCALAR2:
-        case A64_SIMD_VECTOR:
-        case A64_SIMD_VECTOR2:
+        case A64_SIMD:        // 0xE
+        case A64_SIMD2:       // 0xF
             return a64_decode_simd_fp(insn, out);
 
         case A64_RESERVED:
+        case A64_RESERVED1:
         case A64_RESERVED2:
+        case A64_RESERVED3:
+        case A64_SIMD0:
         default:
+            // Check for system instructions (HINT, barriers, etc.)
+            // System instructions: top 8 bits = 0xD5 (11010101)
+            if ((insn & 0xFF000000) == 0xD5000000) {
+                return a64_decode_system(insn, out);
+            }
             // Undefined/unallocated
             return -1;
     }
@@ -293,19 +305,30 @@ int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out) {
 }
 
 // Branch instructions
+// Based on ARMv8-A encoding: op0 = bits 31:29
 int a64_decode_branch(uint32_t insn, a64_instr_t *out) {
-    int op0 = bits(insn, 30, 29);
-    int op1 = bits(insn, 28, 25);
+    int op0 = bits(insn, 31, 29);  // Changed from 30:29 to 31:29
+    int op1 = bits(insn, 28, 25);  // Should be 10 or 11
 
     switch (op0) {
-        case 0: // Conditional branch (immediate)
+        case 0: // 000 - Unconditional branch (immediate)
+        case 4: // 100 - Also unconditional branch
+        {
+            int op = bit(insn, 31); // 0=B, 1=BL
+            int64_t imm26 = bits(insn, 25, 0);
+            out->imm = sign_extend(imm26, 26) << 2;
+            out->subtype = op; // 0=B, 1=BL
+            return 0;
+        }
+
+        case 2: // 010 - Conditional branch (immediate)
         {
             int o1 = bit(insn, 24);
             if (o1 == 0) {
                 // B.cond
                 int64_t imm19 = bits(insn, 23, 5);
                 int cond = bits(insn, 3, 0);
-                out->imm = sign_extend(imm19, 19) << 2; // PC-relative, word-aligned
+                out->imm = sign_extend(imm19, 19) << 2;
                 out->cond = cond;
                 out->subtype = A64_BRANCH_COND;
                 return 0;
@@ -313,19 +336,19 @@ int a64_decode_branch(uint32_t insn, a64_instr_t *out) {
             break;
         }
 
-        case 1: // Compare and branch (immediate)
+        case 1: // 001 - Compare and branch (immediate) - 32-bit
+        case 5: // 101 - Compare and branch (immediate) - 64-bit
         {
             int op = bit(insn, 24); // 0=CBZ, 1=CBNZ
             out->is_64bit = bit(insn, 31);
             int64_t imm19 = bits(insn, 23, 5);
             out->Rd = bits(insn, 4, 0);
             out->imm = sign_extend(imm19, 19) << 2;
-            out->subtype = A64_BRANCH_CMP;
             out->subtype = op ? 1 : 0; // 0=CBZ, 1=CBNZ
             return 0;
         }
 
-        case 2: // Test and branch (immediate)
+        case 3: // 011 - Test and branch (immediate)
         {
             int op = bit(insn, 24); // 0=TBZ, 1=TBNZ
             int imm14 = bits(insn, 18, 5);
@@ -333,25 +356,23 @@ int a64_decode_branch(uint32_t insn, a64_instr_t *out) {
             out->Rd = bits(insn, 4, 0);
             out->imm = sign_extend(imm14, 14) << 2;
             out->imm_shift = bit_pos;
-            out->subtype = A64_BRANCH_TEST;
             out->subtype = op ? 1 : 0; // 0=TBZ, 1=TBNZ
             return 0;
         }
 
-        case 3: // Unconditional branch (immediate)
+        case 6: // 110 - Unconditional branch (register)
+        case 7: // 111 - Also branch register
         {
-            int op = bit(insn, 31); // 0=B, 1=BL
-            int64_t imm26 = bits(insn, 25, 0);
-            out->imm = sign_extend(imm26, 26) << 2;
-            out->subtype = A64_BRANCH_UNCOND;
-            out->subtype = op; // 0=B, 1=BL
-            return 0;
+            // BR, BLR, RET - handled below
+            break;
         }
     }
 
     // Check for branch register / exception generation
     int op3 = bits(insn, 30, 25);
-    if (op3 == 0x1B) { // 011011
+    // 1101011 = 0x6B for BR/BLR/RET (bits 31:25)
+    // So bits 30:25 = 0b101011 = 0x2B
+    if (op3 == 0x2B) { // 101011 - BR/BLR/RET
         // Unconditional branch (register)
         int opc = bits(insn, 24, 21);
         int op2 = bits(insn, 20, 16);
@@ -359,14 +380,13 @@ int a64_decode_branch(uint32_t insn, a64_instr_t *out) {
         int Rn = bits(insn, 9, 5);
         int op4 = bits(insn, 4, 0);
 
-        if (op2 == 0x1F && op3_low == 0) {
+        if (op2 == 0x1F && op3_low == 0 && op4 == 0) {
             out->Rn = Rn;
             switch (opc) {
                 case 0: // BR
                 case 1: // BLR
                 case 2: // RET
                     out->subtype = A64_BRANCH_REG;
-                    out->subtype = opc;
                     return 0;
             }
         }
@@ -417,18 +437,20 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out) {
             out->is_signed = false;
             return 0;
         }
+    }
 
-        // Load/store (unsigned immediate)
-        if (op2 >= 2) {
-            int L = bit(insn, 22);
-            uint64_t imm12 = bits(insn, 21, 10);
-            out->Rd = bits(insn, 4, 0);
-            out->Rn = bits(insn, 9, 5);
-            // Scale immediate by size
-            int scale = out->is_64bit ? 3 : out->size;
-            out->imm = imm12 << scale;
-            return 0;
-        }
+    // Load/store (unsigned immediate) - handles both op1=0 (op2>=2) and op1=1
+    // op1=0, op2>=2: unsigned immediate with size-based scaling
+    // op1=1: unsigned immediate (bit 24 = 1 distinguishes from unscaled)
+    if (!out->is_vector && (op1 == 1 || (op1 == 0 && op2 >= 2))) {
+        int L = bit(insn, 22);
+        uint64_t imm12 = bits(insn, 21, 10);
+        out->Rd = bits(insn, 4, 0);
+        out->Rn = bits(insn, 9, 5);
+        // Scale immediate by size
+        int scale = out->is_64bit ? 3 : out->size;
+        out->imm = imm12 << scale;
+        return 0;
     }
 
     // Load/store register pair
@@ -522,8 +544,17 @@ int a64_decode_simd_fp(uint32_t insn, a64_instr_t *out) {
     return -1;
 }
 
-// System instructions (SVC, MRS, MSR, barriers)
+// System instructions (SVC, MRS, MSR, barriers, hints)
 int a64_decode_system(uint32_t insn, a64_instr_t *out) {
+    // HINT instructions (NOP, YIELD, WFE, WFI, SEV, etc.)
+    // HINT encoding: 1101010100 | 000 | L(0) | 011 | CRn(4) | CRm(4) | 000 | 11111
+    // NOP: CRm = 0, op2 = 0
+    if ((insn & 0xFFFFF0FF) == 0xD503201F) {
+        out->subtype = 6; // HINT
+        out->imm = bits(insn, 11, 8); // CRm field selects hint type
+        return 0;
+    }
+
     // SVC - System call
     if ((insn & 0xFFC00000) == 0xD4000000) {
         int op = bits(insn, 23, 21);
@@ -585,23 +616,23 @@ int a64_decode_system(uint32_t insn, a64_instr_t *out) {
 // String helpers
 const char *a64_category_name(a64_category_t cat) {
     switch (cat) {
-        case A64_RESERVED: return "RESERVED";
-        case A64_DP_IMM: return "DP_IMM";
-        case A64_BRANCH: return "BRANCH";
-        case A64_LD_ST: return "LD_ST";
-        case A64_DP_REG: return "DP_REG";
-        case A64_DP_REG2: return "DP_REG";
-        case A64_SIMD_SCALAR: return "SIMD_SCALAR";
-        case A64_SIMD_VECTOR: return "SIMD_VECTOR";
-        case A64_DP_SCALAR: return "DP_SCALAR";
-        case A64_DP_SCALAR2: return "DP_SCALAR";
-        case A64_SIMD_SCALAR2: return "SIMD_SCALAR";
-        case A64_SIMD_VECTOR2: return "SIMD_VECTOR";
-        case A64_LD_ST2: return "LD_ST";
-        case A64_DP_IMM2: return "DP_IMM";
-        case A64_BRANCH2: return "BRANCH";
-        case A64_RESERVED2: return "RESERVED";
-        default: return "UNKNOWN";
+        case A64_RESERVED:  return "RESERVED(0)";
+        case A64_RESERVED1: return "RESERVED(1)";
+        case A64_RESERVED2: return "RESERVED(2)";
+        case A64_RESERVED3: return "RESERVED(3)";
+        case A64_DP_REG:    return "DP_REG(4)";
+        case A64_DP_REG2:   return "DP_REG(5)";
+        case A64_DP_REG3:   return "DP_REG(6)";
+        case A64_DP_REG4:   return "DP_REG(7)";
+        case A64_SIMD0:     return "SIMD(8)";
+        case A64_DP_IMM:    return "DP_IMM(9)";
+        case A64_BRANCH:    return "BRANCH(A)";
+        case A64_BRANCH2:   return "BRANCH(B)";
+        case A64_LD_ST:     return "LD_ST(C)";
+        case A64_DP_IMM2:   return "DP_IMM(D)";
+        case A64_SIMD:      return "SIMD(E)";
+        case A64_SIMD2:     return "SIMD(F)";
+        default:            return "UNKNOWN";
     }
 }
 

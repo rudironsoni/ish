@@ -7,25 +7,45 @@
 // aarch64 instruction size is always 4 bytes
 #define A64_INSTR_SIZE 4
 
-// Instruction categories based on top bits (op0)
-// op0 = bits 28:25 of the instruction
+// Instruction categories based on op0 = bits 28:25
+// Based on ARMv8-A Reference Manual
+// Note: These values are the ACTUAL op0 encodings, not sequential
 typedef enum {
-    A64_RESERVED = 0x0,      // 0000 - Reserved/Unallocated
-    A64_DP_IMM = 0x1,        // 0001 - Data Processing - Immediate
-    A64_BRANCH = 0x2,        // 0010 - Branches, Exception Gen, System
-    A64_LD_ST = 0x3,         // 0011 - Loads and Stores
-    A64_DP_REG = 0x4,        // 0100 - Data Processing - Register
-    A64_DP_REG2 = 0x5,       // 0101 - Data Processing - Register (continued)
-    A64_SIMD_SCALAR = 0x6,   // 0110 - SIMD/FP Scalar
-    A64_SIMD_VECTOR = 0x7,   // 0111 - SIMD/FP Vector
-    A64_DP_SCALAR = 0x8,     // 1000 - Data Processing - Scalar
-    A64_DP_SCALAR2 = 0x9,    // 1001 - Data Processing - Scalar (continued)
-    A64_SIMD_SCALAR2 = 0xA,  // 1010 - SIMD/FP Scalar (continued)
-    A64_SIMD_VECTOR2 = 0xB,  // 1011 - SIMD/FP Vector (continued)
-    A64_LD_ST2 = 0xC,        // 1100 - Loads and Stores (continued)
-    A64_DP_IMM2 = 0xD,       // 1101 - Data Processing - Immediate (continued)
-    A64_BRANCH2 = 0xE,       // 1110 - Branches (continued)
-    A64_RESERVED2 = 0xF,     // 1111 - Reserved
+    // op0 = 0x0, 0x1, 0x2, 0x3: Reserved/Unallocated in standard encoding
+    A64_RESERVED = 0x0,
+    A64_RESERVED1 = 0x1,
+    A64_RESERVED2 = 0x2,
+    A64_RESERVED3 = 0x3,
+
+    // op0 = 0x4, 0x5, 0x6, 0x7: Data Processing - Register
+    A64_DP_REG = 0x4,        // 0100
+    A64_DP_REG2 = 0x5,        // 0101 (ADD, SUB, AND, ORR, etc.)
+    A64_DP_REG3 = 0x6,        // 0110
+    A64_DP_REG4 = 0x7,        // 0111
+
+    // op0 = 0x8: Reserved/SIMD
+    A64_SIMD0 = 0x8,
+
+    // op0 = 0x9: Data Processing - Immediate
+    A64_DP_IMM = 0x9,         // 1001 (MOVZ, ADDI, etc.)
+
+    // op0 = 0xA: Branches, Exception Generating, System
+    A64_BRANCH = 0xA,         // 1010 (B, B.cond, SVC, HVC, SMC, etc.)
+
+    // op0 = 0xB: Branches/Exception (unconditional branch reg)
+    A64_BRANCH2 = 0xB,        // 1011 (BR, BLR, RET)
+
+    // op0 = 0xC: Loads and Stores
+    A64_LD_ST = 0xC,          // 1100 (LDR, STR, LDP, STP, etc.)
+
+    // op0 = 0xD: Data Processing - Immediate (continued)
+    A64_DP_IMM2 = 0xD,        // 1101
+
+    // op0 = 0xE: SIMD/FP
+    A64_SIMD = 0xE,           // 1110
+
+    // op0 = 0xF: SIMD/FP
+    A64_SIMD2 = 0xF,          // 1111
 } a64_category_t;
 
 // Subcategories for Data Processing - Immediate
@@ -168,7 +188,8 @@ static inline int64_t sign_extend(uint64_t val, int bits) {
     return (val ^ sign_bit) - sign_bit;
 }
 
-// Category detection
+// Category detection based on ARMv8-A architecture
+// op0 = bits 28:25
 static inline a64_category_t a64_get_category(uint32_t insn) {
     return (a64_category_t)((insn >> 25) & 0xF);
 }

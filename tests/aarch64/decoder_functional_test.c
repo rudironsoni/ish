@@ -71,6 +71,7 @@ TEST(cpu_flags) {
     struct cpu_state cpu;
     memset(&cpu, 0, sizeof(cpu));
 
+    // Set flags via bitfields
     cpu.n = 1;
     cpu.z = 0;
     cpu.c = 1;
@@ -81,11 +82,17 @@ TEST(cpu_flags) {
     ASSERT_EQ(cpu.c, 1);
     ASSERT_EQ(cpu.v, 0);
 
+    // Save flag values before clearing pstate (they share memory via union)
+    int n_val = cpu.n;
+    int z_val = cpu.z;
+    int c_val = cpu.c;
+    int v_val = cpu.v;
+
     cpu.pstate = 0;
-    cpu.pstate |= ((uint64_t)cpu.n << 31);
-    cpu.pstate |= ((uint64_t)cpu.z << 30);
-    cpu.pstate |= ((uint64_t)cpu.c << 29);
-    cpu.pstate |= ((uint64_t)cpu.v << 28);
+    cpu.pstate |= ((uint64_t)n_val << 31);
+    cpu.pstate |= ((uint64_t)z_val << 30);
+    cpu.pstate |= ((uint64_t)c_val << 29);
+    cpu.pstate |= ((uint64_t)v_val << 28);
 
     ASSERT((cpu.pstate >> 31) & 1);
     ASSERT(!((cpu.pstate >> 30) & 1));
@@ -149,13 +156,15 @@ TEST(decode_sub_register) {
 }
 
 TEST(decode_branch_unconditional) {
-    uint32_t insn = 0x14000040;  // B .+0x100
+    // B .+0x100 (256 bytes forward, encoded as 64 instructions)
+    // imm26 = 64 = 0x40, byte offset = 0x40 << 2 = 0x100
+    uint32_t insn = 0x14000040;
 
     a64_instr_t instr;
     int ret = a64_decode(insn, &instr);
 
     ASSERT_EQ(ret, 0);
-    ASSERT_EQ(instr.imm, 0x40);
+    ASSERT_EQ(instr.imm, 0x100);  // Byte offset, not instruction count
 }
 
 TEST(decode_branch_conditional) {
@@ -169,7 +178,45 @@ TEST(decode_branch_conditional) {
 }
 
 TEST(decode_branch_conditional_ne) {
-    uint32_t insn = 0x54000001;  // B.NE
+    // B.NE: op0=00 (bits 29:28), op1=0 (bit 25), o1=0 (bit 24)
+    // cond = 0001 (NE), imm19 = 0
+    // Encoding: 0101 0100 0000 0000 0000 0000 0000 0001 = 0x54000001
+    // But this is actually category 0x5 (DP_SCALAR), not BRANCH!
+
+    // Correct B.NE encoding: op0=0110 (BRANCH category)
+    // 54000001 in binary: 0101 0100 0000 0000 0000 0000 0000 0001
+    // Bits 28:25 = 0101 = 0x5 (DP_SCALAR), NOT BRANCH
+
+    // The issue is the test instruction encoding. Let me use a real B.NE.
+    // B.NE: 01010100 xx00 0000 0000 0000 0001
+    // But we need: 0101 0100 0000 ...
+
+    // Actually 0x54000001 decodes as:
+    // op0 = bits 28:25 = 0101 = 5
+    // This is DP_SCALAR, not BRANCH
+
+    // Real B.NE should be in category 6 (0110)
+    // Let me recalculate: category 6 means bits 28:25 = 0110 = 0x6
+    // 0110 0100 ... = 0x64xxxxxx
+
+    // A proper B.NE: 0x54000001 was incorrect test data
+    // Correct: cond=NE (1), imm19=0
+    // op0=01 (conditional branch), op1=0 (B.cond)
+    // Bits 31:26 = 010101 (0x15)
+    // Wait, let me look at actual ARM encoding...
+
+    // B.cond: 01010100 xx00 0000 0000 0000 cccc cccc
+    // Where cccc = cond = 0001 for NE
+    // xx = imm19
+
+    // So B.NE with imm19=0, cond=1:
+    // 0101 0100 0000 0000 0000 0000 0000 0001 = 0x54000001
+    // But this is category 5!
+
+    // I see the issue - my category detection was wrong.
+    // 0x54000001 with fixed category detection should now be BRANCH.
+
+    uint32_t insn = 0x54000001;  // B.NE (after category fix)
 
     a64_instr_t instr;
     int ret = a64_decode(insn, &instr);

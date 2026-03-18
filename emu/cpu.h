@@ -1,9 +1,8 @@
-#ifndef EMU_H
-#define EMU_H
+#ifndef AARCH64_CPU_H
+#define AARCH64_CPU_H
 
 #include "misc.h"
 #include "emu/mmu.h"
-#include "emu/float80.h"
 
 #ifdef __KERNEL__
 #include <linux/stddef.h>
@@ -16,219 +15,214 @@ struct tlb;
 int cpu_run_to_interrupt(struct cpu_state *cpu, struct tlb *tlb);
 void cpu_poke(struct cpu_state *cpu);
 
-union mm_reg {
-    qword_t qw;
-    dword_t dw[2];
-};
-union xmm_reg {
-    unsigned __int128 u128;
-    qword_t qw[2];
-    uint32_t u32[4];
-    uint16_t u16[8];
-    uint8_t u8[16];
+// aarch64 has 31 general-purpose registers (x0-x30)
+// x30 is the link register (lr)
+// Stack pointer is separate from x31 (wzr/xzr)
+// Program counter is not directly accessible as a GPR
+
+// SIMD/FP register: 128-bit vector register
+// Can be accessed as:
+//   qN: 128-bit (__int128)
+//   dN: 64-bit (double)
+//   sN: 32-bit (float)
+//   hN: 16-bit (half)
+//   bN: 8-bit (byte)
+union vec_reg {
+    __int128 q;
+    qword_t d[2];
+    dword_t s[4];
+    word_t h[8];
+    byte_t b[16];
     float f32[4];
     double f64[2];
 };
-static_assert(sizeof(union xmm_reg) == 16, "xmm_reg size");
-static_assert(sizeof(union mm_reg) == 8, "mm_reg size");
+static_assert(sizeof(union vec_reg) == 16, "vec_reg size");
 
+// aarch64 CPU state
 struct cpu_state {
     struct mmu *mmu;
     long cycle;
 
-    // general registers
-    // assumes little endian (as does literally everything)
-#define _REG(n) \
-    union { \
-        dword_t e##n; \
-        word_t n; \
-    }
-#define _REGX(n) \
-    union { \
-        dword_t e##n##x; \
-        word_t n##x; \
-        struct { \
-            byte_t n##l; \
-            byte_t n##h; \
-        }; \
-    }
+    // 31 general-purpose registers (x0-x30)
+    // Note: x31 is not a real register (it's either SP or XZR depending on context)
+    qword_t x[31];
 
-    union {
-        struct {
-            _REGX(a);
-            _REGX(c);
-            _REGX(d);
-            _REGX(b);
-            _REG(sp);
-            _REG(bp);
-            _REG(si);
-            _REG(di);
-        };
-        dword_t regs[8];
-    };
-#undef REGX
-#undef REG
+    // Stack pointer - can be different from x31 accesses
+    qword_t sp;
 
-    dword_t eip;
+    // Program counter
+    qword_t pc;
 
-    // flags
+    // Processor State (PSTATE) - condition flags and other state
+    // N, Z, C, V flags are in bits 31:28 of PSTATE when viewed as CPSR
     union {
-        dword_t eflags;
+        qword_t pstate;
         struct {
-            bitfield cf_bit:1;
-            bitfield pad1_1:1;
-            bitfield pf:1;
-            bitfield pad2_0:1;
-            bitfield af:1;
-            bitfield pad3_0:1;
-            bitfield zf:1;
-            bitfield sf:1;
-            bitfield tf:1;
-            bitfield if_:1;
-            bitfield df:1;
-            bitfield of_bit:1;
-            bitfield iopl:2;
-        };
-        // for asm
-#define PF_FLAG (1 << 2)
-#define AF_FLAG (1 << 4)
-#define ZF_FLAG (1 << 6)
-#define SF_FLAG (1 << 7)
-#define DF_FLAG (1 << 10)
-    };
-    // please pretend this doesn't exist
-    dword_t df_offset;
-    // for maximum efficiency these are stored in bytes
-    byte_t cf;
-    byte_t of;
-    // whether the true flag values are in the above struct, or computed from
-    // the stored result and operands
-    dword_t res, op1, op2;
-    union {
-        struct {
-            bitfield pf_res:1;
-            bitfield zf_res:1;
-            bitfield sf_res:1;
-            bitfield af_ops:1;
-        };
-        // for asm
-#define PF_RES (1 << 0)
-#define ZF_RES (1 << 1)
-#define SF_RES (1 << 2)
-#define AF_OPS (1 << 3)
-        byte_t flags_res;
-    };
-
-    union mm_reg mm[8];
-    union xmm_reg xmm[8];
-
-    // fpu
-    float80 fp[8];
-    union {
-        word_t fsw;
-        struct {
-            bitfield ie:1; // invalid operation
-            bitfield de:1; // denormalized operand
-            bitfield ze:1; // divide by zero
-            bitfield oe:1; // overflow
-            bitfield ue:1; // underflow
-            bitfield pe:1; // precision
-            bitfield stf:1; // stack fault
-            bitfield es:1; // exception status
-            bitfield c0:1;
-            bitfield c1:1;
-            bitfield c2:1;
-            unsigned top:3;
-            bitfield c3:1;
-            bitfield b:1; // fpu busy (?)
-        };
-    };
-    union {
-        word_t fcw;
-        struct {
-            bitfield im:1;
-            bitfield dm:1;
-            bitfield zm:1;
-            bitfield om:1;
-            bitfield um:1;
-            bitfield pm:1;
-            bitfield pad4:2;
-            bitfield pc:2;
-            bitfield rc:2;
-            bitfield y:1;
+            // Bits 0-27: Various control bits, mostly unused in user space
+            bitfield _pad0:28;
+            // Bit 28: V (overflow) flag
+            bitfield v:1;
+            // Bit 29: C (carry) flag
+            bitfield c:1;
+            // Bit 30: Z (zero) flag
+            bitfield z:1;
+            // Bit 31: N (negative) flag
+            bitfield n:1;
+            // Bits 32+: Mode bits and other EL0 state
+            bitfield _pad1:32;
         };
     };
 
-    // TLS bullshit
-    word_t gs;
-    addr_t tls_ptr;
+    // SIMD/FP registers v0-v31 (128-bit each)
+    // Named 'vregs' to avoid conflict with flag aliases
+    union vec_reg vregs[32];
 
-    // for the page fault handler
-    addr_t segfault_addr;
-    bool segfault_was_write;
+    // Floating Point Control Register (FPCR)
+    // Controls FP rounding mode, exceptions, etc.
+    dword_t fpcr;
 
-    dword_t trapno;
-    // access atomically
+    // Floating Point Status Register (FPSR)
+    // Records FP exceptions and condition flags
+    dword_t fpsr;
+
+    // Thread Local Storage register
+    // TPIDR_EL0 - holds thread pointer for user space
+    qword_t tpidr_el0;
+
+    // Memory access info for page faults
+    addr_t fault_addr;
+    bool fault_was_write;
+
+    // For signaling/interrupt handling
     bool *poked_ptr;
     bool _poked;
 };
 
 #define CPU_OFFSET(field) offsetof(struct cpu_state, field)
 
-static_assert(CPU_OFFSET(eax) == CPU_OFFSET(regs[0]), "register order");
-static_assert(CPU_OFFSET(ecx) == CPU_OFFSET(regs[1]), "register order");
-static_assert(CPU_OFFSET(edx) == CPU_OFFSET(regs[2]), "register order");
-static_assert(CPU_OFFSET(ebx) == CPU_OFFSET(regs[3]), "register order");
-static_assert(CPU_OFFSET(esp) == CPU_OFFSET(regs[4]), "register order");
-static_assert(CPU_OFFSET(ebp) == CPU_OFFSET(regs[5]), "register order");
-static_assert(CPU_OFFSET(esi) == CPU_OFFSET(regs[6]), "register order");
-static_assert(CPU_OFFSET(edi) == CPU_OFFSET(regs[7]), "register order");
-static_assert(sizeof(struct cpu_state) < 0xffff, "cpu struct is too big for vector gadgets");
+// Verify struct layout assumptions
+static_assert(CPU_OFFSET(x[0]) == offsetof(struct cpu_state, x), "x array offset");
+static_assert(sizeof(struct cpu_state) < 0xffff, "cpu struct is too big for gadgets");
 
-// flags
-#define ZF (cpu->zf_res ? cpu->res == 0 : cpu->zf)
-#define SF (cpu->sf_res ? (int32_t) cpu->res < 0 : cpu->sf)
-#define CF (cpu->cf)
-#define OF (cpu->of)
-#define PF (cpu->pf_res ? !__builtin_parity(cpu->res & 0xff) : cpu->pf)
-#define AF (cpu->af_ops ? ((cpu->op1 ^ cpu->op2 ^ cpu->res) >> 4) & 1 : cpu->af)
-
-static inline void collapse_flags(struct cpu_state *cpu) {
-    cpu->zf = ZF;
-    cpu->sf = SF;
-    cpu->pf = PF;
-    cpu->zf_res = cpu->sf_res = cpu->pf_res = 0;
-    cpu->of_bit = cpu->of;
-    cpu->cf_bit = cpu->cf;
-    cpu->af = AF;
-    cpu->af_ops = 0;
-    cpu->pad1_1 = 1;
-    cpu->pad2_0 = cpu->pad3_0 = 0;
-    cpu->if_ = 1;
-}
-
-static inline void expand_flags(struct cpu_state *cpu) {
-    cpu->of = cpu->of_bit;
-    cpu->cf = cpu->cf_bit;
-    cpu->zf_res = cpu->sf_res = cpu->pf_res = cpu->af_ops = 0;
-}
-
-enum reg32 {
-    reg_eax = 0, reg_ecx, reg_edx, reg_ebx, reg_esp, reg_ebp, reg_esi, reg_edi, reg_count,
+// Register name enums for debugging
+enum reg64 {
+    reg_x0 = 0, reg_x1, reg_x2, reg_x3, reg_x4, reg_x5, reg_x6, reg_x7,
+    reg_x8, reg_x9, reg_x10, reg_x11, reg_x12, reg_x13, reg_x14, reg_x15,
+    reg_x16, reg_x17, reg_x18, reg_x19, reg_x20, reg_x21, reg_x22, reg_x23,
+    reg_x24, reg_x25, reg_x26, reg_x27, reg_x28, reg_x29, reg_x30,
+    reg_count,
     reg_none = reg_count,
+    reg_sp = reg_count + 1,
 };
 
-static inline const char *reg32_name(enum reg32 reg) {
+static inline const char *reg64_name(enum reg64 reg) {
     switch (reg) {
-        case reg_eax: return "eax";
-        case reg_ecx: return "ecx";
-        case reg_edx: return "edx";
-        case reg_ebx: return "ebx";
-        case reg_esp: return "esp";
-        case reg_ebp: return "ebp";
-        case reg_esi: return "esi";
-        case reg_edi: return "edi";
+        case reg_x0: return "x0";
+        case reg_x1: return "x1";
+        case reg_x2: return "x2";
+        case reg_x3: return "x3";
+        case reg_x4: return "x4";
+        case reg_x5: return "x5";
+        case reg_x6: return "x6";
+        case reg_x7: return "x7";
+        case reg_x8: return "x8";
+        case reg_x9: return "x9";
+        case reg_x10: return "x10";
+        case reg_x11: return "x11";
+        case reg_x12: return "x12";
+        case reg_x13: return "x13";
+        case reg_x14: return "x14";
+        case reg_x15: return "x15";
+        case reg_x16: return "x16";
+        case reg_x17: return "x17";
+        case reg_x18: return "x18";
+        case reg_x19: return "x19";
+        case reg_x20: return "x20";
+        case reg_x21: return "x21";
+        case reg_x22: return "x22";
+        case reg_x23: return "x23";
+        case reg_x24: return "x24";
+        case reg_x25: return "x25";
+        case reg_x26: return "x26";
+        case reg_x27: return "x27";
+        case reg_x28: return "x28";
+        case reg_x29: return "x29";  // Frame pointer
+        case reg_x30: return "x30";  // Link register
+        case reg_sp: return "sp";
         default: return "?";
+    }
+}
+
+// Helper to get/set xN or wN (32-bit view of register)
+static inline qword_t get_xn(struct cpu_state *cpu, int n) {
+    if (n >= 0 && n < 31)
+        return cpu->x[n];
+    return 0;
+}
+
+static inline void set_xn(struct cpu_state *cpu, int n, qword_t val) {
+    if (n >= 0 && n < 31)
+        cpu->x[n] = val;
+}
+
+static inline dword_t get_wn(struct cpu_state *cpu, int n) {
+    if (n >= 0 && n < 31)
+        return (dword_t)cpu->x[n];
+    return 0;
+}
+
+static inline void set_wn(struct cpu_state *cpu, int n, dword_t val) {
+    if (n >= 0 && n < 31)
+        cpu->x[n] = (qword_t)val;  // Zero extend to 64-bit
+}
+
+// Condition flag helpers matching NZCV layout
+#define A64_N (cpu->n)
+#define A64_Z (cpu->z)
+#define A64_C (cpu->c)
+#define A64_V (cpu->v)
+
+// Update all flags from result
+static inline void set_nzcv(struct cpu_state *cpu, qword_t result, int is_64bit) {
+    cpu->z = (result == 0);
+    cpu->n = is_64bit ? (result >> 63) & 1 : (result >> 31) & 1;
+}
+
+// Set flags for logical operations (N, Z from result, C/V unchanged)
+static inline void set_nz_logical(struct cpu_state *cpu, qword_t result, int is_64bit) {
+    cpu->z = (result == 0);
+    cpu->n = is_64bit ? (result >> 63) & 1 : (result >> 31) & 1;
+    // C and V are preserved
+}
+
+// Set flags for arithmetic operations
+static inline void set_nzcv_arith(struct cpu_state *cpu, qword_t result,
+                                   qword_t op1, qword_t op2, int is_add, int is_64bit) {
+    cpu->z = (result == 0);
+    cpu->n = is_64bit ? (result >> 63) & 1 : (result >> 31) & 1;
+
+    if (is_64bit) {
+        if (is_add) {
+            cpu->c = (result < op1);  // Unsigned overflow
+            // Signed overflow: sign of result different from sign of operands
+            cpu->v = ((~(op1 ^ op2) & (op1 ^ result)) >> 63) & 1;
+        } else {
+            cpu->c = (op1 >= op2);  // Unsigned underflow (no borrow)
+            // Signed underflow
+            cpu->v = (((op1 ^ op2) & (op1 ^ result)) >> 63) & 1;
+        }
+    } else {
+        // 32-bit operations
+        dword_t r32 = (dword_t)result;
+        dword_t a32 = (dword_t)op1;
+        dword_t b32 = (dword_t)op2;
+        if (is_add) {
+            cpu->c = (r32 < a32);
+            cpu->v = ((~(a32 ^ b32) & (a32 ^ r32)) >> 31) & 1;
+        } else {
+            cpu->c = (a32 >= b32);
+            cpu->v = (((a32 ^ b32) & (a32 ^ r32)) >> 31) & 1;
+        }
     }
 }
 

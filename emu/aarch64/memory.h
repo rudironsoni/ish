@@ -25,41 +25,43 @@
 #define A64_MEM_OK    0
 #define A64_MEM_FAULT 1
 
+struct tlb;
+
 /*
  * Read from guest memory with TLB translation
  * Handles page faults by setting cpu->fault_addr
  */
-int a64_guest_read8(struct cpu_state *cpu, uint64_t addr, uint8_t *val);
-int a64_guest_read16(struct cpu_state *cpu, uint64_t addr, uint16_t *val);
-int a64_guest_read32(struct cpu_state *cpu, uint64_t addr, uint32_t *val);
-int a64_guest_read64(struct cpu_state *cpu, uint64_t addr, uint64_t *val);
+int a64_guest_read8(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, uint8_t *val);
+int a64_guest_read16(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, uint16_t *val);
+int a64_guest_read32(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, uint32_t *val);
+int a64_guest_read64(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, uint64_t *val);
 
 /*
  * Write to guest memory with TLB translation
  */
-int a64_guest_write8(struct cpu_state *cpu, uint64_t addr, uint8_t val);
-int a64_guest_write16(struct cpu_state *cpu, uint64_t addr, uint16_t val);
-int a64_guest_write32(struct cpu_state *cpu, uint64_t addr, uint32_t val);
-int a64_guest_write64(struct cpu_state *cpu, uint64_t addr, uint64_t val);
+int a64_guest_write8(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, uint8_t val);
+int a64_guest_write16(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, uint16_t val);
+int a64_guest_write32(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, uint32_t val);
+int a64_guest_write64(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, uint64_t val);
 
 /*
  * Generic access with size parameter
  */
-int a64_guest_read(struct cpu_state *cpu, uint64_t addr, void *val, int size);
-int a64_guest_write(struct cpu_state *cpu, uint64_t addr, const void *val, int size);
+int a64_guest_read(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, void *val, int size);
+int a64_guest_write(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, const void *val, int size);
 
 /*
  * Atomic operations (for ldxr/stxr pairs)
  */
-int a64_guest_ldxr8(struct cpu_state *cpu, uint64_t addr, uint8_t *val);
-int a64_guest_ldxr16(struct cpu_state *cpu, uint64_t addr, uint16_t *val);
-int a64_guest_ldxr32(struct cpu_state *cpu, uint64_t addr, uint32_t *val);
-int a64_guest_ldxr64(struct cpu_state *cpu, uint64_t addr, uint64_t *val);
+int a64_guest_ldxr8(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, uint8_t *val);
+int a64_guest_ldxr16(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, uint16_t *val);
+int a64_guest_ldxr32(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, uint32_t *val);
+int a64_guest_ldxr64(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, uint64_t *val);
 
-int a64_guest_stxr8(struct cpu_state *cpu, uint64_t addr, uint8_t val, int *success);
-int a64_guest_stxr16(struct cpu_state *cpu, uint64_t addr, uint16_t val, int *success);
-int a64_guest_stxr32(struct cpu_state *cpu, uint64_t addr, uint32_t val, int *success);
-int a64_guest_stxr64(struct cpu_state *cpu, uint64_t addr, uint64_t val, int *success);
+int a64_guest_stxr8(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, uint8_t val, int *success);
+int a64_guest_stxr16(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, uint16_t val, int *success);
+int a64_guest_stxr32(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, uint32_t val, int *success);
+int a64_guest_stxr64(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, uint64_t val, int *success);
 
 /*
  * Exclusive monitor operations
@@ -80,7 +82,7 @@ void a64_tlb_flush_page(struct tlb *tlb, uint64_t addr);
  * Get host address for a guest address (if mapped)
  * Returns NULL if page not mapped
  */
-void *a64_guest_to_host(struct cpu_state *cpu, uint64_t addr, int write);
+void *a64_guest_to_host(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, int write);
 
 /*
  * Page fault handling
