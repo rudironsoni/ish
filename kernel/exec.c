@@ -43,13 +43,23 @@ static int read_header(struct fd *fd, struct elf_header *header) {
             return _EIO;
         return _ENOEXEC;
     }
+    // Validate ELF header
     if (memcmp(&header->magic, ELF_MAGIC, sizeof(header->magic)) != 0
             || (header->type != ELF_EXECUTABLE && header->type != ELF_DYNAMIC)
-            || header->bitness != ELF_32BIT
             || header->endian != ELF_LITTLEENDIAN
-            || header->elfversion1 != 1
-            || header->machine != ELF_X86)
+            || header->elfversion1 != 1)
         return _ENOEXEC;
+
+    // Architecture-specific validation
+#if defined(ARCH_AARCH64)
+    if (header->bitness != ELF_64BIT || header->machine != ELF_AARCH64)
+        return _ENOEXEC;
+#else
+    // x86 (default)
+    if (header->bitness != ELF_32BIT || header->machine != ELF_X86)
+        return _ENOEXEC;
+#endif
+    return 0;
     return 0;
 }
 

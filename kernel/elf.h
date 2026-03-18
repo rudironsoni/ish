@@ -14,6 +14,15 @@
 #define ELF_X86 3
 #define ELF_AARCH64 183  // EM_AARCH64 from Linux
 
+// Architecture-specific types
+#if defined(ARCH_AARCH64)
+typedef uint64_t elf_addr_t;
+typedef uint64_t elf_off_t;
+#else
+typedef uint32_t elf_addr_t;
+typedef uint32_t elf_off_t;
+#endif
+
 struct elf_header {
     uint32_t magic;
     byte_t bitness;
@@ -25,9 +34,9 @@ struct elf_header {
     uint16_t type; // library or executable or what
     uint16_t machine;
     uint32_t elfversion2;
-    dword_t entry_point;
-    dword_t prghead_off;
-    dword_t secthead_off;
+    elf_addr_t entry_point;
+    elf_off_t prghead_off;
+    elf_off_t secthead_off;
     uint32_t flags;
     uint16_t header_size;
     uint16_t phent_size;
@@ -49,13 +58,13 @@ struct elf_header {
 
 struct prg_header {
     uint32_t type;
-    dword_t offset;
-    dword_t vaddr;
-    dword_t paddr;
-    dword_t filesize;
-    dword_t memsize;
+    elf_off_t offset;
+    elf_addr_t vaddr;
+    elf_addr_t paddr;
+    elf_off_t filesize;
+    elf_off_t memsize;
     uint32_t flags;
-    dword_t alignment; // must be power of 2
+    elf_off_t alignment; // must be power of 2
 };
 
 #define PH_R (1 << 2)
