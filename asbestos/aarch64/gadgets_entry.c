@@ -1,135 +1,67 @@
-#include "asbestos/aarch64/gadgets.h"
+/*
+ * Entry/exit gadgets for TCTI
+ */
+
+#include "asbestos/aarch64/gadgets_tcti.h"
 #include "emu/aarch64/cpu.h"
-#include <string.h>
 
-// Block cache entry - maps guest addresses to compiled blocks
-#define BLOCK_CACHE_BITS 16
-#define BLOCK_CACHE_SIZE (1 << BLOCK_CACHE_BITS)
-#define BLOCK_CACHE_MASK (BLOCK_CACHE_SIZE - 1)
-
-static a64_fiber_block_t *block_cache[BLOCK_CACHE_SIZE];
-
-// Hash function for block cache
-static inline size_t block_hash(uint64_t addr) {
-    return (addr >> 2) & BLOCK_CACHE_MASK;
+// Block entry - sets up execution environment
+__attribute__((naked)) void tcti_entry_block(void) {
+    // x29 = cpu_state pointer (set by caller)
+    // x28 = bytecode stream pointer (set by caller)
+    asm volatile(
+        // Load TCTI-mapped registers from CPU state
+        "ldr x1, [x29, #(8*0)]\n\t"   // x0
+        "ldr x2, [x29, #(8*1)]\n\t"   // x1
+        "ldr x3, [x29, #(8*2)]\n\t"   // x2
+        "ldr x4, [x29, #(8*3)]\n\t"   // x3
+        "ldr x5, [x29, #(8*4)]\n\t"   // x4
+        "ldr x6, [x29, #(8*5)]\n\t"   // x5
+        "ldr x7, [x29, #(8*6)]\n\t"   // x6
+        "ldr x8, [x29, #(8*7)]\n\t"   // x7
+        "ldr x9, [x29, #(8*8)]\n\t"   // x8
+        "ldr x10, [x29, #(8*9)]\n\t"  // x9
+        "ldr x11, [x29, #(8*10)]\n\t" // x10
+        "ldr x12, [x29, #(8*11)]\n\t" // x11
+        "ldr x13, [x29, #(8*12)]\n\t" // x12
+        "ldr x14, [x29, #(8*13)]\n\t" // x13
+        "ldr x15, [x29, #(8*14)]\n\t" // x14
+        "ldr x16, [x29, #(8*15)]\n\t" // x15
+        // Load next gadget address and jump
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
 }
 
-// Allocate a new fiber block
-a64_fiber_block_t *a64_alloc_block(uint64_t guest_addr, size_t max_gadgets) {
-    a64_fiber_block_t *block = malloc(sizeof(a64_fiber_block_t));
-    if (!block) return NULL;
+// Block exit - saves registers and returns to C
+void tcti_exit_block(int reason) {
+    // Save TCTI-mapped registers back to CPU state
+    asm volatile(
+        "str x1, [%[cpu], #(8*0)]\n\t"
+        "str x2, [%[cpu], #(8*1)]\n\t"
+        "str x3, [%[cpu], #(8*2)]\n\t"
+        "str x4, [%[cpu], #(8*3)]\n\t"
+        "str x5, [%[cpu], #(8*4)]\n\t"
+        "str x6, [%[cpu], #(8*5)]\n\t"
+        "str x7, [%[cpu], #(8*6)]\n\t"
+        "str x8, [%[cpu], #(8*7)]\n\t"
+        "str x9, [%[cpu], #(8*8)]\n\t"
+        "str x10, [%[cpu], #(8*9)]\n\t"
+        "str x11, [%[cpu], #(8*10)]\n\t"
+        "str x12, [%[cpu], #(8*11)]\n\t"
+        "str x13, [%[cpu], #(8*12)]\n\t"
+        "str x14, [%[cpu], #(8*13)]\n\t"
+        "str x15, [%[cpu], #(8*14)]\n\t"
+        "str x16, [%[cpu], #(8*15)]\n\t"
+        :
+        : [cpu] "r" (NULL)  // Will be set properly in actual implementation
+        : "memory"
+    );
 
-    block->code = malloc(sizeof(gadget_fn_t) * (max_gadgets + 1));
-    if (!block->code) {
-        free(block);
-        return NULL;
-    }
-
-    block->guest_addr = guest_addr;
-    block->num_gadgets = 0;
-    block->next = NULL;
-
-    return block;
-}
-
-// Free a fiber block
-void a64_free_block(a64_fiber_block_t *block) {
-    if (block) {
-        free(block->code);
-        free(block);
-    }
-}
-
-// Look up a block in the cache
-a64_fiber_block_t *a64_lookup_block(uint64_t guest_addr) {
-    size_t idx = block_hash(guest_addr);
-    a64_fiber_block_t *block = block_cache[idx];
-
-    while (block) {
-        if (block->guest_addr == guest_addr)
-            return block;
-        block = block->next;
-    }
-
-    return NULL;
-}
-
-// Insert a block into the cache
-void a64_insert_block(a64_fiber_block_t *block) {
-    size_t idx = block_hash(block->guest_addr);
-    block->next = block_cache[idx];
-    block_cache[idx] = block;
-}
-
-// Invalidate all blocks containing an address range
-void a64_invalidate_blocks(uint64_t start, uint64_t end) {
-    // Simple implementation: could be optimized
-    for (int i = 0; i < BLOCK_CACHE_SIZE; i++) {
-        a64_fiber_block_t **pp = &block_cache[i];
-        while (*pp) {
-            a64_fiber_block_t *block = *pp;
-            // Check if block overlaps invalidated range
-            if (block->guest_addr >= start && block->guest_addr < end) {
-                *pp = block->next;
-                a64_free_block(block);
-            } else {
-                pp = &block->next;
-            }
-        }
-    }
-}
-
-// Entry point to execute code at a guest address
-gadget_fn_t a64_gadget_entry(struct cpu_state *cpu, uint64_t addr) {
-    // Look for existing block
-    a64_fiber_block_t *block = a64_lookup_block(addr);
-
-    if (!block) {
-        // Need to compile a new block
-        // This would call into the generator
-        // For now, return a special "compile" gadget
-        return NULL; // TODO: implement compile path
-    }
-
-    // Set PC and return first gadget
-    cpu->pc = addr;
-    return (gadget_fn_t)block->code[0];
-}
-
-// Exit from gadget chain
-void a64_gadget_exit(struct cpu_state *cpu, int status) {
-    // Save state, handle interrupts, etc.
-    // status: 0=normal, 1=interrupt, 2=syscall, 3=page fault
-
-    switch (status) {
-        case 0: // Normal exit
-            break;
-        case 1: // Interrupt
-            // Handle pending interrupt
-            break;
-        case 2: // Syscall
-            // SVC was executed, syscall number in x8
-            break;
-        case 3: // Page fault
-            // Handle page fault using fault_addr
-            break;
-    }
-}
-
-// Initialize gadget system
-void a64_gadgets_init(void) {
-    memset(block_cache, 0, sizeof(block_cache));
-}
-
-// Cleanup gadget system
-void a64_gadgets_cleanup(void) {
-    for (int i = 0; i < BLOCK_CACHE_SIZE; i++) {
-        a64_fiber_block_t *block = block_cache[i];
-        while (block) {
-            a64_fiber_block_t *next = block->next;
-            a64_free_block(block);
-            block = next;
-        }
-        block_cache[i] = NULL;
-    }
+    // Handle exit reason
+    // reason = 0: normal block end
+    // reason = 1: branch
+    // reason = 2: syscall
+    // reason = 3: signal
+    (void)reason;
 }

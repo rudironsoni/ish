@@ -5,6 +5,16 @@
 
 # aarch64 architecture define
 add_project_arguments('-DARCH_AARCH64=1', language: 'c')
+add_project_arguments('-DENGINE_AARCH64=1', language: 'c')
+
+# Generate TCTI gadgets if the implementation doesn't exist
+# This runs the Python script to generate the large gadget tables
+tcti_gadget_gen = custom_target('tcti_gadgets',
+    output: ['gadgets_tcti.h', 'gadgets_tcti_impl.c'],
+    input: 'asbestos/aarch64/tcti-gadget-gen.py',
+    command: [find_program('python3'), '@INPUT@', '-o', 'asbestos/aarch64'],
+    build_by_default: true,
+)
 
 # aarch64-specific emulator sources
 aarch64_emu_src = [
@@ -20,27 +30,14 @@ aarch64_kernel_src = [
     'emu/aarch64/tls.h',
 ]
 
-# TCTI gadget sources
-# These are pre-generated C files with naked functions
-tcti_gadget_src = [
-    'asbestos/aarch64/gadgets_tcti_impl.c',
-]
-
-# aarch64 gadget headers (no assembly, pure C with inline asm)
+# TCTI gadget sources - pre-generated C files with naked functions
+# Only include the generated implementation, not the generator script
 aarch64_gadget_src = [
     'asbestos/aarch64/gadgets_entry.c',
     'asbestos/aarch64/gadgets_arith.c',
     'asbestos/aarch64/gen.c',
+    tcti_gadget_gen,
 ]
-
-# Generate TCTI gadgets if needed
-# This runs the Python script to generate the large gadget tables
-tcti_gadget_gen = custom_target('tcti_gadgets',
-    output: ['tcti_basic_gadgets.c', 'tcti_basic_gadgets.h'],
-    input: 'asbestos/aarch64/tcti-gadget-gen.py',
-    command: [python, '@INPUT@'],
-    build_by_default: false,
-)
 
 # Offsets for aarch64 CPU state
 aarch64_offsets = custom_target('aarch64_offsets',
@@ -51,7 +48,7 @@ aarch64_offsets = custom_target('aarch64_offsets',
 )
 
 # Combine all aarch64 sources
-aarch64_all_src = aarch64_emu_src + aarch64_kernel_src + tcti_gadget_src + aarch64_gadget_src
+aarch64_all_src = aarch64_emu_src + aarch64_kernel_src + aarch64_gadget_src
 
 # Dependencies for aarch64
 # No special dependencies beyond standard ones

@@ -1,192 +1,99 @@
-#include "asbestos/aarch64/gadgets.h"
-#include "emu/aarch64/decode.h"
+/*
+ * Arithmetic gadget implementations
+ * These provide the actual computation for arithmetic operations
+ * that need more than just a simple instruction
+ */
 
-// Helper to set NZCV flags based on result
-static inline void set_flags_add(struct cpu_state *cpu, uint64_t result,
-                                  uint64_t op1, uint64_t op2, int is_64bit) {
-    cpu->z = (result == 0);
-    cpu->n = is_64bit ? ((result >> 63) & 1) : ((result >> 31) & 1);
+#include "asbestos/aarch64/gadgets_tcti.h"
+#include "emu/aarch64/cpu.h"
 
-    if (is_64bit) {
-        // Unsigned overflow (carry): result < op1
-        cpu->c = (result < op1);
-        // Signed overflow: operands same sign, result different
-        cpu->v = ((~(op1 ^ op2) & (op1 ^ result)) >> 63) & 1;
-    } else {
-        uint32_t r32 = (uint32_t)result;
-        uint32_t a32 = (uint32_t)op1;
-        cpu->c = (r32 < a32);
-        cpu->v = ((~(a32 ^ (uint32_t)op2) & (a32 ^ r32)) >> 31) & 1;
-    }
+// Flag-setting variants of arithmetic operations
+// These update NZCV flags in addition to computing the result
+
+// ADDS (flag-setting add)
+__attribute__((naked)) void gadget_adds_reg_0_1_2(void) {
+    asm volatile(
+        "adds x1, x2, x3\n\t"      // Set flags
+        "ldr x27, [x28], #8\n\t"  // Load next gadget
+        "br x27\n\t"
+    );
 }
 
-static inline void set_flags_sub(struct cpu_state *cpu, uint64_t result,
-                                  uint64_t op1, uint64_t op2, int is_64bit) {
-    cpu->z = (result == 0);
-    cpu->n = is_64bit ? ((result >> 63) & 1) : ((result >> 31) & 1);
-
-    if (is_64bit) {
-        // Unsigned underflow (borrow): op1 >= op2 means no borrow
-        cpu->c = (op1 >= op2);
-        // Signed underflow
-        cpu->v = (((op1 ^ op2) & (op1 ^ result)) >> 63) & 1;
-    } else {
-        uint32_t r32 = (uint32_t)result;
-        uint32_t a32 = (uint32_t)op1;
-        uint32_t b32 = (uint32_t)op2;
-        cpu->c = (a32 >= b32);
-        cpu->v = (((a32 ^ b32) & (a32 ^ r32)) >> 31) & 1;
-    }
+// SUBS (flag-setting subtract)
+__attribute__((naked)) void gadget_subs_reg_0_1_2(void) {
+    asm volatile(
+        "subs x1, x2, x3\n\t"      // Set flags
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
 }
 
-// ADD immediate: Rd = Rn + imm
-void gadget_add_imm_impl(struct cpu_state *cpu, int Rd, int Rn,
-                           int64_t imm, int set_flags, int is_64bit) {
-    uint64_t operand = (Rn == 31) ? cpu->sp : cpu->x[Rn];
-    uint64_t result = operand + imm;
-
-    if (Rd == 31) {
-        if (Rn == 31) {
-            // ADD SP, SP, #imm
-            cpu->sp = result;
-        }
-        // else: writes to XZR are discarded
-    } else {
-        cpu->x[Rd] = is_64bit ? result : (uint32_t)result;
-    }
-
-    if (set_flags) {
-        set_flags_add(cpu, result, operand, imm, is_64bit);
-    }
+// CMP (compare - subtract that only sets flags)
+__attribute__((naked)) void gadget_cmp_0_1(void) {
+    asm volatile(
+        "subs xzr, x1, x2\n\t"     // Compare, discard result
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
 }
 
-// ADD register: Rd = Rn + Rm
-void gadget_add_reg_impl(struct cpu_state *cpu, int Rd, int Rn, int Rm,
-                          int shift, int shift_amt, int set_flags, int is_64bit) {
-    uint64_t op1 = (Rn == 31) ? cpu->sp : cpu->x[Rn];
-    uint64_t op2 = (Rm == 31) ? 0 : cpu->x[Rm];
-
-    // Apply shift
-    if (shift == 0) { // LSL
-        op2 <<= shift_amt;
-    } else if (shift == 1) { // LSR
-        op2 = is_64bit ? (op2 >> shift_amt) : ((uint32_t)op2 >> shift_amt);
-    } else if (shift == 2) { // ASR
-        op2 = is_64bit ? ((int64_t)op2 >> shift_amt) : ((int32_t)op2 >> shift_amt);
-    }
-
-    uint64_t result = op1 + op2;
-
-    if (Rd == 31) {
-        // Writes to XZR discarded, but if Rn was SP, update SP
-        if (Rn == 31) {
-            cpu->sp = result;
-        }
-    } else {
-        cpu->x[Rd] = is_64bit ? result : (uint32_t)result;
-    }
-
-    if (set_flags) {
-        set_flags_add(cpu, result, op1, op2, is_64bit);
-    }
+// CMN (compare negative - add that only sets flags)
+__attribute__((naked)) void gadget_cmn_0_1(void) {
+    asm volatile(
+        "adds xzr, x1, x2\n\t"     // Compare negative, discard result
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
 }
 
-// SUB immediate: Rd = Rn - imm
-void gadget_sub_imm_impl(struct cpu_state *cpu, int Rd, int Rn,
-                           int64_t imm, int set_flags, int is_64bit) {
-    uint64_t operand = (Rn == 31) ? cpu->sp : cpu->x[Rn];
-    uint64_t result = operand - imm;
-
-    if (Rd == 31) {
-        if (Rn == 31) {
-            cpu->sp = result;
-        }
-    } else {
-        cpu->x[Rd] = is_64bit ? result : (uint32_t)result;
-    }
-
-    if (set_flags) {
-        set_flags_sub(cpu, result, operand, imm, is_64bit);
-    }
+// TST (test - AND that only sets flags)
+__attribute__((naked)) void gadget_tst_0_1(void) {
+    asm volatile(
+        "ands xzr, x1, x2\n\t"     // Test, discard result
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
 }
 
-// SUB register: Rd = Rn - Rm
-void gadget_sub_reg_impl(struct cpu_state *cpu, int Rd, int Rn, int Rm,
-                          int shift, int shift_amt, int set_flags, int is_64bit) {
-    uint64_t op1 = (Rn == 31) ? cpu->sp : cpu->x[Rn];
-    uint64_t op2 = (Rm == 31) ? 0 : cpu->x[Rm];
+// Load/store for TCTI-mapped registers
+// These handle reading from/writing to the CPU state for memory-backed regs
 
-    // Apply shift
-    if (shift == 0) { // LSL
-        op2 <<= shift_amt;
-    } else if (shift == 1) { // LSR
-        op2 = is_64bit ? (op2 >> shift_amt) : ((uint32_t)op2 >> shift_amt);
-    } else if (shift == 2) { // ASR
-        op2 = is_64bit ? ((int64_t)op2 >> shift_amt) : ((int32_t)op2 >> shift_amt);
-    }
-
-    uint64_t result = op1 - op2;
-
-    if (Rd == 31) {
-        if (Rn == 31) {
-            cpu->sp = result;
-        }
-    } else {
-        cpu->x[Rd] = is_64bit ? result : (uint32_t)result;
-    }
-
-    if (set_flags) {
-        set_flags_sub(cpu, result, op1, op2, is_64bit);
-    }
+// Load memory-backed register into x0 (for operations)
+__attribute__((naked)) void gadget_load_xreg(int reg) {
+    // Load x[reg+16] from cpu state into x0
+    // reg is in range 0-15 (maps to x16-x30) or -1 for SP
+    asm volatile(
+        "cmp x0, #-1\n\t"
+        "b.eq 1f\n\t"               // SP case
+        "add x1, x29, %[off]\n\t"   // Calculate offset
+        "add x1, x1, x0, lsl #3\n\t"
+        "ldr x0, [x1]\n\t"          // Load value
+        "b 2f\n\t"
+        "1:\n\t"
+        "ldr x0, [x29, %[sp_off]]\n\t" // Load SP
+        "2:\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+        :
+        : [off] "i" (16*8), [sp_off] "i" (offsetof(struct cpu_state, sp))
+    );
 }
 
-// ADC: Rd = Rn + Rm + C
-void gadget_adc_impl(struct cpu_state *cpu, int Rd, int Rn, int Rm,
-                      int set_flags, int is_64bit) {
-    uint64_t op1 = cpu->x[Rn];
-    uint64_t op2 = cpu->x[Rm];
-    uint64_t carry = cpu->c ? 1 : 0;
-    uint64_t result = op1 + op2 + carry;
-
-    cpu->x[Rd] = is_64bit ? result : (uint32_t)result;
-
-    if (set_flags) {
-        set_flags_add(cpu, result, op1, op2 + carry, is_64bit);
-    }
-}
-
-// SBC: Rd = Rn - Rm - ~C
-void gadget_sbc_impl(struct cpu_state *cpu, int Rd, int Rn, int Rm,
-                      int set_flags, int is_64bit) {
-    uint64_t op1 = cpu->x[Rn];
-    uint64_t op2 = cpu->x[Rm];
-    uint64_t carry = cpu->c ? 0 : 1;  // Inverted carry for subtraction
-    uint64_t result = op1 - op2 - carry;
-
-    cpu->x[Rd] = is_64bit ? result : (uint32_t)result;
-
-    if (set_flags) {
-        set_flags_sub(cpu, result, op1, op2 + carry, is_64bit);
-    }
-}
-
-// Generic ADD immediate gadget (decodes instruction from context)
-gadget_fn_t gadget_add_imm(struct cpu_state *cpu) {
-    // The decoder would have set up the instruction details
-    // For now, this is a placeholder
-    cpu->pc += 4;
-    return NULL;
-}
-
-// CMP (compare) - SUBS with Rd=31
-gadget_fn_t gadget_cmp_imm(struct cpu_state *cpu) {
-    // Implementation
-    cpu->pc += 4;
-    return NULL;
-}
-
-gadget_fn_t gadget_cmp_reg(struct cpu_state *cpu) {
-    // Implementation
-    cpu->pc += 4;
-    return NULL;
+// Store x0 to memory-backed register
+__attribute__((naked)) void gadget_store_xreg(int reg) {
+    asm volatile(
+        "cmp x0, #-1\n\t"
+        "b.eq 1f\n\t"
+        "add x1, x29, %[off]\n\t"
+        "add x1, x1, x0, lsl #3\n\t"
+        "str %[val], [x1]\n\t"
+        "b 2f\n\t"
+        "1:\n\t"
+        "str %[val], [x29, %[sp_off]]\n\t"
+        "2:\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+        :
+        : [off] "i" (16*8), [sp_off] "i" (offsetof(struct cpu_state, sp)), [val] "r" (0)
+    );
 }
