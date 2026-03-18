@@ -4,6 +4,7 @@ option('log_handler', type: 'string', value: 'dprintf')
 
 option('engine', type: 'combo', choices: ['asbestos', 'unicorn'], value: 'asbestos')
 option('kernel', type: 'combo', choices: ['ish', 'linux'], value: 'ish')
+option('arch', type: 'combo', choices: ['x86', 'aarch64'], value: 'x86', description: 'Target architecture for emulation')
 option('kconfig', type: 'array', value: [])
 
 option('vdso_c_args', type: 'string', value: '')
