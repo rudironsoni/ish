@@ -1,0 +1,628 @@
+#include "emu/aarch64/decode.h"
+#include <string.h>
+#include <stdio.h>
+
+// Main decode entry point
+int a64_decode(uint32_t insn, a64_instr_t *out) {
+    memset(out, 0, sizeof(*out));
+    out->raw = insn;
+
+    // Get main category from bits 28:25
+    a64_category_t cat = a64_get_category(insn);
+    out->cat = cat;
+
+    switch (cat) {
+        case A64_DP_IMM:
+        case A64_DP_IMM2:
+            return a64_decode_dp_imm(insn, out);
+
+        case A64_DP_REG:
+        case A64_DP_REG2:
+        case A64_DP_SCALAR:
+        case A64_DP_SCALAR2:
+            return a64_decode_dp_reg(insn, out);
+
+        case A64_BRANCH:
+        case A64_BRANCH2:
+            return a64_decode_branch(insn, out);
+
+        case A64_LD_ST:
+        case A64_LD_ST2:
+            return a64_decode_ldst(insn, out);
+
+        case A64_SIMD_SCALAR:
+        case A64_SIMD_SCALAR2:
+        case A64_SIMD_VECTOR:
+        case A64_SIMD_VECTOR2:
+            return a64_decode_simd_fp(insn, out);
+
+        case A64_RESERVED:
+        case A64_RESERVED2:
+        default:
+            // Undefined/unallocated
+            return -1;
+    }
+}
+
+// Data Processing - Immediate
+int a64_decode_dp_imm(uint32_t insn, a64_instr_t *out) {
+    // Check if this is actually DP_IMM (bit 28 should be 1 for these)
+    if (!(insn & (1 << 28)))
+        return -1;
+
+    // Get subcategory from bits 25:23
+    int op0 = bits(insn, 25, 23);
+
+    // Common: sf bit (bit 31) indicates 64-bit operation
+    out->is_64bit = bit(insn, 31);
+
+    switch (op0) {
+        case 0: // 000 - PC-rel addressing (ADR, ADRP)
+        {
+            int op = bit(insn, 31); // 0=ADR, 1=ADRP
+            out->Rd = bits(insn, 4, 0);
+            // imm = immhi:immlo
+            int64_t immhi = bits(insn, 23, 5);
+            int immlo = bits(insn, 30, 29);
+            out->imm = (immhi << 2) | immlo;
+            if (op) {
+                // ADRP - page aligned, sign extended
+                out->imm = sign_extend(out->imm, 21) << 12;
+                out->subtype = 1; // ADRP
+            } else {
+                // ADR - byte aligned, sign extended
+                out->imm = sign_extend(out->imm, 21);
+                out->subtype = 0; // ADR
+            }
+            return 0;
+        }
+
+        case 2: // 010 - Add/Subtract immediate
+        case 3: // 011 - Add/Subtract immediate (with shift)
+        {
+            int op = bit(insn, 30); // 0=ADD, 1=SUB
+            int S = bit(insn, 29);  // Set flags
+            out->is_64bit = bit(insn, 31);
+            out->Rd = bits(insn, 4, 0);
+            out->Rn = bits(insn, 9, 5);
+            out->imm = bits(insn, 21, 10);
+            out->set_flags = S;
+            out->subtype = op ? 1 : 0; // 0=ADD, 1=SUB
+
+            // Check for shift (bit 22 is sh)
+            if (bit(insn, 22)) {
+                // Shifted by 12
+                out->imm <<= 12;
+            }
+
+            // Special case: when Rd=31 and Rn=31, this could be MOV SP
+            // or when using zero register
+            return 0;
+        }
+
+        case 4: // 100 - Logical immediate (AND/ORR/EOR/ANDS)
+        case 5: // 101
+        {
+            int opc = bits(insn, 30, 29);
+            out->is_64bit = bit(insn, 31);
+            out->Rd = bits(insn, 4, 0);
+            out->Rn = bits(insn, 9, 5);
+            // immN:imms:immr at bits 22:16, 15:10, 21:16
+            int N = bit(insn, 22);
+            int immr = bits(insn, 21, 16);
+            int imms = bits(insn, 15, 10);
+            out->imm = ((uint64_t)N << 13) | ((uint64_t)imms << 6) | immr;
+            out->subtype = opc; // 0=AND, 1=ORR, 2=EOR, 3=ANDS
+            out->set_flags = (opc == 3);
+            return 0;
+        }
+
+        case 6: // 110 - Move wide immediate
+        {
+            int opc = bits(insn, 30, 29);
+            out->is_64bit = bit(insn, 31);
+            out->Rd = bits(insn, 4, 0);
+            uint64_t imm16 = bits(insn, 20, 5);
+            int hw = bits(insn, 22, 21); // shift: 0=0, 1=16, 2=32, 3=48
+            out->imm = imm16 << (hw * 16);
+            out->subtype = opc; // 0=MOVN, 1=MOVZ, 2=MOVK
+            return 0;
+        }
+
+        case 7: // 111 - Bitfield move
+        {
+            int opc = bits(insn, 30, 29);
+            out->is_64bit = bit(insn, 31);
+            out->Rd = bits(insn, 4, 0);
+            out->Rn = bits(insn, 9, 5);
+            int immr = bits(insn, 21, 16);
+            int imms = bits(insn, 15, 10);
+            int N = bit(insn, 22);
+            out->imm = immr;
+            out->imm_shift = imms;
+            out->subtype = opc; // 0=SBFM, 1=BFM, 2=UBFM
+            return 0;
+        }
+
+        case 1: // 001 - Extract
+        {
+            int op21 = bits(insn, 30, 29);
+            out->is_64bit = bit(insn, 31);
+            out->Rd = bits(insn, 4, 0);
+            out->Rn = bits(insn, 9, 5);
+            out->Rm = bits(insn, 20, 16);
+            int imms = bits(insn, 15, 10);
+            int N = bit(insn, 22);
+            out->imm = imms; // lsb position
+            out->subtype = op21; // 0=EXTR
+            return 0;
+        }
+
+        default:
+            return -1;
+    }
+}
+
+// Data Processing - Register
+int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out) {
+    // DP_REG categories have bit 28 = 0, bit 27:26 = 01 or 11
+    int op0 = bits(insn, 30, 28);
+    int op1 = bit(insn, 25);
+
+    out->is_64bit = bit(insn, 31);
+
+    if (op1 == 0) {
+        // Data processing - shifted register / immediate
+        int op2 = bits(insn, 24, 21);
+
+        switch (op2) {
+            case 0: // Logical shifted register
+            case 1:
+            case 2:
+            case 3:
+            {
+                int opc = bits(insn, 30, 29);
+                int shift = bits(insn, 23, 22);
+                int N = bit(insn, 21);
+                out->Rd = bits(insn, 4, 0);
+                out->Rn = bits(insn, 9, 5);
+                out->Rm = bits(insn, 20, 16);
+                out->imm_shift = bits(insn, 15, 10);
+                out->shift_type = shift;
+                out->subtype = opc; // 0=AND, 1=BIC, 2=ORR, 3=ORN, 4=EOR, 5=EON, 6=ANDS, 7=BICS
+                out->set_flags = (opc == 6 || opc == 7);
+                return 0;
+            }
+
+            case 4: // Add/subtract (shifted register)
+            case 5:
+            case 6:
+            case 7:
+            {
+                int op = bit(insn, 30); // 0=ADD, 1=SUB
+                int S = bit(insn, 29);
+                int shift = bits(insn, 23, 22);
+                out->Rd = bits(insn, 4, 0);
+                out->Rn = bits(insn, 9, 5);
+                out->Rm = bits(insn, 20, 16);
+                out->imm_shift = bits(insn, 15, 10);
+                out->shift_type = shift;
+                out->set_flags = S;
+                out->subtype = op ? 1 : 0;
+                return 0;
+            }
+
+            case 8: // Add/subtract (extended register)
+            case 9:
+            case 10:
+            case 11:
+            {
+                int op = bit(insn, 30);
+                int S = bit(insn, 29);
+                int opt = bits(insn, 23, 22); // option for extension
+                int imm3 = bits(insn, 15, 10);
+                out->Rd = bits(insn, 4, 0);
+                out->Rn = bits(insn, 9, 5);
+                out->Rm = bits(insn, 20, 16);
+                out->extend_type = opt;
+                out->imm_shift = imm3;
+                out->set_flags = S;
+                out->subtype = op ? 1 : 0;
+                return 0;
+            }
+
+            case 12: // Add/subtract (with carry)
+            case 13:
+            {
+                int op = bit(insn, 30);
+                int S = bit(insn, 29);
+                out->Rd = bits(insn, 4, 0);
+                out->Rn = bits(insn, 9, 5);
+                out->Rm = bits(insn, 20, 16);
+                out->set_flags = S;
+                out->subtype = op ? 3 : 2; // 2=ADC, 3=SBC
+                return 0;
+            }
+
+            case 14: // Conditional compare (register)
+            case 15:
+            {
+                int op = bit(insn, 30);
+                int S = bit(insn, 29); // should be 1
+                int o2 = bit(insn, 10);
+                int o3 = bit(insn, 4);
+                int cond = bits(insn, 15, 12);
+                int nzcv = bits(insn, 3, 0);
+                out->Rn = bits(insn, 9, 5);
+                out->Rm = bits(insn, 20, 16);
+                out->cond = cond;
+                out->imm = nzcv;
+                out->subtype = op ? 5 : 4; // 4=CCMN, 5=CCMP
+                return 0;
+            }
+        }
+    } else {
+        // Data processing - 1/2/3 source
+        int op2 = bits(insn, 24, 21);
+
+        if (op2 == 3) {
+            // Conditional select
+            int op = bits(insn, 30, 29);
+            int S = bit(insn, 29); // actually part of op
+            int cond = bits(insn, 15, 12);
+            out->Rd = bits(insn, 4, 0);
+            out->Rn = bits(insn, 9, 5);
+            out->Rm = bits(insn, 20, 16);
+            out->cond = cond;
+            out->subtype = 6 + op; // 6=CSEL, 7=CSINC, 8=CSINV, 9=CSNEG
+            return 0;
+        }
+
+        // 3 source operations
+        int op = bits(insn, 30, 29);
+        int o0 = bit(insn, 15);
+        out->Rd = bits(insn, 4, 0);
+        out->Rn = bits(insn, 9, 5);
+        out->Rm = bits(insn, 20, 16);
+        out->Ra = bits(insn, 14, 10);
+        out->subtype = 10; // 3-source ops
+        return 0;
+    }
+
+    return -1;
+}
+
+// Branch instructions
+int a64_decode_branch(uint32_t insn, a64_instr_t *out) {
+    int op0 = bits(insn, 30, 29);
+    int op1 = bits(insn, 28, 25);
+
+    switch (op0) {
+        case 0: // Conditional branch (immediate)
+        {
+            int o1 = bit(insn, 24);
+            if (o1 == 0) {
+                // B.cond
+                int64_t imm19 = bits(insn, 23, 5);
+                int cond = bits(insn, 3, 0);
+                out->imm = sign_extend(imm19, 19) << 2; // PC-relative, word-aligned
+                out->cond = cond;
+                out->subtype = A64_BRANCH_COND;
+                return 0;
+            }
+            break;
+        }
+
+        case 1: // Compare and branch (immediate)
+        {
+            int op = bit(insn, 24); // 0=CBZ, 1=CBNZ
+            out->is_64bit = bit(insn, 31);
+            int64_t imm19 = bits(insn, 23, 5);
+            out->Rt = bits(insn, 4, 0);
+            out->imm = sign_extend(imm19, 19) << 2;
+            out->subtype = A64_BRANCH_CMP;
+            out->subtype = op ? 1 : 0; // 0=CBZ, 1=CBNZ
+            return 0;
+        }
+
+        case 2: // Test and branch (immediate)
+        {
+            int op = bit(insn, 24); // 0=TBZ, 1=TBNZ
+            int imm14 = bits(insn, 18, 5);
+            int bit_pos = (bit(insn, 31) << 5) | bits(insn, 23, 19);
+            out->Rt = bits(insn, 4, 0);
+            out->imm = sign_extend(imm14, 14) << 2;
+            out->imm_shift = bit_pos;
+            out->subtype = A64_BRANCH_TEST;
+            out->subtype = op ? 1 : 0; // 0=TBZ, 1=TBNZ
+            return 0;
+        }
+
+        case 3: // Unconditional branch (immediate)
+        {
+            int op = bit(insn, 31); // 0=B, 1=BL
+            int64_t imm26 = bits(insn, 25, 0);
+            out->imm = sign_extend(imm26, 26) << 2;
+            out->subtype = A64_BRANCH_UNCOND;
+            out->subtype = op; // 0=B, 1=BL
+            return 0;
+        }
+    }
+
+    // Check for branch register / exception generation
+    int op3 = bits(insn, 30, 25);
+    if (op3 == 0x1B) { // 011011
+        // Unconditional branch (register)
+        int opc = bits(insn, 24, 21);
+        int op2 = bits(insn, 20, 16);
+        int op3_low = bits(insn, 15, 10);
+        int Rn = bits(insn, 9, 5);
+        int op4 = bits(insn, 4, 0);
+
+        if (op2 == 0x1F && op3_low == 0) {
+            out->Rn = Rn;
+            switch (opc) {
+                case 0: // BR
+                case 1: // BLR
+                case 2: // RET
+                    out->subtype = A64_BRANCH_REG;
+                    out->subtype = opc;
+                    return 0;
+            }
+        }
+    }
+
+    // Exception generation
+    if ((insn & 0xFF000000) == 0xD4000000) {
+        int opc = bits(insn, 23, 21);
+        int op2 = bits(insn, 20, 16);
+        int LL = bits(insn, 1, 0);
+        uint16_t imm16 = bits(insn, 15, 0);
+        out->imm = imm16;
+        out->subtype = A64_EXCEPTION;
+        return 0;
+    }
+
+    return -1;
+}
+
+// Load/Store instructions
+int a64_decode_ldst(uint32_t insn, a64_instr_t *out) {
+    int op0 = bits(insn, 31, 30);
+    int op1 = bit(insn, 28);
+    int op2 = bits(insn, 23, 21);
+    int op3 = bits(insn, 15, 12);
+    int op4 = bits(insn, 11, 10);
+
+    out->is_64bit = op0 == 3 || op0 == 2;
+    out->is_vector = bit(insn, 26);
+
+    // Size encoding: 0=B, 1=H, 2=W, 3=X (or S for FP)
+    if (out->is_vector) {
+        out->size = op0; // Vector size
+    } else {
+        out->size = op0;
+    }
+
+    if (op1 == 0) {
+        // Load/store unscaled immediate (LDUR/STUR)
+        if (op2 == 0) {
+            int V = bit(insn, 26);
+            int imm9 = bits(insn, 20, 12);
+            int post = bit(insn, 10); // 0=unscaled, 1=post-index
+            int L = bit(insn, 22);
+            out->Rt = bits(insn, 4, 0);
+            out->Rn = bits(insn, 9, 5);
+            out->imm = sign_extend(imm9, 9);
+            out->is_signed = false;
+            return 0;
+        }
+
+        // Load/store (unsigned immediate)
+        if (op2 >= 2) {
+            int L = bit(insn, 22);
+            uint64_t imm12 = bits(insn, 21, 10);
+            out->Rt = bits(insn, 4, 0);
+            out->Rn = bits(insn, 9, 5);
+            // Scale immediate by size
+            int scale = out->is_64bit ? 3 : out->size;
+            out->imm = imm12 << scale;
+            return 0;
+        }
+    }
+
+    // Load/store register pair
+    if (op2 == 1) {
+        int L = bit(insn, 22);
+        int imm7 = bits(insn, 21, 15);
+        int Rt2 = bits(insn, 14, 10);
+        int mode = bits(insn, 24, 23); // 00=signed, 01=post, 10=offset, 11=pre
+
+        out->Rt = bits(insn, 4, 0);
+        out->Rn = bits(insn, 9, 5);
+        out->Rm = Rt2; // Second register
+        out->is_pair = true;
+
+        // Scale by size
+        int scale = 2 + out->size;
+        out->pair_offset = sign_extend(imm7, 7) << scale;
+
+        return 0;
+    }
+
+    // Load literal
+    if (op2 == 0 && bit(insn, 27) && !bit(insn, 24)) {
+        int V = bit(insn, 26);
+        int64_t imm19 = bits(insn, 23, 5);
+        out->Rt = bits(insn, 4, 0);
+        out->imm = sign_extend(imm19, 19) << 2;
+        out->subtype = A64_LDST_LITERAL;
+        return 0;
+    }
+
+    // Load/store register (register offset)
+    if (op4 == 2) {
+        int S = bit(insn, 12);
+        int opt = bits(insn, 15, 13);
+        out->Rt = bits(insn, 4, 0);
+        out->Rn = bits(insn, 9, 5);
+        out->Rm = bits(insn, 20, 16);
+        out->extend_type = opt;
+        out->imm_shift = S ? (out->size) : 0;
+        return 0;
+    }
+
+    // Atomic operations
+    if (op3 == 0xE || op3 == 0xF) {
+        out->is_pair = false;
+        out->subtype = A64_LDST_ATOMIC;
+        return 0;
+    }
+
+    return -1;
+}
+
+// SIMD and FP instructions
+int a64_decode_simd_fp(uint32_t insn, a64_instr_t *out) {
+    int op0 = bits(insn, 28, 25);
+
+    // Floating point data processing (scalar)
+    if (op0 == 0xE || op0 == 0xF) {
+        int M = bit(insn, 31);
+        int S = bit(insn, 29);
+        int ptype = bits(insn, 23, 22); // 00=H, 01=S, 10=D
+        int opcode = bits(insn, 15, 12);
+        int Rn = bits(insn, 9, 5);
+        int Rd = bits(insn, 4, 0);
+
+        // Size from precision type
+        switch (ptype) {
+            case 1: out->size = 2; break; // Single
+            case 2: out->size = 3; break; // Double
+            default: out->size = 1; break; // Half
+        }
+
+        out->Rd = Rd;
+        out->Rn = Rn;
+        out->Rm = bits(insn, 20, 16);
+        out->Ra = bits(insn, 14, 10); // For FMA
+
+        return 0;
+    }
+
+    // SIMD vector operations
+    if (op0 >= 0x8 && op0 <= 0xB) {
+        out->is_vector = true;
+        out->Rd = bits(insn, 4, 0);
+        out->Rn = bits(insn, 9, 5);
+        out->Rm = bits(insn, 20, 16);
+        return 0;
+    }
+
+    return -1;
+}
+
+// System instructions (SVC, MRS, MSR, barriers)
+int a64_decode_system(uint32_t insn, a64_instr_t *out) {
+    // SVC - System call
+    if ((insn & 0xFFC00000) == 0xD4000000) {
+        int op = bits(insn, 23, 21);
+        if (op == 1) { // SVC
+            uint16_t imm16 = bits(insn, 15, 0);
+            out->imm = imm16;
+            out->subtype = 0; // SVC
+            return 0;
+        }
+        if (op == 0) { // HVC
+            uint16_t imm16 = bits(insn, 15, 0);
+            out->imm = imm16;
+            out->subtype = 1; // HVC
+            return 0;
+        }
+    }
+
+    // MRS/MSR
+    if ((insn & 0xFFD80000) == 0xD5300000) { // MRS
+        int Rt = bits(insn, 4, 0);
+        int sysreg = bits(insn, 19, 5);
+        out->Rd = Rt;
+        out->sysreg = sysreg;
+        out->subtype = 2; // MRS
+        return 0;
+    }
+
+    if ((insn & 0xFFD80000) == 0xD5100000) { // MSR (imm)
+        int op1 = bits(insn, 18, 16);
+        int CRm = bits(insn, 11, 8);
+        int op2 = bits(insn, 7, 5);
+        int imm = bits(insn, 4, 0);
+        out->op = op1;
+        out->imm = imm;
+        out->subtype = 3; // MSR (imm)
+        return 0;
+    }
+
+    if ((insn & 0xFFD00000) == 0xD5100000) { // MSR (reg)
+        int Rt = bits(insn, 4, 0);
+        int sysreg = bits(insn, 19, 5);
+        out->Rd = Rt;
+        out->sysreg = sysreg;
+        out->subtype = 4; // MSR (reg)
+        return 0;
+    }
+
+    // System instructions (hint, barriers, etc.)
+    if ((insn & 0xFFF80000) == 0xD5080000) {
+        int CRm = bits(insn, 11, 8);
+        out->imm = CRm;
+        out->subtype = 5; // HINT, barriers
+        return 0;
+    }
+
+    return -1;
+}
+
+// String helpers
+const char *a64_category_name(a64_category_t cat) {
+    switch (cat) {
+        case A64_RESERVED: return "RESERVED";
+        case A64_DP_IMM: return "DP_IMM";
+        case A64_BRANCH: return "BRANCH";
+        case A64_LD_ST: return "LD_ST";
+        case A64_DP_REG: return "DP_REG";
+        case A64_DP_REG2: return "DP_REG";
+        case A64_SIMD_SCALAR: return "SIMD_SCALAR";
+        case A64_SIMD_VECTOR: return "SIMD_VECTOR";
+        case A64_DP_SCALAR: return "DP_SCALAR";
+        case A64_DP_SCALAR2: return "DP_SCALAR";
+        case A64_SIMD_SCALAR2: return "SIMD_SCALAR";
+        case A64_SIMD_VECTOR2: return "SIMD_VECTOR";
+        case A64_LD_ST2: return "LD_ST";
+        case A64_DP_IMM2: return "DP_IMM";
+        case A64_BRANCH2: return "BRANCH";
+        case A64_RESERVED2: return "RESERVED";
+        default: return "UNKNOWN";
+    }
+}
+
+const char *a64_cond_name(a64_cond_t cond) {
+    switch (cond) {
+        case A64_EQ: return "eq";
+        case A64_NE: return "ne";
+        case A64_CS: return "cs";
+        case A64_CC: return "cc";
+        case A64_MI: return "mi";
+        case A64_PL: return "pl";
+        case A64_VS: return "vs";
+        case A64_VC: return "vc";
+        case A64_HI: return "hi";
+        case A64_LS: return "ls";
+        case A64_GE: return "ge";
+        case A64_LT: return "lt";
+        case A64_GT: return "gt";
+        case A64_LE: return "le";
+        case A64_AL: return "al";
+        case A64_NV: return "nv";
+        default: return "?";
+    }
+}
