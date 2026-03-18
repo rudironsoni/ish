@@ -30,6 +30,7 @@ tcti_gadget_src = [
 aarch64_gadget_src = [
     'asbestos/aarch64/gadgets_entry.c',
     'asbestos/aarch64/gadgets_arith.c',
+    'asbestos/aarch64/gen.c',
 ]
 
 # Generate TCTI gadgets if needed

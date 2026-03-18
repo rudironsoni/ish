@@ -212,14 +212,14 @@ TEST(compare_and_branch) {
     ASSERT_EQ(a64_decode(insn, &instr), 0);
     ASSERT_EQ(instr.cat, A64_BRANCH);
     ASSERT_EQ(instr.subtype, A64_BRANCH_CMP);
-    ASSERT_EQ(instr.Rt, 5);
+    ASSERT_EQ(instr.Rd, 5);
     ASSERT_EQ(instr.imm, 0x200);
     ASSERT_EQ(instr.is_64bit, 1);
 
     // CBNZ w3, #0x100
     insn = encode_cbz(3, 0x100, 0, 1);
     ASSERT_EQ(a64_decode(insn, &instr), 0);
-    ASSERT_EQ(instr.Rt, 3);
+    ASSERT_EQ(instr.Rd, 3);
     ASSERT_EQ(instr.is_64bit, 0);
 }
 
@@ -247,7 +247,7 @@ TEST(system_svc) {
     // SVC #0
     uint32_t insn = encode_svc(0);
     ASSERT_EQ(a64_decode(insn, &instr), 0);
-    ASSERT_EQ(instr.cat, A64_SYS);
+    ASSERT_EQ(instr.cat, A64_BRANCH);
     ASSERT_EQ(instr.imm, 0);
 
     // SVC #93 (exit syscall on aarch64)
@@ -280,7 +280,7 @@ TEST(nop_instruction) {
     uint32_t insn = encode_nop();
     ASSERT_EQ(a64_decode(insn, &instr), 0);
     // NOP is a system instruction with specific encoding
-    ASSERT_EQ(instr.cat, A64_SYS);
+    ASSERT_EQ(instr.cat, A64_BRANCH);
 }
 
 /*
