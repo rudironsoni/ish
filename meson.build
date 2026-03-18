@@ -22,6 +22,10 @@ endforeach
 add_project_arguments('-DLOG_HANDLER_' + get_option('log_handler').to_upper() + '=1', language: 'c')
 add_project_arguments('-DENGINE_' + get_option('engine').to_upper() + '=1', language: 'c')
 
+# Architecture selection
+arch = get_option('arch')
+add_project_arguments('-DARCH_' + arch.to_upper() + '=1', language: 'c')
+
 if get_option('no_crlf')
     add_project_arguments('-DNO_CRLF', language: 'c')
 endif
@@ -39,32 +43,62 @@ dependencies = [librt, libm, libdl, threads, sqlite3]
 
 subdir('vdso') # ish depends on the vdso
 
-offsets = custom_target('offsets',
-    output: 'cpu-offsets.h', input: 'asbestos/offsets.c', depfile: 'cpu-offsets.h.d',
-    command: [find_program('tools/staticdefine.sh'), '@OUTDIR@/compile_commands.json', '@INPUT@', '@OUTPUT@', '@DEPFILE@'])
+# Architecture-specific emulator sources
+if arch == 'x86'
+    offsets = custom_target('offsets',
+        output: 'cpu-offsets.h', input: 'asbestos/offsets.c', depfile: 'cpu-offsets.h.d',
+        command: [find_program('tools/staticdefine.sh'), '@OUTDIR@/compile_commands.json', '@INPUT@', '@OUTPUT@', '@DEPFILE@'])
 
-emu_src = [
-    'emu/tlb.c',
-    'emu/fpu.c',
-    'emu/vec.c',
-    'emu/mmx.c',
-    'emu/float80.c',
+    emu_src = [
+        'emu/tlb.c',
+        'emu/fpu.c',
+        'emu/vec.c',
+        'emu/mmx.c',
+        'emu/float80.c',
+    ]
+    gadgets = 'asbestos/gadgets-' + host_machine.cpu_family()
+    emu_src += [
+        'asbestos/asbestos.c',
+        'asbestos/gen.c',
+        'asbestos/helpers.c',
+        gadgets+'/entry.S',
+        gadgets+'/memory.S',
+        gadgets+'/control.S',
+        gadgets+'/math.S',
+        gadgets+'/bits.S',
+        gadgets+'/string.S',
+        gadgets+'/misc.S',
+        offsets,
+    ]
+elif arch == 'aarch64'
+    # aarch64 offset generation
+    aarch64_offsets = custom_target('aarch64_offsets',
+        output: 'aarch64-cpu-offsets.h',
+        input: 'asbestos/aarch64/offsets.c',
+        depfile: 'aarch64-cpu-offsets.h.d',
+        command: [find_program('tools/staticdefine.sh'), '@OUTDIR@/compile_commands.json', '@INPUT@', '@OUTPUT@', '@DEPFILE@'],
+    )
 
-]
-gadgets = 'asbestos/gadgets-' + host_machine.cpu_family()
-emu_src += [
-    'asbestos/asbestos.c',
-    'asbestos/gen.c',
-    'asbestos/helpers.c',
-    gadgets+'/entry.S',
-    gadgets+'/memory.S',
-    gadgets+'/control.S',
-    gadgets+'/math.S',
-    gadgets+'/bits.S',
-    gadgets+'/string.S',
-    gadgets+'/misc.S',
-    offsets,
-]
+    # TCTI gadget generation
+    tcti_gadget_gen = custom_target('tcti_gadgets',
+        output: ['gadgets_tcti.h', 'gadgets_tcti_impl.c'],
+        input: 'asbestos/aarch64/tcti-gadget-gen.py',
+        command: [find_program('python3'), '@INPUT@', '-o', 'asbestos/aarch64'],
+        build_by_default: true,
+    )
+
+    emu_src = [
+        'emu/aarch64/decode.c',
+        'emu/aarch64/tls.c',
+        'asbestos/aarch64/gen.c',
+        'asbestos/aarch64/gadgets_entry.c',
+        'asbestos/aarch64/gadgets_arith.c',
+        tcti_gadget_gen,
+        aarch64_offsets,
+    ]
+else
+    error('Unsupported architecture: ' + arch)
+endif
 
 libish_emu = library('ish_emu', emu_src, include_directories: includes)
 
@@ -209,11 +243,35 @@ foreach script : gdb_scripts
         build_by_default: true)
 endforeach
 
+# Architecture-specific tests
 if not meson.is_cross_build()
-    # test for floating point library
-    float80_test = executable('float80_test', ['emu/float80.c', 'emu/float80-test.c'], dependencies: [libm])
-    test('float80', float80_test)
+    if arch == 'x86'
+        # test for floating point library
+        float80_test = executable('float80_test', ['emu/float80.c', 'emu/float80-test.c'], dependencies: [libm])
+        test('float80', float80_test)
+    elif arch == 'aarch64'
+        # aarch64 decoder tests
+        decoder_test = executable('decoder_test',
+            ['tests/aarch64/decoder_test.c', 'emu/aarch64/decode.c'],
+            include_directories: includes)
+        test('decoder', decoder_test)
+
+        # Generator state tests
+        gen_test = executable('gen_test',
+            ['tests/aarch64/gen_test_simple.c'],
+            include_directories: includes)
+        test('generator', gen_test)
+
+        # Integration tests
+        integration_test = executable('integration_test',
+            ['tests/aarch64/integration_test_simple.c', 'tests/aarch64/gen_test_minimal.c', 'emu/aarch64/decode.c'],
+            include_directories: includes)
+        test('integration', integration_test)
+    endif
 endif
 
-e2e_test = find_program('tests/e2e/e2e.bash')
-test('e2e', e2e_test, args: ['-y'], timeout: 180)
+# E2E tests (x86 only for now)
+if arch == 'x86'
+    e2e_test = find_program('tests/e2e/e2e.bash')
+    test('e2e', e2e_test, args: ['-y'], timeout: 180)
+endif
