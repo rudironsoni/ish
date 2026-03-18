@@ -318,7 +318,7 @@ int a64_decode_branch(uint32_t insn, a64_instr_t *out) {
             int op = bit(insn, 24); // 0=CBZ, 1=CBNZ
             out->is_64bit = bit(insn, 31);
             int64_t imm19 = bits(insn, 23, 5);
-            out->Rt = bits(insn, 4, 0);
+            out->Rd = bits(insn, 4, 0);
             out->imm = sign_extend(imm19, 19) << 2;
             out->subtype = A64_BRANCH_CMP;
             out->subtype = op ? 1 : 0; // 0=CBZ, 1=CBNZ
@@ -330,7 +330,7 @@ int a64_decode_branch(uint32_t insn, a64_instr_t *out) {
             int op = bit(insn, 24); // 0=TBZ, 1=TBNZ
             int imm14 = bits(insn, 18, 5);
             int bit_pos = (bit(insn, 31) << 5) | bits(insn, 23, 19);
-            out->Rt = bits(insn, 4, 0);
+            out->Rd = bits(insn, 4, 0);
             out->imm = sign_extend(imm14, 14) << 2;
             out->imm_shift = bit_pos;
             out->subtype = A64_BRANCH_TEST;
@@ -411,7 +411,7 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out) {
             int imm9 = bits(insn, 20, 12);
             int post = bit(insn, 10); // 0=unscaled, 1=post-index
             int L = bit(insn, 22);
-            out->Rt = bits(insn, 4, 0);
+            out->Rd = bits(insn, 4, 0);
             out->Rn = bits(insn, 9, 5);
             out->imm = sign_extend(imm9, 9);
             out->is_signed = false;
@@ -422,7 +422,7 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out) {
         if (op2 >= 2) {
             int L = bit(insn, 22);
             uint64_t imm12 = bits(insn, 21, 10);
-            out->Rt = bits(insn, 4, 0);
+            out->Rd = bits(insn, 4, 0);
             out->Rn = bits(insn, 9, 5);
             // Scale immediate by size
             int scale = out->is_64bit ? 3 : out->size;
@@ -438,7 +438,7 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out) {
         int Rt2 = bits(insn, 14, 10);
         int mode = bits(insn, 24, 23); // 00=signed, 01=post, 10=offset, 11=pre
 
-        out->Rt = bits(insn, 4, 0);
+        out->Rd = bits(insn, 4, 0);
         out->Rn = bits(insn, 9, 5);
         out->Rm = Rt2; // Second register
         out->is_pair = true;
@@ -454,7 +454,7 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out) {
     if (op2 == 0 && bit(insn, 27) && !bit(insn, 24)) {
         int V = bit(insn, 26);
         int64_t imm19 = bits(insn, 23, 5);
-        out->Rt = bits(insn, 4, 0);
+        out->Rd = bits(insn, 4, 0);
         out->imm = sign_extend(imm19, 19) << 2;
         out->subtype = A64_LDST_LITERAL;
         return 0;
@@ -464,7 +464,7 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out) {
     if (op4 == 2) {
         int S = bit(insn, 12);
         int opt = bits(insn, 15, 13);
-        out->Rt = bits(insn, 4, 0);
+        out->Rd = bits(insn, 4, 0);
         out->Rn = bits(insn, 9, 5);
         out->Rm = bits(insn, 20, 16);
         out->extend_type = opt;
