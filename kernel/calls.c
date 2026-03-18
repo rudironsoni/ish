@@ -259,6 +259,24 @@ void dump_stack(int lines);
 void handle_interrupt(int interrupt) {
     struct cpu_state *cpu = &current->cpu;
     if (interrupt == INT_SYSCALL) {
+#if defined(ARCH_AARCH64)
+        // aarch64 syscall ABI: x8 = syscall num, x0-x5 = args
+        unsigned syscall_num = cpu->x[8];
+        if (syscall_num >= NUM_SYSCALLS || syscall_table[syscall_num] == NULL) {
+            printk("%d(%s) missing syscall %d\n", current->pid, current->comm, syscall_num);
+            cpu->x[0] = _ENOSYS;
+        } else {
+            if (syscall_table[syscall_num] == (syscall_t) syscall_stub) {
+                printk("%d(%s) stub syscall %d\n", current->pid, current->comm, syscall_num);
+            }
+            STRACE("%d call %-3d ", current->pid, syscall_num);
+            int result = syscall_table[syscall_num](cpu->x[0], cpu->x[1], cpu->x[2],
+                                                     cpu->x[3], cpu->x[4], cpu->x[5]);
+            STRACE(" = 0x%x\n", result);
+            cpu->x[0] = result;
+        }
+#else
+        // x86 syscall ABI: eax = syscall num, ebx,ecx,edx,esi,edi,ebp = args
         unsigned syscall_num = cpu->eax;
         if (syscall_num >= NUM_SYSCALLS || syscall_table[syscall_num] == NULL) {
             printk("%d(%s) missing syscall %d\n", current->pid, current->comm, syscall_num);
@@ -272,6 +290,7 @@ void handle_interrupt(int interrupt) {
             STRACE(" = 0x%x\n", result);
             cpu->eax = result;
         }
+#endif
     } else if (interrupt == INT_GPF) {
         // some page faults, such as stack growing or CoW clones, are handled by mem_ptr
         read_wrlock(&current->mem->lock);
