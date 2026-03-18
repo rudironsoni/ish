@@ -44,7 +44,7 @@ void a64_setup_fpsimd_context(struct a64_fpsimd_context *fpsimd,
     // Copy 128-bit vector registers
     // Each vreg is stored as low 64-bits, high 64-bits
     for (int i = 0; i < 32; i++) {
-        __int128 v = cpu->v[i].q;
+        __int128 v = cpu->vregs[i].q;
         fpsimd->vregs[i * 2] = (uint64_t)v;           // Low bits
         fpsimd->vregs[i * 2 + 1] = (uint64_t)(v >> 64); // High bits
     }
@@ -73,7 +73,7 @@ void a64_restore_fpsimd_context(struct cpu_state *cpu,
     for (int i = 0; i < 32; i++) {
         uint64_t low = fpsimd->vregs[i * 2];
         uint64_t high = fpsimd->vregs[i * 2 + 1];
-        cpu->v[i].q = ((__int128)high << 64) | low;
+        cpu->vregs[i].q = ((__int128)high << 64) | low;
     }
 }
 

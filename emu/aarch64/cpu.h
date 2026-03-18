@@ -80,18 +80,11 @@ struct cpu_state {
             // Bit 31: N (negative) flag
             bitfield n:1;
         };
-        // Aliases for flag access matching aarch64 convention
-        struct {
-            bitfield _pad3:28;
-            bitfield v_flag:1;
-            bitfield c_flag:1;
-            bitfield z_flag:1;
-            bitfield n_flag:1;
-        };
     };
 
     // SIMD/FP registers v0-v31 (128-bit each)
-    union vec_reg v[32];
+    // Named 'vregs' to avoid conflict with flag aliases
+    union vec_reg vregs[32];
 
     // Floating Point Control Register (FPCR)
     // Controls FP rounding mode, exceptions, etc.
