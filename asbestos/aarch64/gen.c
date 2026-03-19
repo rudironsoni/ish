@@ -258,7 +258,6 @@ int a64_gen_instruction(a64_gen_state_t *state, uint32_t insn, uint64_t pc) {
             break;
 
         case A64_LD_ST:
-        case A64_LD_ST2:
             ret = a64_gen_ldst(state, &decoded);
             break;
 
