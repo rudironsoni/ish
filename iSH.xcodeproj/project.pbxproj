@@ -22,6 +22,8 @@
 
 /* Begin PBXBuildFile section */
 		0FC2383C2991FBA6004C09EC /* mmx.c in Sources */ = {isa = PBXBuildFile; fileRef = 0FC2383B2991FB82004C09EC /* mmx.c */; };
+		2BFC5D46939C6F49F640059E /* gadgets_math.c in Sources */ = {isa = PBXBuildFile; fileRef = 6F9157B5FD2103271C7FEF48 /* gadgets_math.c */; };
+		3392EB56776EF9EC60D1B355 /* gadgets_arith.c in Sources */ = {isa = PBXBuildFile; fileRef = E5A15F177E3BFF63DD46EB2E /* gadgets_arith.c */; };
 		491B31E62883BF22008EEFB0 /* ThemeViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 491B31E52883BF22008EEFB0 /* ThemeViewController.m */; };
 		49302D8E277669D300C9885A /* ish.c in Sources */ = {isa = PBXBuildFile; fileRef = 49302D8D277669D300C9885A /* ish.c */; };
 		496C7AB227CC697E005D7613 /* Theme.m in Sources */ = {isa = PBXBuildFile; fileRef = 491C4C1E27C8FB65008B1DFA /* Theme.m */; };
@@ -104,6 +106,11 @@
 		497F6D5C254E609700C82F46 /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = BB7D93822087C2890008DA78 /* main.c */; };
 		497F6D87254E62E100C82F46 /* libish.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BB13F7DC200AD81D003D1C4D /* libish.a */; };
 		49FF844B2A06249F00850B7A /* ExceptionExfiltrator.m in Sources */ = {isa = PBXBuildFile; fileRef = 49FF844A2A06249F00850B7A /* ExceptionExfiltrator.m */; };
+		6D90E04CABC6CCEECDB4860C /* gadgets_tcti.h in Headers */ = {isa = PBXBuildFile; fileRef = 9E2B3DB1D00D9F5738164385 /* gadgets_tcti.h */; };
+		75EABAA9918B8D7DFDABA021 /* gadgets.h in Headers */ = {isa = PBXBuildFile; fileRef = 2FE599EED340E38DC05DAF8D /* gadgets.h */; };
+		950B8678E75E6A7FF8FF849E /* gadgets_tcti_impl.c in Sources */ = {isa = PBXBuildFile; fileRef = A4A3FD9D2303BF417FB22768 /* gadgets_tcti_impl.c */; };
+		9D16DFDB1352B544C80EC3AA /* gadgets_entry.c in Sources */ = {isa = PBXBuildFile; fileRef = 58FE41B3E86B3B01F4D5B11D /* gadgets_entry.c */; };
+		ACC8A9E65A300C5B0516D575 /* gadgets_memory.c in Sources */ = {isa = PBXBuildFile; fileRef = 384B0FE806F31572852248D1 /* gadgets_memory.c */; };
 		BB0F552E239F8A790032A2A1 /* Icons.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB0F552D239F8A790032A2A1 /* Icons.plist */; };
 		BB10E5C9248DBAAC009C7A74 /* libarchive.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BB10E5C8248DBAA1009C7A74 /* libarchive.a */; };
 		BB10E5D0248DC21D009C7A74 /* Roots.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = BB10E5CF248DC21D009C7A74 /* Roots.storyboard */; };
@@ -244,6 +251,8 @@
 		BBFB2C7E259026C200545EAB /* libish_emu.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BBFB2C5B2590257E00545EAB /* libish_emu.a */; };
 		BBFB2CEC2590296B00545EAB /* libish_emu.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BBFB2C5B2590257E00545EAB /* libish_emu.a */; };
 		BBFB55662158644C00DFE6DE /* libresolv.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = BBFB55652158644C00DFE6DE /* libresolv.tbd */; };
+		E6DFC5039AC4E0345DC134C3 /* gen.c in Sources */ = {isa = PBXBuildFile; fileRef = 2D2CF752B3659604B4DDF280 /* gen.c */; };
+		ED1D1BF835048C160C9C1983 /* gen.h in Headers */ = {isa = PBXBuildFile; fileRef = 7FB5AED693B5FD4593514E8D /* gen.h */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXBuildRule section */
@@ -427,6 +436,9 @@
 
 /* Begin PBXFileReference section */
 		0FC2383B2991FB82004C09EC /* mmx.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = mmx.c; sourceTree = "<group>"; };
+		2D2CF752B3659604B4DDF280 /* gen.c */ = {isa = PBXFileReference; includeInIndex = 1; name = gen.c; path = asbestos/aarch64/gen.c; sourceTree = "<group>"; };
+		2FE599EED340E38DC05DAF8D /* gadgets.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = gadgets.h; path = asbestos/aarch64/gadgets.h; sourceTree = "<group>"; };
+		384B0FE806F31572852248D1 /* gadgets_memory.c */ = {isa = PBXFileReference; includeInIndex = 1; name = gadgets_memory.c; path = asbestos/aarch64/gadgets_memory.c; sourceTree = "<group>"; };
 		408A2639236440F8008A4E81 /* iOSFS.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = iOSFS.m; sourceTree = "<group>"; };
 		408A263B23644102008A4E81 /* iOSFS.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = iOSFS.h; sourceTree = "<group>"; };
 		49087C13295DF0490058075B /* hook.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = hook.h; sourceTree = "<group>"; };
@@ -588,12 +600,17 @@
 		497F6D47254E605F00C82F46 /* ish */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ish; sourceTree = BUILT_PRODUCTS_DIR; };
 		49FF844A2A06249F00850B7A /* ExceptionExfiltrator.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ExceptionExfiltrator.m; sourceTree = "<group>"; };
 		49FF844C2A0624AF00850B7A /* ExceptionExfiltrator.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ExceptionExfiltrator.h; sourceTree = "<group>"; };
+		58FE41B3E86B3B01F4D5B11D /* gadgets_entry.c */ = {isa = PBXFileReference; includeInIndex = 1; name = gadgets_entry.c; path = asbestos/aarch64/gadgets_entry.c; sourceTree = "<group>"; };
 		650B337222EA235C00B4C03E /* PasteboardDevice.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PasteboardDevice.h; sourceTree = "<group>"; };
 		650B337322EA235C00B4C03E /* PasteboardDevice.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PasteboardDevice.m; sourceTree = "<group>"; };
+		6F9157B5FD2103271C7FEF48 /* gadgets_math.c */ = {isa = PBXFileReference; includeInIndex = 1; name = gadgets_math.c; path = asbestos/aarch64/gadgets_math.c; sourceTree = "<group>"; };
+		7FB5AED693B5FD4593514E8D /* gen.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = gen.h; path = asbestos/aarch64/gen.h; sourceTree = "<group>"; };
 		8632A7BD219A59FB00F02325 /* UserPreferences.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = UserPreferences.h; sourceTree = "<group>"; };
 		8632A7BE219A59FB00F02325 /* UserPreferences.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = UserPreferences.m; sourceTree = "<group>"; };
 		9A28E4E8219A8B670073D200 /* AboutAppearanceViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AboutAppearanceViewController.h; sourceTree = "<group>"; };
 		9A28E4E9219A8B670073D200 /* AboutAppearanceViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AboutAppearanceViewController.m; sourceTree = "<group>"; };
+		9E2B3DB1D00D9F5738164385 /* gadgets_tcti.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = gadgets_tcti.h; path = asbestos/aarch64/gadgets_tcti.h; sourceTree = "<group>"; };
+		A4A3FD9D2303BF417FB22768 /* gadgets_tcti_impl.c */ = {isa = PBXFileReference; includeInIndex = 1; name = gadgets_tcti_impl.c; path = asbestos/aarch64/gadgets_tcti_impl.c; sourceTree = "<group>"; };
 		BB0B848E2586A4CF00208600 /* XcodeDefault.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = XcodeDefault.xcconfig; sourceTree = "<group>"; };
 		BB0B859B2586F13200208600 /* XcodeDebug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = XcodeDebug.xcconfig; sourceTree = "<group>"; };
 		BB0B859C2586F19000208600 /* XcodeRelease.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = XcodeRelease.xcconfig; sourceTree = "<group>"; };
@@ -750,6 +767,7 @@
 		BBFB557B215878C600DFE6DE /* UIApplication+OpenURL.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "UIApplication+OpenURL.m"; sourceTree = "<group>"; };
 		BBFB557E21587B6800DFE6DE /* ArrowBarButton.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ArrowBarButton.h; sourceTree = "<group>"; };
 		BBFB557F21587B6800DFE6DE /* ArrowBarButton.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ArrowBarButton.m; sourceTree = "<group>"; };
+		E5A15F177E3BFF63DD46EB2E /* gadgets_arith.c */ = {isa = PBXFileReference; includeInIndex = 1; name = gadgets_arith.c; path = asbestos/aarch64/gadgets_arith.c; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -817,6 +835,23 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		2132655CD545E90FC37368A4 /* aarch64 */ = {
+			isa = PBXGroup;
+			children = (
+				2FE599EED340E38DC05DAF8D /* gadgets.h */,
+				9E2B3DB1D00D9F5738164385 /* gadgets_tcti.h */,
+				7FB5AED693B5FD4593514E8D /* gen.h */,
+				E5A15F177E3BFF63DD46EB2E /* gadgets_arith.c */,
+				58FE41B3E86B3B01F4D5B11D /* gadgets_entry.c */,
+				6F9157B5FD2103271C7FEF48 /* gadgets_math.c */,
+				384B0FE806F31572852248D1 /* gadgets_memory.c */,
+				2D2CF752B3659604B4DDF280 /* gen.c */,
+				A4A3FD9D2303BF417FB22768 /* gadgets_tcti_impl.c */,
+			);
+			name = aarch64;
+			path = asbestos/aarch64;
+			sourceTree = "<group>";
+		};
 		497F6BF1254E5C0D00C82F46 /* proc */ = {
 			isa = PBXGroup;
 			children = (
@@ -1254,6 +1289,7 @@
 				497F6C3E254E5C4F00C82F46 /* gen.h */,
 				497F6C31254E5C4F00C82F46 /* gadgets-aarch64 */,
 				497F6C27254E5C4F00C82F46 /* gadgets-x86_64 */,
+				2132655CD545E90FC37368A4 /* aarch64 */,
 			);
 			path = asbestos;
 			sourceTree = "<group>";
@@ -1357,6 +1393,19 @@
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		E06BE9C8778E12E73533A57A /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				75EABAA9918B8D7DFDABA021 /* gadgets.h in Headers */,
+				6D90E04CABC6CCEECDB4860C /* gadgets_tcti.h in Headers */,
+				ED1D1BF835048C160C9C1983 /* gen.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
 
 /* Begin PBXLegacyTarget section */
 		BB13F7CA200ACC31003D1C4D /* Meson */ = {
@@ -1485,6 +1534,7 @@
 				BB4A53AC1FAA49CA00A72ACE /* Compile JavaScript */,
 				BB792B4E1F96D90D00FFB7A4 /* Resources */,
 				BB88F4A32154760800A341FD /* Embed Foundation Extensions */,
+				E06BE9C8778E12E73533A57A /* Headers */,
 			);
 			buildRules = (
 			);
@@ -2130,6 +2180,12 @@
 				BB28C7BB268975AE00BDC834 /* LocationDevice.m in Sources */,
 				BB28C7BA268975AA00BDC834 /* iOSFS.m in Sources */,
 				BB28C7BC268975B000BDC834 /* PasteboardDevice.m in Sources */,
+				3392EB56776EF9EC60D1B355 /* gadgets_arith.c in Sources */,
+				9D16DFDB1352B544C80EC3AA /* gadgets_entry.c in Sources */,
+				2BFC5D46939C6F49F640059E /* gadgets_math.c in Sources */,
+				ACC8A9E65A300C5B0516D575 /* gadgets_memory.c in Sources */,
+				E6DFC5039AC4E0345DC134C3 /* gen.c in Sources */,
+				950B8678E75E6A7FF8FF849E /* gadgets_tcti_impl.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2501,6 +2557,11 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BB0B86CD2586FD8800208600 /* App.xcconfig */;
 			buildSettings = {
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"ARCH_AARCH64=1",
+				);
 			};
 			name = "Debug-ApplePleaseFixFB19282108";
 		};
@@ -2508,6 +2569,11 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BB0B86CD2586FD8800208600 /* App.xcconfig */;
 			buildSettings = {
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"ARCH_AARCH64=1",
+				);
 			};
 			name = Release;
 		};
@@ -2523,6 +2589,11 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BB0B86CD2586FD8800208600 /* App.xcconfig */;
 			buildSettings = {
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"ARCH_AARCH64=1",
+				);
 			};
 			name = DebugLinux;
 		};
@@ -2769,6 +2840,11 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BB0B86CD2586FD8800208600 /* App.xcconfig */;
 			buildSettings = {
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"ARCH_AARCH64=1",
+				);
 			};
 			name = ReleaseLinux;
 		};
