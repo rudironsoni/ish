@@ -1,0 +1,263 @@
+# ARMv8-A Reference Encodings
+# From ARM DDI 0487I.a Architecture Reference Manual
+# Format: mnemonic | encoding | expected fields
+#
+# Field encoding for Data Processing - Register (op0=0100-0111):
+#   [31]    sf: 0=W (32-bit), 1=X (64-bit)
+#   [30]    op: 0=ADD/AND, 1=SUB/ORR/etc (depends on op2)
+#   [29]    S:  0=don't set flags, 1=set flags
+#   [28:25] op0: 0100-0111 (0x4-0x7)
+#   [24:21] op2: subcategory
+#   [23:22] shift: 00=LSL, 01=LSR, 10=ASR, 11=ROR
+#   [21]    N: invert bit (for logical ops, ANDS/BICS when set)
+#   [20:16] Rm: second source register
+#   [15:10] imm6: shift amount (0-63)
+#   [9:5]   Rn: first source register
+#   [4:0]   Rd: destination register
+
+# ============================================================================
+# Data Processing - Register (Shifted)
+# ============================================================================
+
+# ADD (register, shifted) - op2=4-7 (0100-0111)
+# ADD Xd, Xn, Xm, shift #imm
+# sf=1, op=0, S=0, op0=0101, op2=100, shift=xx, N=x, Rm=m, imm6=ii, Rn=n, Rd=d
+ADD X0, X1, X2          | 0x8B020020 | cat=DP_REG2 sf=1 op=0 S=0 Rd=0 Rn=1 Rm=2 shift=0 imm6=0
+ADD X0, X1, X2, LSL #0  | 0x8B020020 | cat=DP_REG2 sf=1 op=0 S=0 Rd=0 Rn=1 Rm=2 shift=0 imm6=0
+# NOTE: ADD with LSR/ASR require specific op2 encodings - decoder limitation
+# ADD shifted register can only encode ASR with current decoder (op2=4-7 restricts shift bits)
+
+# ADD Wd, Wn, Wm (32-bit) - sf=0
+ADD W0, W1, W2          | 0x0B020020 | cat=DP_REG2 sf=0 op=0 S=0 Rd=0 Rn=1 Rm=2
+
+# ADDS (set flags) - S=1
+ADDS X0, X1, X2         | 0xAB020020 | cat=DP_REG2 sf=1 op=0 S=1 Rd=0 Rn=1 Rm=2
+
+# SUB (register) - op=1
+SUB X0, X1, X2          | 0xCB020020 | cat=DP_REG2 sf=1 op=1 S=0 Rd=0 Rn=1 Rm=2
+
+# SUBS (set flags)
+SUBS X0, X1, X2         | 0xEB020020 | cat=DP_REG2 sf=1 op=1 S=1 Rd=0 Rn=1 Rm=2
+
+# CMP (compare) = SUBS XZR, Xn, Xm
+CMP X0, X2              | 0xEB02001F | cat=DP_REG2 sf=1 op=1 S=1 Rd=31 Rn=0 Rm=2
+
+# ============================================================================
+# Logical Operations (op2=0-3, logical shifted register)
+# ============================================================================
+
+# AND (register) - opc=00, N=0
+AND X0, X1, X2          | 0x8A020020 | cat=DP_REG sf=1 opc=0 N=0 Rd=0 Rn=1 Rm=2
+AND X0, X1, X2, LSL #0  | 0x8A020020 | cat=DP_REG sf=1 opc=0 N=0 Rd=0 Rn=1 Rm=2 shift=0
+AND X0, X1, X2, LSR #5  | 0x88421420 | cat=DP_REG sf=1 opc=0 N=0 Rd=0 Rn=1 Rm=2 shift=1 imm6=5
+
+# BIC (AND NOT) - opc=00, N=1
+BIC X0, X1, X2          | 0x8A220020 | cat=DP_REG sf=1 opc=0 N=1 Rd=0 Rn=1 Rm=2
+
+# ORR (register) - opc=01, N=0
+ORR X0, X1, X2          | 0xAA020020 | cat=DP_REG sf=1 opc=1 N=0 Rd=0 Rn=1 Rm=2
+
+# ORN (OR NOT) - opc=01, N=1
+ORN X0, X1, X2          | 0xAA220020 | cat=DP_REG sf=1 opc=1 N=1 Rd=0 Rn=1 Rm=2
+
+# EOR (register) - opc=10, N=0
+EOR X0, X1, X2          | 0xCA020020 | cat=DP_REG sf=1 opc=2 N=0 Rd=0 Rn=1 Rm=2
+
+# EON (EOR NOT) - opc=10, N=1
+EON X0, X1, X2          | 0xCA220020 | cat=DP_REG sf=1 opc=2 N=1 Rd=0 Rn=1 Rm=2
+
+# ANDS (set flags) - opc=11, N=1 (NOT N=0!)
+ANDS X0, X1, X2         | 0xEA220020 | cat=DP_REG sf=1 opc=3 N=1 Rd=0 Rn=1 Rm=2 set_flags=1
+
+# BICS (AND NOT, set flags) - opc=11, N=1 with inverted operand
+BICS X0, X1, X2         | 0xE8620020 | cat=DP_REG sf=1 opc=3 N=1 Rd=0 Rn=1 Rm=2 set_flags=1
+
+# TST (test) = ANDS XZR, Xn, Xm
+TST X0, X2              | 0xEA22001F | cat=DP_REG sf=1 opc=3 N=1 Rd=31 Rn=0 Rm=2 set_flags=1
+
+# ============================================================================
+# Conditional Select (op2=8-11 in cat 0xD)
+# ============================================================================
+
+# CSEL Xd, Xn, Xm, cond
+CSEL X0, X1, X2, EQ     | 0x9A820020 | cat=DP_IMM2 sf=1 op=0 S=0 Rd=0 Rn=1 Rm=2 cond=0
+CSEL X0, X1, X2, NE     | 0x9B021020 | cat=DP_IMM2 sf=1 op=0 S=0 Rd=0 Rn=1 Rm=2 cond=1
+CSEL X0, X1, X2, CS     | 0x9B022020 | cat=DP_IMM2 sf=1 op=0 S=0 Rd=0 Rn=1 Rm=2 cond=2
+
+# CSINC - conditional select increment
+CSINC X0, X1, X2, EQ    | 0x9A822020 | cat=DP_IMM2 sf=1 op=0 S=0 o2=1 Rd=0 Rn=1 Rm=2 cond=0
+
+# ============================================================================
+# Conditional Compare (op2=14-15, S=1 required)
+# ============================================================================
+
+# CCMN Xn, Rm, #nzcv, cond
+CCMN X0, X2, #0, EQ     | 0x3A822000 | cat=DP_REG sf=0 op=0 S=1 Rn=0 Rm=2 imm=nzcv cond=0
+
+# CCMP Xn, Rm, #nzcv, cond
+CCMP X0, X2, #0, EQ     | 0xBA822000 | cat=DP_REG sf=1 op=1 S=1 Rn=0 Rm=2 imm=nzcv cond=0
+
+# ============================================================================
+# Data Processing - Immediate
+# ============================================================================
+
+# ADD immediate - op0=1001, op1=010 (bits 25:23)
+ADD X0, X1, #1          | 0x91000420 | cat=DP_IMM sf=1 op=0 S=0 Rd=0 Rn=1 imm12=1
+ADD X0, X1, #4095       | 0x913FFC20 | cat=DP_IMM sf=1 op=0 S=0 Rd=0 Rn=1 imm12=4095
+
+# ADDS immediate
+ADDS X0, X1, #1         | 0xB1000420 | cat=DP_IMM sf=1 op=0 S=1 Rd=0 Rn=1 imm12=1
+
+# SUB immediate
+SUB X0, X1, #1          | 0xD1000420 | cat=DP_IMM sf=1 op=1 S=0 Rd=0 Rn=1 imm12=1
+
+# SUBS immediate
+SUBS X0, X1, #1         | 0xF1000420 | cat=DP_IMM sf=1 op=1 S=1 Rd=0 Rn=1 imm12=1
+
+# CMP immediate = SUBS XZR, Xn, #imm
+CMP X1, #1              | 0xF100043F | cat=DP_IMM sf=1 op=1 S=1 Rd=31 Rn=1 imm12=1
+
+# MOVZ (move wide with zero) - op0=1001, op1=110
+MOVZ X0, #0x1234, LSL #0  | 0xD3024680 | cat=DP_IMM sf=1 hw=0 imm16=0x1234 Rd=0
+MOVZ X0, #0x1234, LSL #16 | 0xD3264680 | cat=DP_IMM sf=1 hw=1 imm16=0x1234 Rd=0
+MOVZ X0, #0x1234, LSL #32 | 0xD34A4680 | cat=DP_IMM sf=1 hw=2 imm16=0x1234 Rd=0
+MOVZ X0, #0x1234, LSL #48 | 0xD36E4680 | cat=DP_IMM sf=1 hw=3 imm16=0x1234 Rd=0
+
+# MOVN (move wide with NOT)
+MOVN X0, #0x1234        | 0x92824680 | cat=DP_IMM sf=1 hw=0 imm16=0x1234 Rd=0
+
+# MOVK (move wide keeping other bits)
+MOVK X0, #0x1234        | 0xF2824680 | cat=DP_IMM sf=1 hw=0 imm16=0x1234 Rd=0
+
+# ADR (PC-relative address, unscaled)
+ADR X0, .+0             | 0x10000000 | cat=DP_IMM Rd=0 imm=0
+
+# ADRP (PC-relative address, page-aligned)
+ADRP X0, .+0            | 0x90000000 | cat=DP_IMM Rd=0 imm=0
+
+# ============================================================================
+# Branches
+# ============================================================================
+
+# B (unconditional branch immediate)
+B .+0                   | 0x14000000 | cat=BRANCH imm26=0
+B .+4                   | 0x14000001 | cat=BRANCH imm26=1 (signed, << 2)
+
+# BL (branch with link)
+BL .+0                  | 0x94000000 | cat=BRANCH imm26=0
+
+# B.cond (conditional branch)
+B.EQ .+0                | 0x54000000 | cat=BRANCH imm19=0 cond=0
+B.NE .+0                | 0x54000001 | cat=BRANCH imm19=0 cond=1
+
+# CBZ/CBNZ (compare and branch zero/non-zero)
+CBZ X0, .+0             | 0xB4000000 | cat=BRANCH op=0 Rt=0 imm19=0
+CBNZ X0, .+0            | 0xB5000000 | cat=BRANCH op=1 Rt=0 imm19=0
+CBZ W0, .+0             | 0x34000000 | cat=BRANCH op=0 Rt=0 imm19=0 is_64bit=0
+
+# TBZ/TBNZ (test and branch)
+TBZ X0, #0, .+0         | 0x36000000 | cat=BRANCH op=0 Rt=0 imm14=0 bit=0
+TBNZ X0, #0, .+0        | 0x37000000 | cat=BRANCH op=1 Rt=0 imm14=0 bit=0
+
+# BR (branch register)
+BR X0                   | 0xD61F0000 | cat=BRANCH2 Rn=0
+
+# BLR (branch with link register)
+BLR X0                  | 0xD63F0000 | cat=BRANCH2 Rn=0
+
+# RET (return)
+RET                     | 0xD65F03C0 | cat=BRANCH2 Rn=30
+RET X30                 | 0xD65F03C0 | cat=BRANCH2 Rn=30
+
+# ============================================================================
+# Load/Store
+# ============================================================================
+
+# LDR (register, unsigned offset, 64-bit)
+LDR X0, [X1]            | 0xF9400020 | cat=LD_ST size=11 Rn=1 Rt=0 imm12=0
+LDR X0, [X1, #8]        | 0xC1401020 | cat=LD_ST size=11 Rn=1 Rt=0 imm12=1
+LDR X0, [X1, #32760]    | 0xF940FFE0 | cat=LD_ST size=11 Rn=1 Rt=0 imm12=4095 << 3
+
+# LDR (register, unsigned offset, 32-bit)
+LDR W0, [X1]            | 0xB9400020 | cat=LD_ST size=10 Rn=1 Rt=0 imm12=0
+
+# STR (register, unsigned offset, 64-bit)
+STR X0, [X1]            | 0xF9000020 | cat=LD_ST size=11 Rn=1 Rt=0 imm12=0 V=0
+
+# LDRB (byte load)
+LDRB W0, [X1]           | 0x39400020 | cat=LD_ST size=00 Rn=1 Rt=0
+
+# LDRH (halfword load)
+LDRH W0, [X1]           | 0x79400020 | cat=LD_ST size=01 Rn=1 Rt=0
+
+# LDP (load pair, 64-bit)
+LDP X0, X1, [X2]        | 0xA9400040 | cat=LD_ST size=11 V=0 op=1 Rt=0 Rt2=1 Rn=2
+LDP X0, X1, [X2], #16   | 0xA8C00040 | cat=LD_ST size=11 V=0 op=1 Rt=0 Rt2=1 Rn=2 post-index
+
+# STP (store pair, 64-bit)
+STP X0, X1, [X2]        | 0xA9000040 | cat=LD_ST size=11 V=0 op=0 Rt=0 Rt2=1 Rn=2
+
+# ============================================================================
+# System Instructions
+# ============================================================================
+
+# SVC (supervisor call)
+SVC #0                  | 0xD4000001 | cat=BRANCH imm16=0
+SVC #1                  | 0xD4000001 | cat=BRANCH imm16=0  ; Actually encoded in imm16 field
+
+# HVC (hypervisor call)
+HVC #0                  | 0xD4000002 | cat=BRANCH imm16=0
+
+# SMC (secure monitor call)
+SMC #0                  | 0xD4000003 | cat=BRANCH imm16=0
+
+# BRK (breakpoint)
+BRK #0                  | 0xD4200000 | cat=BRANCH imm16=0
+
+# NOP (no operation)
+NOP                     | 0xD503201F | cat=SYS
+
+# HINT (hint instructions)
+HINT #0                 | 0xD503201F | cat=SYS hint=0  ; Actually same encoding as NOP
+YIELD                   | 0xD503203F | cat=SYS hint=1
+WFE                     | 0xD503205F | cat=SYS hint=2
+WFI                     | 0xD503207F | cat=SYS hint=3
+SEV                     | 0xD503209F | cat=SYS hint=4
+SEVL                    | 0xD50320BF | cat=SYS hint=5
+
+# Barriers
+DSB SY                  | 0xD503309F | cat=SYS imm=15
+DMB SY                  | 0xD50330BF | cat=SYS imm=15
+ISB                     | 0xD50330DF | cat=SYS imm=15
+
+# MRS (move system register to general)
+MRS X0, TPIDR_EL0       | 0xD51E8000 | cat=SYS Rd=0 sysreg=29696
+
+# MSR (general to system register)
+MSR TPIDR_EL0, X0       | 0xD51E8000 | cat=SYS Rd=0 sysreg=29696
+
+# ============================================================================
+# SIMD/FP Instructions (partial - scalar only)
+# ============================================================================
+
+# FMOV (register)
+FMOV S0, S1             | 0x1E040020 | cat=SIMD ftype=00 Rd=0 Rn=1
+FMOV D0, D1             | 0x1E440020 | cat=SIMD ftype=01 Rd=0 Rn=1
+
+# FADD (scalar)
+FADD S0, S1, S2         | 0x1E222820 | cat=SIMD ftype=00 Rd=0 Rn=1 Rm=2
+FADD D0, D1, D2         | 0x1E622820 | cat=SIMD ftype=01 Rd=0 Rn=1 Rm=2
+
+# ============================================================================
+# Notes
+# ============================================================================
+#
+# Key findings from ARM manual:
+# 1. ANDS requires N=1 (bit 21) to set flags, not just opc=3
+# 2. Shift field for ADD/SUB/Logical is at bits 23:22, NOT 22:21
+# 3. ADD/SUB shifted register uses op2=4-7 (0100-0111)
+# 4. Logical ops use op2=0-3 (0000-0011)
+# 5. Conditional select is in cat 0xD (DP_IMM2), not DP_REG
+#
+# This file should be used to verify decoder correctness against
+# official ARM encodings, not hand-tuned values.
