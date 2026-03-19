@@ -1,0 +1,227 @@
+# Makefile for iSH dual-platform build system
+# Supports: macOS (Xcode) and Linux (GCC + QEMU)
+
+# Detect platform
+UNAME := $(shell uname -s)
+ARCH := $(shell uname -m)
+
+# Directories
+BUILD_DIR := build
+TEST_RESULTS := tests/aarch64/results
+EMUSRC := emu/aarch64
+
+# Create directories
+$(shell mkdir -p $(BUILD_DIR) $(TEST_RESULTS))
+
+# =============================================================================
+# macOS Build (Xcode)
+# =============================================================================
+ifeq ($(UNAME),Darwin)
+
+BUILD_CMD := xcodebuild
+TEST_CMD := xcodebuild test
+DEST_SIM := -destination 'platform=iOS Simulator,name=iPhone 15'
+DEST_DEVICE := -destination 'generic/platform=iOS'
+DEST_MAC := -destination 'platform=macOS'
+
+.PHONY: all clean test build-ios build-sim build-mac test-unit test-ui
+
+all: build-sim test
+
+clean:
+	rm -rf $(BUILD_DIR)/
+	rm -rf ~/Library/Developer/Xcode/DerivedData/iSH-*/
+
+# Build targets
+build-mac:
+	$(BUILD_CMD) -project iSH.xcodeproj -scheme iSH $(DEST_MAC) -configuration Debug build
+
+build-ios:
+	$(BUILD_CMD) -project iSH.xcodeproj -scheme iSH $(DEST_DEVICE) -configuration Release build
+
+build-sim:
+	$(BUILD_CMD) -project iSH.xcodeproj -scheme iSH $(DEST_SIM) -configuration Debug build
+
+# Test targets
+test-unit:
+	$(TEST_CMD) -project iSH.xcodeproj -scheme "iSH Aarch64 Tests" $(DEST_SIM)
+
+test-ui:
+	$(TEST_CMD) -project iSH.xcodeproj -scheme "iSH Aarch64 UI Tests" $(DEST_SIM)
+
+test: test-unit
+
+# Analysis
+analyze:
+	$(BUILD_CMD) -project iSH.xcodeproj -scheme iSH $(DEST_SIM) analyze
+
+# Archive for distribution
+archive:
+	$(BUILD_CMD) -project iSH.xcodeproj -scheme iSH $(DEST_DEVICE) -configuration Release archive -archivePath $(BUILD_DIR)/iSH.xcarchive
+
+# =============================================================================
+# Linux Build (GCC + QEMU)
+# =============================================================================
+else
+
+CROSS_PREFIX ?= aarch64-linux-gnu-
+CC := $(CROSS_PREFIX)gcc
+CXX := $(CROSS_PREFIX)g++
+
+.PHONY: all clean test build-linux test-arm-ref test-qemu test-e2e test-decoder
+
+all: test
+
+clean:
+	rm -rf $(BUILD_DIR)/
+	rm -f $(TEST_RESULTS)/*.log
+
+# Build targets
+build-linux:
+	$(CC) -o $(BUILD_DIR)/ish-linux \
+		-I. -Iemu -Ikernel \
+		main.c $(EMUSRC)/*.c kernel/aarch64/*.c \
+		-DCLI_ONLY=1 -static -O2
+
+# Decoder compilation
+test-decoder:
+	@echo "========================================"
+	@echo "Building Decoder Tests"
+	@echo "========================================"
+	$(CC) -I. -Iemu -Ikernel \
+		tests/aarch64/decoder_test.c $(EMUSRC)/decode.c \
+		-o $(BUILD_DIR)/decoder_test
+	./$(BUILD_DIR)/decoder_test 2>&1 | tee $(TEST_RESULTS)/decoder_test.log
+
+test-dp-reg:
+	@echo "========================================"
+	@echo "Building DP Register Tests"
+	@echo "========================================"
+	$(CC) -I. -Iemu -Ikernel \
+		tests/aarch64/test-dp-reg.c $(EMUSRC)/decode.c \
+		-o $(BUILD_DIR)/test-dp-reg
+	./$(BUILD_DIR)/test-dp-reg 2>&1 | tee $(TEST_RESULTS)/test-dp-reg.log
+
+# ARM Reference validation
+test-arm-ref:
+	@echo "========================================"
+	@echo "ARM Reference Validation"
+	@echo "========================================"
+	bash tests/aarch64/tools/reference-check.sh 2>&1 | tee $(TEST_RESULTS)/arm-reference.log
+
+# E2E tests with QEMU
+test-qemu:
+	@echo "========================================"
+	@echo "QEMU E2E Tests"
+	@echo "========================================"
+	bash tests/aarch64/e2e/run-e2e-tests.sh 2>&1 | tee $(TEST_RESULTS)/e2e.log
+
+# Full test suite
+test: test-arm-ref test-decoder test-dp-reg
+	@echo "========================================"
+	@echo "Test Summary"
+	@echo "========================================"
+	@echo "ARM Reference: $$(grep -c '✅' $(TEST_RESULTS)/arm-reference.log 2>/dev/null || echo 0) passed"
+	@echo "Decoder: $$(grep -c 'PASS' $(TEST_RESULTS)/decoder_test.log 2>/dev/null || echo 0) passed"
+	@echo "DP Reg: $$(grep -c 'PASS' $(TEST_RESULTS)/test-dp-reg.log 2>/dev/null || echo 0) passed"
+
+# Static analysis
+analyze:
+	@echo "========================================"
+	@echo "Static Analysis (clang-tidy)"
+	@echo "========================================"
+	clang-tidy $(EMUSRC)/*.c -- -I. -Iemu -Ikernel 2>&1 | tee $(TEST_RESULTS)/clang-tidy.log
+
+# Memory safety (requires test binaries built with debug)
+valgrind: test-decoder
+	@echo "========================================"
+	@echo "Memory Safety (Valgrind)"
+	@echo "========================================"
+	valgrind --leak-check=full --error-exitcode=1 ./$(BUILD_DIR)/decoder_test 2>&1 | tee $(TEST_RESULTS)/valgrind.log
+
+# Docker targets
+docker-test:
+	docker-compose -f docker-compose.build.yml run --rm linux-tester
+
+docker-build:
+	docker-compose -f docker-compose.build.yml build
+
+docker-clean:
+	docker-compose -f docker-compose.build.yml down -v
+
+docker-e2e:
+	docker-compose -f docker-compose.build.yml --profile e2e run --rm qemu-e2e
+
+# Cross-compile (requires osxcross)
+osxcross-check:
+	@if [ -z "$$(which o64-clang 2>/dev/null)" ]; then \
+		echo "ERROR: o64-clang not found"; \
+		echo "Install osxcross or use Docker: make docker-osxcross"; \
+		exit 1; \
+	fi
+
+osxcross: osxcross-check
+	o64-clang -o $(BUILD_DIR)/ish-macos \
+		-I. -Iemu -Ikernel \
+		main.c $(EMUSRC)/*.c kernel/aarch64/*.c \
+		-DCLI_ONLY=1
+
+docker-osxcross:
+	docker-compose -f docker-compose.build.yml --profile cross-compile run --rm osxcross-builder
+
+endif
+
+# =============================================================================
+# Universal Targets (both platforms)
+# =============================================================================
+
+.PHONY: help lint format
+
+help:
+	@echo "iSH Build System"
+	@echo "================"
+	@echo ""
+	@echo "Platform detected: $(UNAME) ($(ARCH))"
+	@echo ""
+ifeq ($(UNAME),Darwin)
+	@echo "macOS Targets:"
+	@echo "  make build-mac      - Build for macOS"
+	@echo "  make build-sim      - Build for iOS Simulator"
+	@echo "  make build-ios      - Build for iOS Device"
+	@echo "  make test-unit      - Run unit tests (XCTest)"
+	@echo "  make test-ui        - Run UI tests (XCUITest)"
+	@echo "  make test           - Run all tests"
+	@echo "  make analyze        - Static analysis"
+	@echo "  make archive        - Create release archive"
+else
+	@echo "Linux Targets:"
+	@echo "  make test           - Run all tests (ARM ref + decoder)"
+	@echo "  make test-arm-ref   - ARM DDI 0487 validation"
+	@echo "  make test-decoder   - Decoder unit tests"
+	@echo "  make test-dp-reg    - DP register tests"
+	@echo "  make test-qemu      - QEMU E2E tests"
+	@echo "  make analyze        - Static analysis (clang-tidy)"
+	@echo "  make valgrind       - Memory safety check"
+	@echo ""
+	@echo "Docker Targets:"
+	@echo "  make docker-build   - Build Docker images"
+	@echo "  make docker-test    - Run tests in Docker"
+	@echo "  make docker-e2e     - Run E2E tests in Docker"
+	@echo "  make docker-clean   - Clean Docker volumes"
+	@echo ""
+	@echo "Cross-compile:"
+	@echo "  make osxcross       - Build for macOS (requires osxcross)"
+	@echo "  make docker-osxcross - Build for macOS (Docker)"
+endif
+	@echo ""
+	@echo "Universal Targets:"
+	@echo "  make clean          - Clean build artifacts"
+	@echo "  make help           - Show this help"
+
+lint:
+	@echo "Running linters..."
+	find emu/aarch64 tests/aarch64 -name "*.c" -o -name "*.h" | xargs clang-tidy -- -I. -Iemu
+
+format:
+	@echo "Formatting code..."
+	find emu/aarch64 tests/aarch64 -name "*.c" -o -name "*.h" | xargs clang-format -i

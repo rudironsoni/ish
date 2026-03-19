@@ -1,0 +1,81 @@
+# Linux test environment for iSH aarch64
+# Runs ARM reference validation and QEMU-based E2E tests
+
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install all testing dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    make \
+    meson \
+    ninja-build \
+    libsqlite3-dev \
+    qemu-user-static \
+    qemu-system-arm \
+    gcc-aarch64-linux-gnu \
+    g++-aarch64-linux-gnu \
+    libc6-dev-arm64-cross \
+    binutils-aarch64-linux-gnu \
+    valgrind \
+    clang-tidy \
+    clang-format \
+    wget \
+    tar \
+    xz-utils \
+    git \
+    python3 \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install musl cross compiler for static binaries
+RUN cd /tmp && \
+    wget https://musl.cc/aarch64-linux-musl-cross.tgz && \
+    tar xzf aarch64-linux-musl-cross.tgz -C /opt && \
+    rm aarch64-linux-musl-cross.tgz
+
+ENV PATH="/opt/aarch64-linux-musl-cross/bin:$PATH"
+
+# Enable QEMU binfmt for transparent emulation
+RUN update-binfmts --enable qemu-aarch64
+
+# Create test directories
+RUN mkdir -p /tests/binaries /tests/results /tests/fixtures /ish
+
+WORKDIR /ish
+
+# Copy test scripts
+COPY tests/aarch64/tools/ /ish/tests/aarch64/tools/
+COPY tests/aarch64/e2e/ /ish/tests/aarch64/e2e/
+COPY tests/aarch64/arm-reference.txt /ish/tests/aarch64/
+COPY tests/aarch64/test.h /ish/tests/aarch64/
+COPY tests/aarch64/decoder_test.c /ish/tests/aarch64/
+COPY tests/aarch64/test-dp-reg.c /ish/tests/aarch64/
+COPY tests/aarch64/functional_test.c /ish/tests/aarch64/
+
+# Copy source code
+COPY emu/aarch64/ /ish/emu/aarch64/
+COPY misc.h /ish/
+COPY debug.h /ish/
+
+# Default: run all tests
+CMD ["bash", "-c", "\
+    echo '========================================' && \
+    echo 'iSH aarch64 Linux Test Suite' && \
+    echo '========================================' && \
+    echo '' && \
+    echo '1. ARM Reference Validation' && \
+    bash tests/aarch64/tools/reference-check.sh && \
+    echo '' && \
+    echo '2. Decoder Unit Tests' && \
+    gcc -I. tests/aarch64/decoder_test.c emu/aarch64/decode.c -o /tmp/decoder_test && \
+    /tmp/decoder_test && \
+    echo '' && \
+    echo '3. Data Processing Tests' && \
+    gcc -I. tests/aarch64/test-dp-reg.c emu/aarch64/decode.c -o /tmp/test-dp-reg && \
+    /tmp/test-dp-reg && \
+    echo '' && \
+    echo 'All tests completed!' \
+"]
