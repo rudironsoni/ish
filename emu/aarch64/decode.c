@@ -97,8 +97,42 @@ int a64_decode_dp_imm(uint32_t insn, a64_instr_t *out) {
             return 0;
         }
 
-        case 2: // 010 - Add/Subtract immediate
-        case 3: // 011 - Add/Subtract immediate (with shift)
+        case 2: // 010 - Add/Subtract immediate OR Move Wide Immediate
+        {
+            int opc = bits(insn, 30, 29);
+            
+            // Check if this is MOVZ/MOVN/MOVK (opc = 01, 00, 10)
+            if ((opc & 2) != 0) { // bit 29 set = MOVZ/MOVN/MOVK
+                // Move Wide Immediate
+                int hw = bits(insn, 22, 21);
+                uint64_t imm16 = bits(insn, 20, 5);
+                out->is_64bit = bit(insn, 31);
+                out->Rd = bits(insn, 4, 0);
+                out->imm = imm16 << (hw * 16);
+                out->subtype = (opc >> 1); // 0=MOVN, 1=MOVZ, 2=MOVK, 3=???(reserved)
+                return 0;
+            }
+            
+            // Add/Subtract immediate (opc = 00 or 01 but bit 29 clear)
+            int op = bit(insn, 30); // 0=ADD, 1=SUB
+            int S = bit(insn, 29);  // Set flags (should be 0 for these)
+            out->is_64bit = bit(insn, 31);
+            out->Rd = bits(insn, 4, 0);
+            out->Rn = bits(insn, 9, 5);
+            out->imm = bits(insn, 21, 10);
+            out->set_flags = S;
+            out->subtype = op ? 1 : 0; // 0=ADD, 1=SUB
+
+            // Check for shift (bit 22 is sh)
+            if (bit(insn, 22)) {
+                // Shifted by 12
+                out->imm <<= 12;
+            }
+
+            return 0;
+        }
+        
+        case 3: // 011 - Add/Subtract immediate (alternate encoding with shift)
         {
             int op = bit(insn, 30); // 0=ADD, 1=SUB
             int S = bit(insn, 29);  // Set flags
@@ -115,8 +149,6 @@ int a64_decode_dp_imm(uint32_t insn, a64_instr_t *out) {
                 out->imm <<= 12;
             }
 
-            // Special case: when Rd=31 and Rn=31, this could be MOV SP
-            // or when using zero register
             return 0;
         }
 

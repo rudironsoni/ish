@@ -1,15 +1,16 @@
-#ifndef AARCH64_DECODE_H
-#define AARCH64_DECODE_H
+/*
+ * AArch64 Instruction Decoder Header
+ * Compatible with original iSH decode.h structure
+ */
 
-#include "misc.h"
-#include "emu/aarch64/cpu.h"
+#ifndef EMU_AARCH64_DECODE_H
+#define EMU_AARCH64_DECODE_H
 
-// aarch64 instruction size is always 4 bytes
-#define A64_INSTR_SIZE 4
+#include <stdint.h>
+#include <stdbool.h>
+#include <stddef.h>
 
-// Instruction categories based on op0 = bits 28:25
-// Based on ARMv8-A Reference Manual
-// Note: These values are the ACTUAL op0 encodings, not sequential
+/* Instruction categories based on op0 = bits 28:25 */
 typedef enum {
     // op0 = 0x0, 0x1, 0x2, 0x3: Reserved/Unallocated in standard encoding
     A64_RESERVED = 0x0,
@@ -48,7 +49,7 @@ typedef enum {
     A64_SIMD2 = 0xF,          // 1111
 } a64_category_t;
 
-// Subcategories for Data Processing - Immediate
+/* Subcategories for Data Processing - Immediate */
 typedef enum {
     A64_DP_IMM_UNALLOC = 0,  // 00 - Unallocated
     A64_DP_IMM_PC_REL = 1,   // 01 - PC-rel addressing (ADR, ADRP)
@@ -59,7 +60,7 @@ typedef enum {
     A64_DP_IMM_MOVEW = 6,    // 110 - Move wide immediate
 } a64_dp_imm_subtype_t;
 
-// Subcategories for Branches
+/* Subcategories for Branches */
 typedef enum {
     A64_BRANCH_COND = 0,     // Conditional branch
     A64_BRANCH_UNCOND = 1,   // Unconditional branch (immediate)
@@ -69,7 +70,7 @@ typedef enum {
     A64_EXCEPTION = 7,       // Exception generation
 } a64_branch_subtype_t;
 
-// Subcategories for Loads and Stores
+/* Subcategories for Loads and Stores */
 typedef enum {
     A64_LDST_SINGLE = 4,     // Load/store single (unscaled, immediate, etc.)
     A64_LDST_PAIR = 5,       // Load/store register pair
@@ -77,7 +78,7 @@ typedef enum {
     A64_LDST_ATOMIC = 0,     // Atomic operations
 } a64_ldst_subtype_t;
 
-// Data processing register subcategories
+/* Data processing register subcategories */
 typedef enum {
     A64_DP_REG_LOGICAL = 0,     // Logical (shifted register)
     A64_DP_REG_ADD_SUB = 1,     // Add/Subtract (shifted register)
@@ -88,7 +89,7 @@ typedef enum {
     A64_DP_REG_3SRC = 6,        // Data processing (3 source)
 } a64_dp_reg_subtype_t;
 
-// Condition codes for conditional instructions
+/* Condition codes for conditional instructions */
 typedef enum {
     A64_EQ = 0x0,  // Equal
     A64_NE = 0x1,  // Not equal
@@ -108,7 +109,7 @@ typedef enum {
     A64_NV = 0xF,  // Always (contradicts condition)
 } a64_cond_t;
 
-// Extended register types for load/store
+/* Extended register types for load/store */
 typedef enum {
     A64_EXT_UXTW = 0,   // Unsigned extend word
     A64_EXT_UXTX = 1,   // Unsigned extend doubleword
@@ -117,7 +118,7 @@ typedef enum {
     A64_EXT_LSL = 4,    // Logical shift left (no extend)
 } a64_extend_t;
 
-// Shift types
+/* Shift types */
 typedef enum {
     A64_SHIFT_LSL = 0,
     A64_SHIFT_LSR = 1,
@@ -125,7 +126,7 @@ typedef enum {
     A64_SHIFT_ROR = 3,
 } a64_shift_t;
 
-// Size field for loads/stores
+/* Size field for loads/stores */
 typedef enum {
     A64_SIZE_B = 0,   // Byte
     A64_SIZE_H = 1,   // Halfword
@@ -133,7 +134,7 @@ typedef enum {
     A64_SIZE_X = 3,   // Doubleword (64-bit)
 } a64_size_t;
 
-// Decoded instruction structure
+/* Decoded instruction structure */
 typedef struct {
     uint32_t raw;           // Raw instruction
     a64_category_t cat;     // Main category
@@ -174,7 +175,7 @@ typedef struct {
     uint8_t op;             // Opcode for system instructions
 } a64_instr_t;
 
-// Bit manipulation helpers
+/* Bit manipulation helpers */
 static inline uint32_t bits(uint32_t val, int hi, int lo) {
     return (val >> lo) & ((1U << (hi - lo + 1)) - 1);
 }
@@ -188,17 +189,17 @@ static inline int64_t sign_extend(uint64_t val, int bits) {
     return (val ^ sign_bit) - sign_bit;
 }
 
-// Category detection based on ARMv8-A architecture
+/* Category detection based on ARMv8-A architecture */
 // op0 = bits 28:25
 static inline a64_category_t a64_get_category(uint32_t insn) {
     return (a64_category_t)((insn >> 25) & 0xF);
 }
 
-// Main decode function
+/* Main decode function */
 // Returns 0 on success, -1 on undefined instruction
 int a64_decode(uint32_t insn, a64_instr_t *out);
 
-// Decode helpers for specific categories
+/* Decode helpers for specific categories */
 int a64_decode_dp_imm(uint32_t insn, a64_instr_t *out);
 int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out);
 int a64_decode_branch(uint32_t insn, a64_instr_t *out);
@@ -206,12 +207,12 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out);
 int a64_decode_simd_fp(uint32_t insn, a64_instr_t *out);
 int a64_decode_system(uint32_t insn, a64_instr_t *out);
 
-// Instruction printing for debugging
+/* Instruction printing for debugging */
 const char *a64_category_name(a64_category_t cat);
 const char *a64_cond_name(a64_cond_t cond);
 void a64_print_instr(const a64_instr_t *instr, char *buf, size_t size);
 
-// Common register names
+/* Common register names */
 static inline const char *a64_reg_name(int reg, int is_64bit) {
     if (reg == 31)
         return is_64bit ? "sp" : "wsp";
@@ -232,7 +233,7 @@ static inline const char *a64_reg_name(int reg, int is_64bit) {
     return "?";
 }
 
-// Vector register names
+/* Vector register names */
 static inline const char *a64_vec_reg_name(int reg, int is_128bit) {
     static const char *names128[] = {
         "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
@@ -251,4 +252,4 @@ static inline const char *a64_vec_reg_name(int reg, int is_128bit) {
     return "?";
 }
 
-#endif
+#endif /* EMU_AARCH64_DECODE_H */

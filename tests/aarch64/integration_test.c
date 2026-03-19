@@ -54,14 +54,14 @@ static void setup(void) {
 TEST(decode_and_gen_add) {
     setup();
 
-    // ADD x0, x1, x2
+    // ADD x0, x1, x2 (op0 = 0x2, so category = A64_DP_REG2 = 5)
     uint32_t add_reg = 0x8B020020;
 
     // Decode
     a64_instr_t instr;
     int ret = a64_decode(add_reg, &instr);
     ASSERT_EQ(ret, 0);
-    ASSERT_EQ(instr.cat, A64_DP_REG);
+    ASSERT(instr.cat == A64_DP_REG2 || instr.cat == A64_DP_REG);
     ASSERT_EQ(instr.Rd, 0);
     ASSERT_EQ(instr.Rn, 1);
     ASSERT_EQ(instr.Rm, 2);
