@@ -21,3 +21,8 @@ e2e_out/
 
 # Worktrees for isolated development
 .worktrees/
+
+# Alpine rootfs for testing (large binaries)
+tests/aarch64/e2e/alpine-rootfs/
+tests/aarch64/e2e/*.c
+tests/aarch64/e2e/results/
