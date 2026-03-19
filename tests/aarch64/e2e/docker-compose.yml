@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  # Cross-compilation environment
+  builder:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ish-aarch64-builder
+    volumes:
+      - ../../..:/ish:ro
+      - ./binaries:/tests/binaries
+      - ./results:/tests/results
+    working_dir: /tests
+    command: /tests/run-e2e-tests.sh
+
+  # QEMU reference testing
+  qemu-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ish-aarch64-builder
+    volumes:
+      - ../../..:/ish:ro
+      - ./binaries:/tests/binaries
+      - ./results:/tests/results
+    working_dir: /tests
+    command: |
+      bash -c "
+        echo 'Running QEMU reference tests...'
+        for bin in /tests/binaries/*.bin; do
+          if [ -f \"\$bin\" ]; then
+            echo \"Testing: \$bin\"
+            qemu-aarch64-static \"\$bin\" || echo \"Failed: \$bin\"
+          fi
+        done
+      "
+
+  # Full iSH build and test (requires meson/ninja)
+  ish-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ish-aarch64-builder
+    volumes:
+      - ../../..:/ish
+      - ./binaries:/tests/binaries
+      - ./results:/tests/results
+    working_dir: /ish
+    command: |
+      bash -c "
+        echo 'Building iSH with aarch64 support...'
+        meson setup build --wipe || meson setup build
+        ninja -C build
+
+        echo ''
+        echo 'Running E2E tests...'
+        cd tests/aarch64/e2e
+        ./run-e2e-tests.sh
+      "
