@@ -8,64 +8,15 @@ services:
   linux-tester:
     build:
       context: .
-      dockerfile: Dockerfile.linux-test
+      dockerfile: Dockerfile
+      target: tester
     image: ish-linux-tester
     container_name: ish-linux-tests
     volumes:
       - ./tests/aarch64/results:/ish/tests/aarch64/results
       - ./build:/ish/build
     working_dir: /ish
-    command: |
-      bash -c "
-        echo '========================================'
-        echo 'iSH aarch64 Linux Test Suite'
-        echo '========================================'
-        echo ''
-
-        # Run ARM reference validation
-        echo '1. ARM Reference Validation'
-        echo '---------------------------'
-        bash tests/aarch64/tools/reference-check.sh 2>&1 | tee tests/aarch64/results/arm-reference.log
-        REF_EXIT=\${PIPESTATUS[0]}
-
-        echo ''
-        echo '2. Compile and Run Tests'
-        echo '--------------------------'
-
-        # Create build directory
-        mkdir -p build
-
-        # Test 1: Decoder test
-        echo 'Running decoder_test...'
-        gcc -I. tests/aarch64/decoder_test.c emu/aarch64/decode.c -o build/decoder_test 2>&1 | tee build/decoder_test.log
-        if [ -f build/decoder_test ]; then
-          ./build/decoder_test 2>&1 | tee -a build/decoder_test.log
-        fi
-
-        # Test 2: DP register test
-        echo 'Running test-dp-reg...'
-        gcc -I. tests/aarch64/test-dp-reg.c emu/aarch64/decode.c -o build/test-dp-reg 2>&1 | tee build/test-dp-reg.log
-        if [ -f build/test-dp-reg ]; then
-          ./build/test-dp-reg 2>&1 | tee -a build/test-dp-reg.log
-        fi
-
-        # Test 3: Functional test (requires generator)
-        if [ -f tests/aarch64/functional_test.c ]; then
-          echo 'Running functional_test...'
-          gcc -I. tests/aarch64/functional_test.c emu/aarch64/decode.c asbestos/aarch64/gen.c -o build/functional_test 2>&1 | tee build/functional_test.log || echo 'Skipped (compilation issues)'
-        fi
-
-        # Summary
-        echo ''
-        echo '========================================'
-        echo 'Test Summary'
-        echo '========================================'
-        echo 'ARM Reference: '\$([ \$REF_EXIT -eq 0 ] && echo 'PASS' || echo 'FAIL')
-        echo 'Results saved to: tests/aarch64/results/'
-        echo 'Build logs in: build/'
-
-        exit 0
-      "
+    # Uses default CMD from Dockerfile (run-tests.sh)
 
   # macOS cross-compile environment (requires SDK)
   osxcross-builder:
@@ -108,25 +59,6 @@ services:
         ls -la build/macos/
       "
     profiles: ["cross-compile"]  # Only run when explicitly requested
-
-  # QEMU E2E test environment
-  qemu-e2e:
-    build:
-      context: .
-      dockerfile: Dockerfile.linux-test
-    image: ish-qemu-e2e
-    container_name: ish-qemu-tests
-    volumes:
-      - ./tests/aarch64/e2e/results:/ish/tests/aarch64/e2e/results
-      - ./tests/aarch64/e2e/fixtures:/ish/tests/aarch64/e2e/fixtures
-      - ./tests/aarch64/e2e/binaries:/ish/tests/aarch64/e2e/binaries
-    working_dir: /ish
-    command: |
-      bash -c "
-        cd tests/aarch64/e2e
-        bash run-e2e-tests.sh
-      "
-    profiles: ["e2e"]  # Only run when explicitly requested
 
 volumes:
   osxcross-build:
