@@ -20,8 +20,12 @@ int a64_decode(uint32_t insn, a64_instr_t *out) {
 
     switch (cat) {
         case A64_DP_IMM:      // 0x9
-        case A64_DP_IMM2:     // 0xD
             return a64_decode_dp_imm(insn, out);
+
+        case A64_DP_IMM2:     // 0xD
+            // All category 0xD instructions are actually DP_REG instructions
+            // (ADC/SBC, 3-source, conditional select, conditional compare)
+            return a64_decode_dp_reg(insn, out);
 
         case A64_DP_REG:      // 0x4
         case A64_DP_REG2:     // 0x5 (most register ops)
@@ -45,6 +49,10 @@ int a64_decode(uint32_t insn, a64_instr_t *out) {
         case A64_RESERVED2:
         case A64_RESERVED3:
         case A64_SIMD0:
+            // op0 = 0x8 is actually used for Data Processing - Immediate in ARMv8-A
+            // This includes: ADR, ADRP, ADD/SUB imm, logical imm, move wide, bitfield
+            return a64_decode_dp_imm(insn, out);
+
         default:
             // Check for system instructions (HINT, barriers, etc.)
             // System instructions: top 8 bits = 0xD5 (11010101)
@@ -177,22 +185,37 @@ int a64_decode_dp_imm(uint32_t insn, a64_instr_t *out) {
 
 // Data Processing - Register
 int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out) {
-    // DP_REG categories have bit 28 = 0, bit 27:26 = 01 or 11
-    int op0 = bits(insn, 30, 28);
-    int op1 = bit(insn, 25);
-
+    // DP_REG categories: op0 = bits 28:25 = 0100-0111 (0x4-0x7) or 1101 (0xD for ADC/SBC)
+    // For categorization within DP_REG, use op2 = bits 24:21
     out->is_64bit = bit(insn, 31);
 
-    if (op1 == 0) {
-        // Data processing - shifted register / immediate
+    // Check if this is ADC/SBC (category 0xD) which needs special handling
+    a64_category_t cat = a64_get_category(insn);
+    if (cat == A64_DP_IMM2) {
+        // ADC/SBC with carry - op2 = bits 24:21 should be 0-2
         int op2 = bits(insn, 24, 21);
+        if (op2 <= 2) {
+            int op = bit(insn, 30); // 0=ADC, 1=SBC
+            int S = bit(insn, 29);
+            out->Rd = bits(insn, 4, 0);
+            out->Rn = bits(insn, 9, 5);
+            out->Rm = bits(insn, 20, 16);
+            out->set_flags = S;
+            out->subtype = op ? 3 : 2; // 2=ADC, 3=SBC
+            return 0;
+        }
+        // Fall through for other category 0xD instructions
+    }
 
-        switch (op2) {
-            case 0: // Logical shifted register
-            case 1:
-            case 2:
-            case 3:
-            {
+    // Standard DP_REG processing based on op2 = bits 24:21
+    int op2 = bits(insn, 24, 21);
+
+    switch (op2) {
+        case 0: // Logical shifted register
+        case 1:
+        case 2:
+        case 3:
+        {
                 int opc = bits(insn, 30, 29);
                 int shift = bits(insn, 23, 22);
                 int N = bit(insn, 21);
@@ -206,11 +229,11 @@ int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out) {
                 return 0;
             }
 
-            case 4: // Add/subtract (shifted register)
-            case 5:
-            case 6:
-            case 7:
-            {
+        case 4: // Add/subtract (shifted register)
+        case 5:
+        case 6:
+        case 7:
+        {
                 int op = bit(insn, 30); // 0=ADD, 1=SUB
                 int S = bit(insn, 29);
                 int shift = bits(insn, 23, 22);
@@ -224,11 +247,29 @@ int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out) {
                 return 0;
             }
 
-            case 8: // Add/subtract (extended register)
-            case 9:
-            case 10:
-            case 11:
-            {
+        case 8: // Add/subtract (extended register) OR Conditional select
+        case 9:
+        case 10:
+        case 11:
+        {
+                // Check if this is conditional select (cat=0xD, op2=8-11)
+                a64_category_t cat = a64_get_category(insn);
+                if (cat == A64_DP_IMM2) {
+                    // Conditional select: CSEL, CSINC, CSINV, CSNEG
+                    int op = bit(insn, 30); // 0=CSEL/CSINC, 1=CSINV/CSNEG
+                    int S = bit(insn, 29); // 0 for conditional select
+                    int cond = bits(insn, 15, 12);
+                    int o2 = bit(insn, 10); // 0 for CSEL/CSINV, 1 for CSINC/CSNEG
+                    out->Rd = bits(insn, 4, 0);
+                    out->Rn = bits(insn, 9, 5);
+                    out->Rm = bits(insn, 20, 16);
+                    out->cond = cond;
+                    out->set_flags = S;
+                    // subtype: 0=CSEL, 1=CSINC, 2=CSINV, 3=CSNEG
+                    out->subtype = (op << 1) | o2;
+                    return 0;
+                }
+                // Add/subtract (extended register)
                 int op = bit(insn, 30);
                 int S = bit(insn, 29);
                 int opt = bits(insn, 23, 22); // option for extension
@@ -243,9 +284,9 @@ int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out) {
                 return 0;
             }
 
-            case 12: // Add/subtract (with carry)
-            case 13:
-            {
+        case 12: // Add/subtract (with carry)
+        case 13:
+        {
                 int op = bit(insn, 30);
                 int S = bit(insn, 29);
                 out->Rd = bits(insn, 4, 0);
@@ -256,9 +297,9 @@ int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out) {
                 return 0;
             }
 
-            case 14: // Conditional compare (register)
-            case 15:
-            {
+        case 14: // Conditional compare (register)
+        case 15:
+        {
                 int op = bit(insn, 30);
                 int S = bit(insn, 29); // should be 1
                 int o2 = bit(insn, 10);
@@ -272,36 +313,10 @@ int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out) {
                 out->subtype = op ? 5 : 4; // 4=CCMN, 5=CCMP
                 return 0;
             }
-        }
-    } else {
-        // Data processing - 1/2/3 source
-        int op2 = bits(insn, 24, 21);
 
-        if (op2 == 3) {
-            // Conditional select
-            int op = bits(insn, 30, 29);
-            int S = bit(insn, 29); // actually part of op
-            int cond = bits(insn, 15, 12);
-            out->Rd = bits(insn, 4, 0);
-            out->Rn = bits(insn, 9, 5);
-            out->Rm = bits(insn, 20, 16);
-            out->cond = cond;
-            out->subtype = 6 + op; // 6=CSEL, 7=CSINC, 8=CSINV, 9=CSNEG
-            return 0;
-        }
-
-        // 3 source operations
-        int op = bits(insn, 30, 29);
-        int o0 = bit(insn, 15);
-        out->Rd = bits(insn, 4, 0);
-        out->Rn = bits(insn, 9, 5);
-        out->Rm = bits(insn, 20, 16);
-        out->Ra = bits(insn, 14, 10);
-        out->subtype = 10; // 3-source ops
-        return 0;
+            default:
+            return -1;
     }
-
-    return -1;
 }
 
 // Branch instructions
@@ -414,7 +429,7 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out) {
     int op3 = bits(insn, 15, 12);
     int op4 = bits(insn, 11, 10);
 
-    out->is_64bit = op0 == 3 || op0 == 2;
+    out->is_64bit = op0 == 3;
     out->is_vector = bit(insn, 26);
 
     // Size encoding: 0=B, 1=H, 2=W, 3=X (or S for FP)
@@ -547,9 +562,10 @@ int a64_decode_simd_fp(uint32_t insn, a64_instr_t *out) {
 // System instructions (SVC, MRS, MSR, barriers, hints)
 int a64_decode_system(uint32_t insn, a64_instr_t *out) {
     // HINT instructions (NOP, YIELD, WFE, WFI, SEV, etc.)
-    // HINT encoding: 1101010100 | 000 | L(0) | 011 | CRn(4) | CRm(4) | 000 | 11111
-    // NOP: CRm = 0, op2 = 0
-    if ((insn & 0xFFFFF0FF) == 0xD503201F) {
+    // HINT encoding: bits 31:20 = 1101 0101 0000 (0xD50), CRm varies, op2=0, Rt=31
+    // Base pattern: 0xD503201F = NOP (CRm=0)
+    // The only variable part is CRm (bits 11:8) for different hint types
+    if ((insn & 0xFFFFF01F) == 0xD503201F) {
         out->subtype = 6; // HINT
         out->imm = bits(insn, 11, 8); // CRm field selects hint type
         return 0;
@@ -603,11 +619,15 @@ int a64_decode_system(uint32_t insn, a64_instr_t *out) {
     }
 
     // System instructions (hint, barriers, etc.)
-    if ((insn & 0xFFF80000) == 0xD5080000) {
-        int CRm = bits(insn, 11, 8);
-        out->imm = CRm;
-        out->subtype = 5; // HINT, barriers
-        return 0;
+    // ISB/DSB/DMB barriers: bits 31:20 = 0xD50, CRn=3 (bits 15:12), CRm varies
+    // Pattern: 0xD50xx020 where xx encodes the barrier type
+    if ((insn & 0xFFF00020) == 0xD5000020) {
+        // ISB/DSB/DMB - bits 15:12 = CRn=3 for barriers
+        if (bits(insn, 15, 12) == 3) {
+            out->imm = bits(insn, 11, 8); // CRm
+            out->subtype = 5; // barriers
+            return 0;
+        }
     }
 
     return -1;
