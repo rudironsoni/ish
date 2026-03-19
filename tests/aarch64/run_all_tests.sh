@@ -1,8 +1,6 @@
 #!/bin/bash
 # Comprehensive aarch64 test runner
 
-set -e
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 BUILD_DIR="${BUILD_DIR:-/tmp/aarch64_test_build}"
@@ -58,8 +56,11 @@ if gcc -I"$PROJECT_ROOT" \
         "$PROJECT_ROOT/tests/aarch64/decoder_test.c" \
         "$PROJECT_ROOT/emu/aarch64/decode.c" \
         -o "$BUILD_DIR/decoder_test" 2>/dev/null; then
-    # Decoder has some expected failures for categories
-    "$BUILD_DIR/decoder_test" | grep -q "Results:" && test_pass "decoder_test_compiles"
+    if "$BUILD_DIR/decoder_test" | grep -q "Results:"; then
+        test_pass "decoder_test_compiles"
+    else
+        test_fail "decoder_test_output"
+    fi
 else
     test_fail "decoder_test"
 fi
@@ -108,11 +109,37 @@ else
     test_fail "gadgets_tcti_impl.c missing"
 fi
 
+# TCTI Generator Test
+test_header "TCTI Generator Tests"
+if [ -f "$PROJECT_ROOT/asbestos/aarch64/tcti-gadget-gen.py" ]; then
+    if command -v python3 >/dev/null 2>&1; then
+        TCTI_TEST_DIR=$(mktemp -d)
+        if python3 "$PROJECT_ROOT/asbestos/aarch64/tcti-gadget-gen.py" -o "$TCTI_TEST_DIR" --header-only 2>/dev/null; then
+            if [ -f "$TCTI_TEST_DIR/gadgets_tcti.h" ]; then
+                if grep -q "tcti_gadget_t" "$TCTI_TEST_DIR/gadgets_tcti.h"; then
+                    test_pass "tcti-gadget-gen.py produces valid header"
+                else
+                    test_fail "tcti-gadget-gen.py header invalid"
+                fi
+            else
+                test_fail "tcti-gadget-gen.py header not generated"
+            fi
+        else
+            test_fail "tcti-gadget-gen.py failed"
+        fi
+        rm -rf "$TCTI_TEST_DIR"
+    else
+        test_pass "tcti-gadget-gen.py exists (no python3)"
+    fi
+else
+    test_fail "tcti-gadget-gen.py missing"
+fi
+
 # Structure Validation
 test_header "Structure Validation"
 
 # Check CPU state structure has key members
-if grep -q "uint64_t x\[31\]" "$PROJECT_ROOT/emu/aarch64/cpu.h"; then
+if grep -q "qword_t x\[31\]" "$PROJECT_ROOT/emu/aarch64/cpu.h"; then
     test_pass "cpu_state has x[31]"
 else
     test_fail "cpu_state missing x[31]"
@@ -168,16 +195,11 @@ fi
 # Build System Tests
 test_header "Build System Tests"
 
-if grep -q "arch.*aarch64" "$PROJECT_ROOT/meson.build"; then
-    test_pass "meson.build supports aarch64"
+# Check aarch64 is hardcoded (x86 removed)
+if grep -q "ARCH_AARCH64" "$PROJECT_ROOT/meson.build"; then
+    test_pass "meson.build has aarch64"
 else
-    test_fail "meson.build missing aarch64 support"
-fi
-
-if grep -q "arch.*combo" "$PROJECT_ROOT/meson_options.txt"; then
-    test_pass "meson_options.txt has arch option"
-else
-    test_fail "meson_options.txt missing arch option"
+    test_fail "meson.build missing aarch64"
 fi
 
 # Instruction Decode Tests
