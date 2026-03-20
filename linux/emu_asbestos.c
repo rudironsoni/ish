@@ -45,40 +45,34 @@ static void emu_run_to_interrupt(struct emu *emu, struct cpu_state *cpu)
 	struct emu_mm_ctx *mm_ctx = emu->mm->ctx;
 
 	cpu->mmu = &mm_ctx->mmu;
-	cpu->eax = regs->ax;
-	cpu->ebx = regs->bx;
-	cpu->ecx = regs->cx;
-	cpu->edx = regs->dx;
-	cpu->esi = regs->si;
-	cpu->edi = regs->di;
-	cpu->ebp = regs->bp;
-	cpu->esp = regs->sp;
-	cpu->eip = regs->ip;
-	cpu->eflags = regs->flags;
-	cpu->tls_ptr = regs->tls;
-	expand_flags(cpu);
+	
+	// Copy aarch64 registers from pt_regs to cpu_state
+	for (int i = 0; i < 31; i++) {
+		cpu->x[i] = regs->regs[i];
+	}
+	cpu->sp = regs->sp;
+	cpu->pc = regs->pc;
+	cpu->pstate = regs->pstate;
+	cpu->tpidr_el0 = regs->tpidr;
+	
 	cpu->poked_ptr = &poke[get_smp_processor_id()];
 
 	int interrupt = cpu_run_to_interrupt(cpu, &the_tlb);
 
-	collapse_flags(cpu);
-	regs->ax = cpu->eax;
-	regs->bx = cpu->ebx;
-	regs->cx = cpu->ecx;
-	regs->dx = cpu->edx;
-	regs->si = cpu->esi;
-	regs->di = cpu->edi;
-	regs->bp = cpu->ebp;
-	regs->sp = cpu->esp;
-	regs->ip = cpu->eip;
-	regs->flags = cpu->eflags;
-	regs->tls = cpu->tls_ptr;
+	// Copy back to pt_regs
+	for (int i = 0; i < 31; i++) {
+		regs->regs[i] = cpu->x[i];
+	}
+	regs->sp = cpu->sp;
+	regs->pc = cpu->pc;
+	regs->pstate = cpu->pstate;
+	regs->tpidr = cpu->tpidr_el0;
 
 	if (interrupt == INT_GPF) {
-		regs->cr2 = cpu->segfault_addr;
-		regs->error_code = cpu->segfault_was_write << 1;
+		regs->fault_addr = cpu->fault_addr;
+		regs->error_code = cpu->fault_was_write << 1;
 	} else {
-		regs->cr2 = regs->error_code = 0;
+		regs->fault_addr = regs->error_code = 0;
 	}
 	regs->trap_nr = interrupt;
 }
