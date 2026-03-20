@@ -29,6 +29,28 @@ struct asbestos {
 
     lock_t lock;
     wrlock_t jetsam_lock;
+    
+    // PR 2: Sticky compiled-page bitmap
+    // One bit per guest page - set when any block is compiled for that page
+    // Never cleared - conservative but fast invalidation check
+    uint64_t *compiled_pages_bitmap;
+    
+    // PR 4: Epoch-based reclamation
+    // Replaces jetsam_lock-based stop-the-world reclamation
+    uint32_t global_epoch;              // Monotonically increasing epoch counter
+    struct list retired[3];             // Three epoch buckets (modulo 3)
+    size_t retired_bytes;               // Total bytes in retired buckets
+    lock_t epoch_lock;                  // Protects epoch advancement
+    #define EPOCH_RETIRE_THRESHOLD (1024 * 1024)  // 1MB trigger for epoch advance
+    
+    // PR 7: Block allocator with size-class freelists
+    // Reduces allocator churn and fragmentation for frequently-compiled blocks
+    #define FIBER_SIZE_CLASSES 7
+    struct {
+        struct list freelists[FIBER_SIZE_CLASSES];  // Size class freelists
+        size_t num_free[FIBER_SIZE_CLASSES];         // Count per class
+        size_t max_per_class;                        // Cap at 64 blocks per class
+    } block_pool;
 };
 
 // this is roughly the average number of instructions in a basic block according to anonymous sources

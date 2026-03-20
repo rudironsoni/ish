@@ -218,7 +218,8 @@ int pt_copy_on_write(struct mem *src, struct mem *dst, page_t start, page_t page
 }
 
 static void mem_changed(struct mem *mem) {
-    mem->mmu.changes++;
+    // PR 5: Use atomic increment for thread safety on 64-bit counter
+    __atomic_fetch_add(&mem->mmu.changes, 1, __ATOMIC_SEQ_CST);
 }
 
 // This version will return NULL instead of making necessary pagetable changes.

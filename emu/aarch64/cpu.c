@@ -8,6 +8,7 @@
 #include "emu/aarch64/block-cache.h"
 #include "asbestos/aarch64/gadgets_tcti.h"
 #include "asbestos/aarch64/gen.h"
+#include "asbestos/frame.h"
 #include "emu/interrupt.h"
 #include "emu/tlb.h"
 #include "emu/mmu.h"
@@ -29,6 +30,9 @@ static struct cpu_state *current_cpu = NULL;
 static struct tlb *current_tlb = NULL;
 static jmp_buf exit_jmpbuf;
 static int exit_reason = 0;
+
+// Persistent execution context for this CPU
+static struct fiber_exec_ctx *a64_exec_ctx = NULL;
 
 // Forward declarations
 static struct a64_block *a64_compile_block(uint64_t pc, struct tlb *tlb);
