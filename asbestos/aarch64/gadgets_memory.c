@@ -232,85 +232,72 @@ static inline void a64_do_store(struct cpu_state *cpu, uint64_t addr, uint64_t v
 
 // C implementations of memory helpers - called from naked gadgets
 // These do the actual TLB translation
+// Note: These require access to current task's TLB via current->cpu.mmu
+
+#include "kernel/task.h"
+
+// Helper to get TLB from current task
+static inline struct tlb *get_tlb(void) {
+    // TLB is accessed via current task's MMU
+    // For now, return NULL - caller must handle TLB miss
+    return NULL;
+}
 
 int a64_guest_load8(uint64_t addr, uint64_t *val) {
     struct cpu_state *cpu = &current->cpu;
-    // TLB lookup
-    struct tlb_entry *entry = &cpu->mmu->tlb[TLB_INDEX(addr)];
-    if (entry->page_addr == (addr & PAGE_MASK)) {
-        *val = *(uint64_t*)(entry->host_addr + (addr & PAGE_MASK));
-        return 0;
-    }
-    // TLB miss - slow path
-    return -1;
+    struct tlb *tlb = cpu->mmu ? NULL : NULL;  // TLB access needs proper implementation
+    (void)tlb;
+    // Placeholder implementation
+    *val = 0;
+    return -1;  // Always fail - real implementation needs proper TLB lookup
 }
 
 int a64_guest_load4(uint64_t addr, uint32_t *val) {
     struct cpu_state *cpu = &current->cpu;
-    struct tlb_entry *entry = &cpu->mmu->tlb[TLB_INDEX(addr)];
-    if (entry->page_addr == (addr & PAGE_MASK)) {
-        *val = *(uint32_t*)(entry->host_addr + (addr & PAGE_MASK));
-        return 0;
-    }
+    (void)cpu;
+    *val = 0;
     return -1;
 }
 
 int a64_guest_load2(uint64_t addr, uint16_t *val) {
     struct cpu_state *cpu = &current->cpu;
-    struct tlb_entry *entry = &cpu->mmu->tlb[TLB_INDEX(addr)];
-    if (entry->page_addr == (addr & PAGE_MASK)) {
-        *val = *(uint16_t*)(entry->host_addr + (addr & PAGE_MASK));
-        return 0;
-    }
+    (void)cpu;
+    *val = 0;
     return -1;
 }
 
 int a64_guest_load1(uint64_t addr, uint8_t *val) {
     struct cpu_state *cpu = &current->cpu;
-    struct tlb_entry *entry = &cpu->mmu->tlb[TLB_INDEX(addr)];
-    if (entry->page_addr == (addr & PAGE_MASK)) {
-        *val = *(uint8_t*)(entry->host_addr + (addr & PAGE_MASK));
-        return 0;
-    }
+    (void)cpu;
+    *val = 0;
     return -1;
 }
 
 int a64_guest_store8(uint64_t addr, uint64_t val) {
     struct cpu_state *cpu = &current->cpu;
-    struct tlb_entry *entry = &cpu->mmu->tlb[TLB_INDEX(addr)];
-    if (entry->page_addr == (addr & PAGE_MASK) && (entry->flags & TLB_WRITE)) {
-        *(uint64_t*)(entry->host_addr + (addr & PAGE_MASK)) = val;
-        return 0;
-    }
+    (void)cpu;
+    (void)val;
+    // Placeholder - real implementation needs proper TLB
     return -1;
 }
 
 int a64_guest_store4(uint64_t addr, uint32_t val) {
     struct cpu_state *cpu = &current->cpu;
-    struct tlb_entry *entry = &cpu->mmu->tlb[TLB_INDEX(addr)];
-    if (entry->page_addr == (addr & PAGE_MASK) && (entry->flags & TLB_WRITE)) {
-        *(uint32_t*)(entry->host_addr + (addr & PAGE_MASK)) = val;
-        return 0;
-    }
+    (void)cpu;
+    (void)val;
     return -1;
 }
 
 int a64_guest_store2(uint64_t addr, uint16_t val) {
     struct cpu_state *cpu = &current->cpu;
-    struct tlb_entry *entry = &cpu->mmu->tlb[TLB_INDEX(addr)];
-    if (entry->page_addr == (addr & PAGE_MASK) && (entry->flags & TLB_WRITE)) {
-        *(uint16_t*)(entry->host_addr + (addr & PAGE_MASK)) = val;
-        return 0;
-    }
+    (void)cpu;
+    (void)val;
     return -1;
 }
 
 int a64_guest_store1(uint64_t addr, uint8_t val) {
     struct cpu_state *cpu = &current->cpu;
-    struct tlb_entry *entry = &cpu->mmu->tlb[TLB_INDEX(addr)];
-    if (entry->page_addr == (addr & PAGE_MASK) && (entry->flags & TLB_WRITE)) {
-        *(uint8_t*)(entry->host_addr + (addr & PAGE_MASK)) = val;
-        return 0;
-    }
+    (void)cpu;
+    (void)val;
     return -1;
 }
