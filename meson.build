@@ -31,6 +31,9 @@ endif
 
 add_project_arguments('-Wno-switch', language: 'c')
 
+# Architecture detection (aarch64 only for iOS)
+arch = 'aarch64'
+
 includes = [include_directories('.')]
 
 threads = dependency('threads')
@@ -43,13 +46,14 @@ dependencies = [librt, libm, libdl, threads, sqlite3]
 subdir('vdso') # ish depends on the vdso
 
 # aarch64 emulator sources (iOS migration - x86 replaced)
-# TCTI gadget generation
-tcti_gadget_gen = custom_target('tcti_gadgets',
-    output: ['gadgets_tcti.h', 'gadgets_tcti_impl.c'],
-    input: 'asbestos/aarch64/tcti-gadget-gen.py',
-    command: [find_program('python3'), '@INPUT@', '-o', 'asbestos/aarch64'],
-    build_by_default: true,
-)
+# TCTI gadget generation - files already generated in source directory
+# To regenerate: python3 asbestos/aarch64/tcti-gadget-gen.py -o asbestos/aarch64
+# tcti_gadget_gen = custom_target('tcti_gadgets',
+#     output: ['gadgets_tcti.h', 'gadgets_tcti_impl.c'],
+#     input: 'asbestos/aarch64/tcti-gadget-gen.py',
+#     command: [find_program('python3'), '@INPUT@', '-o', meson.current_source_dir() / 'asbestos/aarch64'],
+#     build_by_default: true,
+# )
 
 # aarch64 CPU offsets (for TCTI register mapping)
 aarch64_offsets = custom_target('aarch64_offsets',
@@ -76,7 +80,6 @@ emu_src = [
     'asbestos/aarch64/gadgets_memory.c',
     'asbestos/aarch64/gadgets_tcti_impl.c',
 
-    tcti_gadget_gen,
     aarch64_offsets,
 ]
 

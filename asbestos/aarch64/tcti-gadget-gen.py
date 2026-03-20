@@ -200,6 +200,7 @@ IMPL_TEMPLATE = """/*
 {gadget_tables}
 """
 
+
 def generate_add_reg_gadgets():
     """Generate ADD register gadgets for all TCTI register combinations."""
     gadgets = []
@@ -228,6 +229,7 @@ __attribute__((naked)) void {func_name}(void) {{
 
     return "\n\n".join(gadgets), prototypes
 
+
 def generate_sub_reg_gadgets():
     """Generate SUB register gadgets."""
     gadgets = []
@@ -251,6 +253,7 @@ __attribute__((naked)) void {func_name}(void) {{
                 gadgets.append(gadget)
 
     return "\n\n".join(gadgets)
+
 
 def generate_logical_reg_gadgets():
     """Generate AND, ORR, EOR gadgets."""
@@ -282,6 +285,7 @@ __attribute__((naked)) void {func_name}(void) {{
 
     return "\n\n".join(gadgets)
 
+
 def generate_mov_reg_gadgets():
     """Generate MOV register gadgets."""
     gadgets = []
@@ -303,6 +307,7 @@ __attribute__((naked)) void {func_name}(void) {{
             gadgets.append(gadget)
 
     return "\n\n".join(gadgets)
+
 
 def generate_dp_imm_gadgets():
     """Generate immediate data processing gadgets."""
@@ -327,6 +332,7 @@ __attribute__((naked)) void {func_name}(void) {{
 
     return "\n\n".join(gadgets)
 
+
 def generate_branch_gadgets():
     """Generate branch gadgets."""
     gadgets = []
@@ -336,7 +342,7 @@ def generate_branch_gadgets():
 __attribute__((naked)) void gadget_b_impl(void) {
     asm volatile(
         "ldr x0, [x28], #8\\n\\t"     // Load target PC from bytecode
-        "str x0, [x29, %p[pc_off]]\\n\\t"  // Store to cpu->pc
+        "str x0, [x29, %[pc_off]]\\n\\t"  // Store to cpu->pc
         "mov x27, #1\\n\\t"            // Signal block exit
         GADGET_EPILOGUE
         :
@@ -349,7 +355,7 @@ __attribute__((naked)) void gadget_b_impl(void) {
 __attribute__((naked)) void gadget_bcond_impl(void) {
     asm volatile(
         "ldr x0, [x28], #8\\n\\t"     // Load condition and target
-        "ldr x1, [x29, %p[pstate_off]]\\n\\t"  // Load PSTATE
+        "ldr x1, [x29, %[pstate_off]]\\n\\t"  // Load PSTATE
         // Test condition...
         GADGET_EPILOGUE
         :
@@ -377,6 +383,7 @@ __attribute__((naked)) void gadget_cbz_impl(void) {
 }""")
 
     return "\n\n".join(gadgets)
+
 
 def generate_system_gadgets():
     """Generate system instruction gadgets."""
@@ -422,13 +429,16 @@ __attribute__((naked)) void gadget_msr_impl(void) {
 
     return "\n\n".join(gadgets)
 
+
 def generate_gadget_tables():
     """Generate the lookup tables for all gadgets."""
     tables = []
 
     # ADD table
     tables.append(f"// ADD register table")
-    tables.append(f"const tcti_gadget_t gadget_add_reg[{MAX_TCTI_REGS}][{MAX_TCTI_REGS}][{MAX_TCTI_REGS}] = {{")
+    tables.append(
+        f"const tcti_gadget_t gadget_add_reg[{MAX_TCTI_REGS}][{MAX_TCTI_REGS}][{MAX_TCTI_REGS}] = {{"
+    )
     for rd in range(MAX_TCTI_REGS):
         tables.append(f"    [{rd}] = {{")
         for rn in range(MAX_TCTI_REGS):
@@ -439,7 +449,9 @@ def generate_gadget_tables():
 
     # SUB table
     tables.append(f"// SUB register table")
-    tables.append(f"const tcti_gadget_t gadget_sub_reg[{MAX_TCTI_REGS}][{MAX_TCTI_REGS}][{MAX_TCTI_REGS}] = {{")
+    tables.append(
+        f"const tcti_gadget_t gadget_sub_reg[{MAX_TCTI_REGS}][{MAX_TCTI_REGS}][{MAX_TCTI_REGS}] = {{"
+    )
     for rd in range(MAX_TCTI_REGS):
         tables.append(f"    [{rd}] = {{")
         for rn in range(MAX_TCTI_REGS):
@@ -450,7 +462,9 @@ def generate_gadget_tables():
 
     # AND table
     tables.append(f"// AND register table")
-    tables.append(f"const tcti_gadget_t gadget_and_reg[{MAX_TCTI_REGS}][{MAX_TCTI_REGS}][{MAX_TCTI_REGS}] = {{")
+    tables.append(
+        f"const tcti_gadget_t gadget_and_reg[{MAX_TCTI_REGS}][{MAX_TCTI_REGS}][{MAX_TCTI_REGS}] = {{"
+    )
     for rd in range(MAX_TCTI_REGS):
         tables.append(f"    [{rd}] = {{")
         for rn in range(MAX_TCTI_REGS):
@@ -461,7 +475,9 @@ def generate_gadget_tables():
 
     # ORR table
     tables.append(f"// ORR register table")
-    tables.append(f"const tcti_gadget_t gadget_orr_reg[{MAX_TCTI_REGS}][{MAX_TCTI_REGS}][{MAX_TCTI_REGS}] = {{")
+    tables.append(
+        f"const tcti_gadget_t gadget_orr_reg[{MAX_TCTI_REGS}][{MAX_TCTI_REGS}][{MAX_TCTI_REGS}] = {{"
+    )
     for rd in range(MAX_TCTI_REGS):
         tables.append(f"    [{rd}] = {{")
         for rn in range(MAX_TCTI_REGS):
@@ -472,7 +488,9 @@ def generate_gadget_tables():
 
     # EOR table
     tables.append(f"// EOR register table")
-    tables.append(f"const tcti_gadget_t gadget_eor_reg[{MAX_TCTI_REGS}][{MAX_TCTI_REGS}][{MAX_TCTI_REGS}] = {{")
+    tables.append(
+        f"const tcti_gadget_t gadget_eor_reg[{MAX_TCTI_REGS}][{MAX_TCTI_REGS}][{MAX_TCTI_REGS}] = {{"
+    )
     for rd in range(MAX_TCTI_REGS):
         tables.append(f"    [{rd}] = {{")
         for rn in range(MAX_TCTI_REGS):
@@ -483,7 +501,9 @@ def generate_gadget_tables():
 
     # MOV table
     tables.append(f"// MOV register table")
-    tables.append(f"const tcti_gadget_t gadget_mov_reg[{MAX_TCTI_REGS}][{MAX_TCTI_REGS}] = {{")
+    tables.append(
+        f"const tcti_gadget_t gadget_mov_reg[{MAX_TCTI_REGS}][{MAX_TCTI_REGS}] = {{"
+    )
     for rd in range(MAX_TCTI_REGS):
         entries = [f"gadget_mov_reg_{rd}_{rn}" for rn in range(MAX_TCTI_REGS)]
         tables.append(f"    [{rd}] = {{{', '.join(entries)}}},")
@@ -492,7 +512,9 @@ def generate_gadget_tables():
     # MOV immediate table (simplified)
     tables.append(f"// MOV immediate table")
     entries = [f"gadget_mov_imm_{rd}" for rd in range(MAX_TCTI_REGS)]
-    tables.append(f"const tcti_gadget_t gadget_mov_imm[{MAX_TCTI_REGS}] = {{{', '.join(entries)}}};\n")
+    tables.append(
+        f"const tcti_gadget_t gadget_mov_imm[{MAX_TCTI_REGS}] = {{{', '.join(entries)}}};\n"
+    )
 
     # Branch gadgets (singletons)
     tables.append("// Branch gadgets")
@@ -510,11 +532,16 @@ def generate_gadget_tables():
 
     return "\n".join(tables)
 
+
 def main():
-    parser = argparse.ArgumentParser(description='Generate TCTI gadgets for aarch64')
-    parser.add_argument('-o', '--output', default='.', help='Output directory')
-    parser.add_argument('--header-only', action='store_true', help='Generate only header file')
-    parser.add_argument('--impl-only', action='store_true', help='Generate only implementation file')
+    parser = argparse.ArgumentParser(description="Generate TCTI gadgets for aarch64")
+    parser.add_argument("-o", "--output", default=".", help="Output directory")
+    parser.add_argument(
+        "--header-only", action="store_true", help="Generate only header file"
+    )
+    parser.add_argument(
+        "--impl-only", action="store_true", help="Generate only implementation file"
+    )
     args = parser.parse_args()
 
     print(f"TCTI Gadget Generator v{GADGET_VERSION}")
@@ -526,11 +553,9 @@ def main():
     if not args.impl_only:
         header_path = os.path.join(args.output, "gadgets_tcti.h")
         header_content = HEADER_TEMPLATE.format(
-            version=GADGET_VERSION,
-            date=date,
-            max_regs=MAX_TCTI_REGS
+            version=GADGET_VERSION, date=date, max_regs=MAX_TCTI_REGS
         )
-        with open(header_path, 'w') as f:
+        with open(header_path, "w") as f:
             f.write(header_content)
         print(f"Generated: {header_path}")
 
@@ -559,30 +584,33 @@ def main():
         impl_content = IMPL_TEMPLATE.format(
             version=GADGET_VERSION,
             date=date,
-            dp_reg_gadgets="\n".join([add_gadgets, sub_gadgets, logical_gadgets, mov_reg_gadgets]),
+            dp_reg_gadgets="\n".join(
+                [add_gadgets, sub_gadgets, logical_gadgets, mov_reg_gadgets]
+            ),
             dp_imm_gadgets=imm_gadgets,
             branch_gadgets=branch_gadgets,
             system_gadgets=system_gadgets,
-            gadget_tables=tables
+            gadget_tables=tables,
         )
 
-        with open(impl_path, 'w') as f:
+        with open(impl_path, "w") as f:
             f.write(impl_content)
         print(f"Generated: {impl_path}")
 
     # Statistics
     total_gadgets = (
-        5 * MAX_TCTI_REGS**3 +  # ADD, SUB, AND, ORR, EOR (5 * 4096)
-        MAX_TCTI_REGS**2 +       # MOV reg (256)
-        MAX_TCTI_REGS +          # MOV imm (16)
-        8                        # Branch/system (8)
+        5 * MAX_TCTI_REGS**3  # ADD, SUB, AND, ORR, EOR (5 * 4096)
+        + MAX_TCTI_REGS**2  # MOV reg (256)
+        + MAX_TCTI_REGS  # MOV imm (16)
+        + 8  # Branch/system (8)
     )
     print(f"\nStatistics:")
-    print(f"  TCTI-mapped registers: x0-x{MAX_TCTI_REGS-1} ({MAX_TCTI_REGS})")
+    print(f"  TCTI-mapped registers: x0-x{MAX_TCTI_REGS - 1} ({MAX_TCTI_REGS})")
     print(f"  Total gadgets: ~{total_gadgets:,}")
     print(f"  Memory-backed: x{MAX_TCTI_REGS}-x30, SP (16)")
 
     return 0
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     sys.exit(main())
