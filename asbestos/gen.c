@@ -40,6 +40,8 @@ void gen_start(addr_t addr, struct gen_state *state) {
     }
     state->block_patch_ip = 0;
 
+    // PR 7: Note - gen_start doesn't have access to asbestos, so we use malloc
+    // The block allocator will be used when the block is freed
     struct fiber_block *block = malloc(sizeof(struct fiber_block) + state->capacity * sizeof(unsigned long));
     state->block = block;
     block->addr = addr;

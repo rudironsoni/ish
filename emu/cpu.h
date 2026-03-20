@@ -10,8 +10,10 @@
 #include <stddef.h>
 #endif
 
+// Forward declarations
 struct cpu_state;
 struct tlb;
+struct fiber_exec_ctx;  // Defined in asbestos/frame.h
 int cpu_run_to_interrupt(struct cpu_state *cpu, struct tlb *tlb);
 void cpu_poke(struct cpu_state *cpu);
 
@@ -96,6 +98,13 @@ struct cpu_state {
     // For signaling/interrupt handling
     bool *poked_ptr;
     bool _poked;
+    
+    // Persistent execution context for PR 1 optimization
+    // Eliminates per-run allocations in cpu_step_to_interrupt
+    struct fiber_exec_ctx *exec_ctx;
+    
+    // Trap/interrupt number for signal handling
+    int trapno;
 };
 
 #define CPU_OFFSET(field) offsetof(struct cpu_state, field)

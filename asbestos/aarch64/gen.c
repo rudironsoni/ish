@@ -299,17 +299,19 @@ int a64_gen_finalize(a64_gen_state_t *state) {
 
 // Generate a complete basic block
 int a64_gen_basic_block(a64_gen_state_t *state, struct cpu_state *cpu,
-                        uint64_t start_pc, uint64_t *end_pc) {
+                        uint64_t *end_pc) {
     if (!state || !cpu)
         return A64_GEN_INVALID_INSN;
 
+    uint64_t start_pc = state->guest_pc;
     a64_gen_reset(state, start_pc);
 
     // Read and translate instructions until block end
-    // For now, process a fixed number or until error
-    int max_insns = 50;  // Reasonable limit
+    // PR 5: Safety limits to prevent runaway compilation
+    int max_insns = 50;  // Reasonable limit for instructions per block
+    uint64_t max_block_size = 256;  // Maximum bytes per block (64 instructions * 4 bytes)
 
-    for (int i = 0; i < max_insns; i++) {
+    for (int i = 0; i < max_insns && (state->guest_pc - start_pc) < max_block_size; i++) {
         // Read instruction from guest memory
         uint32_t insn = 0;
         // TODO: Use proper guest memory read

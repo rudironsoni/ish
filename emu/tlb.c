@@ -1,5 +1,6 @@
 #include "emu/cpu.h"
 #include "emu/tlb.h"
+#include "asbestos/frame.h"  // For TLB statistics
 
 void tlb_refresh(struct tlb *tlb, struct mmu *mmu) {
     if (tlb->mmu == mmu && tlb->mem_changes == mmu->changes)
@@ -49,6 +50,15 @@ bool __tlb_write_cross_page(struct tlb *tlb, addr_t addr, const char *value, uns
 }
 
 __no_instrument void *tlb_handle_miss(struct tlb *tlb, addr_t addr, int type) {
+    // PR 8 prep: Track TLB misses for performance analysis
+    if (tlb->stats_ctx) {
+        if (type == MEM_READ) {
+            fiber_stat_inc(tlb->stats_ctx, STAT_TLB_READ_MISSES);
+        } else {
+            fiber_stat_inc(tlb->stats_ctx, STAT_TLB_WRITE_MISSES);
+        }
+    }
+    
     char *ptr = mmu_translate(tlb->mmu, TLB_PAGE(addr), type);
     if (tlb->mmu->changes != tlb->mem_changes)
         tlb_flush(tlb);

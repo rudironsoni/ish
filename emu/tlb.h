@@ -12,14 +12,19 @@ struct tlb_entry {
 };
 #define TLB_BITS 10
 #define TLB_SIZE (1 << TLB_BITS)
+// Forward declaration for TLB statistics
+struct fiber_exec_ctx;
+
 struct tlb {
     struct mmu *mmu;
     page_t dirty_page;
-    unsigned mem_changes;
+    uint64_t mem_changes;  // PR 5: Changed from unsigned to uint64_t
     // this is basically one of the return values of tlb_handle_miss, tlb_{read,write}, and __tlb_{read,write}_cross_page
     // yes, this sucks
     addr_t segfault_addr;
     struct tlb_entry entries[TLB_SIZE];
+    // TLB statistics for measuring cache performance (PR 8 prep)
+    struct fiber_exec_ctx *stats_ctx;  // NULL if stats not being tracked
 };
 
 #define TLB_INDEX(addr) (((addr >> PAGE_BITS) & (TLB_SIZE - 1)) ^ (addr >> (PAGE_BITS + TLB_BITS)))
