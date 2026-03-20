@@ -26,3 +26,6 @@ e2e_out/
 tests/aarch64/e2e/alpine-rootfs/
 tests/aarch64/e2e/*.c
 tests/aarch64/e2e/results/
+.cache/
+*.o
+*.pch
