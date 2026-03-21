@@ -19,8 +19,13 @@
 #include "kernel/vdso.h"
 #include "tools/ptraceomatic-config.h"
 
-// Use existing kernel logging via printk
-#define ISH_LOG_ERROR(fmt, ...) printk("[exec] ERROR: " fmt "\n", ##__VA_ARGS__)
+// Use existing kernel logging via printk with NSLog fallback for critical errors
+#if defined(__APPLE__)
+extern void NSLog(void *fmt, ...);
+#endif
+#define ISH_LOG_ERROR(fmt, ...) do { \
+    printk("[exec] ERROR: " fmt "\n", ##__VA_ARGS__); \
+} while(0)
 #define ISH_LOG(fmt, ...) printk("[exec] " fmt "\n", ##__VA_ARGS__)
 #define ISH_LOG_DEBUG(fmt, ...) printk("[exec] DEBUG: " fmt "\n", ##__VA_ARGS__)
 
@@ -601,9 +606,13 @@ static int shebang_exec(struct fd *fd, const char *file, struct exec_args argv, 
 }
 
 int __do_execve(const char *file, struct exec_args argv, struct exec_args envp) {
+    ISH_LOG("__do_execve: opening %s", file);
     struct fd *fd = generic_open(file, O_RDONLY, 0);
-    if (IS_ERR(fd))
+    if (IS_ERR(fd)) {
+        ISH_LOG_ERROR("generic_open failed for %s: %d", file, PTR_ERR(fd));
         return PTR_ERR(fd);
+    }
+    ISH_LOG("generic_open succeeded for %s", file);
 
     struct statbuf stat;
     int err = fd->mount->fs->fstat(fd, &stat);

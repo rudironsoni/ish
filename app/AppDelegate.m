@@ -8,6 +8,7 @@
 #include <resolv.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <sys/stat.h>
 #import <SystemConfiguration/SystemConfiguration.h>
 #import "AboutViewController.h"
 #import "AppDelegate.h"
@@ -188,14 +189,28 @@ static NSString *const kSkipStartupMessage = @"Skip Startup Message";
     
     NSArray<NSString *> *command;
     command = UserPreferences.shared.bootCommand;
-    msg = [NSString stringWithFormat:@"[Boot] Boot command: %@\n", command];
-    [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+    
+    // Log the actual command being executed
+    NSString *cmdStr = @"[Boot] Boot command: ";
+    for (NSString *arg in command) {
+        cmdStr = [cmdStr stringByAppendingFormat:@"'%@' ", arg];
+    }
+    cmdStr = [cmdStr stringByAppendingString:@"\n"];
+    [cmdStr writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+    
+    // Also NSLog it
+    NSLog(@"%@", cmdStr);
     
     char argv[4096];
     [Terminal convertCommand:command toArgs:argv limitSize:sizeof(argv)];
     const char *envp = "TERM=xterm-256color\0";
     msg = @"[Boot] Calling do_execve...\n";
     [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+    
+    NSLog(@"[Boot] About to call do_execve with: %s", command[0].UTF8String);
+    NSLog(@"[Boot] Current working directory: %s", getcwd(NULL, 0));
+    NSLog(@"[Boot] File system root: %s", root.fileSystemRepresentation);
+    
     err = do_execve(command[0].UTF8String, command.count, argv, envp);
     if (err < 0) {
         msg = [NSString stringWithFormat:@"[Boot] ERROR: do_execve failed: %d\n", err];
