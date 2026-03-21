@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 
 #include "misc.h"
 #include "kernel/calls.h"
@@ -17,6 +18,51 @@
 #include "kernel/elf.h"
 #include "kernel/vdso.h"
 #include "tools/ptraceomatic-config.h"
+
+// Simple file-based logging with levels
+// Set ISH_LOG_LEVEL to control logging:
+//   0 = ERROR only
+//   1 = ERROR + INFO
+//   2 = ERROR + INFO + DEBUG (verbose)
+#ifndef ISH_LOG_LEVEL
+#define ISH_LOG_LEVEL 2  // Default to verbose in development
+#endif
+
+static FILE *debug_fp = NULL;
+static void debug_log(const char *fmt, ...) {
+    if (!debug_fp) {
+        // Try multiple locations for the log file
+        const char *paths[] = {
+            "/tmp/ish_kernel.log",
+            "/var/tmp/ish_kernel.log",
+            "ish_kernel.log",  // Current directory
+            NULL
+        };
+        for (int i = 0; paths[i]; i++) {
+            debug_fp = fopen(paths[i], "a");
+            if (debug_fp) break;
+        }
+    }
+    if (debug_fp) {
+        va_list args;
+        va_start(args, fmt);
+        vfprintf(debug_fp, fmt, args);
+        va_end(args);
+        fflush(debug_fp);
+    }
+}
+
+#define ISH_LOG_ERROR(fmt, ...) debug_log("[iSH] ERROR: " fmt "\n", ##__VA_ARGS__)
+#if ISH_LOG_LEVEL >= 1
+#define ISH_LOG(fmt, ...) debug_log("[iSH] " fmt "\n", ##__VA_ARGS__)
+#else
+#define ISH_LOG(fmt, ...)
+#endif
+#if ISH_LOG_LEVEL >= 2
+#define ISH_LOG_DEBUG(fmt, ...) debug_log("[iSH] DEBUG: " fmt "\n", ##__VA_ARGS__)
+#else
+#define ISH_LOG_DEBUG(fmt, ...)
+#endif
 
 #define ARGV_MAX 32 * PAGE_SIZE
 
@@ -86,13 +132,21 @@ static int load_entry(struct prg_header ph, addr_t bias, struct fd *fd) {
     addr_t memsize = ph.memsize;
     addr_t filesize = ph.filesize;
 
+    ISH_LOG_DEBUG("load_entry: addr=%llx, offset=%llx, memsize=%llx, filesize=%llx", 
+            (unsigned long long)addr, (unsigned long long)offset, 
+            (unsigned long long)memsize, (unsigned long long)filesize);
+
     int flags = P_READ;
     if (ph.flags & PH_W) flags |= P_WRITE;
 
+    pages_t map_pages = PAGE_ROUND_UP(filesize + PGOFFSET(addr));
+    ISH_LOG_DEBUG("load_entry: mapping %u pages at page %u", map_pages, PAGE(addr));
     if ((err = fd->ops->mmap(fd, current->mem, PAGE(addr),
-                    PAGE_ROUND_UP(filesize + PGOFFSET(addr)),
-                    offset - PGOFFSET(addr), flags, MMAP_PRIVATE)) < 0)
+                    map_pages,
+                    offset - PGOFFSET(addr), flags, MMAP_PRIVATE)) < 0) {
+        ISH_LOG_ERROR("load_entry: mmap failed: %d", err);
         return err;
+    }
     // TODO find a better place for these to avoid code duplication
     mem_pt(current->mem, PAGE(addr))->data->fd = fd_retain(fd);
     mem_pt(current->mem, PAGE(addr))->data->file_offset = offset - PGOFFSET(addr);
@@ -148,20 +202,24 @@ static addr_t find_hole_for_elf(struct elf_header *header, struct prg_header *ph
 
 static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, struct exec_args envp) {
     int err = 0;
-    // Debug logging to file
-    FILE *fp = fopen("/tmp/exec_debug.log", "a");
-    if (fp) {
-        fprintf(fp, "[exec] elf_exec: loading %s\n", file);
-        fclose(fp);
-    }
+    
+    ISH_LOG("elf_exec: loading %s", file);
 
     // read the headers
     struct elf_header header;
-    if ((err = read_header(fd, &header)) < 0)
+    if ((err = read_header(fd, &header)) < 0) {
+        ISH_LOG_ERROR("read_header failed: %d", err);
         return err;
+    }
+    ISH_LOG("ELF header OK: type=%d, machine=%d, entry=%llx", 
+            header.type, header.machine, (unsigned long long)header.entry_point);
+    
     struct prg_header *ph;
-    if ((err = read_prg_headers(fd, header, &ph)) < 0)
+    if ((err = read_prg_headers(fd, header, &ph)) < 0) {
+        ISH_LOG_ERROR("read_prg_headers failed: %d", err);
         return err;
+    }
+    ISH_LOG("Program headers OK: count=%d", header.phent_count);
 
     // look for an interpreter
     char *interp_name = NULL;
@@ -177,10 +235,13 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
             goto out_free_interp;
         }
 
+        ISH_LOG("Allocating interpreter name: %zu bytes", (size_t)ph[i].filesize);
         interp_name = malloc(ph[i].filesize);
-        err = _ENOMEM;
-        if (interp_name == NULL)
+        if (interp_name == NULL) {
+            ISH_LOG_ERROR("ENOMEM: Failed to allocate interpreter name (%zu bytes)", (size_t)ph[i].filesize);
+            err = _ENOMEM;
             goto out_free_ph;
+        }
 
         // read the interpreter name out of the file
         err = _EIO;
@@ -213,11 +274,20 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     // general_lock protects current->mm. otherwise procfs might read the
     // pointer before it's released and then try to lock it after it's
     // released.
+    ISH_LOG("Releasing old mm and creating new mm...");
     lock(&current->general_lock);
     mm_release(current->mm);
-    task_set_mm(current, mm_new());
+    struct mm *new_mm = mm_new();
+    if (new_mm == NULL) {
+        ISH_LOG_ERROR("ENOMEM: mm_new() failed");
+        unlock(&current->general_lock);
+        err = _ENOMEM;
+        goto out_free_interp;
+    }
+    task_set_mm(current, new_mm);
     unlock(&current->general_lock);
     write_wrlock(&current->mem->lock);
+    ISH_LOG("New mm created successfully");
 
     current->mm->exefile = fd_retain(fd);
 
@@ -226,6 +296,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     addr_t bias = 0; // offset for loading shared libraries as executables
 
     // map dat shit!
+    ISH_LOG("Mapping %d program headers...", header.phent_count);
     for (unsigned i = 0; i < header.phent_count; i++) {
         if (ph[i].type != PT_LOAD)
             continue;
@@ -238,8 +309,13 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
                 bias = find_hole_for_elf(&header, ph);
         }
 
-        if ((err = load_entry(ph[i], bias, fd)) < 0)
+        ISH_LOG_DEBUG("Loading segment %u: vaddr=%llx, memsize=%llx, filesize=%llx", 
+                i, (unsigned long long)ph[i].vaddr, 
+                (unsigned long long)ph[i].memsize, (unsigned long long)ph[i].filesize);
+        if ((err = load_entry(ph[i], bias, fd)) < 0) {
+            ISH_LOG_ERROR("load_entry failed for segment %u: %d", i, err);
             goto beyond_hope;
+        }
 
         // load_addr is used to get a value for AX_PHDR et al
         if (!load_addr_set) {
