@@ -72,27 +72,42 @@ static NSString *const kSkipStartupMessage = @"Skip Startup Message";
 @implementation AppDelegate
 
 - (int)boot {
-    NSLog(@"[iSH] Booting...");
+    NSString *bootLogPath = [NSTemporaryDirectory() stringByAppendingPathComponent:@"boot.log"];
+    NSString *msg = @"[Boot] Starting boot process\n";
+    [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+    
 #if !ISH_LINUX
     NSURL *root = [Roots.instance rootUrl:Roots.instance.defaultRoot];
-    NSLog(@"[iSH] Root URL: %@", root);
+    msg = [NSString stringWithFormat:@"[Boot] Root URL: %@\n", root];
+    [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
 
     int err = mount_root(&fakefs, [root URLByAppendingPathComponent:@"data"].fileSystemRepresentation);
     if (err < 0) {
-        NSLog(@"[iSH] ERROR: mount_root failed with error %d", err);
+        msg = [NSString stringWithFormat:@"[Boot] ERROR: mount_root failed: %d\n", err];
+        [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
         return err;
     }
-    NSLog(@"[iSH] Root filesystem mounted successfully");
+    msg = @"[Boot] Root filesystem mounted successfully\n";
+    [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
 
     fs_register(&iosfs);
     fs_register(&iosfs_unsafe);
 
     // need to do this first so that we can have a valid current for the generic_mknod calls
+    msg = @"[Boot] Calling become_first_process...\n";
+    [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
     err = become_first_process();
-    if (err < 0)
+    if (err < 0) {
+        msg = [NSString stringWithFormat:@"[Boot] ERROR: become_first_process failed: %d\n", err];
+        [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
         return err;
+    }
+    msg = @"[Boot] First process created successfully\n";
+    [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
 
     FsInitialize();
+    msg = @"[Boot] FsInitialize done\n";
+    [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
 
     // create some device nodes
     // this will do nothing if they already exist
@@ -122,19 +137,34 @@ static NSString *const kSkipStartupMessage = @"Skip Startup Message";
     // Register clipboard device driver and create device node for it
     err = dyn_dev_register(&clipboard_dev, DEV_CHAR, DYN_DEV_MAJOR, DEV_CLIPBOARD_MINOR);
     if (err != 0) {
+        msg = [NSString stringWithFormat:@"[Boot] ERROR: dyn_dev_register(clipboard) failed: %d\n", err];
+        [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
         return err;
     }
+    msg = @"[Boot] Clipboard device registered\n";
+    [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+    
     generic_mknodat(AT_PWD, "/dev/clipboard", S_IFCHR|0666, dev_make(DYN_DEV_MAJOR, DEV_CLIPBOARD_MINOR));
     
     err = dyn_dev_register(&location_dev, DEV_CHAR, DYN_DEV_MAJOR, DEV_LOCATION_MINOR);
-    if (err != 0)
+    if (err != 0) {
+        msg = [NSString stringWithFormat:@"[Boot] ERROR: dyn_dev_register(location) failed: %d\n", err];
+        [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
         return err;
+    }
+    msg = @"[Boot] Location device registered\n";
+    [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+    
     generic_mknodat(AT_PWD, "/dev/location", S_IFCHR|0666, dev_make(DYN_DEV_MAJOR, DEV_LOCATION_MINOR));
 
     do_mount(&procfs, "proc", "/proc", "", 0);
     do_mount(&devptsfs, "devpts", "/dev/pts", "", 0);
+    msg = @"[Boot] proc and devpts mounted\n";
+    [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
 
     iosfs_init(); // let it mount any filesystems from user defaults
+    msg = @"[Boot] iosfs_init done\n";
+    [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
 
     [self configureDns];
     
@@ -148,19 +178,35 @@ static NSString *const kSkipStartupMessage = @"Skip Startup Message";
     tty_drivers[TTY_CONSOLE_MAJOR] = &ios_console_driver;
     set_console_device(TTY_CONSOLE_MAJOR, 1);
     err = create_stdio("/dev/console", TTY_CONSOLE_MAJOR, 1);
-    if (err < 0)
+    if (err < 0) {
+        msg = [NSString stringWithFormat:@"[Boot] ERROR: create_stdio failed: %d\n", err];
+        [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
         return err;
+    }
+    msg = @"[Boot] stdio created\n";
+    [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
     
     NSArray<NSString *> *command;
     command = UserPreferences.shared.bootCommand;
-    NSLog(@"%@", command);
+    msg = [NSString stringWithFormat:@"[Boot] Boot command: %@\n", command];
+    [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+    
     char argv[4096];
     [Terminal convertCommand:command toArgs:argv limitSize:sizeof(argv)];
     const char *envp = "TERM=xterm-256color\0";
+    msg = @"[Boot] Calling do_execve...\n";
+    [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
     err = do_execve(command[0].UTF8String, command.count, argv, envp);
-    if (err < 0)
+    if (err < 0) {
+        msg = [NSString stringWithFormat:@"[Boot] ERROR: do_execve failed: %d\n", err];
+        [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
         return err;
+    }
+    msg = @"[Boot] do_execve succeeded, starting task...\n";
+    [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
     task_start(current);
+    msg = @"[Boot] task_start called\n";
+    [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
 
 #else
     // On first launch, this will trigger the import of the default root. Make sure to do this before entering the kernel, because it needs to run something on the main thread, and that would deadlock.
@@ -248,16 +294,28 @@ void SyncHostname(void) {
 }
 
 - (BOOL)application:(UIApplication *)application willFinishLaunchingWithOptions:(NSDictionary<UIApplicationLaunchOptionsKey,id> *)launchOptions {
+    // Debug logging to file
+    NSString *logPath = [NSTemporaryDirectory() stringByAppendingPathComponent:@"app_boot.log"];
+    NSString *logMsg = @"[AppDelegate] willFinishLaunchingWithOptions called\n";
+    [logMsg writeToFile:logPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+    
     NSUserDefaults *defaults = NSUserDefaults.standardUserDefaults;
     if ([defaults boolForKey:@"hail mary"]) {
         [defaults removeObjectForKey:kPreferenceBootCommandKey];
         [defaults removeObjectForKey:kPreferenceLaunchCommandKey];
         [defaults setBool:NO forKey:@"hail mary"];
     }
-    if ([NSUserDefaults.standardUserDefaults boolForKey:@"recovery"])
+    if ([NSUserDefaults.standardUserDefaults boolForKey:@"recovery"]) {
+        logMsg = @"[AppDelegate] Recovery mode, skipping boot\n";
+        [logMsg writeToFile:logPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
         return YES;
+    }
 
+    logMsg = @"[AppDelegate] Starting boot sequence...\n";
+    [logMsg writeToFile:logPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
     bootError = [self boot];
+    logMsg = [NSString stringWithFormat:@"[AppDelegate] Boot returned: %d\n", bootError];
+    [logMsg writeToFile:logPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
 
 #if ISH_LINUX
     [NSNotificationCenter.defaultCenter addObserverForName:UIApplicationWillEnterForegroundNotification object:UIApplication.sharedApplication queue:nil usingBlock:^(NSNotification * _Nonnull note) {

@@ -111,8 +111,10 @@ int pt_map(struct mem *mem, page_t start, pages_t pages, void *memory, size_t of
     assert((uintptr_t) memory % real_page_size == 0 || memory == vdso_data);
 
     struct data *data = malloc(sizeof(struct data));
-    if (data == NULL)
+    if (data == NULL) {
+        printk("[exec] ENOMEM: failed to allocate data struct in pt_map\n");
         return _ENOMEM;
+    }
     *data = (struct data) {
         .data = memory,
         .size = pages * PAGE_SIZE + offset,
