@@ -110,6 +110,7 @@ void task_run_current() {
 static void *task_thread(void *task) {
     current = task;
     update_thread_name();
+    printk("[task] Thread started for pid=%d, entering task_run_current\n", current->pid);
     task_run_current();
     die("task_thread returned"); // above function call should never return
 }

@@ -9,15 +9,16 @@
 #include "emu/aarch64/cpu.h"
 #include "emu/tlb.h"
 
-// External C helpers for memory access
-extern int a64_guest_load8(uint64_t addr, uint64_t *val);
-extern int a64_guest_load4(uint64_t addr, uint32_t *val);
-extern int a64_guest_load2(uint64_t addr, uint16_t *val);
-extern int a64_guest_load1(uint64_t addr, uint8_t *val);
-extern int a64_guest_store8(uint64_t addr, uint64_t val);
-extern int a64_guest_store4(uint64_t addr, uint32_t val);
-extern int a64_guest_store2(uint64_t addr, uint16_t val);
-extern int a64_guest_store1(uint64_t addr, uint8_t val);
+// Forward declarations - implementations are at end of file
+// Note: These are NOT static so they can be called from naked gadget functions
+int a64_guest_load8(uint64_t addr, uint64_t *val);
+int a64_guest_load4(uint64_t addr, uint32_t *val);
+int a64_guest_load2(uint64_t addr, uint16_t *val);
+int a64_guest_load1(uint64_t addr, uint8_t *val);
+int a64_guest_store8(uint64_t addr, uint64_t val);
+int a64_guest_store4(uint64_t addr, uint32_t val);
+int a64_guest_store2(uint64_t addr, uint16_t val);
+int a64_guest_store1(uint64_t addr, uint8_t val);
 
 // LDR (64-bit) - xRt = [xRn + offset]
 // For TCTI-mapped registers (x0-x15)
@@ -243,6 +244,8 @@ static inline struct tlb *__attribute__((unused)) get_tlb(void) {
     return NULL;
 }
 
+// Helper functions for memory access - NOT static so gadgets can reference them
+// These are called from naked gadget functions via BL
 int a64_guest_load8(uint64_t addr, uint64_t *val) {
     struct cpu_state *cpu = &current->cpu;
     (void)addr;  // TLB access needs proper implementation

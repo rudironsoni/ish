@@ -162,7 +162,25 @@
 }
 
 - (void)browseFiles {
-    NSURL *url = [NSFileProviderManager.defaultManager.documentStorageURL URLByAppendingPathComponent:self.rootName];
+    // Check if File Provider is available (won't be for sideloaded builds)
+    NSURL *docStorageURL = nil;
+    @try {
+        docStorageURL = [NSFileProviderManager defaultManager].documentStorageURL;
+    }
+    @catch (NSException *exception) {
+        NSLog(@"[RootsTableViewController] File Provider not available");
+    }
+    
+    if (docStorageURL == nil) {
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"File Provider Unavailable"
+                                                                       message:@"File browsing is not available for sideloaded builds."
+                                                                preferredStyle:UIAlertControllerStyleAlert];
+        [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+        [self presentViewController:alert animated:YES completion:nil];
+        return;
+    }
+    
+    NSURL *url = [docStorageURL URLByAppendingPathComponent:self.rootName];
     NSURLComponents *components = [NSURLComponents componentsWithURL:url resolvingAgainstBaseURL:NO];
     components.scheme = @"shareddocuments";
     [UIApplication openURL:components.string];

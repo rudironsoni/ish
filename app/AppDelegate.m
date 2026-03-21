@@ -214,10 +214,125 @@ static NSString *const kSkipStartupMessage = @"Skip Startup Message";
     NSLog(@"[Boot] Current working directory: %s", getcwd(NULL, 0));
     NSLog(@"[Boot] File system root: %s", root.fileSystemRepresentation);
     
-    err = do_execve(command[0].UTF8String, command.count, argv, envp);
-    if (err < 0) {
-        msg = [NSString stringWithFormat:@"[Boot] ERROR: do_execve failed: %d\n", err];
+    // CRITICAL DEBUG: Log everything about the do_execve call
+    NSString *debugPath = @"/tmp/ish_exec_debug.log";
+    NSString *debugInfo = [NSString stringWithFormat:@"path=%s\nargc=%lu\nargv[0]=%s\nenvp=%s\n", 
+                           command[0].UTF8String, (unsigned long)command.count, argv, envp];
+    [debugInfo writeToFile:debugPath atomically:YES encoding:NSUTF8StringEncoding error:nil];
+    
+    // Also try to write to console
+    write(2, "[iSH] About to call do_execve\n", 31);
+    
+    // CRITICAL: Verify the file content before calling do_execve
+    // Construct the path in the emulated filesystem
+    NSURL *exeInRoot = [root URLByAppendingPathComponent:@"data/bin/busybox"];
+    
+    // Check file attributes
+    NSError *attrError = nil;
+    NSDictionary *attrs = [NSFileManager.defaultManager attributesOfItemAtPath:exeInRoot.path error:&attrError];
+    if (attrs) {
+        msg = [NSString stringWithFormat:@"[Boot] File size: %@ bytes\n", attrs[NSFileSize]];
         [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+        msg = [NSString stringWithFormat:@"[Boot] File permissions: %03lo\n", (unsigned long)[attrs[NSFilePosixPermissions] unsignedIntegerValue]];
+        [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+    } else {
+        msg = [NSString stringWithFormat:@"[Boot] ERROR: Cannot get attributes: %@\n", attrError];
+        [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+    }
+    
+    NSFileHandle *fileHandle = [NSFileHandle fileHandleForReadingAtPath:exeInRoot.path];
+    if (fileHandle) {
+        // Read ELF header (64 bytes for 64-bit ELF)
+        NSData *headerData = [fileHandle readDataOfLength:64];
+        [fileHandle closeFile];
+        if (headerData.length >= 4) {
+            const unsigned char *bytes = headerData.bytes;
+            msg = [NSString stringWithFormat:@"[Boot] Read %lu bytes from file\n", (unsigned long)headerData.length];
+            [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+            
+            // Log first 16 bytes as hex for comparison with kernel
+            msg = @"[Boot] APP LEVEL - First 16 bytes hex: ";
+            for (int i = 0; i < 16 && i < headerData.length; i++) {
+                msg = [msg stringByAppendingFormat:@"%02x ", bytes[i]];
+            }
+            msg = [msg stringByAppendingString:@"\n"];
+            [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+            
+            msg = [NSString stringWithFormat:@"[Boot] First 4 bytes: %02x %02x %02x %02x\n",
+                   bytes[0], bytes[1], bytes[2], bytes[3]];
+            [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+            
+            // Parse ELF header
+            if (bytes[0] == 0x7f && bytes[1] == 'E' && bytes[2] == 'L' && bytes[3] == 'F') {
+                msg = @"[Boot] ELF magic: VALID\n";
+                [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+                
+                // Check bitness (byte 4)
+                uint8_t bitness = bytes[4];
+                msg = [NSString stringWithFormat:@"[Boot] ELF bitness: %d (expected 2 for 64-bit)\n", bitness];
+                [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+                
+                // Check endian (byte 5)
+                uint8_t endian = bytes[5];
+                msg = [NSString stringWithFormat:@"[Boot] ELF endian: %d (expected 1 for little-endian)\n", endian];
+                [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+                
+                // Check machine type (bytes 18-19, little endian)
+                uint16_t machine = bytes[18] | (bytes[19] << 8);
+                msg = [NSString stringWithFormat:@"[Boot] ELF machine: %d (expected 183 for aarch64)\n", machine];
+                [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+                
+                // Check type (bytes 16-17, little endian)
+                uint16_t type = bytes[16] | (bytes[17] << 8);
+                msg = [NSString stringWithFormat:@"[Boot] ELF type: %d (expected 2 for executable)\n", type];
+                [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+                
+            } else {
+                msg = @"[Boot] WARNING: File does NOT have ELF magic!\n";
+                [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+            }
+        } else {
+            msg = @"[Boot] ERROR: Could not read file\n";
+            [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+        }
+    } else {
+        msg = [NSString stringWithFormat:@"[Boot] ERROR: Cannot open %@\n", exeInRoot.path];
+        [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+    }
+    
+    // Test: Can we write to /tmp from the app?
+    NSString *testWritePath = @"/tmp/app_write_test.log";
+    [@"App can write to /tmp\n" writeToFile:testWritePath atomically:YES encoding:NSUTF8StringEncoding error:nil];
+    
+    err = do_execve(command[0].UTF8String, command.count, argv, envp);
+    
+    write(2, "[iSH] do_execve returned\n", 26);
+    
+    if (err < 0) {
+        msg = [NSString stringWithFormat:@"[Boot] ERROR: do_execve failed: %d (ENOEXEC = exec format error)\n", err];
+        [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+        msg = @"[Boot] ENOEXEC means: Not a valid ELF, not a script, not a text interpreter file\n";
+        [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+        
+        // Check if kernel log file was created in the emulated filesystem
+        // The kernel writes to /ish_kernel_debug.log in the emulated filesystem
+        // which is at root/data/ish_kernel_debug.log on the host
+        NSURL *kernelLogUrl = [root URLByAppendingPathComponent:@"data/ish_kernel_debug.log"];
+        BOOL kernelLogExists = [NSFileManager.defaultManager fileExistsAtPath:kernelLogUrl.path];
+        msg = [NSString stringWithFormat:@"[Boot] Kernel log exists at %@: %@\n", kernelLogUrl.path, kernelLogExists ? @"YES" : @"NO"];
+        [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+        
+        // Try to read kernel log if it exists
+        if (kernelLogExists) {
+            NSString *kernelLog = [NSString stringWithContentsOfFile:kernelLogUrl.path encoding:NSUTF8StringEncoding error:nil];
+            msg = [NSString stringWithFormat:@"[Boot] Kernel log contents:\n%@\n", kernelLog];
+            [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+        }
+        
+        // Write error to multiple locations
+        NSString *errMsg = [NSString stringWithFormat:@"do_execve failed with error: %d\n", err];
+        [errMsg writeToFile:@"/tmp/ish_error.log" atomically:YES encoding:NSUTF8StringEncoding error:nil];
+        
         return err;
     }
     msg = @"[Boot] do_execve succeeded, starting task...\n";

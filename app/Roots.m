@@ -5,6 +5,7 @@
 //  Created by Theodore Dubois on 6/7/20.
 //
 
+#import <UIKit/UIKit.h>
 #import <FileProvider/FileProvider.h>
 #import "Roots.h"
 #import "AppGroup.h"
@@ -67,7 +68,17 @@ static NSString *kDefaultRoot = @"Default Root";
                             progressReporter:nil]) {
                 logMsg = [NSString stringWithFormat:@"[Roots] ERROR: Failed to import: %@\n", error];
                 [logMsg writeToFile:logPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
-                NSAssert(NO, @"failed to import default root, error %@", error);
+                NSLog(@"[Roots] CRITICAL ERROR: Failed to import default root: %@", error);
+                // Show alert to user
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Root Filesystem Error"
+                                                                                   message:[NSString stringWithFormat:@"Failed to import Alpine rootfs: %@", error]
+                                                                            preferredStyle:UIAlertControllerStyleAlert];
+                    [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+                    UIViewController *vc = UIApplication.sharedApplication.keyWindow.rootViewController;
+                    [vc presentViewController:alert animated:YES completion:nil];
+                });
+                return nil;
             }
             logMsg = @"[Roots] Successfully imported default root\n";
             [logMsg writeToFile:logPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
@@ -98,6 +109,29 @@ static NSString *kDefaultRoot = @"Default Root";
 }
 
 - (void)syncFileProviderDomains {
+    // Skip File Provider for sideloaded/unsigned builds
+    // LiveContainer and sideloaded apps don't have proper File Provider entitlements
+    // Accessing documentStorageURL will throw an exception
+    static BOOL fileProviderAvailable = NO;
+    static BOOL checked = NO;
+    
+    if (!checked) {
+        checked = YES;
+        @try {
+            NSURL *testURL = [NSFileProviderManager defaultManager].documentStorageURL;
+            fileProviderAvailable = (testURL != nil);
+        }
+        @catch (NSException *exception) {
+            NSLog(@"[Roots] File Provider not available (exception: %@)", exception.name);
+            fileProviderAvailable = NO;
+        }
+    }
+    
+    if (!fileProviderAvailable) {
+        NSLog(@"[Roots] Skipping File Provider sync - not available for sideloaded build");
+        return;
+    }
+    
     if (self.updatingDomains) {
         self.domainsNeedUpdate = YES;
         return;
@@ -116,10 +150,12 @@ static NSString *kDefaultRoot = @"Default Root";
             if ([missingRoots containsObject:domain.identifier]) {
                 [missingRoots removeObject:domain.identifier];
             } else {
-                [NSFileManager.defaultManager removeItemAtURL:
-                 [NSFileProviderManager.defaultManager.documentStorageURL
-                  URLByAppendingPathComponent:domain.pathRelativeToDocumentStorage]
-                                                        error:nil];
+                NSURL *docStorageURL = [NSFileProviderManager defaultManager].documentStorageURL;
+                if (docStorageURL != nil) {
+                    [NSFileManager.defaultManager removeItemAtURL:
+                     [docStorageURL URLByAppendingPathComponent:domain.pathRelativeToDocumentStorage]
+                                                            error:nil];
+                }
                 [NSFileProviderManager removeDomain:domain completionHandler:onError];
             }
         }

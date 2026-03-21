@@ -107,6 +107,22 @@ extern tcti_gadget_t gadget_msr;
 // NOP
 extern tcti_gadget_t gadget_nop;
 
+// ============================================================================
+// Entry/Exit Functions
+// ============================================================================
+
+// Block entry - sets up TCTI execution environment
+// Called from C with x0=gadget_array, x1=cpu_state
+// Loads TCTI-mapped registers and starts gadget execution
+// Note: On macOS, symbols get underscore prefix
+extern void tcti_entry_block(void);
+extern void _tcti_entry_block(void);
+
+// Block exit - saves registers and returns to C
+// Called as the last gadget in a block
+extern void tcti_exit_block(int reason);
+extern void _tcti_exit_block(int reason);
+
 #ifdef __cplusplus
 }
 #endif

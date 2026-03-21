@@ -25,15 +25,16 @@ extern void tcti_exit_block(int reason);
 static struct a64_block_cache block_cache;
 static int block_cache_initialized = 0;
 
-// Current execution state
-static struct cpu_state *current_cpu = NULL;
+// Current execution state - non-static so asbestos.c can access it
+struct cpu_state *current_cpu = NULL;
 static struct tlb *current_tlb = NULL;
 static jmp_buf exit_jmpbuf __attribute__((unused));
 static int exit_reason = 0;
 
 // Forward declarations
 struct a64_block *a64_compile_block(uint64_t pc, struct tlb *tlb);
-static int a64_execute_block(struct a64_block *block);
+// Forward declaration - made non-static for use by asbestos.c
+int a64_execute_block(struct a64_block *block);
 
 /*
  * Initialize aarch64 CPU for a task
@@ -88,11 +89,13 @@ struct a64_block *a64_compile_block(uint64_t pc, struct tlb *tlb) {
 
     // Translate instructions until block end
     int max_insns = 50;  // Reasonable limit
+    int insns_decoded = 0;
     for (int i = 0; i < max_insns; i++) {
         uint32_t insn;
         int ret = a64_fetch_insn(current_cpu, tlb, gen_state.guest_pc, &insn);
         if (ret < 0) {
             // Page fault during fetch
+            printk("[TCTI] Page fault fetching instruction at %llx\n", gen_state.guest_pc);
             break;
         }
 
@@ -100,13 +103,38 @@ struct a64_block *a64_compile_block(uint64_t pc, struct tlb *tlb) {
 
         if (ret < 0) {
             // Decode error - block ends here
+            printk("[TCTI] Failed to generate gadget for instruction %08x at %llx (cat=%d)\n", 
+                   insn, gen_state.guest_pc, (insn >> 25) & 0xF);
             break;
         }
+
+        insns_decoded++;
 
         if (ret == 1) {
             // Block should end (branch/syscall)
             break;
         }
+    }
+
+    // Check if we decoded any instructions
+    if (insns_decoded == 0) {
+        // No instructions could be decoded - page fault or unsupported
+        // Fall back to single-instruction interpretation
+        printk("[TCTI] Falling back to interpretation for %llx\n", pc);
+        
+        // Create a minimal block that will trigger interpretation
+        block = malloc(sizeof(*block));
+        if (!block) return NULL;
+        
+        block->start_pc = pc;
+        block->end_pc = pc;  // Will be updated after interpretation
+        block->num_gadgets = 0;
+        block->gadgets = NULL;
+        block->is_jetsam = false;
+        list_init(&block->chain);
+        list_init(&block->jetsam);
+        
+        return block;
     }
 
     // Finalize the block
@@ -145,7 +173,7 @@ struct a64_block *a64_compile_block(uint64_t pc, struct tlb *tlb) {
  * Each gadget is a function that operates on the CPU state.
  * The gadgets use inline assembly to access registers efficiently.
  */
-static int a64_execute_block(struct a64_block *block) {
+int a64_execute_block(struct a64_block *block) {
     tcti_gadget_t *gadgets = block->gadgets;
     int ret = 0;
 

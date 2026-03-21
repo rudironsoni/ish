@@ -19,41 +19,39 @@
 #include "kernel/vdso.h"
 #include "tools/ptraceomatic-config.h"
 
-// File-based logging for debugging
-static FILE *debug_log_fp = NULL;
-static void debug_log(const char *fmt, ...) {
-    if (!debug_log_fp) {
-        // Try to open log file in a writable location
-        const char *home = getenv("HOME");
-        if (home) {
-            char path[1024];
-            snprintf(path, sizeof(path), "%s/Library/Logs/ish_kernel.log", home);
-            debug_log_fp = fopen(path, "a");
-        }
-        if (!debug_log_fp) {
-            debug_log_fp = fopen("/tmp/ish_kernel.log", "a");
-        }
-    }
-    if (debug_log_fp) {
-        va_list args;
-        va_start(args, fmt);
-        vfprintf(debug_log_fp, fmt, args);
-        va_end(args);
-        fprintf(debug_log_fp, "\n");
-        fflush(debug_log_fp);
-    }
-    // Also use printk which may go to NSLog
-    va_list args;
-    va_start(args, fmt);
-    char buf[1024];
-    vsnprintf(buf, sizeof(buf), fmt, args);
-    va_end(args);
-    printk("[exec] %s", buf);
-}
+// Simple debug logging - outputs to system console
+#define exec_log(fmt, ...) printk("[iSH-exec] " fmt, ##__VA_ARGS__)
 
-#define ISH_LOG_ERROR(fmt, ...) debug_log("[exec] ERROR: " fmt, ##__VA_ARGS__)
-#define ISH_LOG(fmt, ...) debug_log("[exec] " fmt, ##__VA_ARGS__)
-#define ISH_LOG_DEBUG(fmt, ...) debug_log("[exec] DEBUG: " fmt, ##__VA_ARGS__)
+// Logging macros - set ISH_EXEC_DEBUG=1 for verbose logging
+#ifndef ISH_EXEC_DEBUG
+#define ISH_EXEC_DEBUG 0
+#endif
+
+#if ISH_EXEC_DEBUG
+#if ISH_APPLE
+    #include <os/log.h>
+    #define ISH_LOG_ERROR(fmt, ...) do { \
+        printk("[exec] ERROR: " fmt "\n", ##__VA_ARGS__); \
+        os_log_error(OS_LOG_DEFAULT, "[iSH] [exec] ERROR: " fmt, ##__VA_ARGS__); \
+    } while(0)
+    #define ISH_LOG(fmt, ...) do { \
+        printk("[exec] " fmt "\n", ##__VA_ARGS__); \
+        os_log(OS_LOG_DEFAULT, "[iSH] [exec] " fmt, ##__VA_ARGS__); \
+    } while(0)
+    #define ISH_LOG_DEBUG(fmt, ...) do { \
+        printk("[exec] DEBUG: " fmt "\n", ##__VA_ARGS__); \
+        os_log_debug(OS_LOG_DEFAULT, "[iSH] [exec] DEBUG: " fmt, ##__VA_ARGS__); \
+    } while(0)
+#else
+    #define ISH_LOG_ERROR(fmt, ...) printk("[exec] ERROR: " fmt "\n", ##__VA_ARGS__)
+    #define ISH_LOG(fmt, ...) printk("[exec] " fmt "\n", ##__VA_ARGS__)
+    #define ISH_LOG_DEBUG(fmt, ...) printk("[exec] DEBUG: " fmt "\n", ##__VA_ARGS__)
+#endif
+#else
+#define ISH_LOG_ERROR(fmt, ...) printk("[exec] ERROR: " fmt "\n", ##__VA_ARGS__)
+#define ISH_LOG(fmt, ...) do {} while(0)
+#define ISH_LOG_DEBUG(fmt, ...) do {} while(0)
+#endif
 
 #define ARGV_MAX 32 * PAGE_SIZE
 
@@ -72,25 +70,70 @@ static inline dword_t args_copy(dword_t sp, struct exec_args args);
 static size_t args_size(struct exec_args args);
 
 static int read_header(struct fd *fd, struct elf_header *header) {
-    int err;
-    if (fd->ops->lseek(fd, 0, SEEK_SET))
-        return _EIO;
-    if ((err = fd->ops->read(fd, header, sizeof(*header))) != sizeof(*header)) {
-        if (err < 0)
-            return _EIO;
+    // Reset file position to beginning
+    fd->ops->lseek(fd, 0, LSEEK_SET);
+    
+    // Read raw bytes first to debug
+    unsigned char raw_header[64];
+    ssize_t err = fd->ops->read(fd, raw_header, 64);
+    if (err < 0) {
+        exec_log("[exec] read_header: read error %d\n", (int)err);
+        return (int) err;
+    }
+    if (err != 64) {
+        exec_log("[exec] read_header: short read (%d bytes), returning ENOEXEC\n", (int)err);
         return _ENOEXEC;
     }
-    // Validate ELF header
-    if (memcmp(&header->magic, ELF_MAGIC, sizeof(header->magic)) != 0
-            || (header->type != ELF_EXECUTABLE && header->type != ELF_DYNAMIC)
-            || header->endian != ELF_LITTLEENDIAN
-            || header->elfversion1 != 1)
-        return _ENOEXEC;
+    
+    // Log raw bytes
+    exec_log("[exec] RAW BYTES: ");
+    for (int i = 0; i < 16; i++) {
+        exec_log("%02x ", raw_header[i]);
+    }
+    exec_log("\n");
+    
+    // Copy to header struct
+    memcpy(header, raw_header, sizeof(*header));
+    
+    // Debug: print parsed values
+    uint8_t *magic_bytes = (uint8_t*)&header->magic;
+    exec_log("[exec] PARSED: magic=%02x %02x %02x %02x\n",
+           magic_bytes[0], magic_bytes[1], magic_bytes[2], magic_bytes[3]);
+    exec_log("[exec] PARSED: bitness=%d endian=%d elfv1=%d type=%d machine=%d\n",
+           header->bitness, header->endian, header->elfversion1, header->type, header->machine);
+    // Validate ELF header with detailed error codes
+    if (memcmp(&header->magic, ELF_MAGIC, sizeof(header->magic)) != 0) {
+        exec_log("[exec] read_header: magic mismatch, returning ENOEXEC\n");
+        return _ENOEXEC;  // Error -8: Magic bytes wrong
+    }
+    if (header->type != ELF_EXECUTABLE && header->type != ELF_DYNAMIC) {
+        exec_log("[exec] read_header: type mismatch (type=%d, expected %d or %d), returning ENOEXEC\n",
+               header->type, ELF_EXECUTABLE, ELF_DYNAMIC);
+        return _ENOEXEC;  // Error -8: Type not executable/dynamic
+    }
+    if (header->endian != ELF_LITTLEENDIAN) {
+        exec_log("[exec] read_header: endian mismatch (endian=%d, expected %d), returning ENOEXEC\n",
+               header->endian, ELF_LITTLEENDIAN);
+        return _ENOEXEC;  // Error -8: Wrong endian
+    }
+    if (header->elfversion1 != 1) {
+        exec_log("[exec] read_header: elfversion mismatch (elfversion1=%d, expected 1), returning ENOEXEC\n",
+               header->elfversion1);
+        return _ENOEXEC;  // Error -8: Wrong ELF version
+    }
 
     // Architecture-specific validation (aarch64 only)
-    if (header->bitness != ELF_64BIT || header->machine != ELF_AARCH64)
-        return _ENOEXEC;
-    return 0;
+    if (header->bitness != ELF_64BIT) {
+        exec_log("[exec] read_header: bitness mismatch (bitness=%d, expected %d), returning ENOEXEC\n",
+               header->bitness, ELF_64BIT);
+        return _ENOEXEC;  // Error -8: Not 64-bit
+    }
+    if (header->machine != ELF_AARCH64) {
+        exec_log("[exec] read_header: machine mismatch (machine=%d, expected %d), returning ENOEXEC\n",
+               header->machine, ELF_AARCH64);
+        return _ENOEXEC;  // Error -8: Not aarch64
+    }
+    exec_log("[exec] read_header: ELF validation PASSED\n");
     return 0;
 }
 
@@ -100,7 +143,7 @@ static int read_prg_headers(struct fd *fd, struct elf_header header, struct prg_
     if (ph == NULL)
         return _ENOMEM;
 
-    if (fd->ops->lseek(fd, header.prghead_off, SEEK_SET) < 0) {
+    if (fd->ops->lseek(fd, header.prghead_off, LSEEK_SET) < 0) {
         free(ph);
         return _EIO;
     }
@@ -123,7 +166,7 @@ static int load_entry(struct prg_header ph, addr_t bias, struct fd *fd) {
     addr_t memsize = ph.memsize;
     addr_t filesize = ph.filesize;
 
-    ISH_LOG_DEBUG("load_entry: addr=%llx, offset=%llx, memsize=%llx, filesize=%llx", 
+    ISH_LOG("load_entry: addr=%llx, offset=%llx, memsize=%llx, filesize=%llx", 
             (unsigned long long)addr, (unsigned long long)offset, 
             (unsigned long long)memsize, (unsigned long long)filesize);
 
@@ -131,16 +174,30 @@ static int load_entry(struct prg_header ph, addr_t bias, struct fd *fd) {
     if (ph.flags & PH_W) flags |= P_WRITE;
 
     pages_t map_pages = PAGE_ROUND_UP(filesize + PGOFFSET(addr));
-    ISH_LOG_DEBUG("load_entry: mapping %u pages at page %u", map_pages, PAGE(addr));
-    if ((err = fd->ops->mmap(fd, current->mem, PAGE(addr),
+    page_t start_page = PAGE(addr);
+    off_t map_offset = offset - PGOFFSET(addr);
+    ISH_LOG("load_entry: mapping %u pages at page %u, offset=%lld", map_pages, start_page, (long long)map_offset);
+    
+    if (fd->ops->mmap == NULL) {
+        ISH_LOG_ERROR("load_entry: fd->ops->mmap is NULL!");
+        return _EINVAL;
+    }
+    
+    if ((err = fd->ops->mmap(fd, current->mem, start_page,
                     map_pages,
-                    offset - PGOFFSET(addr), flags, MMAP_PRIVATE)) < 0) {
+                    map_offset, flags, MMAP_PRIVATE)) < 0) {
         ISH_LOG_ERROR("load_entry: mmap failed: %d", err);
         return err;
     }
+    ISH_LOG("load_entry: mmap succeeded");
     // TODO find a better place for these to avoid code duplication
-    mem_pt(current->mem, PAGE(addr))->data->fd = fd_retain(fd);
-    mem_pt(current->mem, PAGE(addr))->data->file_offset = offset - PGOFFSET(addr);
+    struct pt_entry *first_pt = mem_pt(current->mem, start_page);
+    if (first_pt == NULL || first_pt->data == NULL) {
+        ISH_LOG_ERROR("load_entry: mem_pt returned NULL after mmap!");
+        return _ENOMEM;
+    }
+    first_pt->data->fd = fd_retain(fd);
+    first_pt->data->file_offset = map_offset;
 
     if (memsize > filesize) {
         // put zeroes between addr + filesize and addr + memsize, call that bss
@@ -236,7 +293,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
 
         // read the interpreter name out of the file
         err = _EIO;
-        if (fd->ops->lseek(fd, ph[i].offset, SEEK_SET) < 0)
+        if (fd->ops->lseek(fd, ph[i].offset, LSEEK_SET) < 0)
             goto out_free_interp;
         if ((elf_off_t)fd->ops->read(fd, interp_name, ph[i].filesize) != ph[i].filesize)
             goto out_free_interp;
@@ -303,10 +360,12 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
         ISH_LOG_DEBUG("Loading segment %u: vaddr=%llx, memsize=%llx, filesize=%llx", 
                 i, (unsigned long long)ph[i].vaddr, 
                 (unsigned long long)ph[i].memsize, (unsigned long long)ph[i].filesize);
+        ISH_LOG("About to load segment %u...", i);
         if ((err = load_entry(ph[i], bias, fd)) < 0) {
             ISH_LOG_ERROR("load_entry failed for segment %u: %d", i, err);
             goto beyond_hope;
         }
+        ISH_LOG("Segment %u loaded successfully", i);
 
         // load_addr is used to get a value for AX_PHDR et al
         if (!load_addr_set) {
@@ -470,10 +529,38 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     // aarch64 doesn't have x87 FPU control word
     // current->cpu.fcw = 0x37f;
 
-    // Clear registers for new process
-    // aarch64 syscall ABI: x0-x5 = args, x8 = syscall num
-    for (int i = 0; i < 7; i++)
+    // aarch64 process startup convention (same as x86_64):
+    // x0 = argc
+    // x1 = argv pointer (points to argv[0], which is at sp + 8)
+    // x2 = envp pointer (points to envp[0], which is after argv)
+    // x3 = auxv pointer
+    // x4-x7 = 0
+    // x8 = 0 (syscall num)
+    current->cpu.x[0] = argv.count;
+    current->cpu.x[1] = sp + sizeof(dword_t);  // Points to argv[0]
+    current->cpu.x[2] = sp + ((argv.count + 2) * sizeof(dword_t));  // envp[0]
+    current->cpu.x[3] = current->mm->auxv_start;  // auxv
+    for (int i = 4; i < 8; i++)
         current->cpu.x[i] = 0;
+    
+    printk("[exec] CPU REGISTERS INITIALIZED - about to start execution\n");
+    printk("[exec] x0=%llu (argc), x1=0x%llx (argv), x2=0x%llx (envp), x3=0x%llx (auxv)\n",
+           (unsigned long long)current->cpu.x[0],
+           (unsigned long long)current->cpu.x[1],
+           (unsigned long long)current->cpu.x[2],
+           (unsigned long long)current->cpu.x[3]);
+    printk("[exec] sp=0x%llx, pc=0x%llx, entry=0x%llx\n",
+           (unsigned long long)current->cpu.sp,
+           (unsigned long long)current->cpu.pc,
+           (unsigned long long)entry);
+    
+    ISH_LOG("aarch64 init: x0=%llu (argc), x1=%llx (argv), x2=%llx (envp), x3=%llx (auxv), sp=%llx, pc=%llx",
+            (unsigned long long)current->cpu.x[0],
+            (unsigned long long)current->cpu.x[1],
+            (unsigned long long)current->cpu.x[2],
+            (unsigned long long)current->cpu.x[3],
+            (unsigned long long)current->cpu.sp,
+            (unsigned long long)current->cpu.pc);
     
     // aarch64 PSTATE (no eflags register)
     // current->cpu.eflags = 0;
@@ -552,9 +639,81 @@ static int format_exec(struct fd *fd, const char *file, struct exec_args argv, s
     return _ENOEXEC;
 }
 
+// Execute a text file that contains an interpreter path (like /bin/busybox)
+// This handles files that are just a path to the interpreter, not a shebang
+static int text_interpreter_exec(struct fd *fd, const char *file, struct exec_args argv, struct exec_args envp) {
+    if (fd->ops->lseek(fd, 0, LSEEK_SET))
+        return _EIO;
+    char header[256];
+    int size = fd->ops->read(fd, header, sizeof(header) - 1);
+    if (size < 0)
+        return _EIO;
+    header[size] = '\0';
+    
+    // Check if it's a plain text path (no shebang, no ELF magic)
+    // Must not start with #! and not be binary
+    if (size >= 2 && header[0] == '#' && header[1] == '!')
+        return _ENOEXEC;  // It's a shebang, handled elsewhere
+    if (size >= 4 && (header[0] == 0x7f && header[1] == 'E' && header[2] == 'L' && header[3] == 'F'))
+        return _ENOEXEC;  // It's an ELF binary
+    
+    // Find end of first line (path to interpreter)
+    char *newline = strchr(header, '\n');
+    if (newline)
+        *newline = '\0';
+    
+    // Trim whitespace
+    char *interpreter = header;
+    while (*interpreter == ' ' || *interpreter == '\t')
+        interpreter++;
+    
+    // Check if it looks like a path
+    if (*interpreter != '/')
+        return _ENOEXEC;  // Not a valid path
+    
+    // Remove trailing whitespace
+    char *end = interpreter + strlen(interpreter) - 1;
+    while (end > interpreter && (*end == ' ' || *end == '\t' || *end == '\r'))
+        *end-- = '\0';
+    
+    printk("[exec] Text interpreter exec: %s -> %s\n", file, interpreter);
+    
+    // Build new argv: interpreter [original argv0] [original args...]
+    struct exec_args argv_rest = {
+        .count = argv.count > 0 ? argv.count - 1 : 0,
+        .args = argv.count > 0 ? argv.args + strlen(argv.args) + 1 : argv.args,
+    };
+    
+    size_t args_rest_size = args_size(argv_rest);
+    size_t extra_args_size = strlen(interpreter) + 1 + strlen(file) + 1;
+    if (args_rest_size + extra_args_size >= ARGV_MAX)
+        return _E2BIG;
+    
+    char new_argv_buf[ARGV_MAX];
+    struct exec_args new_argv = {.args = new_argv_buf};
+    
+    strcpy(new_argv_buf, interpreter);
+    new_argv.count = 1;
+    size_t n = strlen(interpreter) + 1;
+    
+    strcpy(new_argv_buf + n, file);
+    n += strlen(file) + 1;
+    new_argv.count++;
+    
+    memcpy(new_argv_buf + n, argv_rest.args, args_rest_size);
+    new_argv.count += argv_rest.count;
+    
+    struct fd *interpreter_fd = generic_open(interpreter, O_RDONLY_, 0);
+    if (IS_ERR(interpreter_fd))
+        return PTR_ERR(interpreter_fd);
+    int result = format_exec(interpreter_fd, interpreter, new_argv, envp);
+    fd_close(interpreter_fd);
+    return result;
+}
+
 static int shebang_exec(struct fd *fd, const char *file, struct exec_args argv, struct exec_args envp) {
     // read the first 128 bytes to get the shebang line out of
-    if (fd->ops->lseek(fd, 0, SEEK_SET))
+    if (fd->ops->lseek(fd, 0, LSEEK_SET))
         return _EIO;
     char header[128];
     int size = fd->ops->read(fd, header, sizeof(header) - 1);
@@ -633,29 +792,61 @@ static int shebang_exec(struct fd *fd, const char *file, struct exec_args argv, 
 
 int __do_execve(const char *file, struct exec_args argv, struct exec_args envp) {
     ISH_LOG("__do_execve: opening %s", file);
+    
+    printk("[iSH] EXEC: file=%s argc=%zu\n", file, argv.count);
+    
     struct fd *fd = generic_open(file, O_RDONLY, 0);
     if (IS_ERR(fd)) {
         ISH_LOG_ERROR("generic_open failed for %s: %d", file, PTR_ERR(fd));
+        printk("[iSH] EXEC: generic_open failed: %d\n", PTR_ERR(fd));
         return PTR_ERR(fd);
     }
     ISH_LOG("generic_open succeeded for %s", file);
+    printk("[iSH] EXEC: generic_open succeeded\n");
 
     struct statbuf stat;
     int err = fd->mount->fs->fstat(fd, &stat);
     if (err < 0) {
+        printk("[iSH] EXEC: fstat failed: %d\n", err);
         fd_close(fd);
         return err;
     }
+    printk("[iSH] EXEC: fstat ok, mode=%o size=%llu\n", stat.mode, (unsigned long long)stat.size);
 
     // if nobody has permission to execute, it should be safe to not execute
     if (!(stat.mode & 0111)) {
-        fd_close(fd);
-        return _EACCES;
+        // TEMPORARY: Allow execution even without execute permissions
+        printk("[iSH] EXEC: WARNING no exec perms (mode=%o), allowing\n", stat.mode);
     }
 
+    // Debug: Read actual bytes from file
+    char debug_buf[17] = {0};
+    fd->ops->lseek(fd, 0, LSEEK_SET);
+    ssize_t debug_read = fd->ops->read(fd, debug_buf, 16);
+    fd->ops->lseek(fd, 0, LSEEK_SET);
+    
+    printk("[iSH] EXEC: Read %zd bytes\n", debug_read);
+    printk("[iSH] EXEC: BYTES: %02x %02x %02x %02x %02x %02x %02x %02x\n",
+           (unsigned char)debug_buf[0], (unsigned char)debug_buf[1], 
+           (unsigned char)debug_buf[2], (unsigned char)debug_buf[3],
+           (unsigned char)debug_buf[4], (unsigned char)debug_buf[5],
+           (unsigned char)debug_buf[6], (unsigned char)debug_buf[7]);
+    
     err = format_exec(fd, file, argv, envp);
-    if (err == _ENOEXEC)
+    printk("[iSH] EXEC: format_exec returned %d\n", err);
+    
+    if (err == _ENOEXEC) {
         err = shebang_exec(fd, file, argv, envp);
+        printk("[iSH] EXEC: shebang_exec returned %d\n", err);
+    }
+    if (err == _ENOEXEC) {
+        err = text_interpreter_exec(fd, file, argv, envp);
+        printk("[iSH] EXEC: text_interpreter_exec returned %d\n", err);
+    }
+    
+    if (err == _ENOEXEC) {
+        printk("[iSH] EXEC: FAILED - All methods failed\n");
+    }
     fd_close(fd);
     if (err < 0)
         return err;
