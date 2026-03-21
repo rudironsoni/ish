@@ -80,20 +80,27 @@ void fiber_exec_ctx_put(struct fiber_exec_ctx *ctx);
 // Reset frame for new execution run (clears transient state)
 void fiber_exec_ctx_reset(struct fiber_exec_ctx *ctx, struct cpu_state *cpu);
 
-// Increment a stat counter
+// Increment a stat counter (zero-cost when disabled)
+#ifdef ENABLE_PERF_STATS
 static inline void fiber_stat_inc(struct fiber_exec_ctx *ctx, int stat) {
     if (ctx && stat >= 0 && stat < STAT_NUM_STATS) {
         ctx->stats[stat]++;
     }
 }
 
-// Get stat value
 static inline uint64_t fiber_stat_get(struct fiber_exec_ctx *ctx, int stat) {
     if (ctx && stat >= 0 && stat < STAT_NUM_STATS) {
         return ctx->stats[stat];
     }
     return 0;
 }
+#else
+#define fiber_stat_inc(ctx, stat) ((void)0)
+static inline uint64_t fiber_stat_get(struct fiber_exec_ctx *ctx, int stat) {
+    (void)ctx; (void)stat;
+    return 0;
+}
+#endif
 
 // Report TLB statistics for PR 8 analysis
 // Call this at interrupt boundaries or on exit to measure TLB performance

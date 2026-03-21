@@ -83,7 +83,7 @@ static inline int fiber_capacity_to_class(size_t capacity) {
     return -1;  // Too large for freelist
 }
 
-static struct fiber_block *fiber_block_alloc_from_pool(struct asbestos *asbestos, size_t capacity) {
+static struct fiber_block __attribute__((unused)) *fiber_block_alloc_from_pool(struct asbestos *asbestos, size_t capacity) {
     int sc = fiber_capacity_to_class(capacity);
     if (sc < 0) {
         // Too large for pool, use malloc
@@ -436,7 +436,7 @@ static int cpu_step_to_interrupt(struct cpu_state *cpu, struct tlb *tlb) {
     return interrupt;
 }
 
-static int cpu_single_step(struct cpu_state *cpu, struct tlb *tlb) {
+static int __attribute__((unused)) cpu_single_step(struct cpu_state *cpu, struct tlb *tlb) {
     struct gen_state state;
     gen_start(cpu->pc, &state);
     gen_step(&state, tlb);
@@ -453,20 +453,21 @@ static int cpu_single_step(struct cpu_state *cpu, struct tlb *tlb) {
     return interrupt;
 }
 
+// Forward declaration for aarch64 emulator
+extern void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb);
+
 int cpu_run_to_interrupt(struct cpu_state *cpu, struct tlb *tlb) {
     if (cpu->poked_ptr == NULL)
         cpu->poked_ptr = &cpu->_poked;
     tlb_refresh(tlb, cpu->mmu);
-    // Single-step mode not yet implemented for aarch64
-    int interrupt = cpu_step_to_interrupt(cpu, tlb);
-    cpu->trapno = interrupt;
-
-    struct asbestos *asbestos = cpu->mmu->asbestos;
     
-    // PR 4: Try epoch-based reclamation at interrupt boundary
-    epoch_try_advance(asbestos);
-
-    return interrupt;
+    // Use aarch64 emulator for aarch64 binaries
+    // This replaces the old x86 asbestos JIT
+    a64_cpu_run(cpu, tlb);
+    
+    // a64_cpu_run runs in an infinite loop and handles interrupts internally
+    // If we return here, it means we need to exit (shouldn't happen in normal operation)
+    return INT_GPF;
 }
 
 void cpu_poke(struct cpu_state *cpu) {
@@ -521,7 +522,7 @@ static void epoch_retire_block(struct asbestos *asbestos, struct fiber_block *bl
 
 // Check if we can safely reclaim a specific epoch
 // Returns true if no active execution context is pinned to this or older epochs
-static bool epoch_can_reclaim(struct asbestos *asbestos, uint32_t target_epoch) {
+static bool __attribute__((unused)) epoch_can_reclaim(struct asbestos *asbestos, uint32_t target_epoch) {
     // In single-threaded mode, always safe
     // In multi-threaded mode, would check all fiber_exec_ctx entries
     // For now, assume safe after 2 epoch transitions

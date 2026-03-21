@@ -200,14 +200,17 @@ int a64_guest_stxr64(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, uint
 
 // Exclusive monitor operations
 void a64_clear_exclusive(struct cpu_state *cpu) {
+    (void)cpu;  // Not used in this implementation
     exclusive_valid = 0;
 }
 
 int a64_check_exclusive(struct cpu_state *cpu, uint64_t addr, int size) {
+    (void)cpu;  // Not used in this implementation
     return exclusive_valid && exclusive_addr == addr && exclusive_size == size;
 }
 
 void a64_set_exclusive(struct cpu_state *cpu, uint64_t addr, int size) {
+    (void)cpu;  // Not used in this implementation
     exclusive_addr = addr;
     exclusive_size = size;
     exclusive_valid = 1;

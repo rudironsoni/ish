@@ -39,6 +39,49 @@ static struct mmu_ops ishemu_ops = {
 
 static bool poke[NR_CPUS];
 
+/*
+ * Register mapping from aarch64 cpu_state to x86 pt_regs
+ * This is needed because the Linux kernel being emulated is x86
+ * while the host (iOS) is aarch64
+ */
+static void cpu_to_pt_regs(struct cpu_state *cpu, struct pt_regs *regs)
+{
+	// Map aarch64 registers to x86 registers
+	// x0-x5 map to ax, bx, cx, dx, si, di
+	// x6 maps to bp, x7-x30 need special handling
+	regs->ax = cpu->x[0];
+	regs->bx = cpu->x[1];
+	regs->cx = cpu->x[2];
+	regs->dx = cpu->x[3];
+	regs->si = cpu->x[4];
+	regs->di = cpu->x[5];
+	regs->bp = cpu->x[6];
+	// Note: x7-x29 are callee-saved in aarch64 but don't have direct x86 equivalents
+	// They are stored in the fiber_frame for restoration
+	regs->sp = cpu->sp;
+	regs->ip = cpu->pc;
+	regs->flags = cpu->pstate;
+	regs->tls = cpu->tpidr_el0;
+	// fault_addr stored in cr2 for x86 compatibility
+}
+
+static void pt_regs_to_cpu(struct pt_regs *regs, struct cpu_state *cpu)
+{
+	// Map x86 registers back to aarch64
+	cpu->x[0] = regs->ax;
+	cpu->x[1] = regs->bx;
+	cpu->x[2] = regs->cx;
+	cpu->x[3] = regs->dx;
+	cpu->x[4] = regs->si;
+	cpu->x[5] = regs->di;
+	cpu->x[6] = regs->bp;
+	cpu->sp = regs->sp;
+	cpu->pc = regs->ip;
+	cpu->pstate = regs->flags;
+	cpu->tpidr_el0 = regs->tls;
+	// fault_addr not stored in pt_regs, handled separately
+}
+
 static void emu_run_to_interrupt(struct emu *emu, struct cpu_state *cpu)
 {
 	struct pt_regs *regs = emu_pt_regs(emu);
@@ -46,33 +89,21 @@ static void emu_run_to_interrupt(struct emu *emu, struct cpu_state *cpu)
 
 	cpu->mmu = &mm_ctx->mmu;
 	
-	// Copy aarch64 registers from pt_regs to cpu_state
-	for (int i = 0; i < 31; i++) {
-		cpu->x[i] = regs->regs[i];
-	}
-	cpu->sp = regs->sp;
-	cpu->pc = regs->pc;
-	cpu->pstate = regs->pstate;
-	cpu->tpidr_el0 = regs->tpidr;
+	// Copy registers from pt_regs to cpu
+	pt_regs_to_cpu(regs, cpu);
 	
 	cpu->poked_ptr = &poke[get_smp_processor_id()];
 
 	int interrupt = cpu_run_to_interrupt(cpu, &the_tlb);
 
 	// Copy back to pt_regs
-	for (int i = 0; i < 31; i++) {
-		regs->regs[i] = cpu->x[i];
-	}
-	regs->sp = cpu->sp;
-	regs->pc = cpu->pc;
-	regs->pstate = cpu->pstate;
-	regs->tpidr = cpu->tpidr_el0;
+	cpu_to_pt_regs(cpu, regs);
 
 	if (interrupt == INT_GPF) {
-		regs->fault_addr = cpu->fault_addr;
+		regs->cr2 = cpu->fault_addr;
 		regs->error_code = cpu->fault_was_write << 1;
 	} else {
-		regs->fault_addr = regs->error_code = 0;
+		regs->cr2 = regs->error_code = 0;
 	}
 	regs->trap_nr = interrupt;
 }

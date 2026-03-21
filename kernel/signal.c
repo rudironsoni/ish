@@ -156,20 +156,22 @@ static addr_t sigreturn_trampoline(const char *name) {
 }
 
 static void setup_sigcontext(struct sigcontext_ *sc, struct cpu_state *cpu) {
-    sc->ax = cpu->eax;
-    sc->bx = cpu->ebx;
-    sc->cx = cpu->ecx;
-    sc->dx = cpu->edx;
-    sc->di = cpu->edi;
-    sc->si = cpu->esi;
-    sc->bp = cpu->ebp;
-    sc->sp = sc->sp_at_signal = cpu->esp;
-    sc->ip = cpu->eip;
-    collapse_flags(cpu);
-    sc->flags = cpu->eflags;
+    // aarch64: Map x[0-5] to x86 registers for signal context compatibility
+    sc->ax = cpu->x[0];
+    sc->bx = cpu->x[1];
+    sc->cx = cpu->x[2];
+    sc->dx = cpu->x[3];
+    sc->di = cpu->x[4];
+    sc->si = cpu->x[5];
+    sc->bp = cpu->x[6];
+    sc->sp = sc->sp_at_signal = cpu->sp;
+    sc->ip = cpu->pc;
+    // collapse_flags is x86-specific, not needed for aarch64
+    // collapse_flags(cpu);
+    sc->flags = 0; // aarch64 doesn't have eflags
     sc->trapno = cpu->trapno;
     if (cpu->trapno == INT_GPF)
-        sc->cr2 = cpu->segfault_addr;
+        sc->cr2 = cpu->fault_addr;
     // TODO more shit
     sc->oldmask = current->blocked & 0xffffffff;
 }
@@ -253,10 +255,10 @@ static void receive_signal(struct sighand *sighand, struct siginfo_ *info) {
     }
 
     // set up registers for signal handler
-    current->cpu.eax = info->sig;
-    current->cpu.eip = sighand->action[info->sig].handler;
+    current->cpu.x[0] = info->sig;
+    current->cpu.pc = sighand->action[info->sig].handler;
 
-    dword_t sp = current->cpu.esp;
+    dword_t sp = current->cpu.sp;
     if (sighand->altstack && !is_on_altstack(sp, sighand)) {
         sp = sighand->altstack + sighand->altstack_size;
     }
@@ -271,7 +273,7 @@ static void receive_signal(struct sighand *sighand, struct siginfo_ *info) {
     sp -= frame_size;
     // align sp + 4 on a 16-byte boundary because that's what the abi says
     sp = ((sp + 4) & ~0xf) - 4;
-    current->cpu.esp = sp;
+    current->cpu.sp = sp;
 
     // Update the mask. By default the signal will be blocked while in the
     // handler, but sigaction is allowed to customize this.
@@ -283,8 +285,8 @@ static void receive_signal(struct sighand *sighand, struct siginfo_ *info) {
     if (need_siginfo) {
         frame.rt_sigframe.pinfo = sp + offsetof(struct rt_sigframe_, info);
         frame.rt_sigframe.puc = sp + offsetof(struct rt_sigframe_, uc);
-        current->cpu.edx = frame.rt_sigframe.pinfo;
-        current->cpu.ecx = frame.rt_sigframe.puc;
+        current->cpu.x[3] = frame.rt_sigframe.pinfo;
+        current->cpu.x[2] = frame.rt_sigframe.puc;
     }
 
     // install frame
@@ -381,27 +383,27 @@ void receive_signals() {
 }
 
 static void restore_sigcontext(struct sigcontext_ *context, struct cpu_state *cpu) {
-    cpu->eax = context->ax;
-    cpu->ebx = context->bx;
-    cpu->ecx = context->cx;
-    cpu->edx = context->dx;
-    cpu->edi = context->di;
-    cpu->esi = context->si;
-    cpu->ebp = context->bp;
-    cpu->esp = context->sp;
-    cpu->eip = context->ip;
-    collapse_flags(cpu);
+    cpu->x[0] = context->ax;
+    cpu->x[1] = context->bx;
+    cpu->x[2] = context->cx;
+    cpu->x[3] = context->dx;
+    cpu->x[4] = context->di;
+    cpu->x[5] = context->si;
+    cpu->x[6] = context->bp;
+    cpu->sp = context->sp;
+    cpu->pc = context->ip;
+    // collapse_flags(cpu); // x86-specific, not used on aarch64
 
     // Use AC, RF, OF, DF, TF, SF, ZF, AF, PF, CF
 #define USE_FLAGS 0b1010000110111010101
-    cpu->eflags = (context->flags & USE_FLAGS) | (cpu->eflags & ~USE_FLAGS);
+    // cpu->eflags = (context->flags & USE_FLAGS) | (cpu->eflags & ~USE_FLAGS); // x86-specific
 }
 
 dword_t sys_rt_sigreturn() {
     struct cpu_state *cpu = &current->cpu;
     struct rt_sigframe_ frame;
-    // esp points past the first field of the frame
-    if (user_get(cpu->esp - offsetof(struct rt_sigframe_, sig), frame)) {
+    // sp points past the first field of the frame
+    if (user_get(cpu->sp - offsetof(struct rt_sigframe_, sig), frame)) {
         deliver_signal(current, SIGSEGV_, SIGINFO_NIL);
         return _EFAULT;
     }
@@ -409,21 +411,21 @@ dword_t sys_rt_sigreturn() {
 
     lock(&current->sighand->lock);
     // FIXME this duplicates logic from sys_sigaltstack
-    if (!is_on_altstack(cpu->esp, current->sighand) &&
+    if (!is_on_altstack(cpu->sp, current->sighand) &&
             frame.uc.stack.size >= MINSIGSTKSZ_) {
         current->sighand->altstack = frame.uc.stack.stack;
         current->sighand->altstack_size = frame.uc.stack.size;
     }
     sigmask_set(frame.uc.sigmask);
     unlock(&current->sighand->lock);
-    return cpu->eax;
+    return cpu->x[0];
 }
 
 dword_t sys_sigreturn() {
     struct cpu_state *cpu = &current->cpu;
     struct sigframe_ frame;
-    // esp points past the first two fields of the frame
-    if (user_get(cpu->esp - offsetof(struct sigframe_, sc), frame)) {
+    // sp points past the first two fields of the frame
+    if (user_get(cpu->sp - offsetof(struct sigframe_, sc), frame)) {
         deliver_signal(current, SIGSEGV_, SIGINFO_NIL);
         return _EFAULT;
     }
@@ -433,7 +435,7 @@ dword_t sys_sigreturn() {
     sigset_t_ oldmask = ((sigset_t_) frame.extramask << 32) | frame.sc.oldmask;
     sigmask_set(oldmask);
     unlock(&current->sighand->lock);
-    return cpu->eax;
+    return cpu->x[0];
 }
 
 struct sighand *sighand_new() {
@@ -578,7 +580,7 @@ static void altstack_to_user(struct sighand *sighand, struct stack_t_ *user_stac
     user_stack->flags = 0;
     if (sighand->altstack == 0)
         user_stack->flags |= SS_DISABLE_;
-    if (is_on_altstack(current->cpu.esp, sighand))
+    if (is_on_altstack(current->cpu.sp, sighand))
         user_stack->flags |= SS_ONSTACK_;
 }
 
@@ -595,7 +597,7 @@ dword_t sys_sigaltstack(addr_t ss_addr, addr_t old_ss_addr) {
         }
     }
     if (ss_addr != 0) {
-        if (is_on_altstack(current->cpu.esp, sighand)) {
+        if (is_on_altstack(current->cpu.sp, sighand)) {
             unlock(&sighand->lock);
             return _EPERM;
         }

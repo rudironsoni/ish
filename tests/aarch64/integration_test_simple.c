@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <inttypes.h>
 
 #include "misc.h"
 #include "emu/aarch64/cpu.h"
@@ -29,30 +30,33 @@ tcti_gadget_t mock_gadget_mrs;
 tcti_gadget_t mock_gadget_msr;
 tcti_gadget_t mock_gadget_nop;
 
+// Helper macro for creating mock function pointers
+#define MOCK_GADGET(val) ((tcti_gadget_t)(uintptr_t)(val))
+
 // Initialize mock gadgets
 static void init_mock_gadgets(void) {
     // Create distinct pointers for each mock gadget
     for (int i = 0; i < 16; i++) {
-        mock_gadget_mov_imm[i] = (tcti_gadget_t)(0x100000 + i);
+        mock_gadget_mov_imm[i] = MOCK_GADGET(0x100000 + i);
         for (int j = 0; j < 16; j++) {
-            mock_gadget_add_imm[i][j] = (tcti_gadget_t)(0x200000 + i*16 + j);
-            mock_gadget_mov_reg[i][j] = (tcti_gadget_t)(0x300000 + i*16 + j);
+            mock_gadget_add_imm[i][j] = MOCK_GADGET(0x200000 + i*16 + j);
+            mock_gadget_mov_reg[i][j] = MOCK_GADGET(0x300000 + i*16 + j);
             for (int k = 0; k < 16; k++) {
-                mock_gadget_add_reg[i][j][k] = (tcti_gadget_t)(0x400000 + i*256 + j*16 + k);
-                mock_gadget_sub_reg[i][j][k] = (tcti_gadget_t)(0x500000 + i*256 + j*16 + k);
+                mock_gadget_add_reg[i][j][k] = MOCK_GADGET(0x400000 + i*256 + j*16 + k);
+                mock_gadget_sub_reg[i][j][k] = MOCK_GADGET(0x500000 + i*256 + j*16 + k);
             }
         }
     }
 
-    mock_gadget_b = (tcti_gadget_t)0x600000;
-    mock_gadget_bcond = (tcti_gadget_t)0x600001;
-    mock_gadget_cbz = (tcti_gadget_t)0x600002;
-    mock_gadget_cbnz = (tcti_gadget_t)0x600003;
-    mock_gadget_br = (tcti_gadget_t)0x600004;
-    mock_gadget_svc = (tcti_gadget_t)0x600005;
-    mock_gadget_mrs = (tcti_gadget_t)0x600006;
-    mock_gadget_msr = (tcti_gadget_t)0x600007;
-    mock_gadget_nop = (tcti_gadget_t)0x600008;
+    mock_gadget_b = MOCK_GADGET(0x600000);
+    mock_gadget_bcond = MOCK_GADGET(0x600001);
+    mock_gadget_cbz = MOCK_GADGET(0x600002);
+    mock_gadget_cbnz = MOCK_GADGET(0x600003);
+    mock_gadget_br = MOCK_GADGET(0x600004);
+    mock_gadget_svc = MOCK_GADGET(0x600005);
+    mock_gadget_mrs = MOCK_GADGET(0x600006);
+    mock_gadget_msr = MOCK_GADGET(0x600007);
+    mock_gadget_nop = MOCK_GADGET(0x600008);
 }
 
 // Redirect gadget references to mock versions
