@@ -148,6 +148,12 @@ static addr_t find_hole_for_elf(struct elf_header *header, struct prg_header *ph
 
 static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, struct exec_args envp) {
     int err = 0;
+    // Debug logging to file
+    FILE *fp = fopen("/tmp/exec_debug.log", "a");
+    if (fp) {
+        fprintf(fp, "[exec] elf_exec: loading %s\n", file);
+        fclose(fp);
+    }
 
     // read the headers
     struct elf_header header;
