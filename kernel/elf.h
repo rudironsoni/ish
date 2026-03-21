@@ -14,14 +14,9 @@
 #define ELF_X86 3
 #define ELF_AARCH64 183  // EM_AARCH64 from Linux
 
-// Architecture-specific types
-#if defined(ARCH_AARCH64)
+// Architecture-specific types (aarch64 only)
 typedef uint64_t elf_addr_t;
 typedef uint64_t elf_off_t;
-#else
-typedef uint32_t elf_addr_t;
-typedef uint32_t elf_off_t;
-#endif
 
 struct elf_header {
     uint32_t magic;

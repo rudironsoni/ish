@@ -2,6 +2,9 @@
 #include <string.h>
 #include <stdio.h>
 
+/* Mark variables as intentionally unused (for future expansion) */
+#define UNUSED(x) ((void)(x))
+
 // Main decode entry point
 int a64_decode(uint32_t insn, a64_instr_t *out) {
     memset(out, 0, sizeof(*out));
@@ -190,6 +193,7 @@ int a64_decode_dp_imm(uint32_t insn, a64_instr_t *out) {
             int immr = bits(insn, 21, 16);
             int imms = bits(insn, 15, 10);
             int N = bit(insn, 22);
+            UNUSED(N); // N is implicit in instruction encoding
             out->imm = immr;
             out->imm_shift = imms;
             out->subtype = opc; // 0=SBFM, 1=BFM, 2=UBFM
@@ -204,7 +208,7 @@ int a64_decode_dp_imm(uint32_t insn, a64_instr_t *out) {
             out->Rn = bits(insn, 9, 5);
             out->Rm = bits(insn, 20, 16);
             int imms = bits(insn, 15, 10);
-            int N = bit(insn, 22);
+            (void)bit(insn, 22);  // N bit - implicit in encoding
             out->imm = imms; // lsb position
             out->subtype = op21; // 0=EXTR
             return 0;
@@ -248,9 +252,9 @@ int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out) {
         case 2:
         case 3:
         {
-                int opc = bits(insn, 30, 29);
+                    int opc = bits(insn, 30, 29);
                 int shift = bits(insn, 23, 22);
-                int N = bit(insn, 21);
+                (void)bit(insn, 21);  // N bit - not used in this encoding
                 out->Rd = bits(insn, 4, 0);
                 out->Rn = bits(insn, 9, 5);
                 out->Rm = bits(insn, 20, 16);
@@ -333,9 +337,9 @@ int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out) {
         case 15:
         {
                 int op = bit(insn, 30);
-                int S = bit(insn, 29); // should be 1
-                int o2 = bit(insn, 10);
-                int o3 = bit(insn, 4);
+                (void)bit(insn, 29);  // S bit - always 1 for CCMN/CCMP
+                (void)bit(insn, 10);  // o2 bit - part of encoding
+                (void)bit(insn, 4);   // o3 bit - part of encoding
                 int cond = bits(insn, 15, 12);
                 int nzcv = bits(insn, 3, 0);
                 out->Rn = bits(insn, 9, 5);
@@ -354,8 +358,8 @@ int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out) {
 // Branch instructions
 // Based on ARMv8-A encoding: op0 = bits 31:29
 int a64_decode_branch(uint32_t insn, a64_instr_t *out) {
+    (void)bits(insn, 28, 25);  // op1 - always 10 or 11 for branch instructions
     int op0 = bits(insn, 31, 29);  // Changed from 30:29 to 31:29
-    int op1 = bits(insn, 28, 25);  // Should be 10 or 11
 
     switch (op0) {
         case 0: // 000 - Unconditional branch (immediate)
@@ -426,6 +430,7 @@ int a64_decode_branch(uint32_t insn, a64_instr_t *out) {
         int op3_low = bits(insn, 15, 10);
         int Rn = bits(insn, 9, 5);
         int op4 = bits(insn, 4, 0);
+        (void)op2; (void)op3_low; (void)op4;  // Used in validation below
 
         if (op2 == 0x1F && op3_low == 0 && op4 == 0) {
             out->Rn = Rn;
@@ -441,9 +446,9 @@ int a64_decode_branch(uint32_t insn, a64_instr_t *out) {
 
     // Exception generation
     if ((insn & 0xFF000000) == 0xD4000000) {
-        int opc = bits(insn, 23, 21);
-        int op2 = bits(insn, 20, 16);
-        int LL = bits(insn, 1, 0);
+        (void)bits(insn, 23, 21);     // opc - distinguishes SVC/HVC/SMC
+        (void)bits(insn, 20, 16);     // op2 - reserved
+        (void)bits(insn, 1, 0);       // LL - instruction level
         uint16_t imm16 = bits(insn, 15, 0);
         out->imm = imm16;
         out->subtype = A64_EXCEPTION;
@@ -474,10 +479,10 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out) {
     if (op1 == 0) {
         // Load/store unscaled immediate (LDUR/STUR)
         if (op2 == 0) {
-            int V = bit(insn, 26);
+            (void)bit(insn, 26);  // V bit - vector flag, extracted above
             int imm9 = bits(insn, 20, 12);
-            int post = bit(insn, 10); // 0=unscaled, 1=post-index
-            int L = bit(insn, 22);
+            (void)bit(insn, 10);  // post-index bit
+            (void)bit(insn, 22);  // L bit - load/store flag
             out->Rd = bits(insn, 4, 0);
             out->Rn = bits(insn, 9, 5);
             out->imm = sign_extend(imm9, 9);
@@ -490,7 +495,7 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out) {
     // op1=0, op2>=2: unsigned immediate with size-based scaling
     // op1=1: unsigned immediate (bit 24 = 1 distinguishes from unscaled)
     if (!out->is_vector && (op1 == 1 || (op1 == 0 && op2 >= 2))) {
-        int L = bit(insn, 22);
+        (void)bit(insn, 22);  // L bit - load/store flag
         uint64_t imm12 = bits(insn, 21, 10);
         out->Rd = bits(insn, 4, 0);
         out->Rn = bits(insn, 9, 5);
@@ -502,10 +507,10 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out) {
 
     // Load/store register pair
     if (op2 == 1) {
-        int L = bit(insn, 22);
+        (void)bit(insn, 22);  // L bit - load/store flag
         int imm7 = bits(insn, 21, 15);
         int Rt2 = bits(insn, 14, 10);
-        int mode = bits(insn, 24, 23); // 00=signed, 01=post, 10=offset, 11=pre
+        (void)bits(insn, 24, 23);  // mode - indexing mode
 
         out->Rd = bits(insn, 4, 0);
         out->Rn = bits(insn, 9, 5);
@@ -521,7 +526,7 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out) {
 
     // Load literal
     if (op2 == 0 && bit(insn, 27) && !bit(insn, 24)) {
-        int V = bit(insn, 26);
+        (void)bit(insn, 26);  // V bit - vector flag
         int64_t imm19 = bits(insn, 23, 5);
         out->Rd = bits(insn, 4, 0);
         out->imm = sign_extend(imm19, 19) << 2;
@@ -557,10 +562,10 @@ int a64_decode_simd_fp(uint32_t insn, a64_instr_t *out) {
 
     // Floating point data processing (scalar)
     if (op0 == 0xE || op0 == 0xF) {
-        int M = bit(insn, 31);
-        int S = bit(insn, 29);
+        (void)bit(insn, 31);  // M bit - part of encoding
+        (void)bit(insn, 29);  // S bit - part of encoding
         int ptype = bits(insn, 23, 22); // 00=H, 01=S, 10=D
-        int opcode = bits(insn, 15, 12);
+        (void)bits(insn, 15, 12);  // opcode - part of encoding
         int Rn = bits(insn, 9, 5);
         int Rd = bits(insn, 4, 0);
 
@@ -621,7 +626,11 @@ int a64_decode_system(uint32_t insn, a64_instr_t *out) {
     }
 
     // MRS/MSR
-    if ((insn & 0xFFD80000) == 0xD5300000) { // MRS
+    // MRS encoding: 110101010011xxxxxxxxxxxxxxxxxxx (0xD5300000)
+    // MSR (imm): 110101010001xxxxxxxxxxxxxxxxxxx (0xD5100000)
+    // MSR (reg): 110101010001xxxxxxxxxxxxxxxxxxx (0xD5100000)
+    // The L bit at position 21 distinguishes MRS (1) from MSR (0)
+    if ((insn & 0xFFF00000) == 0xD5300000) { // MRS
         int Rt = bits(insn, 4, 0);
         int sysreg = bits(insn, 19, 5);
         out->Rd = Rt;
@@ -632,8 +641,8 @@ int a64_decode_system(uint32_t insn, a64_instr_t *out) {
 
     if ((insn & 0xFFD80000) == 0xD5100000) { // MSR (imm)
         int op1 = bits(insn, 18, 16);
-        int CRm = bits(insn, 11, 8);
-        int op2 = bits(insn, 7, 5);
+        (void)bits(insn, 11, 8);   // CRm - sysreg field
+        (void)bits(insn, 7, 5);    // op2 - sysreg field
         int imm = bits(insn, 4, 0);
         out->op = op1;
         out->imm = imm;

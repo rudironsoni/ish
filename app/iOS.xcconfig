@@ -1,3 +1,6 @@
+// Include iSH-specific settings (ROOTFS_URL, bundle ID, team)
+#include "iSH.xcconfig"
+
 SDKROOT = iphoneos
 TARGETED_DEVICE_FAMILY = 1,2 // iPhone, iPad
 SUPPORTED_PLATFORMS = iphonesimulator iphoneos

@@ -1190,7 +1190,8 @@ const struct fd_ops socket_fdops = {
 #pragma GCC diagnostic ignored "-Wcast-function-type"
 #endif
 #if defined(__clang__)
-#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+#pragma clang diagnostic ignored "-Wcast-function-type-mismatch"
+#pragma clang diagnostic ignored "-Wmissing-field-initializers"
 #endif
 static struct socket_call {
     syscall_t func;

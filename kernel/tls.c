@@ -20,7 +20,8 @@ int task_set_thread_area(struct task *task, addr_t u_info) {
     // On a real system, TLS works by creating a special segment pointing to
     // the TLS buffer. Our shitty emulation of that is to ignore attempts to
     // modify GS and add this address to any memory reference that uses GS.
-    task->cpu.tls_ptr = info.base_addr;
+    // aarch64 uses tpidr_el0 for thread-local storage
+    task->cpu.tpidr_el0 = info.base_addr;
 
     if (info.entry_number == (unsigned) -1) {
         info.entry_number = 0xc;

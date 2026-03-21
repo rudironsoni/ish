@@ -28,11 +28,8 @@ static int block_cache_initialized = 0;
 // Current execution state
 static struct cpu_state *current_cpu = NULL;
 static struct tlb *current_tlb = NULL;
-static jmp_buf exit_jmpbuf;
+static jmp_buf exit_jmpbuf __attribute__((unused));
 static int exit_reason = 0;
-
-// Persistent execution context for this CPU
-static struct fiber_exec_ctx *a64_exec_ctx = NULL;
 
 // Forward declarations
 static struct a64_block *a64_compile_block(uint64_t pc, struct tlb *tlb);
@@ -211,7 +208,7 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
         }
 
         // Execute the block
-        int ret = a64_execute_block(block);
+        a64_execute_block(block);
 
         // Check exit reason and handle
         if (exit_reason == TCTI_EXIT_SYSCALL) {

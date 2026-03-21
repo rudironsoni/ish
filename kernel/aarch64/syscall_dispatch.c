@@ -7,182 +7,74 @@
 
 #include "kernel/aarch64/calls.h"
 #include "kernel/calls.h"
+#include "kernel/signal.h"
+#include "kernel/errno.h"
+#include "fs/sock.h"
+#include <stddef.h>
+
+// Syscall function type defined in kernel/calls.h
+// All syscall declarations are in kernel/calls.h, kernel/signal.h, and fs/sock.h
+
+// Stub for unimplemented syscalls
+static int sys_enosys_stub(dword_t a, dword_t b, dword_t c, 
+                           dword_t d, dword_t e, dword_t f) {
+    (void)a; (void)b; (void)c; (void)d; (void)e; (void)f;
+    return _ENOSYS;
+}
+
+// Map missing aarch64 syscalls to existing x86-style syscalls
+// aarch64 doesn't have llseek, uses lseek with 64-bit offset
+#define sys_llseek sys__llseek
+
+// aarch64 doesn't have separate access syscall, uses faccessat
+#define sys_access sys_faccessat
+
+// aarch64 doesn't have creat, uses openat
+#define sys_creat sys_open
+
+// aarch64 doesn't have select, uses pselect6
+#define sys_select sys_pselect6
+
+// aarch64 doesn't have poll, uses ppoll  
+#define sys_poll sys_ppoll
+
+// aarch64 doesn't have pause, uses rt_sigsuspend
+#define sys_pause sys_rt_sigsuspend
+
+// aarch64 doesn't have epoll_create, uses epoll_create1
+#define sys_epoll_create sys_epoll_create1
+
+// aarch64 doesn't have getrlimit, uses prlimit64
+#define sys_getrlimit sys_prlimit64
+
+// aarch64 doesn't have setrlimit, uses prlimit64  
+#define sys_setrlimit sys_prlimit64
+
+// aarch64 doesn't have sync, uses syncfs (stub for now)
+#define sys_sync sys_enosys_stub
+
+/*
+ * aarch64 syscall dispatch table
+ *
+ * Maps aarch64 syscall numbers (from arch/arm64/include/uapi/asm/unistd.h)
+ * to iSH syscall handlers.
+ */
+
+#include "kernel/aarch64/calls.h"
+#include "kernel/calls.h"
 #include "kernel/errno.h"
 #include <stddef.h>
 
-// Syscall function type matching iSH's convention
-typedef dword_t (*syscall_t)(dword_t, dword_t, dword_t, dword_t, dword_t, dword_t);
+// Syscall function type is defined in kernel/calls.h
+// typedef int (*syscall_t)(dword_t, dword_t, dword_t, dword_t, dword_t, dword_t);
 
 // Stub for unimplemented syscalls
 static dword_t sys_enosys(void) {
     return _ENOSYS;
 }
 
-// Forward declarations for syscall handlers
-// File operations
-dword_t sys_read(fd_t fd_no, addr_t buf_addr, dword_t size);
-dword_t sys_write(fd_t fd_no, addr_t buf_addr, dword_t size);
-dword_t sys_openat(fd_t at_f, addr_t path_addr, dword_t flags, dword_t mode);
-dword_t sys_close(fd_t fd);
-dword_t sys_lseek(fd_t f, dword_t off, dword_t whence);
-dword_t sys_llseek(fd_t f, dword_t off_high, dword_t off_low, addr_t res_addr, dword_t whence);
-dword_t sys_ioctl(fd_t f, dword_t cmd, dword_t arg);
-dword_t sys_fcntl(fd_t f, dword_t cmd, dword_t arg);
-dword_t sys_dup(fd_t fd);
-dword_t sys_dup2(fd_t fd, fd_t new_fd);
-dword_t sys_dup3(fd_t f, fd_t new_f, int_t flags);
-dword_t sys_fsync(fd_t f);
-dword_t sys_flock(fd_t fd, dword_t operation);
-
-// Memory management
-dword_t sys_brk(addr_t new_brk);
-dword_t sys_mmap(addr_t addr, dword_t len, dword_t prot, dword_t flags, fd_t fd_no, dword_t offset);
-dword_t sys_munmap(addr_t addr, dword_t len);
-dword_t sys_mprotect(addr_t addr, dword_t len, dword_t prot);
-dword_t sys_madvise(addr_t addr, dword_t len, dword_t advice);
-
-// Process management
-dword_t sys_exit(dword_t status);
-dword_t sys_exit_group(dword_t status);
-dword_t sys_fork(void);
-dword_t sys_vfork(void);
-dword_t sys_clone(dword_t flags, addr_t stack, addr_t ptid, addr_t tls, addr_t ctid);
-dword_t sys_execve(addr_t file, addr_t argv, addr_t envp);
-dword_t sys_wait4(pid_t_ pid, addr_t status_addr, dword_t options, addr_t rusage_addr);
-dword_t sys_waitpid(pid_t_ pid, addr_t status_addr, dword_t options);
-dword_t sys_getpid(void);
-dword_t sys_getppid(void);
-dword_t sys_gettid(void);
-
-// User/Group
-dword_t sys_getuid(void);
-dword_t sys_getgid(void);
-dword_t sys_geteuid(void);
-dword_t sys_getegid(void);
-dword_t sys_setuid(dword_t uid);
-dword_t sys_setgid(dword_t gid);
-dword_t sys_getgroups(dword_t size, addr_t list);
-dword_t sys_setgroups(dword_t size, addr_t list);
-
-// Signals
-dword_t sys_rt_sigaction(int_t sig, addr_t act_addr, addr_t oact_addr, dword_t sigset_size);
-dword_t sys_rt_sigprocmask(dword_t how, addr_t set_addr, addr_t oldset_addr, dword_t sigset_size);
-dword_t sys_rt_sigreturn(void);
-dword_t sys_kill(pid_t_ pid, dword_t sig);
-dword_t sys_tkill(pid_t_ tid, dword_t sig);
-dword_t sys_tgkill(pid_t_ tgid, pid_t_ tid, dword_t sig);
-dword_t sys_sigaltstack(addr_t ss_addr, addr_t old_ss_addr);
-dword_t sys_pause(void);
-dword_t sys_rt_sigsuspend(addr_t mask_addr, dword_t size);
-
-// Time
-dword_t sys_gettimeofday(addr_t tv_addr, addr_t tz_addr);
-dword_t sys_settimeofday(addr_t tv_addr, addr_t tz_addr);
-dword_t sys_nanosleep(addr_t req_addr, addr_t rem_addr);
-dword_t sys_clock_gettime(dword_t clock, addr_t ts_addr);
-dword_t sys_clock_getres(dword_t clock, addr_t ts_addr);
-dword_t sys_getrusage(dword_t who, addr_t rusage_addr);
-dword_t sys_times(addr_t tbuf_addr);
-
-// Filesystem
-dword_t sys_open(addr_t path_addr, dword_t flags, dword_t mode);
-dword_t sys_creat(addr_t path_addr, dword_t mode);
-dword_t sys_access(addr_t path_addr, dword_t mode);
-dword_t sys_faccessat(fd_t at_f, addr_t path, mode_t_ mode, dword_t flags);
-dword_t sys_stat64(addr_t path_addr, addr_t statbuf_addr);
-dword_t sys_lstat64(addr_t path_addr, addr_t statbuf_addr);
-dword_t sys_fstat64(fd_t fd, addr_t statbuf_addr);
-dword_t sys_newfstatat(fd_t at_f, addr_t path_addr, addr_t statbuf_addr, dword_t flags);
-dword_t sys_readlink(addr_t path, addr_t buf, dword_t bufsize);
-dword_t sys_readlinkat(fd_t at_f, addr_t path, addr_t buf, dword_t bufsize);
-dword_t sys_symlink(addr_t target_addr, addr_t link_addr);
-dword_t sys_symlinkat(addr_t target_addr, fd_t at_f, addr_t link_addr);
-dword_t sys_link(addr_t src_addr, addr_t dst_addr);
-dword_t sys_linkat(fd_t src_at_f, addr_t src_addr, fd_t dst_at_f, addr_t dst_addr);
-dword_t sys_unlink(addr_t path_addr);
-dword_t sys_unlinkat(fd_t at_f, addr_t path_addr, int_t flags);
-dword_t sys_rmdir(addr_t path_addr);
-dword_t sys_rename(addr_t src_addr, addr_t dst_addr);
-dword_t sys_renameat(fd_t src_at_f, addr_t src_addr, fd_t dst_at_f, addr_t dst_addr);
-dword_t sys_mkdir(addr_t path_addr, dword_t mode);
-dword_t sys_mkdirat(fd_t at_f, addr_t path_addr, dword_t mode);
-dword_t sys_mknod(addr_t path_addr, mode_t_ mode, dev_t_ dev);
-dword_t sys_mknodat(fd_t at_f, addr_t path_addr, mode_t_ mode, dev_t_ dev);
-dword_t sys_chmod(addr_t path_addr, dword_t mode);
-dword_t sys_fchmod(fd_t f, dword_t mode);
-dword_t sys_fchmodat(fd_t at_f, addr_t path_addr, dword_t mode, dword_t flags);
-dword_t sys_chown(addr_t path_addr, dword_t owner, dword_t group);
-dword_t sys_lchown(addr_t path_addr, dword_t owner, dword_t group);
-dword_t sys_fchown(fd_t f, dword_t owner, dword_t group);
-dword_t sys_fchownat(fd_t at_f, addr_t path_addr, dword_t owner, dword_t group, int_t flags);
-dword_t sys_chdir(addr_t path_addr);
-dword_t sys_fchdir(fd_t f);
-dword_t sys_getcwd(addr_t buf_addr, dword_t size);
-dword_t sys_chroot(addr_t path_addr);
-dword_t sys_umask(dword_t mask);
-
-// Directory operations
-dword_t sys_getdents64(fd_t f, addr_t dirents_addr, dword_t count);
-
-// Polling
-dword_t sys_poll(addr_t fds, dword_t nfds, int_t timeout);
-dword_t sys_select(fd_t nfds, addr_t readfds_addr, addr_t writefds_addr, addr_t exceptfds_addr, addr_t timeout_addr);
-dword_t sys_pselect(fd_t nfds, addr_t readfds_addr, addr_t writefds_addr, addr_t exceptfds_addr, addr_t timeout_addr, addr_t sigmask_addr);
-dword_t sys_ppoll(addr_t fds, dword_t nfds, addr_t timeout_addr, addr_t sigmask_addr, dword_t sigsetsize);
-dword_t sys_epoll_create(dword_t flags);
-dword_t sys_epoll_create1(dword_t flags);
-dword_t sys_epoll_ctl(fd_t epoll_f, dword_t op, fd_t f, addr_t event_addr);
-dword_t sys_epoll_pwait(fd_t epoll_f, addr_t events_addr, dword_t maxevents, dword_t timeout, addr_t sigmask_addr, dword_t sigsetsize);
-dword_t sys_epoll_wait(fd_t epoll_f, addr_t events_addr, dword_t maxevents, dword_t timeout);
-
-// Pipes
-dword_t sys_pipe(addr_t pipes_addr);
-dword_t sys_pipe2(addr_t pipes_addr, dword_t flags);
-
-// Eventfd
-dword_t sys_eventfd(dword_t initval);
-dword_t sys_eventfd2(dword_t initval, dword_t flags);
-
-// Socket-related (socketcall multiplexes these on x86, separate on aarch64)
-dword_t sys_socket(dword_t domain, dword_t type, dword_t protocol);
-dword_t sys_socketpair(dword_t domain, dword_t type, dword_t protocol, addr_t socks_addr);
-dword_t sys_bind(fd_t sock_fd, addr_t sockaddr_addr, dword_t sockaddr_len);
-dword_t sys_connect(fd_t sock_fd, addr_t sockaddr_addr, dword_t sockaddr_len);
-dword_t sys_listen(fd_t sock_fd, dword_t backlog);
-dword_t sys_accept(fd_t sock_fd, addr_t sockaddr_addr, addr_t sockaddr_len_addr);
-dword_t sys_accept4(fd_t sock_fd, addr_t sockaddr_addr, addr_t sockaddr_len_addr, dword_t flags);
-dword_t sys_getsockname(fd_t sock_fd, addr_t sockaddr_addr, addr_t sockaddr_len_addr);
-dword_t sys_getpeername(fd_t sock_fd, addr_t sockaddr_addr, addr_t sockaddr_len_addr);
-dword_t sys_sendto(fd_t sock_fd, addr_t buffer_addr, dword_t len, dword_t flags, addr_t sockaddr_addr, dword_t sockaddr_len);
-dword_t sys_recvfrom(fd_t sock_fd, addr_t buffer_addr, dword_t len, dword_t flags, addr_t sockaddr_addr, addr_t sockaddr_len_addr);
-dword_t sys_sendmsg(fd_t sock_fd, addr_t msghdr_addr, dword_t flags);
-dword_t sys_recvmsg(fd_t sock_fd, addr_t msghdr_addr, dword_t flags);
-dword_t sys_setsockopt(fd_t sock_fd, dword_t level, dword_t option, addr_t value_addr, dword_t value_len);
-dword_t sys_getsockopt(fd_t sock_fd, dword_t level, dword_t option, addr_t value_addr, addr_t value_len_addr);
-dword_t sys_shutdown(fd_t sock_fd, dword_t how);
-
-// Futex
-dword_t sys_futex(addr_t uaddr, dword_t op, dword_t val, addr_t timeout_or_val2, addr_t uaddr2, dword_t val3);
-
-// Resources
-dword_t sys_getrlimit(dword_t resource, addr_t rlimit_addr);
-dword_t sys_setrlimit(dword_t resource, addr_t rlimit_addr);
-dword_t sys_prlimit64(pid_t_ pid, dword_t resource, addr_t new_limit_addr, addr_t old_limit_addr);
-dword_t sys_getrusage(dword_t who, addr_t rusage_addr);
-
-// Misc
-dword_t sys_uname(addr_t uts_addr);
-dword_t sys_sethostname(addr_t hostname_addr, dword_t len);
-dword_t sys_sysinfo(addr_t info_addr);
-dword_t sys_prctl(dword_t option, dword_t arg2, dword_t arg3, dword_t arg4, dword_t arg5);
-dword_t sys_arch_prctl(dword_t option, addr_t arg);
-dword_t sys_set_tid_address(addr_t tid_addr);
-dword_t sys_reboot(dword_t magic, dword_t magic2, dword_t cmd, addr_t arg);
-dword_t sys_sync(void);
-dword_t sys_ioctl(fd_t f, dword_t cmd, dword_t arg);
-
-// Stub for socketcall (aarch64 has separate syscalls)
-dword_t sys_socketcall(dword_t call, addr_t args_addr);
+// All syscall declarations are in kernel/calls.h, kernel/signal.h, and fs/sock.h
+// No forward declarations needed here
 
 /*
  * aarch64 syscall dispatch table

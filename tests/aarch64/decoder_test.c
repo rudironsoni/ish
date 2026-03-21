@@ -139,7 +139,7 @@ static uint32_t encode_str_imm(int rt, int rn, int imm12, int size) {
 
 static uint32_t encode_ldp(int rt, int rt2, int rn, int imm7, int sf, int l) {
     // LDP/STP: sf|0|opc<<30|0xA5<<24|imm7<<15|rt2<<10|rn<<5|rt
-    int opc = l ? ((sf ? 2 : 1)) : ((sf ? 0 : 1));
+    (void)l;  // Currently unused - TODO: implement LDP/STP with proper opcode
     return ((sf & 1) << 31) | (0xA5 << 24) | (((imm7 >> 2) & 0x7F) << 15) |
            ((rt2 & 0x1F) << 10) | ((rn & 0x1F) << 5) | (rt & 0x1F);
 }
@@ -151,7 +151,7 @@ static uint32_t encode_svc(uint16_t imm16) {
 
 static uint32_t encode_hvc(uint16_t imm16) {
     // HVC: 0xD44<<21|imm16<<5
-    return (0xD44 << 21) | ((imm16 & 0xFFFF) << 5);
+    return (0xD44u << 21) | ((imm16 & 0xFFFF) << 5);
 }
 
 static uint32_t encode_hlt(void) {
@@ -164,22 +164,23 @@ static uint32_t encode_brk(void) {
     return 0xD4200000;
 }
 
-static uint32_t encode_dmb(void) {
+/* System instruction encoders - used in barrier tests */
+static uint32_t __attribute__((unused)) encode_dmb(void) {
     // DMB SY
     return 0xD5033BDF;
 }
 
-static uint32_t encode_dsb(void) {
+static uint32_t __attribute__((unused)) encode_dsb(void) {
     // DSB SY
     return 0xD5033FDF;
 }
 
-static uint32_t encode_isb(void) {
+static uint32_t __attribute__((unused)) encode_isb(void) {
     // ISB #0xF
     return 0xD50330DF;
 }
 
-static uint32_t encode_nop(void) {
+static uint32_t __attribute__((unused)) encode_nop(void) {
     // NOP - HINT #0
     return 0xD503201F;
 }
@@ -194,7 +195,7 @@ static uint32_t encode_mrs(int Rt, int sysreg) {
     return (0xD53 << 20) | ((sysreg & 0xFFFF) << 5) | (Rt & 0x1F);
 }
 
-static uint32_t encode_msr_imm(int sysreg, int imm) {
+static uint32_t __attribute__((unused)) encode_msr_imm(int sysreg, int imm) {
     // MSR (immediate): 0xD50<<20|sysreg<<5|imm
     return (0xD50 << 20) | ((sysreg & 0xFFFF) << 5) | (imm & 0x1F);
 }
@@ -402,10 +403,10 @@ TEST(branch_conditional_all) {
     uint32_t insn;
 
     // Test all condition codes
-    for (int cond = 0; cond < 16; cond++) {
-        insn = encode_b_cond(0x100, cond);
+    for (unsigned int cond = 0; cond < 16; cond++) {
+        insn = encode_b_cond(0x100, (int)cond);
         ASSERT_EQ(a64_decode(insn, &instr), 0);
-        ASSERT_EQ(instr.cond, cond);
+        ASSERT((int)instr.cond == (int)cond);
     }
 }
 

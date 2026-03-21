@@ -54,6 +54,12 @@ typedef void (*tcti_gadget_t)(void);
 // Block exit function
 extern void tcti_exit_block(int reason);
 
+// Standard gadget epilogue - load next gadget and branch
+// x28 = gadget stream pointer (increments by 8 each gadget)
+// x27 = temp register, holds next gadget address
+// x29 = cpu_state pointer
+#define GADGET_EPILOGUE "ldr x27, [x28], #8\\n\\tbr x27\\n\\t"
+
 // ============================================================================
 // Data Processing - Register Gadgets
 // ============================================================================
@@ -81,10 +87,10 @@ extern const tcti_gadget_t gadget_mov_reg[{max_regs}][{max_regs}];
 // ============================================================================
 
 // ADD Rd, Rn, #imm (simplified: small immediates 0-15)
-extern const tcti_gadget_t gadget_add_imm[{max_regs}][{max_regs}];
+extern const tcti_gadget_t gadget_add_imm[{max_regs}][{max_regs}][16];
 
 // SUB Rd, Rn, #imm (simplified: small immediates 0-15)
-extern const tcti_gadget_t gadget_sub_imm[{max_regs}][{max_regs}];
+extern const tcti_gadget_t gadget_sub_imm[{max_regs}][{max_regs}][16];
 
 // MOVZ Rd, #imm (simplified: 0-15)
 extern const tcti_gadget_t gadget_mov_imm[{max_regs}];
@@ -159,10 +165,6 @@ IMPL_TEMPLATE = """/*
 //   br x27                // Jump to next gadget
 // ============================================================================
 
-#define GADGET_EPILOGUE \\
-    "ldr x27, [x28], #8\\n\\t" \\
-    "br x27\\n\\t"
-
 #define CPU_STATE x29
 
 // Helper to access memory-backed registers
@@ -194,7 +196,7 @@ IMPL_TEMPLATE = """/*
 {system_gadgets}
 
 // ============================================================================
-// Gadget Tables
+// Gadget Lookup Tables
 // ============================================================================
 
 {gadget_tables}
@@ -202,30 +204,29 @@ IMPL_TEMPLATE = """/*
 
 
 def generate_add_reg_gadgets():
-    """Generate ADD register gadgets for all TCTI register combinations."""
+    """Generate ADD register gadgets and collect prototypes."""
     gadgets = []
     prototypes = []
 
     for rd in range(MAX_TCTI_REGS):
         for rn in range(MAX_TCTI_REGS):
             for rm in range(MAX_TCTI_REGS):
-                # Map to host registers (guest xN -> host x(N+1))
                 host_rd = rd + 1
                 host_rn = rn + 1
                 host_rm = rm + 1
 
                 func_name = f"gadget_add_reg_{rd}_{rn}_{rm}"
+                prototypes.append(f"void {func_name}(void);")
 
-                # Naked function with inline assembly
                 gadget = f"""// ADD x{rd}, x{rn}, x{rm}
 __attribute__((naked)) void {func_name}(void) {{
     asm volatile(
         "add x{host_rd}, x{host_rn}, x{host_rm}\\n\\t"
-        GADGET_EPILOGUE
+        "ldr x27, [x28], #8\\n\\t"
+        "br x27\\n\\t"
     );
 }}"""
                 gadgets.append(gadget)
-                prototypes.append(f"    {func_name},")
 
     return "\n\n".join(gadgets), prototypes
 
@@ -247,7 +248,8 @@ def generate_sub_reg_gadgets():
 __attribute__((naked)) void {func_name}(void) {{
     asm volatile(
         "sub x{host_rd}, x{host_rn}, x{host_rm}\\n\\t"
-        GADGET_EPILOGUE
+        "ldr x27, [x28], #8\\n\\t"
+        "br x27\\n\\t"
     );
 }}"""
                 gadgets.append(gadget)
@@ -278,7 +280,8 @@ def generate_logical_reg_gadgets():
 __attribute__((naked)) void {func_name}(void) {{
     asm volatile(
         "{op} x{host_rd}, x{host_rn}, x{host_rm}\\n\\t"
-        GADGET_EPILOGUE
+        "ldr x27, [x28], #8\\n\\t"
+        "br x27\\n\\t"
     );
 }}"""
                     gadgets.append(gadget)
@@ -301,10 +304,63 @@ def generate_mov_reg_gadgets():
 __attribute__((naked)) void {func_name}(void) {{
     asm volatile(
         "mov x{host_rd}, x{host_rn}\\n\\t"
-        GADGET_EPILOGUE
+        "ldr x27, [x28], #8\\n\\t"
+        "br x27\\n\\t"
     );
 }}"""
             gadgets.append(gadget)
+
+    return "\n\n".join(gadgets)
+
+
+def generate_add_imm_gadgets():
+    """Generate ADD immediate gadgets (ADD Rd, Rn, #imm for imm 0-15)."""
+    gadgets = []
+
+    # ADD with small immediates 0-15
+    for rd in range(MAX_TCTI_REGS):
+        for rn in range(MAX_TCTI_REGS):
+            for imm in range(16):  # 0-15
+                host_rd = rd + 1
+                host_rn = rn + 1
+
+                func_name = f"gadget_add_imm_{rd}_{rn}_{imm}"
+
+                gadget = f"""// ADD x{rd}, x{rn}, #{imm}
+__attribute__((naked)) void {func_name}(void) {{
+    asm volatile(
+        "add x{host_rd}, x{host_rn}, #{imm}\\n\\t"
+        "ldr x27, [x28], #8\\n\\t"
+        "br x27\\n\\t"
+    );
+}}"""
+                gadgets.append(gadget)
+
+    return "\n\n".join(gadgets)
+
+
+def generate_sub_imm_gadgets():
+    """Generate SUB immediate gadgets (SUB Rd, Rn, #imm for imm 0-15)."""
+    gadgets = []
+
+    # SUB with small immediates 0-15
+    for rd in range(MAX_TCTI_REGS):
+        for rn in range(MAX_TCTI_REGS):
+            for imm in range(16):  # 0-15
+                host_rd = rd + 1
+                host_rn = rn + 1
+
+                func_name = f"gadget_sub_imm_{rd}_{rn}_{imm}"
+
+                gadget = f"""// SUB x{rd}, x{rn}, #{imm}
+__attribute__((naked)) void {func_name}(void) {{
+    asm volatile(
+        "sub x{host_rd}, x{host_rn}, #{imm}\\n\\t"
+        "ldr x27, [x28], #8\\n\\t"
+        "br x27\\n\\t"
+    );
+}}"""
+                gadgets.append(gadget)
 
     return "\n\n".join(gadgets)
 
@@ -325,7 +381,8 @@ __attribute__((naked)) void {func_name}(void) {{
     // This is a placeholder - real implementation loads immediate
     asm volatile(
         "mov x{host_rd}, #0\\n\\t"  // Simplified - should load from bytecode
-        GADGET_EPILOGUE
+        "ldr x27, [x28], #8\\n\\t"
+        "br x27\\n\\t"
     );
 }}"""
         gadgets.append(gadget)
@@ -344,7 +401,8 @@ __attribute__((naked)) void gadget_b_impl(void) {
         "ldr x0, [x28], #8\\n\\t"     // Load target PC from bytecode
         "str x0, [x29, %[pc_off]]\\n\\t"  // Store to cpu->pc
         "mov x27, #1\\n\\t"            // Signal block exit
-        GADGET_EPILOGUE
+        "ldr x27, [x28], #8\\n\\t"
+        "br x27\\n\\t"
         :
         : [pc_off] "i" (offsetof(struct cpu_state, pc))
     );
@@ -357,7 +415,8 @@ __attribute__((naked)) void gadget_bcond_impl(void) {
         "ldr x0, [x28], #8\\n\\t"     // Load condition and target
         "ldr x1, [x29, %[pstate_off]]\\n\\t"  // Load PSTATE
         // Test condition...
-        GADGET_EPILOGUE
+        "ldr x27, [x28], #8\\n\\t"
+        "br x27\\n\\t"
         :
         : [pstate_off] "i" (offsetof(struct cpu_state, pstate))
     );
@@ -368,7 +427,8 @@ __attribute__((naked)) void gadget_bcond_impl(void) {
 __attribute__((naked)) void gadget_br_impl(void) {
     asm volatile(
         "mov x27, #1\\n\\t"            // Signal block exit
-        GADGET_EPILOGUE
+        "ldr x27, [x28], #8\\n\\t"
+        "br x27\\n\\t"
     );
 }""")
 
@@ -378,7 +438,8 @@ __attribute__((naked)) void gadget_cbz_impl(void) {
     asm volatile(
         "ldr x0, [x28], #8\\n\\t"     // Load register number and target
         // Test if register is zero...
-        GADGET_EPILOGUE
+        "ldr x27, [x28], #8\\n\\t"
+        "br x27\\n\\t"
     );
 }""")
 
@@ -394,7 +455,8 @@ def generate_system_gadgets():
 __attribute__((naked)) void gadget_svc_impl(void) {
     asm volatile(
         "mov x27, #2\\n\\t"            // Signal syscall exit
-        GADGET_EPILOGUE
+        "ldr x27, [x28], #8\\n\\t"
+        "br x27\\n\\t"
     );
 }""")
 
@@ -403,7 +465,8 @@ __attribute__((naked)) void gadget_svc_impl(void) {
 __attribute__((naked)) void gadget_nop_impl(void) {
     asm volatile(
         "nop\\n\\t"
-        GADGET_EPILOGUE
+        "ldr x27, [x28], #8\\n\\t"
+        "br x27\\n\\t"
     );
 }""")
 
@@ -413,7 +476,8 @@ __attribute__((naked)) void gadget_mrs_impl(void) {
     asm volatile(
         "ldr x0, [x28], #8\\n\\t"     // Load system register number
         // Read system register to x0...
-        GADGET_EPILOGUE
+        "ldr x27, [x28], #8\\n\\t"
+        "br x27\\n\\t"
     );
 }""")
 
@@ -423,7 +487,8 @@ __attribute__((naked)) void gadget_msr_impl(void) {
     asm volatile(
         "ldr x0, [x28], #8\\n\\t"     // Load system register number
         // Write x0 to system register...
-        GADGET_EPILOGUE
+        "ldr x27, [x28], #8\\n\\t"
+        "br x27\\n\\t"
     );
 }""")
 
@@ -460,7 +525,7 @@ def generate_gadget_tables():
         tables.append("    },")
     tables.append("};\n")
 
-    # AND table
+    # And table
     tables.append(f"// AND register table")
     tables.append(
         f"const tcti_gadget_t gadget_and_reg[{MAX_TCTI_REGS}][{MAX_TCTI_REGS}][{MAX_TCTI_REGS}] = {{"
@@ -507,6 +572,32 @@ def generate_gadget_tables():
     for rd in range(MAX_TCTI_REGS):
         entries = [f"gadget_mov_reg_{rd}_{rn}" for rn in range(MAX_TCTI_REGS)]
         tables.append(f"    [{rd}] = {{{', '.join(entries)}}},")
+    tables.append("};\n")
+
+    # ADD immediate table (16x16x16 for Rd, Rn, imm)
+    tables.append(f"// ADD immediate table")
+    tables.append(
+        f"const tcti_gadget_t gadget_add_imm[{MAX_TCTI_REGS}][{MAX_TCTI_REGS}][16] = {{"
+    )
+    for rd in range(MAX_TCTI_REGS):
+        tables.append(f"    [{rd}] = {{")
+        for rn in range(MAX_TCTI_REGS):
+            entries = [f"gadget_add_imm_{rd}_{rn}_{imm}" for imm in range(16)]
+            tables.append(f"        [{rn}] = {{{', '.join(entries)}}},")
+        tables.append("    },")
+    tables.append("};\n")
+
+    # SUB immediate table (16x16x16 for Rd, Rn, imm)
+    tables.append(f"// SUB immediate table")
+    tables.append(
+        f"const tcti_gadget_t gadget_sub_imm[{MAX_TCTI_REGS}][{MAX_TCTI_REGS}][16] = {{"
+    )
+    for rd in range(MAX_TCTI_REGS):
+        tables.append(f"    [{rd}] = {{")
+        for rn in range(MAX_TCTI_REGS):
+            entries = [f"gadget_sub_imm_{rd}_{rn}_{imm}" for imm in range(16)]
+            tables.append(f"        [{rn}] = {{{', '.join(entries)}}},")
+        tables.append("    },")
     tables.append("};\n")
 
     # MOV immediate table (simplified)
@@ -570,6 +661,8 @@ def main():
         mov_reg_gadgets = generate_mov_reg_gadgets()
 
         print("Generating immediate gadgets...")
+        add_imm_gadgets = generate_add_imm_gadgets()
+        sub_imm_gadgets = generate_sub_imm_gadgets()
         imm_gadgets = generate_dp_imm_gadgets()
 
         print("Generating branch gadgets...")
@@ -587,7 +680,7 @@ def main():
             dp_reg_gadgets="\n".join(
                 [add_gadgets, sub_gadgets, logical_gadgets, mov_reg_gadgets]
             ),
-            dp_imm_gadgets=imm_gadgets,
+            dp_imm_gadgets="\n".join([add_imm_gadgets, sub_imm_gadgets, imm_gadgets]),
             branch_gadgets=branch_gadgets,
             system_gadgets=system_gadgets,
             gadget_tables=tables,
@@ -599,7 +692,8 @@ def main():
 
     # Statistics
     total_gadgets = (
-        5 * MAX_TCTI_REGS**3  # ADD, SUB, AND, ORR, EOR (5 * 4096)
+        5 * MAX_TCTI_REGS**3  # ADD, SUB, AND, ORR, EOR reg (5 * 4096)
+        + 2 * MAX_TCTI_REGS**2 * 16  # ADD imm, SUB imm (2 * 256 * 16)
         + MAX_TCTI_REGS**2  # MOV reg (256)
         + MAX_TCTI_REGS  # MOV imm (16)
         + 8  # Branch/system (8)

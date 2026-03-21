@@ -94,6 +94,6 @@ __attribute__((naked)) void gadget_store_xreg(int reg) {
         "ldr x27, [x28], #8\n\t"
         "br x27\n\t"
         :
-        : [off] "i" (16*8), [sp_off] "i" (offsetof(struct cpu_state, sp)), [val] "r" (0)
+        : [off] "i" (16*8), [sp_off] "i" (offsetof(struct cpu_state, sp)), [val] "r" ((uint64_t)0)
     );
 }

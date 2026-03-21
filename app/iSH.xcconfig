@@ -1,7 +1,7 @@
 // Change this to change all the bundle IDs and app groups
-ROOT_BUNDLE_IDENTIFIER = app.ish.iSH
+ROOT_BUNDLE_IDENTIFIER = com.rudironsoni.ish
 // It's easiest to specify your development team ID in the project build settings, but you can alternatively put it here to reduce merge conflicts
-DEVELOPMENT_TEAM =
+DEVELOPMENT_TEAM = M8Z2UYG8G9
 
 // Choose logging channels to enable. Separate by spaces. Try "verbose strace".
 ISH_LOG =
@@ -10,4 +10,5 @@ ISH_LOGGER_iphoneos = nslog
 ISH_LOGGER_iphonesimulator = nslog
 ISH_LOGGER_macosx = dprintf
 
-ROOTFS_URL = github.com/ish-app/roots/releases/download/g00712ff0a54b2839c5aa1a8ed758003ca65357dc/appstore-apk.tar.gz
+// aarch64 Alpine Linux rootfs (v3.23.3 - latest stable)
+ROOTFS_URL = https://dl-cdn.alpinelinux.org/alpine/v3.23/releases/aarch64/alpine-minirootfs-3.23.3-aarch64.tar.gz

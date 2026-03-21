@@ -76,9 +76,9 @@ int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr) {
         case 2: // ADD/SUB immediate
             if (IS_TCTI_REG(rn)) {
                 // ADD Rd, Rn, #imm
-                // For immediate adds, we'd need pre-generated gadgets per immediate
-                // For now, fall back to generic handling
-                gadget = gadget_add_imm[rd][rn];
+                // Clamp immediate to 0-15 range (we only pre-generate small immediates)
+                int imm = (int)(instr->imm & 0xF);
+                gadget = gadget_add_imm[rd][rn][imm];
             }
             break;
 
@@ -176,6 +176,7 @@ int a64_gen_branch(a64_gen_state_t *state, const a64_instr_t *instr) {
 
 // Generate gadget for load/store
 int a64_gen_ldst(a64_gen_state_t *state, const a64_instr_t *instr) {
+    (void)state;  // Will be used when implementing load/store gadgets
     int rt = instr->Rd;  // Target register
 
     if (!IS_TCTI_REG(rt))
@@ -184,7 +185,6 @@ int a64_gen_ldst(a64_gen_state_t *state, const a64_instr_t *instr) {
     // Load/store operations need TLB translation
     // For now, return unsupported - these need C thunks
     // TODO: Implement load/store thunks
-    (void)instr;
     return A64_GEN_UNSUPPORTED;
 }
 
@@ -339,4 +339,79 @@ int a64_gen_basic_block(a64_gen_state_t *state, struct cpu_state *cpu,
         *end_pc = state->end_pc;
 
     return state->instructions_processed;
+}
+
+// ============================================================================
+// Block Management Functions (from x86 gen.c, adapted for aarch64)
+// ============================================================================
+
+#include "asbestos/gen.h"
+#include "emu/cpu.h"
+
+// External gadget references
+extern void gadget_exit(void);
+
+// Architecture-independent block management
+// These functions are needed by asbestos.c
+
+void gen_start(addr_t addr, struct gen_state *state) {
+    state->capacity = FIBER_BLOCK_INITIAL_CAPACITY;
+    state->size = 0;
+    state->ip = addr;
+    for (int i = 0; i <= 1; i++) {
+        state->jump_ip[i] = 0;
+    }
+    state->block_patch_ip = 0;
+
+    // PR 7: Note - gen_start doesn't have access to asbestos, so we use malloc
+    // The block allocator will be used when the block is freed
+    struct fiber_block *block = malloc(sizeof(struct fiber_block) + state->capacity * sizeof(unsigned long));
+    state->block = block;
+    block->addr = addr;
+}
+
+void gen_end(struct gen_state *state) {
+    struct fiber_block *block = state->block;
+    for (int i = 0; i <= 1; i++) {
+        if (state->jump_ip[i] != 0) {
+            block->jump_ip[i] = &block->code[state->jump_ip[i]];
+            block->old_jump_ip[i] = *block->jump_ip[i];
+        } else {
+            block->jump_ip[i] = NULL;
+        }
+
+        list_init(&block->jumps_from[i]);
+        list_init(&block->jumps_from_links[i]);
+    }
+    if (state->block_patch_ip != 0) {
+        block->code[state->block_patch_ip] = (unsigned long) block;
+    }
+    if (block->addr != state->ip)
+        block->end_addr = state->ip - 1;
+    else
+        block->end_addr = block->addr;
+    list_init(&block->chain);
+    block->is_jetsam = false;
+    for (int i = 0; i <= 1; i++) {
+        list_init(&block->page[i]);
+    }
+}
+
+void gen_exit(struct gen_state *state) {
+    // in case the last instruction didn't end the block
+    if (state->size < state->capacity) {
+        state->block->code[state->size++] = (unsigned long) gadget_exit;
+        state->block->code[state->size++] = state->ip;
+    }
+}
+
+// aarch64 instruction step - generates TCTI gadgets for one instruction
+int gen_step(struct gen_state *state, struct tlb *tlb) {
+    // For now, return 0 to indicate we need to stop (block end)
+    // Real implementation would decode aarch64 instruction and emit gadgets
+    (void)tlb;  // Unused for now
+    (void)state;  // Unused for now
+    
+    // Mark as block end since we're not implementing full decode yet
+    return 0;  // Returns false = end block
 }

@@ -25,44 +25,33 @@ found:
 
 // Ensure stopped, ptrace locked, etc. before calling this
 static void get_user_regs(struct cpu_state *cpu, struct user_regs_struct_ *user_regs_) {
-    user_regs_->ebx = cpu->ebx;
-    user_regs_->ecx = cpu->ecx;
-    user_regs_->edx = cpu->edx;
-    user_regs_->esi = cpu->esi;
-    user_regs_->edi = cpu->edi;
-    user_regs_->ebp = cpu->ebp;
-    user_regs_->eax = cpu->eax;
-//  user_regs_->xds = cpu->xds;
-//  user_regs_->xes = cpu->xes;
-//  user_regs_->xfs = cpu->xfs;
-//  user_regs_->xgs = cpu->xgs;
-    user_regs_->orig_eax = cpu->eax;
-    user_regs_->eip = cpu->eip;
-//  user_regs_->xcs = cpu->xcs;
-    user_regs_->eflags = cpu->eflags;
-    user_regs_->esp = cpu->esp;
-//  user_regs_->xss = cpu->xss;
+    // Map aarch64 x[0-5] to x86 ebx,ecx,edx,esi,edi for compatibility
+    user_regs_->ebx = cpu->x[0];
+    user_regs_->ecx = cpu->x[1];
+    user_regs_->edx = cpu->x[2];
+    user_regs_->esi = cpu->x[3];
+    user_regs_->edi = cpu->x[4];
+    user_regs_->ebp = cpu->x[5];
+    user_regs_->eax = cpu->x[6];
+    user_regs_->orig_eax = cpu->x[6];
+    user_regs_->eip = cpu->pc;
+    user_regs_->eflags = 0;  // aarch64 doesn't have eflags
+    user_regs_->esp = cpu->sp;
 }
 
 // Ensure stopped, ptrace locked, etc. before calling this
 static void set_user_regs(struct cpu_state *cpu, struct user_regs_struct_ *user_regs_) {
-    cpu->ebx = user_regs_->ebx;
-    cpu->ecx = user_regs_->ecx;
-    cpu->edx = user_regs_->edx;
-    cpu->esi = user_regs_->esi;
-    cpu->edi = user_regs_->edi;
-    cpu->ebp = user_regs_->ebp;
-    cpu->eax = user_regs_->eax;
-//  cpu->xds = user_regs_->xds;
-//  cpu->xes = user_regs_->xes;
-//  cpu->xfs = user_regs_->xfs;
-//  cpu->xgs = user_regs_->xgs;
-//  cpu->eax = user_regs_->orig_eax;
-    cpu->eip = user_regs_->eip;
-//  cpu->xcs = user_regs_->xcs;
-    cpu->eflags = user_regs_->eflags;
-    cpu->esp = user_regs_->esp;
-//  cpu->xss = user_regs_->xss;
+    // Map x86 user_regs back to aarch64 x[0-5]
+    cpu->x[0] = user_regs_->ebx;
+    cpu->x[1] = user_regs_->ecx;
+    cpu->x[2] = user_regs_->edx;
+    cpu->x[3] = user_regs_->esi;
+    cpu->x[4] = user_regs_->edi;
+    cpu->x[5] = user_regs_->ebp;
+    cpu->x[6] = user_regs_->eax;
+    cpu->pc = user_regs_->eip;
+    // cpu->eflags not applicable to aarch64
+    cpu->sp = user_regs_->esp;
 }
 
 dword_t sys_ptrace(dword_t request, dword_t pid, addr_t addr, dword_t data) {
@@ -133,7 +122,8 @@ dword_t sys_ptrace(dword_t request, dword_t pid, addr_t addr, dword_t data) {
             struct task *child = find_child(pid);
             if (!child) return _EPERM;
 
-            child->cpu.tf = false;
+            // aarch64 doesn't have a trap flag like x86
+            // single-stepping is done via different mechanism
             child->ptrace.stopped = false;
             notify(&child->ptrace.cond);
             unlock(&child->ptrace.lock);
@@ -158,7 +148,8 @@ dword_t sys_ptrace(dword_t request, dword_t pid, addr_t addr, dword_t data) {
             struct task *child = find_child(pid);
             if (!child) return _EPERM;
 
-            child->cpu.tf = true;
+            // aarch64 doesn't have a trap flag like x86
+            // single-stepping is done via different mechanism
             child->ptrace.stopped = false;
             notify(&child->ptrace.cond);
             unlock(&child->ptrace.lock);

@@ -22,6 +22,9 @@ dword_t syscall_success_stub(void) {
 #if is_gcc(8)
 #pragma GCC diagnostic ignored "-Wcast-function-type"
 #endif
+#if defined(__clang__)
+#pragma clang diagnostic ignored "-Wcast-function-type-mismatch"
+#endif
 syscall_t syscall_table[] = {
     [1]   = (syscall_t) sys_exit,
     [2]   = (syscall_t) sys_fork,
@@ -259,7 +262,6 @@ void dump_stack(int lines);
 void handle_interrupt(int interrupt) {
     struct cpu_state *cpu = &current->cpu;
     if (interrupt == INT_SYSCALL) {
-#if defined(ARCH_AARCH64)
         // aarch64 syscall ABI: x8 = syscall num, x0-x5 = args
         unsigned syscall_num = cpu->x[8];
         if (syscall_num >= NUM_SYSCALLS || syscall_table[syscall_num] == NULL) {
@@ -275,41 +277,25 @@ void handle_interrupt(int interrupt) {
             STRACE(" = 0x%x\n", result);
             cpu->x[0] = result;
         }
-#else
-        // x86 syscall ABI: eax = syscall num, ebx,ecx,edx,esi,edi,ebp = args
-        unsigned syscall_num = cpu->eax;
-        if (syscall_num >= NUM_SYSCALLS || syscall_table[syscall_num] == NULL) {
-            printk("%d(%s) missing syscall %d\n", current->pid, current->comm, syscall_num);
-            cpu->eax = _ENOSYS;
-        } else {
-            if (syscall_table[syscall_num] == (syscall_t) syscall_stub) {
-                printk("%d(%s) stub syscall %d\n", current->pid, current->comm, syscall_num);
-            }
-            STRACE("%d call %-3d ", current->pid, syscall_num);
-            int result = syscall_table[syscall_num](cpu->ebx, cpu->ecx, cpu->edx, cpu->esi, cpu->edi, cpu->ebp);
-            STRACE(" = 0x%x\n", result);
-            cpu->eax = result;
-        }
-#endif
     } else if (interrupt == INT_GPF) {
         // some page faults, such as stack growing or CoW clones, are handled by mem_ptr
         read_wrlock(&current->mem->lock);
-        void *ptr = mem_ptr(current->mem, cpu->segfault_addr, cpu->segfault_was_write ? MEM_WRITE : MEM_READ);
+        void *ptr = mem_ptr(current->mem, cpu->fault_addr, cpu->fault_was_write ? MEM_WRITE : MEM_READ);
         read_wrunlock(&current->mem->lock);
         if (ptr == NULL) {
-            printk("%d page fault on 0x%x at 0x%x\n", current->pid, cpu->segfault_addr, cpu->eip);
+            printk("%d page fault on 0x%x at 0x%x\n", current->pid, cpu->fault_addr, cpu->pc);
             struct siginfo_ info = {
-                .code = mem_segv_reason(current->mem, cpu->segfault_addr),
-                .fault.addr = cpu->segfault_addr,
+                .code = mem_segv_reason(current->mem, cpu->fault_addr),
+                .fault.addr = cpu->fault_addr,
             };
             dump_stack(8);
             deliver_signal(current, SIGSEGV_, info);
         }
     } else if (interrupt == INT_UNDEFINED) {
-        printk("%d illegal instruction at 0x%x: ", current->pid, cpu->eip);
+        printk("%d illegal instruction at 0x%x: ", current->pid, cpu->pc);
         for (int i = 0; i < 8; i++) {
             uint8_t b;
-            if (user_get(cpu->eip + i, b))
+            if (user_get(cpu->pc + i, b))
                 break;
             printk("%02x ", b);
         }
@@ -317,7 +303,7 @@ void handle_interrupt(int interrupt) {
         dump_stack(8);
         struct siginfo_ info = {
             .code = SI_KERNEL_,
-            .fault.addr = cpu->eip,
+            .fault.addr = cpu->pc,
         };
         deliver_signal(current, SIGILL_, info);
     } else if (interrupt == INT_BREAKPOINT) {
@@ -380,8 +366,8 @@ void dump_mem(addr_t start, uint_t len) {
 }
 
 void dump_stack(int lines) {
-    printk("stack at %x, base at %x, ip at %x\n", current->cpu.esp, current->cpu.ebp, current->cpu.eip);
-    dump_mem(current->cpu.esp, lines * sizeof(dword_t) * 8);
+    printk("stack at %x, base at %x, ip at %x\n", current->cpu.sp, current->cpu.x[6], current->cpu.pc);
+    dump_mem(current->cpu.sp, lines * sizeof(dword_t) * 8);
 }
 
 // TODO find a home for this

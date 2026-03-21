@@ -50,15 +50,9 @@ static int read_header(struct fd *fd, struct elf_header *header) {
             || header->elfversion1 != 1)
         return _ENOEXEC;
 
-    // Architecture-specific validation
-#if defined(ARCH_AARCH64)
+    // Architecture-specific validation (aarch64 only)
     if (header->bitness != ELF_64BIT || header->machine != ELF_AARCH64)
         return _ENOEXEC;
-#else
-    // x86 (default)
-    if (header->bitness != ELF_32BIT || header->machine != ELF_X86)
-        return _ENOEXEC;
-#endif
     return 0;
     return 0;
 }
@@ -186,7 +180,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
         err = _EIO;
         if (fd->ops->lseek(fd, ph[i].offset, SEEK_SET) < 0)
             goto out_free_interp;
-        if (fd->ops->read(fd, interp_name, ph[i].filesize) != ph[i].filesize)
+        if ((elf_off_t)fd->ops->read(fd, interp_name, ph[i].filesize) != ph[i].filesize)
             goto out_free_interp;
 
         // open interpreter and read headers
@@ -320,7 +314,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     current->mm->argv_start = sp;
     sp = align_stack(sp);
 
-    addr_t platform_addr = sp = copy_string(sp, "i686");
+    addr_t platform_addr = sp = copy_string(sp, "aarch64");
     if (sp == 0)
         goto beyond_hope;
     // 16 random bytes so no system call is needed to seed a userspace RNG
@@ -398,23 +392,18 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     current->mm->auxv_end = p;
 
     current->mm->stack_start = sp;
-    current->cpu.esp = sp;
-    current->cpu.eip = entry;
-    current->cpu.fcw = 0x37f;
+    current->cpu.sp = sp;
+    current->cpu.pc = entry;
+    // aarch64 doesn't have x87 FPU control word
+    // current->cpu.fcw = 0x37f;
 
-    // This code was written when I discovered that the glibc entry point
-    // interprets edx as the address of a function to call on exit, as
-    // specified in the ABI. This register is normally set by the dynamic
-    // linker, so everything works fine until you run a static executable.
-    current->cpu.eax = 0;
-    current->cpu.ebx = 0;
-    current->cpu.ecx = 0;
-    current->cpu.edx = 0;
-    current->cpu.esi = 0;
-    current->cpu.edi = 0;
-    current->cpu.ebp = 0;
-    collapse_flags(&current->cpu);
-    current->cpu.eflags = 0;
+    // Clear registers for new process
+    // aarch64 syscall ABI: x0-x5 = args, x8 = syscall num
+    for (int i = 0; i < 7; i++)
+        current->cpu.x[i] = 0;
+    
+    // aarch64 PSTATE (no eflags register)
+    // current->cpu.eflags = 0;
 
     err = 0;
 out_free_interp:

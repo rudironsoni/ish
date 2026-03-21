@@ -197,7 +197,7 @@ __attribute__((naked)) void gadget_strh_w_0_1(void) {
 // This is a simplified version - full implementation needs offset decoding
 
 // Generic load helper that uses the CPU state pointer
-static inline uint64_t a64_do_load(struct cpu_state *cpu, uint64_t addr, int size) {
+static inline uint64_t __attribute__((unused)) a64_do_load(struct cpu_state *cpu, uint64_t addr, int size) {
     uint64_t val = 0;
     int ret;
     switch (size) {
@@ -214,7 +214,7 @@ static inline uint64_t a64_do_load(struct cpu_state *cpu, uint64_t addr, int siz
     return val;
 }
 
-static inline void a64_do_store(struct cpu_state *cpu, uint64_t addr, uint64_t val, int size) {
+static inline void __attribute__((unused)) a64_do_store(struct cpu_state *cpu, uint64_t addr, uint64_t val, int size) {
     int ret;
     switch (size) {
         case 1: ret = a64_guest_store1(addr, val); break;
@@ -237,7 +237,7 @@ static inline void a64_do_store(struct cpu_state *cpu, uint64_t addr, uint64_t v
 #include "kernel/task.h"
 
 // Helper to get TLB from current task
-static inline struct tlb *get_tlb(void) {
+static inline struct tlb *__attribute__((unused)) get_tlb(void) {
     // TLB is accessed via current task's MMU
     // For now, return NULL - caller must handle TLB miss
     return NULL;
@@ -245,59 +245,52 @@ static inline struct tlb *get_tlb(void) {
 
 int a64_guest_load8(uint64_t addr, uint64_t *val) {
     struct cpu_state *cpu = &current->cpu;
-    struct tlb *tlb = cpu->mmu ? NULL : NULL;  // TLB access needs proper implementation
-    (void)tlb;
+    (void)addr;  // TLB access needs proper implementation
+    (void)cpu;
     // Placeholder implementation
     *val = 0;
     return -1;  // Always fail - real implementation needs proper TLB lookup
 }
 
 int a64_guest_load4(uint64_t addr, uint32_t *val) {
-    struct cpu_state *cpu = &current->cpu;
-    (void)cpu;
+    (void)addr;
     *val = 0;
     return -1;
 }
 
 int a64_guest_load2(uint64_t addr, uint16_t *val) {
-    struct cpu_state *cpu = &current->cpu;
-    (void)cpu;
+    (void)addr;
     *val = 0;
     return -1;
 }
 
 int a64_guest_load1(uint64_t addr, uint8_t *val) {
-    struct cpu_state *cpu = &current->cpu;
-    (void)cpu;
+    (void)addr;
     *val = 0;
     return -1;
 }
 
 int a64_guest_store8(uint64_t addr, uint64_t val) {
-    struct cpu_state *cpu = &current->cpu;
-    (void)cpu;
+    (void)addr;
     (void)val;
     // Placeholder - real implementation needs proper TLB
     return -1;
 }
 
 int a64_guest_store4(uint64_t addr, uint32_t val) {
-    struct cpu_state *cpu = &current->cpu;
-    (void)cpu;
+    (void)addr;
     (void)val;
     return -1;
 }
 
 int a64_guest_store2(uint64_t addr, uint16_t val) {
-    struct cpu_state *cpu = &current->cpu;
-    (void)cpu;
+    (void)addr;
     (void)val;
     return -1;
 }
 
 int a64_guest_store1(uint64_t addr, uint8_t val) {
-    struct cpu_state *cpu = &current->cpu;
-    (void)cpu;
+    (void)addr;
     (void)val;
     return -1;
 }
