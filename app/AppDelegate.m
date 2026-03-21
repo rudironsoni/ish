@@ -72,12 +72,17 @@ static NSString *const kSkipStartupMessage = @"Skip Startup Message";
 @implementation AppDelegate
 
 - (int)boot {
+    NSLog(@"[iSH] Booting...");
 #if !ISH_LINUX
     NSURL *root = [Roots.instance rootUrl:Roots.instance.defaultRoot];
+    NSLog(@"[iSH] Root URL: %@", root);
 
     int err = mount_root(&fakefs, [root URLByAppendingPathComponent:@"data"].fileSystemRepresentation);
-    if (err < 0)
+    if (err < 0) {
+        NSLog(@"[iSH] ERROR: mount_root failed with error %d", err);
         return err;
+    }
+    NSLog(@"[iSH] Root filesystem mounted successfully");
 
     fs_register(&iosfs);
     fs_register(&iosfs_unsafe);

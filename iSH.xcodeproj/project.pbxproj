@@ -66,7 +66,7 @@
 		497F6D15254E5EA600C82F46 /* tmp.c in Sources */ = {isa = PBXBuildFile; fileRef = 497F6BEB254E5C0D00C82F46 /* tmp.c */; };
 		497F6D16254E5EA600C82F46 /* tty-real.c in Sources */ = {isa = PBXBuildFile; fileRef = 497F6C05254E5C0E00C82F46 /* tty-real.c */; };
 		497F6D17254E5EA600C82F46 /* tty.c in Sources */ = {isa = PBXBuildFile; fileRef = 497F6BE2254E5C0D00C82F46 /* tty.c */; };
-		497F6D18254E5EA600C82F46 /* aarch64/gen.c in Sources */ = {isa = PBXBuildFile; fileRef = 497F6C3D254E5C4F00C82F46 /* aarch64/gen.c */; };
+		497F6D18254E5EA600C82F46 /* gen.c in Sources */ = {isa = PBXBuildFile; fileRef = 497F6C3D254E5C4F00C82F46 /* gen.c */; };
 		497F6D19254E5EA600C82F46 /* helpers.c in Sources */ = {isa = PBXBuildFile; fileRef = 497F6C3B254E5C4F00C82F46 /* helpers.c */; };
 		497F6D1A254E5EA600C82F46 /* asbestos.c in Sources */ = {isa = PBXBuildFile; fileRef = 497F6C40254E5C4F00C82F46 /* asbestos.c */; };
 		497F6D1B254E5EA600C82F46 /* offsets.c in Sources */ = {isa = PBXBuildFile; fileRef = 497F6C3C254E5C4F00C82F46 /* offsets.c */; };
@@ -454,6 +454,7 @@
 /* Begin PBXFileReference section */
 		0AF96406FBF792EEC5E503F4 /* GadgetTests.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = GadgetTests.m; path = tests/Unit/GadgetTests.m; sourceTree = "<group>"; };
 		0CAA9C26D0AB110E2C9355AA /* IntegrationTests.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = IntegrationTests.m; path = tests/Unit/IntegrationTests.m; sourceTree = "<group>"; };
+		0D0361B79E3F376F98BC30CB /* cpu.c */ = {isa = PBXFileReference; includeInIndex = 1; name = cpu.c; path = emu/aarch64/cpu.c; sourceTree = "<group>"; };
 		0FC2383B2991FB82004C09EC /* mmx.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = mmx.c; sourceTree = "<group>"; };
 		0FF2869ED92915F861681ED0 /* Helpers.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = Helpers.m; path = tests/Unit/Helpers.m; sourceTree = "<group>"; };
 		12266591102F752F19F687CC /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
@@ -461,6 +462,7 @@
 		242ED7DB28419092BA42D753 /* GeneratorTests.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = GeneratorTests.m; path = tests/Unit/GeneratorTests.m; sourceTree = "<group>"; };
 		2995E926F7C87004DA0CEC79 /* DecoderFunctionalTests.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = DecoderFunctionalTests.m; path = tests/Unit/DecoderFunctionalTests.m; sourceTree = "<group>"; };
 		2D2CF752B3659604B4DDF280 /* gen.c */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.c; name = gen.c; path = aarch64/gen.c; sourceTree = "<group>"; };
+		2DAFF1C427092BC5B3299036 /* tls.c */ = {isa = PBXFileReference; includeInIndex = 1; name = tls.c; path = emu/aarch64/tls.c; sourceTree = "<group>"; };
 		2DFF43D02D366B34F84A9B75 /* DecoderFunctionalTests.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = DecoderFunctionalTests.m; path = tests/Unit/DecoderFunctionalTests.m; sourceTree = "<group>"; };
 		2E4D3022685FDD903583B840 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; name = Info.plist; path = tests/Unit/Info.plist; sourceTree = "<group>"; };
 		2FE599EED340E38DC05DAF8D /* gadgets.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = gadgets.h; sourceTree = "<group>"; };
@@ -547,7 +549,7 @@
 		497F6C3A254E5C4F00C82F46 /* bits.S */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.asm; path = bits.S; sourceTree = "<group>"; };
 		497F6C3B254E5C4F00C82F46 /* helpers.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = helpers.c; sourceTree = "<group>"; };
 		497F6C3C254E5C4F00C82F46 /* offsets.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = offsets.c; sourceTree = "<group>"; };
-		497F6C3D254E5C4F00C82F46 /* aarch64/gen.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = aarch64/gen.c; sourceTree = "<group>"; };
+		497F6C3D254E5C4F00C82F46 /* gen.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = aarch64/gen.c; sourceTree = "<group>"; };
 		497F6C3E254E5C4F00C82F46 /* gen.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = gen.h; sourceTree = "<group>"; };
 		497F6C3F254E5C4F00C82F46 /* frame.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = frame.h; sourceTree = "<group>"; };
 		497F6C40254E5C4F00C82F46 /* asbestos.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = asbestos.c; sourceTree = "<group>"; };
@@ -641,9 +643,11 @@
 		7FB5AED693B5FD4593514E8D /* gen.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = gen.h; sourceTree = "<group>"; };
 		8632A7BD219A59FB00F02325 /* UserPreferences.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = UserPreferences.h; sourceTree = "<group>"; };
 		8632A7BE219A59FB00F02325 /* UserPreferences.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = UserPreferences.m; sourceTree = "<group>"; };
+		8D146A5DA2E06A1FEDEA00CA /* block-cache.c */ = {isa = PBXFileReference; includeInIndex = 1; name = "block-cache.c"; path = "emu/aarch64/block-cache.c"; sourceTree = "<group>"; };
 		9A28E4E8219A8B670073D200 /* AboutAppearanceViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AboutAppearanceViewController.h; sourceTree = "<group>"; };
 		9A28E4E9219A8B670073D200 /* AboutAppearanceViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AboutAppearanceViewController.m; sourceTree = "<group>"; };
 		9E2B3DB1D00D9F5738164385 /* gadgets_tcti.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = gadgets_tcti.h; path = aarch64/gadgets_tcti.h; sourceTree = "<group>"; };
+		9EF0BE6F11A64181335877FC /* memory.c */ = {isa = PBXFileReference; includeInIndex = 1; name = memory.c; path = emu/aarch64/memory.c; sourceTree = "<group>"; };
 		A4A3FD9D2303BF417FB22768 /* gadgets_tcti_impl.c */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.c; name = gadgets_tcti_impl.c; path = aarch64/gadgets_tcti_impl.c; sourceTree = "<group>"; };
 		B36347351EBCB9F186AD79D0 /* GadgetTests.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = GadgetTests.m; path = tests/Unit/GadgetTests.m; sourceTree = "<group>"; };
 		B647025FCD4EFCD9479949FC /* Helpers.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = Helpers.m; path = tests/Unit/Helpers.m; sourceTree = "<group>"; };
@@ -973,6 +977,10 @@
 			isa = PBXGroup;
 			children = (
 				53C480AE9552263A7841B736 /* decode.c */,
+				0D0361B79E3F376F98BC30CB /* cpu.c */,
+				9EF0BE6F11A64181335877FC /* memory.c */,
+				2DAFF1C427092BC5B3299036 /* tls.c */,
+				8D146A5DA2E06A1FEDEA00CA /* block-cache.c */,
 			);
 			name = aarch64;
 			sourceTree = "<group>";
@@ -1398,7 +1406,7 @@
 			isa = PBXGroup;
 			children = (
 				497F6C40254E5C4F00C82F46 /* asbestos.c */,
-				497F6C3D254E5C4F00C82F46 /* aarch64/gen.c */,
+				497F6C3D254E5C4F00C82F46 /* gen.c */,
 				497F6C3B254E5C4F00C82F46 /* helpers.c */,
 				497F6C3C254E5C4F00C82F46 /* offsets.c */,
 				497F6C41254E5C4F00C82F46 /* asbestos.h */,
@@ -1804,6 +1812,7 @@
 			buildConfigurationList = BBFB2C582590257E00545EAB /* Build configuration list for PBXNativeTarget "libish_emu" */;
 			buildPhases = (
 				BBFB2C572590257E00545EAB /* ShellScript */,
+				21BE6451EAF0E74C21F80A7F /* Sources */,
 			);
 			buildRules = (
 			);
@@ -2232,6 +2241,13 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		21BE6451EAF0E74C21F80A7F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		497F6CE0254E5E4C00C82F46 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -2270,7 +2286,7 @@
 				497F6D15254E5EA600C82F46 /* tmp.c in Sources */,
 				497F6D16254E5EA600C82F46 /* tty-real.c in Sources */,
 				497F6D17254E5EA600C82F46 /* tty.c in Sources */,
-				497F6D18254E5EA600C82F46 /* aarch64/gen.c in Sources */,
+				497F6D18254E5EA600C82F46 /* gen.c in Sources */,
 				497F6D19254E5EA600C82F46 /* helpers.c in Sources */,
 				497F6D1A254E5EA600C82F46 /* asbestos.c in Sources */,
 				497F6D1B254E5EA600C82F46 /* offsets.c in Sources */,

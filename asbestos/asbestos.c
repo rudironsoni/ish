@@ -453,21 +453,20 @@ static int __attribute__((unused)) cpu_single_step(struct cpu_state *cpu, struct
     return interrupt;
 }
 
-// Forward declaration for aarch64 emulator
-extern void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb);
-
 int cpu_run_to_interrupt(struct cpu_state *cpu, struct tlb *tlb) {
     if (cpu->poked_ptr == NULL)
         cpu->poked_ptr = &cpu->_poked;
     tlb_refresh(tlb, cpu->mmu);
+    // Single-step mode not yet implemented for aarch64
+    int interrupt = cpu_step_to_interrupt(cpu, tlb);
+    cpu->trapno = interrupt;
+
+    struct asbestos *asbestos = cpu->mmu->asbestos;
     
-    // Use aarch64 emulator for aarch64 binaries
-    // This replaces the old x86 asbestos JIT
-    a64_cpu_run(cpu, tlb);
-    
-    // a64_cpu_run runs in an infinite loop and handles interrupts internally
-    // If we return here, it means we need to exit (shouldn't happen in normal operation)
-    return INT_GPF;
+    // PR 4: Try epoch-based reclamation at interrupt boundary
+    epoch_try_advance(asbestos);
+
+    return interrupt;
 }
 
 void cpu_poke(struct cpu_state *cpu) {
