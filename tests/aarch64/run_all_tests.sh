@@ -31,38 +31,38 @@ test_fail() {
     ((FAILED++))
 }
 
-# Unit Tests
+# Unit Tests - use meson-built binaries
 test_header "Generator State Tests"
-if gcc -I"$PROJECT_ROOT" "$PROJECT_ROOT/tests/aarch64/gen_test_simple.c" -o "$BUILD_DIR/gen_test" 2>/dev/null && "$BUILD_DIR/gen_test" > /dev/null; then
-    test_pass "gen_test_simple"
+if [ -f "$PROJECT_ROOT/build/gen_test" ]; then
+    if "$PROJECT_ROOT/build/gen_test" > /dev/null 2>&1; then
+        test_pass "gen_test"
+    else
+        test_fail "gen_test"
+    fi
 else
-    test_fail "gen_test_simple"
+    test_fail "gen_test (binary not found - run 'ninja -C build' first)"
+fi
+
+test_header "Decoder Tests"
+if [ -f "$PROJECT_ROOT/build/decoder_test" ]; then
+    if "$PROJECT_ROOT/build/decoder_test" > /dev/null 2>&1; then
+        test_pass "decoder_test"
+    else
+        test_fail "decoder_test"
+    fi
+else
+    test_fail "decoder_test (binary not found - run 'ninja -C build' first)"
 fi
 
 test_header "Integration Tests"
-if gcc -I"$PROJECT_ROOT" \
-        "$PROJECT_ROOT/tests/aarch64/integration_test_simple.c" \
-        "$PROJECT_ROOT/tests/aarch64/gen_test_minimal.c" \
-        "$PROJECT_ROOT/emu/aarch64/decode.c" \
-        -o "$BUILD_DIR/integration_test" 2>/dev/null && "$BUILD_DIR/integration_test" > /dev/null; then
-    test_pass "integration_test_simple"
-else
-    test_fail "integration_test_simple"
-fi
-
-# Decoder Tests
-test_header "Decoder Tests"
-if gcc -I"$PROJECT_ROOT" \
-        "$PROJECT_ROOT/tests/aarch64/decoder_test.c" \
-        "$PROJECT_ROOT/emu/aarch64/decode.c" \
-        -o "$BUILD_DIR/decoder_test" 2>/dev/null; then
-    if "$BUILD_DIR/decoder_test" | grep -q "Results:"; then
-        test_pass "decoder_test_compiles"
+if [ -f "$PROJECT_ROOT/build/integration_test" ]; then
+    if "$PROJECT_ROOT/build/integration_test" > /dev/null 2>&1; then
+        test_pass "integration_test"
     else
-        test_fail "decoder_test_output"
+        test_fail "integration_test"
     fi
 else
-    test_fail "decoder_test"
+    test_fail "integration_test (binary not found - run 'ninja -C build' first)"
 fi
 
 # Syntax Check Tests

@@ -25,6 +25,11 @@ add_project_arguments('-DENGINE_' + get_option('engine').to_upper() + '=1', lang
 # Architecture: aarch64 only (iOS migration)
 add_project_arguments('-DARCH_AARCH64=1', language: 'c')
 
+# Enable performance counters for optimization work
+if get_option('enable_perf_stats')
+    add_project_arguments('-DENABLE_PERF_STATS=1', language: 'c')
+endif
+
 if get_option('no_crlf')
     add_project_arguments('-DNO_CRLF', language: 'c')
 endif
@@ -72,13 +77,17 @@ emu_src = [
     'emu/aarch64/tls.c',
     'emu/aarch64/block-cache.c',
 
-    # TCTI code generator
+    # Asbestos engine (core block management)
+    'asbestos/asbestos.c',
+
+    # TCTI code generator (aarch64-specific)
     'asbestos/aarch64/gen.c',
     'asbestos/aarch64/gadgets_entry.c',
     'asbestos/aarch64/gadgets_arith.c',
     'asbestos/aarch64/gadgets_math.c',
     'asbestos/aarch64/gadgets_memory.c',
     'asbestos/aarch64/gadgets_tcti_impl.c',
+    'asbestos/gadgets-aarch64/entry.S',
 
     aarch64_offsets,
 ]
@@ -102,10 +111,11 @@ if get_option('kernel') == 'ish'
         'kernel/errno.c',
 
         'kernel/calls.c',
-        'kernel/aarch64/calls.c',
-        'kernel/aarch64/syscall_dispatch.c',
-        'kernel/aarch64/signal.c',
-        'kernel/aarch64/vdso.c',
+        # TODO: aarch64 kernel files need proper integration
+        # 'kernel/aarch64/calls.c',
+        # 'kernel/aarch64/syscall_dispatch.c',
+        # 'kernel/aarch64/signal.c',
+        # 'kernel/aarch64/vdso.c',
         'kernel/memory.c',
         'kernel/user.c',
         'kernel/vdso.c', vdso,
