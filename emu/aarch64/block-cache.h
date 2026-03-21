@@ -53,6 +53,9 @@ void a64_cache_invalidate_all(struct a64_block_cache *cache);
 // Free a block
 void a64_block_free(struct a64_block *block);
 
+// Compile a basic block starting at PC (defined in cpu.c)
+struct a64_block *a64_compile_block(uint64_t pc, struct tlb *tlb);
+
 // Hash function for PC
 static inline size_t a64_cache_hash(uint64_t pc) {
     return ((pc >> 2) & (BLOCK_CACHE_HASH_SIZE - 1));

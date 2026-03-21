@@ -32,7 +32,7 @@ static jmp_buf exit_jmpbuf __attribute__((unused));
 static int exit_reason = 0;
 
 // Forward declarations
-static struct a64_block *a64_compile_block(uint64_t pc, struct tlb *tlb);
+struct a64_block *a64_compile_block(uint64_t pc, struct tlb *tlb);
 static int a64_execute_block(struct a64_block *block);
 
 /*
@@ -77,7 +77,7 @@ int a64_fetch_insn(struct cpu_state *cpu, struct tlb *tlb, uint64_t pc, uint32_t
 /*
  * Compile a basic block starting at pc
  */
-static struct a64_block *a64_compile_block(uint64_t pc, struct tlb *tlb) {
+struct a64_block *a64_compile_block(uint64_t pc, struct tlb *tlb) {
     a64_gen_state_t gen_state;
     tcti_gadget_t buffer[A64_MAX_GADGETS_PER_BLOCK];
     struct a64_block *block;

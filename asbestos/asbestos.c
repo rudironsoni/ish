@@ -1,13 +1,19 @@
 #define DEFAULT_CHANNEL instr
 #include "debug.h"
+#include <string.h>
 #include "asbestos/asbestos.h"
-#include "asbestos/gen.h"
 #include "asbestos/frame.h"
 #include "emu/cpu.h"
+#include "emu/tlb.h"
 #include "emu/interrupt.h"
 #include "util/list.h"
+#include "emu/aarch64/block-cache.h"
 
 extern int current_pid(void);
+
+// aarch64 block cache - replaces x86 fiber block system
+static struct a64_block_cache a64_cache;
+static int a64_cache_initialized = 0;
 
 // Persistent execution context implementation
 static struct fiber_exec_ctx *fiber_exec_ctx_current = NULL;
@@ -269,29 +275,6 @@ static struct fiber_block *fiber_lookup(struct asbestos *asbestos, addr_t addr) 
     return NULL;
 }
 
-static struct fiber_block *fiber_block_compile(addr_t ip, struct tlb *tlb) {
-    struct gen_state state;
-    TRACE("%d %08x --- compiling:\n", current_pid(), ip);
-    gen_start(ip, &state);
-    while (true) {
-        if (!gen_step(&state, tlb))
-            break;
-        // no block should span more than 2 pages
-        // guarantee this by limiting total block size to 1 page
-        // guarantee that by stopping as soon as there's less space left than
-        // the maximum length of an x86 instruction
-        // TODO refuse to decode instructions longer than 15 bytes
-        if (state.ip - ip >= PAGE_SIZE - 15) {
-            gen_exit(&state);
-            break;
-        }
-    }
-    gen_end(&state);
-    assert(state.ip - ip <= PAGE_SIZE);
-    state.block->used = state.capacity;
-    return state.block;
-}
-
 // Remove all pointers to the block. It can't be freed yet because another
 // thread may be executing it.
 static void fiber_block_disconnect(struct asbestos *asbestos, struct fiber_block *block) {
@@ -337,120 +320,86 @@ static inline size_t fiber_cache_hash(addr_t ip) {
     return (ip ^ (ip >> 12)) % FIBER_CACHE_SIZE;
 }
 
-static int cpu_step_to_interrupt(struct cpu_state *cpu, struct tlb *tlb) {
-    struct asbestos *asbestos = cpu->mmu->asbestos;
+// Forward declarations for aarch64 TCTI
+extern int a64_fetch_insn(struct cpu_state *cpu, struct tlb *tlb, uint64_t pc, uint32_t *insn);
+extern int a64_gen_instruction(void *state, uint32_t insn, uint64_t pc);
+extern int a64_gen_init(void *state, void *buffer, size_t max);
+extern void a64_gen_reset(void *state, uint64_t pc);
+extern int a64_gen_finalize(void *state);
+
+// Execute a compiled TCTI block
+static int a64_execute_block_tcti(struct a64_block *block, struct cpu_state *cpu) {
+    typedef void (*gadget_t)(void);
+    gadget_t *gadgets = (gadget_t *)block->gadgets;
     
-    // PR 4: Get persistent execution context with epoch tracking
-    struct fiber_exec_ctx *ctx = fiber_exec_ctx_get(cpu);
-    if (ctx == NULL) {
-        return INT_GPF;  // Failed to get execution context
+    // Execute gadgets in sequence
+    for (size_t i = 0; i < block->num_gadgets; i++) {
+        if (gadgets[i] == NULL) {
+            break;  // End of block
+        }
+        gadgets[i]();  // Execute gadget
+        
+        // Check for exit conditions
+        // (gadgets set cpu->pc for next instruction)
     }
     
-    // Set local epoch for safe reclamation
-    ctx->local_epoch = asbestos->global_epoch;
+    return INT_NONE;  // Continue execution
+}
+
+// Compile a basic block using TCTI
+static struct a64_block *a64_compile_block_tcti(uint64_t pc, struct tlb *tlb, struct cpu_state *cpu) {
+    // Use the existing a64_compile_block from emu/aarch64/cpu.c
+    extern struct a64_block *a64_compile_block(uint64_t pc, struct tlb *tlb);
+    return a64_compile_block(pc, tlb);
+}
+
+// Main execution step - uses aarch64 TCTI instead of x86 JIT
+static int cpu_step_to_interrupt(struct cpu_state *cpu, struct tlb *tlb) {
+    // Initialize aarch64 cache on first use
+    if (!a64_cache_initialized) {
+        a64_cache_init(&a64_cache);
+        a64_cache_initialized = 1;
+    }
     
-    struct fiber_block **cache = ctx->l0_cache;  // Persistent L0 cache
-    struct fiber_frame *frame = &ctx->frame;      // Persistent frame
-
     int interrupt = INT_NONE;
+    
     while (interrupt == INT_NONE) {
-        addr_t ip = frame->cpu.pc;
-        size_t cache_index = fiber_cache_hash(ip) & FIBER_EXEC_CTX_CACHE_MASK;
-        struct fiber_block *block = cache[cache_index];
-        if (block == NULL || block->addr != ip) {
-            // L0 miss - check L1 (global hash)
-            lock(&asbestos->lock);
-            block = fiber_lookup(asbestos, ip);
+        uint64_t pc = cpu->pc;
+        
+        // Look up block in cache
+        struct a64_block *block = a64_cache_lookup(&a64_cache, pc);
+        
+        if (block == NULL) {
+            // Block not found - compile it
+            TRACE("%d %08llx --- compiling:\n", current_pid(), pc);
+            block = a64_compile_block_tcti(pc, tlb, cpu);
             if (block == NULL) {
-                // L1 miss - compile new block
-                fiber_stat_inc(ctx, STAT_TB_COMPILES);
-                block = fiber_block_compile(ip, tlb);
-                fiber_insert(asbestos, block);
-            } else {
-                // L1 hit
-                fiber_stat_inc(ctx, STAT_TB_L1_HITS);
-                TRACE("%d %08x --- missed cache\n", current_pid(), ip);
+                // Compilation failed (page fault or invalid insn)
+                return INT_GPF;
             }
-            // Update L0 cache
-            cache[cache_index] = block;
-            cache[cache_index] = block;
-            unlock(&asbestos->lock);
+            // Insert into cache
+            a64_cache_insert(&a64_cache, block);
         }
-        struct fiber_block *last_block = frame->last_block;
-        if (last_block != NULL &&
-                (last_block->jump_ip[0] != NULL ||
-                 last_block->jump_ip[1] != NULL)) {
-            
-            // PR 3: Fast-path check - avoid lock if already patched
-            // Check if the jump slot already points to block->code
-            bool needs_patch = false;
-            for (int i = 0; i <= 1; i++) {
-                if (last_block->jump_ip[i] != NULL &&
-                        (*last_block->jump_ip[i] & 0xffffffff) == block->addr) {
-                    // Check if already patched to the correct target
-                    if (*last_block->jump_ip[i] != (unsigned long)block->code) {
-                        needs_patch = true;
-                        break;
-                    }
-                }
-            }
-            
-            // Only take lock if we actually need to patch
-            if (needs_patch) {
-                fiber_stat_inc(ctx, STAT_TB_CHAIN_PATCH_ATT);
-                lock(&asbestos->lock);
-                // can't mint new pointers to a block that has been marked jetsam
-                // and is thus assumed to have no pointers left
-                // Re-check under lock (double-checked locking pattern)
-                if (!last_block->is_jetsam && !block->is_jetsam) {
-                    for (int i = 0; i <= 1; i++) {
-                        if (last_block->jump_ip[i] != NULL &&
-                                (*last_block->jump_ip[i] & 0xffffffff) == block->addr &&
-                                *last_block->jump_ip[i] != (unsigned long)block->code) {
-                            *last_block->jump_ip[i] = (unsigned long) block->code;
-                            list_add(&block->jumps_from[i], &last_block->jumps_from_links[i]);
-                            fiber_stat_inc(ctx, STAT_TB_CHAIN_PATCH_OK);
-                        }
-                    }
-                }
-                unlock(&asbestos->lock);
-            }
-        }
-        frame->last_block = block;
-
-        // block may be jetsam, but that's ok, because it can't be freed until
-        // every thread on this asbestos is not executing anything
-
-        TRACE("%d %08x --- cycle %ld\n", current_pid(), ip, frame->cpu.cycle);
-
-        interrupt = fiber_enter(block, frame, tlb);
+        
+        TRACE("%d %08llx --- executing block %p\n", current_pid(), pc, block);
+        
+        // Execute the block
+        interrupt = a64_execute_block_tcti(block, cpu);
+        
+        // Check for timer interrupt (every 1024 cycles)
         if (interrupt == INT_NONE && __atomic_exchange_n(cpu->poked_ptr, false, __ATOMIC_SEQ_CST))
             interrupt = INT_TIMER;
-        if (interrupt == INT_NONE && ++frame->cpu.cycle % (1 << 10) == 0)
+        if (interrupt == INT_NONE && ++cpu->cycle % (1 << 10) == 0)
             interrupt = INT_TIMER;
-        *cpu = frame->cpu;
     }
-
-    // Mark execution context as inactive (no free - it's persistent!)
-    fiber_exec_ctx_put(ctx);
+    
     return interrupt;
 }
 
 static int __attribute__((unused)) cpu_single_step(struct cpu_state *cpu, struct tlb *tlb) {
-    struct gen_state state;
-    gen_start(cpu->pc, &state);
-    gen_step(&state, tlb);
-    gen_exit(&state);
-    gen_end(&state);
-
-    struct fiber_block *block = state.block;
-    struct fiber_frame frame = {.cpu = *cpu};
-    int interrupt = fiber_enter(block, &frame, tlb);
-    *cpu = frame.cpu;
-    fiber_block_free(NULL, block);
-    if (interrupt == INT_NONE)
-        interrupt = INT_DEBUG;
-    return interrupt;
+    // Single-step not implemented for aarch64 yet
+    // Just execute one instruction and return
+    return cpu_step_to_interrupt(cpu, tlb);
 }
 
 int cpu_run_to_interrupt(struct cpu_state *cpu, struct tlb *tlb) {
