@@ -19,50 +19,10 @@
 #include "kernel/vdso.h"
 #include "tools/ptraceomatic-config.h"
 
-// Simple file-based logging with levels
-// Set ISH_LOG_LEVEL to control logging:
-//   0 = ERROR only
-//   1 = ERROR + INFO
-//   2 = ERROR + INFO + DEBUG (verbose)
-#ifndef ISH_LOG_LEVEL
-#define ISH_LOG_LEVEL 2  // Default to verbose in development
-#endif
-
-static FILE *debug_fp = NULL;
-static void debug_log(const char *fmt, ...) {
-    if (!debug_fp) {
-        // Try multiple locations for the log file
-        const char *paths[] = {
-            "/tmp/ish_kernel.log",
-            "/var/tmp/ish_kernel.log",
-            "ish_kernel.log",  // Current directory
-            NULL
-        };
-        for (int i = 0; paths[i]; i++) {
-            debug_fp = fopen(paths[i], "a");
-            if (debug_fp) break;
-        }
-    }
-    if (debug_fp) {
-        va_list args;
-        va_start(args, fmt);
-        vfprintf(debug_fp, fmt, args);
-        va_end(args);
-        fflush(debug_fp);
-    }
-}
-
-#define ISH_LOG_ERROR(fmt, ...) debug_log("[iSH] ERROR: " fmt "\n", ##__VA_ARGS__)
-#if ISH_LOG_LEVEL >= 1
-#define ISH_LOG(fmt, ...) debug_log("[iSH] " fmt "\n", ##__VA_ARGS__)
-#else
-#define ISH_LOG(fmt, ...)
-#endif
-#if ISH_LOG_LEVEL >= 2
-#define ISH_LOG_DEBUG(fmt, ...) debug_log("[iSH] DEBUG: " fmt "\n", ##__VA_ARGS__)
-#else
-#define ISH_LOG_DEBUG(fmt, ...)
-#endif
+// Use existing kernel logging via printk
+#define ISH_LOG_ERROR(fmt, ...) printk("[exec] ERROR: " fmt "\n", ##__VA_ARGS__)
+#define ISH_LOG(fmt, ...) printk("[exec] " fmt "\n", ##__VA_ARGS__)
+#define ISH_LOG_DEBUG(fmt, ...) printk("[exec] DEBUG: " fmt "\n", ##__VA_ARGS__)
 
 #define ARGV_MAX 32 * PAGE_SIZE
 
