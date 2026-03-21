@@ -78,8 +78,11 @@ static struct task *construct_task(struct task *parent) {
     struct task *old_current = current;
     current = task;
     task->fs->root = generic_open("/", O_RDONLY_, 0);
-    if (IS_ERR(task->fs->root))
-        return ERR_PTR(task->fs->root);
+    if (IS_ERR(task->fs->root)) {
+        int err = PTR_ERR(task->fs->root);
+        printk("ERROR: construct_task: generic_open(/) failed with %d\n", err);
+        return ERR_PTR(err);
+    }
     task->fs->pwd = fd_retain(task->fs->root);
     current = old_current;
 
@@ -91,10 +94,13 @@ int become_first_process() {
     establish_signal_handlers();
 
     struct task *task = construct_task(NULL);
-    if (IS_ERR(task))
+    if (IS_ERR(task)) {
+        printk("ERROR: become_first_process: construct_task failed with %d\n", PTR_ERR(task));
         return PTR_ERR(task);
+    }
 
     current = task;
+    printk("INFO: First process created successfully, pid=%d\n", task->pid);
     return 0;
 }
 
@@ -104,8 +110,10 @@ int become_new_init_child() {
     assert(init != NULL);
 
     struct task *task = construct_task(init);
-    if (IS_ERR(task))
+    if (IS_ERR(task)) {
+        printk("ERROR: become_new_init_child: construct_task failed with %d\n", PTR_ERR(task));
         return PTR_ERR(task);
+    }
 
     // these are things we definitely don't want to inherit
     task->clear_tid = 0;
