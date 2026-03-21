@@ -19,15 +19,41 @@
 #include "kernel/vdso.h"
 #include "tools/ptraceomatic-config.h"
 
-// Use existing kernel logging via printk with NSLog fallback for critical errors
-#if defined(__APPLE__)
-extern void NSLog(void *fmt, ...);
-#endif
-#define ISH_LOG_ERROR(fmt, ...) do { \
-    printk("[exec] ERROR: " fmt "\n", ##__VA_ARGS__); \
-} while(0)
-#define ISH_LOG(fmt, ...) printk("[exec] " fmt "\n", ##__VA_ARGS__)
-#define ISH_LOG_DEBUG(fmt, ...) printk("[exec] DEBUG: " fmt "\n", ##__VA_ARGS__)
+// File-based logging for debugging
+static FILE *debug_log_fp = NULL;
+static void debug_log(const char *fmt, ...) {
+    if (!debug_log_fp) {
+        // Try to open log file in a writable location
+        const char *home = getenv("HOME");
+        if (home) {
+            char path[1024];
+            snprintf(path, sizeof(path), "%s/Library/Logs/ish_kernel.log", home);
+            debug_log_fp = fopen(path, "a");
+        }
+        if (!debug_log_fp) {
+            debug_log_fp = fopen("/tmp/ish_kernel.log", "a");
+        }
+    }
+    if (debug_log_fp) {
+        va_list args;
+        va_start(args, fmt);
+        vfprintf(debug_log_fp, fmt, args);
+        va_end(args);
+        fprintf(debug_log_fp, "\n");
+        fflush(debug_log_fp);
+    }
+    // Also use printk which may go to NSLog
+    va_list args;
+    va_start(args, fmt);
+    char buf[1024];
+    vsnprintf(buf, sizeof(buf), fmt, args);
+    va_end(args);
+    printk("[exec] %s", buf);
+}
+
+#define ISH_LOG_ERROR(fmt, ...) debug_log("[exec] ERROR: " fmt, ##__VA_ARGS__)
+#define ISH_LOG(fmt, ...) debug_log("[exec] " fmt, ##__VA_ARGS__)
+#define ISH_LOG_DEBUG(fmt, ...) debug_log("[exec] DEBUG: " fmt, ##__VA_ARGS__)
 
 #define ARGV_MAX 32 * PAGE_SIZE
 
