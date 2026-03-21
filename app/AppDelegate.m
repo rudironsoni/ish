@@ -198,8 +198,11 @@ static NSString *const kSkipStartupMessage = @"Skip Startup Message";
     cmdStr = [cmdStr stringByAppendingString:@"\n"];
     [cmdStr writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
     
-    // Also NSLog it
-    NSLog(@"%@", cmdStr);
+    // Also NSLog it - this should definitely show up
+    NSLog(@"================================================");
+    NSLog(@"iSH BOOT: Starting execution");
+    NSLog(@"iSH BOOT: Command path: %@", command[0]);
+    NSLog(@"================================================");
     
     char argv[4096];
     [Terminal convertCommand:command toArgs:argv limitSize:sizeof(argv)];

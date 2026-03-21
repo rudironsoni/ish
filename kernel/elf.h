@@ -53,12 +53,12 @@ struct elf_header {
 
 struct prg_header {
     uint32_t type;
+    uint32_t flags;  // In ELF64, flags comes right after type
     elf_off_t offset;
     elf_addr_t vaddr;
     elf_addr_t paddr;
     elf_off_t filesize;
     elf_off_t memsize;
-    uint32_t flags;
     elf_off_t alignment; // must be power of 2
 };
 
