@@ -43,6 +43,7 @@ static int open_flags_real_from_fake(int flags) {
     if (flags & O_TRUNC_) real_flags |= O_TRUNC;
     if (flags & O_APPEND_) real_flags |= O_APPEND;
     if (flags & O_NONBLOCK_) real_flags |= O_NONBLOCK;
+    if (flags & O_NOFOLLOW_) real_flags |= O_NOFOLLOW;
     return real_flags;
 }
 

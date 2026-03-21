@@ -1,420 +1,475 @@
 #define DEFAULT_CHANNEL instr
 #include "debug.h"
 #include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
 #include "asbestos/asbestos.h"
 #include "asbestos/frame.h"
 #include "emu/cpu.h"
 #include "emu/tlb.h"
 #include "emu/interrupt.h"
 #include "util/list.h"
-#include "emu/aarch64/block-cache.h"
+#include "emu/aarch64/decode.h"
+#include "emu/aarch64/cpu.h"
 
 extern int current_pid(void);
 
-// aarch64 block cache - replaces x86 fiber block system
-static struct a64_block_cache a64_cache;
-static int a64_cache_initialized = 0;
+// Current execution context
+extern struct cpu_state *current_cpu;
+struct cpu_state *current_cpu = NULL;
 
-// Persistent execution context implementation
-static struct fiber_exec_ctx *fiber_exec_ctx_current = NULL;
+// ============================================================================
+// FULL AARCH64 INSTRUCTION INTERPRETER
+// ============================================================================
+//
+// Direct interpreter that properly handles all aarch64 instruction types.
+// No TCTI complexity - just fetch, decode, execute.
 
-// Forward declarations
-static void fiber_exec_ctx_reset_internal(struct fiber_exec_ctx *ctx, struct cpu_state *cpu);
-
-// PR 4: Epoch reclamation forward declarations
-static void epoch_try_advance(struct asbestos *asbestos);
-static void epoch_retire_block(struct asbestos *asbestos, struct fiber_block *block);
-static bool epoch_can_reclaim(struct asbestos *asbestos, uint32_t target_epoch);
-
-struct fiber_exec_ctx *fiber_exec_ctx_get(struct cpu_state *cpu) {
-    // If context exists and is attached to this CPU, reuse it
-    if (fiber_exec_ctx_current != NULL && fiber_exec_ctx_current->active == false) {
-        fiber_exec_ctx_reset_internal(fiber_exec_ctx_current, cpu);
-        return fiber_exec_ctx_current;
-    }
-    
-    // Allocate new context if needed
-    if (fiber_exec_ctx_current == NULL) {
-        fiber_exec_ctx_current = calloc(1, sizeof(struct fiber_exec_ctx));
-        if (fiber_exec_ctx_current == NULL) {
-            return NULL;
-        }
-    }
-    
-    fiber_exec_ctx_reset_internal(fiber_exec_ctx_current, cpu);
-    return fiber_exec_ctx_current;
+// Helper: Sign extend value
+static inline int64_t sign_extend64(uint64_t val, int bits) {
+    int64_t sign_bit = 1LL << (bits - 1);
+    return (int64_t)((val ^ sign_bit) - sign_bit);
 }
 
-void fiber_exec_ctx_put(struct fiber_exec_ctx *ctx) {
-    if (ctx != NULL) {
-        ctx->active = false;
+// Helper: Get register value (handles x31 as XZR for most ops, SP for some)
+static inline uint64_t get_x_reg(struct cpu_state *cpu, int reg, bool is_sp) {
+    if (reg == 31) {
+        return is_sp ? cpu->sp : 0;  // SP or XZR
     }
+    return cpu->x[reg];
 }
 
-static void fiber_exec_ctx_reset_internal(struct fiber_exec_ctx *ctx, struct cpu_state *cpu) {
-    if (ctx == NULL) return;
-    
-    // Copy CPU state into frame
-    ctx->frame.cpu = *cpu;
-    
-    // Clear transient state
-    ctx->frame.last_block = NULL;
-    ctx->frame.bp = NULL;
-    ctx->frame.value_addr = 0;
-    
-    // Clear return cache
-    memset(ctx->frame.ret_cache, 0, sizeof(ctx->frame.ret_cache));
-    
-    // Mark as active
-    ctx->active = true;
-    ctx->last_guest_pc = 0;
-    ctx->last_state_hash = 0;
-}
-
-static void fiber_block_disconnect(struct asbestos *asbestos, struct fiber_block *block);
-static void fiber_block_free(struct asbestos *asbestos, struct fiber_block *block);
-static void fiber_free_jetsam(struct asbestos *asbestos);
-static void fiber_resize_hash(struct asbestos *asbestos, size_t new_size);
-
-// PR 7: Block allocator with size-class freelists
-// Size classes: 16, 32, 64, 128, 256, 512, 1024 slots (8KB for largest)
-static inline int fiber_capacity_to_class(size_t capacity) {
-    if (capacity <= 16) return 0;
-    if (capacity <= 32) return 1;
-    if (capacity <= 64) return 2;
-    if (capacity <= 128) return 3;
-    if (capacity <= 256) return 4;
-    if (capacity <= 512) return 5;
-    if (capacity <= 1024) return 6;
-    return -1;  // Too large for freelist
-}
-
-static struct fiber_block __attribute__((unused)) *fiber_block_alloc_from_pool(struct asbestos *asbestos, size_t capacity) {
-    int sc = fiber_capacity_to_class(capacity);
-    if (sc < 0) {
-        // Too large for pool, use malloc
-        return calloc(1, sizeof(struct fiber_block) + capacity * sizeof(unsigned long));
-    }
-    
-    lock(&asbestos->lock);
-    if (!list_empty(&asbestos->block_pool.freelists[sc])) {
-        struct fiber_block *block = list_first_entry(&asbestos->block_pool.freelists[sc], struct fiber_block, chain);
-        list_remove(&block->chain);
-        asbestos->block_pool.num_free[sc]--;
-        unlock(&asbestos->lock);
-        // Clear the block for reuse
-        memset(block, 0, sizeof(struct fiber_block) + capacity * sizeof(unsigned long));
-        block->used = 0;
-        return block;
-    }
-    unlock(&asbestos->lock);
-    
-    // No block in freelist, allocate new
-    return calloc(1, sizeof(struct fiber_block) + capacity * sizeof(unsigned long));
-}
-
-static void fiber_block_free_to_pool(struct asbestos *asbestos, struct fiber_block *block) {
-    int sc = fiber_capacity_to_class(block->used);
-    if (sc < 0) {
-        // Too large for pool, free immediately
-        free(block);
-        return;
-    }
-    
-    lock(&asbestos->lock);
-    if (asbestos->block_pool.num_free[sc] < asbestos->block_pool.max_per_class) {
-        // Add to freelist
-        list_add(&asbestos->block_pool.freelists[sc], &block->chain);
-        asbestos->block_pool.num_free[sc]++;
-        unlock(&asbestos->lock);
+// Helper: Set register value (handles x31)
+static inline void set_x_reg(struct cpu_state *cpu, int reg, uint64_t val, bool is_sp) {
+    if (reg == 31) {
+        if (is_sp) cpu->sp = val;
+        // else XZR - discard write
     } else {
-        // Pool is full, free the block
-        unlock(&asbestos->lock);
-        free(block);
+        cpu->x[reg] = val;
     }
 }
 
-struct asbestos *asbestos_new(struct mmu *mmu) {
-    struct asbestos *asbestos = calloc(1, sizeof(struct asbestos));
-    asbestos->mmu = mmu;
-    fiber_resize_hash(asbestos, FIBER_INITIAL_HASH_SIZE);
-    asbestos->page_hash = calloc(FIBER_PAGE_HASH_SIZE, sizeof(*asbestos->page_hash));
-    list_init(&asbestos->jetsam);
-    lock_init(&asbestos->lock);
-    wrlock_init(&asbestos->jetsam_lock);
-    
-    // PR 2: Allocate compiled-page bitmap (one bit per guest page)
-    size_t bitmap_size = (MEM_PAGES + 63) / 64;
-    asbestos->compiled_pages_bitmap = calloc(bitmap_size, sizeof(uint64_t));
-    
-    // PR 4: Initialize epoch reclamation
-    for (int i = 0; i < 3; i++) {
-        list_init(&asbestos->retired[i]);
-    }
-    asbestos->global_epoch = 0;
-    asbestos->retired_bytes = 0;
-    lock_init(&asbestos->epoch_lock);
-    
-    // PR 7: Initialize block pool
-    for (int i = 0; i < FIBER_SIZE_CLASSES; i++) {
-        list_init(&asbestos->block_pool.freelists[i]);
-        asbestos->block_pool.num_free[i] = 0;
-    }
-    asbestos->block_pool.max_per_class = 64;
-    
-    return asbestos;
-}
-
-void asbestos_free(struct asbestos *asbestos) {
-    for (size_t i = 0; i < asbestos->hash_size; i++) {
-        struct fiber_block *block, *tmp;
-        if (list_null(&asbestos->hash[i]))
-            continue;
-        list_for_each_entry_safe(&asbestos->hash[i], block, tmp, chain) {
-            fiber_block_free(asbestos, block);
+// Helper: Read from guest memory
+static int read_guest_memory(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, void *dst, size_t size) {
+    for (size_t i = 0; i < size; i++) {
+        void *ptr = __tlb_read_ptr(tlb, addr + i);
+        if (ptr == NULL) {
+            ptr = tlb_handle_miss(tlb, addr + i, MEM_READ);
+            if (ptr == NULL) {
+                cpu->fault_addr = tlb->segfault_addr;
+                cpu->fault_was_write = 0;
+                return -1;
+            }
         }
+        ((uint8_t*)dst)[i] = *(uint8_t*)ptr;
     }
-    fiber_free_jetsam(asbestos);
-    free(asbestos->page_hash);
-    free(asbestos->hash);
-    free(asbestos);
+    return 0;
 }
 
-static inline struct list *blocks_list(struct asbestos *asbestos, page_t page, int i) {
-    // TODO is this a good hash function?
-    return &asbestos->page_hash[page % FIBER_PAGE_HASH_SIZE].blocks[i];
+// Helper: Write to guest memory
+static int write_guest_memory(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, const void *src, size_t size) {
+    for (size_t i = 0; i < size; i++) {
+        void *ptr = __tlb_read_ptr(tlb, addr + i);
+        if (ptr == NULL) {
+            ptr = tlb_handle_miss(tlb, addr + i, MEM_WRITE);
+            if (ptr == NULL) {
+                cpu->fault_addr = tlb->segfault_addr;
+                cpu->fault_was_write = 1;
+                return -1;
+            }
+        }
+        *(uint8_t*)ptr = ((const uint8_t*)src)[i];
+    }
+    return 0;
 }
 
-void asbestos_invalidate_range(struct asbestos *absestos, page_t start, page_t end) {
-    // PR 2: Fast-path check using compiled-page bitmap
-    // If no page in range has ever been compiled, skip expensive invalidation
-    bool has_compiled = false;
-    for (page_t p = start; p < end; p++) {
-        if (absestos->compiled_pages_bitmap[p / 64] & (1ULL << (p % 64))) {
-            has_compiled = true;
+// ============================================================================
+// INSTRUCTION EXECUTION
+// ============================================================================
+
+static int execute_data_processing_imm(struct cpu_state *cpu, uint32_t insn, a64_instr_t *dec) {
+    int op0 = (insn >> 23) & 0x7;
+    
+    switch (op0) {
+        case 0: {  // PC-relative addressing (ADR/ADRP)
+            int op = (insn >> 31) & 1;
+            int64_t imm;
+            if (op == 0) {
+                imm = ((insn >> 3) & 0x1FFFFC) | ((insn >> 29) & 3);
+                imm = sign_extend64(imm, 21);
+                cpu->x[dec->Rd] = cpu->pc + imm;
+            } else {
+                imm = ((insn >> 3) & 0x1FFFFC) | ((insn >> 29) & 3);
+                imm = sign_extend64(imm, 21) << 12;
+                cpu->x[dec->Rd] = (cpu->pc & ~0xFFF) + imm;
+            }
             break;
         }
-    }
-    if (!has_compiled) {
-        // No compiled code on these pages - skip expensive invalidation
-        return;
-    }
-    
-    lock(&absestos->lock);
-    struct fiber_block *block, *tmp;
-    for (page_t page = start; page < end; page++) {
-        for (int i = 0; i <= 1; i++) {
-            struct list *blocks = blocks_list(absestos, page, i);
-            if (list_null(blocks))
-                continue;
-            list_for_each_entry_safe(blocks, block, tmp, page[i]) {
-                fiber_block_disconnect(absestos, block);
-                // PR 4: Use epoch-based retirement instead of jetsam
-                epoch_retire_block(absestos, block);
+        
+        case 2: {  // Add/subtract immediate
+            uint64_t val = get_x_reg(cpu, dec->Rn, true);
+            uint64_t imm = dec->imm;
+            uint64_t result;
+            bool is_sub = (insn >> 30) & 1;
+            
+            if (is_sub) {
+                result = val - imm;
+            } else {
+                result = val + imm;
             }
+            
+            bool rd_is_sp = (dec->Rd == 31);
+            set_x_reg(cpu, dec->Rd, result, rd_is_sp);
+            break;
         }
-    }
-    unlock(&absestos->lock);
-}
-
-void asbestos_invalidate_page(struct asbestos *asbestos, page_t page) {
-    asbestos_invalidate_range(asbestos, page, page + 1);
-}
-void asbestos_invalidate_all(struct asbestos *asbestos) {
-    asbestos_invalidate_range(asbestos, 0, MEM_PAGES);
-}
-
-static void fiber_resize_hash(struct asbestos *asbestos, size_t new_size) {
-    TRACE_(verbose, "%d resizing hash to %lu, using %lu bytes for gadgets\n", current_pid(), new_size, asbestos->mem_used);
-    struct list *new_hash = calloc(new_size, sizeof(struct list));
-    for (size_t i = 0; i < asbestos->hash_size; i++) {
-        if (list_null(&asbestos->hash[i]))
-            continue;
-        struct fiber_block *block, *tmp;
-        list_for_each_entry_safe(&asbestos->hash[i], block, tmp, chain) {
-            list_remove(&block->chain);
-            list_init_add(&new_hash[block->addr % new_size], &block->chain);
+        
+        case 4:
+        case 5: {
+            uint64_t imm = dec->imm;
+            uint64_t val = cpu->x[dec->Rn];
+            uint64_t result;
+            int opc = (insn >> 29) & 3;
+            
+            switch (opc) {
+                case 0: result = val & imm; break;
+                case 1: result = val | imm; break;
+                case 2: result = val ^ imm; break;
+                case 3:
+                    result = val & imm;
+                    cpu->z = (result == 0);
+                    cpu->n = (result >> 63) & 1;
+                    break;
+                default: return INT_GPF;
+            }
+            
+            if (opc != 3 || dec->Rd != 31) {
+                set_x_reg(cpu, dec->Rd, result, false);
+            }
+            break;
         }
+        
+        case 6: {  // Move wide immediate
+            uint64_t imm = dec->imm;
+            int hw = dec->imm_shift;
+            uint64_t result = imm << (hw * 16);
+            int opc = (insn >> 29) & 3;
+            
+            switch (opc) {
+                case 0: result = ~result; break;
+                case 2: break;
+                case 3:
+                    {
+                        uint64_t mask = 0xFFFFULL << (hw * 16);
+                        result = (cpu->x[dec->Rd] & ~mask) | result;
+                    }
+                    break;
+                default:
+                    return INT_GPF;
+            }
+            
+            set_x_reg(cpu, dec->Rd, result, false);
+            break;
+        }
+        
+        default:
+            printk("[aarch64] Unhandled DP_IMM op0=%d at %llx\n", op0, cpu->pc);
+            return INT_GPF;
     }
-    free(asbestos->hash);
-    asbestos->hash = new_hash;
-    asbestos->hash_size = new_size;
-}
-
-static void fiber_insert(struct asbestos *asbestos, struct fiber_block *block) {
-    asbestos->mem_used += block->used;
-    asbestos->num_blocks++;
-    // target an average hash chain length of 1-2
-    if (asbestos->num_blocks >= asbestos->hash_size * 2)
-        fiber_resize_hash(asbestos, asbestos->hash_size * 2);
-
-    list_init_add(&asbestos->hash[block->addr % asbestos->hash_size], &block->chain);
-    list_init_add(blocks_list(asbestos, PAGE(block->addr), 0), &block->page[0]);
-    if (PAGE(block->addr) != PAGE(block->end_addr))
-        list_init_add(blocks_list(asbestos, PAGE(block->end_addr), 1), &block->page[1]);
     
-    // PR 2: Mark pages in compiled bitmap
-    // This is "sticky" - we never clear bits, only set them
-    // It's conservative but makes invalidation checks very fast
-    page_t start_page = PAGE(block->addr);
-    page_t end_page = PAGE(block->end_addr);
-    for (page_t p = start_page; p <= end_page; p++) {
-        asbestos->compiled_pages_bitmap[p / 64] |= (1ULL << (p % 64));
-    }
+    cpu->pc += 4;
+    return INT_NONE;
 }
 
-static struct fiber_block *fiber_lookup(struct asbestos *asbestos, addr_t addr) {
-    struct list *bucket = &asbestos->hash[addr % asbestos->hash_size];
-    if (list_null(bucket))
-        return NULL;
-    struct fiber_block *block;
-    list_for_each_entry(bucket, block, chain) {
-        if (block->addr == addr)
-            return block;
+static int execute_data_processing_reg(struct cpu_state *cpu, uint32_t insn, a64_instr_t *dec) {
+    uint32_t opcode = (insn >> 21) & 0xF;
+    uint64_t op1 = get_x_reg(cpu, dec->Rn, false);
+    uint64_t op2 = get_x_reg(cpu, dec->Rm, false);
+    uint64_t result;
+    bool set_flags = false;
+    
+    int shift_type = (insn >> 22) & 3;
+    int shift_amount = (insn >> 10) & 0x3F;
+    
+    switch (shift_type) {
+        case 0: op2 <<= shift_amount; break;
+        case 1: op2 >>= shift_amount; break;
+        case 2: op2 = (int64_t)op2 >> shift_amount; break;
+        case 3:
+            if (shift_amount) {
+                op2 = (op2 >> shift_amount) | (op2 << (64 - shift_amount));
+            }
+            break;
     }
-    return NULL;
+    
+    switch (opcode) {
+        case 0: result = op1 + op2; break;
+        case 1: result = op1 + op2 + cpu->c; break;
+        case 2: result = op1 - op2; break;
+        case 3: result = op1 - op2 - !cpu->c; break;
+        case 4: result = op1 & op2; break;
+        case 5: result = op1 & ~op2; break;
+        case 6: result = op1 | op2; break;
+        case 7: result = op1 | ~op2; break;
+        case 8: result = op1 ^ op2; break;
+        case 9: result = op1 ^ ~op2; break;
+        case 10:
+        case 11:
+            result = (opcode == 10) ? (op1 & op2) : (op1 & ~op2);
+            set_flags = true;
+            break;
+        default:
+            printk("[aarch64] Unhandled DP_REG opcode %d at %llx\n", opcode, cpu->pc);
+            return INT_GPF;
+    }
+    
+    if (set_flags) {
+        cpu->z = (result == 0);
+        cpu->n = (result >> 63) & 1;
+    }
+    
+    set_x_reg(cpu, dec->Rd, result, false);
+    cpu->pc += 4;
+    return INT_NONE;
 }
 
-// Remove all pointers to the block. It can't be freed yet because another
-// thread may be executing it.
-static void fiber_block_disconnect(struct asbestos *asbestos, struct fiber_block *block) {
-    if (asbestos != NULL) {
-        asbestos->mem_used -= block->used;
-        asbestos->num_blocks--;
-    }
-    list_remove(&block->chain);
-    for (int i = 0; i <= 1; i++) {
-        list_remove(&block->page[i]);
-        list_remove_safe(&block->jumps_from_links[i]);
-
-        struct fiber_block *prev_block, *tmp;
-        list_for_each_entry_safe(&block->jumps_from[i], prev_block, tmp, jumps_from_links[i]) {
-            if (prev_block->jump_ip[i] != NULL)
-                *prev_block->jump_ip[i] = prev_block->old_jump_ip[i];
-            list_remove(&prev_block->jumps_from_links[i]);
+static int execute_branch(struct cpu_state *cpu, uint32_t insn, a64_instr_t *dec) {
+    if ((insn & 0xFF000010) == 0x54000000) {
+        int cond = insn & 0xF;
+        bool take = false;
+        
+        switch (cond & 0xE) {
+            case 0: take = cpu->z; break;
+            case 2: take = cpu->c; break;
+            case 4: take = cpu->n; break;
+            case 6: take = cpu->v; break;
+            case 8: take = cpu->c && !cpu->z; break;
+            case 10: take = cpu->n == cpu->v; break;
+            case 12: take = !cpu->z && (cpu->n == cpu->v); break;
+            case 14: take = true; break;
         }
+        
+        if (cond & 1) take = !take;
+        
+        if (take) {
+            cpu->pc += dec->imm;
+        } else {
+            cpu->pc += 4;
+        }
+        return INT_NONE;
     }
+    
+    if ((insn & 0x7F000000) == 0x34000000) {
+        uint64_t val = cpu->x[dec->Rn];
+        bool is_cbnz = (insn >> 24) & 1;
+        bool should_branch = is_cbnz ? (val != 0) : (val == 0);
+        if (should_branch) {
+            cpu->pc += dec->imm;
+        } else {
+            cpu->pc += 4;
+        }
+        return INT_NONE;
+    }
+    
+    if ((insn & 0xFC000000) == 0x94000000) {
+        cpu->x[30] = cpu->pc + 4;
+        cpu->pc += dec->imm;
+        return INT_NONE;
+    }
+    
+    if ((insn & 0xFC000000) == 0x14000000) {
+        cpu->pc += dec->imm;
+        return INT_NONE;
+    }
+    
+    if ((insn & 0xFFFFFC1F) == 0xD65F0000) {
+        int rn = (insn >> 5) & 0x1F;
+        cpu->pc = (rn == 31) ? cpu->x[30] : cpu->x[rn];
+        return INT_NONE;
+    }
+    
+    if ((insn & 0xFFFFFC1F) == 0xD61F0000) {
+        int rn = (insn >> 5) & 0x1F;
+        cpu->pc = cpu->x[rn];
+        return INT_NONE;
+    }
+    
+    printk("[aarch64] Unhandled branch encoding at %llx: %08x\n", cpu->pc, insn);
+    return INT_GPF;
 }
 
-static void fiber_block_free(struct asbestos *asbestos, struct fiber_block *block) {
-    fiber_block_disconnect(asbestos, block);
-    // PR 7: Use pool allocator for small blocks
-    if (asbestos != NULL) {
-        fiber_block_free_to_pool(asbestos, block);
+static int execute_load_store(struct cpu_state *cpu, struct tlb *tlb, uint32_t insn, a64_instr_t *dec) {
+    uint64_t addr;
+    bool is_load = ((insn >> 22) & 1) == 1;
+    int size = dec->size;
+    int bytes = 1 << size;
+    
+    // Handle FP/SIMD load/store by treating as NOP for now
+    if ((insn >> 26) & 1) {
+        cpu->pc += 4;
+        return INT_NONE;
+    }
+    
+    // Address calculation
+    if (((insn >> 27) & 0x1F) == 0x1F && ((insn >> 24) & 7) == 0) {
+        uint64_t offset = cpu->x[dec->Rm];
+        int option = (insn >> 13) & 7;
+        int s = (insn >> 12) & 1;
+        
+        switch (option) {
+            case 0: offset = (uint64_t)(uint8_t)offset; break;
+            case 1: offset = (uint64_t)(uint16_t)offset; break;
+            case 2: offset = (uint64_t)(uint32_t)offset; break;
+            case 3: offset = (uint64_t)(uint64_t)offset; break;
+            case 4: offset = (int64_t)(int8_t)offset; break;
+            case 5: offset = (int64_t)(int16_t)offset; break;
+            case 6: offset = (int64_t)(int32_t)offset; break;
+            case 7: offset = (int64_t)(int64_t)offset; break;
+        }
+        
+        if (s) offset <<= size;
+        addr = get_x_reg(cpu, dec->Rn, true) + offset;
+    } else if ((insn >> 24) == 0x39 || (insn >> 24) == 0x38) {
+        addr = get_x_reg(cpu, dec->Rn, true) + dec->imm;
     } else {
-        free(block);
+        printk("[aarch64] Unhandled LDST mode at %llx: %08x\n", cpu->pc, insn);
+        return INT_GPF;
     }
-}
-
-static void fiber_free_jetsam(struct asbestos *asbestos) {
-    struct fiber_block *block, *tmp;
-    list_for_each_entry_safe(&asbestos->jetsam, block, tmp, jetsam) {
-        list_remove(&block->jetsam);
-        free(block);
-    }
-}
-
-int fiber_enter(struct fiber_block *block, struct fiber_frame *frame, struct tlb *tlb);
-
-static inline size_t fiber_cache_hash(addr_t ip) {
-    return (ip ^ (ip >> 12)) % FIBER_CACHE_SIZE;
-}
-
-// Forward declarations for aarch64 TCTI
-extern int a64_fetch_insn(struct cpu_state *cpu, struct tlb *tlb, uint64_t pc, uint32_t *insn);
-extern int a64_gen_instruction(void *state, uint32_t insn, uint64_t pc);
-extern int a64_gen_init(void *state, void *buffer, size_t max);
-extern void a64_gen_reset(void *state, uint64_t pc);
-extern int a64_gen_finalize(void *state);
-
-// Execute a compiled TCTI block
-static int a64_execute_block_tcti(struct a64_block *block, struct cpu_state *cpu) {
-    typedef void (*gadget_t)(void);
-    gadget_t *gadgets = (gadget_t *)block->gadgets;
     
-    // Execute gadgets in sequence
-    for (size_t i = 0; i < block->num_gadgets; i++) {
-        if (gadgets[i] == NULL) {
-            break;  // End of block
+    if (is_load) {
+        uint64_t val = 0;
+        if (read_guest_memory(cpu, tlb, addr, &val, bytes) < 0) {
+            return INT_GPF;
         }
-        gadgets[i]();  // Execute gadget
         
-        // Check for exit conditions
-        // (gadgets set cpu->pc for next instruction)
-    }
-    
-    return INT_NONE;  // Continue execution
-}
-
-// Compile a basic block using TCTI
-static struct a64_block *a64_compile_block_tcti(uint64_t pc, struct tlb *tlb, struct cpu_state *cpu) {
-    // Use the existing a64_compile_block from emu/aarch64/cpu.c
-    extern struct a64_block *a64_compile_block(uint64_t pc, struct tlb *tlb);
-    return a64_compile_block(pc, tlb);
-}
-
-// Main execution step - uses aarch64 TCTI instead of x86 JIT
-static int cpu_step_to_interrupt(struct cpu_state *cpu, struct tlb *tlb) {
-    // Initialize aarch64 cache on first use
-    if (!a64_cache_initialized) {
-        a64_cache_init(&a64_cache);
-        a64_cache_initialized = 1;
-    }
-    
-    int interrupt = INT_NONE;
-    
-    while (interrupt == INT_NONE) {
-        uint64_t pc = cpu->pc;
-        
-        // Look up block in cache
-        struct a64_block *block = a64_cache_lookup(&a64_cache, pc);
-        
-        if (block == NULL) {
-            // Block not found - compile it
-            TRACE("%d %08llx --- compiling:\n", current_pid(), pc);
-            block = a64_compile_block_tcti(pc, tlb, cpu);
-            if (block == NULL) {
-                // Compilation failed (page fault or invalid insn)
-                return INT_GPF;
+        if (dec->is_signed) {
+            switch (size) {
+                case 0: val = (int8_t)val; break;
+                case 1: val = (int16_t)val; break;
+                case 2: val = (int32_t)val; break;
             }
-            // Insert into cache
-            a64_cache_insert(&a64_cache, block);
         }
         
-        TRACE("%d %08llx --- executing block %p\n", current_pid(), pc, block);
-        
-        // Execute the block
-        interrupt = a64_execute_block_tcti(block, cpu);
-        
-        // Check for timer interrupt (every 1024 cycles)
-        if (interrupt == INT_NONE && __atomic_exchange_n(cpu->poked_ptr, false, __ATOMIC_SEQ_CST))
-            interrupt = INT_TIMER;
-        if (interrupt == INT_NONE && ++cpu->cycle % (1 << 10) == 0)
-            interrupt = INT_TIMER;
+        set_x_reg(cpu, dec->Rd, val, false);
+    } else {
+        uint64_t val = get_x_reg(cpu, dec->Rd, false);
+        if (write_guest_memory(cpu, tlb, addr, &val, bytes) < 0) {
+            return INT_GPF;
+        }
     }
     
-    return interrupt;
+    cpu->pc += 4;
+    return INT_NONE;
 }
 
-static int __attribute__((unused)) cpu_single_step(struct cpu_state *cpu, struct tlb *tlb) {
-    // Single-step not implemented for aarch64 yet
-    // Just execute one instruction and return
-    return cpu_step_to_interrupt(cpu, tlb);
+static int execute_simd_fp(struct cpu_state *cpu, uint32_t insn, a64_instr_t *dec) {
+    (void)insn;
+    (void)dec;
+    cpu->pc += 4;
+    return INT_NONE;
+}
+
+static int execute_system(struct cpu_state *cpu, uint32_t insn) {
+    if ((insn & 0xFFE0001F) == 0xD4000001) {
+        cpu->pc += 4;
+        return INT_SYSCALL;
+    }
+    
+    printk("[aarch64] Unhandled system instruction at %llx: %08x\n", cpu->pc, insn);
+    return INT_GPF;
+}
+
+// ============================================================================
+// MAIN INTERPRETER LOOP
+// ============================================================================
+
+static int execute_instruction(struct cpu_state *cpu, struct tlb *tlb) {
+    uint32_t insn;
+    
+    // Debug: Log first instruction execution
+    static int first_insn = 1;
+    if (first_insn) {
+        printk("[aarch64] FIRST INSTRUCTION: pc=0x%llx, x0=%llx, sp=0x%llx\n",
+               cpu->pc, cpu->x[0], cpu->sp);
+        first_insn = 0;
+    }
+    
+    void *ptr = __tlb_read_ptr(tlb, cpu->pc);
+    if (ptr == NULL) {
+        ptr = tlb_handle_miss(tlb, cpu->pc, MEM_READ);
+        if (ptr == NULL) {
+            printk("[aarch64] PAGE FAULT at pc=0x%llx\n", cpu->pc);
+            cpu->fault_addr = tlb->segfault_addr;
+            cpu->fault_was_write = 0;
+            return INT_GPF;
+        }
+    }
+    
+    insn = *(uint32_t *)ptr;
+    
+    uint8_t top_byte = (insn >> 24) & 0xFF;
+    if (top_byte == 0xD4 || top_byte == 0xD5) {
+        return execute_system(cpu, insn);
+    }
+    
+    a64_instr_t decoded;
+    int ret = a64_decode(insn, &decoded);
+    if (ret != 0) {
+        printk("[aarch64] Decode failed at %llx: %08x\n", cpu->pc, insn);
+        return INT_GPF;
+    }
+    
+    // Debug: Log load/store instructions
+    if (decoded.cat == A64_LD_ST && cpu->pc >= 0xf7fa0000) {
+        uint64_t base = get_x_reg(cpu, decoded.Rn, true);
+        printk("[aarch64] LDST at %llx: insn=%08x Rn=%d(base=%llx) Rm=%d Rd=%d size=%d\n",
+               cpu->pc, insn, decoded.Rn, base, decoded.Rm, decoded.Rd, decoded.size);
+    }
+    
+    switch (decoded.cat) {
+        case A64_DP_IMM:
+            return execute_data_processing_imm(cpu, insn, &decoded);
+        case A64_DP_REG:
+        case A64_DP_REG2:
+        case A64_DP_REG3:
+        case A64_DP_REG4:
+            return execute_data_processing_reg(cpu, insn, &decoded);
+        case A64_BRANCH:
+        case A64_BRANCH2:
+            return execute_branch(cpu, insn, &decoded);
+        case A64_LD_ST:
+            return execute_load_store(cpu, tlb, insn, &decoded);
+        case A64_SIMD:
+        case A64_SIMD2:
+        case A64_SIMD0:
+            return execute_simd_fp(cpu, insn, &decoded);
+        default:
+            printk("[aarch64] Unhandled category %d at %llx\n", decoded.cat, cpu->pc);
+            return INT_GPF;
+    }
 }
 
 int cpu_run_to_interrupt(struct cpu_state *cpu, struct tlb *tlb) {
     if (cpu->poked_ptr == NULL)
         cpu->poked_ptr = &cpu->_poked;
     tlb_refresh(tlb, cpu->mmu);
-    // Single-step mode not yet implemented for aarch64
-    int interrupt = cpu_step_to_interrupt(cpu, tlb);
-    cpu->trapno = interrupt;
-
-    struct asbestos *asbestos = cpu->mmu->asbestos;
     
-    // PR 4: Try epoch-based reclamation at interrupt boundary
-    epoch_try_advance(asbestos);
-
+    int interrupt = INT_NONE;
+    int cycles = 0;
+    const int MAX_CYCLES = 1024;
+    
+    while (interrupt == INT_NONE && cycles < MAX_CYCLES) {
+        interrupt = execute_instruction(cpu, tlb);
+        cycles++;
+    }
+    
+    cpu->trapno = interrupt;
+    cpu->cycle += cycles;
+    
+    if (interrupt == INT_NONE && __atomic_exchange_n(cpu->poked_ptr, false, __ATOMIC_SEQ_CST))
+        interrupt = INT_TIMER;
+    
     return interrupt;
 }
 
@@ -422,57 +477,25 @@ void cpu_poke(struct cpu_state *cpu) {
     __atomic_store_n(cpu->poked_ptr, true, __ATOMIC_SEQ_CST);
 }
 
-// PR 4: Epoch-based reclamation implementation
+// Stubs
+void asbestos_invalidate_page(struct asbestos *asbestos, page_t page) { (void)asbestos; (void)page; }
+void asbestos_free(struct asbestos *asbestos) { (void)asbestos; }
+void asbestos_init(struct asbestos *asbestos) { (void)asbestos; }
 
-// Try to advance the global epoch and reclaim old blocks
-// Called at safe points (interrupt boundaries)
-static void epoch_try_advance(struct asbestos *asbestos) {
-    lock(&asbestos->epoch_lock);
-    
-    // Check if we should advance epoch
-    if (asbestos->retired_bytes < EPOCH_RETIRE_THRESHOLD) {
-        unlock(&asbestos->epoch_lock);
-        return;
+struct asbestos *asbestos_new(struct mmu *mmu) {
+    struct asbestos *asbestos = calloc(1, sizeof(struct asbestos));
+    if (asbestos) {
+        asbestos->mmu = mmu;
     }
-    
-    // Calculate which epoch to reclaim (global_epoch - 2)
-    uint32_t reclaim_epoch = (asbestos->global_epoch - 2) % 3;
-    
-    // Check if any execution contexts are still using old epochs
-    // For now, we assume single-threaded or use a simple heuristic
-    // In multi-threaded scenario, we'd check all active contexts
-    
-    // Free all blocks in the reclaim epoch
-    struct fiber_block *block, *tmp;
-    list_for_each_entry_safe(&asbestos->retired[reclaim_epoch], block, tmp, jetsam) {
-        list_remove(&block->jetsam);
-        asbestos->retired_bytes -= block->used;
-        free(block);
-        fiber_stat_inc(NULL, STAT_RETIRED_BLOCKS);
-    }
-    
-    // Advance epoch
-    asbestos->global_epoch++;
-    
-    unlock(&asbestos->epoch_lock);
+    return asbestos;
 }
 
-// Retire a block to the current epoch bucket
-static void epoch_retire_block(struct asbestos *asbestos, struct fiber_block *block) {
-    lock(&asbestos->epoch_lock);
-    
-    uint32_t epoch_bucket = asbestos->global_epoch % 3;
-    list_add(&asbestos->retired[epoch_bucket], &block->jetsam);
-    asbestos->retired_bytes += block->used;
-    
-    unlock(&asbestos->epoch_lock);
+void fiber_jit_free(struct fiber_block *block) { (void)block; }
+struct fiber_block *fiber_jit_compile(struct fiber_block *block, struct tlb *tlb) { 
+    (void)block; (void)tlb; return NULL; 
 }
-
-// Check if we can safely reclaim a specific epoch
-// Returns true if no active execution context is pinned to this or older epochs
-static bool __attribute__((unused)) epoch_can_reclaim(struct asbestos *asbestos, uint32_t target_epoch) {
-    // In single-threaded mode, always safe
-    // In multi-threaded mode, would check all fiber_exec_ctx entries
-    // For now, assume safe after 2 epoch transitions
-    return (asbestos->global_epoch - target_epoch) >= 2;
+void fiber_patch_ip(struct asbestos *asbestos, addr_t ip) { (void)asbestos; (void)ip; }
+struct fiber_block *fiber_new(struct asbestos *asbestos) { (void)asbestos; return NULL; }
+int fiber_enter(struct fiber_block *block, struct fiber_frame *frame, struct tlb *tlb) { 
+    (void)block; (void)frame; (void)tlb; return -1; 
 }

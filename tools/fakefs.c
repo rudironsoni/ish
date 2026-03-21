@@ -226,8 +226,13 @@ bool fakefs_import(const char *archive_path, const char *fs, struct fakefsify_er
         if (err < 0)
             POSIX_ERR();
 
+        // Set the correct permissions on the file
+        mode_t entry_mode = archive_entry_mode(entry);
+        if (fchmodat(root_fd, fix_path(entry_path), entry_mode, 0) < 0)
+            POSIX_ERR();
+        
         struct ish_stat stat = {
-            .mode = (uint32_t) archive_entry_mode(entry),
+            .mode = (uint32_t) entry_mode,
             .uid = (uint32_t) archive_entry_uid(entry),
             .gid = (uint32_t) archive_entry_gid(entry),
             .rdev = (uint32_t) archive_entry_rdev(entry),
