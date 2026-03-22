@@ -38,7 +38,7 @@ void tcti_entry_block(void) {
         
         // Load TCTI-mapped registers from CPU state
         // Guest x[n] is at offset (n * 8) in cpu_state
-        // Host x[n+1] holds guest x[n]
+        // Host x[n+1] holds guest x[n] (shifted by 1 to preserve x0 for args)
         "ldr x1, [x29, #0]\n\t"        // Load guest x0 -> host x1
         "ldr x2, [x29, #8]\n\t"        // Load guest x1 -> host x2
         "ldr x3, [x29, #16]\n\t"       // Load guest x2 -> host x3
