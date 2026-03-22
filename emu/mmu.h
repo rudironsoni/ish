@@ -21,7 +21,8 @@ typedef dword_t pages_t;
 
 struct mmu {
     struct mmu_ops *ops;
-    struct asbestos *asbestos;
+    // TCTI mode - no JIT state needed
+    // Block cache is managed globally in cpu.c
     uint64_t changes;
 };
 

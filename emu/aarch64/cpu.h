@@ -1,5 +1,5 @@
-#ifndef AARCH64_CPU_H
-#define AARCH64_CPU_H
+#ifndef EMU_AARCH64_CPU_H
+#define EMU_AARCH64_CPU_H
 
 #include "misc.h"
 #include "emu/mmu.h"
@@ -14,6 +14,12 @@ struct cpu_state;
 struct tlb;
 int cpu_run_to_interrupt(struct cpu_state *cpu, struct tlb *tlb);
 void cpu_poke(struct cpu_state *cpu);
+
+// TCTI execution functions
+void a64_cpu_init(struct cpu_state *cpu);
+void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb);
+int a64_cpu_step(struct cpu_state *cpu, struct tlb *tlb);
+void a64_cpu_dump(struct cpu_state *cpu);
 
 // aarch64 has 31 general-purpose registers (x0-x30)
 // x30 is the link register (lr)
@@ -232,5 +238,11 @@ static inline void set_nzcv_arith(struct cpu_state *cpu, qword_t result,
         }
     }
 }
+
+// Instruction fetch for TCTI block generator
+int a64_fetch_insn(struct cpu_state *cpu, struct tlb *tlb, uint64_t pc, uint32_t *insn);
+
+// External TCTI exit gadget
+extern void tcti_exit_block(int reason);
 
 #endif

@@ -11,8 +11,8 @@
 #include "misc.h"
 #include "emu/aarch64/cpu.h"
 #include "emu/aarch64/decode.h"
-#include "asbestos/aarch64/gadgets_tcti.h"
-#include "asbestos/frame.h"
+#include "tcti/aarch64/gadgets_tcti.h"
+#include "tcti/frame.h"
 
 // Maximum gadgets per block
 #define A64_MAX_GADGETS_PER_BLOCK 256
@@ -64,7 +64,7 @@ int a64_gen_finalize(a64_gen_state_t *state);
 // Returns number of instructions processed, or error
 // PR 5: Added safety limits - max 50 instructions, max 256 bytes per block
 int a64_gen_basic_block(a64_gen_state_t *state, struct cpu_state *cpu,
-                        uint64_t *end_pc);
+                        struct tlb *tlb, uint64_t *end_pc);
 
 // Internal: Generate for specific instruction categories
 int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr);

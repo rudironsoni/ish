@@ -11,7 +11,7 @@
 #include "misc.h"
 #include "emu/aarch64/cpu.h"
 #include "emu/aarch64/decode.h"
-#include "asbestos/aarch64/gen.h"
+#include "tcti/aarch64/gen.h"
 
 // Mock test fixtures
 static struct cpu_state test_cpu;

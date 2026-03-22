@@ -91,7 +91,6 @@ extern tcti_gadget_t gadget_cbnz;
 // Branch to register (ret, br, blr)
 extern tcti_gadget_t gadget_br;
 
-// ============================================================================
 // System Gadgets
 // ============================================================================
 
@@ -107,16 +106,42 @@ extern tcti_gadget_t gadget_msr;
 // NOP
 extern tcti_gadget_t gadget_nop;
 
+// Block exit gadget - marks end of gadget stream
+// This should be the last gadget in every block
+extern tcti_gadget_t gadget_exit;
+
+// ============================================================================
+// Memory-Backed Register Load/Store
+// ============================================================================
+//
+// Guest registers x16-x30 and SP are stored in memory (cpu_state struct).
+// To operate on them, we load into temp registers (x14-x18), execute,
+// then store back.
+
+// Load guest x[16 + n] (n=0-14) into host temp register
+// Table index 0 = x16, 14 = x30
+extern const tcti_gadget_t gadget_load_xreg_16_to_30[15];
+
+// Store host temp register back to guest x[16 + n]
+extern const tcti_gadget_t gadget_store_xreg_16_to_30[15];
+
+// SP load/store - uses x18 as temp
+// These are naked functions, not function pointers
+extern void gadget_load_sp(void);
+extern void gadget_store_sp(void);
+
 // ============================================================================
 // Entry/Exit Functions
 // ============================================================================
 
 // Block entry - sets up TCTI execution environment
-// Called from C with x0=gadget_array, x1=cpu_state
+// Called from C with:
+//   x0 = pointer to gadget array (tcti_gadget_t*)
+//   x1 = pointer to cpu_state
 // Loads TCTI-mapped registers and starts gadget execution
 // Note: On macOS, symbols get underscore prefix
-extern void tcti_entry_block(void);
-extern void _tcti_entry_block(void);
+extern void tcti_entry_block(void *gadgets, struct cpu_state *cpu);
+extern void _tcti_entry_block(void *gadgets, struct cpu_state *cpu);
 
 // Block exit - saves registers and returns to C
 // Called as the last gadget in a block

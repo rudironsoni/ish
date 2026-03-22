@@ -68,7 +68,6 @@
 		497F6D17254E5EA600C82F46 /* tty.c in Sources */ = {isa = PBXBuildFile; fileRef = 497F6BE2254E5C0D00C82F46 /* tty.c */; };
 		497F6D18254E5EA600C82F46 /* gen.c in Sources */ = {isa = PBXBuildFile; fileRef = 497F6C3D254E5C4F00C82F46 /* gen.c */; };
 		497F6D19254E5EA600C82F46 /* helpers.c in Sources */ = {isa = PBXBuildFile; fileRef = 497F6C3B254E5C4F00C82F46 /* helpers.c */; };
-		497F6D1A254E5EA600C82F46 /* asbestos.c in Sources */ = {isa = PBXBuildFile; fileRef = 497F6C40254E5C4F00C82F46 /* asbestos.c */; };
 		497F6D1B254E5EA600C82F46 /* offsets.c in Sources */ = {isa = PBXBuildFile; fileRef = 497F6C3C254E5C4F00C82F46 /* offsets.c */; };
 		497F6D1C254E5EA600C82F46 /* calls.c in Sources */ = {isa = PBXBuildFile; fileRef = 497F6C9F254E5C9800C82F46 /* calls.c */; };
 		497F6D1D254E5EA600C82F46 /* epoll.c in Sources */ = {isa = PBXBuildFile; fileRef = 497F6C7D254E5C9700C82F46 /* epoll.c */; };
@@ -205,7 +204,6 @@
 		BBAEE339249B58E80069EBB5 /* libbz2.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = BBAEE338249B58E80069EBB5 /* libbz2.tbd */; };
 		BBBCE7E321D2F02200CA00B3 /* About.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = BBBCE7E521D2F02200CA00B3 /* About.storyboard */; };
 		BBBD741426B7BE2E00321AC5 /* libfakefs.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BB21A16F2689041500BD19B4 /* libfakefs.a */; };
-		BBBDDF922CE0122F0071F1F3 /* emu_asbestos.c in Sources */ = {isa = PBXBuildFile; fileRef = BBBDDF912CE0122F0071F1F3 /* emu_asbestos.c */; };
 		BBBDDF932CE0132F0071F1F3 /* libiSHLinuxUser.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BBBDDF8F2CE00F6B0071F1F3 /* libiSHLinuxUser.a */; };
 		BBBF7B5C2415CDBB00EC4C14 /* Settings.bundle in Resources */ = {isa = PBXBuildFile; fileRef = BBBF7B5B2415CDBB00EC4C14 /* Settings.bundle */; };
 		BBBF9CBD27C217B6002A30F7 /* PasteboardDeviceLinux.c in Sources */ = {isa = PBXBuildFile; fileRef = BBBF9CBB27C217A6002A30F7 /* PasteboardDeviceLinux.c */; };
@@ -552,8 +550,6 @@
 		497F6C3D254E5C4F00C82F46 /* gen.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = aarch64/gen.c; sourceTree = "<group>"; };
 		497F6C3E254E5C4F00C82F46 /* gen.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = gen.h; sourceTree = "<group>"; };
 		497F6C3F254E5C4F00C82F46 /* frame.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = frame.h; sourceTree = "<group>"; };
-		497F6C40254E5C4F00C82F46 /* asbestos.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = asbestos.c; sourceTree = "<group>"; };
-		497F6C41254E5C4F00C82F46 /* asbestos.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = asbestos.h; sourceTree = "<group>"; };
 		497F6C58254E5C7E00C82F46 /* cpuid.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = cpuid.h; sourceTree = "<group>"; };
 		497F6C59254E5C7E00C82F46 /* tlb.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = tlb.c; sourceTree = "<group>"; };
 		497F6C5A254E5C7E00C82F46 /* float80-test.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = "float80-test.c"; sourceTree = "<group>"; };
@@ -770,7 +766,6 @@
 		BBBCE7E421D2F02200CA00B3 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/About.storyboard; sourceTree = "<group>"; };
 		BBBDDF8F2CE00F6B0071F1F3 /* libiSHLinuxUser.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libiSHLinuxUser.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		BBBDDF902CE00F8D0071F1F3 /* StaticLibLinuxUser.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = StaticLibLinuxUser.xcconfig; sourceTree = "<group>"; };
-		BBBDDF912CE0122F0071F1F3 /* emu_asbestos.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = emu_asbestos.c; path = linux/emu_asbestos.c; sourceTree = SOURCE_ROOT; };
 		BBBF7B5B2415CDBB00EC4C14 /* Settings.bundle */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.plug-in"; path = Settings.bundle; sourceTree = "<group>"; };
 		BBBF9CBB27C217A6002A30F7 /* PasteboardDeviceLinux.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = PasteboardDeviceLinux.c; sourceTree = "<group>"; };
 		BBBF9CC027C441C0002A30F7 /* fix_path.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = fix_path.h; sourceTree = "<group>"; };
@@ -1405,11 +1400,9 @@
 		BB88F4712152F75A00A341FD /* asbestos */ = {
 			isa = PBXGroup;
 			children = (
-				497F6C40254E5C4F00C82F46 /* asbestos.c */,
 				497F6C3D254E5C4F00C82F46 /* gen.c */,
 				497F6C3B254E5C4F00C82F46 /* helpers.c */,
 				497F6C3C254E5C4F00C82F46 /* offsets.c */,
-				497F6C41254E5C4F00C82F46 /* asbestos.h */,
 				497F6C3F254E5C4F00C82F46 /* frame.h */,
 				497F6C30254E5C4F00C82F46 /* gadgets-generic.h */,
 				497F6C3E254E5C4F00C82F46 /* gen.h */,
@@ -1417,7 +1410,7 @@
 				497F6C27254E5C4F00C82F46 /* gadgets-x86_64 */,
 				2132655CD545E90FC37368A4 /* aarch64 */,
 			);
-			path = asbestos;
+			path = tcti;
 			sourceTree = "<group>";
 		};
 		BB88F4912154760800A341FD /* FileProvider */ = {
@@ -1447,7 +1440,6 @@
 				BBEEA9E9277DAB400069495B /* LinuxPTY.c */,
 				BBEEA9E7277D25090069495B /* LinuxRoot.c */,
 				BB8C3AFD26B7B8AF00E38DDC /* fakefs.c */,
-				BBBDDF912CE0122F0071F1F3 /* emu_asbestos.c */,
 			);
 			name = LinuxInterop;
 			sourceTree = "<group>";
@@ -2288,7 +2280,6 @@
 				497F6D17254E5EA600C82F46 /* tty.c in Sources */,
 				497F6D18254E5EA600C82F46 /* gen.c in Sources */,
 				497F6D19254E5EA600C82F46 /* helpers.c in Sources */,
-				497F6D1A254E5EA600C82F46 /* asbestos.c in Sources */,
 				497F6D1B254E5EA600C82F46 /* offsets.c in Sources */,
 				497F6D1C254E5EA600C82F46 /* calls.c in Sources */,
 				497F6D1D254E5EA600C82F46 /* epoll.c in Sources */,
@@ -2404,7 +2395,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				BBBDDF922CE0122F0071F1F3 /* emu_asbestos.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

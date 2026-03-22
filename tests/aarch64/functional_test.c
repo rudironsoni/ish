@@ -11,7 +11,7 @@
 #include "misc.h"
 #include "emu/aarch64/cpu.h"
 #include "emu/aarch64/decode.h"
-#include "asbestos/aarch64/gen.h"
+#include "tcti/aarch64/gen.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;

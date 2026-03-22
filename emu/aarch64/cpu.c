@@ -6,9 +6,9 @@
 
 #include "emu/aarch64/cpu.h"
 #include "emu/aarch64/block-cache.h"
-#include "asbestos/aarch64/gadgets_tcti.h"
-#include "asbestos/aarch64/gen.h"
-#include "asbestos/frame.h"
+#include "tcti/aarch64/gadgets_tcti.h"
+#include "tcti/aarch64/gen.h"
+#include "tcti/frame.h"
 #include "emu/interrupt.h"
 #include "emu/tlb.h"
 #include "emu/mmu.h"
@@ -17,12 +17,12 @@
 #include <string.h>
 #include <setjmp.h>
 
-// External TCTI entry point
-extern void tcti_entry_block(void);
+// External TCTI entry point (declared in gadgets_tcti.h)
+extern void tcti_entry_block(void *gadgets, struct cpu_state *cpu);
 extern void tcti_exit_block(int reason);
 
-// Block cache
-static struct a64_block_cache block_cache;
+// Block cache - non-static for access from kernel/memory.c
+struct a64_block_cache block_cache;
 static int block_cache_initialized = 0;
 
 // Current execution state - non-static so asbestos.c can access it
@@ -174,22 +174,41 @@ struct a64_block *a64_compile_block(uint64_t pc, struct tlb *tlb) {
  * the entire gadget chain. Gadgets use epilogue to chain together.
  */
 int a64_execute_block(struct a64_block *block) {
-    // Set up globals for TCTI entry
-    // x28 needs to point to gadget array
-    // x29 needs to point to cpu_state
-    // Then call tcti_entry_block which loads regs and starts execution
+    // Debug: print first few gadgets
+    printk("[TCTI] Executing block with %zu gadgets at PC 0x%llx\n", 
+           block->num_gadgets, block->start_pc);
+    if (block->num_gadgets > 0) {
+        printk("[TCTI] First gadget: %p\n", block->gadgets[0]);
+        if (block->num_gadgets > 1) {
+            printk("[TCTI] Second gadget: %p\n", block->gadgets[1]);
+        }
+    }
     
-    // Use inline asm to set up TCTI environment
+    // Debug: print cpu state before entry
+    printk("[TCTI] CPU state: x[0]=0x%llx, x[1]=0x%llx, x[2]=0x%llx, x[3]=0x%llx\n",
+           current_cpu->x[0], current_cpu->x[1], current_cpu->x[2], current_cpu->x[3]);
+    printk("[TCTI] CPU state: pc=0x%llx, sp=0x%llx\n",
+           current_cpu->pc, current_cpu->sp);
+    
+    // Call tcti_entry_block with proper register setup
+    // tcti_entry_block is defined in assembly and expects:
+    //   x0 = pointer to gadget array
+    //   x1 = pointer to cpu_state
+    
+    // Use inline asm with specific register constraints
+    // "r" constraints allow compiler to choose, but we specify x0/x1 explicitly
+    void *gadgets = block->gadgets;
+    struct cpu_state *cpu = current_cpu;
+    
     asm volatile(
-        "mov x28, %0\n\t"      // x28 = gadget array
-        "mov x29, %1\n\t"      // x29 = cpu_state
-        "b tcti_entry_block\n\t"  // Branch to TCTI entry (doesn't return)
+        "mov x0, %0\n\t"       // x0 = gadgets
+        "mov x1, %1\n\t"       // x1 = cpu_state
+        "bl _tcti_entry_block\n\t"  // Call TCTI entry
         :
-        : "r"(block->gadgets), "r"(current_cpu)
-        : "x28", "x29", "memory"
+        : "r"(gadgets), "r"(cpu)
+        : "x0", "x1", "x30", "memory"
     );
     
-    // Should never reach here - tcti_exit_block jumps back via longjmp
     return exit_reason;
 }
 
@@ -228,7 +247,17 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
             a64_cache_insert(&block_cache, block);
         }
 
-        // Execute the block
+        // Check if block has 0 gadgets (fallback to interpretation case)
+        if (block->num_gadgets == 0) {
+            // Execute single instruction directly
+            int ret = a64_cpu_step(cpu, tlb);
+            if (ret < 0) {
+                handle_interrupt(INT_GPF);
+            }
+            continue;
+        }
+
+        // Execute the block via TCTI
         a64_execute_block(block);
 
         // Check exit reason and handle
