@@ -12,7 +12,7 @@
 #include "misc.h"
 #include "emu/aarch64/cpu.h"
 #include "emu/aarch64/decode.h"
-#include "asbestos/aarch64/gen.h"
+#include "tcti/aarch64/gen.h"
 
 // Mock gadgets for testing
 tcti_gadget_t mock_gadget_add_reg[16][16][16];

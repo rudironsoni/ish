@@ -9,7 +9,7 @@
  * - Bit manipulation (CLZ, RBIT, REV)
  */
 
-#include "asbestos/aarch64/gadgets_tcti.h"
+#include "tcti/aarch64/gadgets_tcti.h"
 #include "emu/aarch64/cpu.h"
 
 // ============================================================================

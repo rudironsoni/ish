@@ -52,18 +52,18 @@ subdir('vdso') # ish depends on the vdso
 
 # aarch64 emulator sources (iOS migration - x86 replaced)
 # TCTI gadget generation - files already generated in source directory
-# To regenerate: python3 asbestos/aarch64/tcti-gadget-gen.py -o asbestos/aarch64
+# To regenerate: python3 tcti/aarch64/tcti-gadget-gen.py -o tcti/aarch64
 # tcti_gadget_gen = custom_target('tcti_gadgets',
 #     output: ['gadgets_tcti.h', 'gadgets_tcti_impl.c'],
-#     input: 'asbestos/aarch64/tcti-gadget-gen.py',
-#     command: [find_program('python3'), '@INPUT@', '-o', meson.current_source_dir() / 'asbestos/aarch64'],
+#     input: 'tcti/aarch64/tcti-gadget-gen.py',
+#     command: [find_program('python3'), '@INPUT@', '-o', meson.current_source_dir() / 'tcti/aarch64'],
 #     build_by_default: true,
 # )
 
 # aarch64 CPU offsets (for TCTI register mapping)
 aarch64_offsets = custom_target('aarch64_offsets',
     output: 'aarch64-cpu-offsets.h',
-    input: 'asbestos/aarch64/offsets.c',
+    input: 'tcti/aarch64/offsets.c',
     depfile: 'aarch64-cpu-offsets.h.d',
     command: [find_program('tools/staticdefine.sh'), '@OUTDIR@/compile_commands.json', '@INPUT@', '@OUTPUT@', '@DEPFILE@'],
 )
@@ -77,17 +77,15 @@ emu_src = [
     'emu/aarch64/tls.c',
     'emu/aarch64/block-cache.c',
 
-    # Asbestos engine (core block management)
-    'asbestos/asbestos.c',
-
     # TCTI code generator (aarch64-specific)
-    'asbestos/aarch64/gen.c',
-    'asbestos/aarch64/gadgets_entry.c',
-    'asbestos/aarch64/gadgets_arith.c',
-    'asbestos/aarch64/gadgets_math.c',
-    'asbestos/aarch64/gadgets_memory.c',
-    'asbestos/aarch64/gadgets_tcti_impl.c',
-    'asbestos/gadgets-aarch64/entry.S',
+    'tcti/aarch64/gen.c',
+    'tcti/aarch64/gadgets_arith.c',
+    'tcti/aarch64/gadgets_math.c',
+    'tcti/aarch64/gadgets_memory.c',
+    'tcti/aarch64/gadgets_tcti_impl.c',
+    
+    # TCTI entry/exit assembly
+    'tcti/aarch64/tcti_entry.S',
 
     aarch64_offsets,
 ]
@@ -204,8 +202,8 @@ elif get_option('kernel') == 'linux'
     user_src = []
     emu_deps = []
 
-    if get_option('engine') == 'asbestos'
-        user_src += 'linux/emu_asbestos.c'
+    if get_option('engine') == 'tcti'
+        # TCTI mode - no asbestos files needed
         emu_deps += declare_dependency(link_with: libish_emu)
     elif get_option('engine') == 'unicorn'
         user_src += 'linux/emu_unicorn.c'

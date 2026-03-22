@@ -3,7 +3,7 @@
  */
 
 #include <string.h>
-#include "asbestos/aarch64/gen.h"
+#include "tcti/aarch64/gen.h"
 
 int a64_gen_init(a64_gen_state_t *state, tcti_gadget_t *buffer, size_t max) {
     if (!state || !buffer)

@@ -1,6 +1,6 @@
 #include "emu/cpu.h"
 #include "emu/tlb.h"
-#include "asbestos/frame.h"  // For TLB statistics
+#include "tcti/frame.h"  // For TLB statistics
 
 void tlb_refresh(struct tlb *tlb, struct mmu *mmu) {
     if (tlb->mmu == mmu && tlb->mem_changes == mmu->changes)

@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include "asbestos/aarch64/gen.h"
+#include "tcti/aarch64/gen.h"
 
 // Test fixtures
 static a64_gen_state_t test_state;

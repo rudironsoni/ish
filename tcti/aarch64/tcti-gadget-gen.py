@@ -147,7 +147,7 @@ IMPL_TEMPLATE = """/*
  * DO NOT EDIT - This file is machine generated
  */
 
-#include "asbestos/aarch64/gadgets_tcti.h"
+#include "tcti/aarch64/gadgets_tcti.h"
 #include "emu/aarch64/cpu.h"
 
 // ============================================================================

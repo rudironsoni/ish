@@ -6,6 +6,7 @@
 #include "kernel/task.h"
 #include "kernel/memory.h"
 #include "emu/tlb.h"
+#include "emu/aarch64/cpu.h"
 
 __thread struct task *current;
 
@@ -99,12 +100,10 @@ void task_run_current() {
     struct cpu_state *cpu = &current->cpu;
     struct tlb tlb = {};
     tlb_refresh(&tlb, &current->mem->mmu);
-    while (true) {
-        read_wrlock(&current->mem->lock);
-        int interrupt = cpu_run_to_interrupt(cpu, &tlb);
-        read_wrunlock(&current->mem->lock);
-        handle_interrupt(interrupt);
-    }
+    
+    // Switch to 100% TCTI execution
+    printk("[task] Switching to TCTI mode for pid=%d\n", current->pid);
+    a64_cpu_run(cpu, &tlb);
 }
 
 static void *task_thread(void *task) {
