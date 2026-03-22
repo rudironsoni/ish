@@ -170,34 +170,27 @@ struct a64_block *a64_compile_block(uint64_t pc, struct tlb *tlb) {
 /*
  * Execute a compiled block using TCTI
  *
- * Each gadget is a function that operates on the CPU state.
- * The gadgets use inline assembly to access registers efficiently.
+ * Uses tcti_entry_block to set up register mapping and execute
+ * the entire gadget chain. Gadgets use epilogue to chain together.
  */
 int a64_execute_block(struct a64_block *block) {
-    tcti_gadget_t *gadgets = block->gadgets;
-    int ret = 0;
-
-    // Execute gadgets in sequence
-    for (size_t i = 0; i < block->num_gadgets; i++) {
-        tcti_gadget_t gadget = gadgets[i];
-
-        if (gadget == NULL) {
-            // End of block
-            break;
-        }
-
-        // Execute gadget (takes void, returns void)
-        gadget();
-
-        // Check for exit conditions set by gadgets
-        if (exit_reason != 0) {
-            ret = exit_reason;
-            exit_reason = 0;  // Reset for next block
-            break;
-        }
-    }
-
-    return ret;
+    // Set up globals for TCTI entry
+    // x28 needs to point to gadget array
+    // x29 needs to point to cpu_state
+    // Then call tcti_entry_block which loads regs and starts execution
+    
+    // Use inline asm to set up TCTI environment
+    asm volatile(
+        "mov x28, %0\n\t"      // x28 = gadget array
+        "mov x29, %1\n\t"      // x29 = cpu_state
+        "b tcti_entry_block\n\t"  // Branch to TCTI entry (doesn't return)
+        :
+        : "r"(block->gadgets), "r"(current_cpu)
+        : "x28", "x29", "memory"
+    );
+    
+    // Should never reach here - tcti_exit_block jumps back via longjmp
+    return exit_reason;
 }
 
 /*
