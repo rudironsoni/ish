@@ -25,6 +25,14 @@ extern void tcti_exit_block(int reason);
 struct a64_block_cache block_cache;
 static int block_cache_initialized = 0;
 
+// Early initialization for block cache - call this before any memory operations
+void a64_cache_early_init(void) {
+    if (!block_cache_initialized) {
+        a64_cache_init(&block_cache);
+        block_cache_initialized = 1;
+    }
+}
+
 // Current execution state - non-static so asbestos.c can access it
 struct cpu_state *current_cpu = NULL;
 static struct tlb *current_tlb = NULL;
@@ -79,11 +87,13 @@ int a64_fetch_insn(struct cpu_state *cpu, struct tlb *tlb, uint64_t pc, uint32_t
  * Compile a basic block starting at pc
  */
 struct a64_block *a64_compile_block(uint64_t pc, struct tlb *tlb) {
+    printk("[a64_compile_block] ENTRY: pc=0x%llx\n", pc);
     a64_gen_state_t gen_state;
     tcti_gadget_t buffer[A64_MAX_GADGETS_PER_BLOCK];
     struct a64_block *block;
 
     // Initialize generator
+    printk("[a64_compile_block] Initializing generator\n");
     a64_gen_init(&gen_state, buffer, A64_MAX_GADGETS_PER_BLOCK);
     a64_gen_reset(&gen_state, pc);
 
@@ -99,12 +109,17 @@ struct a64_block *a64_compile_block(uint64_t pc, struct tlb *tlb) {
             break;
         }
 
+        // Decode to get instruction info for logging
+        a64_instr_t decoded_info;
+        a64_decode(insn, &decoded_info);
+        
         ret = a64_gen_instruction(&gen_state, insn, gen_state.guest_pc);
 
         if (ret < 0) {
             // Decode error - block ends here
-            printk("[TCTI] Failed to generate gadget for instruction %08x at %llx (cat=%d)\n", 
-                   insn, gen_state.guest_pc, (insn >> 25) & 0xF);
+            printk("[TCTI] Failed: insn=%08x pc=%llx cat=%d subtype=%d rd=%d rn=%d imm=%lld\n", 
+                   insn, gen_state.guest_pc, decoded_info.cat, decoded_info.subtype,
+                   decoded_info.Rd, decoded_info.Rn, decoded_info.imm);
             break;
         }
 
@@ -217,14 +232,17 @@ int a64_execute_block(struct a64_block *block) {
  * This is the main entry point from the kernel
  */
 void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
+    printk("[a64_cpu_run] ENTRY: cpu=%p, tlb=%p, pc=0x%llx\n", cpu, tlb, cpu->pc);
     current_cpu = cpu;
     current_tlb = tlb;
 
     // Initialize block cache if needed
     if (!block_cache_initialized) {
+        printk("[a64_cpu_run] Initializing block cache\n");
         a64_cache_init(&block_cache);
         block_cache_initialized = 1;
     }
+    printk("[a64_cpu_run] Block cache ready, entering main loop\n");
 
     // Set up TLB for this CPU
     tlb_refresh(tlb, cpu->mmu);
@@ -275,7 +293,11 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
 }
 
 /*
- * Single-step one instruction (for debugging)
+ * Single-step one instruction (interpretation fallback)
+ *
+ * Executes instructions that TCTI doesn't support yet.
+ * This is the "interpreter fallback" for 100% TCTI mode - when
+ * TCTI can't compile a block, we execute single instructions here.
  */
 int a64_cpu_step(struct cpu_state *cpu, struct tlb *tlb) {
     uint32_t insn;
@@ -287,8 +309,120 @@ int a64_cpu_step(struct cpu_state *cpu, struct tlb *tlb) {
     ret = a64_decode(insn, &decoded);
     if (ret < 0) return ret;
 
-    // TODO: Execute single instruction
-    // For now, just advance PC
+    // Execute based on category
+    switch (decoded.cat) {
+        case A64_DP_IMM: {
+            // Data Processing - Immediate
+            int rd = decoded.Rd;
+            int rn = decoded.Rn;
+            int64_t imm = decoded.imm;
+            
+            if (rd == 31) {
+                // Destination is SP - skip or handle specially
+                cpu->pc += 4;
+                return 0;
+            }
+            
+            switch (decoded.subtype) {
+                case 0: // ADR/ADRP
+                    // PC-relative address calculation
+                    // For now, just set rd to PC + imm (simplified)
+                    cpu->x[rd] = cpu->pc + imm;
+                    break;
+                    
+                case 1: // MOVZ
+                    // Move immediate with zero extension
+                    cpu->x[rd] = (uint64_t)imm;
+                    break;
+                    
+                case 2: // MOVK
+                    // Move and keep - not implemented
+                    printk("[cpu] MOVK not implemented, skipping\n");
+                    break;
+                    
+                case 3: // ADD immediate
+                case 4: // ADD immediate
+                case 5: // SUB immediate
+                    // Add/subtract immediate
+                    if (rn == 31) {
+                        // Source is SP
+                        cpu->x[rd] = cpu->sp + imm;
+                    } else {
+                        cpu->x[rd] = cpu->x[rn] + imm;
+                    }
+                    break;
+                    
+                default:
+                    printk("[cpu] Unknown DP_IMM subtype %d, skipping\n", decoded.subtype);
+                    break;
+            }
+            break;
+        }
+        
+        case A64_DP_REG: {
+            // Data Processing - Register
+            int rd = decoded.Rd;
+            int rn = decoded.Rn;
+            int rm = decoded.Rm;
+            
+            if (rd == 31) {
+                cpu->pc += 4;
+                return 0;
+            }
+            
+            switch (decoded.subtype) {
+                case 0: // Logical
+                    // AND, ORR, EOR, etc.
+                    printk("[cpu] Logical operations not implemented\n");
+                    break;
+                    
+                case 1: // Add/Subtract register
+                    if (rn == 31) {
+                        cpu->x[rd] = cpu->sp + (rm == 31 ? 0 : cpu->x[rm]);
+                    } else {
+                        cpu->x[rd] = cpu->x[rn] + (rm == 31 ? 0 : cpu->x[rm]);
+                    }
+                    break;
+                    
+                default:
+                    printk("[cpu] Unknown DP_REG subtype %d\n", decoded.subtype);
+                    break;
+            }
+            break;
+        }
+        
+        case A64_BRANCH: {
+            // Branch instructions (B, BL, SVC, etc.)
+            if (decoded.subtype == A64_BRANCH_UNCOND) {
+                // Unconditional branch
+                // B (branch) or BL (branch with link)
+                // Check if it's BL by looking at the raw instruction
+                if (insn & 0x80000000) {
+                    // BL - branch with link
+                    cpu->x[30] = cpu->pc + 4; // LR = next instruction
+                }
+                cpu->pc += decoded.imm;
+                return 0; // Don't add 4, PC already updated
+            } else if (decoded.subtype == A64_EXCEPTION) {
+                // Exception generation (SVC, HVC, SMC, BRK, etc.)
+                // Check if it's SVC
+                if ((insn >> 24) == 0xD4) {
+                    uint8_t imm16 = (insn >> 5) & 0xFFFF;
+                    if (imm16 == 0) {
+                        // SVC #0 - system call
+                        return 1; // Signal that syscall needs handling
+                    }
+                }
+            }
+            break;
+        }
+        
+        default:
+            printk("[cpu] Unimplemented category %d at PC 0x%llx\n", decoded.cat, cpu->pc);
+            break;
+    }
+    
+    // Advance PC
     cpu->pc += 4;
 
     return 0;

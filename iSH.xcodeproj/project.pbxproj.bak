@@ -899,10 +899,17 @@
 				49302D972777FAB400C9885A /* ish.h */,
 				497F6BF2254E5C0D00C82F46 /* pid.c */,
 				497F6BF3254E5C0D00C82F46 /* root.c */,
-		);
-		path = proc;
-		sourceTree = "<group>";
-	};
+			);
+			path = proc;
+			sourceTree = "<group>";
+		};
+		497F6C27254E5C4F00C82F46 /* gadgets-x86_64 */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = "gadgets-x86_64";
+			sourceTree = "<group>";
+		};
 		497F6C31254E5C4F00C82F46 /* gadgets-aarch64 */ = {
 			isa = PBXGroup;
 			children = (
@@ -1381,6 +1388,7 @@
 				497F6C30254E5C4F00C82F46 /* gadgets-generic.h */,
 				497F6C3E254E5C4F00C82F46 /* gen.h */,
 				497F6C31254E5C4F00C82F46 /* gadgets-aarch64 */,
+				497F6C27254E5C4F00C82F46 /* gadgets-x86_64 */,
 				2132655CD545E90FC37368A4 /* aarch64 */,
 			);
 			path = tcti;

@@ -93,6 +93,11 @@ int become_first_process() {
     // now seems like a nice time
     establish_signal_handlers();
 
+    // Initialize TCTI block cache BEFORE any memory operations
+    // This prevents crashes when mem_destroy calls pt_unmap_always
+    extern void a64_cache_early_init(void);
+    a64_cache_early_init();
+
     struct task *task = construct_task(NULL);
     if (IS_ERR(task)) {
         printk("ERROR: become_first_process: construct_task failed with %d\n", PTR_ERR(task));

@@ -97,8 +97,10 @@ void task_destroy(struct task *task) {
 }
 
 void task_run_current() {
+    printk("[task] task_run_current ENTRY, current=%p\n", current);
     struct cpu_state *cpu = &current->cpu;
     struct tlb tlb = {};
+    printk("[task] About to call tlb_refresh\n");
     tlb_refresh(&tlb, &current->mem->mmu);
     
     // Switch to 100% TCTI execution
@@ -107,7 +109,9 @@ void task_run_current() {
 }
 
 static void *task_thread(void *task) {
+    printk("[task] task_thread ENTRY, task=%p\n", task);
     current = task;
+    printk("[task] current set to %p\n", current);
     update_thread_name();
     printk("[task] Thread started for pid=%d, entering task_run_current\n", current->pid);
     task_run_current();

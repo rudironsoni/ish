@@ -75,8 +75,6 @@ int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr) {
     int eff_rn = src_is_memory ? 14 : (rn == 31 ? 0 : rn);
 
     tcti_gadget_t gadget = NULL;
-    int num_loads = 0;
-    int num_stores = 0;
 
     switch (instr->subtype) {
         case 0: // ADR/ADRP (op0=000) or MOVN (opc=00 in op0=010)
@@ -129,7 +127,6 @@ int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr) {
         int ret = emit_gadget(state, gadget_load_xreg_16_to_30[load_idx]);
         if (ret != A64_GEN_OK)
             return ret;
-        num_loads++;
     }
 
     // Emit main operation
@@ -146,7 +143,6 @@ int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr) {
         ret = emit_gadget(state, gadget_store_xreg_16_to_30[store_idx]);
         if (ret != A64_GEN_OK)
             return ret;
-        num_stores++;
     }
     
     // Handle SP destination
@@ -154,7 +150,6 @@ int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr) {
         ret = emit_gadget(state, (tcti_gadget_t)gadget_store_sp);
         if (ret != A64_GEN_OK)
             return ret;
-        num_stores++;
     }
 
     return A64_GEN_OK;
@@ -162,6 +157,17 @@ int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr) {
 
 /* ============================================================================
  * Data Processing - Register
+ *
+ * Handles register operations with support for memory-backed registers.
+ * For memory-backed registers (x16-x30), emits load/store sequences:
+ *   Load x[16-30] -> temp register (x14 for first source, x15 for second)
+ *   Execute operation
+ *   Store result -> x[16-30] from temp (x14)
+ *
+ * Temp register allocation:
+ *   x14: Primary temp for first source / destination
+ *   x15: Secondary temp for second source
+ *   x16: Used by load/store gadgets internally
  * ============================================================================
  */
 int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr) {
@@ -169,10 +175,49 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr) {
     int rn = instr->Rn;
     int rm = instr->Rm;
 
-    // For register ops, all registers must be TCTI-mapped (x0-x15)
-    // Memory-backed registers are not yet supported for register ops
-    if (!IS_TCTI_REG(rd) || !IS_TCTI_REG(rn) || !IS_TCTI_REG(rm))
-        return A64_GEN_UNSUPPORTED;
+    // Determine which registers are memory-backed (x16-x30)
+    int src1_is_memory = (rn >= 16 && rn <= 30);
+    int src2_is_memory = (rm >= 16 && rm <= 30);
+    int dst_is_memory = (rd >= 16 && rd <= 30);
+    int dst_is_sp = (rd == 31);
+    
+    // Allocate temp registers:
+    // x14 = primary temp (destination or first source)
+    // x15 = secondary temp (second source if needed)
+    int eff_rd, eff_rn, eff_rm;
+    
+    if (dst_is_memory || dst_is_sp) {
+        eff_rd = 14;  // Result goes to x14 temp
+    } else {
+        eff_rd = rd;
+    }
+    
+    if (src1_is_memory) {
+        eff_rn = 14;  // First source loaded to x14
+    } else if (rn == 31) {
+        eff_rn = 0;   // XZR -> use x0 (won't be read)
+    } else {
+        eff_rn = rn;
+    }
+    
+    // For second source, use x15 if first source also needs temp
+    // otherwise can reuse x14 if destination doesn't need it
+    if (src2_is_memory) {
+        if (src1_is_memory && (dst_is_memory || dst_is_sp)) {
+            // Conflict: both sources and dest need temps
+            // Need x14 for dest, so load src2 to x15
+            eff_rm = 15;
+        } else if (src1_is_memory) {
+            // src1 in x14, can reuse for src2 if dest is different
+            eff_rm = 14;
+        } else {
+            eff_rm = 15;  // Load src2 to x15
+        }
+    } else if (rm == 31) {
+        eff_rm = 0;  // XZR
+    } else {
+        eff_rm = rm;
+    }
 
     tcti_gadget_t gadget = NULL;
 
@@ -181,7 +226,7 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr) {
             return A64_GEN_UNSUPPORTED;
 
         case 1: // Add/Subtract (shifted register)
-            gadget = gadget_add_reg[rd][rn][rm];
+            gadget = gadget_add_reg[eff_rd][eff_rn][eff_rm];
             break;
 
         default:
@@ -191,7 +236,52 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr) {
     if (!gadget)
         return A64_GEN_UNSUPPORTED;
 
-    return emit_gadget(state, gadget);
+    // Emit load for first source if memory-backed
+    if (src1_is_memory) {
+        int load_idx = rn - 16;  // x16=0, ..., x30=14
+        if (load_idx < 0 || load_idx > 14)
+            return A64_GEN_UNSUPPORTED;
+        
+        int ret = emit_gadget(state, gadget_load_xreg_16_to_30[load_idx]);
+        if (ret != A64_GEN_OK)
+            return ret;
+    }
+    
+    // Emit load for second source if memory-backed and using different temp
+    if (src2_is_memory && eff_rm != eff_rn) {
+        int load_idx = rm - 16;
+        if (load_idx < 0 || load_idx > 14)
+            return A64_GEN_UNSUPPORTED;
+        
+        int ret = emit_gadget(state, gadget_load_xreg_16_to_30[load_idx]);
+        if (ret != A64_GEN_OK)
+            return ret;
+    }
+
+    // Emit main operation
+    int ret = emit_gadget(state, gadget);
+    if (ret != A64_GEN_OK)
+        return ret;
+
+    // Emit store if destination is memory-backed
+    if (dst_is_memory) {
+        int store_idx = rd - 16;
+        if (store_idx < 0 || store_idx > 14)
+            return A64_GEN_UNSUPPORTED;
+        
+        ret = emit_gadget(state, gadget_store_xreg_16_to_30[store_idx]);
+        if (ret != A64_GEN_OK)
+            return ret;
+    }
+    
+    // Handle SP destination
+    if (dst_is_sp) {
+        ret = emit_gadget(state, (tcti_gadget_t)gadget_store_sp);
+        if (ret != A64_GEN_OK)
+            return ret;
+    }
+
+    return A64_GEN_OK;
 }
 
 /* ============================================================================
@@ -293,6 +383,8 @@ int a64_gen_instruction(a64_gen_state_t *state, uint32_t insn, uint64_t pc) {
     // Dispatch by category
     switch (decoded.cat) {
         case A64_DP_IMM:
+        case A64_SIMD0:  // cat=8 is actually DP_IMM (ADR, ADRP, etc.)
+        case A64_DP_IMM2: // cat=13 is also DP_IMM
             ret = a64_gen_dp_imm(state, &decoded);
             break;
             
