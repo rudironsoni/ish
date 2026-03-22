@@ -39,11 +39,25 @@ void mm_retain(struct mm *mm) {
 }
 
 void mm_release(struct mm *mm) {
+    printk("[mm] mm_release: ENTRY, mm=%p, refcount=%d\n", mm, mm ? mm->refcount : -1);
+    if (mm == NULL) {
+        printk("[mm] ERROR: mm is NULL!\n");
+        return;
+    }
+    printk("[mm] About to decrement refcount from %d\n", mm->refcount);
     if (--mm->refcount == 0) {
-        if (mm->exefile != NULL)
+        printk("[mm] refcount reached 0, cleaning up\n");
+        if (mm->exefile != NULL) {
+            printk("[mm] Closing exefile\n");
             fd_close(mm->exefile);
+        }
+        printk("[mm] Destroying mem\n");
         mem_destroy(&mm->mem);
+        printk("[mm] Freeing mm\n");
         free(mm);
+        printk("[mm] mm_release complete\n");
+    } else {
+        printk("[mm] refcount now %d, not freeing\n", mm->refcount);
     }
 }
 

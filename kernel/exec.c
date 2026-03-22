@@ -252,21 +252,28 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     int err = 0;
     
     ISH_LOG("elf_exec: loading %s", file);
+    printk("[exec] elf_exec: ENTRY for file=%s\n", file);
 
     // read the headers
     struct elf_header header;
+    printk("[exec] About to call read_header\n");
     if ((err = read_header(fd, &header)) < 0) {
         ISH_LOG_ERROR("read_header failed: %d", err);
+        printk("[exec] read_header FAILED with err=%d\n", err);
         return err;
     }
+    printk("[exec] read_header SUCCEEDED\n");
     ISH_LOG("ELF header OK: type=%d, machine=%d, entry=%llx", 
             header.type, header.machine, (unsigned long long)header.entry_point);
     
     struct prg_header *ph;
+    printk("[exec] About to call read_prg_headers\n");
     if ((err = read_prg_headers(fd, header, &ph)) < 0) {
         ISH_LOG_ERROR("read_prg_headers failed: %d", err);
+        printk("[exec] read_prg_headers FAILED with err=%d\n", err);
         return err;
     }
+    printk("[exec] read_prg_headers SUCCEEDED, phent_count=%d\n", header.phent_count);
     ISH_LOG("Program headers OK: count=%d", header.phent_count);
 
     // look for an interpreter
@@ -314,6 +321,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
         }
     }
 
+    printk("[exec] About to release old mm and create new mm\n");
     // free the process's memory.
     // from this point on, if any error occurs the process will have to be
     // killed before it even starts. please don't be too sad about it, it's
@@ -324,7 +332,15 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     // released.
     ISH_LOG("Releasing old mm and creating new mm...");
     lock(&current->general_lock);
+    printk("[exec] Calling mm_release, current->mm=%p\n", current->mm);
+    if (current->mm == NULL) {
+        printk("[exec] ERROR: current->mm is NULL!\n");
+        unlock(&current->general_lock);
+        err = _EINVAL;
+        goto out_free_interp;
+    }
     mm_release(current->mm);
+    printk("[exec] mm_release done, calling mm_new\n");
     struct mm *new_mm = mm_new();
     if (new_mm == NULL) {
         ISH_LOG_ERROR("ENOMEM: mm_new() failed");
@@ -335,6 +351,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     task_set_mm(current, new_mm);
     unlock(&current->general_lock);
     write_wrlock(&current->mem->lock);
+    printk("[exec] write_wrlock done, mm->exefile set\n");
     ISH_LOG("New mm created successfully");
 
     current->mm->exefile = fd_retain(fd);
@@ -344,6 +361,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     addr_t bias = 0; // offset for loading shared libraries as executables
 
     // map dat shit!
+    printk("[exec] About to map %d program headers\n", header.phent_count);
     ISH_LOG("Mapping %d program headers...", header.phent_count);
     for (unsigned i = 0; i < header.phent_count; i++) {
         if (ph[i].type != PT_LOAD)
@@ -395,6 +413,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     }
 
     // map vdso
+    printk("[exec] About to map vdso\n");
     err = _ENOMEM;
     pages_t vdso_pages = sizeof(vdso_data) >> PAGE_BITS;
     // FIXME disgusting hack: musl's dynamic linker has a one-page hole, and
@@ -409,6 +428,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     mem_pt(current->mem, vdso_page)->data->name = "[vdso]";
     current->mm->vdso = vdso_page << PAGE_BITS;
     addr_t vdso_entry = current->mm->vdso + ((struct elf_header *) vdso_data)->entry_point;
+    printk("[exec] vdso mapped successfully at page %d\n", vdso_page);
 
     // map 3 empty "vvar" pages to satisfy ptraceomatic
     page_t vvar_page = pt_find_hole(current->mem, VVAR_PAGES);
@@ -565,6 +585,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     // aarch64 PSTATE (no eflags register)
     // current->cpu.eflags = 0;
 
+    printk("[exec] elf_exec COMPLETING SUCCESSFULLY, err=0\n");
     err = 0;
 out_free_interp:
     if (interp_name != NULL)
@@ -575,6 +596,7 @@ out_free_interp:
         free(interp_ph);
 out_free_ph:
     free(ph);
+    printk("[exec] elf_exec RETURNING err=%d\n", err);
     return err;
 
 beyond_hope:

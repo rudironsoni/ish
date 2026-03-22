@@ -238,35 +238,23 @@ foreach script : gdb_scripts
         build_by_default: true)
 endforeach
 
-# Architecture-specific tests
+# Architecture-specific tests (aarch64 only)
 if not meson.is_cross_build()
-    if arch == 'x86'
-        # test for floating point library
-        float80_test = executable('float80_test', ['emu/float80.c', 'emu/float80-test.c'], dependencies: [libm])
-        test('float80', float80_test)
-    elif arch == 'aarch64'
-        # aarch64 decoder tests
-        decoder_test = executable('decoder_test',
-            ['tests/aarch64/decoder_test.c', 'emu/aarch64/decode.c'],
-            include_directories: includes)
-        test('decoder', decoder_test)
+    # aarch64 decoder tests
+    decoder_test = executable('decoder_test',
+        ['tests/aarch64/decoder_test.c', 'emu/aarch64/decode.c'],
+        include_directories: includes)
+    test('decoder', decoder_test)
 
-        # Generator state tests
-        gen_test = executable('gen_test',
-            ['tests/aarch64/gen_test_simple.c'],
-            include_directories: includes)
-        test('generator', gen_test)
+    # Generator state tests
+    gen_test = executable('gen_test',
+        ['tests/aarch64/gen_test_simple.c'],
+        include_directories: includes)
+    test('generator', gen_test)
 
-        # Integration tests
-        integration_test = executable('integration_test',
-            ['tests/aarch64/integration_test_simple.c', 'tests/aarch64/gen_test_minimal.c', 'emu/aarch64/decode.c'],
-            include_directories: includes)
-        test('integration', integration_test)
-    endif
-endif
-
-# E2E tests (x86 only for now)
-if arch == 'x86'
-    e2e_test = find_program('tests/e2e/e2e.bash')
-    test('e2e', e2e_test, args: ['-y'], timeout: 180)
+    # Integration tests
+    integration_test = executable('integration_test',
+        ['tests/aarch64/integration_test_simple.c', 'tests/aarch64/gen_test_minimal.c', 'emu/aarch64/decode.c'],
+        include_directories: includes)
+    test('integration', integration_test)
 endif

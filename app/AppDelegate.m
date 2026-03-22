@@ -30,6 +30,10 @@
 #include "fs/devices.h"
 #include "fs/path.h"
 
+// Force non-Linux path for testing
+#undef ISH_LINUX
+#define ISH_LINUX 0
+
 #if ISH_LINUX
 #import "LinuxInterop.h"
 #endif
@@ -307,6 +311,7 @@ static NSString *const kSkipStartupMessage = @"Skip Startup Message";
     err = do_execve(command[0].UTF8String, command.count, argv, envp);
     
     write(2, "[iSH] do_execve returned\n", 26);
+    NSLog(@"[Boot] do_execve returned with err=%d", err);
     
     if (err < 0) {
         msg = [NSString stringWithFormat:@"[Boot] ERROR: do_execve failed: %d (ENOEXEC = exec format error)\n", err];
@@ -337,16 +342,24 @@ static NSString *const kSkipStartupMessage = @"Skip Startup Message";
     }
     msg = @"[Boot] do_execve succeeded, starting task...\n";
     [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+    
+    // ALWAYS use task_start for proper TCTI execution
+    NSLog(@"[Boot] Calling task_start for TCTI execution");
     task_start(current);
     msg = @"[Boot] task_start called\n";
     [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+    NSLog(@"[Boot] task_start returned (this should not happen immediately)");
+#endif // !ISH_LINUX - End of iOS-specific boot path
 
+    // DISABLED: Linux path - we're using TCTI now
+    /*
 #else
     // On first launch, this will trigger the import of the default root. Make sure to do this before entering the kernel, because it needs to run something on the main thread, and that would deadlock.
     [Roots instance];
     NSArray<NSString *> *args = @[];
     actuate_kernel([args componentsJoinedByString:@" "].UTF8String);
 #endif
+    */
     
     return 0;
 }
