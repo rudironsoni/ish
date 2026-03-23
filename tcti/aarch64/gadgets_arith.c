@@ -10,8 +10,8 @@
 // Flag-setting variants of arithmetic operations
 // These update NZCV flags in addition to computing the result
 
-// ADDS (flag-setting add)
-__attribute__((naked)) void gadget_adds_reg_0_1_2(void) {
+// Legacy test-only gadgets kept out of the generated symbol namespace.
+__attribute__((naked)) void gadget_adds_reg_legacy_0_1_2(void) {
     asm volatile(
         "adds x1, x2, x3\n\t"      // Set flags
         "ldr x27, [x28], #8\n\t"  // Load next gadget
@@ -20,7 +20,7 @@ __attribute__((naked)) void gadget_adds_reg_0_1_2(void) {
 }
 
 // SUBS (flag-setting subtract)
-__attribute__((naked)) void gadget_subs_reg_0_1_2(void) {
+__attribute__((naked)) void gadget_subs_reg_legacy_0_1_2(void) {
     asm volatile(
         "subs x1, x2, x3\n\t"      // Set flags
         "ldr x27, [x28], #8\n\t"
@@ -29,7 +29,7 @@ __attribute__((naked)) void gadget_subs_reg_0_1_2(void) {
 }
 
 // CMP (compare - subtract that only sets flags)
-__attribute__((naked)) void gadget_cmp_0_1(void) {
+__attribute__((naked)) void gadget_cmp_legacy_0_1(void) {
     asm volatile(
         "subs xzr, x1, x2\n\t"     // Compare, discard result
         "ldr x27, [x28], #8\n\t"
@@ -38,7 +38,7 @@ __attribute__((naked)) void gadget_cmp_0_1(void) {
 }
 
 // CMN (compare negative - add that only sets flags)
-__attribute__((naked)) void gadget_cmn_0_1(void) {
+__attribute__((naked)) void gadget_cmn_legacy_0_1(void) {
     asm volatile(
         "adds xzr, x1, x2\n\t"     // Compare negative, discard result
         "ldr x27, [x28], #8\n\t"
@@ -47,7 +47,7 @@ __attribute__((naked)) void gadget_cmn_0_1(void) {
 }
 
 // TST (test - AND that only sets flags)
-__attribute__((naked)) void gadget_tst_0_1(void) {
+__attribute__((naked)) void gadget_tst_legacy_0_1(void) {
     asm volatile(
         "ands xzr, x1, x2\n\t"     // Test, discard result
         "ldr x27, [x28], #8\n\t"

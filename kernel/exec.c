@@ -17,6 +17,7 @@
 #include "fs/fd.h"
 #include "kernel/elf.h"
 #include "kernel/vdso.h"
+#include "emu/aarch64/tls.h"
 #include "tools/ptraceomatic-config.h"
 
 // Simple debug logging - outputs to system console
@@ -62,11 +63,11 @@ struct exec_args {
     const char *args;
 };
 
-static inline dword_t align_stack(dword_t sp);
-static inline ssize_t user_strlen(dword_t p);
-static inline int user_memset(addr_t start, byte_t val, dword_t len);
-static inline dword_t copy_string(dword_t sp, const char *string);
-static inline dword_t args_copy(dword_t sp, struct exec_args args);
+static inline addr_t align_stack(addr_t sp);
+static inline ssize_t user_strlen(addr_t p);
+static inline int user_memset(addr_t start, byte_t val, addr_t len);
+static inline addr_t copy_string(addr_t sp, const char *string);
+static inline addr_t args_copy(addr_t sp, struct exec_args args);
 static size_t args_size(struct exec_args args);
 
 static int read_header(struct fd *fd, struct elf_header *header) {
@@ -440,11 +441,30 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
 
     // STACK TIME!
 
-    // allocate 1 page of stack at 0xffffd, and let it grow down
-    if ((err = pt_map_nothing(current->mem, 0xffffd, 1, P_WRITE | P_GROWSDOWN)) < 0)
+    // Map sufficient stack pages to accommodate initial stack setup.
+    // Stack grows downward from high addresses. We need space for:
+    // - argv/envp strings and pointers
+    // - auxv array (~320 bytes)
+    // - platform string, random bytes
+    // - alignment padding
+    // Total: ~1-2KB, so 2 pages (8KB) should be sufficient.
+    // Map pages 0xffffd and 0xffffe (addresses 0xffffd000 - 0xffffffff).
+    // Initial SP will be at 0xffffe000, growing down into 0xffffd.
+    if ((err = pt_map_nothing(current->mem, 0xffffd, 2, P_WRITE)) < 0)
         goto beyond_hope;
+    
+    // Map TCB (Thread Control Block) pages for TLS
+    // aarch64 musl expects x3 to point to TCB at startup
+    // TCB is placed at pages 0xffffa-0xffffc (0xffffa000 - 0xffffcfff)
+    // These pages are just below the stack pages
+    // We need 3 pages (12KB) for TCB + TLS data (musl can use offsets up to ~17KB)
+    if ((err = pt_map_nothing(current->mem, 0xffffa, 3, P_WRITE)) < 0)
+        goto beyond_hope;
+    
     // that was the last memory mapping
     write_wrunlock(&current->mem->lock);
+    // Start SP at 0xffffe000 (top of second mapped page)
+    // Stack will grow down into 0xffffd as data is pushed.
     dword_t sp = 0xffffe000;
     // on 32-bit linux, there's 4 empty bytes at the very bottom of the stack.
     // on 64-bit linux, there's 8. make ptraceomatic happy. (a major theme in this file)
@@ -549,17 +569,25 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     // aarch64 doesn't have x87 FPU control word
     // current->cpu.fcw = 0x37f;
 
-    // aarch64 process startup convention (same as x86_64):
+    // aarch64 process startup convention:
     // x0 = argc
     // x1 = argv pointer (points to argv[0], which is at sp + 8)
     // x2 = envp pointer (points to envp[0], which is after argv)
-    // x3 = auxv pointer
+    // x3 = TCB/TPIDR_EL0 pointer (for musl/glibc TLS access)
     // x4-x7 = 0
     // x8 = 0 (syscall num)
+    
+    // Set up TCB (Thread Control Block) for TLS
+    // aarch64 musl expects x3 to point to TCB at startup
+    // We mapped pages 0xffffa-0xffffc (0xffffa000-0xffffcfff) for this purpose
+    // The TCB base should be at the start of the first mapped page
+    addr_t tcb_base = 0xffffa000;  // Start of mapped TCB pages (3 pages = 12KB)
+    a64_setup_tls_area(&current->cpu, tcb_base);
+    
     current->cpu.x[0] = argv.count;
     current->cpu.x[1] = sp + sizeof(dword_t);  // Points to argv[0]
     current->cpu.x[2] = sp + ((argv.count + 2) * sizeof(dword_t));  // envp[0]
-    current->cpu.x[3] = current->mm->auxv_start;  // auxv
+    current->cpu.x[3] = tcb_base;  // TCB pointer (TPIDR_EL0 value)
     for (int i = 4; i < 8; i++)
         current->cpu.x[i] = 0;
     
@@ -616,18 +644,18 @@ static size_t args_size(struct exec_args args) {
     return args_end - args.args;
 }
 
-static inline dword_t align_stack(addr_t sp) {
+static inline addr_t align_stack(addr_t sp) {
     return sp &~ 0xf;
 }
 
-static inline dword_t copy_string(addr_t sp, const char *string) {
+static inline addr_t copy_string(addr_t sp, const char *string) {
     sp -= strlen(string) + 1;
     if (user_write_string(sp, string))
         return 0;
     return sp;
 }
 
-static inline dword_t args_copy(addr_t sp, struct exec_args args) {
+static inline addr_t args_copy(addr_t sp, struct exec_args args) {
     size_t size = args_size(args);
     sp -= size;
     if (user_write(sp, args.args, size))
@@ -646,7 +674,7 @@ static inline ssize_t user_strlen(addr_t p) {
     return i - 1;
 }
 
-static inline int user_memset(addr_t start, byte_t val, dword_t len) {
+static inline int user_memset(addr_t start, byte_t val, addr_t len) {
     while (len--)
         if (user_put(start++, val))
             return 1;

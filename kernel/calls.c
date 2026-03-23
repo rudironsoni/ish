@@ -283,7 +283,7 @@ void handle_interrupt(int interrupt) {
         void *ptr = mem_ptr(current->mem, cpu->fault_addr, cpu->fault_was_write ? MEM_WRITE : MEM_READ);
         read_wrunlock(&current->mem->lock);
         if (ptr == NULL) {
-            printk("%d page fault on 0x%x at 0x%x\n", current->pid, cpu->fault_addr, cpu->pc);
+            printk("%d page fault on 0x%llx at 0x%llx\n", current->pid, (unsigned long long)cpu->fault_addr, (unsigned long long)cpu->pc);
             struct siginfo_ info = {
                 .code = mem_segv_reason(current->mem, cpu->fault_addr),
                 .fault.addr = cpu->fault_addr,
@@ -292,7 +292,7 @@ void handle_interrupt(int interrupt) {
             deliver_signal(current, SIGSEGV_, info);
         }
     } else if (interrupt == INT_UNDEFINED) {
-        printk("%d illegal instruction at 0x%x: ", current->pid, cpu->pc);
+        printk("%d illegal instruction at 0x%llx: ", current->pid, (unsigned long long)cpu->pc);
         for (int i = 0; i < 8; i++) {
             uint8_t b;
             if (user_get(cpu->pc + i, b))
@@ -366,8 +366,8 @@ void dump_mem(addr_t start, uint_t len) {
 }
 
 void dump_stack(int lines) {
-    printk("stack at %x, base at %x, ip at %x\n", current->cpu.sp, current->cpu.x[6], current->cpu.pc);
-    dump_mem(current->cpu.sp, lines * sizeof(dword_t) * 8);
+    printk("stack at %llx, base at %llx, ip at %llx\n", (unsigned long long)current->cpu.sp, (unsigned long long)current->cpu.x[6], (unsigned long long)current->cpu.pc);
+    dump_mem(current->cpu.sp, lines * sizeof(qword_t) * 8);
 }
 
 // TODO find a home for this

@@ -78,6 +78,13 @@ typedef enum {
     A64_LDST_ATOMIC = 0,     // Atomic operations
 } a64_ldst_subtype_t;
 
+/* Indexing modes for load/store */
+typedef enum {
+    A64_INDEX_OFFSET = 0,    // Offset addressing (base + offset, no writeback)
+    A64_POST_INDEX = 1,      // Post-indexed (load/store, then base += offset)
+    A64_PRE_INDEX = 2,       // Pre-indexed (base += offset, then load/store)
+} a64_index_mode_t;
+
 /* Data processing register subcategories */
 typedef enum {
     A64_DP_REG_LOGICAL = 0,     // Logical (shifted register)
@@ -161,6 +168,7 @@ typedef struct {
     bool is_vector;         // Vector/SIMD load/store
     bool is_pair;           // Load/store pair
     int pair_offset;        // Offset for pair
+    a64_index_mode_t idx_mode;  // Indexing mode (offset, post, pre)
 
     // Misc
     bool is_64bit;          // 64-bit vs 32-bit operation (sf bit)
@@ -190,9 +198,32 @@ static inline int64_t sign_extend(uint64_t val, int bits) {
 }
 
 /* Category detection based on ARMv8-A architecture */
-// op0 = bits 28:25
+// op0 = bits 28:25 for Data Processing instructions
+// For branches, the encoding is different (bits 31:26 determine type)
 static inline a64_category_t a64_get_category(uint32_t insn) {
-    return (a64_category_t)((insn >> 25) & 0xF);
+    uint32_t top = (insn >> 25) & 0xF;
+    uint32_t top7 = (insn >> 25) & 0x7F;
+    
+    // Check for branch encodings
+    uint32_t branch_type = (insn >> 26) & 0x3F;
+    if (branch_type == 0x05) { // 000101 - Unconditional branch
+        return A64_BRANCH;
+    } else if (branch_type == 0x15) { // 010101 - Conditional branch
+        return A64_BRANCH;
+    } else if (branch_type == 0x1A) { // 011010 - Compare and branch
+        return A64_BRANCH;
+    } else if (branch_type == 0x1B) { // 011011 - Test and branch
+        return A64_BRANCH;
+    }
+
+    // Load/store pair uses a separate major encoding space that does not map
+    // cleanly to bits 28:25. Route it into the load/store decoder explicitly.
+    if (top7 == 0x54) { // 1010100x - STP/LDP family seen in startup code
+        return A64_LD_ST;
+    }
+    
+    // Otherwise, use standard category from bits 28:25
+    return (a64_category_t)top;
 }
 
 /* Main decode function */

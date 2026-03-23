@@ -19,11 +19,30 @@
 _tcti_entry_block:
 tcti_entry_block:
     // Entry: x0 = gadget array, x1 = cpu_state
-    // Setup TCTI environment
+    // Save x0 and x1 (cpu and block pointers) on stack - these must be preserved
+    stp     x0, x1, [sp, #-16]!
+    
+    // Preserve the caller's callee-saved state and Apple platform register x18.
+    stp     x17, x18, [sp, #-16]!
+    stp     x19, x20, [sp, #-16]!
+    stp     x21, x22, [sp, #-16]!
+    stp     x23, x24, [sp, #-16]!
+    stp     x25, x26, [sp, #-16]!
+    stp     x27, x28, [sp, #-16]!
+    stp     x29, x30, [sp, #-16]!
+
+    // Setup TCTI environment FIRST (before clobbering x0)
+    // x0 still contains gadgets, x1 still contains cpu_state
     mov     x28, x0                 // x28 = bytecode pointer (gadget stream)
     mov     x29, x1                 // x29 = cpu state
+    ldr     x0, [x29, #280]         // Restore saved NZCV/PSTATE flags
+    msr     nzcv, x0
     
-    // Load guest x0-x14 into host x1-x15
+    // Store stack canary using x0 (now safe to clobber)
+    mov     x0, #0xABCD
+    str     x0, [sp, #-16]!
+    
+    // Load guest x0-x15 into host x1-x16
     // x[0] at offset 16, x[1] at 24, etc.
     ldr     x1, [x29, #16]          // Guest x0 -> host x1
     ldr     x2, [x29, #24]          // Guest x1 -> host x2
@@ -40,6 +59,7 @@ tcti_entry_block:
     ldr     x13, [x29, #112]        // Guest x12 -> host x13
     ldr     x14, [x29, #120]        // Guest x13 -> host x14
     ldr     x15, [x29, #128]        // Guest x14 -> host x15
+    ldr     x16, [x29, #136]        // Guest x15 -> host x16
     
     // Guest x15-x30 and SP stay in memory
     // Jump to first gadget
@@ -72,7 +92,7 @@ tcti_c_call_prologue:
     stp     x5,  x6,  [sp, #-16]!
     stp     x3,  x4,  [sp, #-16]!
     stp     x1,  x2,  [sp, #-16]!
-    stp     x28, x30, [sp, #-16]!   // Save bytecode ptr and LR
+    stp     x28, xzr, [sp, #-16]!   // Save bytecode ptr, keep stack aligned
     ret
 
 // C call epilogue - restore all TCTI registers after C call
@@ -80,7 +100,7 @@ tcti_c_call_prologue:
 .global tcti_c_call_epilogue
 _tcti_c_call_epilogue:
 tcti_c_call_epilogue:
-    ldp     x28, x30, [sp], #16     // Restore bytecode ptr and LR
+    ldp     x28, xzr, [sp], #16     // Restore bytecode ptr
     ldp     x1,  x2,  [sp], #16
     ldp     x3,  x4,  [sp], #16
     ldp     x5,  x6,  [sp], #16
@@ -97,11 +117,21 @@ tcti_c_call_epilogue:
     ret
 
 // Exit block - save registers and return to C
+// On entry: x0 = exit reason (TCTI_EXIT_*)
 .global _tcti_exit_block
 .global tcti_exit_block
 _tcti_exit_block:
 tcti_exit_block:
-    // Save guest x0-x14 from host x1-x15 back to memory
+    // Save exit reason to cpu_state
+    // tcti_exit_reason is at offset 860 (calculated from structure layout)
+    str     w0,  [x29, #860]        // Store exit reason to cpu->tcti_exit_reason (32-bit int)
+    cmp     x0,  #16
+    b.lo    1f
+    str     x28, [x29, #816]        // Debug: current bytecode stream pointer for bad exits
+    str     w27, [x29, #856]        // Debug: low 32 bits of x27 for bad exits
+1:
+    
+    // Save guest x0-x15 from host x1-x16 back to memory
     str     x1,  [x29, #16]         // Host x1 -> guest x0
     str     x2,  [x29, #24]         // Host x2 -> guest x1
     str     x3,  [x29, #32]         // Host x3 -> guest x2
@@ -117,10 +147,29 @@ tcti_exit_block:
     str     x13, [x29, #112]        // Host x13 -> guest x12
     str     x14, [x29, #120]        // Host x14 -> guest x13
     str     x15, [x29, #128]        // Host x15 -> guest x14
+    str     x16, [x29, #136]        // Host x16 -> guest x15
+    mrs     x17, nzcv
+    str     x17, [x29, #280]        // Save NZCV back to cpu->pstate
+
+    // Guest x16-x30 and SP already in memory (never loaded to host regs)
     
-    // Guest x15-x30 and SP already in memory (never loaded to host regs)
+    // Debug: Store x29 value before restoring from stack to check for corruption
+    mov     x17, x29
     
-    // Return to C
+    // Restore the caller's preserved state and return to C.
+    // Must be in REVERSE order of entry
+    // The canary was pushed AFTER x29/x30, so it's at the top of stack
+    // We need to skip over it to get to the registers
+    add     sp, sp, #16             // Skip canary slot (don't check, just skip)
+    ldp     x29, x30, [sp], #16     // Pushed 7th (oldest callee-saved)
+    ldp     x27, x28, [sp], #16     // Pushed 6th
+    ldp     x25, x26, [sp], #16     // Pushed 5th
+    ldp     x23, x24, [sp], #16     // Pushed 4th
+    ldp     x21, x22, [sp], #16     // Pushed 3rd
+    ldp     x19, x20, [sp], #16     // Pushed 2nd
+    ldp     x17, x18, [sp], #16     // Pushed 1st (closest to x0/x1)
+    // Restore x0 (cpu) and x1 (block) parameters that were saved on entry
+    ldp     x0, x1, [sp], #16
     ret
 
 // Load memory-backed register (x15-x30) into temp x17

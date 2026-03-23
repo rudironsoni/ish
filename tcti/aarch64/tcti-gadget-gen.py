@@ -18,7 +18,7 @@ from datetime import datetime
 
 # Configuration
 GADGET_VERSION = "1.0.0"
-MAX_TCTI_REGS = 16  # x0-x15 are TCTI-mapped, x16-x30 are memory-based
+MAX_TCTI_REGS = 16  # x0-x15 are TCTI-mapped, x16-x30 are memory-backed
 
 # Template for generated header file
 HEADER_TEMPLATE = """/*
@@ -39,61 +39,86 @@ HEADER_TEMPLATE = """/*
 extern "C" {{
 #endif
 
+struct cpu_state;
+
 // Gadget function type
 typedef void (*tcti_gadget_t)(void);
 
 // Maximum gadgets per basic block
-#define A64_MAX_GADGETS_PER_BLOCK 256
+#define A64_MAX_GADGETS_PER_BLOCK 512
 
 // Exit reason codes
 #define TCTI_EXIT_NORMAL    0
 #define TCTI_EXIT_SYSCALL   1
 #define TCTI_EXIT_SIGNAL    2
 #define TCTI_EXIT_FAULT     3
+#define TCTI_EXIT_COMPLEX   4  // Complex instruction needs C handling (e.g., load/store)
 
 // Block exit function
 extern void tcti_exit_block(int reason);
 
 // Standard gadget epilogue - load next gadget and branch
-// x28 = gadget stream pointer (increments by 8 each gadget)
-// x27 = temp register, holds next gadget address
-// x29 = cpu_state pointer
 #define GADGET_EPILOGUE "ldr x27, [x28], #8\\n\\tbr x27\\n\\t"
 
 // ============================================================================
-// Data Processing - Register Gadgets
+// Register Move Gadgets
 // ============================================================================
 
-// ADD Rd, Rn, Rm - 16x16x16 = 4096 gadgets
-extern const tcti_gadget_t gadget_add_reg[{max_regs}][{max_regs}][{max_regs}];
-
-// SUB Rd, Rn, Rm - 16x16x16 = 4096 gadgets
-extern const tcti_gadget_t gadget_sub_reg[{max_regs}][{max_regs}][{max_regs}];
-
-// AND Rd, Rn, Rm - 16x16x16 = 4096 gadgets
-extern const tcti_gadget_t gadget_and_reg[{max_regs}][{max_regs}][{max_regs}];
-
-// ORR Rd, Rn, Rm - 16x16x16 = 4096 gadgets
-extern const tcti_gadget_t gadget_orr_reg[{max_regs}][{max_regs}][{max_regs}];
-
-// EOR Rd, Rn, Rm - 16x16x16 = 4096 gadgets
-extern const tcti_gadget_t gadget_eor_reg[{max_regs}][{max_regs}][{max_regs}];
-
-// MOV Rd, Rn - 16x16 = 256 gadgets
-extern const tcti_gadget_t gadget_mov_reg[{max_regs}][{max_regs}];
+// MOV Xd, Xn - register to register move
+// Table: gadget_mov_reg[dst][src]
+extern const tcti_gadget_t gadget_mov_reg[16][16];
 
 // ============================================================================
-// Data Processing - Immediate Gadgets
+// Data Processing - Immediate
 // ============================================================================
 
-// ADD Rd, Rn, #imm (simplified: small immediates 0-15)
-extern const tcti_gadget_t gadget_add_imm[{max_regs}][{max_regs}][16];
+// ADD Rd, Rn, #imm (imm = 0-15)
+// Table: gadget_add_imm[dst][src][imm]
+extern const tcti_gadget_t gadget_add_imm[16][16][16];
 
-// SUB Rd, Rn, #imm (simplified: small immediates 0-15)
-extern const tcti_gadget_t gadget_sub_imm[{max_regs}][{max_regs}][16];
+// SUB Rd, Rn, #imm (imm = 0-15)
+// Table: gadget_sub_imm[dst][src][imm]
+extern const tcti_gadget_t gadget_sub_imm[16][16][16];
 
-// MOVZ Rd, #imm (simplified: 0-15)
-extern const tcti_gadget_t gadget_mov_imm[{max_regs}];
+// MOVZ Xd, #imm - load immediate from bytecode stream
+// The immediate value follows this gadget in the bytecode
+extern const tcti_gadget_t gadget_mov_imm[16];
+
+// ============================================================================
+// Data Processing - Register
+// ============================================================================
+
+// ADD Rd, Rn, Rm - register addition
+// Table: gadget_add_reg[dst][src1][src2]
+extern const tcti_gadget_t gadget_add_reg[16][16][16];
+
+// SUB Rd, Rn, Rm - register subtraction
+// Table: gadget_sub_reg[dst][src1][src2]
+extern const tcti_gadget_t gadget_sub_reg[16][16][16];
+
+// AND Rd, Rn, Rm - register AND
+// Table: gadget_and_reg[dst][src1][src2]
+extern const tcti_gadget_t gadget_and_reg[16][16][16];
+
+// ORR Rd, Rn, Rm - register OR
+// Table: gadget_orr_reg[dst][src1][src2]
+extern const tcti_gadget_t gadget_orr_reg[16][16][16];
+
+// EOR Rd, Rn, Rm - register XOR
+// Table: gadget_eor_reg[dst][src1][src2]
+extern const tcti_gadget_t gadget_eor_reg[16][16][16];
+
+// ADDS Rd, Rn, Rm - register addition with NZCV update
+// Table: gadget_adds_reg[dst][src1][src2]
+extern const tcti_gadget_t gadget_adds_reg[16][16][16];
+
+// SUBS Rd, Rn, Rm - register subtraction with NZCV update
+// Table: gadget_subs_reg[dst][src1][src2]
+extern const tcti_gadget_t gadget_subs_reg[16][16][16];
+
+// CMP Xn, Xm - compare registers and update NZCV
+// Table: gadget_cmp_reg[src1][src2]
+extern const tcti_gadget_t gadget_cmp_reg[16][16];
 
 // ============================================================================
 // Branch Gadgets
@@ -102,17 +127,30 @@ extern const tcti_gadget_t gadget_mov_imm[{max_regs}];
 // Unconditional branch
 extern tcti_gadget_t gadget_b;
 
-// Conditional branch (tests condition flags)
-extern tcti_gadget_t gadget_bcond;
+// Conditional branch (tests live NZCV flags)
+// Table: gadget_bcond[cond]
+extern const tcti_gadget_t gadget_bcond[16];
 
-// Compare and branch on zero
-extern tcti_gadget_t gadget_cbz;
-
-// Compare and branch on non-zero
-extern tcti_gadget_t gadget_cbnz;
+// Compare and branch on zero / non-zero for hot x0-x15 regs
+// Tables: gadget_cbz_reg[reg], gadget_cbnz_reg[reg]
+extern const tcti_gadget_t gadget_cbz_reg[16];
+extern const tcti_gadget_t gadget_cbnz_reg[16];
 
 // Branch to register (ret, br, blr)
 extern tcti_gadget_t gadget_br;
+
+// ============================================================================
+// Bitfield Gadgets
+// ============================================================================
+
+// SBFM (signed bitfield move)
+extern tcti_gadget_t gadget_sbfm;
+
+// BFM (bitfield move)
+extern tcti_gadget_t gadget_bfm;
+
+// UBFM (unsigned bitfield move)
+extern tcti_gadget_t gadget_ubfm;
 
 // ============================================================================
 // System Gadgets
@@ -129,6 +167,57 @@ extern tcti_gadget_t gadget_msr;
 
 // NOP
 extern tcti_gadget_t gadget_nop;
+
+// ============================================================================
+// Load/Store Gadgets (with inline TLB)
+// ============================================================================
+
+// LDR Xd, [Xn, #imm] - 64-bit load
+extern tcti_gadget_t gadget_ldr_x;
+
+// STR Xd, [Xn, #imm] - 64-bit store
+extern tcti_gadget_t gadget_str_x;
+
+// ============================================================================
+// Memory-Backed Register Load/Store (defined in gadgets_memory.c)
+// ============================================================================
+//
+// Guest registers x16-x30 and SP are stored in memory (cpu_state struct).
+// To operate on them, we load into temp registers (x14-x18), execute,
+// then store back.
+
+// Load guest x[16 + n] (n=0-14) into host temp register
+// Table index 0 = x16, 14 = x30
+extern const tcti_gadget_t gadget_load_xreg_16_to_30[15];
+
+// Store host temp register back to guest x[16 + n]
+extern const tcti_gadget_t gadget_store_xreg_16_to_30[15];
+
+// SP load/store - uses x18 as temp
+// These are naked functions, not function pointers
+extern void gadget_load_sp(void);
+extern void gadget_store_sp(void);
+
+// Block exit gadget - marks end of gadget stream (defined in gadgets_memory.c)
+extern tcti_gadget_t gadget_exit;
+
+// ============================================================================
+// Entry/Exit Functions
+// ============================================================================
+
+// Block entry - sets up TCTI execution environment
+// Called from C with:
+//   x0 = pointer to gadget array (tcti_gadget_t*)
+//   x1 = pointer to cpu_state
+// Loads TCTI-mapped registers and starts gadget execution
+// Note: On macOS, symbols get underscore prefix
+extern void tcti_entry_block(void *gadgets, struct cpu_state *cpu);
+extern void _tcti_entry_block(void *gadgets, struct cpu_state *cpu);
+
+// Block exit - saves registers and returns to C
+// Called as the last gadget in a block
+extern void tcti_exit_block(int reason);
+extern void _tcti_exit_block(int reason);
 
 #ifdef __cplusplus
 }}
@@ -154,143 +243,94 @@ IMPL_TEMPLATE = """/*
 // Register Mapping
 // ============================================================================
 // Guest x0-x15  -> Host x1-x16 (direct mapping)
-// Guest x16-x30 -> Memory (cpu->x[16-30])
-// Guest SP      -> Host x17 (scratch) + memory
-// Bytecode ptr  -> Host x28
-// CPU state ptr -> Host x29
-// Temp/Link     -> Host x27, x30
-//
-// GADGET_EPILOGUE:
-//   ldr x27, [x28], #8    // Load next gadget address, advance bytecode
-//   br x27                // Jump to next gadget
-// ============================================================================
-
-#define CPU_STATE x29
-
-// Helper to access memory-backed registers
-#define LOAD_XREG(n) "ldr x0, [x29, #(offsetof(struct cpu_state, x) + (n)*8)]\\n\\t"
-#define STORE_XREG(n) "str x0, [x29, #(offsetof(struct cpu_state, x) + (n)*8)]\\n\\t"
+// Guest x16-x30 -> Memory backed (access via load/store gadgets)
+// Guest SP (x31)-> Memory backed (access via load/store gadgets)
+// Host x28      -> Bytecode pointer (gadget stream)
+// Host x29      -> CPU state pointer
+// Host x27      -> Next gadget pointer (temp during epilogue)
 
 // ============================================================================
-// Data Processing - Register Gadgets
+// MOV Register Gadgets
 // ============================================================================
 
-{dp_reg_gadgets}
+{mov_reg_gadgets}
 
 // ============================================================================
-// Data Processing - Immediate Gadgets
+// ADD Immediate Gadgets
 // ============================================================================
 
-{dp_imm_gadgets}
+{add_imm_gadgets}
 
 // ============================================================================
-// Branch Gadgets
+// SUB Immediate Gadgets
 // ============================================================================
 
-{branch_gadgets}
+{sub_imm_gadgets}
 
 // ============================================================================
-// System Gadgets
+// MOV Immediate Gadgets (load from bytecode stream)
 // ============================================================================
 
-{system_gadgets}
+{mov_imm_gadgets}
+
+// ============================================================================
+// ADD Register Gadgets
+// ============================================================================
+
+{add_reg_gadgets}
+
+// ============================================================================
+// SUB Register Gadgets
+// ============================================================================
+
+{sub_reg_gadgets}
+
+// ============================================================================
+// AND Register Gadgets
+// ============================================================================
+
+{and_reg_gadgets}
+
+// ============================================================================
+// ORR Register Gadgets
+// ============================================================================
+
+{orr_reg_gadgets}
+
+// ============================================================================
+// EOR Register Gadgets
+// ============================================================================
+
+{eor_reg_gadgets}
+
+// ============================================================================
+// ADDS Register Gadgets
+// ============================================================================
+
+{adds_reg_gadgets}
+
+// ============================================================================
+// SUBS Register Gadgets
+// ============================================================================
+
+{subs_reg_gadgets}
+
+// ============================================================================
+// CMP Register Gadgets
+// ============================================================================
+
+{cmp_reg_gadgets}
 
 // ============================================================================
 // Gadget Lookup Tables
 // ============================================================================
 
-{gadget_tables}
+{lookup_tables}
 """
 
 
-def generate_add_reg_gadgets():
-    """Generate ADD register gadgets and collect prototypes."""
-    gadgets = []
-    prototypes = []
-
-    for rd in range(MAX_TCTI_REGS):
-        for rn in range(MAX_TCTI_REGS):
-            for rm in range(MAX_TCTI_REGS):
-                host_rd = rd + 1
-                host_rn = rn + 1
-                host_rm = rm + 1
-
-                func_name = f"gadget_add_reg_{rd}_{rn}_{rm}"
-                prototypes.append(f"void {func_name}(void);")
-
-                gadget = f"""// ADD x{rd}, x{rn}, x{rm}
-__attribute__((naked)) void {func_name}(void) {{
-    asm volatile(
-        "add x{host_rd}, x{host_rn}, x{host_rm}\\n\\t"
-        "ldr x27, [x28], #8\\n\\t"
-        "br x27\\n\\t"
-    );
-}}"""
-                gadgets.append(gadget)
-
-    return "\n\n".join(gadgets), prototypes
-
-
-def generate_sub_reg_gadgets():
-    """Generate SUB register gadgets."""
-    gadgets = []
-
-    for rd in range(MAX_TCTI_REGS):
-        for rn in range(MAX_TCTI_REGS):
-            for rm in range(MAX_TCTI_REGS):
-                host_rd = rd + 1
-                host_rn = rn + 1
-                host_rm = rm + 1
-
-                func_name = f"gadget_sub_reg_{rd}_{rn}_{rm}"
-
-                gadget = f"""// SUB x{rd}, x{rn}, x{rm}
-__attribute__((naked)) void {func_name}(void) {{
-    asm volatile(
-        "sub x{host_rd}, x{host_rn}, x{host_rm}\\n\\t"
-        "ldr x27, [x28], #8\\n\\t"
-        "br x27\\n\\t"
-    );
-}}"""
-                gadgets.append(gadget)
-
-    return "\n\n".join(gadgets)
-
-
-def generate_logical_reg_gadgets():
-    """Generate AND, ORR, EOR gadgets."""
-    gadgets = []
-    ops = [
-        ("and", "gadget_and_reg"),
-        ("orr", "gadget_orr_reg"),
-        ("eor", "gadget_eor_reg"),
-    ]
-
-    for op, prefix in ops:
-        for rd in range(MAX_TCTI_REGS):
-            for rn in range(MAX_TCTI_REGS):
-                for rm in range(MAX_TCTI_REGS):
-                    host_rd = rd + 1
-                    host_rn = rn + 1
-                    host_rm = rm + 1
-
-                    func_name = f"{prefix}_{rd}_{rn}_{rm}"
-
-                    gadget = f"""// {op.upper()} x{rd}, x{rn}, x{rm}
-__attribute__((naked)) void {func_name}(void) {{
-    asm volatile(
-        "{op} x{host_rd}, x{host_rn}, x{host_rm}\\n\\t"
-        "ldr x27, [x28], #8\\n\\t"
-        "br x27\\n\\t"
-    );
-}}"""
-                    gadgets.append(gadget)
-
-    return "\n\n".join(gadgets)
-
-
 def generate_mov_reg_gadgets():
-    """Generate MOV register gadgets."""
+    """Generate register move gadgets (MOV Rd, Rn)."""
     gadgets = []
 
     for rd in range(MAX_TCTI_REGS):
@@ -317,10 +357,9 @@ def generate_add_imm_gadgets():
     """Generate ADD immediate gadgets (ADD Rd, Rn, #imm for imm 0-15)."""
     gadgets = []
 
-    # ADD with small immediates 0-15
     for rd in range(MAX_TCTI_REGS):
         for rn in range(MAX_TCTI_REGS):
-            for imm in range(16):  # 0-15
+            for imm in range(16):
                 host_rd = rd + 1
                 host_rn = rn + 1
 
@@ -343,10 +382,9 @@ def generate_sub_imm_gadgets():
     """Generate SUB immediate gadgets (SUB Rd, Rn, #imm for imm 0-15)."""
     gadgets = []
 
-    # SUB with small immediates 0-15
     for rd in range(MAX_TCTI_REGS):
         for rn in range(MAX_TCTI_REGS):
-            for imm in range(16):  # 0-15
+            for imm in range(16):
                 host_rd = rd + 1
                 host_rn = rn + 1
 
@@ -365,22 +403,18 @@ __attribute__((naked)) void {func_name}(void) {{
     return "\n\n".join(gadgets)
 
 
-def generate_dp_imm_gadgets():
-    """Generate immediate data processing gadgets."""
+def generate_mov_imm_gadgets():
+    """Generate MOVZ immediate gadgets (load from bytecode stream)."""
     gadgets = []
 
-    # MOVZ with immediate 0-255 (simplified)
     for rd in range(MAX_TCTI_REGS):
         host_rd = rd + 1
 
-        # MOVZ x{rd}, #0 (clear register)
         func_name = f"gadget_mov_imm_{rd}"
-        gadget = f"""// MOVZ x{rd}, #imm (via mov)
+        gadget = f"""// MOVZ x{rd}, #imm (load from bytecode)
 __attribute__((naked)) void {func_name}(void) {{
-    // For immediates, we'd need to load from bytecode stream
-    // This is a placeholder - real implementation loads immediate
     asm volatile(
-        "mov x{host_rd}, #0\\n\\t"  // Simplified - should load from bytecode
+        "ldr x{host_rd}, [x28], #8\\n\\t"
         "ldr x27, [x28], #8\\n\\t"
         "br x27\\n\\t"
     );
@@ -390,321 +424,449 @@ __attribute__((naked)) void {func_name}(void) {{
     return "\n\n".join(gadgets)
 
 
-def generate_branch_gadgets():
-    """Generate branch gadgets."""
+def generate_add_reg_gadgets():
+    """Generate ADD register gadgets (ADD Rd, Rn, Rm)."""
     gadgets = []
 
-    # Unconditional branch
-    gadgets.append("""// B (unconditional branch)
-__attribute__((naked)) void gadget_b_impl(void) {
-    asm volatile(
-        "ldr x0, [x28], #8\\n\\t"     // Load target PC from bytecode
-        "str x0, [x29, %[pc_off]]\\n\\t"  // Store to cpu->pc
-        "mov x27, #1\\n\\t"            // Signal block exit
-        "ldr x27, [x28], #8\\n\\t"
-        "br x27\\n\\t"
-        :
-        : [pc_off] "i" (offsetof(struct cpu_state, pc))
-    );
-}""")
+    for rd in range(MAX_TCTI_REGS):
+        for rn in range(MAX_TCTI_REGS):
+            for rm in range(MAX_TCTI_REGS):
+                host_rd = rd + 1
+                host_rn = rn + 1
+                host_rm = rm + 1
 
-    # Conditional branch
-    gadgets.append("""// B.cond (conditional branch)
-__attribute__((naked)) void gadget_bcond_impl(void) {
-    asm volatile(
-        "ldr x0, [x28], #8\\n\\t"     // Load condition and target
-        "ldr x1, [x29, %[pstate_off]]\\n\\t"  // Load PSTATE
-        // Test condition...
-        "ldr x27, [x28], #8\\n\\t"
-        "br x27\\n\\t"
-        :
-        : [pstate_off] "i" (offsetof(struct cpu_state, pstate))
-    );
-}""")
+                func_name = f"gadget_add_reg_{rd}_{rn}_{rm}"
 
-    # Branch register (RET, BR, BLR)
-    gadgets.append("""// BR/RET (branch to register)
-__attribute__((naked)) void gadget_br_impl(void) {
+                gadget = f"""// ADD x{rd}, x{rn}, x{rm}
+__attribute__((naked)) void {func_name}(void) {{
     asm volatile(
-        "mov x27, #1\\n\\t"            // Signal block exit
+        "add x{host_rd}, x{host_rn}, x{host_rm}\\n\\t"
         "ldr x27, [x28], #8\\n\\t"
         "br x27\\n\\t"
     );
-}""")
-
-    # CBZ/CBNZ
-    gadgets.append("""// CBZ (compare and branch on zero)
-__attribute__((naked)) void gadget_cbz_impl(void) {
-    asm volatile(
-        "ldr x0, [x28], #8\\n\\t"     // Load register number and target
-        // Test if register is zero...
-        "ldr x27, [x28], #8\\n\\t"
-        "br x27\\n\\t"
-    );
-}""")
+}}"""
+                gadgets.append(gadget)
 
     return "\n\n".join(gadgets)
 
 
-def generate_system_gadgets():
-    """Generate system instruction gadgets."""
+def generate_sub_reg_gadgets():
+    """Generate SUB register gadgets (SUB Rd, Rn, Rm)."""
     gadgets = []
 
-    # SVC (syscall)
-    gadgets.append("""// SVC (system call)
-__attribute__((naked)) void gadget_svc_impl(void) {
-    asm volatile(
-        "mov x27, #2\\n\\t"            // Signal syscall exit
-        "ldr x27, [x28], #8\\n\\t"
-        "br x27\\n\\t"
-    );
-}""")
+    for rd in range(MAX_TCTI_REGS):
+        for rn in range(MAX_TCTI_REGS):
+            for rm in range(MAX_TCTI_REGS):
+                host_rd = rd + 1
+                host_rn = rn + 1
+                host_rm = rm + 1
 
-    # NOP
-    gadgets.append("""// NOP
-__attribute__((naked)) void gadget_nop_impl(void) {
-    asm volatile(
-        "nop\\n\\t"
-        "ldr x27, [x28], #8\\n\\t"
-        "br x27\\n\\t"
-    );
-}""")
+                func_name = f"gadget_sub_reg_{rd}_{rn}_{rm}"
 
-    # MRS (system register read)
-    gadgets.append("""// MRS (system register read)
-__attribute__((naked)) void gadget_mrs_impl(void) {
+                gadget = f"""// SUB x{rd}, x{rn}, x{rm}
+__attribute__((naked)) void {func_name}(void) {{
     asm volatile(
-        "ldr x0, [x28], #8\\n\\t"     // Load system register number
-        // Read system register to x0...
+        "sub x{host_rd}, x{host_rn}, x{host_rm}\\n\\t"
         "ldr x27, [x28], #8\\n\\t"
         "br x27\\n\\t"
     );
-}""")
-
-    # MSR (system register write)
-    gadgets.append("""// MSR (system register write)
-__attribute__((naked)) void gadget_msr_impl(void) {
-    asm volatile(
-        "ldr x0, [x28], #8\\n\\t"     // Load system register number
-        // Write x0 to system register...
-        "ldr x27, [x28], #8\\n\\t"
-        "br x27\\n\\t"
-    );
-}""")
+}}"""
+                gadgets.append(gadget)
 
     return "\n\n".join(gadgets)
 
 
-def generate_gadget_tables():
-    """Generate the lookup tables for all gadgets."""
+def generate_and_reg_gadgets():
+    """Generate AND register gadgets (AND Rd, Rn, Rm)."""
+    gadgets = []
+
+    for rd in range(MAX_TCTI_REGS):
+        for rn in range(MAX_TCTI_REGS):
+            for rm in range(MAX_TCTI_REGS):
+                host_rd = rd + 1
+                host_rn = rn + 1
+                host_rm = rm + 1
+
+                func_name = f"gadget_and_reg_{rd}_{rn}_{rm}"
+
+                gadget = f"""// AND x{rd}, x{rn}, x{rm}
+__attribute__((naked)) void {func_name}(void) {{
+    asm volatile(
+        "and x{host_rd}, x{host_rn}, x{host_rm}\\n\\t"
+        "ldr x27, [x28], #8\\n\\t"
+        "br x27\\n\\t"
+    );
+}}"""
+                gadgets.append(gadget)
+
+    return "\n\n".join(gadgets)
+
+
+def generate_orr_reg_gadgets():
+    """Generate ORR register gadgets (ORR Rd, Rn, Rm)."""
+    gadgets = []
+
+    for rd in range(MAX_TCTI_REGS):
+        for rn in range(MAX_TCTI_REGS):
+            for rm in range(MAX_TCTI_REGS):
+                host_rd = rd + 1
+                host_rn = rn + 1
+                host_rm = rm + 1
+
+                func_name = f"gadget_orr_reg_{rd}_{rn}_{rm}"
+
+                gadget = f"""// ORR x{rd}, x{rn}, x{rm}
+__attribute__((naked)) void {func_name}(void) {{
+    asm volatile(
+        "orr x{host_rd}, x{host_rn}, x{host_rm}\\n\\t"
+        "ldr x27, [x28], #8\\n\\t"
+        "br x27\\n\\t"
+    );
+}}"""
+                gadgets.append(gadget)
+
+    return "\n\n".join(gadgets)
+
+
+def generate_eor_reg_gadgets():
+    """Generate EOR register gadgets (EOR Rd, Rn, Rm)."""
+    gadgets = []
+
+    for rd in range(MAX_TCTI_REGS):
+        for rn in range(MAX_TCTI_REGS):
+            for rm in range(MAX_TCTI_REGS):
+                host_rd = rd + 1
+                host_rn = rn + 1
+                host_rm = rm + 1
+
+                func_name = f"gadget_eor_reg_{rd}_{rn}_{rm}"
+
+                gadget = f"""// EOR x{rd}, x{rn}, x{rm}
+__attribute__((naked)) void {func_name}(void) {{
+    asm volatile(
+        "eor x{host_rd}, x{host_rn}, x{host_rm}\\n\\t"
+        "ldr x27, [x28], #8\\n\\t"
+        "br x27\\n\\t"
+    );
+}}"""
+                gadgets.append(gadget)
+
+    return "\n\n".join(gadgets)
+
+
+def generate_cmp_reg_gadgets():
+    """Generate CMP register gadgets (CMP Xn, Xm / SUBS XZR, Xn, Xm)."""
+    gadgets = []
+
+    for rn in range(MAX_TCTI_REGS):
+        for rm in range(MAX_TCTI_REGS):
+            host_rn = rn + 1
+            host_rm = rm + 1
+
+            func_name = f"gadget_cmp_reg_{rn}_{rm}"
+
+            gadget = f"""// CMP x{rn}, x{rm}
+__attribute__((naked)) void {func_name}(void) {{
+    asm volatile(
+        "subs xzr, x{host_rn}, x{host_rm}\\n\\t"
+        "mrs x17, nzcv\\n\\t"
+        "str x17, [x29, #280]\\n\\t"
+        "ldr x27, [x28], #8\\n\\t"
+        "br x27\\n\\t"
+    );
+}}"""
+            gadgets.append(gadget)
+
+    return "\n\n".join(gadgets)
+
+
+def generate_adds_reg_gadgets():
+    """Generate ADDS register gadgets (ADDS Rd, Rn, Rm)."""
+    gadgets = []
+
+    for rd in range(MAX_TCTI_REGS):
+        for rn in range(MAX_TCTI_REGS):
+            for rm in range(MAX_TCTI_REGS):
+                host_rd = rd + 1
+                host_rn = rn + 1
+                host_rm = rm + 1
+
+                func_name = f"gadget_adds_reg_{rd}_{rn}_{rm}"
+
+                gadget = f"""// ADDS x{rd}, x{rn}, x{rm}
+__attribute__((naked)) void {func_name}(void) {{
+    asm volatile(
+        "adds x{host_rd}, x{host_rn}, x{host_rm}\\n\\t"
+        "mrs x17, nzcv\\n\\t"
+        "str x17, [x29, #280]\\n\\t"
+        "ldr x27, [x28], #8\\n\\t"
+        "br x27\\n\\t"
+    );
+}}"""
+                gadgets.append(gadget)
+
+    return "\n\n".join(gadgets)
+
+
+def generate_subs_reg_gadgets():
+    """Generate SUBS register gadgets (SUBS Rd, Rn, Rm)."""
+    gadgets = []
+
+    for rd in range(MAX_TCTI_REGS):
+        for rn in range(MAX_TCTI_REGS):
+            for rm in range(MAX_TCTI_REGS):
+                host_rd = rd + 1
+                host_rn = rn + 1
+                host_rm = rm + 1
+
+                func_name = f"gadget_subs_reg_{rd}_{rn}_{rm}"
+
+                gadget = f"""// SUBS x{rd}, x{rn}, x{rm}
+__attribute__((naked)) void {func_name}(void) {{
+    asm volatile(
+        "subs x{host_rd}, x{host_rn}, x{host_rm}\\n\\t"
+        "mrs x17, nzcv\\n\\t"
+        "str x17, [x29, #280]\\n\\t"
+        "ldr x27, [x28], #8\\n\\t"
+        "br x27\\n\\t"
+    );
+}}"""
+                gadgets.append(gadget)
+
+    return "\n\n".join(gadgets)
+
+
+def generate_lookup_tables():
+    """Generate gadget lookup tables."""
     tables = []
 
-    # ADD table
-    tables.append(f"// ADD register table")
-    tables.append(
-        f"const tcti_gadget_t gadget_add_reg[{MAX_TCTI_REGS}][{MAX_TCTI_REGS}][{MAX_TCTI_REGS}] = {{"
-    )
-    for rd in range(MAX_TCTI_REGS):
-        tables.append(f"    [{rd}] = {{")
-        for rn in range(MAX_TCTI_REGS):
-            entries = [f"gadget_add_reg_{rd}_{rn}_{rm}" for rm in range(MAX_TCTI_REGS)]
-            tables.append(f"        [{rn}] = {{{', '.join(entries)}}},")
-        tables.append("    },")
-    tables.append("};\n")
-
-    # SUB table
-    tables.append(f"// SUB register table")
-    tables.append(
-        f"const tcti_gadget_t gadget_sub_reg[{MAX_TCTI_REGS}][{MAX_TCTI_REGS}][{MAX_TCTI_REGS}] = {{"
-    )
-    for rd in range(MAX_TCTI_REGS):
-        tables.append(f"    [{rd}] = {{")
-        for rn in range(MAX_TCTI_REGS):
-            entries = [f"gadget_sub_reg_{rd}_{rn}_{rm}" for rm in range(MAX_TCTI_REGS)]
-            tables.append(f"        [{rn}] = {{{', '.join(entries)}}},")
-        tables.append("    },")
-    tables.append("};\n")
-
-    # And table
-    tables.append(f"// AND register table")
-    tables.append(
-        f"const tcti_gadget_t gadget_and_reg[{MAX_TCTI_REGS}][{MAX_TCTI_REGS}][{MAX_TCTI_REGS}] = {{"
-    )
-    for rd in range(MAX_TCTI_REGS):
-        tables.append(f"    [{rd}] = {{")
-        for rn in range(MAX_TCTI_REGS):
-            entries = [f"gadget_and_reg_{rd}_{rn}_{rm}" for rm in range(MAX_TCTI_REGS)]
-            tables.append(f"        [{rn}] = {{{', '.join(entries)}}},")
-        tables.append("    },")
-    tables.append("};\n")
-
-    # ORR table
-    tables.append(f"// ORR register table")
-    tables.append(
-        f"const tcti_gadget_t gadget_orr_reg[{MAX_TCTI_REGS}][{MAX_TCTI_REGS}][{MAX_TCTI_REGS}] = {{"
-    )
-    for rd in range(MAX_TCTI_REGS):
-        tables.append(f"    [{rd}] = {{")
-        for rn in range(MAX_TCTI_REGS):
-            entries = [f"gadget_orr_reg_{rd}_{rn}_{rm}" for rm in range(MAX_TCTI_REGS)]
-            tables.append(f"        [{rn}] = {{{', '.join(entries)}}},")
-        tables.append("    },")
-    tables.append("};\n")
-
-    # EOR table
-    tables.append(f"// EOR register table")
-    tables.append(
-        f"const tcti_gadget_t gadget_eor_reg[{MAX_TCTI_REGS}][{MAX_TCTI_REGS}][{MAX_TCTI_REGS}] = {{"
-    )
-    for rd in range(MAX_TCTI_REGS):
-        tables.append(f"    [{rd}] = {{")
-        for rn in range(MAX_TCTI_REGS):
-            entries = [f"gadget_eor_reg_{rd}_{rn}_{rm}" for rm in range(MAX_TCTI_REGS)]
-            tables.append(f"        [{rn}] = {{{', '.join(entries)}}},")
-        tables.append("    },")
-    tables.append("};\n")
-
-    # MOV table
-    tables.append(f"// MOV register table")
-    tables.append(
-        f"const tcti_gadget_t gadget_mov_reg[{MAX_TCTI_REGS}][{MAX_TCTI_REGS}] = {{"
-    )
+    # MOV register table
+    tables.append("// MOV register lookup table: gadget_mov_reg[dst][src]")
+    tables.append("const tcti_gadget_t gadget_mov_reg[16][16] = {")
     for rd in range(MAX_TCTI_REGS):
         entries = [f"gadget_mov_reg_{rd}_{rn}" for rn in range(MAX_TCTI_REGS)]
-        tables.append(f"    [{rd}] = {{{', '.join(entries)}}},")
-    tables.append("};\n")
+        tables.append("    {" + ", ".join(entries) + "},")
+    tables.append("};")
+    tables.append("")
 
-    # ADD immediate table (16x16x16 for Rd, Rn, imm)
-    tables.append(f"// ADD immediate table")
-    tables.append(
-        f"const tcti_gadget_t gadget_add_imm[{MAX_TCTI_REGS}][{MAX_TCTI_REGS}][16] = {{"
-    )
+    # ADD immediate table
+    tables.append("// ADD immediate lookup table: gadget_add_imm[dst][src][imm]")
+    tables.append("const tcti_gadget_t gadget_add_imm[16][16][16] = {")
     for rd in range(MAX_TCTI_REGS):
-        tables.append(f"    [{rd}] = {{")
+        tables.append("    {")
         for rn in range(MAX_TCTI_REGS):
             entries = [f"gadget_add_imm_{rd}_{rn}_{imm}" for imm in range(16)]
-            tables.append(f"        [{rn}] = {{{', '.join(entries)}}},")
+            tables.append("        {" + ", ".join(entries) + "},")
         tables.append("    },")
-    tables.append("};\n")
+    tables.append("};")
+    tables.append("")
 
-    # SUB immediate table (16x16x16 for Rd, Rn, imm)
-    tables.append(f"// SUB immediate table")
-    tables.append(
-        f"const tcti_gadget_t gadget_sub_imm[{MAX_TCTI_REGS}][{MAX_TCTI_REGS}][16] = {{"
-    )
+    # SUB immediate table
+    tables.append("// SUB immediate lookup table: gadget_sub_imm[dst][src][imm]")
+    tables.append("const tcti_gadget_t gadget_sub_imm[16][16][16] = {")
     for rd in range(MAX_TCTI_REGS):
-        tables.append(f"    [{rd}] = {{")
+        tables.append("    {")
         for rn in range(MAX_TCTI_REGS):
             entries = [f"gadget_sub_imm_{rd}_{rn}_{imm}" for imm in range(16)]
-            tables.append(f"        [{rn}] = {{{', '.join(entries)}}},")
+            tables.append("        {" + ", ".join(entries) + "},")
         tables.append("    },")
-    tables.append("};\n")
+    tables.append("};")
+    tables.append("")
 
-    # MOV immediate table (simplified)
-    tables.append(f"// MOV immediate table")
+    # MOV immediate table
+    tables.append("// MOV immediate lookup table: gadget_mov_imm[dst]")
     entries = [f"gadget_mov_imm_{rd}" for rd in range(MAX_TCTI_REGS)]
     tables.append(
-        f"const tcti_gadget_t gadget_mov_imm[{MAX_TCTI_REGS}] = {{{', '.join(entries)}}};\n"
+        "const tcti_gadget_t gadget_mov_imm[16] = {" + ", ".join(entries) + "};"
     )
-
-    # Branch gadgets (singletons)
-    tables.append("// Branch gadgets")
-    tables.append("tcti_gadget_t gadget_b = gadget_b_impl;")
-    tables.append("tcti_gadget_t gadget_bcond = gadget_bcond_impl;")
-    tables.append("tcti_gadget_t gadget_cbz = gadget_cbz_impl;")
-    tables.append("tcti_gadget_t gadget_cbnz = gadget_cbz_impl;")  # Same implementation
-    tables.append("tcti_gadget_t gadget_br = gadget_br_impl;")
     tables.append("")
-    tables.append("// System gadgets")
-    tables.append("tcti_gadget_t gadget_svc = gadget_svc_impl;")
-    tables.append("tcti_gadget_t gadget_mrs = gadget_mrs_impl;")
-    tables.append("tcti_gadget_t gadget_msr = gadget_msr_impl;")
-    tables.append("tcti_gadget_t gadget_nop = gadget_nop_impl;")
+
+    # ADD register table
+    tables.append("// ADD register lookup table: gadget_add_reg[dst][src1][src2]")
+    tables.append("const tcti_gadget_t gadget_add_reg[16][16][16] = {")
+    for rd in range(MAX_TCTI_REGS):
+        tables.append("    {")
+        for rn in range(MAX_TCTI_REGS):
+            tables.append("        {")
+            for rm in range(MAX_TCTI_REGS):
+                tables.append(f"            gadget_add_reg_{rd}_{rn}_{rm},")
+            tables.append("        },")
+        tables.append("    },")
+    tables.append("};")
+    tables.append("")
+
+    # SUB register table
+    tables.append("// SUB register lookup table: gadget_sub_reg[dst][src1][src2]")
+    tables.append("const tcti_gadget_t gadget_sub_reg[16][16][16] = {")
+    for rd in range(MAX_TCTI_REGS):
+        tables.append("    {")
+        for rn in range(MAX_TCTI_REGS):
+            tables.append("        {")
+            for rm in range(MAX_TCTI_REGS):
+                tables.append(f"            gadget_sub_reg_{rd}_{rn}_{rm},")
+            tables.append("        },")
+        tables.append("    },")
+    tables.append("};")
+    tables.append("")
+
+    # AND register table
+    tables.append("// AND register lookup table: gadget_and_reg[dst][src1][src2]")
+    tables.append("const tcti_gadget_t gadget_and_reg[16][16][16] = {")
+    for rd in range(MAX_TCTI_REGS):
+        tables.append("    {")
+        for rn in range(MAX_TCTI_REGS):
+            tables.append("        {")
+            for rm in range(MAX_TCTI_REGS):
+                tables.append(f"            gadget_and_reg_{rd}_{rn}_{rm},")
+            tables.append("        },")
+        tables.append("    },")
+    tables.append("};")
+    tables.append("")
+
+    # ORR register table
+    tables.append("// ORR register lookup table: gadget_orr_reg[dst][src1][src2]")
+    tables.append("const tcti_gadget_t gadget_orr_reg[16][16][16] = {")
+    for rd in range(MAX_TCTI_REGS):
+        tables.append("    {")
+        for rn in range(MAX_TCTI_REGS):
+            tables.append("        {")
+            for rm in range(MAX_TCTI_REGS):
+                tables.append(f"            gadget_orr_reg_{rd}_{rn}_{rm},")
+            tables.append("        },")
+        tables.append("    },")
+    tables.append("};")
+    tables.append("")
+
+    # EOR register table
+    tables.append("// EOR register lookup table: gadget_eor_reg[dst][src1][src2]")
+    tables.append("const tcti_gadget_t gadget_eor_reg[16][16][16] = {")
+    for rd in range(MAX_TCTI_REGS):
+        tables.append("    {")
+        for rn in range(MAX_TCTI_REGS):
+            tables.append("        {")
+            for rm in range(MAX_TCTI_REGS):
+                tables.append(f"            gadget_eor_reg_{rd}_{rn}_{rm},")
+            tables.append("        },")
+        tables.append("    },")
+    tables.append("};")
+
+    tables.append("")
+    tables.append("// ADDS register lookup table: gadget_adds_reg[dst][src1][src2]")
+    tables.append("const tcti_gadget_t gadget_adds_reg[16][16][16] = {")
+    for rd in range(MAX_TCTI_REGS):
+        tables.append("    {")
+        for rn in range(MAX_TCTI_REGS):
+            tables.append("        {")
+            for rm in range(MAX_TCTI_REGS):
+                tables.append(f"            gadget_adds_reg_{rd}_{rn}_{rm},")
+            tables.append("        },")
+        tables.append("    },")
+    tables.append("};")
+
+    tables.append("")
+    tables.append("// SUBS register lookup table: gadget_subs_reg[dst][src1][src2]")
+    tables.append("const tcti_gadget_t gadget_subs_reg[16][16][16] = {")
+    for rd in range(MAX_TCTI_REGS):
+        tables.append("    {")
+        for rn in range(MAX_TCTI_REGS):
+            tables.append("        {")
+            for rm in range(MAX_TCTI_REGS):
+                tables.append(f"            gadget_subs_reg_{rd}_{rn}_{rm},")
+            tables.append("        },")
+        tables.append("    },")
+    tables.append("};")
+
+    tables.append("")
+    tables.append("// CMP register lookup table: gadget_cmp_reg[src1][src2]")
+    tables.append("const tcti_gadget_t gadget_cmp_reg[16][16] = {")
+    for rn in range(MAX_TCTI_REGS):
+        entries = [f"gadget_cmp_reg_{rn}_{rm}" for rm in range(MAX_TCTI_REGS)]
+        tables.append("    {" + ", ".join(entries) + "},")
+    tables.append("};")
 
     return "\n".join(tables)
 
 
+def generate_gadgets(output_dir):
+    """Generate all gadget files."""
+    version = GADGET_VERSION
+    date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    print(f"TCTI Gadget Generator v{version}")
+    print(f"Output directory: {output_dir}")
+
+    # Generate header file
+    header_content = HEADER_TEMPLATE.format(version=version, date=date)
+    header_path = os.path.join(output_dir, "gadgets_tcti.h")
+    with open(header_path, "w") as f:
+        f.write(header_content)
+    print(f"Generated: {header_path}")
+
+    # Generate implementation file
+    print("Generating register gadgets...")
+    mov_reg_gadgets = generate_mov_reg_gadgets()
+
+    print("Generating immediate gadgets...")
+    add_imm_gadgets = generate_add_imm_gadgets()
+    sub_imm_gadgets = generate_sub_imm_gadgets()
+    mov_imm_gadgets = generate_mov_imm_gadgets()
+
+    print("Generating register-register gadgets...")
+    add_reg_gadgets = generate_add_reg_gadgets()
+    sub_reg_gadgets = generate_sub_reg_gadgets()
+    and_reg_gadgets = generate_and_reg_gadgets()
+    orr_reg_gadgets = generate_orr_reg_gadgets()
+    eor_reg_gadgets = generate_eor_reg_gadgets()
+    adds_reg_gadgets = generate_adds_reg_gadgets()
+    subs_reg_gadgets = generate_subs_reg_gadgets()
+    cmp_reg_gadgets = generate_cmp_reg_gadgets()
+
+    print("Generating lookup tables...")
+    lookup_tables = generate_lookup_tables()
+
+    impl_content = IMPL_TEMPLATE.format(
+        version=version,
+        date=date,
+        mov_reg_gadgets=mov_reg_gadgets,
+        add_imm_gadgets=add_imm_gadgets,
+        sub_imm_gadgets=sub_imm_gadgets,
+        mov_imm_gadgets=mov_imm_gadgets,
+        add_reg_gadgets=add_reg_gadgets,
+        sub_reg_gadgets=sub_reg_gadgets,
+        and_reg_gadgets=and_reg_gadgets,
+        orr_reg_gadgets=orr_reg_gadgets,
+        eor_reg_gadgets=eor_reg_gadgets,
+        adds_reg_gadgets=adds_reg_gadgets,
+        subs_reg_gadgets=subs_reg_gadgets,
+        cmp_reg_gadgets=cmp_reg_gadgets,
+        lookup_tables=lookup_tables,
+    )
+
+    impl_path = os.path.join(output_dir, "gadgets_tcti_impl.c")
+    with open(impl_path, "w") as f:
+        f.write(impl_content)
+    print(f"Generated: {impl_path}")
+
+    print("\nStatistics:")
+    print(f"  TCTI-mapped registers: x0-x15 ({MAX_TCTI_REGS})")
+    print(
+        f"  Total gadgets: ~{16 * 16 + 16 * 16 * 16 + 16 * 16 * 16 + 16 + 16 * 16 * 16 + 16 * 16 * 16:,}"
+    )
+    print(f"  Memory-backed: x16-x30, SP (16)")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Generate TCTI gadgets for aarch64")
-    parser.add_argument("-o", "--output", default=".", help="Output directory")
     parser.add_argument(
-        "--header-only", action="store_true", help="Generate only header file"
-    )
-    parser.add_argument(
-        "--impl-only", action="store_true", help="Generate only implementation file"
+        "-o",
+        "--output",
+        default=".",
+        help="Output directory for generated files (default: current directory)",
     )
     args = parser.parse_args()
 
-    print(f"TCTI Gadget Generator v{GADGET_VERSION}")
-    print(f"Output directory: {args.output}")
-
-    date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    # Generate header file
-    if not args.impl_only:
-        header_path = os.path.join(args.output, "gadgets_tcti.h")
-        header_content = HEADER_TEMPLATE.format(
-            version=GADGET_VERSION, date=date, max_regs=MAX_TCTI_REGS
-        )
-        with open(header_path, "w") as f:
-            f.write(header_content)
-        print(f"Generated: {header_path}")
-
-    # Generate implementation file
-    if not args.header_only:
-        impl_path = os.path.join(args.output, "gadgets_tcti_impl.c")
-
-        print("Generating register gadgets...")
-        add_gadgets = generate_add_reg_gadgets()[0]
-        sub_gadgets = generate_sub_reg_gadgets()
-        logical_gadgets = generate_logical_reg_gadgets()
-        mov_reg_gadgets = generate_mov_reg_gadgets()
-
-        print("Generating immediate gadgets...")
-        add_imm_gadgets = generate_add_imm_gadgets()
-        sub_imm_gadgets = generate_sub_imm_gadgets()
-        imm_gadgets = generate_dp_imm_gadgets()
-
-        print("Generating branch gadgets...")
-        branch_gadgets = generate_branch_gadgets()
-
-        print("Generating system gadgets...")
-        system_gadgets = generate_system_gadgets()
-
-        print("Generating lookup tables...")
-        tables = generate_gadget_tables()
-
-        impl_content = IMPL_TEMPLATE.format(
-            version=GADGET_VERSION,
-            date=date,
-            dp_reg_gadgets="\n".join(
-                [add_gadgets, sub_gadgets, logical_gadgets, mov_reg_gadgets]
-            ),
-            dp_imm_gadgets="\n".join([add_imm_gadgets, sub_imm_gadgets, imm_gadgets]),
-            branch_gadgets=branch_gadgets,
-            system_gadgets=system_gadgets,
-            gadget_tables=tables,
-        )
-
-        with open(impl_path, "w") as f:
-            f.write(impl_content)
-        print(f"Generated: {impl_path}")
-
-    # Statistics
-    total_gadgets = (
-        5 * MAX_TCTI_REGS**3  # ADD, SUB, AND, ORR, EOR reg (5 * 4096)
-        + 2 * MAX_TCTI_REGS**2 * 16  # ADD imm, SUB imm (2 * 256 * 16)
-        + MAX_TCTI_REGS**2  # MOV reg (256)
-        + MAX_TCTI_REGS  # MOV imm (16)
-        + 8  # Branch/system (8)
-    )
-    print(f"\nStatistics:")
-    print(f"  TCTI-mapped registers: x0-x{MAX_TCTI_REGS - 1} ({MAX_TCTI_REGS})")
-    print(f"  Total gadgets: ~{total_gadgets:,}")
-    print(f"  Memory-backed: x{MAX_TCTI_REGS}-x30, SP (16)")
-
-    return 0
+    generate_gadgets(args.output)
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

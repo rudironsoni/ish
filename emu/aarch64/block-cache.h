@@ -4,6 +4,7 @@
 #include "misc.h"
 #include "util/list.h"
 #include "util/sync.h"
+#include "emu/tlb.h"
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -14,6 +15,7 @@ struct a64_block {
     uint64_t start_pc;          // Starting guest PC
     uint64_t end_pc;            // Ending PC (one past last instruction)
     size_t num_gadgets;         // Number of gadgets in block
+    bool explicit_pc_on_exit;   // Control-flow gadget writes guest PC before exit
 
     // Gadget chain - array of function pointers
     tcti_gadget_t *gadgets;
