@@ -1,15 +1,19 @@
-// Intel standard interrupts
-// Any interrupt not handled specially becomes a SIGSEGV
-#define INT_NONE -1
-#define INT_DIV 0
-#define INT_DEBUG 1
-#define INT_NMI 2
-#define INT_BREAKPOINT 3
-#define INT_OVERFLOW 4
-#define INT_BOUND 5
-#define INT_UNDEFINED 6
-#define INT_FPU 7 // do not try to use the fpu. instead, try to realize the truth: there is no fpu.
-#define INT_DOUBLE 8 // interrupt during interrupt, i.e. interruptception
-#define INT_GPF 13
-#define INT_TIMER 32
-#define INT_SYSCALL 0x80
+#ifndef EMU_INTERRUPT_H
+#define EMU_INTERRUPT_H
+
+// AArch64 exception/signal constants for TCTI
+// Maps to iSH signal numbers
+
+#define INT_GPF 13           // SIGILL - Illegal instruction
+#define INT_UNDEFINED 6      // SIGABRT - Undefined instruction
+#define INT_SYSCALL 128      // SIGSYSCALL - Syscall trap
+#define INT_TRAP 5           // SIGTRAP - Debug trap
+#define INT_BREAKPOINT 5     // SIGTRAP - Breakpoint
+#define INT_DEBUG 5          // SIGTRAP - Debug trap
+#define INT_TIMER 14         // SIGALRM - Timer
+
+// Signal numbers for TCTI exit reasons
+#define INT_DIV0 8           // SIGFPE - Division by zero
+#define INT_UD 6             // SIGABRT - Abort
+
+#endif

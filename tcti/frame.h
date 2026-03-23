@@ -2,7 +2,7 @@
 #define FIBER_FRAME_H
 
 #include <stdatomic.h>
-#include "emu/cpu.h"
+#include "emu/aarch64/cpu.h"
 
 // keep in sync with asm
 #define FIBER_RETURN_CACHE_SIZE 2048  // Reduced from 4096 since we have 2 ways

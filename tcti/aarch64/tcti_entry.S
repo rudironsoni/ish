@@ -92,7 +92,7 @@ tcti_c_call_prologue:
     stp     x5,  x6,  [sp, #-16]!
     stp     x3,  x4,  [sp, #-16]!
     stp     x1,  x2,  [sp, #-16]!
-    stp     x28, xzr, [sp, #-16]!   // Save bytecode ptr, keep stack aligned
+    str     x28, [sp, #-16]!         // Save bytecode ptr (x0 is clobbered by C return value)
     ret
 
 // C call epilogue - restore all TCTI registers after C call
@@ -100,7 +100,7 @@ tcti_c_call_prologue:
 .global tcti_c_call_epilogue
 _tcti_c_call_epilogue:
 tcti_c_call_epilogue:
-    ldp     x28, xzr, [sp], #16     // Restore bytecode ptr
+    ldr     x28, [sp], #16          // Restore bytecode ptr only (x0 has C return value)
     ldp     x1,  x2,  [sp], #16
     ldp     x3,  x4,  [sp], #16
     ldp     x5,  x6,  [sp], #16
