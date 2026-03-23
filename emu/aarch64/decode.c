@@ -100,38 +100,43 @@ int a64_decode_dp_imm(uint32_t insn, a64_instr_t *out) {
             return 0;
         }
 
-        case 2: // 010 - Add/Subtract immediate OR Move Wide Immediate
+        case 2: // 010 - Add/Subtract immediate
         {
-            int opc = bits(insn, 30, 29);
+            // op0=010 is exclusively Add/Subtract immediate
+            // Move Wide immediate has op0=101 (case 5), not here
+            // 
+            // ADD/SUB immediate encoding:
+            //   sf (31) | op (30) | S (29) | 100010 | sh (22) | imm12 (21:10) | Rn (9:5) | Rd (4:0)
+            //   op=0: ADD, op=1: SUB
+            //   S=1: Set flags (ADDS/SUBS), S=0: Don't set flags
+            //   sh=1: Shift imm12 left by 12 bits
             
-            // Check if this is MOVZ/MOVN/MOVK (opc = 01, 00, 10)
-            if ((opc & 2) != 0) { // bit 29 set = MOVZ/MOVN/MOVK
-                // Move Wide Immediate
-                int hw = bits(insn, 22, 21);
-                uint64_t imm16 = bits(insn, 20, 5);
-                out->is_64bit = bit(insn, 31);
-                out->Rd = bits(insn, 4, 0);
-                out->imm = imm16 << (hw * 16);
-                out->subtype = (opc >> 1); // 0=MOVN, 1=MOVZ, 2=MOVK, 3=???(reserved)
-                return 0;
-            }
+            int op = bit(insn, 30);   // 0=ADD, 1=SUB
+            int S = bit(insn, 29);    // Set flags
+            int sh = bit(insn, 22);   // Shift flag
             
-            // Add/Subtract immediate (opc = 00 or 01 but bit 29 clear)
-            int op = bit(insn, 30); // 0=ADD, 1=SUB
-            int S = bit(insn, 29);  // Set flags (should be 0 for these)
             out->is_64bit = bit(insn, 31);
             out->Rd = bits(insn, 4, 0);
             out->Rn = bits(insn, 9, 5);
             out->imm = bits(insn, 21, 10);
             out->set_flags = S;
-            out->subtype = op ? 1 : 0; // 0=ADD, 1=SUB
-
-            // Check for shift (bit 22 is sh)
-            if (bit(insn, 22)) {
-                // Shifted by 12
+            
+            // Apply shift if sh=1
+            if (sh) {
                 out->imm <<= 12;
             }
-
+            
+            // Map to subtypes 3-6 for generator:
+            //   3: ADD immediate with shift (sh=1)
+            //   4: ADD immediate no shift (sh=0)
+            //   5: SUB immediate with shift (sh=1)
+            //   6: SUB immediate no shift (sh=0)
+            if (op == 0) {      // ADD
+                out->subtype = sh ? 3 : 4;
+            } else {            // SUB
+                out->subtype = sh ? 5 : 6;
+            }
+            
             return 0;
         }
         
@@ -156,7 +161,6 @@ int a64_decode_dp_imm(uint32_t insn, a64_instr_t *out) {
         }
 
         case 4: // 100 - Logical immediate (AND/ORR/EOR/ANDS)
-        case 5: // 101
         {
             int opc = bits(insn, 30, 29);
             out->is_64bit = bit(insn, 31);
@@ -167,12 +171,15 @@ int a64_decode_dp_imm(uint32_t insn, a64_instr_t *out) {
             int immr = bits(insn, 21, 16);
             int imms = bits(insn, 15, 10);
             out->imm = ((uint64_t)N << 13) | ((uint64_t)imms << 6) | immr;
-            out->subtype = opc; // 0=AND, 1=ORR, 2=EOR, 3=ANDS
+            // Map to subtypes 7-10 to avoid collision with MOVN/MOVZ/MOVK (0-2)
+            // and ADD/SUB immediate (3-6)
+            // 7=AND, 8=ORR, 9=EOR, 10=ANDS
+            out->subtype = 7 + opc;
             out->set_flags = (opc == 3);
             return 0;
         }
 
-        case 6: // 110 - Move wide immediate
+        case 5: // 101 - Move wide immediate (MOVN, MOVZ, MOVK)
         {
             int opc = bits(insn, 30, 29);
             out->is_64bit = bit(insn, 31);
@@ -180,36 +187,34 @@ int a64_decode_dp_imm(uint32_t insn, a64_instr_t *out) {
             uint64_t imm16 = bits(insn, 20, 5);
             int hw = bits(insn, 22, 21); // shift: 0=0, 1=16, 2=32, 3=48
             out->imm = imm16 << (hw * 16);
-            out->subtype = opc; // 0=MOVN, 1=MOVZ, 2=MOVK
+            // Map opc to subtype: 00=MOVN(0), 10=MOVZ(1), 11=MOVK(2), 01=invalid
+            if (opc == 0) out->subtype = 0;      // MOVN
+            else if (opc == 2) out->subtype = 1; // MOVZ
+            else if (opc == 3) out->subtype = 2; // MOVK
+            else return -1; // opc=01 is reserved
             return 0;
         }
 
-        case 7: // 111 - Bitfield move
+        case 6: // 110 - Bitfield move
         {
             int opc = bits(insn, 30, 29);
             out->is_64bit = bit(insn, 31);
             out->Rd = bits(insn, 4, 0);
             out->Rn = bits(insn, 9, 5);
-            int immr = bits(insn, 21, 16);
-            int imms = bits(insn, 15, 10);
-            int N = bit(insn, 22);
-            UNUSED(N); // N is implicit in instruction encoding
-            out->imm = immr;
-            out->imm_shift = imms;
-            out->subtype = opc; // 0=SBFM, 1=BFM, 2=UBFM
+            out->imm = bits(insn, 21, 16);
+            out->imm_shift = bits(insn, 15, 10);
+            out->subtype = 11 + opc; // 11=SBFM, 12=BFM, 13=UBFM
             return 0;
         }
 
-        case 1: // 001 - Extract
+        case 7: // 111 - Extract
         {
             int op21 = bits(insn, 30, 29);
             out->is_64bit = bit(insn, 31);
             out->Rd = bits(insn, 4, 0);
             out->Rn = bits(insn, 9, 5);
             out->Rm = bits(insn, 20, 16);
-            int imms = bits(insn, 15, 10);
-            (void)bit(insn, 22);  // N bit - implicit in encoding
-            out->imm = imms; // lsb position
+            out->imm = bits(insn, 15, 10);
             out->subtype = op21; // 0=EXTR
             return 0;
         }
@@ -368,7 +373,8 @@ int a64_decode_branch(uint32_t insn, a64_instr_t *out) {
             int op = bit(insn, 31); // 0=B, 1=BL
             int64_t imm26 = bits(insn, 25, 0);
             out->imm = sign_extend(imm26, 26) << 2;
-            out->subtype = op; // 0=B, 1=BL
+            out->subtype = A64_BRANCH_UNCOND;
+            out->op = op;
             return 0;
         }
 
@@ -395,7 +401,8 @@ int a64_decode_branch(uint32_t insn, a64_instr_t *out) {
             int64_t imm19 = bits(insn, 23, 5);
             out->Rd = bits(insn, 4, 0);
             out->imm = sign_extend(imm19, 19) << 2;
-            out->subtype = op ? 1 : 0; // 0=CBZ, 1=CBNZ
+            // subtype: 0=CBZ, 1=CBNZ, but store them at values 2-3 to match enum
+            out->subtype = 2 + (op ? 1 : 0); // 2=CBZ, 3=CBNZ (within A64_BRANCH_CMP range)
             return 0;
         }
 
@@ -407,7 +414,8 @@ int a64_decode_branch(uint32_t insn, a64_instr_t *out) {
             out->Rd = bits(insn, 4, 0);
             out->imm = sign_extend(imm14, 14) << 2;
             out->imm_shift = bit_pos;
-            out->subtype = op ? 1 : 0; // 0=TBZ, 1=TBNZ
+            // subtype: A64_BRANCH_TEST = 3
+            out->subtype = 3 + (op ? 1 : 0); // 3=TBZ, 4=TBNZ (if needed)
             return 0;
         }
 
@@ -465,6 +473,7 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out) {
     int op2 = bits(insn, 23, 21);
     int op3 = bits(insn, 15, 12);
     int op4 = bits(insn, 11, 10);
+    int top7 = bits(insn, 31, 25);
 
     out->is_64bit = op0 == 3;
     out->is_vector = bit(insn, 26);
@@ -476,56 +485,73 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out) {
         out->size = op0;
     }
 
-    if (op1 == 0) {
-        // Load/store unscaled immediate (LDUR/STUR)
-        if (op2 == 0) {
-            (void)bit(insn, 26);  // V bit - vector flag, extracted above
-            int imm9 = bits(insn, 20, 12);
-            (void)bit(insn, 10);  // post-index bit
-            (void)bit(insn, 22);  // L bit - load/store flag
-            out->Rd = bits(insn, 4, 0);
-            out->Rn = bits(insn, 9, 5);
-            out->imm = sign_extend(imm9, 9);
-            out->is_signed = false;
-            return 0;
+    // Load/store pair uses a separate major encoding space (1010100x) and must
+    // be decoded before the generic single load/store cases below.
+    if (top7 == 0x54) {
+        int imm7 = bits(insn, 21, 15);
+        int Rt2 = bits(insn, 14, 10);
+        int mode = bits(insn, 24, 23);
+
+        out->Rd = bits(insn, 4, 0);
+        out->Rn = bits(insn, 9, 5);
+        out->Rm = Rt2;
+        out->subtype = A64_LDST_PAIR;
+        out->is_pair = true;
+
+        if (!out->is_vector) {
+            out->is_64bit = (op0 == 2);
+            out->size = out->is_64bit ? A64_SIZE_X : A64_SIZE_W;
+        }
+
+        switch (mode) {
+            case 1:
+                out->idx_mode = A64_POST_INDEX;
+                break;
+            case 3:
+                out->idx_mode = A64_PRE_INDEX;
+                break;
+            default:
+                out->idx_mode = A64_INDEX_OFFSET;
+                break;
+        }
+
+        out->pair_offset = sign_extend(imm7, 7)
+            << (out->is_vector ? (2 + out->size) : (2 + (op0 >> 1)));
+        return 0;
+    }
+
+    // Single-register unscaled/pre/post-indexed forms. These use the imm9 field
+    // with bit24 == 0, and op4 selects offset/post/pre (0/1/3 respectively).
+    if (!bit(insn, 24) && op4 != 2) {
+        int imm9 = bits(insn, 20, 12);
+        out->Rd = bits(insn, 4, 0);
+        out->Rn = bits(insn, 9, 5);
+        out->imm = sign_extend(imm9, 9);
+        out->is_signed = false;
+        out->subtype = A64_LDST_SINGLE;
+
+        switch (op4) {
+            case 0:
+                out->idx_mode = A64_INDEX_OFFSET;
+                return 0;
+            case 1:
+                out->idx_mode = A64_POST_INDEX;
+                return 0;
+            case 3:
+                out->idx_mode = A64_PRE_INDEX;
+                return 0;
+            default:
+                break;
         }
     }
 
-    // Load/store (unsigned immediate) - handles both op1=0 (op2>=2) and op1=1
-    // op1=0, op2>=2: unsigned immediate with size-based scaling
-    // op1=1: unsigned immediate (bit 24 = 1 distinguishes from unscaled)
-    if (!out->is_vector && (op1 == 1 || (op1 == 0 && op2 >= 2))) {
-        (void)bit(insn, 22);  // L bit - load/store flag
-        uint64_t imm12 = bits(insn, 21, 10);
-        out->Rd = bits(insn, 4, 0);
-        out->Rn = bits(insn, 9, 5);
-        // Scale immediate by size
-        int scale = out->is_64bit ? 3 : out->size;
-        out->imm = imm12 << scale;
-        return 0;
-    }
+    // Pair encodings were already handled by the dedicated top7 check above.
+    // Do not use a broad `op2 == 1` test here: register-offset stores like
+    // `f82278a6` also satisfy that and would be misdecoded as pairs.
 
-    // Load/store register pair
-    if (op2 == 1) {
-        (void)bit(insn, 22);  // L bit - load/store flag
-        int imm7 = bits(insn, 21, 15);
-        int Rt2 = bits(insn, 14, 10);
-        (void)bits(insn, 24, 23);  // mode - indexing mode
-
-        out->Rd = bits(insn, 4, 0);
-        out->Rn = bits(insn, 9, 5);
-        out->Rm = Rt2; // Second register
-        out->is_pair = true;
-
-        // Scale by size
-        int scale = 2 + out->size;
-        out->pair_offset = sign_extend(imm7, 7) << scale;
-
-        return 0;
-    }
-
-    // Load literal
-    if (op2 == 0 && bit(insn, 27) && !bit(insn, 24)) {
+    // Load literal. Real literal encodings have top7 patterns 0x0c/0x2c/0x4c/0x6c;
+    // the old broad bit test also matched post-index stores like f800845f.
+    if ((top7 & 0x1f) == 0x0c) {
         (void)bit(insn, 26);  // V bit - vector flag
         int64_t imm19 = bits(insn, 23, 5);
         out->Rd = bits(insn, 4, 0);
@@ -543,6 +569,23 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out) {
         out->Rm = bits(insn, 20, 16);
         out->extend_type = opt;
         out->imm_shift = S ? (out->size) : 0;
+        out->subtype = A64_LDST_SINGLE;
+        out->idx_mode = A64_INDEX_OFFSET;
+        return 0;
+    }
+
+    // Load/store unsigned immediate. bit24 distinguishes this class from the
+    // imm9-based unscaled/pre/post forms above.
+    if (!out->is_vector && bit(insn, 24)) {
+        (void)bit(insn, 22);  // L bit - load/store flag
+        uint64_t imm12 = bits(insn, 21, 10);
+        out->Rd = bits(insn, 4, 0);
+        out->Rn = bits(insn, 9, 5);
+        // Scale immediate by size
+        int scale = out->is_64bit ? 3 : out->size;
+        out->imm = imm12 << scale;
+        out->subtype = A64_LDST_SINGLE;
+        out->idx_mode = A64_INDEX_OFFSET;
         return 0;
     }
 

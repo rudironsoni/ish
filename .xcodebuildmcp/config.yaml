@@ -1,0 +1,30 @@
+schemaVersion: 1
+enabledWorkflows:
+  - coverage
+  - debugging
+  - device
+  - doctor
+  - logging
+  - project-discovery
+  - project-scaffolding
+  - simulator
+  - simulator-management
+  - swift-package
+  - ui-automation
+  - utilities
+  - xcode-ide
+debug: true
+sentryDisabled: true
+debuggerBackend: "lldb-cli"
+dapRequestTimeoutMs: 60000
+dapLogEvents: true
+launchJsonWaitMs: 15000
+uiDebuggerGuardMode: "warn"
+sessionDefaults:
+  projectPath: iSH.xcodeproj
+  scheme: iSH
+  configuration: "Debug"
+  deviceId: 7F8A1701-D612-5A9C-AAE7-8FD0AD77306C
+  simulatorId: A34273D2-BCBB-4900-BAAF-09AF75144636
+  simulatorName: iPhone 17 Pro
+  bundleId: com.rudironsoni.ish

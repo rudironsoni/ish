@@ -3,6 +3,7 @@
 
 #include "misc.h"
 #include "emu/mmu.h"
+#include "emu/aarch64/decode.h"
 
 #ifdef __KERNEL__
 #include <linux/stddef.h>
@@ -20,6 +21,8 @@ void a64_cpu_init(struct cpu_state *cpu);
 void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb);
 int a64_cpu_step(struct cpu_state *cpu, struct tlb *tlb);
 void a64_cpu_dump(struct cpu_state *cpu);
+int a64_execute_ldst(struct cpu_state *cpu, struct tlb *tlb, const a64_instr_t *instr);
+int a64_execute_bitfield(struct cpu_state *cpu, const a64_instr_t *instr);
 
 // aarch64 has 31 general-purpose registers (x0-x30)
 // x30 is the link register (lr)
@@ -109,9 +112,24 @@ struct cpu_state {
     
     // Trap/interrupt number for signal handling
     int trapno;
+    
+    // TCTI exit reason - set by assembly code before returning
+    int tcti_exit_reason;
+    
+    // TLB pointer for inline TLB lookup in TCTI gadgets
+    struct tlb *tlb;
 };
 
 #define CPU_OFFSET(field) offsetof(struct cpu_state, field)
+
+// TLB structure offsets for inline TLB lookup in assembly
+// These must match the actual struct layouts
+#define CPU_TLB_OFFSET          CPU_OFFSET(tlb)          // Offset of tlb pointer in cpu_state
+#define TLB_ENTRIES_OFFSET      32                      // Offset of entries in struct tlb
+#define TLB_ENTRY_SIZE          16                      // Size of each tlb_entry (page:4 + page_if_writable:4 + data_minus_addr:8)
+#define TLB_ENTRY_PAGE_OFFSET   0                       // Offset of page within tlb_entry
+#define TLB_ENTRY_DATA_OFFSET   8                       // Offset of data_minus_addr within tlb_entry
+#define PAGE_BITS               12                      // Page size is 4KB
 
 // Verify struct layout assumptions
 static_assert(CPU_OFFSET(x[0]) == offsetof(struct cpu_state, x), "x array offset");

@@ -12,34 +12,25 @@
 #include "tcti/aarch64/gadgets_tcti.h"
 #include "emu/aarch64/cpu.h"
 
-// ============================================================================
-// Compare Operations (set flags, discard result)
-// ============================================================================
-
-// CMP Rn, Rm - Compare (subtract and set flags)
-__attribute__((naked)) void gadget_cmp_0_1(void) {
-    // Compare x0 (host x1) with x1 (host x2)
-    asm volatile(
-        "subs xzr, x1, x2\n\t"      // Subtract to zero register, set flags
-        GADGET_EPILOGUE
-    );
+// Forward declarations for division helpers (defined at end of this file)
+// Use extern "C" to ensure C linkage even if compiled as C++
+// On Darwin/macOS, C symbols are prefixed with underscore in assembly
+// So we need to reference _a64_udiv_helper in assembly, not a64_udiv_helper
+#ifdef __cplusplus
+extern "C" {
+#endif
+    extern uint64_t a64_udiv_helper(uint64_t dividend, uint64_t divisor);
+    extern int64_t a64_sdiv_helper(int64_t dividend, int64_t divisor);
+#ifdef __cplusplus
 }
+#endif
 
-// CMN Rn, Rm - Compare negative (add and set flags)
-__attribute__((naked)) void gadget_cmn_0_1(void) {
-    asm volatile(
-        "adds xzr, x1, x2\n\t"      // Add to zero register, set flags
-        GADGET_EPILOGUE
-    );
-}
-
-// TST Rn, Rm - Test (AND and set flags)
-__attribute__((naked)) void gadget_tst_0_1(void) {
-    asm volatile(
-        "ands xzr, x1, x2\n\t"      // AND to zero register, set flags
-        GADGET_EPILOGUE
-    );
-}
+// Assembly references need underscore prefix on Darwin
+#ifdef __APPLE__
+#define ASM_NAME(name) _##name
+#else
+#define ASM_NAME(name) name
+#endif
 
 // ============================================================================
 // Multiplication
@@ -89,11 +80,12 @@ extern int64_t a64_sdiv_helper(int64_t dividend, int64_t divisor);
 // UDIV Rd, Rn, Rm - Unsigned divide
 __attribute__((naked)) void gadget_udiv_0_1_2(void) {
     // x0 = x1 / x2 (unsigned)
+    // Darwin requires underscore prefix for C symbols in assembly
     asm volatile(
         "stp x19, x20, [sp, #-16]!\n\t"
         "mov x0, x2\n\t"           // Dividend
         "mov x1, x3\n\t"           // Divisor
-        "bl a64_udiv_helper\n\t"   // Call C helper
+        "bl _a64_udiv_helper\n\t"   // Call C helper (Darwin naming)
         "mov x1, x0\n\t"           // Result to x1 (guest x0)
         "ldp x19, x20, [sp], #16\n\t"
         GADGET_EPILOGUE
@@ -106,7 +98,7 @@ __attribute__((naked)) void gadget_sdiv_0_1_2(void) {
         "stp x19, x20, [sp, #-16]!\n\t"
         "mov x0, x2\n\t"
         "mov x1, x3\n\t"
-        "bl a64_sdiv_helper\n\t"
+        "bl _a64_sdiv_helper\n\t"
         "mov x1, x0\n\t"
         "ldp x19, x20, [sp], #16\n\t"
         GADGET_EPILOGUE
@@ -274,7 +266,8 @@ __attribute__((naked)) void gadget_csinv_eq_0_1_2(void) {
 // C Implementation of division helpers
 // ============================================================================
 
-uint64_t a64_udiv_helper(uint64_t dividend, uint64_t divisor) {
+// Export division helpers for use by assembly gadgets
+__attribute__((visibility("default"))) uint64_t a64_udiv_helper(uint64_t dividend, uint64_t divisor) {
     if (divisor == 0) {
         // Division by zero - would trap in real hardware
         // Return 0 or handle as needed
@@ -283,7 +276,7 @@ uint64_t a64_udiv_helper(uint64_t dividend, uint64_t divisor) {
     return dividend / divisor;
 }
 
-int64_t a64_sdiv_helper(int64_t dividend, int64_t divisor) {
+__attribute__((visibility("default"))) int64_t a64_sdiv_helper(int64_t dividend, int64_t divisor) {
     if (divisor == 0) {
         return 0;
     }

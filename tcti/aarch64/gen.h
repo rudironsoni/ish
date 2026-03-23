@@ -15,7 +15,7 @@
 #include "tcti/frame.h"
 
 // Maximum gadgets per block
-#define A64_MAX_GADGETS_PER_BLOCK 256
+#define A64_MAX_GADGETS_PER_BLOCK 512
 
 // Generator error codes
 enum a64_gen_error {
@@ -62,7 +62,7 @@ int a64_gen_finalize(a64_gen_state_t *state);
 
 // Complete block generator that processes until branch
 // Returns number of instructions processed, or error
-// PR 5: Added safety limits - max 50 instructions, max 256 bytes per block
+// Safety limits: max 50 instructions, max 512 gadget entries per block
 int a64_gen_basic_block(a64_gen_state_t *state, struct cpu_state *cpu,
                         struct tlb *tlb, uint64_t *end_pc);
 

@@ -194,6 +194,38 @@ int a64_decode(uint32_t insn, a64_instr_t *out) {
 - Document non-obvious register usage
 - Follow existing patterns in the codebase
 
+## 🔧 TCTI (Threaded Code) Generator
+
+### Important: Source of Truth
+The TCTI assembly gadgets in `tcti/aarch64/gadgets_tcti_impl.c` and `tcti/aarch64/gadgets_tcti.h` are **AUTO-GENERATED** by `tcti/aarch64/tcti-gadget-gen.py`. 
+
+**NEVER edit the .c or .h files directly** - your changes will be lost when the generator is run.
+
+### Making Changes to Gadgets
+1. Edit `tcti/aarch64/tcti-gadget-gen.py` to modify gadget generation logic
+2. Regenerate the files:
+   ```bash
+   python3 tcti/aarch64/tcti-gadget-gen.py -o tcti/aarch64
+   ```
+3. Verify the generated code compiles
+
+### Register Contract
+The gadget generator establishes these register conventions:
+- **Guest x0-x15** → **Host x1-x16** (direct TCTI-mapped, always hot)
+- **Guest x16-x30** → Memory-backed in cpu_state (load/store via gadgets)
+- **Guest SP (x31)** → Memory-backed in cpu_state (load/store via gadgets)
+- **Host x14, x15** → Scratch temps for memory-backed operations
+- **Host x28** → Bytecode pointer (gadget stream)
+- **Host x29** → CPU state pointer
+
+### Memory-Backed Operations
+When operating on registers x16-x30 or SP:
+1. Load into temp (x14/x15) using `gadget_load_xreg_16_to_30[]` or `gadget_load_sp`
+2. Execute operation using the temp
+3. Store back using `gadget_store_xreg_16_to_30[]` or `gadget_store_sp`
+
+The generator (`tcti/aarch64/gen.c`) must respect these contracts when emitting bytecode.
+
 ## 🛠️ Development Workflow
 
 ### Making Changes

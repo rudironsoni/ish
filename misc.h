@@ -37,7 +37,7 @@
 
 // keywords
 #define bitfield unsigned int
-#define forceinline inline __attribute__((always_inline))
+#define forceinline static inline __attribute__((always_inline))
 #if defined(NDEBUG) || defined(__KERNEL__)
 #define posit __builtin_assume
 #else
@@ -109,9 +109,9 @@ typedef int32_t sdword_t;
 typedef uint16_t word_t;
 typedef uint8_t byte_t;
 
-typedef dword_t addr_t;
-typedef dword_t uint_t;
-typedef sdword_t int_t;
+typedef qword_t addr_t;
+typedef qword_t uint_t;
+typedef sqword_t int_t;
 
 typedef sdword_t pid_t_;
 typedef dword_t uid_t_;
