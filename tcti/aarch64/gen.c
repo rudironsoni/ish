@@ -1011,10 +1011,19 @@ int a64_gen_ldst(a64_gen_state_t *state, const a64_instr_t *instr) {
         return A64_GEN_OK;
     }
 
-    return a64_emit_ldst_single(state, state->guest_pc, instr->Rd, instr->Rn,
+    int ret = a64_emit_ldst_single(state, state->guest_pc, instr->Rd, instr->Rn,
             instr->imm, instr->size, instr->idx_mode, instr->is_signed,
             instr->Rm, instr->extend_type, instr->imm_shift,
             bits(instr->raw, 11, 10) == 2, bit(instr->raw, 22));
+    if (ret != A64_GEN_OK)
+        return ret;
+    
+    // Handle post-index writeback for single instructions
+    if (instr->idx_mode == A64_POST_INDEX) {
+        return a64_emit_base_writeback(state, instr->Rn, instr->imm);
+    }
+    
+    return A64_GEN_OK;
 }
 
 /* ============================================================================

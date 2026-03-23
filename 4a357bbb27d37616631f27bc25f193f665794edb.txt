@@ -1,0 +1,1087 @@
+You are working on iox, a Linux-oriented userspace subsystem for iOS.
+
+Follow these instructions exactly.
+Do not improvise architecture.
+Do not present alternatives.
+Do not ask for preference.
+Do not weaken any requirement.
+Do not silently change scope.
+Do not optimize for appearance of progress.
+Optimize only for truthful, verified progress.
+
+Mission
+
+Transform the current project from a fragmented compatibility layer into one coherent Linux-like virtual subsystem for iOS, designed for:
+
+1. maximum practical Linux userland compatibility
+2. zero reliance on real host `fork()` or real host image replacement
+3. one shared substrate for native commands and WAMR WASI modules
+4. high performance
+5. deterministic structure that mirrors Linux subsystem boundaries at a high level
+6. deterministic, trustworthy, reproducible build and test behavior on freshly cloned repositories
+7. test perfection as an engineering goal: trustworthy, reliable, deterministic automated evidence for every important behavior
+
+The required outcome is maximum practical Linux userland compatibility, not a minimal compatibility shim and not a vague POSIX layer.
+
+The subsystem must be engineered for trustworthiness.
+Testing, regression control, deterministic verification, and fresh-clone reproducibility are mandatory design constraints, not follow-up work.
+
+Core rule
+
+Do not invent.
+Do not assume.
+Do not generalize from incomplete evidence.
+Do not present alternatives unless explicitly asked.
+Do not weaken requirements.
+Do not silently change scope.
+
+You are not here to brainstorm.
+You are here to execute against the agreed architecture.
+
+Non-negotiable platform assumptions
+
+Assume stock iOS App Store constraints.
+Assume real `fork()`, real ELF execution, real kernel process isolation, and unrestricted kernel-style process primitives are not available as the foundation.
+
+Therefore:
+
+1. do not rely on host `fork()`
+2. do not rely on host `execve()` replacing the image
+3. do not design around arbitrary native binary loading
+4. do not present these as options
+5. implement these semantics inside iox
+
+Hard architectural decisions
+
+These are fixed. You must follow them strictly.
+
+1. There is exactly one canonical execution object: `iox_task`.
+2. `iox_context.c` is not a second process model. It must be eliminated as a first-class model.
+3. The global FD table in `iox_file.c` must be eliminated.
+4. All FDs must live only under `iox_task->files`.
+5. Interposition remains only as a compatibility adapter layer.
+6. WAMR is an execution backend, not a second process universe.
+7. `execve` in iox means virtual image replacement inside the iox task model.
+8. Native commands are executed through a native command registry, not arbitrary host loading.
+9. Bash compatibility is a design target. Do not downgrade it. Design the substrate for it.
+10. PTY, job control, sessions, process groups, signals, and `/dev/tty` are mandatory core features, not optional extras.
+11. Do not split the repo yet.
+12. Do not change the build system first. Semantic unification comes first.
+13. Testing architecture is part of the core architecture. No major subsystem may be introduced without a corresponding automated test strategy.
+14. Compatibility claims are invalid unless backed by committed automated tests.
+15. Build configuration must be iOS-only. Host Darwin or macOS-native build and test paths are not acceptable substitutes.
+16. Fresh-clone reproducibility is mandatory. A new machine with the declared prerequisites must be able to configure, build, and run the full supported test matrix using checked-in scripts and presets only.
+17. No feature is complete without automated evidence.
+18. No bug fix is complete without a regression test unless a documented, concrete reason makes testing impossible.
+19. Tests are first-class deliverables, owned with the same rigor as production code.
+20. Sloppy, flaky, timing-dependent, under-specified, weakly asserted, or misleading tests are unacceptable.
+
+Compatibility target
+
+The compatibility target is not “partial POSIX support”.
+The compatibility target is a Linux-userland-compatible subsystem, in the same practical category of ambition as Termux, Cygwin, and MSYS2, but implemented for iOS constraints through iox’s own virtual kernel substrate.
+
+Interpret this requirement strictly:
+
+1. maximize compatibility with Linux-oriented userland software
+2. minimize required source changes for ports such as bash, coreutils, grep, sed, awk, tar, make, findutils, readline, ncurses, and similar packages
+3. provide Linux-like user-visible semantics for process handling, signals, job control, PTY, filesystems, `/proc`, `/dev`, pipes, redirections, cwd, env, and executable dispatch
+4. provide a toolchain and sysroot model that makes software believe it is targeting a Linux-like environment as much as practically possible
+5. provide runtime adaptation inside iox for features that stock iOS does not provide directly
+6. do not reduce the target to “just POSIX”
+7. do not redefine the goal downward because iOS lacks real kernel primitives
+8. implement the missing semantics inside iox wherever practical
+
+Important precision rule
+
+Do not describe the target as literal “full Linux kernel compatibility”.
+That phrase is technically wrong for this project and will cause bad design decisions.
+
+Use this exact target instead:
+
+“maximum practical Linux userland compatibility through a Linux-like virtual kernel substrate implemented inside iox”
+
+This means:
+
+1. preserve Linux-compatible behavior at the userland boundary as far as practical
+2. emulate or virtualize missing kernel-backed semantics inside iox
+3. expose Linux-like filesystem layout and runtime behavior
+4. support Linux-oriented build systems, configure checks, and package expectations
+5. make bash-class software and common Linux CLI software behave as naturally as possible
+
+This does not mean:
+
+1. relying on a real Linux kernel
+2. claiming unrestricted host kernel syscall availability
+3. depending on host `fork()` or host `execve()` image replacement
+4. claiming arbitrary ELF execution on stock iOS
+
+Toolchain and porting requirement
+
+You must design for compatibility the same way serious portability layers do:
+
+1. runtime semantic adaptation
+2. Linux-like headers and constants where appropriate
+3. stable public compatibility surface
+4. virtual `/proc`, `/dev`, PTY, signals, and process semantics
+5. package-oriented toolchain support
+6. minimal, tracked, explicit patches only when absolutely necessary
+
+Porting standard
+
+Assume the project is successful only if software in the following class can be brought up with small, disciplined patchsets or no patchsets where practical:
+
+- bash
+- dash
+- busybox
+- coreutils
+- grep
+- sed
+- awk
+- make
+- tar
+- xz
+- findutils
+- readline
+- ncurses
+- git-class CLI tooling
+- WASI workloads through WAMR using the same substrate
+
+Compatibility doctrine
+
+When iOS does not provide a Linux kernel primitive directly, do not lower the compatibility goal.
+Instead, implement the required user-visible behavior inside iox’s virtual task, VFS, signal, PTY, exec, and runtime subsystems.
+
+The system must be designed to behave Linux-like at the userland boundary, even when the implementation underneath is an iOS-constrained virtual substrate.
+
+WAMR role
+
+WAMR is not a replacement for iox’s Linux-like kernel substrate.
+WAMR is a secondary execution backend used only for WASM/WASI images.
+
+iox remains the single owner of:
+- task and virtual process semantics
+- file descriptor tables
+- VFS, cwd, root, and mount behavior
+- signals, PTY, TTY, job control
+- `/proc` and `/dev`
+- clocks, random, environment
+- `fork`, `execve`, `_exit`, `wait*`
+
+WAMR is responsible only for:
+- loading and instantiating WASM modules
+- managing WASM execution state and linear memory
+- exposing WASI imports
+- translating WASI calls into the shared iox kernel substrate
+
+All WASI operations must resolve through the same iox kernel services used by native commands.
+WAMR must not define a separate process, filesystem, or signal model.
+
+What you must delete or replace
+
+1. Delete `src/iox/core/iox_context.c` as a competing execution model.
+   - salvage useful logic
+   - migrate it into the canonical task model
+   - do not preserve dual ownership
+
+2. Delete the global FD ownership in `src/iox/core/iox_file.c`.
+   - move FD ownership to `task->files`
+   - remove global FD state as a source of truth
+
+3. Replace passthrough ownership.
+   - `iox_libc_delegate.c` and similar passthrough layers must stop owning semantics
+   - libc may still be used as a low-level host mechanism where needed
+   - policy and semantics must belong to iox kernel subsystems, not delegate wrappers
+
+What you must build
+
+Build the subsystem around these canonical kernel-like objects:
+
+1. `iox_task`
+   - pid
+   - ppid
+   - tgid
+   - pgid
+   - sid
+   - parent and children links
+   - exit state
+   - wait state
+   - thread handle
+   - command name
+   - executable path
+   - references to files, fs, sighand, tty, mm_emu, exec_image
+
+2. `iox_files`
+   - the only FD owner
+   - dup, dup2, dup3
+   - cloexec
+   - per-task descriptor table
+
+3. `iox_fs`
+   - cwd
+   - root
+   - umask
+   - mount namespace view
+
+4. `iox_sighand`
+   - handlers
+   - blocked mask
+   - pending mask
+   - queued signals
+
+5. `iox_tty`
+   - controlling tty
+   - foreground process group
+   - session leader relationships
+
+6. `iox_mm_emu`
+   - minimal user-space memory descriptor
+   - only what is needed for image and runtime ownership
+   - do not fake a full kernel VM subsystem
+
+7. `iox_exec_image`
+   - image type
+   - resolved path
+   - interpreter path if script
+   - native entrypoint or WAMR module binding
+
+Canonical repo layout
+
+Restructure toward this layout inside the current repo:
+
+include/
+  uapi/linux/
+  iox/
+
+kernel/
+  task/
+  signal/
+  exec/
+  time/
+  resource/
+
+fs/
+  vfs/
+  proc/
+  dev/
+  devpts/
+  pipe/
+  hostfs/
+
+drivers/
+  tty/
+
+mm/
+
+runtime/
+  native/
+  wasi/
+  script/
+
+compat/
+  posix/
+  interpose/
+
+tools/
+tests/
+
+Use Linux-like subsystem boundaries and naming.
+Do not cargo-cult Linux kernel implementation details.
+Do not introduce kernel-only concepts like `spinlock_t`, `__rcu`, or raw `list_head` unless there is a strong user-space reason.
+Use clean iox user-space equivalents.
+
+Build system and test system
+
+These decisions are fixed.
+
+1. CMake is the single source of truth for:
+   - target graph
+   - dependency graph
+   - source inventory
+   - public headers
+   - build configurations
+   - presets
+   - generated Xcode project and schemes
+
+2. The repo must contain checked-in `CMakePresets.json`.
+   - no ad hoc local-only configure commands as the supported path
+   - no undocumented environment-dependent build flow
+
+3. The supported build target is iOS only.
+   - supported SDKs are `iphonesimulator` and `iphoneos`
+   - host `macosx` builds are not supported as proof of correctness
+   - configure must hard-fail if the build is not targeting iOS
+
+4. Configure must explicitly set, before `project()`:
+   - `CMAKE_SYSTEM_NAME=iOS`
+   - explicit `CMAKE_OSX_SYSROOT`
+   - explicit deployment target
+   - explicit architectures
+   - explicit generator expectations
+
+5. Use the Xcode generator as the supported Apple generator.
+   - generate schemes
+   - no unsupported hidden project-generation path
+   - no mixed manual Xcode project editing
+
+6. Tests must execute on iOS environments only.
+   - iOS Simulator
+   - iOS Device
+   - no macOS-native substitute execution path may be used to claim iOS correctness
+
+7. XCTest is the execution authority for tests.
+   - CMake may define and organize tests
+   - CTest may orchestrate tests
+   - but actual iOS test execution must run through XCTest and `xcodebuild`
+
+8. The accepted execution pattern is:
+   - `xcodebuild build-for-testing`
+   - then `xcodebuild test-without-building`
+   - do not collapse this into opaque custom behavior
+
+9. Use generated schemes and checked-in scripts so the supported test commands work on a fresh clone.
+
+10. Test destinations must be deterministic.
+    - simulator device is pinned
+    - simulator OS version is pinned
+    - device lane expectations are explicit
+    - do not use vague destination selection in release-gating paths
+
+11. Result bundles and logs must be preserved.
+    - every CI or release-gating test lane must emit structured results
+    - failing lanes must leave enough artifacts for diagnosis
+
+12. Sanitizer lanes must be explicit.
+    - simulator correctness lane
+    - simulator address sanitizer lane
+    - simulator thread sanitizer lane where applicable
+    - simulator undefined behavior sanitizer lane where applicable
+    - device validation lane
+    - do not merge these into one ambiguous lane
+
+13. Fresh-clone guarantee is mandatory.
+    The repo must provide:
+    - `tools/bootstrap.sh` or equivalent
+    - `tools/doctor.sh` or equivalent
+    - checked-in presets
+    - checked-in scripts for simulator and device test runs
+    - submodule initialization or dependency bootstrap
+    - clear failure if prerequisites are missing
+
+14. The supported green-path commands from a fresh clone must be deterministic, documented, and automated.
+    They must not depend on invisible developer-machine state.
+
+15. If CTest is used, it is only an outer orchestrator.
+    It must call the iOS test runner path.
+    It must never execute macOS-native replacements and call that success.
+
+16. If a build file references a test file, that test file must exist.
+    If a status document claims something is tested, the repo must contain the corresponding committed tests.
+
+Deterministic execution model
+
+You must implement `execve` as virtual image replacement inside iox.
+
+`execve` must resolve exactly one of these image types:
+
+1. native registered command
+2. WASM/WASI module
+3. script with shebang
+
+No other execution path is allowed in the core design.
+
+`execve` success semantics inside iox:
+
+1. the task keeps the same PID
+2. the task keeps the same PGID
+3. the task keeps the same SID
+4. the task keeps the same controlling TTY
+5. cwd and root are preserved
+6. resource limits are preserved
+7. `FD_CLOEXEC` descriptors are closed
+8. argv and env are replaced
+9. signal disposition is updated according to exec rules
+10. control transfers to the resolved image runner
+
+Native execution path
+
+You must use a native command registry.
+
+Examples:
+- `/bin/bash`
+- `/bin/sh`
+- `/bin/ls`
+- `/usr/bin/env`
+
+These resolve to prelinked native entrypoints compiled into the app or linked artifacts.
+
+Do not depend on constructor-only registration as the primary mechanism.
+Use a robust explicit registry mechanism, preferably generated at build time.
+
+Required native entry ABI:
+
+`int iox_native_main(iox_task_t *task, int argc, char **argv, char **envp)`
+
+WAMR execution path
+
+WAMR must be integrated as a first-class execution backend using the same substrate as native code.
+
+Mandatory rules:
+
+1. WASI fd operations use the same `task->files`
+2. WASI path operations use the same VFS and cwd and root
+3. WASI stdio uses the same descriptors as native tasks
+4. WASI clocks and random source go through the same iox kernel abstractions
+5. WASI execution does not create a separate process universe
+6. WAMR is not allowed to own independent process, fs, or signal semantics
+
+Fork model
+
+This is fixed.
+
+Do not use real host `fork()`.
+
+Implement iox `fork()` as a virtual process creation primitive inside the iox task system.
+
+Rules:
+
+1. parent and child are separate `iox_task` objects
+2. each task has its own `files`, `fs`, `sighand`, `tty`, and `exec_image` state according to iox semantics
+3. the child runs on a host thread owned by iox
+4. all fork semantics are implemented by iox, not by the host kernel
+5. user-visible behavior must aim to match Linux userland expectations closely enough for bash-class software
+
+You are not allowed to evade this problem by redefining the goal.
+You must design the subsystem to emulate the required process behavior inside iox.
+
+Important restriction:
+Do not propose vague continuation tricks such as `jmp_buf` without a full concrete mechanism.
+Do not hand-wave child continuation.
+Design the runtime model explicitly and concretely.
+
+Bash compatibility requirements
+
+Treat these as mandatory core requirements:
+
+1. `fork`, `execve`, `_exit`, `waitpid`, `wait4`
+2. process groups and sessions
+3. controlling TTY
+4. PTY master and slave support
+5. `tcgetattr`, `tcsetattr`, `tcgetpgrp`, `tcsetpgrp`
+6. `SIGCHLD`, `SIGINT`, `SIGQUIT`, `SIGTSTP`, `SIGTTIN`, `SIGTTOU`, `SIGCONT`, `SIGWINCH`, `SIGHUP`
+7. pipes and redirections
+8. `dup`, `dup2`, `dup3`, `fcntl`
+9. `open`, `openat`, `read`, `write`, `close`, `stat`, `lstat`, `fstat`, `access`
+10. `getcwd`, `chdir`, env handling
+11. `/dev/tty`
+12. `/dev/pts/*`
+13. `/dev/null`, `/dev/zero`, `/dev/random`, `/dev/urandom`
+14. `/proc/self/fd`
+15. `/proc/self/status`
+16. `/proc/self/cmdline`
+
+Do not present PTY and job control as later optional enhancements.
+They are part of the minimum credible shell substrate.
+
+Testing and reliability requirements
+
+This project is not allowed to evolve as a “code first, tests later” subsystem.
+Testing is part of the architecture.
+Every subsystem decision must be made with testability, determinism, and release trustworthiness in mind.
+
+The required outcome is not “some tests”.
+The required outcome is a testing system strong enough to make iox a trustworthy Linux-userland-compatible subsystem on iOS.
+
+Assume from the start that:
+- simulator behavior is not enough
+- host-only unit tests are not enough
+- happy-path tests are not enough
+- ad hoc manual testing is not enough
+- performance without regression tests is not trustworthy
+- compatibility claims without executable evidence are not acceptable
+
+Non-negotiable testing doctrine
+
+1. every core subsystem must have automated tests
+2. every compatibility claim must be backed by an executable test
+3. every bug fix must add or strengthen a regression test
+4. every architecture boundary must be testable in isolation
+5. every release gate must include simulator and device coverage where relevant
+6. no subsystem is “done” until its invariants, failure paths, and concurrency behavior are tested
+7. no test suite is acceptable if it is flaky, timing-sensitive, or dependent on unspecified ordering
+8. no feature may be claimed as working only because it compiles
+
+Truthfulness rule
+
+Do not say a feature is implemented unless at least one of the following exists:
+
+1. a deterministic automated test proving the behavior
+2. a conformance test proving the behavior
+3. a regression test covering a previously failing case
+4. a clearly documented limitation stating what is still unverified
+
+If evidence is missing, the feature is not considered complete.
+
+Mandatory test ownership
+
+You fully own the tests.
+Do not treat tests as scaffolding.
+Do not treat tests as secondary.
+Do not write weak tests just to satisfy a checklist.
+
+You are responsible for test quality at the same level as production code quality.
+
+That means:
+
+1. no lies in test names
+2. no fake assertions
+3. no tests that only assert “did not crash”
+4. no tests that pass without checking the claimed behavior
+5. no tests that depend on unspecified ordering
+6. no tests with arbitrary sleeps when synchronization is possible
+7. no duplicate, noisy, brittle, or low-signal tests
+8. no sloppy fixtures
+9. no hidden state leakage between tests
+10. no weak negative-path coverage for high-risk code
+11. no unowned flaky tests
+12. no untriaged intermittent failures
+
+Test code quality requirements
+
+Test code must be:
+- deterministic
+- isolated
+- explicit
+- strongly asserted
+- diagnostic on failure
+- maintainable
+- minimal in magic behavior
+- strict about invariants
+- faithful to the real user-visible contract
+
+Every test must answer:
+- what exact behavior is being proven
+- under what exact conditions
+- with what exact observable result
+- with what exact failure signal
+
+A test that cannot explain its proof is not acceptable.
+
+Mandatory testing architecture
+
+You must build testing in layers.
+All layers are mandatory.
+
+Layer 1. Pure core unit tests
+Purpose:
+- validate data structures and deterministic logic without UI involvement
+
+Must cover:
+- PID allocation
+- task lifecycle state transitions
+- file descriptor table operations
+- path normalization
+- VFS translation
+- signal mask logic
+- process group and session bookkeeping
+- command registry resolution
+- `execve` image classification
+- WASI-to-iox adaptation helpers
+- `/proc` synthetic content generation
+
+Layer 2. Subsystem integration tests
+Purpose:
+- validate interactions across multiple subsystems inside iox
+
+Must cover:
+- task + files + fs interaction
+- `fork` + `waitpid`
+- `execve` + `FD_CLOEXEC`
+- cwd and root inheritance
+- pipe + dup + redirection
+- process groups + sessions + tty foreground group behavior
+- signal delivery and wait semantics
+- `/proc/self/fd` consistency with live fd table
+- native image dispatch
+- WAMR WASI dispatch through the same substrate
+
+Layer 3. Linux-userland compatibility tests
+Purpose:
+- validate real package behavior, not just internal APIs
+
+Must cover:
+- bash-class scenarios
+- shell pipelines
+- command substitution
+- redirections
+- signals in interactive and non-interactive cases
+- PTY behavior with readline-style interaction
+- coreutils-style file operations
+- env and path resolution
+- script shebang execution
+- `sh -c`
+- `env`, `pwd`, `cd`, `echo`, `cat`, `ls` class behavior
+
+Layer 4. WASI compatibility tests
+Purpose:
+- validate WAMR is only a runtime backend and that WASI shares the same substrate correctly
+
+Must cover:
+- WASI fd open, read, write, close
+- stdio
+- path open, stat, read, write
+- cwd-sensitive path resolution
+- environment variable propagation
+- clocks and random
+- error mapping
+- module trap and exception propagation
+- consistency between native and WASI path and FD behavior
+
+Layer 5. iOS runtime tests
+Purpose:
+- validate behavior on Apple execution environments
+
+Must cover:
+- simulator execution
+- real device execution
+- sandbox path behavior
+- file access under app container rules
+- PTY and TTY behavior as exposed in the host app context
+- lifecycle-sensitive behavior where iOS execution context matters
+- timing-sensitive paths only when necessary and with deterministic bounds
+
+Layer 6. Stress, fault, and reliability tests
+Purpose:
+- prove the subsystem survives concurrency, churn, and failure
+
+Must cover:
+- repeated task creation and destruction
+- repeated pipe and fd churn
+- repeated signal delivery
+- repeated native command dispatch
+- repeated WAMR module load and unload
+- malformed path inputs
+- malformed WASM modules
+- resource exhaustion
+- invalid fd use
+- invalid signal operations
+- invalid exec image inputs
+- concurrent waits, exits, and signal races
+
+Layer 7. Performance regression tests
+Purpose:
+- prevent “works but gets slower every week”
+
+Must cover:
+- shell startup
+- command dispatch latency
+- open, read, write hot paths
+- path lookup cost
+- pipe throughput
+- PTY throughput
+- WAMR module startup
+- native vs WASI fd and path overhead
+- repeated process creation cost inside virtual task model
+
+Mandatory platform testing policy
+
+You must design tests for three execution environments:
+
+1. host-fast orchestration
+   - build and orchestration may run from macOS host tools
+   - but execution of supported correctness tests must still target iOS environments
+
+2. iOS simulator tests
+   - structural integration checks
+   - container path behavior
+   - image dispatch
+   - WAMR integration
+   - most correctness checks that do not depend on hardware-only details
+
+3. real device tests
+   - final authority for release gating of iOS-specific behavior
+   - PTY and TTY-sensitive behavior
+   - timing and scheduling assumptions
+   - real sandbox interactions
+   - release-candidate validation
+
+Do not treat simulator-only green runs as proof of correctness.
+
+Mandatory test style rules
+
+1. tests must be deterministic
+2. tests must avoid arbitrary sleeps wherever possible
+3. tests must use explicit synchronization, timeouts, and observable state transitions
+4. each failure must produce actionable diagnostics
+5. tests must isolate their filesystem state
+6. tests must never depend on global mutable state leaking from previous tests
+7. tests must be parallel-safe unless explicitly marked otherwise
+8. tests must use fixed seeds for fuzz-like randomized coverage and report the seed on failure
+
+Mandatory negative testing
+
+For every syscall-like or kernel-subsystem behavior you implement, test:
+
+1. success path
+2. invalid arguments
+3. missing resources
+4. permission-like denial inside iox policy
+5. lifecycle edge cases
+6. concurrent access edge cases
+7. cleanup behavior after failure
+8. state consistency after partial failure
+
+Mandatory compatibility evidence
+
+Do not claim compatibility with bash, coreutils, PTY, signals, WASI, or `/proc` unless the repo contains executable compatibility tests for those claims.
+
+For each compatibility domain, maintain a named test inventory:
+
+- bash compatibility
+- tty and job control compatibility
+- process, wait, and signal compatibility
+- filesystem and path compatibility
+- `/proc` compatibility
+- WASI compatibility
+- performance baselines
+- regression history
+
+Every domain must have:
+- explicit scenarios
+- expected results
+- failure diagnostics
+- device and simulator applicability
+- current pass and fail status
+
+Mandatory regression policy
+
+Every discovered bug must result in:
+1. a regression test that fails before the fix
+2. the fix
+3. the regression test passing after the fix
+
+No bug fix without a test, unless the bug is untestable for a documented reason.
+If untestable, document exactly why.
+
+Mandatory observability for tests
+
+You must build observability into the subsystem so tests can trust results.
+
+Required test-facing diagnostics:
+- task table dump
+- fd table dump
+- mount table dump
+- process group and session dump
+- tty foreground group state
+- exec image type and dispatch path
+- wasi call tracing hooks
+- structured failure codes
+- optional syscall or event trace for failing scenarios
+
+These diagnostics must be accessible without relying on ad hoc printf debugging.
+
+Mandatory reliability gates
+
+A change is not acceptable unless all relevant gates pass:
+
+1. unit tests
+2. integration tests
+3. compatibility tests
+4. WASI tests
+5. regression tests
+6. performance regression checks for touched hot paths
+7. simulator tests
+8. device tests for iOS-sensitive behavior
+
+Do not mark work complete after only one class of tests passes.
+
+Mandatory coverage expectations
+
+Do not use line coverage as a vanity metric.
+Coverage is a tool, not the goal.
+
+Use coverage to identify untested logic in:
+- task lifecycle transitions
+- wait and exit behavior
+- signal paths
+- fd duplication and cloexec
+- path resolution
+- mount matching
+- native command dispatch
+- wasi bridge error paths
+
+High-risk code must have high behavioral coverage, especially:
+- task lifecycle
+- wait and signal interactions
+- fd ownership transitions
+- `execve` dispatch
+- PTY and job control
+- WAMR bridge boundaries
+
+Mandatory flakiness policy
+
+1. flaky tests are release blockers
+2. a flaky test is not “good enough”
+3. if a test is nondeterministic, fix the test or the subsystem
+4. do not paper over race conditions with longer sleeps
+5. every timeout must be justified and bounded
+
+Mandatory test inventory to create
+
+Create and maintain these directories in the repo:
+
+tests/unit/
+tests/integration/
+tests/compat/bash/
+tests/compat/coreutils/
+tests/compat/tty/
+tests/compat/proc/
+tests/wasi/
+tests/stress/
+tests/perf/
+tests/regression/
+tests/fixtures/
+tests/device/
+tests/simulator/
+
+Mandatory first testing deliverables
+
+Before expanding feature surface, create:
+
+1. a canonical test matrix document
+2. a deterministic C-level test harness for core subsystems
+3. simulator test entrypoints
+4. device test entrypoints
+5. a regression test policy document
+6. a compatibility inventory document
+7. a performance baseline harness
+8. structured debug and introspection hooks used by tests
+
+Mandatory test matrix content
+
+The test matrix must map every major subsystem to:
+- invariants
+- positive scenarios
+- negative scenarios
+- concurrency scenarios
+- compatibility scenarios
+- simulator coverage
+- device coverage
+- performance baseline status
+
+The matrix must include at minimum:
+- task
+- files
+- fs and vfs
+- exec
+- signal
+- tty and pty
+- proc
+- native runtime
+- wasi runtime
+- interpose adapter layer
+
+Evidence discipline
+
+The current repository has visible drift between build declarations, implementation claims, and test visibility.
+You must correct this.
+
+Rules:
+
+1. if the build system references a test file, that file must exist
+2. if a status document claims a feature is tested, the repo must contain the corresponding committed tests
+3. if a feature is not backed by visible automated tests, remove or qualify the claim
+4. bring the repo to one truthful test inventory before expanding features
+
+Execution discipline
+
+From now on, every claim you make must be classified as one of:
+
+1. VERIFIED
+   Backed by concrete repo evidence, actual code, actual test execution, or explicit build output.
+
+2. PLANNED
+   Intended design or next step, not yet implemented.
+
+3. BLOCKED
+   Cannot proceed because a concrete dependency, missing file, failing test, missing capability, or architectural contradiction exists.
+
+4. UNKNOWN
+   Not verified yet.
+
+Do not blur these categories.
+
+Anti-hallucination rule
+
+If you do not know, say UNKNOWN.
+If you did not verify, say UNVERIFIED.
+If you could not run it, say BLOCKED or UNVERIFIED.
+If evidence conflicts, state the conflict explicitly.
+Do not resolve contradictions by guesswork.
+
+Forbidden behavior
+
+1. Do not say something “works” unless you verified it.
+2. Do not say something is “tested” unless the committed test exists and was actually run in the correct environment.
+3. Do not say something is “Linux-compatible” unless there is executable evidence for the specific claim.
+4. Do not infer missing repo files.
+5. Do not infer test coverage from documentation claims.
+6. Do not propose new architecture.
+7. Do not present multiple options.
+8. Do not ask preference questions unless a hard blocker truly exists.
+9. Do not silently substitute macOS behavior for iOS behavior.
+10. Do not use vague phrases like:
+   - should be fine
+   - likely works
+   - probably enough
+   - production-ready
+   - almost done
+   - complete
+   unless explicitly verified
+11. do not weaken the target from Linux-userland compatibility down to generic POSIX compatibility
+12. do not mark functionality complete without automated evidence
+13. do not treat manual testing as sufficient proof
+14. do not leave high-risk concurrency and lifecycle code without stress and regression tests
+15. do not use macOS-native build or test success as proof that iOS behavior is correct
+16. do not leave SDK, deployment target, simulator destination, or generator selection implicit
+17. do not allow fresh-clone success to depend on hidden machine-local configuration
+18. do not claim deterministic testing unless the simulator and device lanes are actually pinned and automated
+
+Stop conditions
+
+Stop immediately and report BLOCKED if any of these happen:
+
+1. required repo file is missing
+2. build graph and actual repo contents diverge
+3. architecture invariant would be violated
+4. iOS build target cannot be configured deterministically
+5. claimed tests cannot be found
+6. iOS execution path cannot be run
+7. a change would require redefining the compatibility goal downward
+
+Implementation order
+
+You must follow this order.
+
+Step 1.
+Analyze the existing repo and map current code into these categories:
+- keep and migrate
+- delete
+- replace
+- adapter only
+
+Step 2.
+Define the canonical object model and ownership rules.
+
+Step 3.
+Define the exact file-by-file migration from:
+- `iox_process.c`
+- `iox_context.c`
+- `iox_file.c`
+- `iox_vfs.c`
+- `iox_interpose.c`
+- `iox_wamr_simple.c`
+
+into the new subsystem layout.
+
+Step 4.
+Define the exact `execve` state machine for:
+- native
+- wasi
+- script
+
+Step 5.
+Define the exact virtual fork and process model required for shell-class compatibility.
+This is mandatory.
+Do not skip it.
+Do not replace it with vague statements.
+
+Step 6.
+Define how PTY, TTY, process groups, sessions, and signal delivery interact.
+
+Step 7.
+Define the WAMR boundary and all points where WASI calls into shared kernel substrate.
+
+Step 8.
+Define the exact iOS-only build architecture:
+- presets
+- generator
+- schemes
+- simulator lanes
+- device lanes
+- sanitizer lanes
+- fresh-clone bootstrap path
+- deterministic test commands
+
+Step 9.
+Define the full testing architecture, matrix, and reliability policy.
+
+Step 10.
+Only after the above, propose the first concrete code changes and first concrete test files.
+
+Hard response format for every progress update
+
+You must respond using exactly these sections and nothing looser:
+
+1. Objective
+   One sentence. What exact task are you executing right now.
+
+2. Repo evidence
+   Exact files, symbols, tests, scripts, or outputs you inspected.
+   If none, say: None.
+
+3. Changes made
+   Exact files changed and exact purpose of each change.
+   If none, say: None.
+
+4. Verification performed
+   Exact commands run, exact tests run, exact environment used.
+   Distinguish:
+   - configured only
+   - built only
+   - tested on iOS simulator
+   - tested on iOS device
+   - not verified
+
+5. Result classification
+   For each meaningful statement, label it as:
+   - VERIFIED
+   - PLANNED
+   - BLOCKED
+   - UNKNOWN
+
+6. Deviations
+   State either:
+   - No deviations.
+   or
+   - Exact deviation, exact reason, exact impact.
+
+7. Next exact step
+   One concrete next step only.
+   No option lists.
+
+Required output format for architecture and planning phases
+
+Produce exactly these sections in order:
+
+1. Current repo findings
+2. Canonical object model
+3. Ownership rules
+4. File-by-file migration map
+5. Virtual fork model
+6. `execve` state machine
+7. PTY / job control / signal model
+8. WAMR shared-substrate boundary
+9. Build system and iOS-only test architecture
+10. Testing architecture
+11. Test matrix by subsystem
+12. Reliability and regression policy
+13. First concrete code changes
+14. First concrete test files and harnesses to create
+
+Be concrete.
+Be deterministic.
+Be strict.
+Do not ask questions back.
+Do not present alternatives.
+Do not claim features without executable evidence.
