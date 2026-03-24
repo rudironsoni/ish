@@ -4,6 +4,9 @@
 #include <stdatomic.h>
 #include "emu/aarch64/cpu.h"
 
+// Forward declaration for AArch64 block cache integration
+struct a64_block;
+
 // keep in sync with asm
 #define FIBER_RETURN_CACHE_SIZE 2048  // Reduced from 4096 since we have 2 ways
 #define FIBER_RETURN_CACHE_HASH(x) (((x) >> 4) & (FIBER_RETURN_CACHE_SIZE - 1))
@@ -43,7 +46,7 @@ struct fiber_frame {
     void *bp;
     addr_t value_addr;
     uint64_t value[2]; // buffer for crosspage crap
-    struct fiber_block *last_block;
+    struct a64_block *last_block;
     // PR 6: 2-way associative return cache (replaces direct-mapped ret_cache)
     ret_cache_entry_t ret_cache[FIBER_RETURN_CACHE_SIZE][FIBER_RETURN_CACHE_WAYS];
     uint8_t ret_cache_lru[FIBER_RETURN_CACHE_SIZE];  // LRU bits for replacement
@@ -57,7 +60,7 @@ struct fiber_exec_ctx {
     
     // Persistent L0 block cache (direct-mapped)
     // Indexed by: (ip ^ (ip >> 12)) % FIBER_EXEC_CTX_CACHE_SIZE
-    struct fiber_block *l0_cache[FIBER_EXEC_CTX_CACHE_SIZE];
+    struct a64_block *l0_cache[FIBER_EXEC_CTX_CACHE_SIZE];
     
     // Performance counters (incremented during execution)
     uint64_t stats[STAT_NUM_STATS];
