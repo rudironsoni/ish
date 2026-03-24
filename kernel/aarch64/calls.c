@@ -11,6 +11,7 @@
 #include "kernel/aarch64/calls.h"
 #include "kernel/calls.h"
 #include "emu/aarch64/cpu.h"
+#include "emu/interrupt.h"
 #include <string.h>
 
 // Forward declarations for syscall handlers
@@ -159,6 +160,31 @@ const char *a64_syscall_name(int num) {
 /*
  * Dump syscall arguments for debugging
  */
+
+// AArch64 interrupt handling
+// INT_SYSCALL (128) - Syscall via SVC instruction
+// INT_GPF (13)      - General protection fault
+void handle_interrupt(int interrupt) {
+    struct cpu_state *cpu = &current->cpu;
+    
+    switch (interrupt) {
+        case INT_SYSCALL:
+            // Syscalls are dispatched via a64_do_syscall
+            // This path is reached when SVC triggers an exception
+            // The actual syscall dispatch happens in the TCTI exit path
+            break;
+            
+        case INT_GPF:
+            // General protection fault - deliver SIGILL
+            deliver_signal(current, SIGILL_, (struct siginfo_) {0});
+            break;
+            
+        default:
+            printk("Unknown interrupt %d\n", interrupt);
+            break;
+    }
+}
+
 void a64_dump_syscall(struct cpu_state *cpu) {
     uint64_t num = cpu->x[8];
     const char *name = a64_syscall_name(num);
