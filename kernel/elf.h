@@ -67,8 +67,8 @@ struct prg_header {
 #define PH_X (1 << 0)
 
 struct aux_ent {
-    uint32_t type;
-    uint32_t value;
+    uint64_t type;
+    uint64_t value;
 };
 
 #define AX_PHDR 3
@@ -93,8 +93,8 @@ struct aux_ent {
 #define AX_SYSINFO_EHDR 33
 
 struct dyn_ent {
-    dword_t tag;
-    dword_t val;
+    uint64_t tag;
+    uint64_t val;
 };
 
 #define DT_NULL 0
