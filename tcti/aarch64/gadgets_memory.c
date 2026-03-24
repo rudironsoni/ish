@@ -944,15 +944,15 @@ __attribute__((naked)) void gadget_ldr_x_impl(void) {
         // Patch 1B.1: Hot-hot fast path
         // Requirements: both Rn and Rt in 0-15, 64-bit, offset mode, meta=0
         "cmp x20, #16\n\t"           // Is Rt hot (0-15)?
-        "b.hs 90f\n\t"               // Branch to slow path (label 90)
+        "b.hs 91f\n\t"               // Branch to nonhot counter
         "cmp x21, #16\n\t"           // Is Rn hot (0-15)?
-        "b.hs 90f\n\t"
+        "b.hs 91f\n\t"
         "cmp x23, #3\n\t"            // Is size 64-bit?
-        "b.ne 90f\n\t"
+        "b.ne 92f\n\t"               // Branch to size counter
         "cmp x24, #0\n\t"            // Is idx_mode offset (no writeback)?
-        "b.ne 90f\n\t"
+        "b.ne 93f\n\t"               // Branch to idxmode counter
         "cmp x25, #0\n\t"            // Is meta 0 (no reg offset, not signed)?
-        "b.ne 90f\n\t"
+        "b.ne 94f\n\t"               // Branch to meta counter
         
         // Get base register value (hot, in x1-x16) using computed goto
         // Branch table for Rn 0-15
@@ -1005,19 +1005,19 @@ __attribute__((naked)) void gadget_ldr_x_impl(void) {
         
         // Check alignment: addr & 7 == 0
         "tst x17, #7\n\t"
-        "b.ne 90f\n\t"
+        "b.ne 95f\n\t"               // Branch to align counter
         
         // Check cross-page: (addr & 0xFFF) <= 0xFF8
         "and x18, x17, #0xFFF\n\t"
         "cmp x18, #0xFF8\n\t"
-        "b.hi 90f\n\t"
+        "b.hi 96f\n\t"               // Branch to crosspg counter
         
         // Inline TLB lookup
         // All original args (x19-x25) remain stable
         // Use x26, x27 as scratch for TLB operations
         
         "ldr x26, [x29, #344]\n\t"   // x26 = cpu->tlb
-        "cbz x26, 90f\n\t"           // If NULL, fall back
+        "cbz x26, 98f\n\t"           // Branch to notlb counter
         
         // TLB index: ((addr >> 12) & 1023) ^ (addr >> 22)
         "lsr x27, x17, #12\n\t"
@@ -1034,7 +1034,7 @@ __attribute__((naked)) void gadget_ldr_x_impl(void) {
         // Compare page
         "and x26, x17, #0xFFFFF000\n\t" // x26 = page from addr
         "cmp x27, x26\n\t"
-        "b.ne 90f\n\t"               // TLB miss
+        "b.ne 97f\n\t"               // Branch to tlbmiss counter
         
         // Compute host address and load
         // data_minus_addr is at offset 8 in tlb_entry (after 4-byte page and 4-byte page_if_writable)
@@ -1081,8 +1081,57 @@ __attribute__((naked)) void gadget_ldr_x_impl(void) {
         "ldr x27, [x28], #8\n\t"
         "br x27\n\t"
         
-        // Slow path (label 90)
-        "90:\n\t"
+        // Per-reason fallback counters
+        "91:\n\t"  // TCTI_FALLBACK_NONHOT
+        "ldr x26, [x29, %[ldr_fallback_nonhot_off]]\n\t"
+        "add x26, x26, #1\n\t"
+        "str x26, [x29, %[ldr_fallback_nonhot_off]]\n\t"
+        "b 99f\n\t"
+        
+        "92:\n\t"  // TCTI_FALLBACK_SIZE
+        "ldr x26, [x29, %[ldr_fallback_size_off]]\n\t"
+        "add x26, x26, #1\n\t"
+        "str x26, [x29, %[ldr_fallback_size_off]]\n\t"
+        "b 99f\n\t"
+        
+        "93:\n\t"  // TCTI_FALLBACK_IDXMODE
+        "ldr x26, [x29, %[ldr_fallback_idxmode_off]]\n\t"
+        "add x26, x26, #1\n\t"
+        "str x26, [x29, %[ldr_fallback_idxmode_off]]\n\t"
+        "b 99f\n\t"
+        
+        "94:\n\t"  // TCTI_FALLBACK_META
+        "ldr x26, [x29, %[ldr_fallback_meta_off]]\n\t"
+        "add x26, x26, #1\n\t"
+        "str x26, [x29, %[ldr_fallback_meta_off]]\n\t"
+        "b 99f\n\t"
+        
+        "95:\n\t"  // TCTI_FALLBACK_ALIGN
+        "ldr x26, [x29, %[ldr_fallback_align_off]]\n\t"
+        "add x26, x26, #1\n\t"
+        "str x26, [x29, %[ldr_fallback_align_off]]\n\t"
+        "b 99f\n\t"
+        
+        "96:\n\t"  // TCTI_FALLBACK_CROSSPG
+        "ldr x26, [x29, %[ldr_fallback_crosspg_off]]\n\t"
+        "add x26, x26, #1\n\t"
+        "str x26, [x29, %[ldr_fallback_crosspg_off]]\n\t"
+        "b 99f\n\t"
+        
+        "97:\n\t"  // TCTI_FALLBACK_TLBMISS
+        "ldr x26, [x29, %[ldr_fallback_tlbmiss_off]]\n\t"
+        "add x26, x26, #1\n\t"
+        "str x26, [x29, %[ldr_fallback_tlbmiss_off]]\n\t"
+        "b 99f\n\t"
+        
+        "98:\n\t"  // TCTI_FALLBACK_NOTLB
+        "ldr x26, [x29, %[ldr_fallback_notlb_off]]\n\t"
+        "add x26, x26, #1\n\t"
+        "str x26, [x29, %[ldr_fallback_notlb_off]]\n\t"
+        // fall through to 99
+        
+        // Common slow path after per-reason counter (label 99)
+        "99:\n\t"
         "ldr x26, [x29, %[ldr_fallback_off]]\n\t"
         "add x26, x26, #1\n\t"
         "str x26, [x29, %[ldr_fallback_off]]\n\t"
@@ -1122,8 +1171,16 @@ __attribute__((naked)) void gadget_ldr_x_impl(void) {
         "b _tcti_exit_block\n\t"
         :
         : [ldr_fast_hits_off] "i" (STAT_LDR_FAST_HITS_OFFSET),
-          [ldr_fallback_off] "i" (STAT_LDR_FALLBACK_OFFSET)
-        : "x26", "x27", "memory"
+          [ldr_fallback_off] "i" (STAT_LDR_FALLBACK_OFFSET),
+          [ldr_fallback_nonhot_off] "i" (STAT_LDR_FALLBACK_NONHOT_OFFSET),
+          [ldr_fallback_size_off] "i" (STAT_LDR_FALLBACK_SIZE_OFFSET),
+          [ldr_fallback_idxmode_off] "i" (STAT_LDR_FALLBACK_IDXMODE_OFFSET),
+          [ldr_fallback_meta_off] "i" (STAT_LDR_FALLBACK_META_OFFSET),
+          [ldr_fallback_align_off] "i" (STAT_LDR_FALLBACK_ALIGN_OFFSET),
+          [ldr_fallback_crosspg_off] "i" (STAT_LDR_FALLBACK_CROSSPG_OFFSET),
+          [ldr_fallback_tlbmiss_off] "i" (STAT_LDR_FALLBACK_TLBMISS_OFFSET),
+          [ldr_fallback_notlb_off] "i" (STAT_LDR_FALLBACK_NOTLB_OFFSET)
+        : "x18", "x26", "x27", "memory"
     );
 }
 
@@ -1143,15 +1200,15 @@ __attribute__((naked)) void gadget_str_x_impl(void) {
         // Patch 1B.2: Hot-hot fast path for STR
         // Requirements: both Rn and Rt in 0-15, 64-bit, offset mode, meta=0
         "cmp x20, #16\n\t"           // Is Rt hot (0-15)?
-        "b.hs 90f\n\t"               // Branch to slow path (label 90)
+        "b.hs 91f\n\t"               // Branch to nonhot counter
         "cmp x21, #16\n\t"           // Is Rn hot (0-15)?
-        "b.hs 90f\n\t"
+        "b.hs 91f\n\t"
         "cmp x23, #3\n\t"            // Is size 64-bit?
-        "b.ne 90f\n\t"
+        "b.ne 92f\n\t"               // Branch to size counter
         "cmp x24, #0\n\t"            // Is idx_mode offset (no writeback)?
-        "b.ne 90f\n\t"
+        "b.ne 93f\n\t"               // Branch to idxmode counter
         "cmp x25, #0\n\t"            // Is meta 0 (no reg offset, not signed)?
-        "b.ne 90f\n\t"
+        "b.ne 94f\n\t"               // Branch to meta counter
 
         // Get base register value (hot, in x1-x16) using computed goto
         // Branch table for Rn 0-15
@@ -1204,12 +1261,12 @@ __attribute__((naked)) void gadget_str_x_impl(void) {
 
         // Check alignment: addr & 7 == 0
         "tst x17, #7\n\t"
-        "b.ne 90f\n\t"
+        "b.ne 95f\n\t"               // Branch to align counter
 
         // Check cross-page: (addr & 0xFFF) <= 0xFF8
         "and x18, x17, #0xFFF\n\t"
         "cmp x18, #0xFF8\n\t"
-        "b.hi 90f\n\t"
+        "b.hi 96f\n\t"               // Branch to crosspg counter
 
         // Get source register value (Rt, hot, in x1-x16) using computed goto
         // x20 still holds original Rt (0-15)
@@ -1258,32 +1315,32 @@ __attribute__((naked)) void gadget_str_x_impl(void) {
         "150:\n\t"
 
         // Inline TLB lookup
-        // All original args (x19-x25) remain stable
-        // Use x26, x27 as scratch for TLB operations
+        // CRITICAL: x20 contains original Rt - do NOT clobber it
+        // Use x14 (scratch) instead of x20 for TLB operations
 
         "ldr x26, [x29, #344]\n\t"   // x26 = cpu->tlb
-        "cbz x26, 90f\n\t"           // If NULL, fall back
+        "cbz x26, 98f\n\t"           // Branch to notlb counter
 
         // TLB index: ((addr >> 12) & 1023) ^ (addr >> 22)
         "lsr x27, x17, #12\n\t"
         "and x27, x27, #1023\n\t"
-        "lsr x20, x17, #22\n\t"
-        "eor x27, x27, x20\n\t"
+        "lsr x14, x17, #22\n\t"       // Use x14 instead of x20
+        "eor x27, x27, x14\n\t"
 
         // Load tlb entry at &entries[index]
         // entries is at offset 32 in struct tlb
-        "add x20, x26, #32\n\t"      // x20 = &tlb->entries[0]
-        "add x20, x20, x27, lsl #4\n\t" // x20 = &tlb->entries[index]
-        "ldr x27, [x20]\n\t"          // x27 = entry.page
+        "add x14, x26, #32\n\t"       // x14 = &tlb->entries[0]
+        "add x14, x14, x27, lsl #4\n\t" // x14 = &tlb->entries[index]
+        "ldr x27, [x14]\n\t"          // x27 = entry.page
 
         // Compare page
         "and x26, x17, #0xFFFFF000\n\t" // x26 = page from addr
         "cmp x27, x26\n\t"
-        "b.ne 90f\n\t"               // TLB miss
+        "b.ne 97f\n\t"               // Branch to tlbmiss counter
 
         // Compute host address and store
         // data_minus_addr is at offset 8 in tlb_entry
-        "ldr x27, [x20, #8]\n\t"      // x27 = entry.data_minus_addr
+        "ldr x27, [x14, #8]\n\t"      // x27 = entry.data_minus_addr
         "add x17, x27, x17\n\t"       // x17 = host address
         "str x18, [x17]\n\t"          // store value from x18
 
@@ -1294,8 +1351,57 @@ __attribute__((naked)) void gadget_str_x_impl(void) {
         "ldr x27, [x28], #8\n\t"
         "br x27\n\t"
         
-        // Slow path (label 90)
-        "90:\n\t"
+        // Per-reason fallback counters for STR
+        "91:\n\t"  // TCTI_FALLBACK_NONHOT
+        "ldr x26, [x29, %[str_fallback_nonhot_off]]\n\t"
+        "add x26, x26, #1\n\t"
+        "str x26, [x29, %[str_fallback_nonhot_off]]\n\t"
+        "b 99f\n\t"
+        
+        "92:\n\t"  // TCTI_FALLBACK_SIZE
+        "ldr x26, [x29, %[str_fallback_size_off]]\n\t"
+        "add x26, x26, #1\n\t"
+        "str x26, [x29, %[str_fallback_size_off]]\n\t"
+        "b 99f\n\t"
+        
+        "93:\n\t"  // TCTI_FALLBACK_IDXMODE
+        "ldr x26, [x29, %[str_fallback_idxmode_off]]\n\t"
+        "add x26, x26, #1\n\t"
+        "str x26, [x29, %[str_fallback_idxmode_off]]\n\t"
+        "b 99f\n\t"
+        
+        "94:\n\t"  // TCTI_FALLBACK_META
+        "ldr x26, [x29, %[str_fallback_meta_off]]\n\t"
+        "add x26, x26, #1\n\t"
+        "str x26, [x29, %[str_fallback_meta_off]]\n\t"
+        "b 99f\n\t"
+        
+        "95:\n\t"  // TCTI_FALLBACK_ALIGN
+        "ldr x26, [x29, %[str_fallback_align_off]]\n\t"
+        "add x26, x26, #1\n\t"
+        "str x26, [x29, %[str_fallback_align_off]]\n\t"
+        "b 99f\n\t"
+        
+        "96:\n\t"  // TCTI_FALLBACK_CROSSPG
+        "ldr x26, [x29, %[str_fallback_crosspg_off]]\n\t"
+        "add x26, x26, #1\n\t"
+        "str x26, [x29, %[str_fallback_crosspg_off]]\n\t"
+        "b 99f\n\t"
+        
+        "97:\n\t"  // TCTI_FALLBACK_TLBMISS
+        "ldr x26, [x29, %[str_fallback_tlbmiss_off]]\n\t"
+        "add x26, x26, #1\n\t"
+        "str x26, [x29, %[str_fallback_tlbmiss_off]]\n\t"
+        "b 99f\n\t"
+        
+        "98:\n\t"  // TCTI_FALLBACK_NOTLB
+        "ldr x26, [x29, %[str_fallback_notlb_off]]\n\t"
+        "add x26, x26, #1\n\t"
+        "str x26, [x29, %[str_fallback_notlb_off]]\n\t"
+        // fall through to 99
+        
+        // Common slow path after per-reason counter (label 99)
+        "99:\n\t"
         "ldr x26, [x29, %[str_fallback_off]]\n\t"
         "add x26, x26, #1\n\t"
         "str x26, [x29, %[str_fallback_off]]\n\t"
@@ -1335,8 +1441,16 @@ __attribute__((naked)) void gadget_str_x_impl(void) {
         "b _tcti_exit_block\n\t"
         :
         : [str_fast_hits_off] "i" (STAT_STR_FAST_HITS_OFFSET),
-          [str_fallback_off] "i" (STAT_STR_FALLBACK_OFFSET)
-        : "x26", "x27", "memory"
+          [str_fallback_off] "i" (STAT_STR_FALLBACK_OFFSET),
+          [str_fallback_nonhot_off] "i" (STAT_STR_FALLBACK_NONHOT_OFFSET),
+          [str_fallback_size_off] "i" (STAT_STR_FALLBACK_SIZE_OFFSET),
+          [str_fallback_idxmode_off] "i" (STAT_STR_FALLBACK_IDXMODE_OFFSET),
+          [str_fallback_meta_off] "i" (STAT_STR_FALLBACK_META_OFFSET),
+          [str_fallback_align_off] "i" (STAT_STR_FALLBACK_ALIGN_OFFSET),
+          [str_fallback_crosspg_off] "i" (STAT_STR_FALLBACK_CROSSPG_OFFSET),
+          [str_fallback_tlbmiss_off] "i" (STAT_STR_FALLBACK_TLBMISS_OFFSET),
+          [str_fallback_notlb_off] "i" (STAT_STR_FALLBACK_NOTLB_OFFSET)
+        : "x18", "x26", "x27", "memory"
     );
 }
 
