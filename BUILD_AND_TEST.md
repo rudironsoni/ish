@@ -4,17 +4,18 @@
 
 Test individual files compile:
 ```bash
-gcc -c -I. -DARCH_AARCH64=1 asbestos/asbestos.c -o /tmp/asbestos.o
-gcc -c -I. -DARCH_AARCH64=1 emu/aarch64/cpu.c -o /tmp/cpu.o
-gcc -c -I. -DARCH_AARCH64=1 kernel/memory.c -o /tmp/memory.o
+gcc -c -I. -DARCH_AARCH64=1 -DENGINE_TCTI=1 emu/aarch64/cpu.c -o /tmp/cpu.o
+gcc -c -I. -DARCH_AARCH64=1 -DENGINE_TCTI=1 emu/aarch64/decode.c -o /tmp/decode.o
+gcc -c -I. -DARCH_AARCH64=1 -DENGINE_TCTI=1 tcti/aarch64/gen.c -o /tmp/gen.o
 ```
 
-## Full Build (when meson is configured)
+## Full Build
+
+This branch is AArch64 guest only using the TCTI execution engine:
 
 ```bash
 meson setup build
-cd build
-ninja
+ninja -C build
 ```
 
 ## Performance Testing
@@ -59,15 +60,12 @@ Do not consider optimizations successful unless they show:
 ✅ PR 6: Return cache 2-way associativity
 ✅ PR 7: Block allocator with size-class freelists
 
-## Files Modified (12 files, +1047/-50 lines)
-- `asbestos/frame.h`
-- `asbestos/asbestos.h`
-- `asbestos/asbestos.c`
-- `asbestos/gen.c`
-- `asbestos/aarch64/gen.c`
-- `asbestos/aarch64/gen.h`
-- `emu/cpu.h`
+## Core Files
+- `tcti/aarch64/frame.h`
+- `tcti/aarch64/gen.c`
+- `tcti/aarch64/gen.h`
 - `emu/aarch64/cpu.h`
 - `emu/aarch64/cpu.c`
+- `emu/aarch64/decode.c`
 - `emu/tlb.h`
 - `kernel/memory.c`
