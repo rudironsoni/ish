@@ -116,6 +116,12 @@ struct cpu_state {
     
     // TLB pointer for inline TLB lookup in TCTI gadgets
     struct tlb *tlb;
+    
+    // Exclusive monitor state for atomic operations (ldxr/stxr)
+    // Per-CPU state instead of process-global for correctness
+    uint64_t exclusive_addr;  // Address being monitored
+    int exclusive_size;       // Size of monitored region (1, 2, 4, or 8 bytes)
+    int exclusive_valid;      // Whether monitor is valid (1) or cleared (0)
 };
 
 #define CPU_OFFSET(field) offsetof(struct cpu_state, field)

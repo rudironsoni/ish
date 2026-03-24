@@ -6,13 +6,9 @@
  */
 
 #include "emu/aarch64/memory.h"
+#include "emu/aarch64/cpu.h"
 #include "emu/tlb.h"
 #include <string.h>
-
-// Current exclusive monitor state
-static uint64_t exclusive_addr = 0;
-static int exclusive_size = 0;
-static int exclusive_valid = 0;
 
 // Read operations
 int a64_guest_read8(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, uint8_t *val) {
@@ -108,9 +104,9 @@ int a64_guest_write(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, const
 int a64_guest_ldxr8(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, uint8_t *val) {
     int ret = a64_guest_read8(cpu, tlb, addr, val);
     if (ret == A64_MEM_OK) {
-        exclusive_addr = addr;
-        exclusive_size = 1;
-        exclusive_valid = 1;
+        cpu->exclusive_addr = addr;
+        cpu->exclusive_size = 1;
+        cpu->exclusive_valid = 1;
     }
     return ret;
 }
@@ -118,9 +114,9 @@ int a64_guest_ldxr8(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, uint8
 int a64_guest_ldxr16(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, uint16_t *val) {
     int ret = a64_guest_read16(cpu, tlb, addr, val);
     if (ret == A64_MEM_OK) {
-        exclusive_addr = addr;
-        exclusive_size = 2;
-        exclusive_valid = 1;
+        cpu->exclusive_addr = addr;
+        cpu->exclusive_size = 2;
+        cpu->exclusive_valid = 1;
     }
     return ret;
 }
@@ -128,9 +124,9 @@ int a64_guest_ldxr16(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, uint
 int a64_guest_ldxr32(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, uint32_t *val) {
     int ret = a64_guest_read32(cpu, tlb, addr, val);
     if (ret == A64_MEM_OK) {
-        exclusive_addr = addr;
-        exclusive_size = 4;
-        exclusive_valid = 1;
+        cpu->exclusive_addr = addr;
+        cpu->exclusive_size = 4;
+        cpu->exclusive_valid = 1;
     }
     return ret;
 }
@@ -138,82 +134,79 @@ int a64_guest_ldxr32(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, uint
 int a64_guest_ldxr64(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, uint64_t *val) {
     int ret = a64_guest_read64(cpu, tlb, addr, val);
     if (ret == A64_MEM_OK) {
-        exclusive_addr = addr;
-        exclusive_size = 8;
-        exclusive_valid = 1;
+        cpu->exclusive_addr = addr;
+        cpu->exclusive_size = 8;
+        cpu->exclusive_valid = 1;
     }
     return ret;
 }
 
 // Atomic store-conditional (stxr) - succeeds only if exclusive monitor valid
 int a64_guest_stxr8(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, uint8_t val, int *success) {
-    if (!exclusive_valid || exclusive_addr != addr || exclusive_size != 1) {
+    if (!cpu->exclusive_valid || cpu->exclusive_addr != addr || cpu->exclusive_size != 1) {
         *success = 0;
         return A64_MEM_OK;  // Not a fault, just failed store
     }
     int ret = a64_guest_write8(cpu, tlb, addr, val);
     if (ret == A64_MEM_OK) {
         *success = 1;
-        exclusive_valid = 0;  // Clear monitor on successful store
+        cpu->exclusive_valid = 0;  // Clear monitor on successful store
     }
     return ret;
 }
 
 int a64_guest_stxr16(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, uint16_t val, int *success) {
-    if (!exclusive_valid || exclusive_addr != addr || exclusive_size != 2) {
+    if (!cpu->exclusive_valid || cpu->exclusive_addr != addr || cpu->exclusive_size != 2) {
         *success = 0;
         return A64_MEM_OK;
     }
     int ret = a64_guest_write16(cpu, tlb, addr, val);
     if (ret == A64_MEM_OK) {
         *success = 1;
-        exclusive_valid = 0;
+        cpu->exclusive_valid = 0;
     }
     return ret;
 }
 
 int a64_guest_stxr32(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, uint32_t val, int *success) {
-    if (!exclusive_valid || exclusive_addr != addr || exclusive_size != 4) {
+    if (!cpu->exclusive_valid || cpu->exclusive_addr != addr || cpu->exclusive_size != 4) {
         *success = 0;
         return A64_MEM_OK;
     }
     int ret = a64_guest_write32(cpu, tlb, addr, val);
     if (ret == A64_MEM_OK) {
         *success = 1;
-        exclusive_valid = 0;
+        cpu->exclusive_valid = 0;
     }
     return ret;
 }
 
 int a64_guest_stxr64(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, uint64_t val, int *success) {
-    if (!exclusive_valid || exclusive_addr != addr || exclusive_size != 8) {
+    if (!cpu->exclusive_valid || cpu->exclusive_addr != addr || cpu->exclusive_size != 8) {
         *success = 0;
         return A64_MEM_OK;
     }
     int ret = a64_guest_write64(cpu, tlb, addr, val);
     if (ret == A64_MEM_OK) {
         *success = 1;
-        exclusive_valid = 0;
+        cpu->exclusive_valid = 0;
     }
     return ret;
 }
 
 // Exclusive monitor operations
 void a64_clear_exclusive(struct cpu_state *cpu) {
-    (void)cpu;  // Not used in this implementation
-    exclusive_valid = 0;
+    cpu->exclusive_valid = 0;
 }
 
 int a64_check_exclusive(struct cpu_state *cpu, uint64_t addr, int size) {
-    (void)cpu;  // Not used in this implementation
-    return exclusive_valid && exclusive_addr == addr && exclusive_size == size;
+    return cpu->exclusive_valid && cpu->exclusive_addr == addr && cpu->exclusive_size == size;
 }
 
 void a64_set_exclusive(struct cpu_state *cpu, uint64_t addr, int size) {
-    (void)cpu;  // Not used in this implementation
-    exclusive_addr = addr;
-    exclusive_size = size;
-    exclusive_valid = 1;
+    cpu->exclusive_addr = addr;
+    cpu->exclusive_size = size;
+    cpu->exclusive_valid = 1;
 }
 
 // TLB management
