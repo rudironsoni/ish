@@ -106,9 +106,15 @@ static uint64_t a64_get_sigframe_base(struct task *task,
 
     // Use alternate stack if set and SA_ONSTACK is set
     if (action->sa_flags & SA_ONSTACK_) {
-        // TODO: Check if already on altstack
-        sp = (uint64_t)task->sighand->altstack.ss_sp +
-             task->sighand->altstack.ss_size;
+        // Check if already on altstack - if so, keep using current stack
+        uint64_t altstack_start = (uint64_t)task->sighand->altstack.ss_sp;
+        uint64_t altstack_end = altstack_start + task->sighand->altstack.ss_size;
+        if (task->cpu.sp >= altstack_start && task->cpu.sp < altstack_end) {
+            // Already on altstack, use current stack
+            sp = task->cpu.sp;
+        } else {
+            sp = altstack_end;
+        }
     } else {
         sp = task->cpu.sp;
     }
@@ -156,8 +162,6 @@ int a64_setup_rt_frame(struct task *task, int sig, struct siginfo_ *info,
 void a64_deliver_signal(struct task *task, int sig, struct siginfo_ *info) {
     struct cpu_state *cpu = &task->cpu;
     struct sigaction_ *action = &task->sighand->action[sig];
-    struct a64_rt_sigframe *frame;
-    struct a64_frame_record *fr;
     uint64_t frame_addr, fr_addr, return_addr;
     size_t frame_size = a64_calc_sigframe_size();
 
@@ -243,7 +247,6 @@ int a64_setup_sigtramp(uint64_t *tramp) {
  * Restores CPU state from signal frame
  */
 int a64_handle_sigreturn(struct cpu_state *cpu) {
-    struct a64_rt_sigframe *frame;
     uint64_t frame_addr = cpu->sp;
 
     // Frame must be 16-byte aligned
