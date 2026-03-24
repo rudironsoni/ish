@@ -957,7 +957,7 @@ __attribute__((naked)) void gadget_ldr_x_impl(void) {
         // Get base register value (hot, in x1-x16) using computed goto
         // Branch table for Rn 0-15
         "adr x26, 70f\n\t"           // x26 = base of branch table
-        "add x26, x26, x21, lsl #3\n\t" // x26 = &table[Rn]
+        "add x26, x26, x21, lsl #2\n\t" // x26 = &table[Rn] (b instructions are 4 bytes)
         "br x26\n\t"
         
         // Branch table - each entry is a direct branch to the load code
@@ -1013,33 +1013,39 @@ __attribute__((naked)) void gadget_ldr_x_impl(void) {
         "b.hi 90f\n\t"
         
         // Inline TLB lookup
-        "ldr x18, [x29, #344]\n\t"   // x18 = cpu->tlb
-        "cbz x18, 90f\n\t"           // If NULL, fall back
+        // All original args (x19-x25) remain stable
+        // Use x26, x27 as scratch for TLB operations
+        
+        "ldr x26, [x29, #344]\n\t"   // x26 = cpu->tlb
+        "cbz x26, 90f\n\t"           // If NULL, fall back
         
         // TLB index: ((addr >> 12) & 1023) ^ (addr >> 22)
-        "lsr x24, x17, #12\n\t"
-        "and x24, x24, #1023\n\t"
-        "lsr x25, x17, #22\n\t"
-        "eor x24, x24, x25\n\t"
+        "lsr x27, x17, #12\n\t"
+        "and x27, x27, #1023\n\t"
+        "lsr x18, x17, #22\n\t"
+        "eor x27, x27, x18\n\t"
         
         // Load tlb entry at &entries[index]
-        "add x25, x18, #40\n\t"      // x25 = &tlb->entries[0]
-        "add x25, x25, x24, lsl #4\n\t" // x25 = &tlb->entries[index]
-        "ldr x24, [x25]\n\t"          // x24 = entry.page
+        // entries is at offset 32 in struct tlb
+        "add x18, x26, #32\n\t"      // x18 = &tlb->entries[0]
+        "add x18, x18, x27, lsl #4\n\t" // x18 = &tlb->entries[index]
+        "ldr x27, [x18]\n\t"          // x27 = entry.page
         
         // Compare page
-        "and x25, x17, #0xFFFFF000\n\t" // x25 = page from addr
-        "cmp x24, x25\n\t"
+        "and x26, x17, #0xFFFFF000\n\t" // x26 = page from addr
+        "cmp x27, x26\n\t"
         "b.ne 90f\n\t"               // TLB miss
         
         // Compute host address and load
-        "ldr x24, [x25, #16]\n\t"     // x24 = entry.data_minus_addr
-        "add x17, x24, x17\n\t"       // x17 = host address
+        // data_minus_addr is at offset 8 in tlb_entry (after 4-byte page and 4-byte page_if_writable)
+        "ldr x27, [x18, #8]\n\t"      // x27 = entry.data_minus_addr
+        "add x17, x27, x17\n\t"       // x17 = host address
         "ldr x18, [x17]\n\t"          // x18 = loaded value
         
         // Store to hot destination register using computed goto
+        // x20 still holds original Rt (0-15)
         "adr x26, 120f\n\t"           // x26 = base of store table
-        "add x26, x26, x20, lsl #3\n\t" // x26 = &table[Rt]
+        "add x26, x26, x20, lsl #2\n\t" // x26 = &table[Rt] (b instructions are 4 bytes)
         "br x26\n\t"
         
         // Store branch table
@@ -1085,13 +1091,13 @@ __attribute__((naked)) void gadget_ldr_x_impl(void) {
         "stp x15, x16, [x29, #128]\n\t"
         "bl _tcti_c_call_prologue\n\t"
         "mov x0, x29\n\t"
-        "mov x1, x19\n\t"
-        "mov x2, x20\n\t"
-        "mov x3, x21\n\t"
-        "mov x4, x22\n\t"
-        "mov x5, x23\n\t"
-        "mov x6, x24\n\t"
-        "mov x7, x25\n\t"
+        "mov x1, x19\n\t"            // fault_pc
+        "mov x2, x20\n\t"            // Rt
+        "mov x3, x21\n\t"            // Rn
+        "mov x4, x22\n\t"            // imm
+        "mov x5, x23\n\t"            // size
+        "mov x6, x24\n\t"            // idx_mode
+        "mov x7, x25\n\t"            // meta
         "bl _a64_tcti_ldr_x_helper\n\t"
         "bl _tcti_c_call_epilogue\n\t"
         "ldp x1, x2, [x29, #16]\n\t"
