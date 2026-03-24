@@ -34,15 +34,14 @@ void a64_cache_early_init(void) {
     }
 }
 
-    // Current execution state - non-static so asbestos.c can access it
-struct cpu_state *current_cpu = NULL;
-static struct tlb *current_tlb = NULL;
+    // Execution state is now passed via parameters, not globals
+    // Block cache remains global during transition to per-MMU ownership
 static jmp_buf exit_jmpbuf __attribute__((unused));
 
 // Forward declarations
-struct a64_block *a64_compile_block(uint64_t pc, struct tlb *tlb);
+struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct tlb *tlb);
 // Forward declaration - made non-static for use by asbestos.c
-int a64_execute_block(struct a64_block *block);
+int a64_execute_block(struct cpu_state *cpu, struct a64_block *block);
 
 /*
  * Initialize aarch64 CPU for a task
@@ -86,15 +85,12 @@ int a64_fetch_insn(struct cpu_state *cpu, struct tlb *tlb, uint64_t pc, uint32_t
 /*
  * Compile a basic block starting at pc
  */
-struct a64_block *a64_compile_block(uint64_t pc, struct tlb *tlb) {
-    printk("[a64_compile_block] ENTRY: pc=0x%llx\n", pc);
+struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct tlb *tlb) {
     a64_gen_state_t gen_state;
     tcti_gadget_t buffer[A64_MAX_GADGETS_PER_BLOCK];
     struct a64_block *block;
     bool explicit_pc_on_exit = false;
 
-    // Initialize generator
-    printk("[a64_compile_block] Initializing generator\n");
     a64_gen_init(&gen_state, buffer, A64_MAX_GADGETS_PER_BLOCK);
     a64_gen_reset(&gen_state, pc);
 
@@ -103,34 +99,21 @@ struct a64_block *a64_compile_block(uint64_t pc, struct tlb *tlb) {
     int insns_decoded = 0;
     for (int i = 0; i < max_insns; i++) {
         uint32_t insn;
-        int ret = a64_fetch_insn(current_cpu, tlb, gen_state.guest_pc, &insn);
+        int ret = a64_fetch_insn(cpu, tlb, gen_state.guest_pc, &insn);
         if (ret < 0) {
             // Page fault during fetch
-            printk("[TCTI] Page fault fetching instruction at %llx\n", gen_state.guest_pc);
             break;
         }
 
-        // Decode to get instruction info for logging
+        // Decode to get instruction info
         a64_instr_t decoded_info;
         int decode_ret = a64_decode(insn, &decoded_info);
-        
-        // Debug: print decoded info
-        if (decode_ret == 0) {
-            printk("[TCTI] Decoded insn=%08x cat=%d subtype=%d Rd=%d Rn=%d imm=%lld\n",
-                   insn, decoded_info.cat, decoded_info.subtype, decoded_info.Rd, 
-                   decoded_info.Rn, decoded_info.imm);
-        } else {
-            printk("[TCTI] Failed to decode insn=%08x\n", insn);
-        }
         
         // Generate TCTI instruction - load/store and bitfield now have inline TCTI support
         ret = a64_gen_instruction(&gen_state, insn, gen_state.guest_pc);
 
         if (ret < 0) {
             // Decode error - block ends here
-            printk("[TCTI] Failed: insn=%08x pc=%llx cat=%d subtype=%d rd=%d rn=%d imm=%lld\n", 
-                   insn, gen_state.guest_pc, decoded_info.cat, decoded_info.subtype,
-                   decoded_info.Rd, decoded_info.Rn, decoded_info.imm);
             break;
         }
 
@@ -152,9 +135,8 @@ struct a64_block *a64_compile_block(uint64_t pc, struct tlb *tlb) {
     // Check if we decoded any instructions
     if (insns_decoded == 0) {
         // No instructions could be decoded - this is a fatal error in 100% TCTI mode
-        // Log the failing instruction
         uint32_t failing_insn = 0;
-        a64_fetch_insn(current_cpu, tlb, pc, &failing_insn);
+        a64_fetch_insn(cpu, tlb, pc, &failing_insn);
         printk("[TCTI] FATAL: Cannot compile block at 0x%llx - unsupported instruction\n", pc);
         printk("[TCTI] FATAL: Instruction bytes: 0x%08x\n", failing_insn);
         return NULL;
@@ -183,14 +165,6 @@ struct a64_block *a64_compile_block(uint64_t pc, struct tlb *tlb) {
     block->end_pc = gen_state.end_pc;
     block->explicit_pc_on_exit = explicit_pc_on_exit;
     block->is_jetsam = false;
-    
-    // Debug: print first 20 bytecode entries after compilation
-    printk("[TCTI] Block compiled: start_pc=0x%llx, num_gadgets=%zu\n", 
-           block->start_pc, block->num_gadgets);
-    printk("[TCTI] Bytecode after compilation (first 20):\n");
-    for (size_t i = 0; i < block->num_gadgets && i < 20; i++) {
-        printk("[TCTI]   [%zu] = %p\n", i, block->gadgets[i]);
-    }
 
     // Initialize list links
     list_init(&block->chain);
@@ -205,46 +179,9 @@ struct a64_block *a64_compile_block(uint64_t pc, struct tlb *tlb) {
  * Uses tcti_entry_block to set up register mapping and execute
  * the entire gadget chain. Gadgets use epilogue to chain together.
  */
-int a64_execute_block(struct a64_block *block) {
-    // Debug: print first few gadgets
-    printk("[TCTI] Executing block with %zu gadgets at PC 0x%llx\n", 
-           block->num_gadgets, block->start_pc);
-    
-    // Debug: dump first 20 bytecode entries to see pattern
-    printk("[TCTI] Bytecode dump (first 20 entries):\n");
-    for (size_t i = 0; i < block->num_gadgets && i < 20; i++) {
-        printk("[TCTI]   [%zu] = %p\n", i, block->gadgets[i]);
-    }
-    
-    // Debug: print cpu state before entry
-    printk("[TCTI] CPU state: x[0]=0x%llx, x[1]=0x%llx, x[2]=0x%llx, x[3]=0x%llx\n",
-           current_cpu->x[0], current_cpu->x[1], current_cpu->x[2], current_cpu->x[3]);
-    printk("[TCTI] CPU state: pc=0x%llx, sp=0x%llx\n",
-           current_cpu->pc, current_cpu->sp);
-    
-    // Call tcti_entry_block with proper register setup
-    // tcti_entry_block is defined in assembly and expects:
-    //   x0 = pointer to gadget array
-    //   x1 = pointer to cpu_state
-    
-    void *gadgets = block->gadgets;
-    struct cpu_state *cpu = current_cpu;
-    
-    printk("[TCTI] About to enter TCTI...\n");
-    
-    tcti_entry_block(gadgets, cpu);
-    
-    printk("[TCTI] Returned from TCTI! exit_reason=%d\n", cpu->tcti_exit_reason);
-    
-    // Debug: Check if we can safely read from cpu and block
-    printk("[TCTI] Debug check 1: cpu=%p, block=%p\n", (void*)cpu, (void*)block);
-    printk("[TCTI] Debug check 2: cpu->tcti_exit_reason=%d\n", cpu->tcti_exit_reason);
-    printk("[TCTI] Debug check 3: block->start_pc=0x%llx\n", block->start_pc);
-    
-    // Exit reason is stored in cpu->tcti_exit_reason by assembly code
-    int exit_reason = cpu->tcti_exit_reason;
-    printk("[TCTI] Debug check 4: exit_reason=%d\n", exit_reason);
-    return exit_reason;
+int a64_execute_block(struct cpu_state *cpu, struct a64_block *block) {
+    tcti_entry_block(block->gadgets, cpu);
+    return cpu->tcti_exit_reason;
 }
 
 static uint64_t a64_read_reg_or_sp(struct cpu_state *cpu, int reg, bool is_64bit) {
@@ -308,18 +245,13 @@ static uint64_t a64_apply_shift(uint64_t value, int shift_type, int amount, bool
  * This is the main entry point from the kernel
  */
 void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
-    printk("[a64_cpu_run] ENTRY: cpu=%p, tlb=%p, pc=0x%llx\n", cpu, tlb, cpu->pc);
-    current_cpu = cpu;
-    current_tlb = tlb;
     cpu->tlb = tlb;  // Store TLB pointer in cpu_state for inline TLB access
 
     // Initialize block cache if needed
     if (!block_cache_initialized) {
-        printk("[a64_cpu_run] Initializing block cache\n");
         a64_cache_init(&block_cache);
         block_cache_initialized = 1;
     }
-    printk("[a64_cpu_run] Block cache ready, entering main loop\n");
 
     // Set up TLB for this CPU
     tlb_refresh(tlb, cpu->mmu);
@@ -332,7 +264,7 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
 
         if (!block) {
             // Compile new block
-            block = a64_compile_block(pc, tlb);
+            block = a64_compile_block(cpu, pc, tlb);
             if (!block) {
                 printk("[TCTI] FATAL: Cannot compile block at PC=0x%llx\n", pc);
                 handle_interrupt(INT_GPF);
@@ -343,37 +275,7 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
         }
 
         // Execute the block via TCTI
-        printk("[TCTI] About to execute block at %p, end_pc=0x%llx, current pc=0x%llx\n", block, block->end_pc, cpu->pc);
-        printk("[TCTI] Block contents: start_pc=0x%llx, end_pc=0x%llx, num_gadgets=%zu, gadgets=%p\n",
-               block->start_pc, block->end_pc, block->num_gadgets, block->gadgets);
-        
-        // Compute checksum of first 10 gadgets before execution
-        uint64_t checksum_before = 0;
-        for (size_t i = 0; i < 10 && i < block->num_gadgets; i++) {
-            checksum_before ^= (uint64_t)block->gadgets[i];
-        }
-        printk("[TCTI] Checksum before: 0x%llx\n", checksum_before);
-        
-        int exit_reason = a64_execute_block(block);
-        
-        // Compute checksum after execution
-        uint64_t checksum_after = 0;
-        for (size_t i = 0; i < 10 && i < block->num_gadgets; i++) {
-            checksum_after ^= (uint64_t)block->gadgets[i];
-        }
-        printk("[TCTI] Checksum after: 0x%llx\n", checksum_after);
-        
-        if (checksum_before != checksum_after) {
-            printk("[TCTI] ERROR: Block bytecode corrupted during execution!\n");
-            printk("[TCTI] First 10 gadgets after corruption:\n");
-            for (size_t i = 0; i < 10 && i < block->num_gadgets; i++) {
-                printk("[TCTI]   [%zu] = %p\n", i, block->gadgets[i]);
-            }
-        }
-        
-        printk("[TCTI] Block executed, exit_reason=%d\n", exit_reason);
-        printk("[TCTI] Block contents after: start_pc=0x%llx, end_pc=0x%llx, num_gadgets=%zu, gadgets=%p\n",
-               block->start_pc, block->end_pc, block->num_gadgets, block->gadgets);
+        int exit_reason = a64_execute_block(cpu, block);
         
         // Check exit reason and handle
         if (exit_reason == TCTI_EXIT_SYSCALL) {
@@ -388,7 +290,6 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
             // Check for pending signals
             // deliver_signal(...)
         } else if (exit_reason == TCTI_EXIT_COMPLEX) {
-            printk("[TCTI] COMPLEX exit at PC=0x%llx, handling MRS/MSR\n", cpu->pc);
             // Decode instruction at current PC to determine if it's MRS or MSR
             uint32_t insn;
             if (a64_fetch_insn(cpu, cpu->tlb, cpu->pc, &insn) == 0) {
@@ -405,13 +306,9 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
                         if (op1 == 3 && crn == 13 && crm == 0 && op2 == 2) {
                             // TPIDR_EL0 read
                             cpu->x[decoded.Rd] = cpu->tpidr_el0;
-                            printk("[TCTI] MRS TPIDR_EL0 -> x[%d] = 0x%llx\n", 
-                                   decoded.Rd, (unsigned long long)cpu->tpidr_el0);
                         } else if (op1 == 3 && crn == 13 && crm == 0 && op2 == 3) {
                             // TPIDRRO_EL0 read (same value on Linux)
                             cpu->x[decoded.Rd] = cpu->tpidr_el0;
-                            printk("[TCTI] MRS TPIDRRO_EL0 -> x[%d] = 0x%llx\n", 
-                                   decoded.Rd, (unsigned long long)cpu->tpidr_el0);
                         } else {
                             printk("[TCTI] Warning: Unhandled MRS sysreg 0x%x\n", decoded.sysreg);
                         }
@@ -430,8 +327,6 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
                             } else {
                                 cpu->tpidr_el0 = 0;
                             }
-                            printk("[TCTI] MSR x[%d] -> TPIDR_EL0 = 0x%llx\n", 
-                                   decoded.Rd, (unsigned long long)cpu->tpidr_el0);
                         } else {
                             printk("[TCTI] Warning: Unhandled MSR sysreg 0x%x\n", decoded.sysreg);
                         }
@@ -456,8 +351,6 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
                 cpu->pc = block->end_pc;
         }
         // Normal exit - PC already advanced, continue to next block
-        
-        // Continue to next block
     }
 }
 
