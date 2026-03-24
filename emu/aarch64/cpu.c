@@ -258,6 +258,15 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
     tlb_refresh(tlb, cpu->mmu);
 
     while (1) {
+        // Reacquire context if it was marked inactive (e.g., after interrupt return)
+        if (!ctx->active) {
+            ctx = fiber_exec_ctx_get(cpu);
+            if (!ctx) {
+                printk("[TCTI] FATAL: Cannot reacquire execution context\n");
+                return;
+            }
+        }
+        
         uint64_t pc = cpu->pc;
         
         // L0 cache lookup (fast path via fiber_exec_ctx)
