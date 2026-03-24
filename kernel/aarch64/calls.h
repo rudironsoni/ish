@@ -2,7 +2,7 @@
 #define AARCH64_CALLS_H
 
 // Maximum syscall number for aarch64
-#define A64_SYS_MAX 450
+#define A64_SYS_MAX 1100
 
 // aarch64 Linux syscall numbers
 // Reference: arch/arm64/include/uapi/asm/unistd.h
@@ -95,6 +95,12 @@
 #define A64_SYS_fdatasync 83
 #define A64_SYS_sync_file_range 84
 
+// Memory management
+#define A64_SYS_brk 12
+#define A64_SYS_munmap 215
+#define A64_SYS_mprotect 226
+#define A64_SYS_madvise 233
+
 // Process management
 #define A64_SYS_exit 93
 #define A64_SYS_exit_group 94
@@ -107,6 +113,21 @@
 #define A64_SYS_nanosleep 101
 #define A64_SYS_getitimer 102
 #define A64_SYS_setitimer 103
+#define A64_SYS_gettimeofday 169
+#define A64_SYS_settimeofday 170
+#define A64_SYS_getpid 172
+#define A64_SYS_getppid 173
+#define A64_SYS_getuid 174
+#define A64_SYS_getgid 175
+#define A64_SYS_geteuid 176
+#define A64_SYS_getegid 177
+#define A64_SYS_gettid 178
+#define A64_SYS_mmap 222
+#define A64_SYS_fork 1079
+#define A64_SYS_vfork 1071
+#define A64_SYS_clone 1072
+#define A64_SYS_execve 1083
+#define A64_SYS_wait4 260
 #define A64_SYS_kexec_load 104
 #define A64_SYS_init_module 105
 #define A64_SYS_delete_module 106
@@ -174,6 +195,31 @@
 #define A64_SYS_access 21
 #define A64_SYS_poll 7
 #define A64_SYS_select 23
+
+// Socket syscalls from Linux UAPI
+#define A64_SYS_socket 198
+#define A64_SYS_socketpair 199
+#define A64_SYS_bind 200
+#define A64_SYS_listen 201
+#define A64_SYS_accept 202
+#define A64_SYS_connect 203
+#define A64_SYS_getsockname 204
+#define A64_SYS_getpeername 205
+#define A64_SYS_sendto 206
+#define A64_SYS_recvfrom 207
+#define A64_SYS_setsockopt 208
+#define A64_SYS_getsockopt 209
+#define A64_SYS_shutdown 210
+#define A64_SYS_sendmsg 211
+#define A64_SYS_recvmsg 212
+#define A64_SYS_accept4 242
+
+// Misc syscalls from Linux UAPI
+#define A64_SYS_umask 166
+#define A64_SYS_prctl 167
+#define A64_SYS_sysinfo 179
+#define A64_SYS_statx 291
+#define A64_SYS_prlimit64 261
 
 // Syscall table structure for aarch64
 struct syscall_info {

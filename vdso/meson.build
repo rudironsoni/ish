@@ -20,7 +20,7 @@ if result.returncode() != 0
 endif
 vdso_compiler = [clang, '-target', 'aarch64-linux-gnu', '-fuse-ld=lld']
 
-vdso = custom_target('vdso', input: ['vdso.S', 'vdso.c', 'vdso.lds'], output: 'libvdso.so.elf',
-    command: vdso_compiler + ['-o', '@OUTPUT@', '@INPUT0@', '@INPUT1@',
-        '-nostdlib', '-Wl,-T,@INPUT2@', '-Wl,--hash-style,sysv', '-shared', '-fPIC']
+vdso = custom_target('vdso', input: ['vdso.c', 'vdso.lds'], output: 'libvdso.so.elf',
+    command: vdso_compiler + ['-o', '@OUTPUT@', '@INPUT0@',
+        '-nostdlib', '-Wl,-T,@INPUT1@', '-Wl,--hash-style,sysv', '-shared', '-fPIC']
         + get_option('vdso_c_args').split())

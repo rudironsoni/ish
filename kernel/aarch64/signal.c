@@ -105,10 +105,10 @@ static uint64_t a64_get_sigframe_base(struct task *task,
     uint64_t sp;
 
     // Use alternate stack if set and SA_ONSTACK is set
-    if (action->sa_flags & SA_ONSTACK_) {
+    if (action->flags & SA_ONSTACK_) {
         // Check if already on altstack - if so, keep using current stack
-        uint64_t altstack_start = (uint64_t)task->sighand->altstack.ss_sp;
-        uint64_t altstack_end = altstack_start + task->sighand->altstack.ss_size;
+        uint64_t altstack_start = (uint64_t)task->sighand->altstack;
+        uint64_t altstack_end = altstack_start + task->sighand->altstack_size;
         if (task->cpu.sp >= altstack_start && task->cpu.sp < altstack_end) {
             // Already on altstack, use current stack
             sp = task->cpu.sp;
@@ -135,7 +135,9 @@ int a64_setup_rt_frame(struct task *task, int sig, struct siginfo_ *info,
     // Setup ucontext header
     frame->uc.uc_flags = 0;
     frame->uc.uc_link = 0;
-    frame->uc.uc_stack = task->sighand->altstack;
+    frame->uc.uc_stack.stack = task->sighand->altstack;
+    frame->uc.uc_stack.size = task->sighand->altstack_size;
+    frame->uc.uc_stack.flags = 0;
 
     // Setup main sigcontext
     a64_setup_sigcontext(sc, cpu);
@@ -195,8 +197,8 @@ void a64_deliver_signal(struct task *task, int sig, struct siginfo_ *info) {
     }
 
     // Setup return address (sigtramp)
-    if (action->sa_flags & SA_RESTORER_) {
-        return_addr = (uint64_t)action->sa_restorer;
+    if (action->flags & SA_RESTORER_) {
+        return_addr = (uint64_t)action->restorer;
     } else {
         // Use default sigtramp from vdso
         return_addr = task->vdso_sigtramp;
@@ -215,18 +217,11 @@ void a64_deliver_signal(struct task *task, int sig, struct siginfo_ *info) {
     cpu->pc = (uint64_t)action->handler;      // Jump to handler
 
     // Signal mask handling
-    if (!(action->sa_flags & SA_NODEFER_)) {
+    if (!(action->flags & SA_NODEFER_)) {
         sigset_add(&task->blocked, sig);
     }
-    if (action->sa_flags & SA_RESETHAND_) {
+    if (action->flags & SA_RESETHAND_) {
         action->handler = SIG_DFL_;
-    }
-    
-    // Handle alternate stack
-    if (action->sa_flags & SA_ONSTACK_) {
-        // Mark that we're now on the alternate stack
-        // This will be checked by a64_get_sigframe_base on next signal
-        task->sighand->altstack.ss_flags = SS_ONSTACK;
     }
 }
 
@@ -273,10 +268,8 @@ int a64_handle_sigreturn(struct cpu_state *cpu) {
     // Restore main context
     a64_restore_sigcontext(cpu, &frame.uc.uc_mcontext);
 
-    // Clear alternate stack "on stack" flag if we were using it
-    if (current->sighand->altstack.ss_flags & SS_ONSTACK) {
-        current->sighand->altstack.ss_flags &= ~SS_ONSTACK;
-    }
+    // Altstack "on stack" state is tracked by SP range check in a64_get_sigframe_base
+    // No explicit flag needed - sighand->altstack is just the base address
 
     return 0;
 }

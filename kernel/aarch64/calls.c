@@ -15,6 +15,7 @@
 
 // Forward declarations for syscall handlers
 extern syscall_t syscall_table[];
+extern syscall_t syscall_table_a64[A64_SYS_MAX];
 
 // Number of arguments for each syscall (for proper argument marshalling)
 // This mirrors the x86 syscall_arg_count in kernel/calls.c
@@ -129,8 +130,8 @@ void a64_syscall_init(void) {
 /*
  * Get syscall name for debugging
  */
-const char *a64_syscall_name(uint64_t num) {
-    if (num >= A64_SYS_MAX)
+const char *a64_syscall_name(int num) {
+    if (num < 0 || num >= A64_SYS_MAX)
         return "unknown";
 
     static const char *syscall_names[] = {

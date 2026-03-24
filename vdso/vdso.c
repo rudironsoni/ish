@@ -1,8 +1,31 @@
 // VDSO for AArch64 guest
-// Provides userspace implementations of time functions
+// Provides userspace implementations of time functions and signal return
 
 typedef long time_t;
 typedef int clockid_t;
+
+// VDSO entry point - AArch64 doesn't use this like x86, but linker expects it
+// Just returns 0
+int __kernel_vsyscall(void) {
+    return 0;
+}
+
+// Signal return trampoline for rt_sigreturn
+// This matches the kernel/aarch64/vdso.c trampoline
+void __kernel_rt_sigreturn(void) {
+    __asm__ volatile(
+        "mov x8, #139\n\t"  // __NR_rt_sigreturn
+        "svc #0\n\t"
+    );
+}
+
+// Legacy sigreturn - not used on AArch64 but linker expects symbol
+void __kernel_sigreturn(void) {
+    __asm__ volatile(
+        "mov x8, #119\n\t"  // __NR_sigreturn
+        "svc #0\n\t"
+    );
+}
 
 time_t __vdso_time(time_t *t) {
     time_t result;

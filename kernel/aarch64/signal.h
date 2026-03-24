@@ -7,6 +7,10 @@
  */
 
 #include "misc.h"
+#include "kernel/signal.h"
+
+// Forward declaration
+struct cpu_state;
 
 // Size of reserved area in sigcontext
 #define A64_SIGCONTEXT_RESERVED_SIZE 4096
@@ -74,6 +78,7 @@ struct a64_ucontext {
     uint64_t uc_flags;
     uint64_t uc_link;             // struct a64_ucontext *
     struct stack_t_ uc_stack;     // Signal stack (from kernel/signal.h)
+    sigset_t_ uc_sigmask;         // Current signal mask (kernel/signal.h)
     // Padding for sigset_t size (1024 bits = 128 bytes)
     uint8_t __sigset_padding[128 - sizeof(sigset_t_)];
     // Must be last for future expansion
