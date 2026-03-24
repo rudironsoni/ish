@@ -164,22 +164,31 @@ void a64_deliver_signal(struct task *task, int sig, struct siginfo_ *info) {
     // Get frame location on guest stack
     frame_addr = a64_get_sigframe_base(task, action) - frame_size;
 
-    // Map into host address space for setup
-    // TODO: Use proper guest memory access
-    frame = NULL; // Would use user_access helper here
+    // Setup the frame in a temporary buffer first
+    struct a64_rt_sigframe frame;
+    a64_setup_rt_frame(task, sig, info, &frame);
 
-    // Setup the frame
-    a64_setup_rt_frame(task, sig, info, frame);
+    // Write the frame to guest memory
+    if (user_write_task(task, frame_addr, &frame, sizeof(frame))) {
+        // Failed to write signal frame - deliver SIGSEGV
+        deliver_signal(task, SIGSEGV_, SIGINFO_NIL);
+        return;
+    }
 
     // Calculate frame record location (at end of frame area)
     fr_addr = frame_addr + frame_size - sizeof(struct a64_frame_record);
-    fr = (struct a64_frame_record *)((char *)frame +
-                                      frame_size -
-                                      sizeof(struct a64_frame_record));
+    struct a64_frame_record fr_local;
 
     // Setup frame record for unwinding
-    fr->fp = cpu->x[29];  // Save current FP
-    fr->lr = cpu->x[30];  // Save current LR
+    fr_local.fp = cpu->x[29];  // Save current FP
+    fr_local.lr = cpu->x[30];  // Save current LR
+    
+    // Write frame record to guest memory
+    if (user_write_task(task, fr_addr, &fr_local, sizeof(fr_local))) {
+        // Failed to write frame record - deliver SIGSEGV
+        deliver_signal(task, SIGSEGV_, SIGINFO_NIL);
+        return;
+    }
 
     // Setup return address (sigtramp)
     if (action->sa_flags & SA_RESTORER_) {
@@ -208,6 +217,13 @@ void a64_deliver_signal(struct task *task, int sig, struct siginfo_ *info) {
     if (action->sa_flags & SA_RESETHAND_) {
         action->handler = SIG_DFL_;
     }
+    
+    // Handle alternate stack
+    if (action->sa_flags & SA_ONSTACK_) {
+        // Mark that we're now on the alternate stack
+        // This will be checked by a64_get_sigframe_base on next signal
+        task->sighand->altstack.ss_flags = SS_ONSTACK;
+    }
 }
 
 /*
@@ -234,21 +250,30 @@ int a64_handle_sigreturn(struct cpu_state *cpu) {
     if (frame_addr & 15)
         return -1;
 
-    // Map frame address
-    frame = NULL; // Would use user_access helper here
+    // Read signal frame from guest memory
+    struct a64_rt_sigframe frame;
+    if (user_get_task(current, frame_addr, frame)) {
+        // Failed to read signal frame
+        return -1;
+    }
 
-    // Restore signal mask
-    // TODO: Restore from frame->uc.uc_sigmask
+    // Restore signal mask from frame
+    current->blocked = frame.uc.uc_sigmask;
 
     // Restore FPSIMD context
     struct a64_fpsimd_context *fpsimd =
-        (struct a64_fpsimd_context *)frame->uc.uc_mcontext.__reserved;
+        (struct a64_fpsimd_context *)frame.uc.uc_mcontext.__reserved;
     if (fpsimd->head.magic == A64_FPSIMD_MAGIC) {
         a64_restore_fpsimd_context(cpu, fpsimd);
     }
 
     // Restore main context
-    a64_restore_sigcontext(cpu, &frame->uc.uc_mcontext);
+    a64_restore_sigcontext(cpu, &frame.uc.uc_mcontext);
+
+    // Clear alternate stack "on stack" flag if we were using it
+    if (current->sighand->altstack.ss_flags & SS_ONSTACK) {
+        current->sighand->altstack.ss_flags &= ~SS_ONSTACK;
+    }
 
     return 0;
 }
@@ -262,7 +287,7 @@ dword_t sys_rt_sigreturn_aarch64(void) {
 
     if (a64_handle_sigreturn(cpu) < 0) {
         // Force SIGSEGV on bad frame
-        // TODO: deliver_signal(task, SIGSEGV_);
+        deliver_signal(task, SIGSEGV_, SIGINFO_NIL);
         return -_EFAULT;
     }
 
