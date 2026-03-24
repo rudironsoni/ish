@@ -298,18 +298,26 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
         }
 
         // Execute the block via TCTI
+        // NOTE: Execution runs directly on cpu_state (authoritative state owner)
+        // ctx->frame.cpu is RESERVED for future fiber work, not used today
         int exit_reason = a64_execute_block(cpu, block);
         
         // Check exit reason and handle
         if (exit_reason == TCTI_EXIT_SYSCALL) {
             if (!block->explicit_pc_on_exit)
                 cpu->pc = block->end_pc;
+            // Mark context inactive before handing control to kernel
+            fiber_exec_ctx_put(ctx);
             handle_interrupt(INT_SYSCALL);
         } else if (exit_reason == TCTI_EXIT_FAULT) {
+            // Mark context inactive before handling fault
+            fiber_exec_ctx_put(ctx);
             handle_interrupt(INT_GPF);
         } else if (exit_reason == TCTI_EXIT_SIGNAL) {
             if (!block->explicit_pc_on_exit)
                 cpu->pc = block->end_pc;
+            // Mark context inactive before handling signal
+            fiber_exec_ctx_put(ctx);
             // Check for pending signals
             // deliver_signal(...)
         } else if (exit_reason == TCTI_EXIT_COMPLEX) {
