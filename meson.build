@@ -20,10 +20,10 @@ foreach channel : log_on + log_off
     endif
 endforeach
 add_project_arguments('-DLOG_HANDLER_' + get_option('log_handler').to_upper() + '=1', language: 'c')
-add_project_arguments('-DENGINE_' + get_option('engine').to_upper() + '=1', language: 'c')
 
-# Architecture: aarch64 only (iOS migration)
+# Architecture: aarch64 only (iOS migration) - TCTI is the only execution engine
 add_project_arguments('-DARCH_AARCH64=1', language: 'c')
+add_project_arguments('-DENGINE_TCTI=1', language: 'c')
 
 # Enable performance counters for optimization work
 if get_option('enable_perf_stats')
@@ -100,10 +100,7 @@ libfakefs = library('fakefs',
 subdir('deps')
 
 if get_option('kernel') == 'ish'
-    if get_option('engine') != 'asbestos'
-        error('Only asbestos is supported with ish kernel')
-    endif
-
+    # TCTI is the only supported execution engine for AArch64
     src = [
         'kernel/init.c',
         'kernel/errno.c',
@@ -195,6 +192,7 @@ if get_option('kernel') == 'ish'
     endif
 
 elif get_option('kernel') == 'linux'
+    # TCTI-only mode for AArch64 - no legacy engine support
     kernel_src = [
         'linux/main.c',
         'linux/fakefs.c',
@@ -202,17 +200,8 @@ elif get_option('kernel') == 'linux'
     user_src = []
     emu_deps = []
 
-    if get_option('engine') == 'tcti'
-        # TCTI mode - no asbestos files needed
-        emu_deps += declare_dependency(link_with: libish_emu)
-    elif get_option('engine') == 'unicorn'
-        user_src += 'linux/emu_unicorn.c'
-        kernel_src += 'linux/emu_unicorn_kernel.c'
-        emu_deps += declare_dependency(
-            dependencies: [cc.find_library('unicorn', dirs: [meson.current_source_dir()+'/deps/unicorn/build'])],
-            include_directories: include_directories('deps/unicorn/include'),
-        )
-    endif
+    # TCTI is the only execution engine
+    emu_deps += declare_dependency(link_with: libish_emu)
 
     modules = static_library('linux_modules', kernel_src, dependencies: [linux_headers, sqlite3])
     user_modules = static_library('linux_user', user_src, dependencies: [user_linux_headers] + emu_deps)
