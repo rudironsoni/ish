@@ -35,6 +35,29 @@ extern dword_t sys_pselect6(fd_t, addr_t, addr_t, addr_t, addr_t, addr_t);
 extern dword_t sys_epoll_create1(dword_t);
 extern dword_t sys_accept4(fd_t, addr_t, addr_t, int_t);
 
+// Stub implementations for missing syscalls
+dword_t sys_newfstatat(fd_t fd, addr_t pathname, addr_t statbuf, int_t flags) {
+    (void)fd; (void)pathname; (void)statbuf; (void)flags;
+    return -_ENOSYS;
+}
+
+dword_t sys_pselect6(fd_t nfds, addr_t readfds, addr_t writefds, addr_t exceptfds,
+                     addr_t timeout, addr_t sigmask) {
+    (void)nfds; (void)readfds; (void)writefds; (void)exceptfds;
+    (void)timeout; (void)sigmask;
+    return -_ENOSYS;
+}
+
+dword_t sys_epoll_create1(dword_t flags) {
+    (void)flags;
+    return -_ENOSYS;
+}
+
+dword_t sys_accept4(fd_t fd, addr_t addr, addr_t addrlen, int_t flags) {
+    (void)fd; (void)addr; (void)addrlen; (void)flags;
+    return -_ENOSYS;
+}
+
 // aarch64 doesn't have creat, uses openat
 #define sys_creat sys_open
 
