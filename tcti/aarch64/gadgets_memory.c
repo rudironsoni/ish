@@ -1073,13 +1073,19 @@ __attribute__((naked)) void gadget_ldr_x_impl(void) {
         "144:\n\tmov x15, x18\n\tb 150f\n\t"
         "145:\n\tmov x16, x18\n\tb 150f\n\t"
         
-        // Fast path complete - advance to next gadget
+        // Fast path complete - increment counter and advance to next gadget
         "150:\n\t"
+        "ldr x26, [x29, %[ldr_fast_hits_off]]\n\t"
+        "add x26, x26, #1\n\t"
+        "str x26, [x29, %[ldr_fast_hits_off]]\n\t"
         "ldr x27, [x28], #8\n\t"
         "br x27\n\t"
         
         // Slow path (label 90)
         "90:\n\t"
+        "ldr x26, [x29, %[ldr_fallback_off]]\n\t"
+        "add x26, x26, #1\n\t"
+        "str x26, [x29, %[ldr_fallback_off]]\n\t"
         // Save registers and call C helper
         "stp x1, x2, [x29, #16]\n\t"
         "stp x3, x4, [x29, #32]\n\t"
@@ -1114,6 +1120,10 @@ __attribute__((naked)) void gadget_ldr_x_impl(void) {
         "br x27\n\t"
         "1:\n\t"
         "b _tcti_exit_block\n\t"
+        :
+        : [ldr_fast_hits_off] "i" (STAT_LDR_FAST_HITS_OFFSET),
+          [ldr_fallback_off] "i" (STAT_LDR_FALLBACK_OFFSET)
+        : "x26", "x27", "memory"
     );
 }
 
@@ -1277,12 +1287,18 @@ __attribute__((naked)) void gadget_str_x_impl(void) {
         "add x17, x27, x17\n\t"       // x17 = host address
         "str x18, [x17]\n\t"          // store value from x18
 
-        // Fast path complete - advance to next gadget
+        // Fast path complete - increment counter and advance to next gadget
+        "ldr x26, [x29, %[str_fast_hits_off]]\n\t"
+        "add x26, x26, #1\n\t"
+        "str x26, [x29, %[str_fast_hits_off]]\n\t"
         "ldr x27, [x28], #8\n\t"
         "br x27\n\t"
-
+        
         // Slow path (label 90)
         "90:\n\t"
+        "ldr x26, [x29, %[str_fallback_off]]\n\t"
+        "add x26, x26, #1\n\t"
+        "str x26, [x29, %[str_fallback_off]]\n\t"
         // Save registers and call C helper
         "stp x1, x2, [x29, #16]\n\t"
         "stp x3, x4, [x29, #32]\n\t"
@@ -1317,6 +1333,10 @@ __attribute__((naked)) void gadget_str_x_impl(void) {
         "br x27\n\t"
         "1:\n\t"
         "b _tcti_exit_block\n\t"
+        :
+        : [str_fast_hits_off] "i" (STAT_STR_FAST_HITS_OFFSET),
+          [str_fallback_off] "i" (STAT_STR_FALLBACK_OFFSET)
+        : "x26", "x27", "memory"
     );
 }
 
