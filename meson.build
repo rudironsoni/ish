@@ -85,6 +85,9 @@ emu_src = [
     'tcti/aarch64/gadgets_math.c',
     'tcti/aarch64/gadgets_memory.c',
     
+    # TCTI execution context management
+    'tcti/frame.c',
+    
     # TCTI entry/exit assembly
     'tcti/aarch64/tcti_entry.S',
 
