@@ -158,8 +158,11 @@ int pt_unmap(struct mem *mem, page_t start, pages_t pages) {
 
 int pt_unmap_always(struct mem *mem, page_t start, pages_t pages) {
     // Invalidate all TCTI blocks when memory changes
-    extern struct a64_block_cache block_cache;
-    a64_cache_invalidate_all(&block_cache);
+    // Per-MMU cache invalidation via current task
+    struct task *task = current;
+    if (task && task->cpu.mmu && task->cpu.mmu->block_cache) {
+        a64_cache_invalidate_all(task->cpu.mmu->block_cache);
+    }
     
     for (page_t page = start; page < start + pages; mem_next_page(mem, &page)) {
         struct pt_entry *pt = mem_pt(mem, page);
@@ -291,8 +294,11 @@ void *mem_ptr(struct mem *mem, addr_t addr, int type) {
             entry->flags |= P_WRITE | P_COW;
         }
         // Invalidate TCTI blocks when memory is modified
-        extern struct a64_block_cache block_cache;
-        a64_cache_invalidate_all(&block_cache);
+        // Per-MMU cache invalidation via current task
+        struct task *task = current;
+        if (task && task->cpu.mmu && task->cpu.mmu->block_cache) {
+            a64_cache_invalidate_all(task->cpu.mmu->block_cache);
+        }
         // if page is cow, ~~milk~~ copy it
         if (entry->flags & P_COW) {
             void *data = (char *) entry->data->data + entry->offset;
