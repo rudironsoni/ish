@@ -646,6 +646,11 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr) {
                 ret = emit_gadget(state, gadget_and_reg[14][14][13]);
                 if (ret != A64_GEN_OK)
                     return ret;
+                // Clear x13 to prevent corruption of guest registers
+                // XOR x13 with itself to set it to 0
+                ret = emit_gadget(state, gadget_eor_reg[13][13][13]);
+                if (ret != A64_GEN_OK)
+                    return ret;
                 break;
 
             case A64_EXT_UXTX:
