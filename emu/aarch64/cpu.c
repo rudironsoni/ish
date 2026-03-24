@@ -524,3 +524,55 @@ void a64_cpu_dump(struct cpu_state *cpu) {
     printk("  PSTATE: 0x%016llx (N=%d Z=%d C=%d V=%d)\n",
            cpu->pstate, cpu->n, cpu->z, cpu->c, cpu->v);
 }
+
+/*
+ * Dump Phase 1B statistics for data-driven optimization
+ * Reports fast-path hits and fallback reasons
+ */
+void a64_cpu_dump_stats(struct cpu_state *cpu) {
+    printk("=== Phase 1B Memory Access Statistics ===\n");
+    
+    printk("LDR:\n");
+    printk("  Fast-path hits: %llu\n", (unsigned long long)cpu->stat_ldr_fast_hits);
+    printk("  Total fallbacks: %llu\n", (unsigned long long)cpu->stat_ldr_fallback);
+    if (cpu->stat_ldr_fallback > 0) {
+        printk("  Fallback reasons:\n");
+        printk("    Non-hot registers: %llu\n", (unsigned long long)cpu->stat_ldr_fallback_nonhot);
+        printk("    Non-64-bit size: %llu\n", (unsigned long long)cpu->stat_ldr_fallback_size);
+        printk("    Non-offset mode: %llu\n", (unsigned long long)cpu->stat_ldr_fallback_idxmode);
+        printk("    Non-zero meta: %llu\n", (unsigned long long)cpu->stat_ldr_fallback_meta);
+        printk("    Unaligned access: %llu\n", (unsigned long long)cpu->stat_ldr_fallback_align);
+        printk("    Cross-page access: %llu\n", (unsigned long long)cpu->stat_ldr_fallback_crosspg);
+        printk("    TLB miss: %llu\n", (unsigned long long)cpu->stat_ldr_fallback_tlbmiss);
+        printk("    No TLB: %llu\n", (unsigned long long)cpu->stat_ldr_fallback_notlb);
+    }
+    
+    printk("STR:\n");
+    printk("  Fast-path hits: %llu\n", (unsigned long long)cpu->stat_str_fast_hits);
+    printk("  Total fallbacks: %llu\n", (unsigned long long)cpu->stat_str_fallback);
+    if (cpu->stat_str_fallback > 0) {
+        printk("  Fallback reasons:\n");
+        printk("    Non-hot registers: %llu\n", (unsigned long long)cpu->stat_str_fallback_nonhot);
+        printk("    Non-64-bit size: %llu\n", (unsigned long long)cpu->stat_str_fallback_size);
+        printk("    Non-offset mode: %llu\n", (unsigned long long)cpu->stat_str_fallback_idxmode);
+        printk("    Non-zero meta: %llu\n", (unsigned long long)cpu->stat_str_fallback_meta);
+        printk("    Unaligned access: %llu\n", (unsigned long long)cpu->stat_str_fallback_align);
+        printk("    Cross-page access: %llu\n", (unsigned long long)cpu->stat_str_fallback_crosspg);
+        printk("    TLB miss: %llu\n", (unsigned long long)cpu->stat_str_fallback_tlbmiss);
+        printk("    No TLB: %llu\n", (unsigned long long)cpu->stat_str_fallback_notlb);
+    }
+    
+    // Calculate totals
+    uint64_t ldr_total = cpu->stat_ldr_fast_hits + cpu->stat_ldr_fallback;
+    uint64_t str_total = cpu->stat_str_fast_hits + cpu->stat_str_fallback;
+    
+    if (ldr_total > 0) {
+        printk("LDR hit rate: %.2f%%\n", 
+               100.0 * cpu->stat_ldr_fast_hits / ldr_total);
+    }
+    if (str_total > 0) {
+        printk("STR hit rate: %.2f%%\n", 
+               100.0 * cpu->stat_str_fast_hits / str_total);
+    }
+    printk("========================================\n");
+}
