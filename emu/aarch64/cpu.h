@@ -122,6 +122,33 @@ struct cpu_state {
     uint64_t exclusive_addr;  // Address being monitored
     int exclusive_size;       // Size of monitored region (1, 2, 4, or 8 bytes)
     int exclusive_valid;      // Whether monitor is valid (1) or cleared (0)
+    
+    // Phase 1B statistics counters for data-driven optimization
+    // Used to guide next optimization priorities based on actual execution patterns
+    uint64_t stat_ldr_fast_hits;      // LDR fast-path successful completions
+    uint64_t stat_str_fast_hits;      // STR fast-path successful completions
+    uint64_t stat_ldr_fallback;       // LDR fallback to C helper (total)
+    uint64_t stat_str_fallback;       // STR fallback to C helper (total)
+    
+    // LDR fallback reason counters (index by reason enum)
+    uint64_t stat_ldr_fallback_nonhot;   // 0: non-hot registers
+    uint64_t stat_ldr_fallback_size;     // 1: non-64-bit size
+    uint64_t stat_ldr_fallback_idxmode;  // 2: non-offset indexing mode
+    uint64_t stat_ldr_fallback_meta;     // 3: non-zero meta
+    uint64_t stat_ldr_fallback_align;    // 4: unaligned access
+    uint64_t stat_ldr_fallback_crosspg;  // 5: cross-page access
+    uint64_t stat_ldr_fallback_tlbmiss;  // 6: TLB miss
+    uint64_t stat_ldr_fallback_notlb;    // 7: no TLB attached
+    
+    // STR fallback reason counters (index by reason enum)
+    uint64_t stat_str_fallback_nonhot;   // 0: non-hot registers
+    uint64_t stat_str_fallback_size;     // 1: non-64-bit size
+    uint64_t stat_str_fallback_idxmode;  // 2: non-offset indexing mode
+    uint64_t stat_str_fallback_meta;     // 3: non-zero meta
+    uint64_t stat_str_fallback_align;    // 4: unaligned access
+    uint64_t stat_str_fallback_crosspg;  // 5: cross-page access
+    uint64_t stat_str_fallback_tlbmiss;  // 6: TLB miss
+    uint64_t stat_str_fallback_notlb;    // 7: no TLB attached
 };
 
 #define CPU_OFFSET(field) offsetof(struct cpu_state, field)
