@@ -1121,13 +1121,169 @@ tcti_gadget_t gadget_ldr_x = gadget_ldr_x_impl;
 
 __attribute__((naked)) void gadget_str_x_impl(void) {
     asm volatile(
-        "ldr x19, [x28], #8\n\t"
-        "ldr x20, [x28], #8\n\t"
-        "ldr x21, [x28], #8\n\t"
-        "ldr x22, [x28], #8\n\t"
-        "ldr x23, [x28], #8\n\t"
-        "ldr x24, [x28], #8\n\t"
-        "ldr x25, [x28], #8\n\t"
+        // Load parameters from bytecode
+        "ldr x19, [x28], #8\n\t"     // fault_pc
+        "ldr x20, [x28], #8\n\t"     // Rt (source reg)
+        "ldr x21, [x28], #8\n\t"     // Rn (base reg)
+        "ldr x22, [x28], #8\n\t"     // immediate offset
+        "ldr x23, [x28], #8\n\t"     // size
+        "ldr x24, [x28], #8\n\t"     // idx_mode
+        "ldr x25, [x28], #8\n\t"     // meta
+
+        // Patch 1B.2: Hot-hot fast path for STR
+        // Requirements: both Rn and Rt in 0-15, 64-bit, offset mode, meta=0
+        "cmp x20, #16\n\t"           // Is Rt hot (0-15)?
+        "b.hs 90f\n\t"               // Branch to slow path (label 90)
+        "cmp x21, #16\n\t"           // Is Rn hot (0-15)?
+        "b.hs 90f\n\t"
+        "cmp x23, #3\n\t"            // Is size 64-bit?
+        "b.ne 90f\n\t"
+        "cmp x24, #0\n\t"            // Is idx_mode offset (no writeback)?
+        "b.ne 90f\n\t"
+        "cmp x25, #0\n\t"            // Is meta 0 (no reg offset, not signed)?
+        "b.ne 90f\n\t"
+
+        // Get base register value (hot, in x1-x16) using computed goto
+        // Branch table for Rn 0-15
+        "adr x26, 70f\n\t"           // x26 = base of branch table
+        "add x26, x26, x21, lsl #2\n\t" // x26 = &table[Rn] (b instructions are 4 bytes)
+        "br x26\n\t"
+
+        // Branch table - each entry is a direct branch to the load code
+        "70:\n\t"
+        "b 80f\n\t"                   // Rn=0 -> load from x1
+        "b 81f\n\t"                   // Rn=1 -> load from x2
+        "b 82f\n\t"                   // Rn=2 -> load from x3
+        "b 83f\n\t"                   // Rn=3 -> load from x4
+        "b 84f\n\t"                   // Rn=4 -> load from x5
+        "b 85f\n\t"                   // Rn=5 -> load from x6
+        "b 86f\n\t"                   // Rn=6 -> load from x7
+        "b 87f\n\t"                   // Rn=7 -> load from x8
+        "b 88f\n\t"                   // Rn=8 -> load from x9
+        "b 89f\n\t"                   // Rn=9 -> load from x10
+        "b 100f\n\t"                  // Rn=10 -> load from x11
+        "b 101f\n\t"                  // Rn=11 -> load from x12
+        "b 102f\n\t"                  // Rn=12 -> load from x13
+        "b 103f\n\t"                  // Rn=13 -> load from x14
+        "b 104f\n\t"                  // Rn=14 -> load from x15
+        "b 105f\n\t"                  // Rn=15 -> load from x16
+
+        // Load base register value into x17
+        "80:\n\tmov x17, x1\n\tb 110f\n\t"
+        "81:\n\tmov x17, x2\n\tb 110f\n\t"
+        "82:\n\tmov x17, x3\n\tb 110f\n\t"
+        "83:\n\tmov x17, x4\n\tb 110f\n\t"
+        "84:\n\tmov x17, x5\n\tb 110f\n\t"
+        "85:\n\tmov x17, x6\n\tb 110f\n\t"
+        "86:\n\tmov x17, x7\n\tb 110f\n\t"
+        "87:\n\tmov x17, x8\n\tb 110f\n\t"
+        "88:\n\tmov x17, x9\n\tb 110f\n\t"
+        "89:\n\tmov x17, x10\n\tb 110f\n\t"
+        "100:\n\tmov x17, x11\n\tb 110f\n\t"
+        "101:\n\tmov x17, x12\n\tb 110f\n\t"
+        "102:\n\tmov x17, x13\n\tb 110f\n\t"
+        "103:\n\tmov x17, x14\n\tb 110f\n\t"
+        "104:\n\tmov x17, x15\n\tb 110f\n\t"
+        "105:\n\tmov x17, x16\n\tb 110f\n\t"
+
+        // Continue after base register load
+        "110:\n\t"
+
+        // Add immediate offset: x17 = base + offset
+        "add x17, x17, x22\n\t"
+
+        // Check alignment: addr & 7 == 0
+        "tst x17, #7\n\t"
+        "b.ne 90f\n\t"
+
+        // Check cross-page: (addr & 0xFFF) <= 0xFF8
+        "and x18, x17, #0xFFF\n\t"
+        "cmp x18, #0xFF8\n\t"
+        "b.hi 90f\n\t"
+
+        // Get source register value (Rt, hot, in x1-x16) using computed goto
+        // x20 still holds original Rt (0-15)
+        "adr x26, 120f\n\t"           // x26 = base of branch table
+        "add x26, x26, x20, lsl #2\n\t" // x26 = &table[Rt] (b instructions are 4 bytes)
+        "br x26\n\t"
+
+        // Branch table for source value load
+        "120:\n\t"
+        "b 130f\n\t"                   // Rt=0 -> load from x1
+        "b 131f\n\t"                   // Rt=1 -> load from x2
+        "b 132f\n\t"                   // Rt=2 -> load from x3
+        "b 133f\n\t"                   // Rt=3 -> load from x4
+        "b 134f\n\t"                   // Rt=4 -> load from x5
+        "b 135f\n\t"                   // Rt=5 -> load from x6
+        "b 136f\n\t"                   // Rt=6 -> load from x7
+        "b 137f\n\t"                   // Rt=7 -> load from x8
+        "b 138f\n\t"                   // Rt=8 -> load from x9
+        "b 139f\n\t"                   // Rt=9 -> load from x10
+        "b 140f\n\t"                   // Rt=10 -> load from x11
+        "b 141f\n\t"                   // Rt=11 -> load from x12
+        "b 142f\n\t"                   // Rt=12 -> load from x13
+        "b 143f\n\t"                   // Rt=13 -> load from x14
+        "b 144f\n\t"                   // Rt=14 -> load from x15
+        "b 145f\n\t"                   // Rt=15 -> load from x16
+
+        // Load source register value into x18
+        "130:\n\tmov x18, x1\n\tb 150f\n\t"
+        "131:\n\tmov x18, x2\n\tb 150f\n\t"
+        "132:\n\tmov x18, x3\n\tb 150f\n\t"
+        "133:\n\tmov x18, x4\n\tb 150f\n\t"
+        "134:\n\tmov x18, x5\n\tb 150f\n\t"
+        "135:\n\tmov x18, x6\n\tb 150f\n\t"
+        "136:\n\tmov x18, x7\n\tb 150f\n\t"
+        "137:\n\tmov x18, x8\n\tb 150f\n\t"
+        "138:\n\tmov x18, x9\n\tb 150f\n\t"
+        "139:\n\tmov x18, x10\n\tb 150f\n\t"
+        "140:\n\tmov x18, x11\n\tb 150f\n\t"
+        "141:\n\tmov x18, x12\n\tb 150f\n\t"
+        "142:\n\tmov x18, x13\n\tb 150f\n\t"
+        "143:\n\tmov x18, x14\n\tb 150f\n\t"
+        "144:\n\tmov x18, x15\n\tb 150f\n\t"
+        "145:\n\tmov x18, x16\n\tb 150f\n\t"
+
+        // Continue after source register load
+        "150:\n\t"
+
+        // Inline TLB lookup
+        // All original args (x19-x25) remain stable
+        // Use x26, x27 as scratch for TLB operations
+
+        "ldr x26, [x29, #344]\n\t"   // x26 = cpu->tlb
+        "cbz x26, 90f\n\t"           // If NULL, fall back
+
+        // TLB index: ((addr >> 12) & 1023) ^ (addr >> 22)
+        "lsr x27, x17, #12\n\t"
+        "and x27, x27, #1023\n\t"
+        "lsr x20, x17, #22\n\t"
+        "eor x27, x27, x20\n\t"
+
+        // Load tlb entry at &entries[index]
+        // entries is at offset 32 in struct tlb
+        "add x20, x26, #32\n\t"      // x20 = &tlb->entries[0]
+        "add x20, x20, x27, lsl #4\n\t" // x20 = &tlb->entries[index]
+        "ldr x27, [x20]\n\t"          // x27 = entry.page
+
+        // Compare page
+        "and x26, x17, #0xFFFFF000\n\t" // x26 = page from addr
+        "cmp x27, x26\n\t"
+        "b.ne 90f\n\t"               // TLB miss
+
+        // Compute host address and store
+        // data_minus_addr is at offset 8 in tlb_entry
+        "ldr x27, [x20, #8]\n\t"      // x27 = entry.data_minus_addr
+        "add x17, x27, x17\n\t"       // x17 = host address
+        "str x18, [x17]\n\t"          // store value from x18
+
+        // Fast path complete - advance to next gadget
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+
+        // Slow path (label 90)
+        "90:\n\t"
+        // Save registers and call C helper
         "stp x1, x2, [x29, #16]\n\t"
         "stp x3, x4, [x29, #32]\n\t"
         "stp x5, x6, [x29, #48]\n\t"
@@ -1138,13 +1294,13 @@ __attribute__((naked)) void gadget_str_x_impl(void) {
         "stp x15, x16, [x29, #128]\n\t"
         "bl _tcti_c_call_prologue\n\t"
         "mov x0, x29\n\t"
-        "mov x1, x19\n\t"
-        "mov x2, x20\n\t"
-        "mov x3, x21\n\t"
-        "mov x4, x22\n\t"
-        "mov x5, x23\n\t"
-        "mov x6, x24\n\t"
-        "mov x7, x25\n\t"
+        "mov x1, x19\n\t"            // fault_pc
+        "mov x2, x20\n\t"            // Rt
+        "mov x3, x21\n\t"            // Rn
+        "mov x4, x22\n\t"            // imm
+        "mov x5, x23\n\t"            // size
+        "mov x6, x24\n\t"            // idx_mode
+        "mov x7, x25\n\t"            // meta
         "bl _a64_tcti_str_x_helper\n\t"
         "bl _tcti_c_call_epilogue\n\t"
         "ldp x1, x2, [x29, #16]\n\t"
