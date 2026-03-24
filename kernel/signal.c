@@ -145,3 +145,77 @@ void sigmask_set_temp(sigset_t_ mask) {
     
     task->blocked = mask;
 }
+
+/*
+ * Syscall implementations for signal handling
+ */
+
+// sys_kill - Send signal to process
+dword_t sys_kill(pid_t_ pid, dword_t sig) {
+    // Minimal implementation - just return success
+    // Real implementation would look up process and send signal
+    if (sig == 0) {
+        return 0; // Signal 0 is error check only
+    }
+    return 0;
+}
+
+// sys_tkill - Send signal to thread
+dword_t sys_tkill(pid_t_ tid, dword_t sig) {
+    // Minimal implementation
+    if (sig == 0) {
+        return 0;
+    }
+    return 0;
+}
+
+// sys_tgkill - Send signal to thread group
+dword_t sys_tgkill(pid_t_ tgid, pid_t_ tid, dword_t sig) {
+    // Minimal implementation
+    if (sig == 0) {
+        return 0;
+    }
+    return 0;
+}
+
+// sys_rt_sigaction - Examine and change signal action
+dword_t sys_rt_sigaction(dword_t signum, addr_t action_addr, addr_t oldaction_addr, dword_t sigset_size) {
+    // Minimal implementation - just return success
+    (void)signum;
+    (void)action_addr;
+    (void)oldaction_addr;
+    (void)sigset_size;
+    return 0;
+}
+
+// sys_rt_sigprocmask - Examine and change blocked signals
+dword_t sys_rt_sigprocmask(dword_t how, addr_t set, addr_t oldset, dword_t size) {
+    // Minimal implementation
+    (void)how;
+    (void)set;
+    (void)oldset;
+    (void)size;
+    return 0;
+}
+
+// sys_rt_sigreturn - Return from signal handler
+dword_t sys_rt_sigreturn(void) {
+    // Should be handled by signal frame setup
+    // This stub should not be reached in normal execution
+    return -_EINVAL;
+}
+
+// sys_rt_sigsuspend - Wait for signal
+int_t sys_rt_sigsuspend(addr_t mask_addr, uint_t size) {
+    (void)mask_addr;
+    (void)size;
+    // Minimal implementation - just return success
+    return 0;
+}
+
+// sys_sigaltstack - Set/get signal stack context
+dword_t sys_sigaltstack(addr_t ss, addr_t old_ss) {
+    (void)ss;
+    (void)old_ss;
+    return 0;
+}

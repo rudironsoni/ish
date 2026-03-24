@@ -93,10 +93,8 @@ int become_first_process() {
     // now seems like a nice time
     establish_signal_handlers();
 
-    // Initialize TCTI block cache BEFORE any memory operations
-    // This prevents crashes when mem_destroy calls pt_unmap_always
-    extern void a64_cache_early_init(void);
-    a64_cache_early_init();
+    // AArch64 block cache is lazily initialized per-MMU in a64_cpu_run()
+    // No early global init required
 
     struct task *task = construct_task(NULL);
     if (IS_ERR(task)) {
