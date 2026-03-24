@@ -18,8 +18,6 @@
 #include "kernel/elf.h"
 #include "kernel/vdso.h"
 #include "emu/aarch64/tls.h"
-#include "tools/ptraceomatic-config.h"
-
 // Simple debug logging - outputs to system console
 #define exec_log(fmt, ...) printk("[iSH-exec] " fmt, ##__VA_ARGS__)
 
@@ -431,7 +429,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     addr_t vdso_entry = current->mm->vdso + ((struct elf_header *) vdso_data)->entry_point;
     printk("[exec] vdso mapped successfully at page %d\n", vdso_page);
 
-    // map 3 empty "vvar" pages to satisfy ptraceomatic
+    // map 3 empty "vvar" pages for VDSO compatibility
     page_t vvar_page = pt_find_hole(current->mem, VVAR_PAGES);
     if (vvar_page == BAD_PAGE)
         goto beyond_hope;

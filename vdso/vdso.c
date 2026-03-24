@@ -1,28 +1,52 @@
-#if !__i386__ || !__ELF__
-#error "VDSO must be built for i386 elf"
-#endif
+// VDSO for AArch64 guest
+// Provides userspace implementations of time functions
 
 typedef long time_t;
 typedef int clockid_t;
 
 time_t __vdso_time(time_t *t) {
     time_t result;
-    __asm__("int $0x80" : "=a" (result) :
-            "0" (13 /* __NR_time */), "b" (t));
+    // AArch64 syscall: time
+    __asm__ volatile(
+        "mov x8, #13\n\t"      // __NR_time
+        "mov x0, %1\n\t"       // t
+        "svc #0\n\t"           // syscall
+        "mov %0, x0\n\t"        // result
+        : "=r" (result)
+        : "r" (t)
+        : "x0", "x8", "memory"
+    );
     return result;
 }
 
 int __vdso_gettimeofday(void *timeval, void *timezone) {
     int result;
-    __asm__("int $0x80" : "=a" (result) :
-            "0" (78 /* __NR_gettimeofday */), "b" (timeval), "c" (timezone));
+    // AArch64 syscall: gettimeofday
+    __asm__ volatile(
+        "mov x8, #78\n\t"       // __NR_gettimeofday
+        "mov x0, %1\n\t"        // timeval
+        "mov x1, %2\n\t"        // timezone
+        "svc #0\n\t"            // syscall
+        "mov %0, x0\n\t"         // result
+        : "=r" (result)
+        : "r" (timeval), "r" (timezone)
+        : "x0", "x1", "x8", "memory"
+    );
     return result;
 }
 
 int __vdso_clock_gettime(clockid_t clock, void *timespec) {
     int result;
-    __asm__("int $0x80" : "=a" (result) :
-            "0" (265 /* __NR_clock_gettime */), "b" (clock), "c" (timespec));
+    // AArch64 syscall: clock_gettime
+    __asm__ volatile(
+        "mov x8, #113\n\t"      // __NR_clock_gettime
+        "mov x0, %1\n\t"        // clock
+        "mov x1, %2\n\t"        // timespec
+        "svc #0\n\t"            // syscall
+        "mov %0, x0\n\t"         // result
+        : "=r" (result)
+        : "r" (clock), "r" (timespec)
+        : "x0", "x1", "x8", "memory"
+    );
     return result;
 }
-
