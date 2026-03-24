@@ -411,8 +411,67 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
             // Check for pending signals
             // deliver_signal(...)
         } else if (exit_reason == TCTI_EXIT_COMPLEX) {
-            printk("[TCTI] FATAL: complex TCTI exit at PC=0x%llx\n", cpu->pc);
-            handle_interrupt(INT_GPF);
+            printk("[TCTI] COMPLEX exit at PC=0x%llx, handling MRS/MSR\n", cpu->pc);
+            // Decode instruction at current PC to determine if it's MRS or MSR
+            uint32_t insn;
+            if (a64_fetch_insn(cpu, cpu->tlb, cpu->pc, &insn) == 0) {
+                a64_instr_t decoded;
+                if (a64_decode(insn, &decoded) == 0) {
+                    if (decoded.cat == A64_BRANCH && decoded.subtype == 2) {
+                        // MRS - Move to register from system register
+                        // TPIDR_EL0: op1=3, CRn=13, CRm=0, op2=2
+                        int op1 = (decoded.sysreg >> 14) & 0x7;
+                        int crn = (decoded.sysreg >> 10) & 0xF;
+                        int crm = (decoded.sysreg >> 6) & 0xF;
+                        int op2 = (decoded.sysreg >> 3) & 0x7;
+                        
+                        if (op1 == 3 && crn == 13 && crm == 0 && op2 == 2) {
+                            // TPIDR_EL0 read
+                            cpu->x[decoded.Rd] = cpu->tpidr_el0;
+                            printk("[TCTI] MRS TPIDR_EL0 -> x[%d] = 0x%llx\n", 
+                                   decoded.Rd, (unsigned long long)cpu->tpidr_el0);
+                        } else if (op1 == 3 && crn == 13 && crm == 0 && op2 == 3) {
+                            // TPIDRRO_EL0 read (same value on Linux)
+                            cpu->x[decoded.Rd] = cpu->tpidr_el0;
+                            printk("[TCTI] MRS TPIDRRO_EL0 -> x[%d] = 0x%llx\n", 
+                                   decoded.Rd, (unsigned long long)cpu->tpidr_el0);
+                        } else {
+                            printk("[TCTI] Warning: Unhandled MRS sysreg 0x%x\n", decoded.sysreg);
+                        }
+                        cpu->pc += 4;  // Advance past MRS instruction
+                    } else if (decoded.cat == A64_BRANCH && decoded.subtype == 4) {
+                        // MSR (reg) - Move from register to system register
+                        int op1 = (decoded.sysreg >> 14) & 0x7;
+                        int crn = (decoded.sysreg >> 10) & 0xF;
+                        int crm = (decoded.sysreg >> 6) & 0xF;
+                        int op2 = (decoded.sysreg >> 3) & 0x7;
+                        
+                        if (op1 == 3 && crn == 13 && crm == 0 && op2 == 2) {
+                            // TPIDR_EL0 write
+                            if (decoded.Rd < 31) {
+                                cpu->tpidr_el0 = cpu->x[decoded.Rd];
+                            } else {
+                                cpu->tpidr_el0 = 0;
+                            }
+                            printk("[TCTI] MSR x[%d] -> TPIDR_EL0 = 0x%llx\n", 
+                                   decoded.Rd, (unsigned long long)cpu->tpidr_el0);
+                        } else {
+                            printk("[TCTI] Warning: Unhandled MSR sysreg 0x%x\n", decoded.sysreg);
+                        }
+                        cpu->pc += 4;  // Advance past MSR instruction
+                    } else {
+                        printk("[TCTI] FATAL: Unknown COMPLEX exit, decoded cat=%d subtype=%d\n",
+                               decoded.cat, decoded.subtype);
+                        handle_interrupt(INT_GPF);
+                    }
+                } else {
+                    printk("[TCTI] FATAL: Failed to decode instruction at PC=0x%llx\n", cpu->pc);
+                    handle_interrupt(INT_GPF);
+                }
+            } else {
+                printk("[TCTI] FATAL: Failed to fetch instruction at PC=0x%llx\n", cpu->pc);
+                handle_interrupt(INT_GPF);
+            }
         } else {
             // Fallthrough blocks advance to end_pc. Control-transfer blocks preserve
             // the guest PC written by their terminal gadget.
