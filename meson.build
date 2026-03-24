@@ -105,12 +105,10 @@ if get_option('kernel') == 'ish'
         'kernel/init.c',
         'kernel/errno.c',
 
-        'kernel/calls.c',
-        # TODO: aarch64 kernel files need proper integration
-        # 'kernel/aarch64/calls.c',
-        # 'kernel/aarch64/syscall_dispatch.c',
-        # 'kernel/aarch64/signal.c',
-        # 'kernel/aarch64/vdso.c',
+        'kernel/aarch64/calls.c',
+        'kernel/aarch64/syscall_dispatch.c',
+        'kernel/aarch64/signal.c',
+        'kernel/aarch64/vdso.c',
         'kernel/memory.c',
         'kernel/user.c',
         'kernel/vdso.c', vdso,
@@ -127,7 +125,7 @@ if get_option('kernel') == 'ish'
         'kernel/tls.c',
         'kernel/futex.c',
         'kernel/getset.c',
-        'kernel/signal.c',
+        # 'kernel/signal.c',  // Replaced by kernel/aarch64/signal.c
         'kernel/resource.c',
         'kernel/random.c',
         'kernel/misc.c',

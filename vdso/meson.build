@@ -1,5 +1,5 @@
 # The VDSO gets inserted into the address space of emulated processes, so it
-# needs to be compiled as an i386 ELF shared library. This requires a cross
+# needs to be compiled as an aarch64 ELF shared library. This requires a cross
 # compiler and linker on most of the platforms that matter (Mac, 64-bit Linux,
 # Raspberry Pi). Clang and LLD are easy to install on all of these platforms,
 # so that's currently the only supported option (though if you have some other
@@ -18,7 +18,7 @@ if result.returncode() != 0
     endif
     error('Could not find usable VDSO compiler. ' + install_msg)
 endif
-vdso_compiler = [clang, '-target', 'i386-linux', '-fuse-ld=lld']
+vdso_compiler = [clang, '-target', 'aarch64-linux-gnu', '-fuse-ld=lld']
 
 vdso = custom_target('vdso', input: ['vdso.S', 'vdso.c', 'vdso.lds'], output: 'libvdso.so.elf',
     command: vdso_compiler + ['-o', '@OUTPUT@', '@INPUT0@', '@INPUT1@',
