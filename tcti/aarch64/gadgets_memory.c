@@ -281,7 +281,7 @@ tcti_gadget_t gadget_exit = gadget_exit_impl;
 // Generate load gadgets for x16-x30 (indices 0-14)
 GEN_LOAD_XREG(0)   // x16
 GEN_LOAD_XREG(1)   // x17
-GEN_LOAD_XREG(2)   // x18
+GEN_LOAD_XREG(2)   // x13
 GEN_LOAD_XREG(3)   // x19
 GEN_LOAD_XREG(4)   // x20
 GEN_LOAD_XREG(5)   // x21
@@ -298,7 +298,7 @@ GEN_LOAD_XREG(14)  // x30
 // Generate store gadgets for x16-x30 (indices 0-14)
 GEN_STORE_XREG(0)   // x16
 GEN_STORE_XREG(1)   // x17
-GEN_STORE_XREG(2)   // x18
+GEN_STORE_XREG(2)   // x13
 GEN_STORE_XREG(3)   // x19
 GEN_STORE_XREG(4)   // x20
 GEN_STORE_XREG(5)   // x21
@@ -365,7 +365,7 @@ __attribute__((naked)) void gadget_store_sp(void) {
 const tcti_gadget_t gadget_load_xreg_16_to_30[15] = {
     gadget_load_x0_impl,   // x16
     gadget_load_x1_impl,   // x17
-    gadget_load_x2_impl,   // x18
+    gadget_load_x2_impl,   // x13
     gadget_load_x3_impl,   // x19
     gadget_load_x4_impl,   // x20
     gadget_load_x5_impl,   // x21
@@ -384,7 +384,7 @@ const tcti_gadget_t gadget_load_xreg_16_to_30[15] = {
 const tcti_gadget_t gadget_store_xreg_16_to_30[15] = {
     gadget_store_x0_impl,   // x16
     gadget_store_x1_impl,   // x17
-    gadget_store_x2_impl,   // x18
+    gadget_store_x2_impl,   // x13
     gadget_store_x3_impl,   // x19
     gadget_store_x4_impl,   // x20
     gadget_store_x5_impl,   // x21
@@ -1008,8 +1008,8 @@ __attribute__((naked)) void gadget_ldr_x_impl(void) {
         "b.ne 95f\n\t"               // Branch to align counter
         
         // Check cross-page: (addr & 0xFFF) <= 0xFF8
-        "and x18, x17, #0xFFF\n\t"
-        "cmp x18, #0xFF8\n\t"
+        "and x13, x17, #0xFFF\n\t"
+        "cmp x13, #0xFF8\n\t"
         "b.hi 96f\n\t"               // Branch to crosspg counter
         
         // Inline TLB lookup
@@ -1022,14 +1022,14 @@ __attribute__((naked)) void gadget_ldr_x_impl(void) {
         // TLB index: ((addr >> 12) & 1023) ^ (addr >> 22)
         "lsr x27, x17, #12\n\t"
         "and x27, x27, #1023\n\t"
-        "lsr x18, x17, #22\n\t"
-        "eor x27, x27, x18\n\t"
+        "lsr x13, x17, #22\n\t"
+        "eor x27, x27, x13\n\t"
         
         // Load tlb entry at &entries[index]
         // entries is at offset 32 in struct tlb
-        "add x18, x26, #32\n\t"      // x18 = &tlb->entries[0]
-        "add x18, x18, x27, lsl #4\n\t" // x18 = &tlb->entries[index]
-        "ldr x27, [x18]\n\t"          // x27 = entry.page
+        "add x13, x26, #32\n\t"      // x13 = &tlb->entries[0]
+        "add x13, x13, x27, lsl #4\n\t" // x13 = &tlb->entries[index]
+        "ldr x27, [x13]\n\t"          // x27 = entry.page
         
         // Compare page
         "and x26, x17, #0xFFFFF000\n\t" // x26 = page from addr
@@ -1038,9 +1038,9 @@ __attribute__((naked)) void gadget_ldr_x_impl(void) {
         
         // Compute host address and load
         // data_minus_addr is at offset 8 in tlb_entry (after 4-byte page and 4-byte page_if_writable)
-        "ldr x27, [x18, #8]\n\t"      // x27 = entry.data_minus_addr
+        "ldr x27, [x13, #8]\n\t"      // x27 = entry.data_minus_addr
         "add x17, x27, x17\n\t"       // x17 = host address
-        "ldr x18, [x17]\n\t"          // x18 = loaded value
+        "ldr x13, [x17]\n\t"          // x13 = loaded value
         
         // Store to hot destination register using computed goto
         // x20 still holds original Rt (0-15)
@@ -1056,22 +1056,22 @@ __attribute__((naked)) void gadget_ldr_x_impl(void) {
         "b 142f\n\t" "b 143f\n\t" "b 144f\n\t" "b 145f\n\t"
         
         // Store to destination register
-        "130:\n\tmov x1, x18\n\tb 150f\n\t"
-        "131:\n\tmov x2, x18\n\tb 150f\n\t"
-        "132:\n\tmov x3, x18\n\tb 150f\n\t"
-        "133:\n\tmov x4, x18\n\tb 150f\n\t"
-        "134:\n\tmov x5, x18\n\tb 150f\n\t"
-        "135:\n\tmov x6, x18\n\tb 150f\n\t"
-        "136:\n\tmov x7, x18\n\tb 150f\n\t"
-        "137:\n\tmov x8, x18\n\tb 150f\n\t"
-        "138:\n\tmov x9, x18\n\tb 150f\n\t"
-        "139:\n\tmov x10, x18\n\tb 150f\n\t"
-        "140:\n\tmov x11, x18\n\tb 150f\n\t"
-        "141:\n\tmov x12, x18\n\tb 150f\n\t"
-        "142:\n\tmov x13, x18\n\tb 150f\n\t"
-        "143:\n\tmov x14, x18\n\tb 150f\n\t"
-        "144:\n\tmov x15, x18\n\tb 150f\n\t"
-        "145:\n\tmov x16, x18\n\tb 150f\n\t"
+        "130:\n\tmov x1, x13\n\tb 150f\n\t"
+        "131:\n\tmov x2, x13\n\tb 150f\n\t"
+        "132:\n\tmov x3, x13\n\tb 150f\n\t"
+        "133:\n\tmov x4, x13\n\tb 150f\n\t"
+        "134:\n\tmov x5, x13\n\tb 150f\n\t"
+        "135:\n\tmov x6, x13\n\tb 150f\n\t"
+        "136:\n\tmov x7, x13\n\tb 150f\n\t"
+        "137:\n\tmov x8, x13\n\tb 150f\n\t"
+        "138:\n\tmov x9, x13\n\tb 150f\n\t"
+        "139:\n\tmov x10, x13\n\tb 150f\n\t"
+        "140:\n\tmov x11, x13\n\tb 150f\n\t"
+        "141:\n\tmov x12, x13\n\tb 150f\n\t"
+        "142:\n\tmov x13, x13\n\tb 150f\n\t"
+        "143:\n\tmov x14, x13\n\tb 150f\n\t"
+        "144:\n\tmov x15, x13\n\tb 150f\n\t"
+        "145:\n\tmov x16, x13\n\tb 150f\n\t"
         
         // Fast path complete - increment counter and advance to next gadget
         "150:\n\t"
@@ -1180,7 +1180,7 @@ __attribute__((naked)) void gadget_ldr_x_impl(void) {
           [ldr_fallback_crosspg_off] "i" (STAT_LDR_FALLBACK_CROSSPG_OFFSET),
           [ldr_fallback_tlbmiss_off] "i" (STAT_LDR_FALLBACK_TLBMISS_OFFSET),
           [ldr_fallback_notlb_off] "i" (STAT_LDR_FALLBACK_NOTLB_OFFSET)
-        : "x18", "x26", "x27", "memory"
+        : "x13", "x26", "x27", "memory"
     );
 }
 
@@ -1264,8 +1264,8 @@ __attribute__((naked)) void gadget_str_x_impl(void) {
         "b.ne 95f\n\t"               // Branch to align counter
 
         // Check cross-page: (addr & 0xFFF) <= 0xFF8
-        "and x18, x17, #0xFFF\n\t"
-        "cmp x18, #0xFF8\n\t"
+        "and x13, x17, #0xFFF\n\t"
+        "cmp x13, #0xFF8\n\t"
         "b.hi 96f\n\t"               // Branch to crosspg counter
 
         // Get source register value (Rt, hot, in x1-x16) using computed goto
@@ -1293,23 +1293,23 @@ __attribute__((naked)) void gadget_str_x_impl(void) {
         "b 144f\n\t"                   // Rt=14 -> load from x15
         "b 145f\n\t"                   // Rt=15 -> load from x16
 
-        // Load source register value into x18
-        "130:\n\tmov x18, x1\n\tb 150f\n\t"
-        "131:\n\tmov x18, x2\n\tb 150f\n\t"
-        "132:\n\tmov x18, x3\n\tb 150f\n\t"
-        "133:\n\tmov x18, x4\n\tb 150f\n\t"
-        "134:\n\tmov x18, x5\n\tb 150f\n\t"
-        "135:\n\tmov x18, x6\n\tb 150f\n\t"
-        "136:\n\tmov x18, x7\n\tb 150f\n\t"
-        "137:\n\tmov x18, x8\n\tb 150f\n\t"
-        "138:\n\tmov x18, x9\n\tb 150f\n\t"
-        "139:\n\tmov x18, x10\n\tb 150f\n\t"
-        "140:\n\tmov x18, x11\n\tb 150f\n\t"
-        "141:\n\tmov x18, x12\n\tb 150f\n\t"
-        "142:\n\tmov x18, x13\n\tb 150f\n\t"
-        "143:\n\tmov x18, x14\n\tb 150f\n\t"
-        "144:\n\tmov x18, x15\n\tb 150f\n\t"
-        "145:\n\tmov x18, x16\n\tb 150f\n\t"
+        // Load source register value into x13
+        "130:\n\tmov x13, x1\n\tb 150f\n\t"
+        "131:\n\tmov x13, x2\n\tb 150f\n\t"
+        "132:\n\tmov x13, x3\n\tb 150f\n\t"
+        "133:\n\tmov x13, x4\n\tb 150f\n\t"
+        "134:\n\tmov x13, x5\n\tb 150f\n\t"
+        "135:\n\tmov x13, x6\n\tb 150f\n\t"
+        "136:\n\tmov x13, x7\n\tb 150f\n\t"
+        "137:\n\tmov x13, x8\n\tb 150f\n\t"
+        "138:\n\tmov x13, x9\n\tb 150f\n\t"
+        "139:\n\tmov x13, x10\n\tb 150f\n\t"
+        "140:\n\tmov x13, x11\n\tb 150f\n\t"
+        "141:\n\tmov x13, x12\n\tb 150f\n\t"
+        "142:\n\tmov x13, x13\n\tb 150f\n\t"
+        "143:\n\tmov x13, x14\n\tb 150f\n\t"
+        "144:\n\tmov x13, x15\n\tb 150f\n\t"
+        "145:\n\tmov x13, x16\n\tb 150f\n\t"
 
         // Continue after source register load
         "150:\n\t"
@@ -1342,7 +1342,7 @@ __attribute__((naked)) void gadget_str_x_impl(void) {
         // data_minus_addr is at offset 8 in tlb_entry
         "ldr x27, [x14, #8]\n\t"      // x27 = entry.data_minus_addr
         "add x17, x27, x17\n\t"       // x17 = host address
-        "str x18, [x17]\n\t"          // store value from x18
+        "str x13, [x17]\n\t"          // store value from x13
 
         // Fast path complete - increment counter and advance to next gadget
         "ldr x26, [x29, %[str_fast_hits_off]]\n\t"
@@ -1450,7 +1450,7 @@ __attribute__((naked)) void gadget_str_x_impl(void) {
           [str_fallback_crosspg_off] "i" (STAT_STR_FALLBACK_CROSSPG_OFFSET),
           [str_fallback_tlbmiss_off] "i" (STAT_STR_FALLBACK_TLBMISS_OFFSET),
           [str_fallback_notlb_off] "i" (STAT_STR_FALLBACK_NOTLB_OFFSET)
-        : "x18", "x26", "x27", "memory"
+        : "x13", "x26", "x27", "memory"
     );
 }
 
