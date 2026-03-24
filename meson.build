@@ -130,7 +130,7 @@ if get_option('kernel') == 'ish'
         'kernel/tls.c',
         'kernel/futex.c',
         'kernel/getset.c',
-        # 'kernel/signal.c',  // Replaced by kernel/aarch64/signal.c
+        'kernel/signal.c',  // Generic signal functions (sighand, send_signal, etc.)
         'kernel/resource.c',
         'kernel/random.c',
         'kernel/misc.c',
