@@ -932,13 +932,16 @@ tcti_gadget_t gadget_ubfm = gadget_ubfm_impl;
 
 __attribute__((naked)) void gadget_ldr_x_impl(void) {
     asm volatile(
-        "ldr x19, [x28], #8\n\t"
-        "ldr x20, [x28], #8\n\t"
-        "ldr x21, [x28], #8\n\t"
-        "ldr x22, [x28], #8\n\t"
-        "ldr x23, [x28], #8\n\t"
-        "ldr x24, [x28], #8\n\t"
-        "ldr x25, [x28], #8\n\t"
+        // Load parameters from bytecode
+        "ldr x19, [x28], #8\n\t"     // fault_pc
+        "ldr x20, [x28], #8\n\t"     // Rt (destination reg)
+        "ldr x21, [x28], #8\n\t"     // Rn (base reg)
+        "ldr x22, [x28], #8\n\t"     // immediate offset
+        "ldr x23, [x28], #8\n\t"     // size
+        "ldr x24, [x28], #8\n\t"     // idx_mode
+        "ldr x25, [x28], #8\n\t"     // meta
+        
+        // Save all hot registers to cpu_state before any memory operation
         "stp x1, x2, [x29, #16]\n\t"
         "stp x3, x4, [x29, #32]\n\t"
         "stp x5, x6, [x29, #48]\n\t"
@@ -947,6 +950,9 @@ __attribute__((naked)) void gadget_ldr_x_impl(void) {
         "stp x11, x12, [x29, #96]\n\t"
         "stp x13, x14, [x29, #112]\n\t"
         "stp x15, x16, [x29, #128]\n\t"
+        
+        // Call C helper for now - inline fast path needs more work
+        // to handle register selection properly
         "bl _tcti_c_call_prologue\n\t"
         "mov x0, x29\n\t"
         "mov x1, x19\n\t"
