@@ -54,8 +54,18 @@ struct fiber_frame {
 
 // Persistent execution context - survives across interrupt boundaries
 // Attached to CPU/thread state to eliminate per-run allocations
+//
+// OWNERSHIP MODEL (Phase 2):
+// - struct cpu_state: Authoritative owner of architected guest CPU state
+// - fiber_exec_ctx: Owner of fast-path metadata only (caches, stats, lifetime)
+// - ctx->frame.cpu: RESERVED (not active execution owner, for future fiber work)
+//
+// TCTI execution runs directly on cpu_state, not on ctx->frame.cpu
+// This avoids per-block state copying overhead in the hot path
 struct fiber_exec_ctx {
     // Persistent frame state (reused across interrupts)
+    // NOTE: frame.cpu is RESERVED for future fiber/thread work
+    // Current execution runs directly on the authoritative cpu_state
     struct fiber_frame frame;
     
     // Persistent L0 block cache (direct-mapped)
