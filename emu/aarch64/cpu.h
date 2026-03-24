@@ -19,10 +19,8 @@ void cpu_poke(struct cpu_state *cpu);
 // TCTI execution functions
 void a64_cpu_init(struct cpu_state *cpu);
 void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb);
-int a64_cpu_step(struct cpu_state *cpu, struct tlb *tlb);
 void a64_cpu_dump(struct cpu_state *cpu);
 int a64_execute_ldst(struct cpu_state *cpu, struct tlb *tlb, const a64_instr_t *instr);
-int a64_execute_bitfield(struct cpu_state *cpu, const a64_instr_t *instr);
 
 // aarch64 has 31 general-purpose registers (x0-x30)
 // x30 is the link register (lr)

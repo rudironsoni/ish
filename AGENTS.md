@@ -248,6 +248,30 @@ The generator (`tcti/aarch64/gen.c`) must respect these contracts when emitting 
 - On Linux: Use gdb with tools/ptraceomatic for single-stepping
 - On macOS: Use Xcode debugger or lldb
 
+## 🚫 CRITICAL PROHIBITIONS - NO FALLBACK CODE
+
+### NO FALLBACK OF ANY KIND, IMMEDIATE REMOVAL
+
+Any interpreter fallback, step fallback, decode-and-step path, or C execution fallback is **strictly forbidden**.
+
+**Forbidden Code Examples:**
+- `emu/aarch64/cpu.c::a64_cpu_step()` - Single-instruction interpreter fallback
+- Any function that decodes-and-executes instructions in C as a fallback path
+- Any code path that bypasses TCTI for "unimplemented" instructions
+
+**Agent Requirements:**
+1. **MUST** remove forbidden fallback code immediately when found
+2. **MUST NOT** preserve fallback code for debugging, bring-up, or coverage gaps
+3. **MUST NOT** isolate fallback behind flags or compile-time switches
+4. **MUST NOT** move fallback code elsewhere or comment it out
+5. **MUST** treat missing TCTI coverage as a TCTI bug to be fixed in TCTI
+6. **MUST NOT** introduce any replacement interpreter path
+7. **MUST** report incomplete coverage plainly without offering fallback solutions
+
+**This is not optional. This is not deferred. This is not a design discussion.**
+
+If TCTI coverage is incomplete, that is a TCTI bug that **MUST** be reported and fixed in TCTI. It **MUST NOT** be bypassed by fallback code.
+
 ## 📚 Resources
 - README.md: General project information and build instructions
 - Wiki: https://github.com/ish-app/ish/wiki (detailed documentation)
