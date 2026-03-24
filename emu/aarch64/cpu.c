@@ -6,7 +6,7 @@
 
 #include "emu/aarch64/cpu.h"
 #include "emu/aarch64/block-cache.h"
-#include "tcti/aarch64/gadgets_tcti.h"
+#include "gadgets_tcti.h"
 #include "tcti/aarch64/gen.h"
 #include "tcti/frame.h"
 #include "emu/interrupt.h"

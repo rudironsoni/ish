@@ -9,7 +9,7 @@
 #include <stdbool.h>
 
 // Block cache entry for compiled TCTI blocks
-#include "tcti/aarch64/gadgets_tcti.h"
+#include "gadgets_tcti.h"
 
 struct a64_block {
     uint64_t start_pc;          // Starting guest PC

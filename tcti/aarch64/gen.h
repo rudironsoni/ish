@@ -11,7 +11,7 @@
 #include "misc.h"
 #include "emu/aarch64/cpu.h"
 #include "emu/aarch64/decode.h"
-#include "tcti/aarch64/gadgets_tcti.h"
+#include "gadgets_tcti.h"
 #include "tcti/frame.h"
 
 // Maximum gadgets per block

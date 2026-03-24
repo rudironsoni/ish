@@ -8,7 +8,7 @@
 #include <assert.h>
 #include "misc.h"
 #include "emu/aarch64/cpu.h"
-#include "tcti/aarch64/gadgets_tcti.h"
+#include "gadgets_tcti.h"
 
 // Test result tracking
 static int tests_run = 0;

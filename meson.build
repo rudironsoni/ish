@@ -50,15 +50,17 @@ dependencies = [librt, libm, libdl, threads, sqlite3]
 
 subdir('vdso') # ish depends on the vdso
 
-# aarch64 emulator sources (iOS migration - x86 replaced)
-# TCTI gadget generation - files already generated in source directory
-# To regenerate: python3 tcti/aarch64/tcti-gadget-gen.py -o tcti/aarch64
-# tcti_gadget_gen = custom_target('tcti_gadgets',
-#     output: ['gadgets_tcti.h', 'gadgets_tcti_impl.c'],
-#     input: 'tcti/aarch64/tcti-gadget-gen.py',
-#     command: [find_program('python3'), '@INPUT@', '-o', meson.current_source_dir() / 'tcti/aarch64'],
-#     build_by_default: true,
-# )
+# TCTI Gadget Generation
+# Generated files are build artifacts, not source-of-truth
+# Source of truth: tcti/aarch64/tcti-gadget-gen.py
+# Generated outputs: build directory (disposable)
+tcti_gadget_gen = custom_target('tcti_gadgets',
+    output: ['gadgets_tcti.h', 'gadgets_tcti_impl.c'],
+    input: 'tcti/aarch64/tcti-gadget-gen.py',
+    command: [find_program('python3'), '@INPUT@', '-o', '@OUTDIR@', '--generator-hash', meson.project_source_root() / 'tcti/aarch64/tcti-gadget-gen.py'],
+    build_by_default: true,
+    install: false,
+)
 
 # aarch64 CPU offsets (for TCTI register mapping)
 aarch64_offsets = custom_target('aarch64_offsets',
@@ -82,12 +84,12 @@ emu_src = [
     'tcti/aarch64/gadgets_arith.c',
     'tcti/aarch64/gadgets_math.c',
     'tcti/aarch64/gadgets_memory.c',
-    'tcti/aarch64/gadgets_tcti_impl.c',
     
     # TCTI entry/exit assembly
     'tcti/aarch64/tcti_entry.S',
 
     aarch64_offsets,
+    tcti_gadget_gen,
 ]
 
 libish_emu = library('ish_emu', emu_src, include_directories: includes)
