@@ -235,11 +235,11 @@ static uint64_t a64_apply_shift(uint64_t value, int shift_type, int amount, bool
 void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
     cpu->tlb = tlb;  // Store TLB pointer in cpu_state for inline TLB access
 
-    // Initialize per-CPU block cache if needed
-    if (!cpu->block_cache) {
-        cpu->block_cache = malloc(sizeof(struct a64_block_cache));
-        if (cpu->block_cache) {
-            a64_cache_init(cpu->block_cache);
+    // Initialize per-MMU block cache if needed
+    if (!cpu->mmu->block_cache) {
+        cpu->mmu->block_cache = malloc(sizeof(struct a64_block_cache));
+        if (cpu->mmu->block_cache) {
+            a64_cache_init(cpu->mmu->block_cache);
         }
     }
 
@@ -249,10 +249,10 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
     while (1) {
         uint64_t pc = cpu->pc;
 
-        // Look up block in per-CPU cache
+        // Look up block in per-MMU cache (scoped to address space)
         struct a64_block *block = NULL;
-        if (cpu->block_cache) {
-            block = a64_cache_lookup(cpu->block_cache, pc);
+        if (cpu->mmu->block_cache) {
+            block = a64_cache_lookup(cpu->mmu->block_cache, pc);
         }
 
         if (!block) {
@@ -263,9 +263,9 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
                 handle_interrupt(INT_GPF);
                 continue;
             }
-            // Insert into per-CPU cache
-            if (cpu->block_cache) {
-                a64_cache_insert(cpu->block_cache, block);
+            // Insert into per-MMU cache (scoped to address space)
+            if (cpu->mmu->block_cache) {
+                a64_cache_insert(cpu->mmu->block_cache, block);
             }
         }
 

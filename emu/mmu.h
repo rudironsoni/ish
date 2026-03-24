@@ -3,6 +3,9 @@
 
 #include "misc.h"
 
+// Forward declaration for block cache ownership
+struct a64_block_cache;
+
 // top 20 bits of an address, i.e. address >> 12
 typedef dword_t page_t;
 #define BAD_PAGE 0x10000
@@ -21,8 +24,10 @@ typedef dword_t pages_t;
 
 struct mmu {
     struct mmu_ops *ops;
-    // TCTI mode - no JIT state needed
-    // Block cache is managed globally in cpu.c
+    // Block cache for compiled TCTI blocks
+    // Scoped to address space (MMU) for correctness - PC values are only
+    // meaningful within a specific address space context
+    struct a64_block_cache *block_cache;
     uint64_t changes;
 };
 
