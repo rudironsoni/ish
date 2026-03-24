@@ -17,25 +17,13 @@
 #include <string.h>
 #include <setjmp.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 // External TCTI entry point (declared in gadgets_tcti.h)
 extern void tcti_entry_block(void *gadgets, struct cpu_state *cpu);
 extern void tcti_exit_block(int reason);
 
-// Block cache - non-static for access from kernel/memory.c
-struct a64_block_cache block_cache;
-static int block_cache_initialized = 0;
-
-// Early initialization for block cache - call this before any memory operations
-void a64_cache_early_init(void) {
-    if (!block_cache_initialized) {
-        a64_cache_init(&block_cache);
-        block_cache_initialized = 1;
-    }
-}
-
-    // Execution state is now passed via parameters, not globals
-    // Block cache remains global during transition to per-MMU ownership
+// Execution state is now passed via parameters, not globals
 static jmp_buf exit_jmpbuf __attribute__((unused));
 
 // Forward declarations
@@ -247,10 +235,12 @@ static uint64_t a64_apply_shift(uint64_t value, int shift_type, int amount, bool
 void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
     cpu->tlb = tlb;  // Store TLB pointer in cpu_state for inline TLB access
 
-    // Initialize block cache if needed
-    if (!block_cache_initialized) {
-        a64_cache_init(&block_cache);
-        block_cache_initialized = 1;
+    // Initialize per-CPU block cache if needed
+    if (!cpu->block_cache) {
+        cpu->block_cache = malloc(sizeof(struct a64_block_cache));
+        if (cpu->block_cache) {
+            a64_cache_init(cpu->block_cache);
+        }
     }
 
     // Set up TLB for this CPU
@@ -259,8 +249,11 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
     while (1) {
         uint64_t pc = cpu->pc;
 
-        // Look up block in cache
-        struct a64_block *block = a64_cache_lookup(&block_cache, pc);
+        // Look up block in per-CPU cache
+        struct a64_block *block = NULL;
+        if (cpu->block_cache) {
+            block = a64_cache_lookup(cpu->block_cache, pc);
+        }
 
         if (!block) {
             // Compile new block
@@ -270,8 +263,10 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
                 handle_interrupt(INT_GPF);
                 continue;
             }
-            // Insert into cache
-            a64_cache_insert(&block_cache, block);
+            // Insert into per-CPU cache
+            if (cpu->block_cache) {
+                a64_cache_insert(cpu->block_cache, block);
+            }
         }
 
         // Execute the block via TCTI

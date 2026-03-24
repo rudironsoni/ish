@@ -122,6 +122,10 @@ struct cpu_state {
     uint64_t exclusive_addr;  // Address being monitored
     int exclusive_size;       // Size of monitored region (1, 2, 4, or 8 bytes)
     int exclusive_valid;      // Whether monitor is valid (1) or cleared (0)
+    
+    // Block cache for compiled TCTI blocks
+    // Per-CPU ownership (transitional step toward per-MMU/address-space)
+    struct a64_block_cache *block_cache;
 };
 
 #define CPU_OFFSET(field) offsetof(struct cpu_state, field)
