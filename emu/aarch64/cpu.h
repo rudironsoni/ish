@@ -162,6 +162,47 @@ struct cpu_state {
 #define TLB_ENTRY_DATA_OFFSET   8                       // Offset of data_minus_addr within tlb_entry
 #define PAGE_BITS               12                      // Page size is 4KB
 
+// Statistics counter offsets for inline increment in assembly gadgets
+// These are used by gadget_ldr_x_impl and gadget_str_x_impl
+#define STAT_LDR_FAST_HITS_OFFSET       CPU_OFFSET(stat_ldr_fast_hits)
+#define STAT_STR_FAST_HITS_OFFSET       CPU_OFFSET(stat_str_fast_hits)
+#define STAT_LDR_FALLBACK_OFFSET        CPU_OFFSET(stat_ldr_fallback)
+#define STAT_STR_FALLBACK_OFFSET        CPU_OFFSET(stat_str_fallback)
+
+// Fallback reason codes for data-driven optimization
+// These match the counter array indices
+enum tcti_fallback_reason {
+    TCTI_FALLBACK_NONHOT = 0,    // Non-hot registers (Rt/Rn not in 0-15)
+    TCTI_FALLBACK_SIZE,          // Non-64-bit size
+    TCTI_FALLBACK_IDXMODE,       // Non-offset indexing mode (writeback, etc.)
+    TCTI_FALLBACK_META,          // Non-zero meta field
+    TCTI_FALLBACK_ALIGN,         // Unaligned access
+    TCTI_FALLBACK_CROSSPG,       // Cross-page access
+    TCTI_FALLBACK_TLBMISS,       // TLB miss
+    TCTI_FALLBACK_NOTLB,         // No TLB attached to CPU
+    TCTI_FALLBACK_COUNT          // Number of fallback reasons
+};
+
+// Fallback counter offsets for inline increment in assembly
+// Pre-calculated for efficiency in fast-path branches
+#define STAT_LDR_FALLBACK_NONHOT_OFFSET     920
+#define STAT_LDR_FALLBACK_SIZE_OFFSET       928
+#define STAT_LDR_FALLBACK_IDXMODE_OFFSET    936
+#define STAT_LDR_FALLBACK_META_OFFSET       944
+#define STAT_LDR_FALLBACK_ALIGN_OFFSET      952
+#define STAT_LDR_FALLBACK_CROSSPG_OFFSET    960
+#define STAT_LDR_FALLBACK_TLBMISS_OFFSET    968
+#define STAT_LDR_FALLBACK_NOTLB_OFFSET      976
+
+#define STAT_STR_FALLBACK_NONHOT_OFFSET     984
+#define STAT_STR_FALLBACK_SIZE_OFFSET       992
+#define STAT_STR_FALLBACK_IDXMODE_OFFSET    1000
+#define STAT_STR_FALLBACK_META_OFFSET       1008
+#define STAT_STR_FALLBACK_ALIGN_OFFSET      1016
+#define STAT_STR_FALLBACK_CROSSPG_OFFSET    1024
+#define STAT_STR_FALLBACK_TLBMISS_OFFSET    1032
+#define STAT_STR_FALLBACK_NOTLB_OFFSET      1040
+
 // Verify struct layout assumptions
 static_assert(CPU_OFFSET(x[0]) == offsetof(struct cpu_state, x), "x array offset");
 static_assert(sizeof(struct cpu_state) < 0xffff, "cpu struct is too big for gadgets");
