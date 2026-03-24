@@ -235,6 +235,17 @@ static uint64_t a64_apply_shift(uint64_t value, int shift_type, int amount, bool
 void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
     cpu->tlb = tlb;  // Store TLB pointer in cpu_state for inline TLB access
 
+    // Get or create persistent execution context for this CPU
+    struct fiber_exec_ctx *ctx = fiber_exec_ctx_get(cpu);
+    if (!ctx) {
+        printk("[TCTI] FATAL: Cannot get execution context\n");
+        handle_interrupt(INT_GPF);
+        return;
+    }
+    
+    // Reset frame state for new execution run
+    fiber_exec_ctx_reset(ctx, cpu);
+
     // Initialize per-MMU block cache if needed
     if (!cpu->mmu->block_cache) {
         cpu->mmu->block_cache = malloc(sizeof(struct a64_block_cache));
@@ -248,25 +259,42 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
 
     while (1) {
         uint64_t pc = cpu->pc;
-
-        // Look up block in per-MMU cache (scoped to address space)
-        struct a64_block *block = NULL;
-        if (cpu->mmu->block_cache) {
-            block = a64_cache_lookup(cpu->mmu->block_cache, pc);
-        }
-
-        if (!block) {
-            // Compile new block
-            block = a64_compile_block(cpu, pc, tlb);
-            if (!block) {
-                printk("[TCTI] FATAL: Cannot compile block at PC=0x%llx\n", pc);
-                handle_interrupt(INT_GPF);
-                continue;
-            }
-            // Insert into per-MMU cache (scoped to address space)
+        
+        // L0 cache lookup (fast path via fiber_exec_ctx)
+        size_t l0_idx = ((pc ^ (pc >> 12)) & FIBER_EXEC_CTX_CACHE_MASK);
+        struct a64_block *block = ctx->l0_cache[l0_idx];
+        
+        // Validate L0 cache hit (check PC matches)
+        if (block && block->start_pc == pc) {
+            fiber_stat_inc(ctx, STAT_TB_L0_HITS);
+        } else {
+            // L0 miss - fall back to MMU cache (L1)
+            block = NULL;
             if (cpu->mmu->block_cache) {
-                a64_cache_insert(cpu->mmu->block_cache, block);
+                block = a64_cache_lookup(cpu->mmu->block_cache, pc);
+                if (block) {
+                    fiber_stat_inc(ctx, STAT_TB_L1_HITS);
+                }
             }
+            
+            if (!block) {
+                // Compile new block
+                block = a64_compile_block(cpu, pc, tlb);
+                if (!block) {
+                    printk("[TCTI] FATAL: Cannot compile block at PC=0x%llx\n", pc);
+                    handle_interrupt(INT_GPF);
+                    continue;
+                }
+                fiber_stat_inc(ctx, STAT_TB_COMPILES);
+                
+                // Insert into MMU cache (L1)
+                if (cpu->mmu->block_cache) {
+                    a64_cache_insert(cpu->mmu->block_cache, block);
+                }
+            }
+            
+            // Populate L0 cache for next access
+            ctx->l0_cache[l0_idx] = block;
         }
 
         // Execute the block via TCTI
