@@ -9,7 +9,7 @@
  * - Bit manipulation (CLZ, RBIT, REV)
  */
 
-#include "tcti/aarch64/gadgets_tcti.h"
+#include "gadgets_tcti.h"
 #include "emu/aarch64/cpu.h"
 
 // Forward declarations for division helpers (defined at end of this file)

@@ -15,7 +15,7 @@
  *   x27-x29 (host)  -> TCTI internals  [gadget ptr, bytecode, cpu_state]
  */
 
-#include "tcti/aarch64/gadgets_tcti.h"
+#include "gadgets_tcti.h"
 #include "emu/aarch64/cpu.h"
 #include "emu/aarch64/memory.h"
 #include <stddef.h>
