@@ -29,6 +29,12 @@ static int sys_enosys_stub(dword_t a, dword_t b, dword_t c,
 // aarch64 doesn't have separate access syscall, uses faccessat
 #define sys_access sys_faccessat
 
+// Forward declarations for syscalls referenced in table but not in standard headers
+extern dword_t sys_newfstatat(fd_t, addr_t, addr_t, int_t);
+extern dword_t sys_pselect6(fd_t, addr_t, addr_t, addr_t, addr_t, addr_t);
+extern dword_t sys_epoll_create1(dword_t);
+extern dword_t sys_accept4(fd_t, addr_t, addr_t, int_t);
+
 // aarch64 doesn't have creat, uses openat
 #define sys_creat sys_open
 

@@ -38,6 +38,7 @@ struct task {
 
     // locked by sighand->lock
     struct sighand *sighand;
+    addr_t vdso_sigtramp;  // Address of VDSO signal trampoline
     sigset_t_ blocked;
     sigset_t_ pending;
     sigset_t_ waiting; // if nonzero, an ongoing call to sigtimedwait is waiting on these
