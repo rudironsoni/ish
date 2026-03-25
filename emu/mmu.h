@@ -6,9 +6,9 @@
 // Forward declaration for block cache ownership
 struct a64_block_cache;
 
-// top 20 bits of an address, i.e. address >> 12
-typedef dword_t page_t;
-#define BAD_PAGE 0x10000
+// full page number for 64-bit guest addresses
+typedef qword_t page_t;
+#define BAD_PAGE 0x100000000ULL
 
 #ifndef __KERNEL__
 #define PAGE_BITS 12
