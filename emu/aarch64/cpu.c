@@ -410,15 +410,15 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
             fiber_exec_ctx_put(ctx);
             handle_interrupt(INT_SYSCALL);
         } else if (exit_reason == TCTI_EXIT_FAULT) {
-            printk("[RUN-DIAG] TCTI_EXIT_FAULT reached, calling handle_interrupt(INT_GPF)\n");
+            fprintf(stderr, "[RUN-DIAG] TCTI_EXIT_FAULT reached, calling handle_interrupt(INT_GPF)\n");
             
             // DIAGNOSTIC: Capture fault details
-            printk("[FAULT-DIAG] pc=0x%llx fault_addr=0x%llx is_write=%d sp=0x%llx\n",
+            fprintf(stderr, "[FAULT-DIAG] pc=0x%llx fault_addr=0x%llx is_write=%d sp=0x%llx\n",
                    (unsigned long long)cpu->pc,
                    (unsigned long long)cpu->fault_addr,
                    cpu->fault_was_write,
                    (unsigned long long)cpu->sp);
-            printk("[FAULT-DIAG] regs x1=0x%llx x2=0x%llx x3=0x%llx x5=0x%llx x6=0x%llx x7=0x%llx\n",
+            fprintf(stderr, "[FAULT-DIAG] regs x1=0x%llx x2=0x%llx x3=0x%llx x5=0x%llx x6=0x%llx x7=0x%llx\n",
                    (unsigned long long)cpu->x[1],
                    (unsigned long long)cpu->x[2],
                    (unsigned long long)cpu->x[3],
@@ -440,26 +440,26 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
             // Fetch and decode instruction at fault PC
             uint32_t insn;
             if (a64_fetch_insn(cpu, cpu->tlb, cpu->pc, &insn) == 0) {
-                printk("[FAULT-DIAG] Instruction at PC: 0x%08x\n", insn);
+                fprintf(stderr, "[FAULT-DIAG] Instruction at PC: 0x%08x\n", insn);
                 
                 a64_instr_t decoded;
                 if (a64_decode(insn, &decoded) == 0) {
-                    printk("[FAULT-DIAG] Decoded: cat=%d subtype=%d Rd=%d Rn=%d Rm=%d\n",
+                    fprintf(stderr, "[FAULT-DIAG] Decoded: cat=%d subtype=%d Rd=%d Rn=%d Rm=%d\n",
                            decoded.cat, decoded.subtype, decoded.Rd, decoded.Rn, decoded.Rm);
-                    printk("[FAULT-DIAG] imm=%lld imm_shift=%d set_flags=%d is_64bit=%d\n",
+                    fprintf(stderr, "[FAULT-DIAG] imm=%lld imm_shift=%d set_flags=%d is_64bit=%d\n",
                            (long long)decoded.imm, decoded.imm_shift, 
                            decoded.set_flags, decoded.is_64bit);
                 } else {
-                    printk("[FAULT-DIAG] Failed to decode instruction\n");
+                    fprintf(stderr, "[FAULT-DIAG] Failed to decode instruction\n");
                 }
             } else {
-                printk("[FAULT-DIAG] Failed to fetch instruction at PC\n");
+                fprintf(stderr, "[FAULT-DIAG] Failed to fetch instruction at PC\n");
             }
             
             // Mark context inactive before handling fault
             fiber_exec_ctx_put(ctx);
             handle_interrupt(INT_GPF);
-            printk("[RUN-DIAG] handle_interrupt(INT_GPF) returned\n");
+            fprintf(stderr, "[RUN-DIAG] handle_interrupt(INT_GPF) returned\n");
         } else if (exit_reason == TCTI_EXIT_SIGNAL) {
             if (!block->explicit_pc_on_exit)
                 cpu->pc = block->end_pc;
