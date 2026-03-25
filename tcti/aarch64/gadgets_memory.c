@@ -83,27 +83,27 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
     int reg_shift = (meta >> 32) & 0xff;
     int width;
 
-    printk("[TCTI-LDST] %s pc=0x%llx rt=%llu rn=%llu base=0x%llx imm=%lld size=%llu idx=%llu signed=%llu regoff=%llu rm=%d ext=%d sh=%d\n",
-            is_load ? "LDR" : "STR",
-            (unsigned long long) fault_pc,
-            (unsigned long long) rt,
-            (unsigned long long) rn,
-            (unsigned long long) base,
-            (long long) imm,
-            (unsigned long long) size,
-            (unsigned long long) idx_mode,
-            (unsigned long long) is_signed,
-            (unsigned long long) is_reg_offset,
-            rm,
-            extend_type,
-            reg_shift);
+    // [DIAGNOSTIC DISABLED] printk("[TCTI-LDST] %s pc=0x%llx rt=%llu rn=%llu base=0x%llx imm=%lld size=%llu idx=%llu signed=%llu regoff=%llu rm=%d ext=%d sh=%d\n",
+    // [DIAGNOSTIC DISABLED]         is_load ? "LDR" : "STR",
+    // [DIAGNOSTIC DISABLED]         (unsigned long long) fault_pc,
+    // [DIAGNOSTIC DISABLED]         (unsigned long long) rt,
+    // [DIAGNOSTIC DISABLED]         (unsigned long long) rn,
+    // [DIAGNOSTIC DISABLED]         (unsigned long long) base,
+    // [DIAGNOSTIC DISABLED]         (long long) imm,
+    // [DIAGNOSTIC DISABLED]         (unsigned long long) size,
+    // [DIAGNOSTIC DISABLED]         (unsigned long long) idx_mode,
+    // [DIAGNOSTIC DISABLED]         (unsigned long long) is_signed,
+    // [DIAGNOSTIC DISABLED]         (unsigned long long) is_reg_offset,
+    // [DIAGNOSTIC DISABLED]         rm,
+    // [DIAGNOSTIC DISABLED]         extend_type,
+    // [DIAGNOSTIC DISABLED]         reg_shift);
 
     if (is_reg_offset) {
         uint64_t offset = tcti_extend_ldst_offset(cpu, rm, extend_type);
         raw_offset = tcti_read_reg_or_sp(cpu, rm);
-        printk("[TCTI-LDST] regoff raw=0x%llx extval=0x%llx\n",
-                (unsigned long long) raw_offset,
-                (unsigned long long) offset);
+        // [DIAGNOSTIC DISABLED] printk("[TCTI-LDST] regoff raw=0x%llx extval=0x%llx\n",
+        // [DIAGNOSTIC DISABLED]         (unsigned long long) raw_offset,
+        // [DIAGNOSTIC DISABLED]         (unsigned long long) offset);
         addr = base + (offset << reg_shift);
     } else {
         switch (idx_mode) {
@@ -121,7 +121,7 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
         }
     }
 
-    printk("[TCTI-LDST] effective addr=0x%llx\n", (unsigned long long) addr);
+    // [DIAGNOSTIC DISABLED] printk("[TCTI-LDST] effective addr=0x%llx\n", (unsigned long long) addr);
 
     switch (size) {
         case A64_SIZE_B: width = 1; break;
@@ -166,25 +166,25 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
         }
 
         if (mem_ret != A64_MEM_OK) {
-            printk("[TCTI-LDST] load fault addr=0x%llx fault_addr=0x%llx\n",
-                    (unsigned long long) addr,
-                    (unsigned long long) cpu->fault_addr);
+            // [DIAGNOSTIC DISABLED] printk("[TCTI-LDST] load fault addr=0x%llx fault_addr=0x%llx\n",
+            // [DIAGNOSTIC DISABLED]         (unsigned long long) addr,
+            // [DIAGNOSTIC DISABLED]         (unsigned long long) cpu->fault_addr);
             cpu->pc = fault_pc;
             cpu->fault_was_write = false;
             return TCTI_EXIT_FAULT;
         }
 
         tcti_write_reg_or_sp(cpu, (int) rt, value, size == A64_SIZE_X);
-        printk("[TCTI-LDST] load value=0x%llx -> r%llu\n",
-                (unsigned long long) value,
-                (unsigned long long) rt);
+        // [DIAGNOSTIC DISABLED] printk("[TCTI-LDST] load value=0x%llx -> r%llu\n",
+        // [DIAGNOSTIC DISABLED]         (unsigned long long) value,
+        // [DIAGNOSTIC DISABLED]         (unsigned long long) rt);
     } else {
         uint64_t value = tcti_read_reg_or_sp(cpu, (int) rt);
         int mem_ret;
 
-        printk("[TCTI-LDST] store value=0x%llx from r%llu\n",
-                (unsigned long long) value,
-                (unsigned long long) rt);
+        // [DIAGNOSTIC DISABLED] printk("[TCTI-LDST] store value=0x%llx from r%llu\n",
+        // [DIAGNOSTIC DISABLED]         (unsigned long long) value,
+        // [DIAGNOSTIC DISABLED]         (unsigned long long) rt);
 
         switch (width) {
             case 1: mem_ret = a64_guest_write8(cpu, cpu->tlb, addr, (uint8_t) value); break;
@@ -195,24 +195,13 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
         }
 
         if (mem_ret != A64_MEM_OK) {
-            static int store_fault_count = 0;
-            store_fault_count++;
-            printk("[TCTI-LDST] store fault #%d addr=0x%llx fault_addr=0x%llx pc=0x%llx\n",
-                    store_fault_count,
-                    (unsigned long long) addr,
-                    (unsigned long long) cpu->fault_addr,
-                    (unsigned long long) fault_pc);
-            // DIAGNOSTIC: Log all helper arguments
-            printk("[TCTI-LDST] FAULT-ARGS: rt=%llu rn=%llu imm=%lld size=%llu idx_mode=%llu meta=0x%llx\n",
-                    (unsigned long long) rt,
-                    (unsigned long long) rn,
-                    (long long) imm,
-                    (unsigned long long) size,
-                    (unsigned long long) idx_mode,
-                    (unsigned long long) meta);
-            printk("[TCTI-LDST] FAULT-STATE: base=0x%llx addr=0x%llx\n",
-                    (unsigned long long) base,
-                    (unsigned long long) addr);
+            // [DIAGNOSTIC DISABLED] static int store_fault_count = 0;
+            // [DIAGNOSTIC DISABLED] store_fault_count++;
+            // [DIAGNOSTIC DISABLED] printk("[TCTI-LDST] store fault #%d addr=0x%llx fault_addr=0x%llx pc=0x%llx\n",
+            // [DIAGNOSTIC DISABLED]         store_fault_count,
+            // [DIAGNOSTIC DISABLED]         (unsigned long long) addr,
+            // [DIAGNOSTIC DISABLED]         (unsigned long long) cpu->fault_addr,
+            // [DIAGNOSTIC DISABLED]         (unsigned long long) fault_pc);
             cpu->pc = fault_pc;
             cpu->fault_was_write = true;
             return TCTI_EXIT_FAULT;
@@ -222,12 +211,12 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
     if (!is_reg_offset && (idx_mode == A64_PRE_INDEX || idx_mode == A64_POST_INDEX)) {
         uint64_t updated = (idx_mode == A64_POST_INDEX) ? (base + imm) : base;
         tcti_write_reg_or_sp(cpu, (int) rn, updated, true);
-        printk("[TCTI-LDST] writeback rn=%llu value=0x%llx\n",
-                (unsigned long long) rn,
-                (unsigned long long) updated);
+        // [DIAGNOSTIC DISABLED] printk("[TCTI-LDST] writeback rn=%llu value=0x%llx\n",
+        // [DIAGNOSTIC DISABLED]         (unsigned long long) rn,
+        // [DIAGNOSTIC DISABLED]         (unsigned long long) updated);
     }
 
-    printk("[TCTI-LDST] success\n");
+    // [DIAGNOSTIC DISABLED] printk("[TCTI-LDST] success\n");
     return TCTI_EXIT_NORMAL;
 }
 
