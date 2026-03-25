@@ -262,10 +262,11 @@ void *mem_ptr(struct mem *mem, addr_t addr, int type) {
     if (entry == NULL) {
         // page does not exist
         // look to see if the next VM region is willing to grow down
-        page_t p = page + 1;
-        while (p < MEM_PAGES && mem_pt(mem, p) == NULL)
-            p++;
-        if (p >= MEM_PAGES)
+        // For stack growth down, check pages BELOW the fault (page-1, page-2, ...)
+        page_t p = page - 1;
+        while (p > 0 && mem_pt(mem, p) == NULL)
+            p--;
+        if (p == 0)
             return NULL;
         if (!(mem_pt(mem, p)->flags & P_GROWSDOWN))
             return NULL;
