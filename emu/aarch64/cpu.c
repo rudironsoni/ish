@@ -255,10 +255,15 @@ static uint64_t a64_apply_shift(uint64_t value, int shift_type, int amount, bool
  * This is the main entry point from the kernel
  */
 void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
-    printk("[RUN-TRACE] a64_cpu_run entry pc=0x%llx sp=0x%llx tlb=%p\n",
+    fprintf(stderr, "[RUN-TRACE] a64_cpu_run entry pc=0x%llx sp=0x%llx tlb=%p\n",
            (unsigned long long) cpu->pc,
            (unsigned long long) cpu->sp,
            tlb);
+    fprintf(stderr, "[RUN-TRACE] INITIAL REGS: x0=0x%llx x1=0x%llx x2=0x%llx x3=0x%llx\n",
+           (unsigned long long) cpu->x[0],
+           (unsigned long long) cpu->x[1],
+           (unsigned long long) cpu->x[2],
+           (unsigned long long) cpu->x[3]);
     
     cpu->tlb = tlb;  // Store TLB pointer in cpu_state for inline TLB access
 
@@ -304,6 +309,36 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
         }
         
         uint64_t pc = cpu->pc;
+        
+        // Simple trace: dump x0-x7 at start of each block execution
+        static int trace_count = 0;
+        if (trace_count++ < 200) {
+            fprintf(stderr, "[TRACE %d] pc=0x%llx x0=%llx x1=%llx x2=%llx x3=%llx x4=%llx x5=%llx x6=%llx x7=%llx sp=%llx\n",
+                   trace_count,
+                   (unsigned long long)pc,
+                   (unsigned long long)cpu->x[0],
+                   (unsigned long long)cpu->x[1],
+                   (unsigned long long)cpu->x[2],
+                   (unsigned long long)cpu->x[3],
+                   (unsigned long long)cpu->x[4],
+                   (unsigned long long)cpu->x[5],
+                   (unsigned long long)cpu->x[6],
+                   (unsigned long long)cpu->x[7],
+                   (unsigned long long)cpu->sp);
+        }
+        
+        // DIAGNOSTIC: Detect post-loop execution
+        if (pc == 0xf7fa4698ULL && trace_count < 250) {
+            fprintf(stderr, "[POST-LOOP] First loop exited, x2=0x%llx x5=0x%llx x3=0x%llx\n",
+                   (unsigned long long)cpu->x[2],
+                   (unsigned long long)cpu->x[5],
+                   (unsigned long long)cpu->x[3]);
+        }
+        if (pc == 0xf7fa46a4ULL && trace_count < 250) {
+            fprintf(stderr, "[POST-LOOP] Entering _DYNAMIC processing loop, x1=0x%llx x3=0x%llx\n",
+                   (unsigned long long)cpu->x[1],
+                   (unsigned long long)cpu->x[3]);
+        }
         
         // LOW-FREQUENCY PROGRESS SAMPLER (max once per second)
         if (!logged_sampler_point) {
