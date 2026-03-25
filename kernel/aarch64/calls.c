@@ -181,6 +181,12 @@ void handle_interrupt(int interrupt) {
             printk("[INT_GPF] fault_addr=0x%llx, fault_page=0x%x, was_write=%d\n", 
                    (unsigned long long)fault_addr, fault_page, cpu->fault_was_write);
             printk("[INT_GPF] current sp=0x%llx\n", (unsigned long long)cpu->sp);
+            printk("[INT_GPF] CPU regs: x0=0x%llx x1=0x%llx x2=0x%llx x3=0x%llx x4=0x%llx x5=0x%llx\n",
+                   cpu->x[0], cpu->x[1], cpu->x[2], cpu->x[3], cpu->x[4], cpu->x[5]);
+            printk("[INT_GPF] CPU regs: x6=0x%llx x7=0x%llx x8=0x%llx x9=0x%llx x10=0x%llx x11=0x%llx\n",
+                   cpu->x[6], cpu->x[7], cpu->x[8], cpu->x[9], cpu->x[10], cpu->x[11]);
+            printk("[INT_GPF] CPU regs: x12=0x%llx x13=0x%llx x14=0x%llx x15=0x%llx x16=0x%llx x17=0x%llx\n",
+                   cpu->x[12], cpu->x[13], cpu->x[14], cpu->x[15], cpu->x[16], cpu->x[17]);
             
             // Check page state before handling
             read_wrlock(&current->mem->lock);

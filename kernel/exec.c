@@ -399,6 +399,16 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
 
     addr_t entry = bias + header.entry_point;
     addr_t interp_base = 0;
+    addr_t dynamic_addr = 0;  // _DYNAMIC section address for x1
+
+    // Find PT_DYNAMIC in main executable (used if no interpreter)
+    for (unsigned i = 0; i < header.phent_count; i++) {
+        if (ph[i].type == PT_DYNAMIC) {
+            dynamic_addr = bias + ph[i].vaddr;
+            printk("[exec] Found PT_DYNAMIC in main executable at 0x%llx\n", (unsigned long long)dynamic_addr);
+            break;
+        }
+    }
 
     if (interp_name) {
         // map dat shit! interpreter edition
@@ -410,6 +420,58 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
                 goto beyond_hope;
         }
         entry = interp_base + interp_header.entry_point;
+        
+        // For dynamically linked executables, x1 must point to loader's _DYNAMIC
+        dynamic_addr = 0;
+        addr_t interp_dyn_fileoffset = 0;
+        for (int i = 0; i < interp_header.phent_count; i++) {
+            if (interp_ph[i].type == PT_DYNAMIC) {
+                dynamic_addr = interp_base + interp_ph[i].vaddr;
+                interp_dyn_fileoffset = interp_ph[i].offset;
+                printk("[exec] Found PT_DYNAMIC in interpreter at 0x%llx (using this for x1)\n", (unsigned long long)dynamic_addr);
+                printk("[exec]   file offset=0x%llx, vaddr=0x%llx, interp_base=0x%llx\n",
+                       (unsigned long long)interp_ph[i].offset,
+                       (unsigned long long)interp_ph[i].vaddr,
+                       (unsigned long long)interp_base);
+                break;
+            }
+        }
+        
+        // Dump _DYNAMIC table from memory
+        if (dynamic_addr != 0) {
+            printk("[exec] DUMPING _DYNAMIC table at 0x%llx:\n", (unsigned long long)dynamic_addr);
+            write_wrunlock(&current->mem->lock);  // Unlock for user_get
+            for (int i = 0; i < 20; i++) {  // Dump first 20 entries
+                uint64_t tag, val;
+                if (user_get(dynamic_addr + i*16, tag) == 0 && 
+                    user_get(dynamic_addr + i*16 + 8, val) == 0) {
+                    printk("[exec]   _DYNAMIC[%d]: tag=%llu (0x%llx) val=0x%llx\n", 
+                           i, (unsigned long long)tag, (unsigned long long)tag, (unsigned long long)val);
+                    if (tag == 0) break;  // DT_NULL terminator
+                } else {
+                    printk("[exec]   _DYNAMIC[%d]: failed to read\n", i);
+                    break;
+                }
+            }
+            write_wrlock(&current->mem->lock);  // Re-lock
+        }
+        
+        // Log interpreter PT_LOAD segments
+        printk("[exec] Interpreter PT_LOAD segments:\n");
+        for (int i = 0; i < interp_header.phent_count; i++) {
+            if (interp_ph[i].type == PT_LOAD) {
+                addr_t seg_addr = interp_base + interp_ph[i].vaddr;
+                addr_t seg_end = seg_addr + interp_ph[i].memsize;
+                printk("[exec]   PT_LOAD: vaddr=0x%llx->0x%llx (memsize=0x%llx, filesize=0x%llx) flags=%s%s%s\n",
+                       (unsigned long long)seg_addr,
+                       (unsigned long long)seg_end,
+                       (unsigned long long)interp_ph[i].memsize,
+                       (unsigned long long)interp_ph[i].filesize,
+                       (interp_ph[i].flags & PH_R) ? "R" : "",
+                       (interp_ph[i].flags & PH_W) ? "W" : "",
+                       (interp_ph[i].flags & PH_X) ? "X" : "");
+            }
+        }
     }
 
     // map vdso
@@ -572,26 +634,25 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     // aarch64 doesn't have x87 FPU control word
     // current->cpu.fcw = 0x37f;
 
-    // aarch64 process startup convention:
-    // x0 = argc
-    // x1 = argv pointer (points to argv[0], which is at sp + sizeof(addr_t))
-    // x2 = envp pointer (points to envp[0], which is after argv)
-    // x3 = TCB/TPIDR_EL0 pointer (for musl/glibc TLS access)
-    // x4-x7 = 0
-    // x8 = 0 (syscall num)
+    // aarch64 musl process startup convention:
+    // x0 = sp (pointer to stack with argc/argv/envp/auxv layout)
+    // x1 = _DYNAMIC (pointer to dynamic section, or 0 if not modeled)
+    // x2-x7 = 0 (not used for startup)
+    // x8 = 0 (syscall number register)
+    // TPIDR_EL0 = TCB base (TLS pointer, accessed via system register)
+    //
+    // musl _start moves sp into x0, sets x1 to _DYNAMIC, aligns sp,
+    // then calls _start_c(sp) which reads argc from p[0] and argv from p+1
     
     // Set up TCB (Thread Control Block) for TLS
-    // aarch64 musl expects x3 to point to TCB at startup
-    // We mapped pages 0xfffed-0xfffef (0xfffed000-0xfffeffff) for this purpose
-    // The TCB base should be at the start of the first mapped page
+    // TLS belongs in TPIDR_EL0, NOT in x3
     addr_t tcb_base = 0xfffed000;  // Start of mapped TCB pages (3 pages = 12KB)
     a64_setup_tls_area(&current->cpu, tcb_base);
     
-    current->cpu.x[0] = argv.count;
-    current->cpu.x[1] = sp + stack_slot_size;  // Points to argv[0]
-    current->cpu.x[2] = sp + ((argv.count + 2) * stack_slot_size);  // envp[0]
-    current->cpu.x[3] = tcb_base;  // TCB pointer (TPIDR_EL0 value)
-    for (int i = 4; i < 8; i++)
+    // Correct AArch64 musl startup: pass stack pointer in x0
+    current->cpu.x[0] = sp;  // Points to argc on stack
+    current->cpu.x[1] = dynamic_addr;   // _DYNAMIC - address of PT_DYNAMIC section
+    for (int i = 2; i < 8; i++)
         current->cpu.x[i] = 0;
     
     printk("[exec] CPU REGISTERS INITIALIZED - about to start execution\n");
