@@ -7,7 +7,9 @@
 
 #include "kernel/signal.h"
 #include "kernel/task.h"
+#include "kernel/calls.h"
 #include "kernel/errno.h"
+#include "kernel/aarch64/signal.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -122,16 +124,92 @@ int send_group_signal(dword_t pgid, int sig, struct siginfo_ info) {
 
 /*
  * Receive and deliver pending signals
+ * 
+ * For AArch64 bring-up: handles fatal default signals by terminating
+ * the task, and invokes architecture-specific delivery for handlers.
  */
 void receive_signals(void) {
     struct task *task = current;
     if (task == NULL) {
+        printk("[SIGNAL] receive_signals: task is NULL\n");
         return;
     }
     
-    // Minimal implementation - just clear pending for now
-    // Real implementation would invoke signal handlers
-    task->pending = 0;
+    printk("[SIGNAL] receive_signals called, pending=0x%llx\n", (unsigned long long)task->pending);
+    
+    // Process each pending signal
+    while (task->pending != 0) {
+        // Find the first pending signal
+        int sig = 0;
+        for (int i = 1; i < NUM_SIGS; i++) {
+            if (task->pending & sig_mask(i)) {
+                sig = i;
+                break;
+            }
+        }
+        
+        if (sig == 0) {
+            printk("[SIGNAL] No more pending signals found\n");
+            break;  // No more pending signals
+        }
+        
+        printk("[SIGNAL] Processing signal %d\n", sig);
+        
+        // Clear this signal from pending set
+        sigset_del(&task->pending, sig);
+        
+        // Skip if signal is blocked
+        if (task->blocked & sig_mask(sig)) {
+            continue;
+        }
+        
+        // Check signal disposition
+        struct sigaction_ *action = &task->sighand->action[sig];
+        
+        if (action->handler == SIG_DFL_) {
+            // Default disposition - handle fatal signals
+            switch (sig) {
+                case SIGSEGV_:
+                case SIGILL_:
+                case SIGBUS_:
+                case SIGFPE_:
+                case SIGABRT_:
+                case SIGTRAP_:
+                case SIGSYS_:
+                    // Fatal signal with default disposition - terminate the task
+                    printk("[SIGNAL] Fatal signal %d with default disposition - calling do_exit_group\n", sig);
+                    // Use exit code 128 + signal number (standard Unix convention)
+                    do_exit_group(128 + sig);
+                    // do_exit_group does not return
+                    break;
+                    
+                case SIGCHLD_:
+                case SIGURG_:
+                case SIGWINCH_:
+                    // Ignore these signals by default
+                    break;
+                    
+                default:
+                    // All other signals: terminate
+                    do_exit_group(128 + sig);
+                    // do_exit_group does not return
+                    break;
+            }
+        } else if (action->handler == SIG_IGN_) {
+            // Signal is ignored - do nothing
+            continue;
+        } else {
+            // Custom signal handler - deliver via architecture-specific path
+            // For AArch64, set up the signal frame
+            struct siginfo_ info = {
+                .sig = sig,
+                .code = SI_USER_,
+            };
+            a64_deliver_signal(task, sig, &info);
+            // Signal delivered - only one signal per invocation
+            break;
+        }
+    }
 }
 
 /*
