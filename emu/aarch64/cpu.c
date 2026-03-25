@@ -169,7 +169,17 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
  */
 int a64_execute_block(struct cpu_state *cpu, struct a64_block *block) {
     tcti_entry_block(block->gadgets, cpu);
-    return cpu->tcti_exit_reason;
+    int exit_reason = cpu->tcti_exit_reason;
+    // DIAGNOSTIC: Log block execution result
+    if (exit_reason == TCTI_EXIT_FAULT) {
+        printk("[EXEC-DIAG] Block exit: reason=%d pc=0x%llx fault_addr=0x%llx is_write=%d tcti_reason=%d\n",
+               exit_reason,
+               (unsigned long long) cpu->pc,
+               (unsigned long long) cpu->fault_addr,
+               cpu->fault_was_write,
+               cpu->tcti_exit_reason);
+    }
+    return exit_reason;
 }
 
 static uint64_t a64_read_reg_or_sp(struct cpu_state *cpu, int reg, bool is_64bit) {
@@ -319,9 +329,11 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
             fiber_exec_ctx_put(ctx);
             handle_interrupt(INT_SYSCALL);
         } else if (exit_reason == TCTI_EXIT_FAULT) {
+            printk("[RUN-DIAG] TCTI_EXIT_FAULT reached, calling handle_interrupt(INT_GPF)\n");
             // Mark context inactive before handling fault
             fiber_exec_ctx_put(ctx);
             handle_interrupt(INT_GPF);
+            printk("[RUN-DIAG] handle_interrupt(INT_GPF) returned\n");
         } else if (exit_reason == TCTI_EXIT_SIGNAL) {
             if (!block->explicit_pc_on_exit)
                 cpu->pc = block->end_pc;

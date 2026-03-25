@@ -278,11 +278,37 @@ void handle_interrupt(int interrupt) {
             cpu->x[0] = result;
         }
     } else if (interrupt == INT_GPF) {
+        // DIAGNOSTIC: Log fault entry state
+        page_t fault_page = PAGE(cpu->fault_addr);
+        struct pt_entry *entry_before = mem_pt(current->mem, fault_page);
+        struct pt_entry *entry_below = mem_pt(current->mem, fault_page + 1);
+        
+        printk("[GPF-DIAG] pc=0x%llx fault_addr=0x%llx is_write=%d sp=0x%llx\n",
+               (unsigned long long)cpu->pc,
+               (unsigned long long)cpu->fault_addr,
+               cpu->fault_was_write,
+               (unsigned long long)cpu->sp);
+        printk("[GPF-DIAG] page=0x%lx mapped_before=%d\n",
+               (unsigned long)fault_page, entry_before != NULL);
+        if (entry_below) {
+            printk("[GPF-DIAG] page_below flags=0x%x growsdown=%d\n",
+                   entry_below->flags, !!(entry_below->flags & P_GROWSDOWN));
+        } else {
+            printk("[GPF-DIAG] page_below=NULL\n");
+        }
+        
         // some page faults, such as stack growing or CoW clones, are handled by mem_ptr
         read_wrlock(&current->mem->lock);
         void *ptr = mem_ptr(current->mem, cpu->fault_addr, cpu->fault_was_write ? MEM_WRITE : MEM_READ);
         read_wrunlock(&current->mem->lock);
+        
+        // DIAGNOSTIC: Log state after handling
+        struct pt_entry *entry_after = mem_pt(current->mem, fault_page);
+        printk("[GPF-DIAG] mapped_after=%d ptr=%p\n",
+               entry_after != NULL, ptr);
+        
         if (ptr == NULL) {
+            printk("[GPF-DIAG] SIGNAL: SIGSEGV delivered\n");
             printk("%d page fault on 0x%llx at 0x%llx\n", current->pid, (unsigned long long)cpu->fault_addr, (unsigned long long)cpu->pc);
             struct siginfo_ info = {
                 .code = mem_segv_reason(current->mem, cpu->fault_addr),
@@ -290,6 +316,8 @@ void handle_interrupt(int interrupt) {
             };
             dump_stack(8);
             deliver_signal(current, SIGSEGV_, info);
+        } else {
+            printk("[GPF-DIAG] HANDLED: mapping created/expanded\n");
         }
     } else if (interrupt == INT_UNDEFINED) {
         printk("%d illegal instruction at 0x%llx: ", current->pid, (unsigned long long)cpu->pc);

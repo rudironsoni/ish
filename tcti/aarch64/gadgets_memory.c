@@ -195,9 +195,13 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
         }
 
         if (mem_ret != A64_MEM_OK) {
-            printk("[TCTI-LDST] store fault addr=0x%llx fault_addr=0x%llx\n",
+            static int store_fault_count = 0;
+            store_fault_count++;
+            printk("[TCTI-LDST] store fault #%d addr=0x%llx fault_addr=0x%llx pc=0x%llx\n",
+                    store_fault_count,
                     (unsigned long long) addr,
-                    (unsigned long long) cpu->fault_addr);
+                    (unsigned long long) cpu->fault_addr,
+                    (unsigned long long) fault_pc);
             cpu->pc = fault_pc;
             cpu->fault_was_write = true;
             return TCTI_EXIT_FAULT;
