@@ -464,7 +464,8 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     write_wrunlock(&current->mem->lock);
     // Start SP at 0xffffe000 (top of second mapped page)
     // Stack will grow down into 0xffffd as data is pushed.
-    dword_t sp = 0xffffe000;
+    addr_t sp = 0xffffe000;
+    const size_t stack_slot_size = sizeof(addr_t);
     // on 32-bit linux, there's 4 empty bytes at the very bottom of the stack.
     // on 64-bit linux, there's 8. make ptraceomatic happy. (a major theme in this file)
     sp -= sizeof(void *);
@@ -523,7 +524,8 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
         {AX_PLATFORM, platform_addr},
         {0, 0}
     };
-    sp -= ((argv.count + 1) + (envp.count + 1) + 1) * sizeof(dword_t);
+    // AArch64 user stacks are LP64: argc/argv/envp slots are 64-bit wide.
+    sp -= ((argv.count + 1) + (envp.count + 1) + 1) * stack_slot_size;
     sp -= sizeof(aux);
     sp &=~ 0xf;
 
@@ -533,7 +535,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     // argc
     if (user_put(p, argv.count))
         return _EFAULT;
-    p += sizeof(dword_t);
+    p += stack_slot_size;
 
     // argv
     size_t argc = argv.count;
@@ -541,9 +543,9 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
         if (user_put(p, argv_addr))
             return _EFAULT;
         argv_addr += user_strlen(argv_addr) + 1;
-        p += sizeof(dword_t); // null terminator
+        p += stack_slot_size;
     }
-    p += sizeof(dword_t); // null terminator
+    p += stack_slot_size;
 
     // envp
     size_t envc = envp.count;
@@ -551,9 +553,9 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
         if (user_put(p, envp_addr))
             return _EFAULT;
         envp_addr += user_strlen(envp_addr) + 1;
-        p += sizeof(dword_t);
+        p += stack_slot_size;
     }
-    p += sizeof(dword_t); // null terminator
+    p += stack_slot_size;
 
     // copy auxv
     current->mm->auxv_start = p;
@@ -570,7 +572,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
 
     // aarch64 process startup convention:
     // x0 = argc
-    // x1 = argv pointer (points to argv[0], which is at sp + 8)
+    // x1 = argv pointer (points to argv[0], which is at sp + sizeof(addr_t))
     // x2 = envp pointer (points to envp[0], which is after argv)
     // x3 = TCB/TPIDR_EL0 pointer (for musl/glibc TLS access)
     // x4-x7 = 0
@@ -584,8 +586,8 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     a64_setup_tls_area(&current->cpu, tcb_base);
     
     current->cpu.x[0] = argv.count;
-    current->cpu.x[1] = sp + sizeof(dword_t);  // Points to argv[0]
-    current->cpu.x[2] = sp + ((argv.count + 2) * sizeof(dword_t));  // envp[0]
+    current->cpu.x[1] = sp + stack_slot_size;  // Points to argv[0]
+    current->cpu.x[2] = sp + ((argv.count + 2) * stack_slot_size);  // envp[0]
     current->cpu.x[3] = tcb_base;  // TCB pointer (TPIDR_EL0 value)
     for (int i = 4; i < 8; i++)
         current->cpu.x[i] = 0;

@@ -8,7 +8,6 @@ ISH_LOG =
 ISH_LOGGER = $(ISH_LOGGER_$(PLATFORM_NAME))
 ISH_LOGGER_iphoneos = nslog
 ISH_LOGGER_iphonesimulator = nslog
-ISH_LOGGER_macosx = dprintf
 
 // aarch64 Alpine Linux rootfs (v3.23.3 - latest stable)
 ROOTFS_URL = https://dl-cdn.alpinelinux.org/alpine/v3.23/releases/aarch64/alpine-minirootfs-3.23.3-aarch64.tar.gz

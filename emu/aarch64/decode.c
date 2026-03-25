@@ -363,68 +363,45 @@ int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out) {
 // Branch instructions
 // Based on ARMv8-A encoding: op0 = bits 31:29
 int a64_decode_branch(uint32_t insn, a64_instr_t *out) {
-    (void)bits(insn, 28, 25);  // op1 - always 10 or 11 for branch instructions
-    int op0 = bits(insn, 31, 29);  // Changed from 30:29 to 31:29
+    if ((insn & 0x7c000000) == 0x14000000) {
+        int op = bit(insn, 31); // 0=B, 1=BL
+        int64_t imm26 = bits(insn, 25, 0);
+        out->imm = sign_extend(imm26, 26) << 2;
+        out->subtype = A64_BRANCH_UNCOND;
+        out->op = op;
+        return 0;
+    }
 
-    switch (op0) {
-        case 0: // 000 - Unconditional branch (immediate)
-        case 4: // 100 - Also unconditional branch
-        {
-            int op = bit(insn, 31); // 0=B, 1=BL
-            int64_t imm26 = bits(insn, 25, 0);
-            out->imm = sign_extend(imm26, 26) << 2;
-            out->subtype = A64_BRANCH_UNCOND;
-            out->op = op;
-            return 0;
-        }
+    if ((insn & 0xff000010) == 0x54000000) {
+        int64_t imm19 = bits(insn, 23, 5);
+        int cond = bits(insn, 3, 0);
+        out->imm = sign_extend(imm19, 19) << 2;
+        out->cond = cond;
+        out->subtype = A64_BRANCH_COND;
+        return 0;
+    }
 
-        case 2: // 010 - Conditional branch (immediate)
-        {
-            int o1 = bit(insn, 24);
-            if (o1 == 0) {
-                // B.cond
-                int64_t imm19 = bits(insn, 23, 5);
-                int cond = bits(insn, 3, 0);
-                out->imm = sign_extend(imm19, 19) << 2;
-                out->cond = cond;
-                out->subtype = A64_BRANCH_COND;
-                return 0;
-            }
-            break;
-        }
+    if ((insn & 0x7e000000) == 0x34000000) {
+        int op = bit(insn, 24); // 0=CBZ, 1=CBNZ
+        int64_t imm19 = bits(insn, 23, 5);
+        out->is_64bit = bit(insn, 31);
+        out->Rd = bits(insn, 4, 0);
+        out->imm = sign_extend(imm19, 19) << 2;
+        out->subtype = A64_BRANCH_CMP;
+        out->op = op;
+        return 0;
+    }
 
-        case 1: // 001 - Compare and branch (immediate) - 32-bit
-        case 5: // 101 - Compare and branch (immediate) - 64-bit
-        {
-            int op = bit(insn, 24); // 0=CBZ, 1=CBNZ
-            out->is_64bit = bit(insn, 31);
-            int64_t imm19 = bits(insn, 23, 5);
-            out->Rd = bits(insn, 4, 0);
-            out->imm = sign_extend(imm19, 19) << 2;
-            // subtype: 0=CBZ, 1=CBNZ, but store them at values 2-3 to match enum
-            out->subtype = 2 + (op ? 1 : 0); // 2=CBZ, 3=CBNZ (within A64_BRANCH_CMP range)
-            return 0;
-        }
-
-        case 3: // 011 - Test and branch (immediate)
-        {
-            int op = bit(insn, 24); // 0=TBZ, 1=TBNZ
-            int imm14 = bits(insn, 18, 5);
-            int bit_pos = (bit(insn, 31) << 5) | bits(insn, 23, 19);
-            out->Rd = bits(insn, 4, 0);
-            out->imm = sign_extend(imm14, 14) << 2;
-            out->imm_shift = bit_pos;
-            // subtype: A64_BRANCH_TEST = 3
-            out->subtype = 3 + (op ? 1 : 0); // 3=TBZ, 4=TBNZ (if needed)
-            return 0;
-        }
-
-        case 6: // 110 - Unconditional branch (register)
-        case 7: // 111 - Also branch register
-        {
-            // BR, BLR, RET - handled below
-            break;
-        }
+    if ((insn & 0x7e000000) == 0x36000000) {
+        int op = bit(insn, 24); // 0=TBZ, 1=TBNZ
+        int imm14 = bits(insn, 18, 5);
+        int bit_pos = (bit(insn, 31) << 5) | bits(insn, 23, 19);
+        out->Rd = bits(insn, 4, 0);
+        out->imm = sign_extend(imm14, 14) << 2;
+        out->imm_shift = bit_pos;
+        out->subtype = A64_BRANCH_TEST;
+        out->op = op;
+        return 0;
     }
 
     // Check for branch register / exception generation

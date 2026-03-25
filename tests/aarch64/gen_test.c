@@ -115,6 +115,18 @@ TEST(gen_add_reg) {
     ASSERT_EQ(test_state.num_gadgets, 1);
 }
 
+TEST(gen_add_reg_shifted_lsl) {
+    setup();
+    a64_gen_reset(&test_state, 0x1000);
+
+    // ADD x19, x1, x19, LSL #3
+    uint32_t add_reg_shifted = 0x8B130C33;
+
+    int ret = a64_gen_instruction(&test_state, add_reg_shifted, 0x1000);
+    ASSERT_EQ(ret, A64_GEN_OK);
+    ASSERT(test_state.num_gadgets > 0);
+}
+
 // Test branch ends block
 TEST(gen_branch_ends_block) {
     setup();
@@ -139,6 +151,17 @@ TEST(gen_cbz_ends_block) {
 
     int ret = a64_gen_instruction(&test_state, cbz, 0x1000);
     // Conditional branch should end block
+    ASSERT_EQ(ret, 1);
+}
+
+TEST(gen_tbz_ends_block) {
+    setup();
+    a64_gen_reset(&test_state, 0x1000);
+
+    // TBZ w1, #0, .-0xc
+    uint32_t tbz = 0x3607FFA1;
+
+    int ret = a64_gen_instruction(&test_state, tbz, 0x1000);
     ASSERT_EQ(ret, 1);
 }
 
@@ -352,12 +375,14 @@ int main(void) {
     RUN_TEST(gen_movz);
     RUN_TEST(gen_add_imm);
     RUN_TEST(gen_add_reg);
+    RUN_TEST(gen_add_reg_shifted_lsl);
     RUN_TEST(gen_sub_reg);
     RUN_TEST(gen_nop);
 
     printf("\nBlock Terminators:\n");
     RUN_TEST(gen_branch_ends_block);
     RUN_TEST(gen_cbz_ends_block);
+    RUN_TEST(gen_tbz_ends_block);
     RUN_TEST(gen_svc_ends_block);
     RUN_TEST(gen_ret);
 

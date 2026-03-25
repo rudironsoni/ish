@@ -2,8 +2,11 @@
 #include "iSH.xcconfig"
 
 SDKROOT = iphoneos
+ARCHS = arm64
 TARGETED_DEVICE_FAMILY = 1,2 // iPhone, iPad
 SUPPORTED_PLATFORMS = iphonesimulator iphoneos
+EXCLUDED_ARCHS[sdk=iphonesimulator*] = x86_64
+EXCLUDED_ARCHS[sdk=iphoneos*] = armv7 armv7s x86_64
 
 LD_RUNPATH_SEARCH_PATHS = $(inherited) @executable_path/Frameworks
 HEADER_SEARCH_PATHS = $(SRCROOT)

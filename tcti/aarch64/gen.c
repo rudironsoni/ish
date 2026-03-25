@@ -15,6 +15,9 @@
 #include <string.h>
 #include <stdlib.h>
 
+extern const tcti_gadget_t gadget_tbz_reg[16];
+extern const tcti_gadget_t gadget_tbnz_reg[16];
+
 // Map guest registers 0-15 to our pre-generated gadget tables
 // Registers 16-30 and sp are handled differently (in memory)
 #define IS_TCTI_REG(r) ((r) >= 0 && (r) < 16)
@@ -605,8 +608,72 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr) {
             }
         }
     } else if (op2 >= 4 && op2 <= 7) {
-        if (instr->imm_shift != 0)
-            return A64_GEN_UNSUPPORTED;
+        if (instr->imm_shift != 0) {
+            int ret;
+            int work_dst = (dst_is_memory || dst_is_sp) ? 13 : rd;
+
+            if (instr->shift_type != A64_SHIFT_LSL)
+                return A64_GEN_UNSUPPORTED;
+            if (src1_is_memory || rn == 31)
+                return A64_GEN_UNSUPPORTED;
+
+            if (src2_is_memory) {
+                int load_idx = rm - 16;
+                if (load_idx < 0 || load_idx > 14)
+                    return A64_GEN_UNSUPPORTED;
+                ret = emit_gadget(state, gadget_load_xreg_16_to_30[load_idx]);
+                if (ret != A64_GEN_OK)
+                    return ret;
+            } else if (rm == 31) {
+                ret = emit_gadget(state, gadget_mov_imm[13]);
+                if (ret != A64_GEN_OK)
+                    return ret;
+                ret = emit_u64(state, 0);
+                if (ret != A64_GEN_OK)
+                    return ret;
+            } else {
+                ret = emit_gadget(state, gadget_mov_reg[13][rm]);
+                if (ret != A64_GEN_OK)
+                    return ret;
+            }
+
+            for (int i = 0; i < instr->imm_shift; i++) {
+                ret = emit_gadget(state, gadget_add_reg[13][13][13]);
+                if (ret != A64_GEN_OK)
+                    return ret;
+            }
+
+            if (instr->set_flags) {
+                if (instr->subtype == 1 && rd == 31) {
+                    ret = emit_gadget(state, gadget_cmp_reg[rn][13]);
+                } else {
+                    ret = emit_gadget(state, (instr->subtype == 1)
+                        ? gadget_subs_reg[work_dst][rn][13]
+                        : gadget_adds_reg[work_dst][rn][13]);
+                }
+            } else {
+                ret = emit_gadget(state, (instr->subtype == 1)
+                    ? gadget_sub_reg[work_dst][rn][13]
+                    : gadget_add_reg[work_dst][rn][13]);
+            }
+            if (ret != A64_GEN_OK)
+                return ret;
+
+            if (dst_is_memory) {
+                int store_idx = rd - 16;
+                if (store_idx < 0 || store_idx > 14)
+                    return A64_GEN_UNSUPPORTED;
+                ret = emit_gadget(state, gadget_store_xreg_16_to_30[store_idx]);
+                if (ret != A64_GEN_OK)
+                    return ret;
+            } else if (dst_is_sp) {
+                ret = emit_gadget(state, (tcti_gadget_t) gadget_store_sp);
+                if (ret != A64_GEN_OK)
+                    return ret;
+            }
+
+            return A64_GEN_OK;
+        }
         if (instr->set_flags) {
             if (instr->subtype == 1 && rd == 31 && !src1_is_memory && !src2_is_memory
                     && rn != 31 && rm != 31) {
@@ -779,13 +846,12 @@ int a64_gen_branch(a64_gen_state_t *state, const a64_instr_t *instr) {
             state->is_complete = 1;
             return A64_GEN_OK;
             
-        case 2: // CBZ - Compare and branch on zero
-        case 3: // CBNZ - Compare and branch on non-zero
+        case A64_BRANCH_CMP:
         {
             if (instr->Rd < 0 || instr->Rd >= 16)
                 return A64_GEN_UNSUPPORTED;
 
-            ret = emit_gadget(state, (instr->subtype == 3)
+            ret = emit_gadget(state, instr->op
                     ? gadget_cbnz_reg[instr->Rd]
                     : gadget_cbz_reg[instr->Rd]);
             if (ret != A64_GEN_OK)
@@ -794,6 +860,32 @@ int a64_gen_branch(a64_gen_state_t *state, const a64_instr_t *instr) {
             // Emit target PC
             uint64_t target_pc = state->guest_pc + instr->imm;
             ret = emit_u64(state, target_pc);
+            if (ret != A64_GEN_OK)
+                return ret;
+
+            ret = emit_u64(state, state->guest_pc + 4);
+            if (ret != A64_GEN_OK)
+                return ret;
+            state->is_complete = 1;
+            return A64_GEN_OK;
+        }
+
+        case A64_BRANCH_TEST:
+        {
+            if (instr->Rd < 0 || instr->Rd >= 16)
+                return A64_GEN_UNSUPPORTED;
+
+            ret = emit_gadget(state, instr->op
+                    ? gadget_tbnz_reg[instr->Rd]
+                    : gadget_tbz_reg[instr->Rd]);
+            if (ret != A64_GEN_OK)
+                return ret;
+
+            ret = emit_u64(state, instr->imm_shift);
+            if (ret != A64_GEN_OK)
+                return ret;
+
+            ret = emit_u64(state, state->guest_pc + instr->imm);
             if (ret != A64_GEN_OK)
                 return ret;
 
@@ -1023,11 +1115,9 @@ int a64_gen_ldst(a64_gen_state_t *state, const a64_instr_t *instr) {
     if (ret != A64_GEN_OK)
         return ret;
     
-    // Handle post-index writeback for single instructions
-    if (instr->idx_mode == A64_POST_INDEX) {
-        return a64_emit_base_writeback(state, instr->Rn, instr->imm);
-    }
-    
+    // Single-instruction helpers already apply pre/post-index writeback.
+    // Emitting an extra base writeback here corrupts the architectural base
+    // register and causes post-index loops to run past their bounds.
     return A64_GEN_OK;
 }
 
