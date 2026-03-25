@@ -18,6 +18,7 @@
 #include <setjmp.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <time.h>
 
 // External TCTI entry point (declared in gadgets_tcti.h)
 extern void tcti_entry_block(void *gadgets, struct cpu_state *cpu);
@@ -30,6 +31,16 @@ static jmp_buf exit_jmpbuf __attribute__((unused));
 struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct tlb *tlb);
 // Forward declaration - made non-static for use by asbestos.c
 int a64_execute_block(struct cpu_state *cpu, struct a64_block *block);
+
+// Low-frequency progress sampler state
+static time_t last_sample_time = 0;
+static int sample_count = 0;
+static uint64_t last_pc = 0;
+static uint64_t last_sp = 0;
+static uint64_t last_ldr_fast = 0;
+static uint64_t last_str_fast = 0;
+static uint64_t last_ldr_fallback = 0;
+static uint64_t last_str_fallback = 0;
 
 /*
  * Initialize aarch64 CPU for a task
@@ -248,6 +259,10 @@ extern struct cpu_state *g_current_cpu;
 void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
     // Set global CPU pointer for crash diagnostics
     g_current_cpu = cpu;
+    printk("[RUN-TRACE] a64_cpu_run entry pc=0x%llx sp=0x%llx tlb=%p\n",
+           (unsigned long long) cpu->pc,
+           (unsigned long long) cpu->sp,
+           tlb);
     
     cpu->tlb = tlb;  // Store TLB pointer in cpu_state for inline TLB access
 
@@ -273,7 +288,16 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
     // Set up TLB for this CPU
     tlb_refresh(tlb, cpu->mmu);
 
+    bool logged_loop_entry = false;
+    bool logged_sampler_point = false;
+
     while (1) {
+        if (!logged_loop_entry) {
+            printk("[RUN-TRACE] a64_cpu_run loop entry pc=0x%llx sp=0x%llx\n",
+                   (unsigned long long) cpu->pc,
+                   (unsigned long long) cpu->sp);
+            logged_loop_entry = true;
+        }
         // Reacquire context if it was marked inactive (e.g., after interrupt return)
         if (!ctx->active) {
             ctx = fiber_exec_ctx_get(cpu);
@@ -284,6 +308,61 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
         }
         
         uint64_t pc = cpu->pc;
+        
+        // LOW-FREQUENCY PROGRESS SAMPLER (max once per second)
+        if (!logged_sampler_point) {
+            printk("[RUN-TRACE] a64_cpu_run sampler point pc=0x%llx sp=0x%llx\n",
+                   (unsigned long long) pc,
+                   (unsigned long long) cpu->sp);
+            logged_sampler_point = true;
+        }
+        time_t now = time(NULL);
+        if (now != last_sample_time) {
+            last_sample_time = now;
+            sample_count++;
+            
+            uint64_t ldr_fast = cpu->stat_ldr_fast_hits;
+            uint64_t str_fast = cpu->stat_str_fast_hits;
+            uint64_t ldr_fb = cpu->stat_ldr_fallback;
+            uint64_t str_fb = cpu->stat_str_fallback;
+            
+            // Calculate deltas since last sample
+            uint64_t delta_ldr_fast = ldr_fast - last_ldr_fast;
+            uint64_t delta_str_fast = str_fast - last_str_fast;
+            uint64_t delta_ldr_fb = ldr_fb - last_ldr_fallback;
+            uint64_t delta_str_fb = str_fb - last_str_fallback;
+            uint64_t pc_delta = pc - last_pc;
+            
+            printk("[SAMPLE-%d] pc=0x%llx sp=0x%llx exit_reason=%d\n",
+                   sample_count,
+                   (unsigned long long)pc,
+                   (unsigned long long)cpu->sp,
+                   cpu->tcti_exit_reason);
+            printk("[SAMPLE-%d] mem_stats: ldr_fast=+%llu str_fast=+%llu ldr_fb=+%llu str_fb=+%llu\n",
+                   sample_count,
+                   (unsigned long long)delta_ldr_fast,
+                   (unsigned long long)delta_str_fast,
+                   (unsigned long long)delta_ldr_fb,
+                   (unsigned long long)delta_str_fb);
+            printk("[SAMPLE-%d] fallback_reasons: nonhot=%llu size=%llu idx=%llu meta=%llu align=%llu cross=%llu tlbmiss=%llu notlb=%llu\n",
+                   sample_count,
+                   (unsigned long long)(cpu->stat_ldr_fallback_nonhot + cpu->stat_str_fallback_nonhot),
+                   (unsigned long long)(cpu->stat_ldr_fallback_size + cpu->stat_str_fallback_size),
+                   (unsigned long long)(cpu->stat_ldr_fallback_idxmode + cpu->stat_str_fallback_idxmode),
+                   (unsigned long long)(cpu->stat_ldr_fallback_meta + cpu->stat_str_fallback_meta),
+                   (unsigned long long)(cpu->stat_ldr_fallback_align + cpu->stat_str_fallback_align),
+                   (unsigned long long)(cpu->stat_ldr_fallback_crosspg + cpu->stat_str_fallback_crosspg),
+                   (unsigned long long)(cpu->stat_ldr_fallback_tlbmiss + cpu->stat_str_fallback_tlbmiss),
+                   (unsigned long long)(cpu->stat_ldr_fallback_notlb + cpu->stat_str_fallback_notlb));
+            printk("[SAMPLE-%d] pc_delta=+%lld\n", sample_count, (long long)pc_delta);
+            
+            last_pc = pc;
+            last_sp = cpu->sp;
+            last_ldr_fast = ldr_fast;
+            last_str_fast = str_fast;
+            last_ldr_fallback = ldr_fb;
+            last_str_fallback = str_fb;
+        }
         
         // L0 cache lookup (fast path via fiber_exec_ctx)
         size_t l0_idx = ((pc ^ (pc >> 12)) & FIBER_EXEC_CTX_CACHE_MASK);

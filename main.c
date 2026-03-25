@@ -87,9 +87,9 @@ static void crash_handler(int sig) {
 }
 
 int main(int argc, char *const argv[]) {
-    // Install crash handlers early
-    signal(SIGBUS, crash_handler);
-    signal(SIGSEGV, crash_handler);
+    // Crash handler DISABLED - was changing behavior
+    // signal(SIGBUS, crash_handler);
+    // signal(SIGSEGV, crash_handler);
     
     printk("[main] ENTRY\n");
     char envp[100] = {0};
