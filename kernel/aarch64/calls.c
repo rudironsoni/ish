@@ -227,6 +227,9 @@ void handle_interrupt(int interrupt) {
             printk("Unknown interrupt %d\n", interrupt);
             break;
     }
+    
+    // Process any pending signals (e.g., SIGSEGV from page fault)
+    receive_signals();
 }
 
 void a64_dump_syscall(struct cpu_state *cpu) {

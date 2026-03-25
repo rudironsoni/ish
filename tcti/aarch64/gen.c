@@ -691,17 +691,43 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr) {
     } else if (op2 >= 8 && op2 <= 11) {
         int ret;
 
-        if (dst_is_memory || (dst_is_sp && !rd_is_zero) || src1_is_memory || rn == 31)
-            return A64_GEN_UNSUPPORTED;
-        if (src2_is_memory || rm == 31)
+        // Reject SP as source (not yet supported in this path)
+        if (rn == 31 || rm == 31)
             return A64_GEN_UNSUPPORTED;
         if (instr->imm_shift < 0 || instr->imm_shift > 4)
             return A64_GEN_UNSUPPORTED;
 
-        ret = emit_gadget(state, gadget_mov_reg[14][rm]);
-        if (ret != A64_GEN_OK)
-            return ret;
+        // Load Rm (second source) if memory-backed
+        if (src2_is_memory) {
+            int load_idx = rm - 16;
+            if (load_idx < 0 || load_idx > 14)
+                return A64_GEN_UNSUPPORTED;
+            ret = emit_gadget(state, gadget_load_xreg_16_to_30[load_idx]);
+            if (ret != A64_GEN_OK)
+                return ret;
+            // Memory-backed register loaded into x14 (index 13)
+        } else {
+            // Load Rm into temp x14 (index 13)
+            ret = emit_gadget(state, gadget_mov_reg[13][rm]);
+            if (ret != A64_GEN_OK)
+                return ret;
+        }
 
+        // Load Rn (first source) if memory-backed
+        if (src1_is_memory) {
+            int load_idx = rn - 16;
+            if (load_idx < 0 || load_idx > 14)
+                return A64_GEN_UNSUPPORTED;
+            ret = emit_gadget(state, gadget_load_xreg_16_to_30[load_idx]);
+            if (ret != A64_GEN_OK)
+                return ret;
+            // Loaded into x14, move to x15 (index 14) for first source
+            ret = emit_gadget(state, gadget_mov_reg[14][13]);
+            if (ret != A64_GEN_OK)
+                return ret;
+        }
+
+        // Apply extension/shift to second source (in x14, index 13)
         switch (instr->extend_type) {
             case A64_EXT_UXTW:
                 ret = emit_gadget(state, gadget_mov_imm[13]);
@@ -714,7 +740,6 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr) {
                 if (ret != A64_GEN_OK)
                     return ret;
                 // Clear x13 to prevent corruption of guest registers
-                // XOR x13 with itself to set it to 0
                 ret = emit_gadget(state, gadget_eor_reg[13][13][13]);
                 if (ret != A64_GEN_OK)
                     return ret;
@@ -722,31 +747,68 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr) {
 
             case A64_EXT_UXTX:
             case A64_EXT_LSL:
+                // LSL requires shift amount applied below
                 break;
 
             default:
                 return A64_GEN_UNSUPPORTED;
         }
 
+        // Apply shift to second source (x14, index 13)
         for (int i = 0; i < instr->imm_shift; i++) {
-            ret = emit_gadget(state, gadget_add_reg[14][14][14]);
+            ret = emit_gadget(state, gadget_add_reg[13][13][13]);
             if (ret != A64_GEN_OK)
                 return ret;
         }
 
+        // Execute ADD/SUB: dest = Rn (+/-) shifted Rm
+        // If Rn was memory-backed, it's in x15 (temp, index 14), otherwise use Rn directly
+        int eff_rn_for_op = src1_is_memory ? 14 : rn;
+        
+        // Result goes to x14 (temp, index 13) if dst is memory-backed or SP, otherwise to Rd
+        int eff_rd_for_op = (dst_is_memory || dst_is_sp) ? 13 : rd;
+
         if (instr->set_flags) {
             if (instr->subtype == 1 && rd == 31) {
-                gadget = gadget_cmp_reg[eff_rn][14];
+                // SUBS with XZR destination is CMP
+                ret = emit_gadget(state, gadget_cmp_reg[eff_rn_for_op][13]);
+                if (ret != A64_GEN_OK)
+                    return ret;
             } else {
-                gadget = (instr->subtype == 1)
-                    ? gadget_subs_reg[eff_rd][eff_rn][14]
-                    : gadget_adds_reg[eff_rd][eff_rn][14];
+                tcti_gadget_t op_gadget = (instr->subtype == 1)
+                    ? gadget_subs_reg[eff_rd_for_op][eff_rn_for_op][13]
+                    : gadget_adds_reg[eff_rd_for_op][eff_rn_for_op][13];
+                ret = emit_gadget(state, op_gadget);
+                if (ret != A64_GEN_OK)
+                    return ret;
             }
         } else {
-            gadget = (instr->subtype == 1)
-                ? gadget_sub_reg[eff_rd][eff_rn][14]
-                : gadget_add_reg[eff_rd][eff_rn][14];
+            tcti_gadget_t op_gadget = (instr->subtype == 1)
+                ? gadget_sub_reg[eff_rd_for_op][eff_rn_for_op][13]
+                : gadget_add_reg[eff_rd_for_op][eff_rn_for_op][13];
+            ret = emit_gadget(state, op_gadget);
+            if (ret != A64_GEN_OK)
+                return ret;
         }
+
+        // Store result if destination is memory-backed
+        if (dst_is_memory) {
+            int store_idx = rd - 16;
+            if (store_idx < 0 || store_idx > 14)
+                return A64_GEN_UNSUPPORTED;
+            ret = emit_gadget(state, gadget_store_xreg_16_to_30[store_idx]);
+            if (ret != A64_GEN_OK)
+                return ret;
+        }
+
+        // Store result if destination is SP
+        if (dst_is_sp) {
+            ret = emit_gadget(state, (tcti_gadget_t)gadget_store_sp);
+            if (ret != A64_GEN_OK)
+                return ret;
+        }
+
+        return A64_GEN_OK;
     } else {
         return A64_GEN_UNSUPPORTED;
     }

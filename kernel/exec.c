@@ -446,25 +446,27 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     // - auxv array (~320 bytes)
     // - platform string, random bytes
     // - alignment padding
-    // Total: ~1-2KB, so 2 pages (8KB) should be sufficient.
-    // Map pages 0xffffd and 0xffffe (addresses 0xffffd000 - 0xffffffff).
-    // Initial SP will be at 0xffffe000, growing down into 0xffffd.
-    if ((err = pt_map_nothing(current->mem, 0xffffd, 2, P_WRITE | P_GROWSDOWN)) < 0)
+    // - musl loader runtime stack usage (can be significant)
+    // Total: ~1-2KB for args, but musl needs 20-40KB for initialization
+    // Use 16 pages (64KB) to be safe.
+    // Map pages 0xffff0-0xfffff (addresses 0xffff0000 - 0xffffffff).
+    // Initial SP will be at 0xffffffff (top of mapped region).
+    if ((err = pt_map_nothing(current->mem, 0xffff0, 16, P_WRITE | P_GROWSDOWN)) < 0)
         goto beyond_hope;
     
     // Map TCB (Thread Control Block) pages for TLS
     // aarch64 musl expects x3 to point to TCB at startup
-    // TCB is placed at pages 0xffffa-0xffffc (0xffffa000 - 0xffffcfff)
-    // These pages are just below the stack pages
+    // TCB is placed just below the stack pages at 0xfffed-0xfffef
+    // These pages are at 0xfffed000-0xfffeffff
     // We need 3 pages (12KB) for TCB + TLS data (musl can use offsets up to ~17KB)
-    if ((err = pt_map_nothing(current->mem, 0xffffa, 3, P_WRITE)) < 0)
+    if ((err = pt_map_nothing(current->mem, 0xfffed, 3, P_WRITE)) < 0)
         goto beyond_hope;
     
     // that was the last memory mapping
     write_wrunlock(&current->mem->lock);
-    // Start SP at 0xffffe000 (top of second mapped page)
-    // Stack will grow down into 0xffffd as data is pushed.
-    addr_t sp = 0xffffe000;
+    // Start SP at 0xffffffff (top of mapped region, aligned to 16 bytes)
+    // Stack grows down into 0xfffff, 0xffffe, 0xffffd as data is pushed.
+    addr_t sp = 0xfffffff0ULL;
     const size_t stack_slot_size = sizeof(addr_t);
     // on 32-bit linux, there's 4 empty bytes at the very bottom of the stack.
     // on 64-bit linux, there's 8. make ptraceomatic happy. (a major theme in this file)
@@ -580,9 +582,9 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     
     // Set up TCB (Thread Control Block) for TLS
     // aarch64 musl expects x3 to point to TCB at startup
-    // We mapped pages 0xffffa-0xffffc (0xffffa000-0xffffcfff) for this purpose
+    // We mapped pages 0xfffed-0xfffef (0xfffed000-0xfffeffff) for this purpose
     // The TCB base should be at the start of the first mapped page
-    addr_t tcb_base = 0xffffa000;  // Start of mapped TCB pages (3 pages = 12KB)
+    addr_t tcb_base = 0xfffed000;  // Start of mapped TCB pages (3 pages = 12KB)
     a64_setup_tls_area(&current->cpu, tcb_base);
     
     current->cpu.x[0] = argv.count;
