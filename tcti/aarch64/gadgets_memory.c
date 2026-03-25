@@ -202,6 +202,17 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
                     (unsigned long long) addr,
                     (unsigned long long) cpu->fault_addr,
                     (unsigned long long) fault_pc);
+            // DIAGNOSTIC: Log all helper arguments
+            printk("[TCTI-LDST] FAULT-ARGS: rt=%llu rn=%llu imm=%lld size=%llu idx_mode=%llu meta=0x%llx\n",
+                    (unsigned long long) rt,
+                    (unsigned long long) rn,
+                    (long long) imm,
+                    (unsigned long long) size,
+                    (unsigned long long) idx_mode,
+                    (unsigned long long) meta);
+            printk("[TCTI-LDST] FAULT-STATE: base=0x%llx addr=0x%llx\n",
+                    (unsigned long long) base,
+                    (unsigned long long) addr);
             cpu->pc = fault_pc;
             cpu->fault_was_write = true;
             return TCTI_EXIT_FAULT;
