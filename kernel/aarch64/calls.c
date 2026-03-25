@@ -166,6 +166,7 @@ const char *a64_syscall_name(int num) {
 // INT_GPF (13)      - General protection fault
 void handle_interrupt(int interrupt) {
     struct cpu_state *cpu = &current->cpu;
+    printk("[HANDLE_INTERRUPT] interrupt=%d (INT_GPF=%d, INT_SYSCALL=%d)\n", interrupt, INT_GPF, INT_SYSCALL);
     
     switch (interrupt) {
         case INT_SYSCALL:
@@ -174,9 +175,53 @@ void handle_interrupt(int interrupt) {
             // The actual syscall dispatch happens in the TCTI exit path
             break;
             
-        case INT_GPF:
-            // General protection fault - deliver SIGILL
-            deliver_signal(current, SIGILL_, (struct siginfo_) {0});
+        case INT_GPF: {
+            addr_t fault_addr = cpu->fault_addr;
+            page_t fault_page = PAGE(fault_addr);
+            
+            printk("[INT_GPF] fault_addr=0x%llx, fault_page=0x%x, was_write=%d\n", 
+                   (unsigned long long)fault_addr, fault_page, cpu->fault_was_write);
+            printk("[INT_GPF] current sp=0x%llx\n", (unsigned long long)cpu->sp);
+            
+            // Check page state before handling
+            read_wrlock(&current->mem->lock);
+            struct pt_entry *entry_before = mem_pt(current->mem, fault_page);
+            printk("[INT_GPF] page 0x%x before: %s\n", fault_page, entry_before ? "mapped" : "NOT mapped");
+            
+            // Check adjacent page (below) for P_GROWSDOWN
+            struct pt_entry *entry_below = mem_pt(current->mem, fault_page + 1);
+            if (entry_below) {
+                printk("[INT_GPF] page 0x%x (below) exists, flags=0x%x P_GROWSDOWN=%d\n",
+                       fault_page + 1, entry_below->flags, !!(entry_below->flags & P_GROWSDOWN));
+            } else {
+                printk("[INT_GPF] page 0x%x (below) does NOT exist\n", fault_page + 1);
+            }
+            
+            read_wrunlock(&current->mem->lock);
+            
+            // Page fault - try to resolve via mem_ptr (handles stack growth, CoW, etc.)
+            read_wrlock(&current->mem->lock);
+            void *ptr = mem_ptr(current->mem, cpu->fault_addr, cpu->fault_was_write ? MEM_WRITE : MEM_READ);
+            read_wrunlock(&current->mem->lock);
+            printk("[INT_GPF] mem_ptr returned ptr=%p for addr=0x%llx\n", ptr, (unsigned long long)cpu->fault_addr);
+            if (ptr == NULL) {
+                // Page fault could not be resolved - deliver SIGSEGV
+                printk("[INT_GPF] mem_ptr returned NULL for addr=0x%llx, delivering SIGSEGV\n", (unsigned long long)cpu->fault_addr);
+                struct siginfo_ info = {
+                    .code = mem_segv_reason(current->mem, cpu->fault_addr),
+                    .fault.addr = cpu->fault_addr,
+                };
+                deliver_signal(current, SIGSEGV_, info);
+            }
+            // If ptr != NULL, page was mapped/grown successfully - execution will retry
+            
+            // Check page state after handling
+            read_wrlock(&current->mem->lock);
+            struct pt_entry *entry_after = mem_pt(current->mem, fault_page);
+            printk("[INT_GPF] page 0x%x after: %s\n", fault_page, entry_after ? "mapped" : "NOT mapped");
+            read_wrunlock(&current->mem->lock);
+            
+            } // close INT_GPF block
             break;
             
         default:

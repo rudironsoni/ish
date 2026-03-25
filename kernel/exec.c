@@ -1,4 +1,5 @@
 #include "kernel/signal.h"
+#include "kernel/memory.h"
 #include "task.h"
 #define _GNU_SOURCE
 #include <unistd.h>
@@ -448,7 +449,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     // Total: ~1-2KB, so 2 pages (8KB) should be sufficient.
     // Map pages 0xffffd and 0xffffe (addresses 0xffffd000 - 0xffffffff).
     // Initial SP will be at 0xffffe000, growing down into 0xffffd.
-    if ((err = pt_map_nothing(current->mem, 0xffffd, 2, P_WRITE)) < 0)
+    if ((err = pt_map_nothing(current->mem, 0xffffd, 2, P_WRITE | P_GROWSDOWN)) < 0)
         goto beyond_hope;
     
     // Map TCB (Thread Control Block) pages for TLS
