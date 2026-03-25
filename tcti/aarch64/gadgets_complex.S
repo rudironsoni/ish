@@ -345,8 +345,13 @@ gadget_nop:
 // B - Unconditional branch
 .global _gadget_b
 gadget_b:
-    // Load target PC and exit
     ldr     x0, [x28], #8           // x0 = target PC
+    ldr     x17, [x28], #8          // x17 = is_link
+    ldr     x18, [x28], #8          // x18 = fallthrough PC
+    cmp     x17, #0
+    b.eq    1f
+    str     x18, [x29, #256]        // cpu->x[30] = return PC
+1:
     str     x0, [x29, #272]         // cpu->pc = target
     mov     x0, #0                  // Normal exit
     b       _tcti_exit_block

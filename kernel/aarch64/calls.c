@@ -16,7 +16,6 @@
 
 // Forward declarations for syscall handlers
 extern syscall_t syscall_table[];
-extern syscall_t syscall_table_a64[A64_SYS_MAX];
 
 // Number of arguments for each syscall (for proper argument marshalling)
 // This mirrors the x86 syscall_arg_count in kernel/calls.c
@@ -59,7 +58,7 @@ void a64_handle_syscall(struct cpu_state *cpu) {
         return;
     }
 
-    syscall_t handler = syscall_table_a64[syscall_num];
+    a64_syscall_t handler = syscall_table_a64[syscall_num];
     int num_args = syscall_arg_count_a64[syscall_num];
 
     // Extract arguments based on count

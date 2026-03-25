@@ -10,6 +10,7 @@
 #include "tcti/aarch64/gen.h"
 #include "tcti/frame.h"
 #include "emu/interrupt.h"
+#include "emu/aarch64/memory.h"
 #include "emu/tlb.h"
 #include "emu/mmu.h"
 #include "kernel/task.h"
@@ -253,12 +254,7 @@ static uint64_t a64_apply_shift(uint64_t value, int shift_type, int amount, bool
  * Run the CPU until interrupted
  * This is the main entry point from the kernel
  */
-// External global for crash diagnostics
-extern struct cpu_state *g_current_cpu;
-
 void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
-    // Set global CPU pointer for crash diagnostics
-    g_current_cpu = cpu;
     printk("[RUN-TRACE] a64_cpu_run entry pc=0x%llx sp=0x%llx tlb=%p\n",
            (unsigned long long) cpu->pc,
            (unsigned long long) cpu->sp,
@@ -422,6 +418,24 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
                    (unsigned long long)cpu->fault_addr,
                    cpu->fault_was_write,
                    (unsigned long long)cpu->sp);
+            printk("[FAULT-DIAG] regs x1=0x%llx x2=0x%llx x3=0x%llx x5=0x%llx x6=0x%llx x7=0x%llx\n",
+                   (unsigned long long)cpu->x[1],
+                   (unsigned long long)cpu->x[2],
+                   (unsigned long long)cpu->x[3],
+                   (unsigned long long)cpu->x[5],
+                   (unsigned long long)cpu->x[6],
+                   (unsigned long long)cpu->x[7]);
+
+            if (cpu->pc == 0xf7fa4720ULL) {
+                uint64_t rel_ptr = 0;
+                uint64_t rel_sz = 0;
+                int rel_ptr_ok = a64_guest_read64(cpu, cpu->tlb, cpu->sp + 0x190, &rel_ptr);
+                int rel_sz_ok = a64_guest_read64(cpu, cpu->tlb, cpu->sp + 0x198, &rel_sz);
+
+                printk("[FAULT-DIAG] rel slots [sp+0x190]=0x%llx (%d) [sp+0x198]=0x%llx (%d)\n",
+                       (unsigned long long) rel_ptr, rel_ptr_ok,
+                       (unsigned long long) rel_sz, rel_sz_ok);
+            }
             
             // Fetch and decode instruction at fault PC
             uint32_t insn;

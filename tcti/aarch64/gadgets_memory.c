@@ -34,7 +34,7 @@ static_assert(PSTATE_OFFSET == 280, "pstate offset check");
 
 #define REG_OFFSET(n) (XREG_OFFSET(n))
 
-static uint64_t tcti_read_reg_or_sp(struct cpu_state *cpu, int reg) {
+static uint64_t tcti_read_base_reg_or_sp(struct cpu_state *cpu, int reg) {
     if (reg == 31)
         return cpu->sp;
     if (reg < 0 || reg > 30)
@@ -42,7 +42,15 @@ static uint64_t tcti_read_reg_or_sp(struct cpu_state *cpu, int reg) {
     return cpu->x[reg];
 }
 
-static void tcti_write_reg_or_sp(struct cpu_state *cpu, int reg, uint64_t value, int is_64bit) {
+static uint64_t tcti_read_reg_or_zr(struct cpu_state *cpu, int reg) {
+    if (reg == 31)
+        return 0;
+    if (reg < 0 || reg > 30)
+        return 0;
+    return cpu->x[reg];
+}
+
+static void tcti_write_base_reg_or_sp(struct cpu_state *cpu, int reg, uint64_t value, int is_64bit) {
     uint64_t masked = is_64bit ? value : (uint32_t) value;
     if (reg == 31) {
         cpu->sp = masked;
@@ -53,8 +61,17 @@ static void tcti_write_reg_or_sp(struct cpu_state *cpu, int reg, uint64_t value,
     cpu->x[reg] = masked;
 }
 
+static void tcti_write_reg_or_zr(struct cpu_state *cpu, int reg, uint64_t value, int is_64bit) {
+    uint64_t masked = is_64bit ? value : (uint32_t) value;
+    if (reg == 31)
+        return;
+    if (reg < 0 || reg > 30)
+        return;
+    cpu->x[reg] = masked;
+}
+
 static uint64_t tcti_extend_ldst_offset(struct cpu_state *cpu, int rm, int extend_type) {
-    uint64_t value = tcti_read_reg_or_sp(cpu, rm);
+    uint64_t value = tcti_read_reg_or_zr(cpu, rm);
 
     switch (extend_type) {
         case A64_EXT_UXTW:
@@ -73,7 +90,7 @@ static uint64_t tcti_extend_ldst_offset(struct cpu_state *cpu, int rm, int exten
 static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64_t rt,
         uint64_t rn, int64_t imm, uint64_t size, uint64_t idx_mode,
         uint64_t meta, uint64_t is_load) {
-    uint64_t base = tcti_read_reg_or_sp(cpu, (int) rn);
+    uint64_t base = tcti_read_base_reg_or_sp(cpu, (int) rn);
     uint64_t addr = base;
     uint64_t raw_offset = 0;
     uint64_t is_signed = meta & 0xff;
@@ -100,7 +117,7 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
 
     if (is_reg_offset) {
         uint64_t offset = tcti_extend_ldst_offset(cpu, rm, extend_type);
-        raw_offset = tcti_read_reg_or_sp(cpu, rm);
+        raw_offset = tcti_read_reg_or_zr(cpu, rm);
         // [DIAGNOSTIC DISABLED] printk("[TCTI-LDST] regoff raw=0x%llx extval=0x%llx\n",
         // [DIAGNOSTIC DISABLED]         (unsigned long long) raw_offset,
         // [DIAGNOSTIC DISABLED]         (unsigned long long) offset);
@@ -174,12 +191,12 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
             return TCTI_EXIT_FAULT;
         }
 
-        tcti_write_reg_or_sp(cpu, (int) rt, value, size == A64_SIZE_X);
+        tcti_write_reg_or_zr(cpu, (int) rt, value, size == A64_SIZE_X);
         // [DIAGNOSTIC DISABLED] printk("[TCTI-LDST] load value=0x%llx -> r%llu\n",
         // [DIAGNOSTIC DISABLED]         (unsigned long long) value,
         // [DIAGNOSTIC DISABLED]         (unsigned long long) rt);
     } else {
-        uint64_t value = tcti_read_reg_or_sp(cpu, (int) rt);
+        uint64_t value = tcti_read_reg_or_zr(cpu, (int) rt);
         int mem_ret;
 
         // [DIAGNOSTIC DISABLED] printk("[TCTI-LDST] store value=0x%llx from r%llu\n",
@@ -210,7 +227,7 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
 
     if (!is_reg_offset && (idx_mode == A64_PRE_INDEX || idx_mode == A64_POST_INDEX)) {
         uint64_t updated = (idx_mode == A64_POST_INDEX) ? (base + imm) : base;
-        tcti_write_reg_or_sp(cpu, (int) rn, updated, true);
+        tcti_write_base_reg_or_sp(cpu, (int) rn, updated, true);
         // [DIAGNOSTIC DISABLED] printk("[TCTI-LDST] writeback rn=%llu value=0x%llx\n",
         // [DIAGNOSTIC DISABLED]         (unsigned long long) rn,
         // [DIAGNOSTIC DISABLED]         (unsigned long long) updated);
@@ -563,15 +580,21 @@ const tcti_gadget_t gadget_bcond[16] = {
 __attribute__((naked)) void gadget_br_impl(void) {
     asm volatile(
         "ldr x0, [x28], #8\n\t"
+        "ldr x26, [x28], #8\n\t"
+        "ldr x17, [x28], #8\n\t"
         "cmp x0, #31\n\t"
         "b.eq 1f\n\t"
-        "add x1, x29, #16\n\t"
-        "lsl x2, x0, #3\n\t"
-        "ldr x0, [x1, x2]\n\t"
+        "add x27, x29, #16\n\t"
+        "lsl x18, x0, #3\n\t"
+        "ldr x0, [x27, x18]\n\t"
         "b 2f\n\t"
         "1:\n\t"
         "ldr x0, [x29, #264]\n\t"
         "2:\n\t"
+        "cmp x26, #0\n\t"
+        "b.eq 3f\n\t"
+        "str x17, [x29, #256]\n\t"
+        "3:\n\t"
         "str x0, [x29, #272]\n\t"
         "mov x0, #0\n\t"
         "b _tcti_exit_block\n\t"
@@ -642,6 +665,73 @@ const tcti_gadget_t gadget_cbnz_reg[16] = {
     gadget_cbnz_reg_4_impl, gadget_cbnz_reg_5_impl, gadget_cbnz_reg_6_impl, gadget_cbnz_reg_7_impl,
     gadget_cbnz_reg_8_impl, gadget_cbnz_reg_9_impl, gadget_cbnz_reg_10_impl, gadget_cbnz_reg_11_impl,
     gadget_cbnz_reg_12_impl, gadget_cbnz_reg_13_impl, gadget_cbnz_reg_14_impl, gadget_cbnz_reg_15_impl,
+};
+
+#define GEN_TBZ_TABLE(kind, mnemonic, hostreg, idx) \
+    __attribute__((naked)) void gadget_##kind##_##idx##_impl(void) { \
+        asm volatile( \
+            "ldr x17, [x28], #8\n\t" \
+            "ldr x18, [x28], #8\n\t" \
+            "ldr x26, [x28], #8\n\t" \
+            "lsr x27, x" #hostreg ", x17\n\t" \
+            "and x27, x27, #1\n\t" \
+            mnemonic " x27, 1f\n\t" \
+            "mov x18, x26\n\t" \
+            "1:\n\t" \
+            "str x18, [x29, %[pc_off]]\n\t" \
+            "mov x0, #0\n\t" \
+            "b _tcti_exit_block\n\t" \
+            : \
+            : [pc_off] "i" (PC_OFFSET) \
+        ); \
+    }
+
+GEN_TBZ_TABLE(tbz_reg, "cbz", 1, 0);
+GEN_TBZ_TABLE(tbz_reg, "cbz", 2, 1);
+GEN_TBZ_TABLE(tbz_reg, "cbz", 3, 2);
+GEN_TBZ_TABLE(tbz_reg, "cbz", 4, 3);
+GEN_TBZ_TABLE(tbz_reg, "cbz", 5, 4);
+GEN_TBZ_TABLE(tbz_reg, "cbz", 6, 5);
+GEN_TBZ_TABLE(tbz_reg, "cbz", 7, 6);
+GEN_TBZ_TABLE(tbz_reg, "cbz", 8, 7);
+GEN_TBZ_TABLE(tbz_reg, "cbz", 9, 8);
+GEN_TBZ_TABLE(tbz_reg, "cbz", 10, 9);
+GEN_TBZ_TABLE(tbz_reg, "cbz", 11, 10);
+GEN_TBZ_TABLE(tbz_reg, "cbz", 12, 11);
+GEN_TBZ_TABLE(tbz_reg, "cbz", 13, 12);
+GEN_TBZ_TABLE(tbz_reg, "cbz", 14, 13);
+GEN_TBZ_TABLE(tbz_reg, "cbz", 15, 14);
+GEN_TBZ_TABLE(tbz_reg, "cbz", 16, 15);
+
+GEN_TBZ_TABLE(tbnz_reg, "cbnz", 1, 0);
+GEN_TBZ_TABLE(tbnz_reg, "cbnz", 2, 1);
+GEN_TBZ_TABLE(tbnz_reg, "cbnz", 3, 2);
+GEN_TBZ_TABLE(tbnz_reg, "cbnz", 4, 3);
+GEN_TBZ_TABLE(tbnz_reg, "cbnz", 5, 4);
+GEN_TBZ_TABLE(tbnz_reg, "cbnz", 6, 5);
+GEN_TBZ_TABLE(tbnz_reg, "cbnz", 7, 6);
+GEN_TBZ_TABLE(tbnz_reg, "cbnz", 8, 7);
+GEN_TBZ_TABLE(tbnz_reg, "cbnz", 9, 8);
+GEN_TBZ_TABLE(tbnz_reg, "cbnz", 10, 9);
+GEN_TBZ_TABLE(tbnz_reg, "cbnz", 11, 10);
+GEN_TBZ_TABLE(tbnz_reg, "cbnz", 12, 11);
+GEN_TBZ_TABLE(tbnz_reg, "cbnz", 13, 12);
+GEN_TBZ_TABLE(tbnz_reg, "cbnz", 14, 13);
+GEN_TBZ_TABLE(tbnz_reg, "cbnz", 15, 14);
+GEN_TBZ_TABLE(tbnz_reg, "cbnz", 16, 15);
+
+const tcti_gadget_t gadget_tbz_reg[16] = {
+    gadget_tbz_reg_0_impl, gadget_tbz_reg_1_impl, gadget_tbz_reg_2_impl, gadget_tbz_reg_3_impl,
+    gadget_tbz_reg_4_impl, gadget_tbz_reg_5_impl, gadget_tbz_reg_6_impl, gadget_tbz_reg_7_impl,
+    gadget_tbz_reg_8_impl, gadget_tbz_reg_9_impl, gadget_tbz_reg_10_impl, gadget_tbz_reg_11_impl,
+    gadget_tbz_reg_12_impl, gadget_tbz_reg_13_impl, gadget_tbz_reg_14_impl, gadget_tbz_reg_15_impl,
+};
+
+const tcti_gadget_t gadget_tbnz_reg[16] = {
+    gadget_tbnz_reg_0_impl, gadget_tbnz_reg_1_impl, gadget_tbnz_reg_2_impl, gadget_tbnz_reg_3_impl,
+    gadget_tbnz_reg_4_impl, gadget_tbnz_reg_5_impl, gadget_tbnz_reg_6_impl, gadget_tbnz_reg_7_impl,
+    gadget_tbnz_reg_8_impl, gadget_tbnz_reg_9_impl, gadget_tbnz_reg_10_impl, gadget_tbnz_reg_11_impl,
+    gadget_tbnz_reg_12_impl, gadget_tbnz_reg_13_impl, gadget_tbnz_reg_14_impl, gadget_tbnz_reg_15_impl,
 };
 
 __attribute__((naked)) void gadget_sbfm_impl(void) {
@@ -1012,8 +1102,8 @@ __attribute__((naked)) void gadget_ldr_x_impl(void) {
         "b.ne 95f\n\t"               // Branch to align counter
         
         // Check cross-page: (addr & 0xFFF) <= 0xFF8
-        "and x13, x17, #0xFFF\n\t"
-        "cmp x13, #0xFF8\n\t"
+        "and x0, x17, #0xFFF\n\t"
+        "cmp x0, #0xFF8\n\t"
         "b.hi 96f\n\t"               // Branch to crosspg counter
         
         // Inline TLB lookup
@@ -1026,15 +1116,15 @@ __attribute__((naked)) void gadget_ldr_x_impl(void) {
         // TLB index: ((addr >> 12) & 1023) ^ (addr >> 22)
         "lsr x27, x17, #12\n\t"
         "and x27, x27, #1023\n\t"
-        "lsr x13, x17, #22\n\t"
-        "eor x27, x27, x13\n\t"
+        "lsr x0, x17, #22\n\t"
+        "eor x27, x27, x0\n\t"
         
         // Load tlb entry at &entries[index]
         // entries is at offset 32 in struct tlb (64-bit page fields)
-        "add x13, x26, #32\n\t"      // x13 = &tlb->entries[0]
-        "mov x14, #24\n\t"           // x14 = sizeof(tlb_entry)
-        "madd x13, x27, x14, x13\n\t" // x13 = &tlb->entries[index] (x13 + x27*24)
-        "ldr x27, [x13]\n\t"          // x27 = entry.page
+        "add x0, x26, #32\n\t"       // x0 = &tlb->entries[0]
+        "mov x18, #24\n\t"           // x18 = sizeof(tlb_entry)
+        "madd x0, x27, x18, x0\n\t"  // x0 = &tlb->entries[index] (x0 + x27*24)
+        "ldr x27, [x0]\n\t"          // x27 = entry.page
         
         // Compare page (clear lower 12 bits via shift)
         "lsr x26, x17, #12\n\t"      // x26 = addr >> 12
@@ -1044,9 +1134,9 @@ __attribute__((naked)) void gadget_ldr_x_impl(void) {
         
         // Compute host address and load
         // data_minus_addr is at offset 16 in tlb_entry (after two 8-byte page fields)
-        "ldr x27, [x13, #16]\n\t"     // x27 = entry.data_minus_addr
+        "ldr x27, [x0, #16]\n\t"     // x27 = entry.data_minus_addr
         "add x17, x27, x17\n\t"       // x17 = host address
-        "ldr x13, [x17]\n\t"          // x13 = loaded value
+        "ldr x18, [x17]\n\t"         // x18 = loaded value
         
         // Store to hot destination register using computed goto
         // x20 still holds original Rt (0-15)
@@ -1062,22 +1152,22 @@ __attribute__((naked)) void gadget_ldr_x_impl(void) {
         "b 142f\n\t" "b 143f\n\t" "b 144f\n\t" "b 145f\n\t"
         
         // Store to destination register
-        "130:\n\tmov x1, x13\n\tb 150f\n\t"
-        "131:\n\tmov x2, x13\n\tb 150f\n\t"
-        "132:\n\tmov x3, x13\n\tb 150f\n\t"
-        "133:\n\tmov x4, x13\n\tb 150f\n\t"
-        "134:\n\tmov x5, x13\n\tb 150f\n\t"
-        "135:\n\tmov x6, x13\n\tb 150f\n\t"
-        "136:\n\tmov x7, x13\n\tb 150f\n\t"
-        "137:\n\tmov x8, x13\n\tb 150f\n\t"
-        "138:\n\tmov x9, x13\n\tb 150f\n\t"
-        "139:\n\tmov x10, x13\n\tb 150f\n\t"
-        "140:\n\tmov x11, x13\n\tb 150f\n\t"
-        "141:\n\tmov x12, x13\n\tb 150f\n\t"
-        "142:\n\tmov x13, x13\n\tb 150f\n\t"
-        "143:\n\tmov x14, x13\n\tb 150f\n\t"
-        "144:\n\tmov x15, x13\n\tb 150f\n\t"
-        "145:\n\tmov x16, x13\n\tb 150f\n\t"
+        "130:\n\tmov x1, x18\n\tb 150f\n\t"
+        "131:\n\tmov x2, x18\n\tb 150f\n\t"
+        "132:\n\tmov x3, x18\n\tb 150f\n\t"
+        "133:\n\tmov x4, x18\n\tb 150f\n\t"
+        "134:\n\tmov x5, x18\n\tb 150f\n\t"
+        "135:\n\tmov x6, x18\n\tb 150f\n\t"
+        "136:\n\tmov x7, x18\n\tb 150f\n\t"
+        "137:\n\tmov x8, x18\n\tb 150f\n\t"
+        "138:\n\tmov x9, x18\n\tb 150f\n\t"
+        "139:\n\tmov x10, x18\n\tb 150f\n\t"
+        "140:\n\tmov x11, x18\n\tb 150f\n\t"
+        "141:\n\tmov x12, x18\n\tb 150f\n\t"
+        "142:\n\tmov x13, x18\n\tb 150f\n\t"
+        "143:\n\tmov x14, x18\n\tb 150f\n\t"
+        "144:\n\tmov x15, x18\n\tb 150f\n\t"
+        "145:\n\tmov x16, x18\n\tb 150f\n\t"
         
         // Fast path complete - increment counter and advance to next gadget
         "150:\n\t"
@@ -1186,7 +1276,7 @@ __attribute__((naked)) void gadget_ldr_x_impl(void) {
           [ldr_fallback_crosspg_off] "i" (STAT_LDR_FALLBACK_CROSSPG_OFFSET),
           [ldr_fallback_tlbmiss_off] "i" (STAT_LDR_FALLBACK_TLBMISS_OFFSET),
           [ldr_fallback_notlb_off] "i" (STAT_LDR_FALLBACK_NOTLB_OFFSET)
-        : "x13", "x26", "x27", "memory"
+        : "x0", "x18", "x26", "x27", "memory"
     );
 }
 
@@ -1270,8 +1360,8 @@ __attribute__((naked)) void gadget_str_x_impl(void) {
         "b.ne 95f\n\t"               // Branch to align counter
 
         // Check cross-page: (addr & 0xFFF) <= 0xFF8
-        "and x13, x17, #0xFFF\n\t"
-        "cmp x13, #0xFF8\n\t"
+        "and x0, x17, #0xFFF\n\t"
+        "cmp x0, #0xFF8\n\t"
         "b.hi 96f\n\t"               // Branch to crosspg counter
 
         // Get source register value (Rt, hot, in x1-x16) using computed goto
@@ -1299,30 +1389,30 @@ __attribute__((naked)) void gadget_str_x_impl(void) {
         "b 144f\n\t"                   // Rt=14 -> load from x15
         "b 145f\n\t"                   // Rt=15 -> load from x16
 
-        // Load source register value into x13
-        "130:\n\tmov x13, x1\n\tb 150f\n\t"
-        "131:\n\tmov x13, x2\n\tb 150f\n\t"
-        "132:\n\tmov x13, x3\n\tb 150f\n\t"
-        "133:\n\tmov x13, x4\n\tb 150f\n\t"
-        "134:\n\tmov x13, x5\n\tb 150f\n\t"
-        "135:\n\tmov x13, x6\n\tb 150f\n\t"
-        "136:\n\tmov x13, x7\n\tb 150f\n\t"
-        "137:\n\tmov x13, x8\n\tb 150f\n\t"
-        "138:\n\tmov x13, x9\n\tb 150f\n\t"
-        "139:\n\tmov x13, x10\n\tb 150f\n\t"
-        "140:\n\tmov x13, x11\n\tb 150f\n\t"
-        "141:\n\tmov x13, x12\n\tb 150f\n\t"
-        "142:\n\tmov x13, x13\n\tb 150f\n\t"
-        "143:\n\tmov x13, x14\n\tb 150f\n\t"
-        "144:\n\tmov x13, x15\n\tb 150f\n\t"
-        "145:\n\tmov x13, x16\n\tb 150f\n\t"
+        // Load source register value into x18
+        "130:\n\tmov x18, x1\n\tb 150f\n\t"
+        "131:\n\tmov x18, x2\n\tb 150f\n\t"
+        "132:\n\tmov x18, x3\n\tb 150f\n\t"
+        "133:\n\tmov x18, x4\n\tb 150f\n\t"
+        "134:\n\tmov x18, x5\n\tb 150f\n\t"
+        "135:\n\tmov x18, x6\n\tb 150f\n\t"
+        "136:\n\tmov x18, x7\n\tb 150f\n\t"
+        "137:\n\tmov x18, x8\n\tb 150f\n\t"
+        "138:\n\tmov x18, x9\n\tb 150f\n\t"
+        "139:\n\tmov x18, x10\n\tb 150f\n\t"
+        "140:\n\tmov x18, x11\n\tb 150f\n\t"
+        "141:\n\tmov x18, x12\n\tb 150f\n\t"
+        "142:\n\tmov x18, x13\n\tb 150f\n\t"
+        "143:\n\tmov x18, x14\n\tb 150f\n\t"
+        "144:\n\tmov x18, x15\n\tb 150f\n\t"
+        "145:\n\tmov x18, x16\n\tb 150f\n\t"
 
         // Continue after source register load
         "150:\n\t"
 
         // Inline TLB lookup
         // CRITICAL: x20 contains original Rt - do NOT clobber it
-        // Use x14 (scratch) instead of x20 for TLB operations
+        // Use x0 as scratch for TLB operations to avoid clobbering hot guest regs
 
         "ldr x26, [x29, #344]\n\t"   // x26 = cpu->tlb
         "cbz x26, 98f\n\t"           // Branch to notlb counter
@@ -1330,15 +1420,15 @@ __attribute__((naked)) void gadget_str_x_impl(void) {
         // TLB index: ((addr >> 12) & 1023) ^ (addr >> 22)
         "lsr x27, x17, #12\n\t"
         "and x27, x27, #1023\n\t"
-        "lsr x14, x17, #22\n\t"       // Use x14 instead of x20
-        "eor x27, x27, x14\n\t"
+        "lsr x0, x17, #22\n\t"
+        "eor x27, x27, x0\n\t"
 
         // Load tlb entry at &entries[index]
         // entries is at offset 32 in struct tlb (64-bit page fields)
-        "add x14, x26, #32\n\t"       // x14 = &tlb->entries[0]
-        "mov x15, #24\n\t"            // x15 = sizeof(tlb_entry)
-        "madd x14, x27, x15, x14\n\t" // x14 = &tlb->entries[index] (x14 + x27*24)
-        "ldr x27, [x14]\n\t"          // x27 = entry.page
+        "add x0, x26, #32\n\t"       // x0 = &tlb->entries[0]
+        "mov x26, #24\n\t"           // x26 = sizeof(tlb_entry)
+        "madd x0, x27, x26, x0\n\t"  // x0 = &tlb->entries[index] (x0 + x27*24)
+        "ldr x27, [x0]\n\t"          // x27 = entry.page
 
         // Compare page (clear lower 12 bits via shift)
         "lsr x26, x17, #12\n\t"      // x26 = addr >> 12
@@ -1348,9 +1438,9 @@ __attribute__((naked)) void gadget_str_x_impl(void) {
 
         // Compute host address and store
         // data_minus_addr is at offset 16 in tlb_entry
-        "ldr x27, [x14, #16]\n\t"     // x27 = entry.data_minus_addr
+        "ldr x27, [x0, #16]\n\t"     // x27 = entry.data_minus_addr
         "add x17, x27, x17\n\t"       // x17 = host address
-        "str x13, [x17]\n\t"          // store value from x13
+        "str x18, [x17]\n\t"         // store value from x18
 
         // Fast path complete - increment counter and advance to next gadget
         "ldr x26, [x29, %[str_fast_hits_off]]\n\t"
@@ -1458,7 +1548,7 @@ __attribute__((naked)) void gadget_str_x_impl(void) {
           [str_fallback_crosspg_off] "i" (STAT_STR_FALLBACK_CROSSPG_OFFSET),
           [str_fallback_tlbmiss_off] "i" (STAT_STR_FALLBACK_TLBMISS_OFFSET),
           [str_fallback_notlb_off] "i" (STAT_STR_FALLBACK_NOTLB_OFFSET)
-        : "x13", "x26", "x27", "memory"
+        : "x0", "x18", "x26", "x27", "memory"
     );
 }
 

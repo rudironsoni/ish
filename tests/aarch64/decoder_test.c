@@ -115,6 +115,13 @@ static uint32_t encode_cbz(int rt, int32_t imm19, int sf, int nz) {
            (((imm19 >> 2) & 0x7FFFF) << 5) | (rt & 0x1F);
 }
 
+static uint32_t encode_tbz(int rt, int bit_pos, int32_t imm14, int nz) {
+    // TBZ/TBNZ: b5|0|1|1|0|1|1|op|b40<<19|imm14<<5|Rt
+    return (((bit_pos >> 5) & 1) << 31) | (0x36 << 24) | (((nz & 1) << 24)) |
+           (((bit_pos & 0x1F) << 19)) | (((imm14 >> 2) & 0x3FFF) << 5) |
+           (rt & 0x1F);
+}
+
 static uint32_t encode_bl(int32_t imm26) {
     // BL: 1|0|0|1|0|1|imm26
     return (0x5 << 26) | 0x1 | ((imm26 >> 2) & 0x3FFFFFF);
@@ -434,6 +441,34 @@ TEST(compare_branch_nonzero) {
     ASSERT_EQ(instr.is_64bit, 0);
 }
 
+TEST(test_branch_zero_negative_offset) {
+    a64_instr_t instr;
+
+    // TBZ w1, #0, .-0xc
+    uint32_t insn = encode_tbz(1, 0, -12, 0);
+    ASSERT_EQ(a64_decode(insn, &instr), 0);
+    ASSERT_EQ(instr.cat, A64_BRANCH);
+    ASSERT_EQ(instr.subtype, A64_BRANCH_TEST);
+    ASSERT_EQ(instr.Rd, 1);
+    ASSERT_EQ(instr.op, 0);
+    ASSERT_EQ(instr.imm, -12);
+    ASSERT_EQ(instr.imm_shift, 0);
+}
+
+TEST(test_branch_nonzero_negative_offset) {
+    a64_instr_t instr;
+
+    // TBNZ w1, #0, .-0x34
+    uint32_t insn = encode_tbz(1, 0, -52, 1);
+    ASSERT_EQ(a64_decode(insn, &instr), 0);
+    ASSERT_EQ(instr.cat, A64_BRANCH);
+    ASSERT_EQ(instr.subtype, A64_BRANCH_TEST);
+    ASSERT_EQ(instr.Rd, 1);
+    ASSERT_EQ(instr.op, 1);
+    ASSERT_EQ(instr.imm, -52);
+    ASSERT_EQ(instr.imm_shift, 0);
+}
+
 /* ============================================================================
  * Load/Store Tests
  * ============================================================================ */
@@ -705,6 +740,8 @@ int main(void) {
     printf("\nCompare and Branch:\n");
     RUN_TEST(compare_branch_zero);
     RUN_TEST(compare_branch_nonzero);
+    RUN_TEST(test_branch_zero_negative_offset);
+    RUN_TEST(test_branch_nonzero_negative_offset);
 
     printf("\nLoad/Store:\n");
     RUN_TEST(load_immediate);

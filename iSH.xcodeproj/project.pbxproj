@@ -986,25 +986,19 @@
 		};
 		BB0B848D2586A4B100208600 /* Configs */ = {
 			isa = PBXGroup;
-			children = (
-				BB0B86CD2586FD8800208600 /* App.xcconfig */,
-				BBEF192C26806546001225BD /* AppLib.xcconfig */,
-				493B378F290F5320000C41ED /* CLI.xcconfig */,
-				BB0B86D52587009D00208600 /* iOS.xcconfig */,
-				BBEF19BA26806D7E001225BD /* Linux.xcconfig */,
-				BB21A18C268951CA00BD19B4 /* NotLinux.xcconfig */,
-				BB0B85AD2586F3EB00208600 /* Project.xcconfig */,
-				BB0B85A42586F1CB00208600 /* ProjectDebug.xcconfig */,
-				BB28C7532689522C00BDC834 /* ProjectDebugLinux.xcconfig */,
-				BB0B85A52586F1E100208600 /* ProjectRelease.xcconfig */,
-				BB28C7522689522700BDC834 /* ProjectReleaseLinux.xcconfig */,
-				BBFB2CDA259028DC00545EAB /* StaticLib.xcconfig */,
-				BBECF3BA2691379100DEC937 /* StaticLibLinux.xcconfig */,
-				BBBDDF902CE00F8D0071F1F3 /* StaticLibLinuxUser.xcconfig */,
-				BB0B859B2586F13200208600 /* XcodeDebug.xcconfig */,
-				BB0B848E2586A4CF00208600 /* XcodeDefault.xcconfig */,
-				BB0B859C2586F19000208600 /* XcodeRelease.xcconfig */,
-			);
+				children = (
+					BB0B86CD2586FD8800208600 /* App.xcconfig */,
+					BBEF192C26806546001225BD /* AppLib.xcconfig */,
+					BB0B86D52587009D00208600 /* iOS.xcconfig */,
+					BB21A18C268951CA00BD19B4 /* NotLinux.xcconfig */,
+					BB0B85AD2586F3EB00208600 /* Project.xcconfig */,
+					BB0B85A42586F1CB00208600 /* ProjectDebug.xcconfig */,
+					BB0B85A52586F1E100208600 /* ProjectRelease.xcconfig */,
+					BBFB2CDA259028DC00545EAB /* StaticLib.xcconfig */,
+					BB0B859B2586F13200208600 /* XcodeDebug.xcconfig */,
+					BB0B848E2586A4CF00208600 /* XcodeDefault.xcconfig */,
+					BB0B859C2586F19000208600 /* XcodeRelease.xcconfig */,
+				);
 			name = Configs;
 			sourceTree = "<group>";
 		};
@@ -1157,18 +1151,12 @@
 				BB88F4902154760800A341FD /* iSHFileProvider.appex */,
 				BB13F7DC200AD81D003D1C4D /* libish.a */,
 				BBFB2C5B2590257E00545EAB /* libish_emu.a */,
-				BB41591C255EF9E300E0950C /* iSHUITests.xctest */,
-				497F6D47254E605F00C82F46 /* ish */,
-				497F6CE4254E5E4C00C82F46 /* MakeXcodeAutoCompleteWork */,
-				BBEF191E26806364001225BD /* libiSHApp.a */,
-				BBEF199C268066D1001225BD /* iSH.app */,
-				BB21A16F2689041500BD19B4 /* libfakefs.a */,
-				BBECF3A22691314C00DEC937 /* libiSHLinux.a */,
-				BBECF3B8269136E100DEC937 /* liblinux.a */,
-				BBBDDF8F2CE00F6B0071F1F3 /* libiSHLinuxUser.a */,
-				7882A9DC19971C96ACFE8C05 /* UnitTests */,
-				51EE7CB82B4A49273EDF971F /* UnitTests */,
-				133404CCF116445C1DCF9BE3 /* UnitTests.xctest */,
+					BB41591C255EF9E300E0950C /* iSHUITests.xctest */,
+					BBEF191E26806364001225BD /* libiSHApp.a */,
+					BB21A16F2689041500BD19B4 /* libfakefs.a */,
+					7882A9DC19971C96ACFE8C05 /* UnitTests */,
+					51EE7CB82B4A49273EDF971F /* UnitTests */,
+					133404CCF116445C1DCF9BE3 /* UnitTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -1557,39 +1545,6 @@
 			productReference = 133404CCF116445C1DCF9BE3 /* UnitTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		497F6CE3254E5E4C00C82F46 /* MakeXcodeAutoCompleteWork */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 497F6CEA254E5E4C00C82F46 /* Build configuration list for PBXNativeTarget "MakeXcodeAutoCompleteWork" */;
-			buildPhases = (
-				497F6CE0254E5E4C00C82F46 /* Sources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = MakeXcodeAutoCompleteWork;
-			productName = MakeXcodeAutoCompleteWork;
-			productReference = 497F6CE4254E5E4C00C82F46 /* MakeXcodeAutoCompleteWork */;
-			productType = "com.apple.product-type.tool";
-		};
-		497F6D46254E605F00C82F46 /* ish */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 497F6D4B254E605F00C82F46 /* Build configuration list for PBXNativeTarget "ish" */;
-			buildPhases = (
-				497F6D43254E605F00C82F46 /* Sources */,
-				497F6D44254E605F00C82F46 /* Frameworks */,
-				497F6D45254E605F00C82F46 /* CopyFiles */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				497F6D5B254E609000C82F46 /* PBXTargetDependency */,
-			);
-			name = ish;
-			productName = ish;
-			productReference = 497F6D47254E605F00C82F46 /* ish */;
-			productType = "com.apple.product-type.tool";
-		};
 		BB13F7DB200AD81D003D1C4D /* libish */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = BB13F7E2200AD81E003D1C4D /* Build configuration list for PBXNativeTarget "libish" */;
@@ -1644,6 +1599,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = BB792B661F96D90D00FFB7A4 /* Build configuration list for PBXNativeTarget "iSH" */;
 			buildPhases = (
+				BBAA64A025032500A640001 /* Generate AArch64 TCTI Gadgets */,
 				BB21A17826890A5B00BD19B4 /* Sources */,
 				BB792B4D1F96D90D00FFB7A4 /* Frameworks */,
 				BBF1248B1FA7BF530088FB50 /* Download Root */,
@@ -1684,54 +1640,6 @@
 			productReference = BB88F4902154760800A341FD /* iSHFileProvider.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
-		BBBDDF802CE00F6A0071F1F3 /* libiSHLinuxUser */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = BBBDDF8A2CE00F6A0071F1F3 /* Build configuration list for PBXNativeTarget "libiSHLinuxUser" */;
-			buildPhases = (
-				BBBDDF832CE00F6A0071F1F3 /* Sources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				BBBDDF812CE00F6A0071F1F3 /* PBXTargetDependency */,
-			);
-			name = libiSHLinuxUser;
-			productName = iSHLinux;
-			productReference = BBBDDF8F2CE00F6B0071F1F3 /* libiSHLinuxUser.a */;
-			productType = "com.apple.product-type.library.static";
-		};
-		BBECF3A12691314C00DEC937 /* libiSHLinux */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = BBECF3A82691314C00DEC937 /* Build configuration list for PBXNativeTarget "libiSHLinux" */;
-			buildPhases = (
-				BBECF39E2691314C00DEC937 /* Sources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				BBECF3BE2691417C00DEC937 /* PBXTargetDependency */,
-			);
-			name = libiSHLinux;
-			productName = iSHLinux;
-			productReference = BBECF3A22691314C00DEC937 /* libiSHLinux.a */;
-			productType = "com.apple.product-type.library.static";
-		};
-		BBECF3AF269136E100DEC937 /* liblinux */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = BBECF3B3269136E100DEC937 /* Build configuration list for PBXNativeTarget "liblinux" */;
-			buildPhases = (
-				BBECF3B2269136E100DEC937 /* ShellScript */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				BBECF3B0269136E100DEC937 /* PBXTargetDependency */,
-			);
-			name = liblinux;
-			productName = libish;
-			productReference = BBECF3B8269136E100DEC937 /* liblinux.a */;
-			productType = "com.apple.product-type.library.static";
-		};
 		BBEF191D26806364001225BD /* libiSHApp */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = BBEF192626806364001225BD /* Build configuration list for PBXNativeTarget "libiSHApp" */;
@@ -1747,30 +1655,6 @@
 			productName = libiSH;
 			productReference = BBEF191E26806364001225BD /* libiSHApp.a */;
 			productType = "com.apple.product-type.library.static";
-		};
-		BBEF1964268066D1001225BD /* iSH+Linux */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = BBEF1999268066D1001225BD /* Build configuration list for PBXNativeTarget "iSH+Linux" */;
-			buildPhases = (
-				BB21A1722689084800BD19B4 /* Sources */,
-				BBEF196F268066D1001225BD /* Frameworks */,
-				BBEF1979268066D1001225BD /* Download Root */,
-				BBEF197A268066D1001225BD /* Generate APK Repositories File */,
-				BBEF197B268066D1001225BD /* Compile JavaScript */,
-				BBEF197C268066D1001225BD /* Resources */,
-				BBEF1997268066D1001225BD /* Embed Foundation Extensions */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				BBEF1965268066D1001225BD /* PBXTargetDependency */,
-				BBEF1967268066D1001225BD /* PBXTargetDependency */,
-				BBEF1969268066D1001225BD /* PBXTargetDependency */,
-			);
-			name = "iSH+Linux";
-			productName = iSH;
-			productReference = BBEF199C268066D1001225BD /* iSH.app */;
-			productType = "com.apple.product-type.application";
 		};
 		BBFB2C542590257E00545EAB /* libish_emu */ = {
 			isa = PBXNativeTarget;
@@ -1800,13 +1684,6 @@
 				TargetAttributes = {
 					489181476DFFBEDBB5881EA3 = {
 						CreatedOnToolsVersion = 14.0;
-						ProvisioningStyle = Automatic;
-					};
-					497F6CE3254E5E4C00C82F46 = {
-						CreatedOnToolsVersion = 12.2;
-					};
-					497F6D46254E605F00C82F46 = {
-						CreatedOnToolsVersion = 12.2;
 						ProvisioningStyle = Automatic;
 					};
 					BB13F7CA200ACC31003D1C4D = {
@@ -1849,9 +1726,6 @@
 							};
 						};
 					};
-					BBECF3A12691314C00DEC937 = {
-						CreatedOnToolsVersion = 13.0;
-					};
 					BBEF191D26806364001225BD = {
 						CreatedOnToolsVersion = 13.0;
 					};
@@ -1875,25 +1749,19 @@
 				},
 			);
 			projectRoot = "";
-			targets = (
-				BB792B4F1F96D90D00FFB7A4 /* iSH */,
-				BBEF191D26806364001225BD /* libiSHApp */,
-				BBEF1964268066D1001225BD /* iSH+Linux */,
-				BBECF3A12691314C00DEC937 /* libiSHLinux */,
-				BBBDDF802CE00F6A0071F1F3 /* libiSHLinuxUser */,
-				BB88F48F2154760800A341FD /* iSHFileProvider */,
-				BB41591B255EF9E300E0950C /* iSHUITests */,
-				BB13F7CA200ACC31003D1C4D /* Meson */,
-				BB13F7D0200ACCA2003D1C4D /* Ninja */,
-				BB13F7DB200AD81D003D1C4D /* libish */,
-				BB21A1662689041500BD19B4 /* libfakefs */,
-				BBFB2C542590257E00545EAB /* libish_emu */,
-				BBECF3AF269136E100DEC937 /* liblinux */,
-				BB4A922324ED9402002F5A96 /* iSH pre */,
-				497F6CE3254E5E4C00C82F46 /* MakeXcodeAutoCompleteWork */,
-				497F6D46254E605F00C82F46 /* ish */,
-				489181476DFFBEDBB5881EA3 /* UnitTests */,
-			);
+				targets = (
+					BB792B4F1F96D90D00FFB7A4 /* iSH */,
+					BBEF191D26806364001225BD /* libiSHApp */,
+					BB88F48F2154760800A341FD /* iSHFileProvider */,
+					BB41591B255EF9E300E0950C /* iSHUITests */,
+					BB13F7CA200ACC31003D1C4D /* Meson */,
+					BB13F7D0200ACCA2003D1C4D /* Ninja */,
+					BB13F7DB200AD81D003D1C4D /* libish */,
+					BB21A1662689041500BD19B4 /* libfakefs */,
+					BBFB2C542590257E00545EAB /* libish_emu */,
+					BB4A922324ED9402002F5A96 /* iSH pre */,
+					489181476DFFBEDBB5881EA3 /* UnitTests */,
+				);
 		};
 /* End PBXProject section */
 
@@ -2063,6 +1931,24 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "mkdir -p \"$CONFIGURATION_BUILD_DIR\"\nln -sf \"$MESON_BUILD_DIR/$PRODUCT_NAME.a\" \"$CONFIGURATION_BUILD_DIR\"\n";
+		};
+		BBAA64A025032500A640001 /* Generate AArch64 TCTI Gadgets */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/tcti/aarch64/tcti-gadget-gen.py",
+			);
+			name = "Generate AArch64 TCTI Gadgets";
+			outputPaths = (
+				"$(SRCROOT)/tcti/aarch64/gadgets_tcti.h",
+				"$(SRCROOT)/tcti/aarch64/gadgets_tcti_impl.c",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = "/bin/sh -e";
+			shellScript = "python3 \"$SRCROOT/tcti/aarch64/tcti-gadget-gen.py\" -o \"$SRCROOT/tcti/aarch64\" --generator-hash \"$SRCROOT/tcti/aarch64/tcti-gadget-gen.py\"\n";
+			showEnvVarsInLog = 0;
 		};
 		BB4A53AC1FAA49CA00A72ACE /* Compile JavaScript */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -2435,11 +2321,6 @@
 			target = BBEF191D26806364001225BD /* libiSHApp */;
 			targetProxy = CFE894FEFF46CB2EDF2322D0 /* PBXContainerItemProxy */;
 		};
-		497F6D5B254E609000C82F46 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = BB13F7DB200AD81D003D1C4D /* libish */;
-			targetProxy = 497F6D5A254E609000C82F46 /* PBXContainerItemProxy */;
-		};
 		BB10E5CB248DBAB7009C7A74 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = libarchive;
@@ -2480,40 +2361,15 @@
 			target = BB88F48F2154760800A341FD /* iSHFileProvider */;
 			targetProxy = BB88F49D2154760800A341FD /* PBXContainerItemProxy */;
 		};
-		BBBDDF812CE00F6A0071F1F3 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = BBECF3AF269136E100DEC937 /* liblinux */;
-			targetProxy = BBBDDF822CE00F6A0071F1F3 /* PBXContainerItemProxy */;
-		};
 		BBECF3B0269136E100DEC937 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = BB13F7D0200ACCA2003D1C4D /* Ninja */;
 			targetProxy = BBECF3B1269136E100DEC937 /* PBXContainerItemProxy */;
 		};
-		BBECF3BE2691417C00DEC937 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = BBECF3AF269136E100DEC937 /* liblinux */;
-			targetProxy = BBECF3BD2691417C00DEC937 /* PBXContainerItemProxy */;
-		};
 		BBEF1929268063FD001225BD /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = BBEF191D26806364001225BD /* libiSHApp */;
 			targetProxy = BBEF1928268063FD001225BD /* PBXContainerItemProxy */;
-		};
-		BBEF1965268066D1001225BD /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = BB4A922324ED9402002F5A96 /* iSH pre */;
-			targetProxy = BBEF1966268066D1001225BD /* PBXContainerItemProxy */;
-		};
-		BBEF1967268066D1001225BD /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = BBEF191D26806364001225BD /* libiSHApp */;
-			targetProxy = BBEF1968268066D1001225BD /* PBXContainerItemProxy */;
-		};
-		BBEF1969268066D1001225BD /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			name = libarchive;
-			targetProxy = BBEF196A268066D1001225BD /* PBXContainerItemProxy */;
 		};
 		BBFB2C552590257E00545EAB /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -2562,7 +2418,7 @@
 					"$(SRCROOT)",
 				);
 				INFOPLIST_FILE = app/UITests/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -2639,7 +2495,7 @@
 					"$(SRCROOT)",
 				);
 				INFOPLIST_FILE = app/UITests/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -3513,7 +3369,7 @@
 					"$(SRCROOT)",
 				);
 				INFOPLIST_FILE = app/UITests/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -3543,7 +3399,7 @@
 					"$(SRCROOT)",
 				);
 				INFOPLIST_FILE = tests/Unit/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -3565,8 +3421,6 @@
 			buildConfigurations = (
 				85BD6E6DE42DC34427C38D2D /* Release */,
 				E98FE87541829626A17AF213 /* Debug */,
-				E2BFC2D610444EEB9438ABA9 /* DebugLinux */,
-				3FDD2F4135262C2D48764C97 /* ReleaseLinux */,
 				CA90E97A2F6EAFCF0018E033 /* Debug-ApplePleaseFixFB19282108 */,
 			);
 			defaultConfigurationIsVisible = 0;
@@ -3598,9 +3452,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				BB13F7CC200ACC31003D1C4D /* Debug-ApplePleaseFixFB19282108 */,
-				BB7F620B2688EAB5003C0220 /* DebugLinux */,
 				BB13F7CD200ACC31003D1C4D /* Release */,
-				BBEF19B126806D1F001225BD /* ReleaseLinux */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -3609,9 +3461,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				BB13F7D2200ACCA2003D1C4D /* Debug-ApplePleaseFixFB19282108 */,
-				BB7F620C2688EAB5003C0220 /* DebugLinux */,
 				BB13F7D3200ACCA2003D1C4D /* Release */,
-				BBEF19B226806D1F001225BD /* ReleaseLinux */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -3620,9 +3470,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				BB13F7E3200AD81E003D1C4D /* Debug-ApplePleaseFixFB19282108 */,
-				BB7F620D2688EAB5003C0220 /* DebugLinux */,
 				BB13F7E4200AD81E003D1C4D /* Release */,
-				BBEF19B326806D1F001225BD /* ReleaseLinux */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -3631,9 +3479,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				BB21A16B2689041500BD19B4 /* Debug-ApplePleaseFixFB19282108 */,
-				BB21A16C2689041500BD19B4 /* DebugLinux */,
 				BB21A16D2689041500BD19B4 /* Release */,
-				BB21A16E2689041500BD19B4 /* ReleaseLinux */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -3642,9 +3488,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				BB415923255EF9E300E0950C /* Debug-ApplePleaseFixFB19282108 */,
-				BB7F620A2688EAB5003C0220 /* DebugLinux */,
 				BB415924255EF9E300E0950C /* Release */,
-				BBEF19B026806D1F001225BD /* ReleaseLinux */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -3653,9 +3497,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				BB4A922524ED9402002F5A96 /* Debug-ApplePleaseFixFB19282108 */,
-				BB7F620F2688EAB5003C0220 /* DebugLinux */,
 				BB4A922624ED9402002F5A96 /* Release */,
-				BBEF19B526806D1F001225BD /* ReleaseLinux */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -3664,9 +3506,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				BB792B4A1F96D8E000FFB7A4 /* Debug-ApplePleaseFixFB19282108 */,
-				BB7F62052688EAB5003C0220 /* DebugLinux */,
 				BB792B4B1F96D8E000FFB7A4 /* Release */,
-				BBEF19AB26806D1F001225BD /* ReleaseLinux */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -3675,9 +3515,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				BB792B641F96D90D00FFB7A4 /* Debug-ApplePleaseFixFB19282108 */,
-				BB7F62062688EAB5003C0220 /* DebugLinux */,
 				BB792B651F96D90D00FFB7A4 /* Release */,
-				BBEF19AC26806D1F001225BD /* ReleaseLinux */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -3686,9 +3524,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				BB88F4A02154760800A341FD /* Debug-ApplePleaseFixFB19282108 */,
-				BB7F62092688EAB5003C0220 /* DebugLinux */,
 				BB88F4A12154760800A341FD /* Release */,
-				BBEF19AF26806D1F001225BD /* ReleaseLinux */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -3730,9 +3566,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				BBEF192426806364001225BD /* Debug-ApplePleaseFixFB19282108 */,
-				BB7F62082688EAB5003C0220 /* DebugLinux */,
 				BBEF192526806364001225BD /* Release */,
-				BBEF19AE26806D1F001225BD /* ReleaseLinux */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -3752,9 +3586,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				BBFB2C592590257E00545EAB /* Debug-ApplePleaseFixFB19282108 */,
-				BB7F620E2688EAB5003C0220 /* DebugLinux */,
 				BBFB2C5A2590257E00545EAB /* Release */,
-				BBEF19B426806D1F001225BD /* ReleaseLinux */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
