@@ -1041,19 +1041,21 @@ __attribute__((naked)) void gadget_ldr_x_impl(void) {
         "eor x27, x27, x13\n\t"
         
         // Load tlb entry at &entries[index]
-        // entries is at offset 32 in struct tlb
+        // entries is at offset 32 in struct tlb (64-bit page fields)
         "add x13, x26, #32\n\t"      // x13 = &tlb->entries[0]
-        "add x13, x13, x27, lsl #4\n\t" // x13 = &tlb->entries[index]
+        "mov x14, #24\n\t"           // x14 = sizeof(tlb_entry)
+        "madd x13, x27, x14, x13\n\t" // x13 = &tlb->entries[index] (x13 + x27*24)
         "ldr x27, [x13]\n\t"          // x27 = entry.page
         
-        // Compare page
-        "and x26, x17, #0xFFFFF000\n\t" // x26 = page from addr
+        // Compare page (clear lower 12 bits via shift)
+        "lsr x26, x17, #12\n\t"      // x26 = addr >> 12
+        "lsl x26, x26, #12\n\t"      // x26 = (addr >> 12) << 12 = page base
         "cmp x27, x26\n\t"
         "b.ne 97f\n\t"               // Branch to tlbmiss counter
         
         // Compute host address and load
-        // data_minus_addr is at offset 8 in tlb_entry (after 4-byte page and 4-byte page_if_writable)
-        "ldr x27, [x13, #8]\n\t"      // x27 = entry.data_minus_addr
+        // data_minus_addr is at offset 16 in tlb_entry (after two 8-byte page fields)
+        "ldr x27, [x13, #16]\n\t"     // x27 = entry.data_minus_addr
         "add x17, x27, x17\n\t"       // x17 = host address
         "ldr x13, [x17]\n\t"          // x13 = loaded value
         
@@ -1343,19 +1345,21 @@ __attribute__((naked)) void gadget_str_x_impl(void) {
         "eor x27, x27, x14\n\t"
 
         // Load tlb entry at &entries[index]
-        // entries is at offset 32 in struct tlb
+        // entries is at offset 32 in struct tlb (64-bit page fields)
         "add x14, x26, #32\n\t"       // x14 = &tlb->entries[0]
-        "add x14, x14, x27, lsl #4\n\t" // x14 = &tlb->entries[index]
+        "mov x15, #24\n\t"            // x15 = sizeof(tlb_entry)
+        "madd x14, x27, x15, x14\n\t" // x14 = &tlb->entries[index] (x14 + x27*24)
         "ldr x27, [x14]\n\t"          // x27 = entry.page
 
-        // Compare page
-        "and x26, x17, #0xFFFFF000\n\t" // x26 = page from addr
+        // Compare page (clear lower 12 bits via shift)
+        "lsr x26, x17, #12\n\t"      // x26 = addr >> 12
+        "lsl x26, x26, #12\n\t"      // x26 = (addr >> 12) << 12 = page base
         "cmp x27, x26\n\t"
         "b.ne 97f\n\t"               // Branch to tlbmiss counter
 
         // Compute host address and store
-        // data_minus_addr is at offset 8 in tlb_entry
-        "ldr x27, [x14, #8]\n\t"      // x27 = entry.data_minus_addr
+        // data_minus_addr is at offset 16 in tlb_entry
+        "ldr x27, [x14, #16]\n\t"     // x27 = entry.data_minus_addr
         "add x17, x27, x17\n\t"       // x17 = host address
         "str x13, [x17]\n\t"          // store value from x13
 
