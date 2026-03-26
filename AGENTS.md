@@ -282,32 +282,199 @@ This guide should help you navigate and contribute effectively to the iSH codeba
 
 ---
 
-## Layer-by-Layer Debugging Methodology
+## Strict Operational Debugging Policy
 
-When debugging failures, follow this strict order:
-1. **ISA truth** - Verify instruction semantics are correct
-2. **Decoder truth** - Verify decode.c produces correct decoded structures  
-3. **Generator truth** - Verify gen.c emits correct gadget sequences
-4. **Execution truth** - Verify single-instruction or microtest execution
-5. **Runtime smoke test** - Only after lower layers pass
+### 1. Scope and Intent
 
-### Current Working Context
+This repository targets correct Linux AArch64 userspace and runtime behavior.
 
-**Proven Units (do NOT reopen without new evidence):**
-- Unit A: `str xzr, [x2], #8` - PASS
-- Unit B: `str xzr, [x2], #8` + `cmp x2, x5` - PASS  
-- Unit C: `str xzr, [x2], #8` + `cmp x2, x5` + `b.ne loop` - PASS
+- Alpine is ONLY a validation target, NOT the product definition.
+- Future distros such as Ubuntu MUST remain viable.
+- Fixes MUST prefer distro-agnostic correctness over distro-specific hacks.
+- No fix may be justified solely because "it works on Alpine" without proving generic correctness.
 
-**Current Active Work:**
-- Block-boundary state handoff proof for guest x3 (maps to host x4)
-- Narrow runtime boundary instrumentation only
-- Not a broad runtime investigation
+### 2. Layered Debugging Model
 
-**Constraints:**
-- Do NOT jump back into full BusyBox-level speculation
-- Do NOT reopen already-proven lower layers without new evidence
-- Do NOT apply broad loader or ABI theories before boundary proof complete
-- Do NOT patch anything before first actually broken layer is demonstrated
+ALL debugging MUST proceed in this EXACT order:
 
-**Priority:**
-Capture missing middle boundary value cleanly, then classify based on evidence.
+1. **ISA truth** - Verify instruction semantics from the architecture specification.
+2. **Decoder truth** - Verify decoded fields from `emu/aarch64/decode.c`.
+3. **Generator truth** - Verify emitted gadgets and metadata from `tcti/aarch64/gen.c` or generator sources.
+4. **Execution truth** - Verify actual register, flag, memory, and next-PC behavior.
+5. **Runtime smoke test** - Verify end-to-end behavior ONLY after lower layers pass.
+
+**Definitions:**
+- ISA truth = architecture semantics from official specification.
+- Decoder truth = decoded instruction fields produced by decoder.
+- Generator truth = bytecode sequences and gadget pointers emitted by generator.
+- Execution truth = observed behavior during actual TCTI execution.
+- Runtime smoke test = confirmation that full runtime paths function.
+
+**CRITICAL RULE:**
+- Runtime symptoms are NOT sufficient proof of root cause.
+- NO patch may be justified from runtime behavior alone if a smaller proof is possible.
+- Execution truth MUST be proven before runtime smoke test is attempted.
+
+### 3. Smallest Failing Unit Rule
+
+EVERY bug MUST be reduced to EXACTLY ONE smallest failing unit before patching.
+
+**Allowed units:**
+- Single raw instruction.
+- Two-instruction sequence.
+- Tiny basic block.
+- Process-entry fixture.
+- Syscall fixture.
+- Narrow runtime boundary proof.
+
+**FORBIDDEN as first diagnostic target:**
+- Full BusyBox boot.
+- Full musl startup.
+- Full distro boot.
+- Broad runtime trace fishing.
+- Large-scale runtime experiments.
+
+**RULE:** When lower-level units are already proven, do NOT reopen them without new contradictory evidence.
+
+### 4. Proven-Layers Discipline
+
+Once a layer is proven for a unit, the agent MUST NOT reopen that layer unless:
+- New evidence directly contradicts the previous proof.
+- The previous proof is shown to be invalid.
+- The current failing unit is demonstrably different.
+
+**REQUIREMENT:** The agent MUST explicitly state:
+- Which layers are already proven.
+- Which single layer is currently under investigation.
+
+### 5. Generated Code Policy
+
+**GENERATED OUTPUT IS NOT A SOURCE OF TRUTH.**
+
+- Generated gadget output MUST NEVER be edited directly.
+- If a generated artifact appears wrong, fix the generator source, NOT the generated file.
+- Acceptable sources of truth include:
+  - `tcti/aarch64/tcti-gadget-gen.py`
+  - Generation wiring such as Meson rules.
+  - Handwritten source files.
+
+**INVALID:** Any direct edit to generated output.
+
+**REQUIREMENT:** The agent MUST state whether a change affects:
+- Handwritten source.
+- Generator source.
+- Generated artifacts.
+
+**ZERO-TOLERANCE:** Direct edits to generated files are forbidden and must be reverted.
+
+### 6. Runtime Debugging Restrictions
+
+Runtime debugging is allowed ONLY after the lower relevant layers have been proven for the current unit.
+
+**FORBIDDEN:**
+- Using broad runtime traces as a primary reasoning tool.
+- Inferring root cause from high CPU, timeout, or crash frequency alone.
+- Generalizing from one failing command to the whole emulator.
+- Jumping from one runtime symptom to a broad subsystem patch.
+- Runtime-first debugging when a smaller unit is provable.
+
+### 7. Instrumentation Policy
+
+Instrumentation is allowed ONLY when:
+- The missing evidence cannot be obtained from existing tests or a debugger.
+- The instrumentation is narrowly scoped to the current failing unit.
+
+**REQUIREMENTS for instrumentation:**
+- One-shot or narrow-range ONLY.
+- Minimal.
+- Easy to remove.
+- Tied to a specific PC range, fixture, block boundary, or exact failing unit.
+
+**FORBIDDEN:**
+- Hot-path printk spam.
+- Broad tracing.
+- File-I/O tracing in hot paths.
+- Indefinite diagnostic code left in tree.
+
+**MANDATORY:** Temporary instrumentation MUST be removed immediately after the needed evidence is captured.
+
+### 8. Patch Selection Rule
+
+The first patch target MUST be:
+- Exactly one file.
+- Exactly one function.
+- Chosen ONLY after the first actually failing layer is proven.
+
+**FORBIDDEN:**
+- Multi-subsystem speculative patches.
+- Broad cleanup mixed with bug fixing.
+- Patching several candidate causes at once.
+- Changing production code before the broken layer is proven.
+- Patching based on speculation.
+
+### 9. Regression Rule
+
+Every confirmed bug fix MUST leave behind ONE of:
+- Decode golden test.
+- Generator golden test.
+- Semantic microtest.
+- ABI fixture test.
+- Narrow runtime regression.
+
+**REQUIREMENT:** The regression MUST target the exact failing unit that justified the patch.
+
+### 10. Cross-Distro Rule
+
+Every fix MUST be labeled as one of:
+- **Distro-agnostic core correctness** - applies to all AArch64 Linux.
+- **Loader/libc-sensitive behavior** - specific to musl/glibc implementation details.
+- **Temporary compatibility workaround** - explicitly labeled and minimized.
+
+**REQUIREMENT:** Prefer distro-agnostic core correctness first. Isolate loader/libc-sensitive logic from core paths. Minimize and label temporary workarounds.
+
+### 11. Required Per-Debug-Report Format
+
+Every debug report MUST follow this template in this exact order:
+
+#### Current Proven Layers
+- List which layers are already proven for the current unit.
+
+#### Current Failing Unit
+- Define the single smallest failing unit.
+
+#### Expected Truth
+- ISA or ABI expectation for that unit.
+
+#### Observed Truth
+- Actual observed behavior at the currently investigated layer.
+
+#### First Failing Layer
+- One of: ISA, decoder, generator, execution, runtime boundary, ABI fixture, syscall fixture.
+
+#### Exact Next Step
+- One step only.
+- No multiple options unless explicitly requested.
+
+#### Exact Patch Target
+- One file.
+- One function.
+- Only if the broken layer is proven.
+
+#### Cleanup State
+- Whether temporary instrumentation has been removed.
+
+### 12. Forbidden Behaviors
+
+**STRICTLY FORBIDDEN:**
+- Asking broad "what should I do" questions.
+- Asking for confirmation if the next smallest-step proof is obvious.
+- Drifting back to full-runtime-first debugging.
+- Reopening proven units casually.
+- Patching based on speculation.
+- Mixing unrelated fixes.
+- Leaving diagnostic scaffolding behind.
+- Editing generated outputs directly.
+- Claiming a root cause before the first failing layer is proven.
+- Jumping to broad loader or ABI theories before boundary proof.
+- Using BusyBox-level speculation as primary reasoning.
+- Reopening Units A, B, or C without new contradictory evidence.

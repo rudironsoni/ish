@@ -334,6 +334,19 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
                    (unsigned long long)cpu->sp);
         }
         
+        // TEMPORARY: Debug CBZ branch at PC 0xf7fb012c
+        // The CBZ branches to 0xf7fb0154 if x2 != 0
+        if (pc == 0xf7fb0128ULL) {
+            fprintf(stderr, "\n[CBZ-DEBUG] At PC 0xf7fb0128 block entry\n");
+            fprintf(stderr, "  x2=0x%016llx (CBZ condition)\n", (unsigned long long)cpu->x[2]);
+            fprintf(stderr, "  x4=0x%016llx (guest x4, should be 0xfffffd10)\n", (unsigned long long)cpu->x[4]);
+        }
+        if (pc == 0xf7fb0154ULL) {
+            fprintf(stderr, "\n[CBZ-DEBUG] Reached PC 0xf7fb0154 (branch target!)\n");
+            fprintf(stderr, "  x4=0x%016llx (guest x4)\n", (unsigned long long)cpu->x[4]);
+            fprintf(stderr, "  Expected: 0xfffffd10\n");
+        }
+        
         // DIAGNOSTIC: Track zeroing loop progression
         // First loop: x2 goes from x7 to x5 (sp+8 to sp+0x108)
         // Second loop: x2 goes from x5 to x3
