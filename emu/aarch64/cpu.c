@@ -24,9 +24,12 @@
 // External TCTI entry point (declared in gadgets_tcti.h)
 extern void tcti_entry_block(void *gadgets, struct cpu_state *cpu);
 
-// External diagnostic dump function
+// External diagnostic dump functions
 extern void dump_cmp_bcond_diag(void);
 extern void dump_cmp_capture(void);
+extern void dump_str_wb_diag(void);
+extern void dump_runtime_diag(void);
+extern void dump_gen_emit_diag(void);
 extern void tcti_exit_block(int reason);
 
 // Execution state is now passed via parameters, not globals
