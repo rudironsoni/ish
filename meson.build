@@ -39,7 +39,7 @@ add_project_arguments('-Wno-switch', language: 'c')
 # Architecture detection (aarch64 only for iOS)
 arch = 'aarch64'
 
-includes = [include_directories('.')]
+includes = [include_directories('.'), include_directories('trace')]
 
 threads = dependency('threads')
 librt = cc.find_library('rt', required: false)
@@ -90,6 +90,13 @@ emu_src = [
     
     # TCTI entry/exit assembly
     'tcti/aarch64/tcti_entry.S',
+
+    # Tracing subsystem (always built)
+    'trace/trace.c',
+    'trace/trace_backends.c',
+    'trace/trace_ring.c',
+    'trace/trace_dump.c',
+    'trace/trace_config.c',
 
     aarch64_offsets,
     tcti_gadget_gen,
@@ -249,6 +256,17 @@ if not meson.is_cross_build()
         ['tests/aarch64/integration_test_simple.c', 'tests/aarch64/gen_test_minimal.c', 'emu/aarch64/decode.c'],
         include_directories: includes)
     test('integration', integration_test)
+    
+    # Trace subsystem tests
+    trace_test = executable('trace_test',
+        ['tests/trace/test_trace_basic.c',
+         'trace/trace.c',
+         'trace/trace_backends.c',
+         'trace/trace_ring.c',
+         'trace/trace_dump.c',
+         'trace/trace_config.c'],
+        include_directories: includes)
+    test('trace_basic', trace_test)
 endif
 
 # Validate generated files are not in source tree

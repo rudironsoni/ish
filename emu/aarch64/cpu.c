@@ -15,6 +15,7 @@
 #include "emu/mmu.h"
 #include "kernel/task.h"
 #include "kernel/calls.h"
+#include "trace/trace.h"
 #include <string.h>
 #include <setjmp.h>
 #include <unistd.h>
@@ -24,31 +25,18 @@
 // External TCTI entry point (declared in gadgets_tcti.h)
 extern void tcti_entry_block(void *gadgets, struct cpu_state *cpu);
 
-// External diagnostic dump functions
-extern void dump_cmp_bcond_diag(void);
-extern void dump_cmp_capture(void);
-extern void dump_str_wb_diag(void);
-extern void dump_runtime_diag(void);
-extern void dump_gen_emit_diag(void);
-extern void tcti_exit_block(int reason);
-
 // Execution state is now passed via parameters, not globals
 static jmp_buf exit_jmpbuf __attribute__((unused));
 
 // Forward declarations
 struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct tlb *tlb);
-// Forward declaration - made non-static for use by asbestos.c
 int a64_execute_block(struct cpu_state *cpu, struct a64_block *block);
 
-// Low-frequency progress sampler state
-static time_t last_sample_time = 0;
-static int sample_count = 0;
-static uint64_t last_pc = 0;
-static uint64_t last_sp = 0;
-static uint64_t last_ldr_fast = 0;
-static uint64_t last_str_fast = 0;
-static uint64_t last_ldr_fallback = 0;
-static uint64_t last_str_fallback = 0;
+// Load/store helper functions used by execute_ldst
+static uint64_t a64_read_reg_or_sp(struct cpu_state *cpu, int reg, bool is_64bit);
+static void a64_write_reg_or_sp(struct cpu_state *cpu, int reg, uint64_t value, bool is_64bit);
+static uint64_t a64_extend_index(uint64_t value, int extend_type);
+static uint64_t a64_apply_shift(uint64_t value, int shift_type, int amount, bool is_64bit);
 
 /*
  * Initialize aarch64 CPU for a task
@@ -98,6 +86,15 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
     struct a64_block *block;
     bool explicit_pc_on_exit = false;
 
+    // Trace: Block compilation start
+    trace_emit_block_compile_start(pc);
+    
+    // Create sidecar if tracing is active at level >= BLOCK
+    trace_block_sidecar_t *sidecar = NULL;
+    if (trace_sidecar_enabled()) {
+        sidecar = trace_sidecar_create(pc, pc);
+    }
+
     a64_gen_init(&gen_state, buffer, A64_MAX_GADGETS_PER_BLOCK);
     a64_gen_reset(&gen_state, pc);
 
@@ -144,8 +141,7 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
         // No instructions could be decoded - this is a fatal error in 100% TCTI mode
         uint32_t failing_insn = 0;
         a64_fetch_insn(cpu, tlb, pc, &failing_insn);
-        printk("[TCTI] FATAL: Cannot compile block at 0x%llx - unsupported instruction\n", pc);
-        printk("[TCTI] FATAL: Instruction bytes: 0x%08x\n", failing_insn);
+        trace_emit_u32(TRACE_EVENT_UNSUPPORTED_INSTRUCTION, pc, failing_insn);
         return NULL;
     }
 
@@ -172,10 +168,23 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
     block->end_pc = gen_state.end_pc;
     block->explicit_pc_on_exit = explicit_pc_on_exit;
     block->is_jetsam = false;
+    block->trace_sidecar = NULL;
+
+    // Update and attach sidecar if present
+    if (sidecar) {
+        sidecar->end_pc = gen_state.end_pc;
+        sidecar->explicit_pc_on_exit = explicit_pc_on_exit;
+        sidecar->insn_count = insns_decoded;
+        trace_sidecar_set_gadget_count(sidecar, (uint32_t)gen_state.num_gadgets);
+        block->trace_sidecar = sidecar;
+    }
 
     // Initialize list links
     list_init(&block->chain);
     list_init(&block->jetsam);
+
+    // Trace: Block compilation end
+    trace_emit_block_compile_end(pc, gen_state.end_pc, (uint32_t)insns_decoded);
 
     return block;
 }
@@ -187,17 +196,19 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
  * the entire gadget chain. Gadgets use epilogue to chain together.
  */
 int a64_execute_block(struct cpu_state *cpu, struct a64_block *block) {
+    // Trace: Register snapshot if at block level
+    if (trace_get_level() >= TRACE_LEVEL_BLOCK) {
+        uint64_t regs[6] = {cpu->x[0], cpu->x[1], cpu->x[2], cpu->x[3], cpu->x[4], cpu->x[5]};
+        trace_emit_register_snapshot(block->start_pc, regs, 0x3F);
+    }
+    
+    trace_emit_block_entry(block->start_pc, (uint32_t)block->num_gadgets);
+    
     tcti_entry_block(block->gadgets, cpu);
     int exit_reason = cpu->tcti_exit_reason;
-    // DIAGNOSTIC: Log block execution result
-    if (exit_reason == TCTI_EXIT_FAULT) {
-        printk("[EXEC-DIAG] Block exit: reason=%d pc=0x%llx fault_addr=0x%llx is_write=%d tcti_reason=%d\n",
-               exit_reason,
-               (unsigned long long) cpu->pc,
-               (unsigned long long) cpu->fault_addr,
-               cpu->fault_was_write,
-               cpu->tcti_exit_reason);
-    }
+    
+    trace_emit_block_exit(block->start_pc, exit_reason, cpu->pc);
+    
     return exit_reason;
 }
 
@@ -262,23 +273,21 @@ static uint64_t a64_apply_shift(uint64_t value, int shift_type, int amount, bool
  * This is the main entry point from the kernel
  */
 void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
-    fprintf(stderr, "[RUN-TRACE] a64_cpu_run entry pc=0x%llx sp=0x%llx tlb=%p\n",
-           (unsigned long long) cpu->pc,
-           (unsigned long long) cpu->sp,
-           tlb);
-    fprintf(stderr, "[RUN-TRACE] INITIAL REGS: x0=0x%llx x1=0x%llx x2=0x%llx x3=0x%llx\n",
-           (unsigned long long) cpu->x[0],
-           (unsigned long long) cpu->x[1],
-           (unsigned long long) cpu->x[2],
-           (unsigned long long) cpu->x[3]);
+    // Initialize tracing from environment
+    trace_config_t trace_config;
+    trace_config_from_env(&trace_config);
+    if (trace_init(&trace_config) == 0 && trace_get_level() >= TRACE_LEVEL_SUMMARY) {
+        trace_emit_process_entry(cpu->pc, cpu->sp, cpu->x[0], cpu->x[1]);
+    }
     
     cpu->tlb = tlb;  // Store TLB pointer in cpu_state for inline TLB access
 
     // Get or create persistent execution context for this CPU
     struct fiber_exec_ctx *ctx = fiber_exec_ctx_get(cpu);
     if (!ctx) {
-        printk("[TCTI] FATAL: Cannot get execution context\n");
+        trace_emit(TRACE_EVENT_FAULT, cpu->pc);
         handle_interrupt(INT_GPF);
+        trace_shutdown();
         return;
     }
     
@@ -296,141 +305,18 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
     // Set up TLB for this CPU
     tlb_refresh(tlb, cpu->mmu);
 
-    bool logged_loop_entry = false;
-    bool logged_sampler_point = false;
-
     while (1) {
-        if (!logged_loop_entry) {
-            printk("[RUN-TRACE] a64_cpu_run loop entry pc=0x%llx sp=0x%llx\n",
-                   (unsigned long long) cpu->pc,
-                   (unsigned long long) cpu->sp);
-            logged_loop_entry = true;
-        }
         // Reacquire context if it was marked inactive (e.g., after interrupt return)
         if (!ctx->active) {
             ctx = fiber_exec_ctx_get(cpu);
             if (!ctx) {
-                printk("[TCTI] FATAL: Cannot reacquire execution context\n");
-                return;
+                trace_emit(TRACE_EVENT_FAULT, cpu->pc);
+                handle_interrupt(INT_GPF);
+                break;
             }
         }
         
         uint64_t pc = cpu->pc;
-        
-        // Simple trace: dump x0-x7 at start of each block execution
-        static int trace_count = 0;
-        if (trace_count++ < 200) {
-            fprintf(stderr, "[TRACE %d] pc=0x%llx x0=%llx x1=%llx x2=%llx x3=%llx x4=%llx x5=%llx x6=%llx x7=%llx sp=%llx\n",
-                   trace_count,
-                   (unsigned long long)pc,
-                   (unsigned long long)cpu->x[0],
-                   (unsigned long long)cpu->x[1],
-                   (unsigned long long)cpu->x[2],
-                   (unsigned long long)cpu->x[3],
-                   (unsigned long long)cpu->x[4],
-                   (unsigned long long)cpu->x[5],
-                   (unsigned long long)cpu->x[6],
-                   (unsigned long long)cpu->x[7],
-                   (unsigned long long)cpu->sp);
-        }
-        
-        // TEMPORARY: Debug CBZ branch at PC 0xf7fb012c
-        // The CBZ branches to 0xf7fb0154 if x2 != 0
-        if (pc == 0xf7fb0128ULL) {
-            fprintf(stderr, "\n[CBZ-DEBUG] At PC 0xf7fb0128 block entry\n");
-            fprintf(stderr, "  x2=0x%016llx (CBZ condition)\n", (unsigned long long)cpu->x[2]);
-            fprintf(stderr, "  x4=0x%016llx (guest x4, should be 0xfffffd10)\n", (unsigned long long)cpu->x[4]);
-        }
-        if (pc == 0xf7fb0154ULL) {
-            fprintf(stderr, "\n[CBZ-DEBUG] Reached PC 0xf7fb0154 (branch target!)\n");
-            fprintf(stderr, "  x4=0x%016llx (guest x4)\n", (unsigned long long)cpu->x[4]);
-            fprintf(stderr, "  Expected: 0xfffffd10\n");
-        }
-        
-        // DIAGNOSTIC: Track zeroing loop progression
-        // First loop: x2 goes from x7 to x5 (sp+8 to sp+0x108)
-        // Second loop: x2 goes from x5 to x3
-        static uint64_t prev_x2 = 0, prev_x3 = 0;
-        static int loop_iter = 0;
-        
-        // Detect when x2 == x5 (first loop completion point)
-        if (cpu->x[2] == cpu->x[5] && trace_count < 250) {
-            fprintf(stderr, "[LOOP-TRANSITION] x2 == x5 at PC=0x%llx, x2=x5=0x%llx, x3=0x%llx\n",
-                   (unsigned long long)pc, (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[3]);
-        }
-        
-        // Detect when x2 == x3 (second loop completion point)
-        if (cpu->x[2] == cpu->x[3] && cpu->x[2] != 0 && trace_count < 250) {
-            fprintf(stderr, "[LOOP-TRANSITION] x2 == x3 at PC=0x%llx, x2=x3=0x%llx, x5=0x%llx\n",
-                   (unsigned long long)pc, (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[5]);
-        }
-        
-        // Track x3 stability in second loop (when x2 > x5)
-        if (cpu->x[2] > cpu->x[5] && cpu->x[3] != 0 && trace_count < 100) {
-            if (prev_x3 != 0 && cpu->x[3] != prev_x3) {
-                fprintf(stderr, "[X3-CHANGE] x3 changed from 0x%llx to 0x%llx at PC=0x%llx, x2=0x%llx\n",
-                       (unsigned long long)prev_x3, (unsigned long long)cpu->x[3],
-                       (unsigned long long)pc, (unsigned long long)cpu->x[2]);
-            }
-            prev_x3 = cpu->x[3];
-        }
-        
-        prev_x2 = cpu->x[2];
-        
-        // LOW-FREQUENCY PROGRESS SAMPLER (max once per second)
-        if (!logged_sampler_point) {
-            printk("[RUN-TRACE] a64_cpu_run sampler point pc=0x%llx sp=0x%llx\n",
-                   (unsigned long long) pc,
-                   (unsigned long long) cpu->sp);
-            logged_sampler_point = true;
-        }
-        time_t now = time(NULL);
-        if (now != last_sample_time) {
-            last_sample_time = now;
-            sample_count++;
-            
-            uint64_t ldr_fast = cpu->stat_ldr_fast_hits;
-            uint64_t str_fast = cpu->stat_str_fast_hits;
-            uint64_t ldr_fb = cpu->stat_ldr_fallback;
-            uint64_t str_fb = cpu->stat_str_fallback;
-            
-            // Calculate deltas since last sample
-            uint64_t delta_ldr_fast = ldr_fast - last_ldr_fast;
-            uint64_t delta_str_fast = str_fast - last_str_fast;
-            uint64_t delta_ldr_fb = ldr_fb - last_ldr_fallback;
-            uint64_t delta_str_fb = str_fb - last_str_fallback;
-            uint64_t pc_delta = pc - last_pc;
-            
-            printk("[SAMPLE-%d] pc=0x%llx sp=0x%llx exit_reason=%d\n",
-                   sample_count,
-                   (unsigned long long)pc,
-                   (unsigned long long)cpu->sp,
-                   cpu->tcti_exit_reason);
-            printk("[SAMPLE-%d] mem_stats: ldr_fast=+%llu str_fast=+%llu ldr_fb=+%llu str_fb=+%llu\n",
-                   sample_count,
-                   (unsigned long long)delta_ldr_fast,
-                   (unsigned long long)delta_str_fast,
-                   (unsigned long long)delta_ldr_fb,
-                   (unsigned long long)delta_str_fb);
-            printk("[SAMPLE-%d] fallback_reasons: nonhot=%llu size=%llu idx=%llu meta=%llu align=%llu cross=%llu tlbmiss=%llu notlb=%llu\n",
-                   sample_count,
-                   (unsigned long long)(cpu->stat_ldr_fallback_nonhot + cpu->stat_str_fallback_nonhot),
-                   (unsigned long long)(cpu->stat_ldr_fallback_size + cpu->stat_str_fallback_size),
-                   (unsigned long long)(cpu->stat_ldr_fallback_idxmode + cpu->stat_str_fallback_idxmode),
-                   (unsigned long long)(cpu->stat_ldr_fallback_meta + cpu->stat_str_fallback_meta),
-                   (unsigned long long)(cpu->stat_ldr_fallback_align + cpu->stat_str_fallback_align),
-                   (unsigned long long)(cpu->stat_ldr_fallback_crosspg + cpu->stat_str_fallback_crosspg),
-                   (unsigned long long)(cpu->stat_ldr_fallback_tlbmiss + cpu->stat_str_fallback_tlbmiss),
-                   (unsigned long long)(cpu->stat_ldr_fallback_notlb + cpu->stat_str_fallback_notlb));
-            printk("[SAMPLE-%d] pc_delta=+%lld\n", sample_count, (long long)pc_delta);
-            
-            last_pc = pc;
-            last_sp = cpu->sp;
-            last_ldr_fast = ldr_fast;
-            last_str_fast = str_fast;
-            last_ldr_fallback = ldr_fb;
-            last_str_fallback = str_fb;
-        }
         
         // L0 cache lookup (fast path via fiber_exec_ctx)
         size_t l0_idx = ((pc ^ (pc >> 12)) & FIBER_EXEC_CTX_CACHE_MASK);
@@ -482,74 +368,15 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
             fiber_exec_ctx_put(ctx);
             handle_interrupt(INT_SYSCALL);
         } else if (exit_reason == TCTI_EXIT_FAULT) {
-            fprintf(stderr, "[RUN-DIAG] TCTI_EXIT_FAULT reached, calling handle_interrupt(INT_GPF)\n");
+            // Trace fault event
+            trace_emit_fault(cpu->pc, cpu->fault_addr, cpu->fault_was_write, 0);
             
-            // DIAGNOSTIC: Dump CMP-to-B.NE diagnostic if captured
-            dump_cmp_bcond_diag();
-            
-            // DIAGNOSTIC: Capture fault details
-            fprintf(stderr, "[FAULT-DIAG] pc=0x%llx fault_addr=0x%llx is_write=%d sp=0x%llx\n",
-                   (unsigned long long)cpu->pc,
-                   (unsigned long long)cpu->fault_addr,
-                   cpu->fault_was_write,
-                   (unsigned long long)cpu->sp);
-            fprintf(stderr, "[FAULT-DIAG] regs x1=0x%llx x2=0x%llx x3=0x%llx x5=0x%llx x6=0x%llx x7=0x%llx\n",
-                   (unsigned long long)cpu->x[1],
-                   (unsigned long long)cpu->x[2],
-                   (unsigned long long)cpu->x[3],
-                   (unsigned long long)cpu->x[5],
-                   (unsigned long long)cpu->x[6],
-                   (unsigned long long)cpu->x[7]);
-
-            if (cpu->pc == 0xf7fa4720ULL) {
-                uint64_t rel_ptr = 0;
-                uint64_t rel_sz = 0;
-                int rel_ptr_ok = a64_guest_read64(cpu, cpu->tlb, cpu->sp + 0x190, &rel_ptr);
-                int rel_sz_ok = a64_guest_read64(cpu, cpu->tlb, cpu->sp + 0x198, &rel_sz);
-
-                printk("[FAULT-DIAG] rel slots [sp+0x190]=0x%llx (%d) [sp+0x198]=0x%llx (%d)\n",
-                       (unsigned long long) rel_ptr, rel_ptr_ok,
-                       (unsigned long long) rel_sz, rel_sz_ok);
-            }
-            
-            // Fetch and decode instruction at fault PC
-            uint32_t insn;
-            if (a64_fetch_insn(cpu, cpu->tlb, cpu->pc, &insn) == 0) {
-                fprintf(stderr, "[FAULT-DIAG] Instruction at PC: 0x%08x\n", insn);
-                
-                a64_instr_t decoded;
-                if (a64_decode(insn, &decoded) == 0) {
-                    fprintf(stderr, "[FAULT-DIAG] Decoded: cat=%d subtype=%d Rd=%d Rn=%d Rm=%d\n",
-                           decoded.cat, decoded.subtype, decoded.Rd, decoded.Rn, decoded.Rm);
-                    fprintf(stderr, "[FAULT-DIAG] imm=%lld imm_shift=%d set_flags=%d is_64bit=%d\n",
-                           (long long)decoded.imm, decoded.imm_shift, 
-                           decoded.set_flags, decoded.is_64bit);
-                } else {
-                    fprintf(stderr, "[FAULT-DIAG] Failed to decode instruction\n");
-                }
-            } else {
-                fprintf(stderr, "[FAULT-DIAG] Failed to fetch instruction at PC\n");
-            }
-            
-            // Dump CMP-to-B.NE diagnostic if captured
-            dump_cmp_bcond_diag();
-            
-            // Dump CMP capture diagnostic (one-shot)
-            dump_cmp_capture();
-            
-            // Dump STR writeback diagnostic
-            dump_str_wb_diag();
-            
-            // Dump runtime diagnostic for pc=0xf7fa4650
-            dump_runtime_diag();
-            
-            // Dump emission diagnostic for pc=0xf7fa4650
-            dump_gen_emit_diag();
+            // Dump sidecar and ring if configured
+            trace_dump_on_fault(cpu->pc, cpu->fault_addr, cpu->fault_was_write);
             
             // Mark context inactive before handling fault
             fiber_exec_ctx_put(ctx);
             handle_interrupt(INT_GPF);
-            fprintf(stderr, "[RUN-DIAG] handle_interrupt(INT_GPF) returned\n");
         } else if (exit_reason == TCTI_EXIT_SIGNAL) {
             if (!block->explicit_pc_on_exit)
                 cpu->pc = block->end_pc;
@@ -619,21 +446,10 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
                 cpu->pc = block->end_pc;
         }
         
-        // DIAGNOSTIC: Capture NZCV and branch decision for zeroing loop
-        if (trace_count < 250 && cpu->pc >= 0xf7fa4650ULL && cpu->pc <= 0xf7fa4660ULL) {
-            fprintf(stderr, "[NZCV-DIAG] Block exit PC=0x%llx, pstate=0x%llx, x2=0x%llx, x5=0x%llx\n",
-                   (unsigned long long)cpu->pc,
-                   (unsigned long long)cpu->pstate,
-                   (unsigned long long)cpu->x[2],
-                   (unsigned long long)cpu->x[5]);
-            // Check Z flag (bit 30)
-            int z_flag = (cpu->pstate >> 30) & 1;
-            fprintf(stderr, "[NZCV-DIAG] Z=%d, x2==x5=%d (should exit loop when Z=1)\n",
-                   z_flag, cpu->x[2] == cpu->x[5]);
-        }
-        
         // Normal exit - PC already advanced, continue to next block
     }
+    
+    trace_shutdown();
 }
 
 /*

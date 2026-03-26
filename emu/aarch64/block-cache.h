@@ -8,6 +8,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+// Forward declaration for trace sidecar
+struct trace_block_sidecar;
+
 // Block cache entry for compiled TCTI blocks
 #include "gadgets_tcti.h"
 
@@ -26,6 +29,9 @@ struct a64_block {
     // For invalidation tracking
     bool is_jetsam;
     struct list jetsam;
+    
+    // Debug sidecar for tracing (NULL if tracing not enabled)
+    struct trace_block_sidecar *trace_sidecar;
 };
 
 // Simple hash table for block lookup
