@@ -405,7 +405,10 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
                             // TPIDRRO_EL0 read (same value on Linux)
                             cpu->x[decoded.Rd] = cpu->tpidr_el0;
                         } else {
-                            printk("[TCTI] Warning: Unhandled MRS sysreg 0x%x\n", decoded.sysreg);
+                            // Unhandled MRS system register - this is an emulation limitation
+                            // Not a guest error, so we just set the register to 0 and continue
+                            trace_emit_unhandled_mrs(cpu->pc, decoded.sysreg);
+                            cpu->x[decoded.Rd] = 0;
                         }
                         cpu->pc += 4;  // Advance past MRS instruction
                     } else if (decoded.cat == A64_BRANCH && decoded.subtype == 4) {
@@ -423,20 +426,21 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
                                 cpu->tpidr_el0 = 0;
                             }
                         } else {
-                            printk("[TCTI] Warning: Unhandled MSR sysreg 0x%x\n", decoded.sysreg);
+                            // Unhandled MSR system register - this is an emulation limitation
+                            // Not a guest error, so we just ignore the write and continue
+                            trace_emit_unhandled_msr(cpu->pc, decoded.sysreg);
                         }
                         cpu->pc += 4;  // Advance past MSR instruction
                     } else {
-                        printk("[TCTI] FATAL: Unknown COMPLEX exit, decoded cat=%d subtype=%d\n",
-                               decoded.cat, decoded.subtype);
+                        trace_emit_complex_unknown(cpu->pc, decoded.cat, decoded.subtype);
                         handle_interrupt(INT_GPF);
                     }
                 } else {
-                    printk("[TCTI] FATAL: Failed to decode instruction at PC=0x%llx\n", cpu->pc);
+                    trace_emit_complex_decode_fail(cpu->pc, insn);
                     handle_interrupt(INT_GPF);
                 }
             } else {
-                printk("[TCTI] FATAL: Failed to fetch instruction at PC=0x%llx\n", cpu->pc);
+                trace_emit_complex_fetch_fail(cpu->pc, -EFAULT);
                 handle_interrupt(INT_GPF);
             }
         } else {
