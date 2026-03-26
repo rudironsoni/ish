@@ -1007,12 +1007,38 @@ int a64_gen_branch(a64_gen_state_t *state, const a64_instr_t *instr) {
  * Load/Store Instructions
  * ============================================================================
  */
+// Diagnostic capture for instruction emission at specific PC
+struct emit_diag {
+    uint64_t fault_pc;
+    uint64_t rt;
+    uint64_t rn;
+    uint64_t imm;
+    uint64_t size;
+    uint64_t idx_mode;
+    uint64_t meta;
+    uint64_t is_load;
+    uint64_t captured;
+};
+static struct emit_diag g_emit_diag = {0};
+
 static int a64_emit_ldst_single(a64_gen_state_t *state, uint64_t fault_pc,
         int rt, int rn, int64_t imm, int size, int idx_mode, int is_signed,
         int rm, int extend_type, int imm_shift, int is_reg_offset, int is_load) {
     int ret;
     tcti_gadget_t gadget = NULL;
     uint64_t meta;
+
+    // DIAGNOSTIC: Capture emission for pc=0xf7fa4650
+    if (fault_pc == 0xf7fa4650ULL && !g_emit_diag.captured) {
+        g_emit_diag.fault_pc = fault_pc;
+        g_emit_diag.rt = rt;
+        g_emit_diag.rn = rn;
+        g_emit_diag.imm = imm;
+        g_emit_diag.size = size;
+        g_emit_diag.idx_mode = idx_mode;
+        g_emit_diag.is_load = is_load;
+        g_emit_diag.captured = 1;
+    }
 
     if (is_load) {
         gadget = gadget_ldr_x;
@@ -1054,6 +1080,11 @@ static int a64_emit_ldst_single(a64_gen_state_t *state, uint64_t fault_pc,
         meta |= ((uint64_t) (rm & 0xff)) << 16;
         meta |= ((uint64_t) (extend_type & 0xff)) << 24;
         meta |= ((uint64_t) (imm_shift & 0xff)) << 32;
+    }
+
+    // Store meta in diagnostic
+    if (fault_pc == 0xf7fa4650ULL && g_emit_diag.captured == 1) {
+        g_emit_diag.meta = meta;
     }
 
     ret = emit_u64(state, meta);
@@ -1328,4 +1359,24 @@ int a64_gen_basic_block(a64_gen_state_t *state, struct cpu_state *cpu,
         *end_pc = state->end_pc;
 
     return state->instructions_processed;
+}
+
+// Dump emission diagnostic for pc=0xf7fa4650
+void dump_gen_emit_diag(void) {
+    extern struct emit_diag g_emit_diag;
+    if (!g_emit_diag.captured) {
+        fprintf(stderr, "[GEN-EMIT-DIAG] No emission captured for pc=0xf7fa4650\n");
+        return;
+    }
+    fprintf(stderr, "\n========== EMISSION DIAGNOSTIC for pc=0xf7fa4650 ==========\n");
+    fprintf(stderr, "gadget:      gadget_str_x\n");
+    fprintf(stderr, "fault_pc:    0x%016llx\n", (unsigned long long)g_emit_diag.fault_pc);
+    fprintf(stderr, "Rt:          %llu\n", (unsigned long long)g_emit_diag.rt);
+    fprintf(stderr, "Rn:          %llu\n", (unsigned long long)g_emit_diag.rn);
+    fprintf(stderr, "imm:         %lld\n", (long long)g_emit_diag.imm);
+    fprintf(stderr, "size:        %llu\n", (unsigned long long)g_emit_diag.size);
+    fprintf(stderr, "idx_mode:    %llu\n", (unsigned long long)g_emit_diag.idx_mode);
+    fprintf(stderr, "meta:        0x%016llx\n", (unsigned long long)g_emit_diag.meta);
+    fprintf(stderr, "is_load:     %llu\n", (unsigned long long)g_emit_diag.is_load);
+    fprintf(stderr, "============================================================\n\n");
 }

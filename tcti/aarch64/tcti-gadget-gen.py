@@ -222,6 +222,32 @@ extern void _tcti_entry_block(void *gadgets, struct cpu_state *cpu);
 extern void tcti_exit_block(int reason);
 extern void _tcti_exit_block(int reason);
 
+// ============================================================================
+// Diagnostic Struct for CMP-to-B.NE Handoff Debugging
+// ============================================================================
+struct cmp_bcond_diag {{
+    uint64_t magic;
+    uint64_t cmp_operand_a;
+    uint64_t cmp_operand_b;
+    uint64_t nzcv_after_subs;
+    uint64_t nzcv_saved;
+    uint64_t bcond_target_pc;
+    uint64_t bcond_fallthrough_pc;
+    uint64_t nzcv_loaded;
+    uint64_t nzcv_after_msr;
+    uint64_t selected_pc;
+    uint8_t  captured;
+}};
+
+// External diagnostic buffer - defined in gadgets_tcti_impl.c
+extern struct cmp_bcond_diag g_cmp_bcond_diag;
+
+// Dump the CMP-to-B.NE diagnostic data (call after fault to see capture)
+extern void dump_cmp_bcond_diag(void);
+
+// Dump the STR post-index writeback diagnostic
+extern void dump_str_wb_diag(void);
+
 #ifdef __cplusplus
 }}
 #endif
@@ -244,6 +270,36 @@ IMPL_TEMPLATE = """/*
 
 #include "gadgets_tcti.h"
 #include "emu/aarch64/cpu.h"
+
+// ============================================================================
+// Diagnostic Buffer for CMP-to-B.NE Handoff Debugging
+// ============================================================================
+struct cmp_bcond_diag g_cmp_bcond_diag = {{
+    .magic = 0xC0FFEE01,
+    .captured = 0
+}};
+
+// One-shot capture buffer for CMP x2,x5 diagnostic
+struct {{
+    uint64_t host_x3;
+    uint64_t host_x6;
+    uint64_t cpu_x2_mem;
+    uint64_t cpu_x5_mem;
+    uint64_t nzcv_after_subs;
+    uint64_t nzcv_after_str;
+    uint64_t guest_pc;
+    uint8_t  captured;
+}} g_cmp_capture = {{0}};
+
+// STR post-index writeback diagnostic buffer
+struct str_wb_diag {{
+    uint64_t x3_before_helper;
+    uint64_t x3_after_restore;
+    uint64_t cpu_x2_before_call;
+    uint64_t cpu_x2_after_helper;
+    uint64_t captured;
+}};
+struct str_wb_diag g_str_wb_diag = {{0}};
 
 // ============================================================================
 // Register Mapping
@@ -571,7 +627,50 @@ def generate_cmp_reg_gadgets():
 
             func_name = f"gadget_cmp_reg_{rn}_{rm}"
 
-            gadget = f"""// CMP x{rn}, x{rm}
+            # Special diagnostic gadget for x2==x5 with diagnostic capture
+            if rn == 2 and rm == 5:
+                gadget = f"""// CMP x{rn}, x{rm} with diagnostic capture
+__attribute__((naked)) void {func_name}(void) {{
+    asm volatile(
+        // Load capture buffer address
+        "adrp x26, _g_cmp_capture@PAGE\\n\\t"
+        "add x26, x26, _g_cmp_capture@PAGEOFF\\n\\t"
+        // Check if already captured
+        "ldrb w25, [x26, #96]\\n\\t"
+        "cmp w25, #1\\n\\t"
+        "beq 5f\\n\\t"
+        // Capture on first invocation to see actual values
+        "str x3, [x26]\\n\\t"                // [0] host_x3 (guest x2)
+        "str x6, [x26, #8]\\n\\t"            // [8] host_x6 (guest x5)
+        "ldr x18, [x29, #16]\\n\\t"          // cpu->x[2] from memory
+        "str x18, [x26, #16]\\n\\t"          // [16] cpu_x2_mem
+        "ldr x18, [x29, #40]\\n\\t"          // cpu->x[5] from memory
+        "str x18, [x26, #24]\\n\\t"          // [24] cpu_x5_mem
+        "mov w25, #1\\n\\t"
+        "strb w25, [x26, #96]\\n\\t"         // [96] cmp_captured = 1
+        "5:\\n\\t"
+        // Original CMP logic
+        "subs xzr, x3, x6\\n\\t"
+        "mrs x17, nzcv\\n\\t"
+        // If captured, store NZCV
+        "cmp w25, #1\\n\\t"
+        "bne 6f\\n\\t"
+        "str x17, [x26, #32]\\n\\t"          // [32] nzcv_after_subs
+        "6:\\n\\t"
+        "str x17, [x29, #280]\\n\\t"
+        // If captured, store saved NZCV
+        "cmp w25, #1\\n\\t"
+        "bne 7f\\n\\t"
+        "str x17, [x26, #40]\\n\\t"          // [40] nzcv_saved
+        "7:\\n\\t"
+        "ldr x27, [x28], #8\\n\\t"
+        "br x27\\n\\t"
+        ::
+        : "x17", "x25", "x26", "x27", "x18"
+    );
+}}"""
+            else:
+                gadget = f"""// CMP x{rn}, x{rm}
 __attribute__((naked)) void {func_name}(void) {{
     asm volatile(
         "subs xzr, x{host_rn}, x{host_rm}\\n\\t"
