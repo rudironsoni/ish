@@ -125,6 +125,12 @@ tcti_exit_block:
     // Save exit reason to cpu_state
     // tcti_exit_reason is at offset 860 (calculated from structure layout)
     str     w0,  [x29, #860]        // Store exit reason to cpu->tcti_exit_reason (32-bit int)
+    
+    // CRITICAL: Save NZCV immediately before any flag-setting instruction
+    // This prevents debug logic (cmp below) from clobbering guest flags
+    mrs     x17, nzcv
+    str     x17, [x29, #280]        // Save NZCV back to cpu->pstate
+    
     cmp     x0,  #16
     b.lo    1f
     str     x28, [x29, #816]        // Debug: current bytecode stream pointer for bad exits
@@ -148,8 +154,7 @@ tcti_exit_block:
     str     x14, [x29, #120]        // Host x14 -> guest x13
     str     x15, [x29, #128]        // Host x15 -> guest x14
     str     x16, [x29, #136]        // Host x16 -> guest x15
-    mrs     x17, nzcv
-    str     x17, [x29, #280]        // Save NZCV back to cpu->pstate
+    // Note: NZCV was saved at the top of this function before any flag-setting instructions
 
     // Guest x16-x30 and SP already in memory (never loaded to host regs)
     

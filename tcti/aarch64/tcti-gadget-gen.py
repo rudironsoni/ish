@@ -333,6 +333,17 @@ struct str_wb_diag {{
 struct str_wb_diag g_str_wb_diag = {{0}};
 
 // ============================================================================
+// Test-Only Atomic Capture Buffers
+// ============================================================================
+// These are for strict unit testing only and capture state atomically
+// with no conditional logic or flag-setting instructions.
+struct atomic_cmp_capture {{
+    uint64_t x3_before;
+    uint64_t x6_before;
+    uint64_t nzcv_after_subs;
+}} g_atomic_cmp_capture = {{0}};
+
+// ============================================================================
 // Register Mapping
 // ============================================================================
 // Guest x0-x15  -> Host x1-x16 (direct mapping)
@@ -658,49 +669,26 @@ def generate_cmp_reg_gadgets():
 
             func_name = f"gadget_cmp_reg_{rn}_{rm}"
 
-            # Special diagnostic gadget for x2==x5 with diagnostic capture
+            # Test-only atomic capture for the failing pair (x2, x5)
             if rn == 2 and rm == 5:
-                gadget = f"""// CMP x{rn}, x{rm} with diagnostic capture
+                gadget = f"""// CMP x{rn}, x{rm} with atomic capture
 __attribute__((naked)) void {func_name}(void) {{
     asm volatile(
-        // Load capture buffer address
-        "adrp x26, _g_cmp_capture@PAGE\\n\\t"
-        "add x26, x26, _g_cmp_capture@PAGEOFF\\n\\t"
-        // Check if already captured
-        "ldrb w25, [x26, #96]\\n\\t"
-        "cmp w25, #1\\n\\t"
-        "beq 5f\\n\\t"
-        // Capture on first invocation to see actual values
-        "str x3, [x26]\\n\\t"                // [0] host_x3 (guest x2)
-        "str x6, [x26, #8]\\n\\t"            // [8] host_x6 (guest x5)
-        "ldr x18, [x29, #16]\\n\\t"          // cpu->x[2] from memory
-        "str x18, [x26, #16]\\n\\t"          // [16] cpu_x2_mem
-        "ldr x18, [x29, #40]\\n\\t"          // cpu->x[5] from memory
-        "str x18, [x26, #24]\\n\\t"          // [24] cpu_x5_mem
-        "mov w25, #1\\n\\t"
-        "strb w25, [x26, #96]\\n\\t"         // [96] cmp_captured = 1
-        "5:\\n\\t"
-        // Original CMP logic
-        "subs xzr, x3, x6\\n\\t"
-        "mrs x17, nzcv\\n\\t"
-        // If captured, store NZCV
-        "cmp w25, #1\\n\\t"
-        "bne 6f\\n\\t"
-        "str x17, [x26, #32]\\n\\t"          // [32] nzcv_after_subs
-        "6:\\n\\t"
-        "str x17, [x29, #280]\\n\\t"
-        // If captured, store saved NZCV
-        "cmp w25, #1\\n\\t"
-        "bne 7f\\n\\t"
-        "str x17, [x26, #40]\\n\\t"          // [40] nzcv_saved
-        "7:\\n\\t"
-        "ldr x27, [x28], #8\\n\\t"
+        "str x3, [%[cap], #0]\\n\\t"          // [0] x3 before subs
+        "str x6, [%[cap], #8]\\n\\t"          // [8] x6 before subs
+        "subs xzr, x3, x6\\n\\t"              // Compare
+        "mrs x17, nzcv\\n\\t"                 // Capture NZCV
+        "str x17, [%[cap], #16]\\n\\t"        // [16] NZCV after subs
+        "str x17, [x29, #280]\\n\\t"          // Save to cpu->pstate
+        "ldr x27, [x28], #8\\n\\t"            // Load next gadget
         "br x27\\n\\t"
         ::
-        : "x17", "x25", "x26", "x27", "x18"
+        [cap] "r" (&g_atomic_cmp_capture)
+        : "x17", "x27"
     );
 }}"""
             else:
+                # Generate clean CMP gadget for all other cases
                 gadget = f"""// CMP x{rn}, x{rm}
 __attribute__((naked)) void {func_name}(void) {{
     asm volatile(

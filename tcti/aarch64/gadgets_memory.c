@@ -21,191 +21,11 @@
 #include <stddef.h>
 #include <stdio.h>
 
-// g_cmp_bcond_diag is defined in gadgets_tcti_impl.c
-
-// g_cmp_capture is defined in gadgets_tcti_impl.c
-// Layout:
-// [0-7]   host_x3
-// [8-15]  host_x6
-// [16-23] cpu_x2_mem
-// [24-31] cpu_x5_mem
-// [32-39] nzcv_after_subs
-// [40-47] nzcv_saved
-// [48-55] (reserved)
-// [56-63] target_pc
-// [64-71] fallthrough_pc
-// [72-79] nzcv_loaded
-// [80-87] nzcv_after_msr
-// [88-95] selected_pc
-// [96]    cmp_captured
-// [97]    bcond_captured
-extern struct {
-    uint64_t host_x3;
-    uint64_t host_x6;
-    uint64_t cpu_x2_mem;
-    uint64_t cpu_x5_mem;
-    uint64_t nzcv_after_subs;
-    uint64_t nzcv_saved;
-    uint64_t reserved;
-    uint64_t target_pc;
-    uint64_t fallthrough_pc;
-    uint64_t nzcv_loaded;
-    uint64_t nzcv_after_msr;
-    uint64_t selected_pc;
-    uint8_t  cmp_captured;
-    uint8_t  bcond_captured;
-} g_cmp_capture;
-
-// STR diagnostic buffer for tracking post-index writeback bug
-struct str_wb_diag {
-    uint64_t x3_before_helper;
-    uint64_t x3_after_restore;
-    uint64_t cpu_x2_before_call;
-    uint64_t cpu_x2_after_helper;
-    uint64_t captured;
-};
-extern struct str_wb_diag g_str_wb_diag;
-
-// Runtime diagnostic for pc=0xf7fa4650
-struct runtime_diag {
-    uint64_t entered_gadget;
-    uint64_t fault_pc;
-    uint64_t took_fast_path;
-    uint64_t took_slow_path;
-    uint64_t captured;
-};
-extern struct runtime_diag g_runtime_diag;
-
-// Dump the CMP-to-B.NE diagnostic data
-void dump_cmp_bcond_diag(void) {
-    if (g_cmp_bcond_diag.magic != 0xC0FFEE01) {
-        fprintf(stderr, "[DIAG] Diagnostic struct magic mismatch: 0x%llx\n",
-                (unsigned long long)g_cmp_bcond_diag.magic);
-        return;
-    }
-    if (!g_cmp_bcond_diag.captured) {
-        fprintf(stderr, "[DIAG] No equality-case capture (not yet triggered)\n");
-        return;
-    }
-    fprintf(stderr, "\n========== CMP-TO-B.NE DIAGNOSTIC ==========\n");
-    fprintf(stderr, "CMP (x2 vs x5):\n");
-    fprintf(stderr, "  operand_a (x3):  0x%016llx\n", (unsigned long long)g_cmp_bcond_diag.cmp_operand_a);
-    fprintf(stderr, "  operand_b (x6):  0x%016llx\n", (unsigned long long)g_cmp_bcond_diag.cmp_operand_b);
-    fprintf(stderr, "  nzcv_after_subs: 0x%016llx (Z=%d)\n",
-            (unsigned long long)g_cmp_bcond_diag.nzcv_after_subs,
-            (g_cmp_bcond_diag.nzcv_after_subs >> 30) & 1);
-    fprintf(stderr, "  nzcv_saved:      0x%016llx\n", (unsigned long long)g_cmp_bcond_diag.nzcv_saved);
-    fprintf(stderr, "\nB.NE (equality case):\n");
-    fprintf(stderr, "  target_pc:       0x%016llx\n", (unsigned long long)g_cmp_bcond_diag.bcond_target_pc);
-    fprintf(stderr, "  fallthrough_pc:  0x%016llx\n", (unsigned long long)g_cmp_bcond_diag.bcond_fallthrough_pc);
-    fprintf(stderr, "  nzcv_loaded:     0x%016llx (Z=%d)\n",
-            (unsigned long long)g_cmp_bcond_diag.nzcv_loaded,
-            (g_cmp_bcond_diag.nzcv_loaded >> 30) & 1);
-    fprintf(stderr, "  nzcv_after_msr:  0x%016llx (Z=%d)\n",
-            (unsigned long long)g_cmp_bcond_diag.nzcv_after_msr,
-            (g_cmp_bcond_diag.nzcv_after_msr >> 30) & 1);
-    fprintf(stderr, "  selected_pc:     0x%016llx\n", (unsigned long long)g_cmp_bcond_diag.selected_pc);
-    fprintf(stderr, "============================================\n\n");
-}
-
-// Dump the CMP capture diagnostic (one-shot memory capture)
-void dump_cmp_capture(void) {
-    if (!g_cmp_capture.cmp_captured) {
-        fprintf(stderr, "[CMP-CAPTURE] No capture triggered\n");
-        return;
-    }
-    fprintf(stderr, "\n========== CMP x2,x5 EQUALITY-WINDOW CAPTURE ==========\n");
-    fprintf(stderr, "CMP gadget data:\n");
-    fprintf(stderr, "  host x3 (guest x2):  0x%016llx\n", (unsigned long long)g_cmp_capture.host_x3);
-    fprintf(stderr, "  host x6 (guest x5):  0x%016llx\n", (unsigned long long)g_cmp_capture.host_x6);
-    fprintf(stderr, "  cpu->x[2] in memory: 0x%016llx\n", (unsigned long long)g_cmp_capture.cpu_x2_mem);
-    fprintf(stderr, "  cpu->x[5] in memory: 0x%016llx\n", (unsigned long long)g_cmp_capture.cpu_x5_mem);
-    fprintf(stderr, "  NZCV after subs:     0x%016llx (Z=%d)\n",
-            (unsigned long long)g_cmp_capture.nzcv_after_subs,
-            (g_cmp_capture.nzcv_after_subs >> 30) & 1);
-    fprintf(stderr, "  NZCV saved:          0x%016llx (Z=%d)\n",
-            (unsigned long long)g_cmp_capture.nzcv_saved,
-            (g_cmp_capture.nzcv_saved >> 30) & 1);
-    
-    if (g_cmp_capture.bcond_captured) {
-        fprintf(stderr, "\nB.NE gadget data:\n");
-        fprintf(stderr, "  target PC:           0x%016llx\n", (unsigned long long)g_cmp_capture.target_pc);
-        fprintf(stderr, "  fallthrough PC:      0x%016llx\n", (unsigned long long)g_cmp_capture.fallthrough_pc);
-        fprintf(stderr, "  NZCV loaded:         0x%016llx (Z=%d)\n",
-                (unsigned long long)g_cmp_capture.nzcv_loaded,
-                (g_cmp_capture.nzcv_loaded >> 30) & 1);
-        fprintf(stderr, "  NZCV after msr:      0x%016llx (Z=%d)\n",
-                (unsigned long long)g_cmp_capture.nzcv_after_msr,
-                (g_cmp_capture.nzcv_after_msr >> 30) & 1);
-        fprintf(stderr, "  selected PC:         0x%016llx\n", (unsigned long long)g_cmp_capture.selected_pc);
-    } else {
-        fprintf(stderr, "\nB.NE gadget: NOT CAPTURED (may have faulted before reaching branch)\n");
-    }
-    
-    // Classification
-    int host_x3_eq_x6 = (g_cmp_capture.host_x3 == g_cmp_capture.host_x6);
-    int cpu_x2_eq_x5 = (g_cmp_capture.cpu_x2_mem == g_cmp_capture.cpu_x5_mem);
-    int z_set = ((g_cmp_capture.nzcv_after_subs >> 30) & 1);
-    
-    fprintf(stderr, "\nANALYSIS:\n");
-    fprintf(stderr, "  host x3 == host x6:  %s\n", host_x3_eq_x6 ? "YES" : "NO");
-    fprintf(stderr, "  cpu x2 == cpu x5:    %s\n", cpu_x2_eq_x5 ? "YES" : "NO");
-    fprintf(stderr, "  Z flag after subs:   %s\n", z_set ? "SET" : "CLEAR");
-    
-    if (!host_x3_eq_x6) {
-        fprintf(stderr, "\n  CLASSIFICATION: HOT-REGISTER DIVERGENCE\n");
-        fprintf(stderr, "    host x3 = 0x%016llx\n", (unsigned long long)g_cmp_capture.host_x3);
-        fprintf(stderr, "    host x6 = 0x%016llx\n", (unsigned long long)g_cmp_capture.host_x6);
-    } else if (!z_set) {
-        fprintf(stderr, "\n  CLASSIFICATION: CMP NOT DETECTING EQUALITY\n");
-        fprintf(stderr, "    Operands are equal but Z=0 after subs\n");
-    } else if (g_cmp_capture.bcond_captured) {
-        int took_fallthrough = (g_cmp_capture.selected_pc == g_cmp_capture.fallthrough_pc);
-        fprintf(stderr, "\n  CLASSIFICATION: %s\n", 
-                took_fallthrough ? "BRANCH CORRECTLY EXITS LOOP" : "BRANCH INCORRECTLY CONTINUES");
-    }
-    fprintf(stderr, "=======================================================\n\n");
-}
-
-// Dump the STR post-index writeback diagnostic
-void dump_str_wb_diag(void) {
-    if (!g_str_wb_diag.captured) {
-        fprintf(stderr, "[STR-WB-DIAG] No capture triggered\n");
-        return;
-    }
-    fprintf(stderr, "\n========== STR POST-INDEX WRITEBACK DIAGNOSTIC ==========\n");
-    fprintf(stderr, "host x3 before helper:    0x%016llx\n", (unsigned long long)g_str_wb_diag.x3_before_helper);
-    fprintf(stderr, "host x3 after restore:    0x%016llx\n", (unsigned long long)g_str_wb_diag.x3_after_restore);
-    fprintf(stderr, "cpu->x[2] before call:    0x%016llx\n", (unsigned long long)g_str_wb_diag.cpu_x2_before_call);
-    fprintf(stderr, "cpu->x[2] after helper:   0x%016llx\n", (unsigned long long)g_str_wb_diag.cpu_x2_after_helper);
-    
-    int x3_unchanged = (g_str_wb_diag.x3_before_helper == g_str_wb_diag.x3_after_restore);
-    int cpu_updated = (g_str_wb_diag.cpu_x2_before_call != g_str_wb_diag.cpu_x2_after_helper);
-    
-    fprintf(stderr, "\nANALYSIS:\n");
-    fprintf(stderr, "  x3 unchanged through helper: %s\n", x3_unchanged ? "YES (BUG)" : "NO");
-    fprintf(stderr, "  cpu->x[2] updated by helper: %s\n", cpu_updated ? "YES" : "NO");
-    
-    if (x3_unchanged && cpu_updated) {
-        fprintf(stderr, "\n  CLASSIFICATION: RESTORE OVERWRITES HELPER UPDATE\n");
-        fprintf(stderr, "    Helper updated cpu->x[2] but restore brought back stale x3\n");
-    }
-    fprintf(stderr, "=========================================================\n\n");
-}
-
-// Dump runtime diagnostic for pc=0xf7fa4650
-void dump_runtime_diag(void) {
-    if (!g_runtime_diag.captured) {
-        fprintf(stderr, "[RUNTIME-DIAG] No runtime capture for pc=0xf7fa4650\n");
-        return;
-    }
-    fprintf(stderr, "\n========== RUNTIME DIAGNOSTIC for pc=0xf7fa4650 ==========\n");
-    fprintf(stderr, "entered gadget_str_x_impl: %s\n", g_runtime_diag.entered_gadget ? "YES" : "NO");
-    fprintf(stderr, "fault_pc:                  0x%016llx\n", (unsigned long long)g_runtime_diag.fault_pc);
-    fprintf(stderr, "took fast path:            %s\n", g_runtime_diag.took_fast_path ? "YES" : "NO");
-    fprintf(stderr, "took slow path:            %s\n", g_runtime_diag.took_slow_path ? "YES" : "NO");
-    fprintf(stderr, "==========================================================\n\n");
-}
+// Stub functions for removed diagnostics
+void dump_str_wb_diag(void) { (void)0; }
+void dump_cmp_capture(void) { (void)0; }
+void dump_cmp_bcond_diag(void) { (void)0; }
+void dump_runtime_diag(void) { (void)0; }
 
 // Verify offset assumptions at compile time
 #define XREG_OFFSET(n) (offsetof(struct cpu_state, x[n]))
@@ -735,47 +555,22 @@ tcti_gadget_t gadget_b = gadget_b_impl;
 
 GEN_BCOND(eq, eq);
 
-// B.NE gadget with equality-window capture
+// B.NE gadget
 __attribute__((naked)) void gadget_bcond_ne_impl(void) {
     asm volatile(
         "ldr x16, [x28], #8\n\t"        // Load target PC
         "ldr x17, [x28], #8\n\t"        // Load fallthrough PC
         "ldr x15, [x29, #280]\n\t"      // Load NZCV from cpu->pstate
         "msr nzcv, x15\n\t"              // Restore NZCV
-        // Check if CMP already captured (cmp_captured flag at offset 96)
-        "adrp x18, _g_cmp_capture@PAGE\n\t"
-        "add x18, x18, _g_cmp_capture@PAGEOFF\n\t"
-        "ldrb w26, [x18, #96]\n\t"      // Check cmp_captured
-        "cmp w26, #1\n\t"
-        "b.ne 1f\n\t"                     // Skip if CMP not captured
-        // Check if branch already captured
-        "ldrb w26, [x18, #97]\n\t"      // Check bcond_captured
-        "cmp w26, #1\n\t"
-        "beq 1f\n\t"                      // Skip if already captured
-        // Capture branch data (CMP captured, first B.NE after it)
-        "str x16, [x18, #56]\n\t"        // [56] target_pc
-        "str x17, [x18, #64]\n\t"        // [64] fallthrough_pc
-        "str x15, [x18, #72]\n\t"        // [72] nzcv_loaded
-        "mrs x26, nzcv\n\t"              // Read NZCV after msr
-        "str x26, [x18, #80]\n\t"        // [80] nzcv_after_msr
-        "mov w26, #1\n\t"
-        "strb w26, [x18, #97]\n\t"       // [97] bcond_captured = 1
-        "mov x26, x15\n\t"                // Restore x26 for later use
-        "1:\n\t"
-        "b.ne 2f\n\t"                     // Branch if NOT equal
+        "b.ne 1f\n\t"                     // Branch if NOT equal
         "mov x16, x17\n\t"                // Use fallthrough PC (equal case)
-        "2:\n\t"
-        // If captured, save final PC
-        "cmp w26, #1\n\t"                 // Check if we captured
-        "bne 3f\n\t"
-        "str x16, [x18, #88]\n\t"        // [88] selected_pc
-        "3:\n\t"
+        "1:\n\t"
         "str x16, [x29, %[pc_off]]\n\t"  // Store to cpu->pc
         "mov x0, #0\n\t"
         "b _tcti_exit_block\n\t"
         :
         : [pc_off] "i" (PC_OFFSET)
-        : "x15", "x16", "x17", "x18", "x26"
+        : "x15", "x16", "x17", "x26"
     );
 }
 
@@ -1529,23 +1324,6 @@ __attribute__((naked)) void gadget_str_x_impl(void) {
         "ldr x24, [x28], #8\n\t"     // idx_mode
         "ldr x25, [x28], #8\n\t"     // meta
 
-        // DIAGNOSTIC: Check if fault_pc >= 0xf7fa4000 (to catch 0xf7fa4650)
-        "mov x18, #0xf7fa4000\n\t"
-        "cmp x19, x18\n\t"
-        "b.lo 500f\n\t"
-        "mov x18, #0xf7fa5000\n\t"
-        "cmp x19, x18\n\t"
-        "b.hs 500f\n\t"
-        "adrp x18, _g_runtime_diag@PAGE\n\t"
-        "add x18, x18, _g_runtime_diag@PAGEOFF\n\t"
-        "ldr x0, [x18, #32]\n\t"
-        "cmp x0, #1\n\t"
-        "b.eq 500f\n\t"
-        "mov x0, #1\n\t"
-        "str x0, [x18]\n\t"          // entered_gadget = 1
-        "str x19, [x18, #8]\n\t"     // fault_pc
-        "500:\n\t"
-
         // Patch 1B.2: Hot-hot fast path for STR
         // Requirements: both Rn and Rt in 0-15, 64-bit, offset mode, meta=0
         "cmp x20, #16\n\t"           // Is Rt hot (0-15)?
@@ -1559,18 +1337,7 @@ __attribute__((naked)) void gadget_str_x_impl(void) {
         "cmp x25, #0\n\t"            // Is meta 0 (no reg offset, not signed)?
         "b.ne 94f\n\t"               // Branch to meta counter
 
-        // DIAGNOSTIC: Mark fast path taken for pc in range 0xf7fa4000-0xf7fa5000
-        "mov x18, #0xf7fa4000\n\t"
-        "cmp x19, x18\n\t"
-        "b.lo 501f\n\t"
-        "mov x18, #0xf7fa5000\n\t"
-        "cmp x19, x18\n\t"
-        "b.hs 501f\n\t"
-        "adrp x18, _g_runtime_diag@PAGE\n\t"
-        "add x18, x18, _g_runtime_diag@PAGEOFF\n\t"
-        "mov x0, #1\n\t"
-        "str x0, [x18, #16]\n\t"     // took_fast_path = 1
-        "501:\n\t"
+
 
         // Get base register value (hot, in x1-x16) using computed goto
         // Branch table for Rn 0-15
@@ -1769,30 +1536,6 @@ __attribute__((naked)) void gadget_str_x_impl(void) {
         "ldr x26, [x29, %[str_fallback_off]]\n\t"
         "add x26, x26, #1\n\t"
         "str x26, [x29, %[str_fallback_off]]\n\t"
-        // DIAGNOSTIC: Mark slow path taken for pc in range 0xf7fa4000-0xf7fa5000
-        "mov x18, #0xf7fa4000\n\t"
-        "cmp x19, x18\n\t"
-        "b.lo 502f\n\t"
-        "mov x18, #0xf7fa5000\n\t"
-        "cmp x19, x18\n\t"
-        "b.hs 502f\n\t"
-        "adrp x18, _g_runtime_diag@PAGE\n\t"
-        "add x18, x18, _g_runtime_diag@PAGEOFF\n\t"
-        "mov x0, #1\n\t"
-        "str x0, [x18, #24]\n\t"     // took_slow_path = 1
-        "mov x0, #1\n\t"
-        "str x0, [x18, #32]\n\t"     // captured = 1
-        "502:\n\t"
-        // DIAGNOSTIC: Capture x3 before save (unconditional to verify slow path entry)
-        "adrp x26, _g_str_wb_diag@PAGE\n\t"
-        "add x26, x26, _g_str_wb_diag@PAGEOFF\n\t"
-        "ldr x0, [x26, #32]\n\t"     // Check if already captured
-        "cmp x0, #1\n\t"
-        "b.eq 200f\n\t"
-        "str x3, [x26]\n\t"          // [0] x3_before_helper
-        "ldr x0, [x29, #16]\n\t"     // cpu->x[2] before call
-        "str x0, [x26, #16]\n\t"     // [16] cpu_x2_before_call
-        "200:\n\t"
         // Save registers and call C helper
         "stp x1, x2, [x29, #16]\n\t"
         "stp x3, x4, [x29, #32]\n\t"
@@ -1821,20 +1564,6 @@ __attribute__((naked)) void gadget_str_x_impl(void) {
         "ldp x11, x12, [x29, #96]\n\t"
         "ldp x13, x14, [x29, #112]\n\t"
         "ldp x15, x16, [x29, #128]\n\t"
-        // DIAGNOSTIC: Capture x3 after restore and cpu->x[2] after helper
-        "cmp x21, #2\n\t"            // Check if Rn == 2 (x2)
-        "b.ne 201f\n\t"
-        "adrp x26, _g_str_wb_diag@PAGE\n\t"
-        "add x26, x26, _g_str_wb_diag@PAGEOFF\n\t"
-        "ldr x18, [x26, #32]\n\t"    // Check if already captured (use x18)
-        "cmp x18, #1\n\t"
-        "b.eq 201f\n\t"
-        "str x3, [x26, #8]\n\t"      // [8] x3_after_restore
-        "ldr x18, [x29, #16]\n\t"    // cpu->x[2] after helper
-        "str x18, [x26, #24]\n\t"    // [24] cpu_x2_after_helper
-        "mov x18, #1\n\t"
-        "str x18, [x26, #32]\n\t"    // [32] captured = 1
-        "201:\n\t"
         "cmp x0, #0\n\t"             // x0 still has return value from helper
         "b.ne 1f\n\t"
         "ldr x27, [x28], #8\n\t"
