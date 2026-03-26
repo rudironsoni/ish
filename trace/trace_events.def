@@ -1,0 +1,69 @@
+/*
+ * trace_events.def
+ * Event definition file for the iSH tracing subsystem.
+ * 
+ * Format: TRACE_EVENT(name, level, category, payload_size)
+ * 
+ * This file defines the core event taxonomy. It can be processed by
+ * code generators or included directly for compile-time constants.
+ */
+
+#ifndef TRACE_EVENT
+#define TRACE_EVENT(name, level, category, payload_size)
+#endif
+
+/* ============================================
+ * Compile and Decode Events
+ * ============================================ */
+
+/* Block compilation began - payload: uint64_t end_pc */
+TRACE_EVENT(BLOCK_COMPILE_START, 1, TRACE_CAT_COMPILE, 8)
+
+/* Block compilation completed - payload: struct { uint64_t end_pc; uint32_t insn_count; } */
+TRACE_EVENT(BLOCK_COMPILE_END, 1, TRACE_CAT_COMPILE, 16)
+
+/* Instruction decode failed - payload: uint32_t raw_insn */
+TRACE_EVENT(DECODE_FAILURE, 1, TRACE_CAT_DECODE, 4)
+
+/* Unsupported instruction encountered - payload: uint32_t raw_insn */
+TRACE_EVENT(UNSUPPORTED_INSTRUCTION, 1, TRACE_CAT_DECODE, 4)
+
+/* ============================================
+ * Runtime Boundary Events
+ * ============================================ */
+
+/* Block execution started - payload: uint32_t gadget_count */
+TRACE_EVENT(BLOCK_ENTRY, 2, TRACE_CAT_BLOCK, 8)
+
+/* Block execution ended - payload: struct { int exit_reason; uint64_t next_pc; } */
+TRACE_EVENT(BLOCK_EXIT, 2, TRACE_CAT_BLOCK, 16)
+
+/* Block found in cache - payload: int cache_level */
+TRACE_EVENT(BLOCK_CACHE_HIT, 2, TRACE_CAT_BLOCK, 4)
+
+/* Block not in cache (miss) - no payload */
+TRACE_EVENT(BLOCK_CACHE_MISS, 2, TRACE_CAT_BLOCK, 0)
+
+/* Memory fault or exception - payload: struct { uint64_t fault_addr; int is_write; int reason; } */
+TRACE_EVENT(FAULT, 2, TRACE_CAT_FAULT, 24)
+
+/* System call entered - payload: struct { uint64_t num; uint64_t x0; uint64_t x1; uint64_t x2; } */
+TRACE_EVENT(SYSCALL_ENTER, 2, TRACE_CAT_SYSCALL, 32)
+
+/* System call returned - payload: uint64_t retval */
+TRACE_EVENT(SYSCALL_RETURN, 2, TRACE_CAT_SYSCALL, 8)
+
+/* Process execution started - payload: struct { uint64_t sp; uint64_t at_entry; uint64_t at_base; } */
+TRACE_EVENT(PROCESS_ENTRY, 1, TRACE_CAT_BLOCK, 32)
+
+/* ============================================
+ * Block Detail Events (Level 3+)
+ * ============================================ */
+
+/* Register snapshot - payload: uint64_t regs[6] */
+TRACE_EVENT(REGISTER_SNAPSHOT, 3, TRACE_CAT_REGISTER, 48)
+
+/* PSTATE snapshot - payload: struct { uint64_t pstate; uint64_t nzcv; } */
+TRACE_EVENT(PSTATE_SNAPSHOT, 3, TRACE_CAT_REGISTER, 16)
+
+#undef TRACE_EVENT
