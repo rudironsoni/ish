@@ -478,3 +478,318 @@ Every debug report MUST follow this template in this exact order:
 - Jumping to broad loader or ABI theories before boundary proof.
 - Using BusyBox-level speculation as primary reasoning.
 - Reopening Units A, B, or C without new contradictory evidence.
+---
+
+## Tracing and Diagnostics Subsystem Policy
+
+### PRIMARY RULE
+
+For all debugging in this repository:
+
+**FORBIDDEN:**
+- Do NOT add one-off `fprintf`
+- Do NOT add one-off `printk`
+- Do NOT add hardcoded PC probes
+- Do NOT add sticky diagnostics to `emu/aarch64/cpu.c`
+- Do NOT add random debug globals
+- Do NOT broaden runtime tracing by editing source
+
+**REQUIRED:**
+- Use the centralized trace subsystem
+- Use runtime trace filters
+- Use block sidecars
+- Use the harness
+- Use smallest-unit-first fixtures
+
+If more visibility is needed, first increase trace level or narrow filters.
+Only if the tracing subsystem itself is insufficient for the current bug may you extend it, and even then you must do so generically, not as a one-off hack.
+
+### MANDATORY DEBUGGING ORDER
+
+Work in this exact order:
+
+1. Define the smallest failing unit
+2. State expected truth
+3. Choose the right harness mode
+4. Run tracing at the lowest useful level
+5. Inspect artifacts
+6. Identify the first failing layer
+7. Patch one file and one function only
+8. Add or update regression
+9. Rerun the harness and verify
+
+Do NOT start from full runtime smoke tests unless the bug cannot be reduced further.
+
+### CHOOSE EXACTLY ONE HARNESS MODE FIRST
+
+For every bug, choose exactly one starting mode:
+
+**A. Decode golden**
+- Use when the question is: does raw instruction decode correctly?
+
+**B. Generator golden**
+- Use when the question is: does decoded instruction emit the correct gadget sequence?
+
+**C. Semantic microtest**
+- Use when the question is: does one instruction or tiny sequence execute correctly?
+
+**D. ABI fixture**
+- Use when the question is: is process entry, stack, auxv, TLS, or loader handoff correct?
+
+**E. Runtime trace fixture**
+- Use when the bug only appears in actual runtime flow and lower layers are already proven.
+
+Do NOT jump to mode E if A through D can answer the question.
+
+### TRACE LEVEL RULES
+
+Start with the lowest useful trace level:
+
+**Level 1 (summary):**
+- Use for: compile summaries, top-level fault summaries, high-level process start, unsupported conditions
+
+**Level 2 (boundary):**
+- Use for: block entry/exit, syscall entry/exit, fault boundaries, smallest runtime boundary proofs
+
+**Level 3 (block):**
+- Use for: decoded block-level understanding, block sidecar inspection, selected register snapshots, instruction list and block mapping
+
+**Level 4 (instruction):**
+- Use ONLY for narrow PC ranges and only when levels 2 and 3 are insufficient.
+
+**Level 5 (forensic):**
+- Use ONLY for very narrow captures and only as a last resort.
+
+**Default escalation order:**
+- Start at level 2 for runtime issues
+- Then level 3
+- Then level 4 with tight filters
+- Never jump to 4 or 5 broadly
+
+### FILTER RULES
+
+Narrow tracing BEFORE increasing verbosity.
+
+Always try to use:
+- `ISH_TRACE_PC`
+- `ISH_TRACE_EVENTS`
+- `ISH_TRACE_REGS`
+- `ISH_TRACE_DUMP_ON`
+- `ISH_TRACE_RING_SIZE`
+- `ISH_TRACE_OUT`
+
+**Examples of required behavior:**
+
+If debugging one block range:
+```bash
+ISH_TRACE_PC=<start>-<end>
+```
+
+If debugging block boundaries only:
+```bash
+ISH_TRACE_EVENTS=block.boundary,fault,syscall
+```
+
+If debugging selected registers:
+```bash
+ISH_TRACE_REGS=x2,x3,x4
+```
+
+If debugging runtime failures:
+```bash
+ISH_TRACE_DUMP_ON=fault
+```
+
+Do NOT enable broad high-volume tracing over the full runtime unless explicitly necessary.
+
+### REQUIRED DEFAULT COMMAND PATTERNS
+
+When debugging a runtime bug, use these command patterns first.
+
+**Boundary-first run:**
+```bash
+ISH_TRACE_BACKEND=ring ISH_TRACE_LEVEL=2 ISH_TRACE_DUMP_ON=fault ./build/ish ...
+```
+
+**Boundary-first with PC filter:**
+```bash
+ISH_TRACE_BACKEND=ring ISH_TRACE_LEVEL=2 ISH_TRACE_PC=<start>-<end> ISH_TRACE_DUMP_ON=fault ./build/ish ...
+```
+
+**Block-level run:**
+```bash
+ISH_TRACE_BACKEND=ring ISH_TRACE_LEVEL=3 ISH_TRACE_PC=<start>-<end> ISH_TRACE_EVENTS=block.compile,block.entry,block.exit,fault ./build/ish ...
+```
+
+**Selected-register run:**
+```bash
+ISH_TRACE_BACKEND=ring ISH_TRACE_LEVEL=3 ISH_TRACE_PC=<start>-<end> ISH_TRACE_REGS=x2,x3,x4 ./build/ish ...
+```
+
+**Offline decode:**
+```bash
+python3 scripts/trace_decode.py <trace-file>
+python3 scripts/trace_decode.py <trace-file> -f json -o <decoded.json>
+```
+
+Prefer these patterns over source edits.
+
+### WHEN TO USE BLOCK SIDECARS
+
+If the bug involves:
+- Wrong block composition
+- Wrong guest-instruction grouping
+- Wrong emitted block coverage
+- Wrong guest-PC to gadget mapping
+- Confusion about the current block shape
+
+Then inspect the block sidecar before proposing a patch.
+
+Use the sidecar to answer:
+- Block start and end PC
+- Instruction list
+- Raw instructions
+- Decoded summaries
+- Source and destination regs where available
+- Gadget count or emitted span
+
+Do NOT reconstruct this manually from scattered logs if the sidecar already gives it.
+
+### FLIGHT RECORDER RULE
+
+Assume the ring backend is the default debug backend.
+
+For runtime failures:
+- Prefer ring backend
+- Dump on fault
+- Decode artifacts after the run
+
+Do NOT use `stderr` as the primary mechanism for deep debugging unless:
+- The event volume is tiny
+- Or you are doing a quick sanity check
+
+The ring buffer plus offline decode is the source of truth. Text output is secondary.
+
+### WHEN YOU ARE ALLOWED TO EXTEND TRACING
+
+You may extend the tracing subsystem only if ALL of these are true:
+
+1. The current bug cannot be resolved using existing events, filters, sidecars, and fixtures
+2. The missing visibility is generic and reusable
+3. The addition belongs in the centralized trace system, not local runtime code
+4. The addition can be controlled by existing levels or event filters
+
+If you add a trace event:
+- Add it centrally
+- Document it
+- Wire it cleanly
+- Do not add one-off debug prints instead
+
+### PATCHING RULE
+
+Do NOT patch until you can name the first failing layer:
+
+- ISA truth
+- Decoder truth
+- Generator truth
+- Execution truth
+- ABI truth
+- Runtime boundary
+
+Once the first failing layer is proven:
+- Patch exactly one file
+- Patch exactly one function if possible
+- Do not mix cleanup with unrelated logic changes
+- Rerun the same harness and trace flow after patching
+
+### REQUIRED REPORT FORMAT FOR EVERY DEBUG ITERATION
+
+For every meaningful debug result, reply using this structure:
+
+```
+### Current failing unit
+- one smallest unit only
+
+### Expected truth
+- ISA or ABI expectation
+
+### Trace or harness used
+- exact harness mode
+- exact trace level
+- exact filters used
+
+### Observed truth
+- concrete result from trace, sidecar, or fixture
+
+### First failing layer
+- one layer only
+
+### Exact next step
+- one step only
+```
+
+If a patch is justified, add:
+
+```
+### Exact patch target
+- one file
+- one function
+```
+
+Do NOT give multiple options unless explicitly asked.
+
+### FORBIDDEN BEHAVIORS
+
+**STRICTLY FORBIDDEN:**
+- Adding ad hoc `fprintf` or `printk`
+- Adding hardcoded PC-specific probes
+- Asking to "just run with more logs"
+- Skipping directly to full runtime boot if smaller units exist
+- Reopening already-proven lower layers without new contradictory evidence
+- Patching multiple unrelated files at once
+- Claiming completion without build and test evidence
+- Claiming a root cause before the first failing layer is proven
+
+### REQUIRED END-OF-TASK VERIFICATION
+
+Before claiming a bug fix is done, you MUST:
+
+1. Rebuild
+2. Rerun the relevant harness or fixture
+3. Rerun with the same trace settings that proved the bug
+4. Confirm the observed failure is gone
+5. Confirm no ad hoc diagnostics were introduced
+6. State exactly what passed
+
+If build or tests were not rerun, you MUST say so explicitly.
+
+### IF YOU START DRIFTING
+
+If you catch yourself doing any of these:
+- Adding local prints
+- Broadening scope
+- Re-debugging already-proven units
+- Proposing a patch before proving the layer
+- Using full runtime traces when a microtest would do
+
+Stop and reset back to:
+- Smallest failing unit
+- Harness mode selection
+- Trace level 2 boundary first
+- Filtered capture
+- Sidecar inspection if block-related
+
+### OPERATING SUMMARY
+
+Your default behavior from now on is:
+
+- Smallest unit first
+- Harness before source edit
+- Trace filters before verbosity
+- Ring backend before stderr
+- Sidecar before manual reconstruction
+- One proven failing layer before patching
+- One patch target only
+- Regression after fix
+
+Follow this literally.
