@@ -66,4 +66,27 @@ TRACE_EVENT(REGISTER_SNAPSHOT, 3, TRACE_CAT_REGISTER, 48)
 /* PSTATE snapshot - payload: struct { uint64_t pstate; uint64_t nzcv; } */
 TRACE_EVENT(PSTATE_SNAPSHOT, 3, TRACE_CAT_REGISTER, 16)
 
+/* ============================================
+ * Emulation Limitation Events (SUMMARY level)
+ * ============================================ */
+
+/* Unhandled MRS system register read - payload: uint32_t sysreg (op1|CRn|CRm|op2 encoded) */
+TRACE_EVENT(UNHANDLED_MRS, 1, TRACE_CAT_DECODE, 4)
+
+/* Unhandled MSR system register write - payload: uint32_t sysreg (op1|CRn|CRm|op2 encoded) */
+TRACE_EVENT(UNHANDLED_MSR, 1, TRACE_CAT_DECODE, 4)
+
+/* ============================================
+ * Runtime Error Events (BOUNDARY level)
+ * ============================================ */
+
+/* Unknown COMPLEX exit - payload: struct { uint16_t cat; uint16_t subtype; } */
+TRACE_EVENT(COMPLEX_UNKNOWN, 2, TRACE_CAT_FAULT, 4)
+
+/* Failed to decode instruction - payload: uint32_t raw_insn */
+TRACE_EVENT(COMPLEX_DECODE_FAIL, 2, TRACE_CAT_DECODE, 4)
+
+/* Failed to fetch instruction - payload: uint32_t fault_reason */
+TRACE_EVENT(COMPLEX_FETCH_FAIL, 2, TRACE_CAT_FAULT, 4)
+
 #undef TRACE_EVENT

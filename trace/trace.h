@@ -103,6 +103,15 @@ void trace_emit_register_snapshot(uint64_t pc, const uint64_t *regs, uint32_t re
 /* Emit PSTATE snapshot. */
 void trace_emit_pstate_snapshot(uint64_t pc, uint64_t pstate, uint64_t nzcv);
 
+/* Emit emulation limitation events. */
+void trace_emit_unhandled_mrs(uint64_t pc, uint32_t sysreg);
+void trace_emit_unhandled_msr(uint64_t pc, uint32_t sysreg);
+
+/* Emit COMPLEX exit error events. */
+void trace_emit_complex_unknown(uint64_t pc, int cat, int subtype);
+void trace_emit_complex_decode_fail(uint64_t pc, uint32_t insn);
+void trace_emit_complex_fetch_fail(uint64_t pc, int reason);
+
 /* ============================================
  * Block Sidecar Management
  * ============================================ */

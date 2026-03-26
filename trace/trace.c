@@ -550,3 +550,52 @@ int trace_dump_ring(const char *path) {
     }
     return g_trace_ctx->backend_ops->dump(g_trace_ctx->backend_ctx, path);
 }
+
+/* Emit unhandled MRS system register read */
+void trace_emit_unhandled_mrs(uint64_t pc, uint32_t sysreg) {
+    trace_emit_u32(TRACE_EVENT_UNHANDLED_MRS, pc, sysreg);
+}
+
+/* Emit unhandled MSR system register write */
+void trace_emit_unhandled_msr(uint64_t pc, uint32_t sysreg) {
+    trace_emit_u32(TRACE_EVENT_UNHANDLED_MSR, pc, sysreg);
+}
+
+/* Emit unknown COMPLEX exit */
+void trace_emit_complex_unknown(uint64_t pc, int cat, int subtype) {
+    if (!g_trace_ctx || !g_trace_ctx->backend_ops || !g_trace_ctx->backend_ops->emit) {
+        return;
+    }
+    
+    /* Check max events limit BEFORE incrementing */
+    if (g_trace_ctx->config.max_events > 0 &&
+        g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
+        g_trace_ctx->enabled = false;
+        return;
+    }
+    
+    trace_record_t record;
+    memset(&record, 0, sizeof(record));
+    
+    record.header.seq = g_trace_ctx->emitted_count++;
+    record.header.event_id = TRACE_EVENT_COMPLEX_UNKNOWN;
+    record.header.level = TRACE_LEVEL_BOUNDARY;
+    record.header.cpu_id = 0;
+    record.header.pc = pc;
+    record.header.payload_size = 4;
+    
+    uint16_t payload[2] = { (uint16_t)cat, (uint16_t)subtype };
+    memcpy(record.payload, payload, 4);
+    
+    g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
+}
+
+/* Emit COMPLEX decode failure */
+void trace_emit_complex_decode_fail(uint64_t pc, uint32_t insn) {
+    trace_emit_u32(TRACE_EVENT_COMPLEX_DECODE_FAIL, pc, insn);
+}
+
+/* Emit COMPLEX fetch failure */
+void trace_emit_complex_fetch_fail(uint64_t pc, int reason) {
+    trace_emit_u32(TRACE_EVENT_COMPLEX_FETCH_FAIL, pc, (uint32_t)reason);
+}

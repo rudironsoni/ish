@@ -51,6 +51,15 @@ typedef enum {
     TRACE_EVENT_REGISTER_SNAPSHOT,        /* Register state captured */
     TRACE_EVENT_PSTATE_SNAPSHOT,          /* PSTATE captured */
     
+    /* Emulation limitation events (level 1) */
+    TRACE_EVENT_UNHANDLED_MRS,            /* Unhandled MRS system register */
+    TRACE_EVENT_UNHANDLED_MSR,            /* Unhandled MSR system register */
+    
+    /* COMPLEX exit error events (level 2) */
+    TRACE_EVENT_COMPLEX_UNKNOWN,          /* Unknown COMPLEX exit */
+    TRACE_EVENT_COMPLEX_DECODE_FAIL,      /* COMPLEX decode failure */
+    TRACE_EVENT_COMPLEX_FETCH_FAIL,       /* COMPLEX fetch failure */
+    
     TRACE_EVENT_MAX
 } trace_event_id_t;
 
