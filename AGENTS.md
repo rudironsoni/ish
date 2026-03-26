@@ -279,3 +279,35 @@ If TCTI coverage is incomplete, that is a TCTI bug that **MUST** be reported and
 - TEST_RESULTS.md: Recent test outcomes
 
 This guide should help you navigate and contribute effectively to the iSH codebase. When in doubt, follow the existing patterns in the code you're modifying.
+
+---
+
+## Layer-by-Layer Debugging Methodology
+
+When debugging failures, follow this strict order:
+1. **ISA truth** - Verify instruction semantics are correct
+2. **Decoder truth** - Verify decode.c produces correct decoded structures  
+3. **Generator truth** - Verify gen.c emits correct gadget sequences
+4. **Execution truth** - Verify single-instruction or microtest execution
+5. **Runtime smoke test** - Only after lower layers pass
+
+### Current Working Context
+
+**Proven Units (do NOT reopen without new evidence):**
+- Unit A: `str xzr, [x2], #8` - PASS
+- Unit B: `str xzr, [x2], #8` + `cmp x2, x5` - PASS  
+- Unit C: `str xzr, [x2], #8` + `cmp x2, x5` + `b.ne loop` - PASS
+
+**Current Active Work:**
+- Block-boundary state handoff proof for guest x3 (maps to host x4)
+- Narrow runtime boundary instrumentation only
+- Not a broad runtime investigation
+
+**Constraints:**
+- Do NOT jump back into full BusyBox-level speculation
+- Do NOT reopen already-proven lower layers without new evidence
+- Do NOT apply broad loader or ABI theories before boundary proof complete
+- Do NOT patch anything before first actually broken layer is demonstrated
+
+**Priority:**
+Capture missing middle boundary value cleanly, then classify based on evidence.
