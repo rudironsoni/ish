@@ -250,3 +250,8 @@ if not meson.is_cross_build()
         include_directories: includes)
     test('integration', integration_test)
 endif
+
+# Validate generated files are not in source tree
+validate_generated = run_target('validate-generated',
+    command: [find_program('tools/validate_generated.sh')]
+)
