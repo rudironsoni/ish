@@ -311,6 +311,35 @@ TEST(gen_ldr) {
     ASSERT_EQ(ret, A64_GEN_OK);
 }
 
+// Test STR post-index store: str xzr, [x2], #8
+// This is the failing instruction from the zeroing loop
+TEST(gen_str_post_index) {
+    setup();
+    a64_gen_reset(&test_state, 0xf7fa4650);
+
+    // Raw instruction: str xzr, [x2], #8
+    // This stores zero to [x2], then writes back x2 = x2 + 8
+    uint32_t str = 0xf800845f;
+
+    int ret = a64_gen_instruction(&test_state, str, 0xf7fa4650);
+    ASSERT_EQ(ret, A64_GEN_OK);
+    
+    // The generator should emit gadget_str_x with proper parameters
+    // Parameters in bytecode order:
+    // - gadget pointer
+    // - fault_pc = 0xf7fa4650
+    // - Rt = 31 (XZR)
+    // - Rn = 2 (X2)  
+    // - imm = 8 (post-index offset)
+    // - size = 3 (64-bit)
+    // - idx_mode = A64_POST_INDEX (1)
+    // - meta = 0 (no signed extension, no register offset)
+    
+    // Verify state tracking
+    ASSERT_EQ(test_state.guest_pc, 0xf7fa4650);
+    ASSERT_EQ(test_state.num_gadgets, 1);  // Should emit exactly one gadget
+}
+
 // Test RET
 TEST(gen_ret) {
     setup();
