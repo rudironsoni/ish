@@ -23,6 +23,10 @@
 
 // External TCTI entry point (declared in gadgets_tcti.h)
 extern void tcti_entry_block(void *gadgets, struct cpu_state *cpu);
+
+// External diagnostic dump function
+extern void dump_cmp_bcond_diag(void);
+extern void dump_cmp_capture(void);
 extern void tcti_exit_block(int reason);
 
 // Execution state is now passed via parameters, not globals
@@ -327,18 +331,35 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
                    (unsigned long long)cpu->sp);
         }
         
-        // DIAGNOSTIC: Detect post-loop execution
-        if (pc == 0xf7fa4698ULL && trace_count < 250) {
-            fprintf(stderr, "[POST-LOOP] First loop exited, x2=0x%llx x5=0x%llx x3=0x%llx\n",
-                   (unsigned long long)cpu->x[2],
-                   (unsigned long long)cpu->x[5],
-                   (unsigned long long)cpu->x[3]);
+        // DIAGNOSTIC: Track zeroing loop progression
+        // First loop: x2 goes from x7 to x5 (sp+8 to sp+0x108)
+        // Second loop: x2 goes from x5 to x3
+        static uint64_t prev_x2 = 0, prev_x3 = 0;
+        static int loop_iter = 0;
+        
+        // Detect when x2 == x5 (first loop completion point)
+        if (cpu->x[2] == cpu->x[5] && trace_count < 250) {
+            fprintf(stderr, "[LOOP-TRANSITION] x2 == x5 at PC=0x%llx, x2=x5=0x%llx, x3=0x%llx\n",
+                   (unsigned long long)pc, (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[3]);
         }
-        if (pc == 0xf7fa46a4ULL && trace_count < 250) {
-            fprintf(stderr, "[POST-LOOP] Entering _DYNAMIC processing loop, x1=0x%llx x3=0x%llx\n",
-                   (unsigned long long)cpu->x[1],
-                   (unsigned long long)cpu->x[3]);
+        
+        // Detect when x2 == x3 (second loop completion point)
+        if (cpu->x[2] == cpu->x[3] && cpu->x[2] != 0 && trace_count < 250) {
+            fprintf(stderr, "[LOOP-TRANSITION] x2 == x3 at PC=0x%llx, x2=x3=0x%llx, x5=0x%llx\n",
+                   (unsigned long long)pc, (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[5]);
         }
+        
+        // Track x3 stability in second loop (when x2 > x5)
+        if (cpu->x[2] > cpu->x[5] && cpu->x[3] != 0 && trace_count < 100) {
+            if (prev_x3 != 0 && cpu->x[3] != prev_x3) {
+                fprintf(stderr, "[X3-CHANGE] x3 changed from 0x%llx to 0x%llx at PC=0x%llx, x2=0x%llx\n",
+                       (unsigned long long)prev_x3, (unsigned long long)cpu->x[3],
+                       (unsigned long long)pc, (unsigned long long)cpu->x[2]);
+            }
+            prev_x3 = cpu->x[3];
+        }
+        
+        prev_x2 = cpu->x[2];
         
         // LOW-FREQUENCY PROGRESS SAMPLER (max once per second)
         if (!logged_sampler_point) {
@@ -447,6 +468,9 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
         } else if (exit_reason == TCTI_EXIT_FAULT) {
             fprintf(stderr, "[RUN-DIAG] TCTI_EXIT_FAULT reached, calling handle_interrupt(INT_GPF)\n");
             
+            // DIAGNOSTIC: Dump CMP-to-B.NE diagnostic if captured
+            dump_cmp_bcond_diag();
+            
             // DIAGNOSTIC: Capture fault details
             fprintf(stderr, "[FAULT-DIAG] pc=0x%llx fault_addr=0x%llx is_write=%d sp=0x%llx\n",
                    (unsigned long long)cpu->pc,
@@ -490,6 +514,21 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
             } else {
                 fprintf(stderr, "[FAULT-DIAG] Failed to fetch instruction at PC\n");
             }
+            
+            // Dump CMP-to-B.NE diagnostic if captured
+            dump_cmp_bcond_diag();
+            
+            // Dump CMP capture diagnostic (one-shot)
+            dump_cmp_capture();
+            
+            // Dump STR writeback diagnostic
+            dump_str_wb_diag();
+            
+            // Dump runtime diagnostic for pc=0xf7fa4650
+            dump_runtime_diag();
+            
+            // Dump emission diagnostic for pc=0xf7fa4650
+            dump_gen_emit_diag();
             
             // Mark context inactive before handling fault
             fiber_exec_ctx_put(ctx);
@@ -563,6 +602,20 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
             if (!block->explicit_pc_on_exit)
                 cpu->pc = block->end_pc;
         }
+        
+        // DIAGNOSTIC: Capture NZCV and branch decision for zeroing loop
+        if (trace_count < 250 && cpu->pc >= 0xf7fa4650ULL && cpu->pc <= 0xf7fa4660ULL) {
+            fprintf(stderr, "[NZCV-DIAG] Block exit PC=0x%llx, pstate=0x%llx, x2=0x%llx, x5=0x%llx\n",
+                   (unsigned long long)cpu->pc,
+                   (unsigned long long)cpu->pstate,
+                   (unsigned long long)cpu->x[2],
+                   (unsigned long long)cpu->x[5]);
+            // Check Z flag (bit 30)
+            int z_flag = (cpu->pstate >> 30) & 1;
+            fprintf(stderr, "[NZCV-DIAG] Z=%d, x2==x5=%d (should exit loop when Z=1)\n",
+                   z_flag, cpu->x[2] == cpu->x[5]);
+        }
+        
         // Normal exit - PC already advanced, continue to next block
     }
 }
