@@ -339,7 +339,7 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
                 // Compile new block
                 block = a64_compile_block(cpu, pc, tlb);
                 if (!block) {
-                    printk("[TCTI] FATAL: Cannot compile block at PC=0x%llx\n", pc);
+                    trace_emit(TRACE_EVENT_FAULT, pc);
                     handle_interrupt(INT_GPF);
                     continue;
                 }
