@@ -224,7 +224,25 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    printf("Semantic Micro Harness - EXEC-001\n");
+    /* Extract case ID from path */
+    const char *case_id = "UNKNOWN";
+    if (case_yaml) {
+        const char *last_slash_p = strrchr(case_yaml, '/');
+        if (last_slash_p) {
+            const char *dash = strchr(last_slash_p, '-');
+            if (dash && last_slash_p[0] == '/') {
+                /* Path format: .../EXEC-001-single-alu/case.yaml */
+                static char cid[32];
+                int len = dash - last_slash_p - 1;
+                if (len > 0 && len < 31) {
+                    strncpy(cid, last_slash_p + 1, len);
+                    cid[len] = '\0';
+                    case_id = cid;
+                }
+            }
+        }
+    }
+    printf("Semantic Micro Harness - %s\n", case_id);
 
     /* Parse expected.yaml for test configuration */
     char expected_yaml[MAX_PATH];
@@ -287,9 +305,7 @@ int main(int argc, char *argv[]) {
      * full implementation.
      */
 
-    /* For ADD immediate: simulate the effect
-     * The decoder may report different cat/subtype values depending on
-     * the encoding. Check for valid ADD immediate patterns.
+    /* Handle ADD/SUB immediate instructions
      * Decoder subtypes for ADD/SUB immediate:
      *   3: ADD immediate with shift (sh=1)
      *   4: ADD immediate no shift (sh=0)
@@ -300,18 +316,39 @@ int main(int argc, char *argv[]) {
     int is_add_imm = (instr.subtype == 3 || instr.subtype == 4);  // ADD immediate
     int is_sub_imm = (instr.subtype == 5 || instr.subtype == 6);  // SUB immediate
 
-    if (is_dp_imm && (is_add_imm || is_sub_imm) && !instr.set_flags) {
+    if (is_dp_imm && (is_add_imm || is_sub_imm)) {
         /* ADD/SUB immediate instruction */
         uint64_t rn_val = (instr.Rn == 31) ? cpu.sp : cpu.x[instr.Rn];
-        /* ADD: add, SUB: subtract */
         uint64_t imm_val = instr.imm;  /* Decoder already applies shift */
-        uint64_t result = is_add_imm ? (rn_val + imm_val) : (rn_val - imm_val);
 
-        if (instr.Rd == 31) {
-            cpu.sp = result;
+        uint64_t result;
+        if (is_add_imm) {
+            result = rn_val + imm_val;
         } else {
+            result = rn_val - imm_val;
+        }
+
+        /* Update destination register (unless XZR) */
+        if (instr.Rd != 31) {
             cpu.x[instr.Rd] = result;
         }
+        /* Rd=31 is XZR (CMP uses this) - no register update */
+
+        /* Update flags if S bit is set (ADDS/SUBS/CMP) */
+        if (instr.set_flags) {
+            uint64_t sign_bit = (1ULL << 63);
+            cpu.n = (result & sign_bit) ? 1 : 0;
+            cpu.z = (result == 0) ? 1 : 0;
+            /* C: For ADD - carry out. For SUB - NOT borrow */
+            if (is_add_imm) {
+                cpu.c = (result < rn_val) ? 1 : 0;  /* Carry if overflow */
+            } else {
+                cpu.c = (rn_val >= imm_val) ? 1 : 0; /* No borrow */
+            }
+            /* V: Signed overflow - simplified, doesn't handle all cases */
+            cpu.v = 0;
+        }
+
         cpu.pc += 4;
         passed = 1;
     }
@@ -330,9 +367,16 @@ int main(int argc, char *argv[]) {
     printf("  Result: %s\n", passed ? "PASSED" : "FAILED");
 
 cleanup:
-    if (write_report(artifact_dir, "EXEC-001", "03-semantic-exec", "semantic_micro",
-                     passed, failure_summary) != 0) {
-        return 1;
+    /* Extract case_id for report */
+    {
+        const char *cid = case_id;
+        if (!cid || strcmp(cid, "UNKNOWN") == 0) {
+            cid = "EXEC-001";  /* Default fallback */
+        }
+        if (write_report(artifact_dir, cid, "03-semantic-exec", "semantic_micro",
+                         passed, failure_summary) != 0) {
+            return 1;
+        }
     }
 
     return passed ? 0 : 1;
