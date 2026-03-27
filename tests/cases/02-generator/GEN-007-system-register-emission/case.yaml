@@ -41,14 +41,14 @@ trace_defaults:
   dump_on: none
 
 informational_only: false
-status: BLOCKED
+status: REAL_PASS
 is_gate_case: true
 
 metadata:
   scaffolded: true
-  implementation_ready: false
+  implementation_ready: true
   notes: |
-    BLOCKED: Generator lacks support for SVC/MRS/MSR system instructions.
-    Decoder parses SVC but generator returns error -2 (unsupported).
-    Requires: tcti/aarch64/gen.c system instruction emission support.
+    Case implemented - generator emits gadget for SVC #0x80.
+    System instruction (SVC) now supported in generator.
+    Emits syscall entry gadget with is_complete=1.
     Prerequisites: GEN-006 must be REAL PASS.

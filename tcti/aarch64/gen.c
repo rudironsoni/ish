@@ -1249,18 +1249,28 @@ int a64_gen_system(a64_gen_state_t *state, const a64_instr_t *instr) {
 int a64_gen_instruction(a64_gen_state_t *state, uint32_t insn, uint64_t pc) {
     a64_instr_t decoded;
     int ret = a64_decode(insn, &decoded);
-    
+
     if (ret < 0)
         return A64_GEN_INVALID_INSN;
-    
+
     state->guest_pc = pc;
     state->raw_insn = insn;
     state->decoded = decoded;
-    
+
+    // Handle system instructions that the decoder categorizes as A64_RESERVED (0)
+    // The decoder detects SVC/HVC/MRS/MSR by top byte (0xD4 or 0xD5) but doesn't set cat
+    uint8_t top_byte = (insn >> 24) & 0xFF;
+    if (decoded.cat == A64_RESERVED && (top_byte == 0xD4 || top_byte == 0xD5)) {
+        return a64_gen_system(state, &decoded);
+    }
+
     // Dispatch by category
     switch (decoded.cat) {
         case A64_DP_IMM:
         case A64_SIMD0:  // cat=8 is actually DP_IMM (ADR, ADRP, etc.)
+            ret = a64_gen_dp_imm(state, &decoded);
+            break;
+
         case A64_DP_IMM2: // cat=13 is also DP_IMM
             ret = a64_gen_dp_imm(state, &decoded);
             break;
@@ -1282,7 +1292,7 @@ int a64_gen_instruction(a64_gen_state_t *state, uint32_t insn, uint64_t pc) {
                 ret = a64_gen_branch(state, &decoded);
             }
             break;
-            
+
         case A64_LD_ST:
             ret = a64_gen_ldst(state, &decoded);
             break;

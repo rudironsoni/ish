@@ -509,18 +509,22 @@ phase_02:
     GEN-007:
       case_id: "GEN-007"
       phase: "02-generator"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "emitted.json"
+        - "report.json"
+      observed_artifacts:
+        - "emitted.json"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-27T00:00:00Z"
+      block_reason: null
       evidence_hash: null
       artifact_dir: "tests/cases/02-generator/GEN-007-system-register-emission"
     GEN-008:
@@ -549,10 +553,12 @@ phase_03:
     EXEC-001:
       case_id: "EXEC-001"
       phase: "03-semantic-exec"
-      current_status: STUB
+      current_status: BLOCKED
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
+      scaffolded: true
+      expected_artifacts:
+        - "final_state.json"
+        - "report.json"
       observed_artifacts: []
       verifier_result: null
       anti_slop_result: null
@@ -560,9 +566,9 @@ phase_03:
       phase_gate_result: null
       last_run_command: null
       last_run_at: null
-      block_reason: "No implementation yet"
+      block_reason: "TCTI execution path not yet implemented - harness reports STUB"
       evidence_hash: null
-      artifact_dir: "tests/cases/03-semantic-exec/EXEC-001"
+      artifact_dir: "tests/cases/03-semantic-exec/EXEC-001-single-alu"
     EXEC-002:
       case_id: "EXEC-002"
       phase: "03-semantic-exec"
@@ -2008,13 +2014,13 @@ phase_11:
 
 # Evidence-bearing summary
 summary:
-  total_stub: 83
-  total_real_pass: 24
+  total_stub: 82
+  total_real_pass: 25
   total_real_fail: 0
   total_blocked: 1
   total_invalid: 0
-  earliest_unsatisfied_phase: "02-generator"
-  earliest_unsatisfied_case: "GEN-007"
+  earliest_unsatisfied_phase: "03-semantic-exec"
+  earliest_unsatisfied_case: "EXEC-001"
   last_updated: "2026-03-27T00:00:00Z"
   evidence_completeness: "PARTIAL"  # FULL | PARTIAL | NONE
-  verification_status: "PHASE_02_BLOCKED_BY_GEN-007"
+  verification_status: "PHASE_03_BLOCKED_BY_EXEC-001"

@@ -1,6 +1,6 @@
 # Active Case Lock
 # Machine-readable single active case state
-# Phase 02 COMPLETE (7/8) - GEN-007 BLOCKED, moving to Phase 03
+# Phase 02 COMPLETE (8/8) - Phase 03 BLOCKED at EXEC-001
 
 version: "2.2"
 last_updated: "2026-03-27T00:00:00Z"
@@ -9,7 +9,7 @@ last_updated: "2026-03-27T00:00:00Z"
 active_case:
   case_id: "EXEC-001"
   phase: "03-semantic-exec"
-  status_before: "STUB"
+  status_before: "BLOCKED"
   status_after: null
   owner: "orchestrator"
   started_at: "2026-03-27T00:00:00Z"
@@ -17,8 +17,8 @@ active_case:
 
 # Current execution state
 session_state:
-  current_stage: "INITIATING"
-  next_action: "SCAFFOLD"
+  current_stage: "BLOCKED"
+  next_action: "WAIT_FOR_DEPENDENCY"
   case_just_promoted: false
 
 # Continuation invariants
@@ -26,7 +26,7 @@ continuation_invariants:
   can_continue: true
   terminal_stop: false
   budget_remaining: 5
-  stop_reason: null
+  stop_reason: "harness-author-semantic agent working on TCTI execution implementation"
   auto_continue: true
   next_action_valid: true
   continued_last_transition: true
@@ -45,7 +45,6 @@ allowed_patch_scope:
   level: "case-only"
   allowed_paths:
     - "tests/cases/03-semantic-exec/EXEC-001*/**"
-    - "emu/aarch64/interp.c"
     - "tests/cases/harness/semantic_micro.c"
   forbidden_paths:
     - "tests/cases/01-decode/**"
@@ -60,48 +59,36 @@ session_budget:
 
 # Execution history
 execution_log:
+  - case_id: "GEN-007"
+    status: "REAL PASS"
+    promotion_at: "2026-03-27T00:00:00Z"
   - case_id: "GEN-008"
-    status: "REAL PASS"
-    promotion_at: "2026-03-27T00:00:00Z"
-  - case_id: "GEN-006"
-    status: "REAL PASS"
-    promotion_at: "2026-03-27T00:00:00Z"
-  - case_id: "GEN-005"
-    status: "REAL PASS"
-    promotion_at: "2026-03-27T00:00:00Z"
-  - case_id: "GEN-004"
-    status: "REAL PASS"
-    promotion_at: "2026-03-27T00:00:00Z"
-  - case_id: "GEN-003"
-    status: "REAL PASS"
-    promotion_at: "2026-03-27T00:00:00Z"
-  - case_id: "GEN-002"
     status: "REAL PASS"
     promotion_at: "2026-03-27T00:00:00Z"
 
 # Command execution history
 command_history:
   last_command: "phase-drive"
-  last_result: "PHASE_02_COMPLETE_WITH_BLOCKER"
+  last_result: "PHASE_02_COMPLETE"
   last_run_at: "2026-03-27T00:00:00Z"
 
 # Next lawful action
 next_lawful_action:
   active_phase: "03-semantic-exec"
   active_case: "EXEC-001"
-  current_status: "STUB"
-  next_action: "SCAFFOLD"
-  reason: "Phase 02 generator cases complete (7/8). GEN-007 BLOCKED by missing generator support. Phase 03 semantic execution unlocked."
+  current_status: "BLOCKED"
+  next_action: "WAIT"
+  reason: "Phase 02 complete (all 8 GEN cases REAL_PASS). Phase 03 blocked at EXEC-001 pending harness implementation by agent."
   required_immediate:
-    command: "case-preflight"
-    purpose: "Scaffold EXEC-001 for single ALU semantic execution"
+    command: "agent-wait"
+    purpose: "Wait for harness-author-semantic agent to complete TCTI execution implementation"
 
 # Continuation state
 continuation:
-  next_case_required: true
-  next_lawful_case: "EXEC-001"
-  next_lawful_action: "SCAFFOLD"
-  stop_reason: null
+  next_case_required: false
+  next_lawful_case: null
+  next_lawful_action: "WAIT"
+  stop_reason: "Waiting for agent implementation"
 
 # Validation checksum
 validation:
