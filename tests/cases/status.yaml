@@ -595,20 +595,24 @@ phase_03:
     EXEC-003:
       case_id: "EXEC-003"
       phase: "03-semantic-exec"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "final_state.json"
+        - "report.json"
+      observed_artifacts:
+        - "final_state.json"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-27T03:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/03-semantic-exec/EXEC-003"
+      artifact_dir: "tests/cases/03-semantic-exec/EXEC-003-str-postindex"
     EXEC-004:
       case_id: "EXEC-004"
       phase: "03-semantic-exec"
