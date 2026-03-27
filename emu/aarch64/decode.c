@@ -257,7 +257,7 @@ int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out) {
         case 2:
         case 3:
         {
-                    int opc = bits(insn, 30, 29);
+                int opc = bits(insn, 30, 29);
                 int shift = bits(insn, 23, 22);
                 (void)bit(insn, 21);  // N bit - not used in this encoding
                 out->Rd = bits(insn, 4, 0);
@@ -265,8 +265,9 @@ int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out) {
                 out->Rm = bits(insn, 20, 16);
                 out->imm_shift = bits(insn, 15, 10);
                 out->shift_type = shift;
-                out->subtype = opc; // 0=AND, 1=BIC, 2=ORR, 3=ORN, 4=EOR, 5=EON, 6=ANDS, 7=BICS
-                out->set_flags = (opc == 6 || opc == 7);
+                // opc: 00=AND, 01=ORR, 10=EOR, 11=ANDS
+                out->subtype = opc;
+                out->set_flags = (opc == 3);  // ANDS sets flags
                 return 0;
             }
 
@@ -288,7 +289,7 @@ int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out) {
                 return 0;
             }
 
-        case 8: // Add/subtract (extended register) OR Conditional select
+        case 8: // Add/subtract (shifted register with shift encoded) OR extended OR Conditional select
         case 9:
         case 10:
         case 11:
@@ -310,7 +311,22 @@ int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out) {
                     out->subtype = (op << 1) | o2;
                     return 0;
                 }
-                // Add/subtract (extended register)
+                // Check bit 21: 0 = shifted register, 1 = extended register
+                if (bit(insn, 21) == 0) {
+                    // Add/subtract (shifted register) - bit 21 is N bit (must be 0)
+                    int op = bit(insn, 30); // 0=ADD, 1=SUB
+                    int S = bit(insn, 29);
+                    int shift = bits(insn, 23, 22);
+                    out->Rd = bits(insn, 4, 0);
+                    out->Rn = bits(insn, 9, 5);
+                    out->Rm = bits(insn, 20, 16);
+                    out->imm_shift = bits(insn, 15, 10);
+                    out->shift_type = shift;
+                    out->set_flags = S;
+                    out->subtype = op ? 1 : 0;
+                    return 0;
+                }
+                // Add/subtract (extended register) - bit 21 is 1
                 int op = bit(insn, 30);
                 int S = bit(insn, 29);
                 int opt = bits(insn, 23, 22); // option for extension
@@ -325,9 +341,25 @@ int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out) {
                 return 0;
             }
 
-        case 12: // Add/subtract (with carry)
+        case 12: // Add/subtract (with carry) OR shifted register with ASR
         case 13:
         {
+                // Check bit 21: 0 = shifted register (ASR), 1 = ADC/SBC
+                if (bit(insn, 21) == 0) {
+                    // Add/subtract (shifted register) with ASR shift
+                    int op = bit(insn, 30); // 0=ADD, 1=SUB
+                    int S = bit(insn, 29);
+                    int shift = bits(insn, 23, 22); // Should be 2 (ASR)
+                    out->Rd = bits(insn, 4, 0);
+                    out->Rn = bits(insn, 9, 5);
+                    out->Rm = bits(insn, 20, 16);
+                    out->imm_shift = bits(insn, 15, 10);
+                    out->shift_type = shift;
+                    out->set_flags = S;
+                    out->subtype = op ? 1 : 0;
+                    return 0;
+                }
+                // Add/subtract (with carry) - ADC/SBC
                 int op = bit(insn, 30);
                 int S = bit(insn, 29);
                 out->Rd = bits(insn, 4, 0);
@@ -462,9 +494,11 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out) {
         out->size = op0;
     }
 
-    // Load/store pair uses a separate major encoding space (1010100x) and must
+    // Load/store pair uses a separate major encoding space (x010100x) and must
     // be decoded before the generic single load/store cases below.
-    if (top7 == 0x54) {
+    // 32-bit pairs: top7 = 0010100 (0x14), 64-bit pairs: top7 = 1010100 (0x54)
+    // Check bits 29:25 (mask 0x1E) for pattern 0x14 (10100)
+    if ((top7 & 0x1E) == 0x14) {
         int imm7 = bits(insn, 21, 15);
         int Rt2 = bits(insn, 14, 10);
         int mode = bits(insn, 24, 23);
@@ -530,9 +564,11 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out) {
     // the old broad bit test also matched post-index stores like f800845f.
     if ((top7 & 0x1f) == 0x0c) {
         (void)bit(insn, 26);  // V bit - vector flag
+        int opc = bits(insn, 31, 30);  // size: 00=32-bit, 01=32-bit (SIMD), 10=64-bit
         int64_t imm19 = bits(insn, 23, 5);
         out->Rd = bits(insn, 4, 0);
         out->imm = sign_extend(imm19, 19) << 2;
+        out->is_64bit = (opc == 2);  // 64-bit GPR load
         out->subtype = A64_LDST_LITERAL;
         return 0;
     }
