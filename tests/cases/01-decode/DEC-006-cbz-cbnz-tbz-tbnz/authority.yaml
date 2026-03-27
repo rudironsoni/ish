@@ -1,0 +1,57 @@
+semantic_source:
+  family: arm-a64
+  reference_url: https://developer.arm.com/documentation/ddi0602/latest
+  section: C6.2.34 (CBZ/CBNZ), C6.2.214 (TBZ/TBNZ)
+  notes: |
+    Compare and Branch (CBZ/CBNZ) encoding:
+    - bit 31: sf (0=32-bit, 1=64-bit)
+    - bits 30:25: 011010 (0x1A) for CBZ/CBNZ
+    - bit 24: op (0=CBZ, 1=CBNZ)
+    - bits 23:5: imm19 (signed PC-relative offset / 4)
+    - bits 4:0: Rt (register to test)
+    - Target = PC + (sign_extend(imm19, 19) << 2)
+
+    Test and Branch (TBZ/TBNZ) encoding:
+    - bit 31: b5 (bit 5 of bit position for 64-bit registers)
+    - bits 30:25: 011011 (0x1B) for TBZ/TBNZ
+    - bit 24: op (0=TBZ, 1=TBNZ)
+    - bits 23:19: b40 (bits 4:0 of bit position)
+    - bits 18:5: imm14 (signed PC-relative offset / 4)
+    - bits 4:0: Rt (register to test)
+    - Bit position = (b5 << 5) | b40
+    - Target = PC + (sign_extend(imm14, 14) << 2)
+
+encoding_source:
+  tool: llvm-mc
+  version: 22.1.1
+  command: |
+    llvm-mc --triple=aarch64-linux-gnu --show-encoding
+  derived_encodings:
+    # CBZ/CBNZ
+    cbz_x0_0x100: "000800b4"      # cbz x0, #0x100: [0x00,0x08,0x00,0xb4]
+    cbnz_x1_0x100: "010800b5"     # cbnz x1, #0x100: [0x01,0x08,0x00,0xb5]
+    cbz_w4_0x200: "801000b4"      # cbz w4, #0x200: [0x80,0x10,0x00,0xb4]
+    cbnz_w5_0x200: "811000b5"     # cbnz w5, #0x200: [0x81,0x10,0x00,0xb5]
+    # TBZ/TBNZ
+    tbz_w2_bit5_0x100: "02082836"     # tbz w2, #5, #0x100: [0x02,0x08,0x28,0x36]
+    tbnz_w3_bit7_0x100: "03083837"    # tbnz w3, #7, #0x100: [0x03,0x08,0x38,0x37]
+    tbz_w10_bit15_0x80: "0a047836"    # tbz w10, #15, #0x80: [0x0a,0x04,0x78,0x36]
+    tbnz_w11_bit31_0x80: "0b04f837"   # tbnz w11, #31, #0x80: [0x0b,0x04,0xf8,0x37]
+
+decode_primary:
+  tool: llvm-objdump
+  version: 22.1.1
+
+tools_agree: true
+verification_date: "2026-03-27"
+verified_by: agent
+notes: |
+  Eight test vectors covering:
+  - CBZ with 64-bit register
+  - CBNZ with 64-bit register
+  - CBZ with 32-bit register
+  - CBNZ with 32-bit register
+  - TBZ with 32-bit register, bit 5
+  - TBNZ with 32-bit register, bit 7
+  - TBZ with 64-bit register, bit 15
+  - TBNZ with 64-bit register, bit 31
