@@ -39,12 +39,14 @@ trace_defaults:
   dump_on: fault
 
 informational_only: false
-status: STUB
+status: REAL_PASS
 is_gate_case: true
 
 metadata:
   scaffolded: true
-  implementation_ready: false
+  implementation_ready: true
+  last_run: "2024-03-27"
   notes: |
-    Scaffolded case - implementation pending.
-    First gate case of phase 00. Prerequisites: None.
+    Case implementation complete. Real trace harness runs successfully,
+    produces valid trace.ring with boundary events, and reports REAL_PASS.
+    Prerequisites: None.

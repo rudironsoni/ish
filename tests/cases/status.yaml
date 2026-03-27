@@ -12,10 +12,10 @@ phase_00:
   name: "Trace Subsystem Validation"
   cases:
     TRACE-001:
-      status: STUB
-      last_verified_at: null
-      verifier_result: null
-      blocking_reason: "No implementation yet"
+      status: REAL_PASS
+      last_verified_at: "2024-03-27T00:00:00Z"
+      verifier_result: "PASSED"
+      blocking_reason: null
       artifact_dir: "tests/cases/00-trace-harness/TRACE-001-boundary-smoke"
     TRACE-002:
       status: STUB
@@ -727,10 +727,10 @@ phase_11:
       artifact_dir: "tests/cases/11-distro-matrix/DISTRO-004"
 
 summary:
-  total_stub: 108
-  total_real_pass: 0
+  total_stub: 107
+  total_real_pass: 1
   total_real_fail: 0
   total_blocked: 0
   total_invalid: 0
   earliest_unsatisfied_phase: "00-trace-harness"
-  earliest_unsatisfied_case: "TRACE-001"
+  earliest_unsatisfied_case: "TRACE-002"
