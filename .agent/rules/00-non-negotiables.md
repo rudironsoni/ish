@@ -1,10 +1,6 @@
 ---
-root: true
-targets: ["*"]
-description: "Repository-wide non-negotiable rules for agent-first harness engineering"
-globs: ["**/*"]
+trigger: always_on
 ---
-
 # 00-non-negotiables
 
 These are repository-wide non-negotiable rules.
