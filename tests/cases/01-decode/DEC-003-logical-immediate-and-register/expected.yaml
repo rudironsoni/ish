@@ -1,0 +1,96 @@
+vectors:
+  # Logical shifted register operations
+  - name: and_x0_x1_x2
+    asm: "and x0, x1, x2"
+    encoding_hex_le: "2000028a"
+    canonical_disasm: "and x0, x1, x2"
+    expected_decode:
+      category: 5  # A64_DP_REG2
+      subtype: 0  # AND (opc=00 in logical shifted register)
+      rd: 0
+      rn: 1
+      rm: 2
+      shift_type: 0  # LSL
+      shift_amount: 0
+      set_flags: false
+
+  - name: orr_x3_x4_x5
+    asm: "orr x3, x4, x5"
+    encoding_hex_le: "830005aa"
+    canonical_disasm: "orr x3, x4, x5"
+    expected_decode:
+      category: 5
+      subtype: 1  # ORR (opc=01)
+      rd: 3
+      rn: 4
+      rm: 5
+      shift_type: 0  # LSL
+      shift_amount: 0
+      set_flags: false
+
+  - name: eor_x6_x7_x8
+    asm: "eor x6, x7, x8"
+    encoding_hex_le: "e60008ca"
+    canonical_disasm: "eor x6, x7, x8"
+    expected_decode:
+      category: 5
+      subtype: 2  # EOR (opc=10)
+      rd: 6
+      rn: 7
+      rm: 8
+      shift_type: 0  # LSL
+      shift_amount: 0
+      set_flags: false
+
+  - name: ands_x9_x10_x11
+    asm: "ands x9, x10, x11"
+    encoding_hex_le: "49010bea"
+    canonical_disasm: "ands x9, x10, x11"
+    expected_decode:
+      category: 5
+      subtype: 3  # ANDS (opc=11)
+      rd: 9
+      rn: 10
+      rm: 11
+      shift_type: 0  # LSL
+      shift_amount: 0
+      set_flags: true
+
+  # Logical immediate operations
+  - name: and_x0_x1_imm_ff
+    asm: "and x0, x1, #0xff"
+    encoding_hex_le: "201c4092"
+    canonical_disasm: "and x0, x1, #0xff"
+    expected_decode:
+      category: 9  # A64_DP_IMM (bits 28:25 = 0x9)
+      subtype: 7  # AND immediate
+      rd: 0
+      rn: 1
+      imm: 8640  # N=1, imms=0b000111, immr=0b000000 = (1<<13)|(7<<6)|0
+      set_flags: false
+
+  - name: orr_x2_x3_imm_ffff
+    asm: "orr x2, x3, #0xffff"
+    encoding_hex_le: "623c40b2"
+    canonical_disasm: "orr x2, x3, #0xffff"
+    expected_decode:
+      category: 9
+      subtype: 8  # ORR immediate
+      rd: 2
+      rn: 3
+      imm: 9152  # N=1, imms=0b001111, immr=0b000000 = (1<<13)|(15<<6)|0
+      set_flags: false
+
+  - name: eor_x4_x5_imm_f
+    asm: "eor x4, x5, #0xf"
+    encoding_hex_le: "a40c40d2"
+    canonical_disasm: "eor x4, x5, #0xf"
+    expected_decode:
+      category: 9
+      subtype: 9  # EOR immediate
+      rd: 4
+      rn: 5
+      imm: 8384  # N=1, imms=0b000011, immr=0b000000 = (1<<13)|(3<<6)|0
+      set_flags: false
+
+success_threshold: 7
