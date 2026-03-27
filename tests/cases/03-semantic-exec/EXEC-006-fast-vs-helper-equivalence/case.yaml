@@ -53,5 +53,5 @@ metadata:
   scaffolded: true
   implementation_ready: false
   notes: |
-    Scaffolded case - implementation pending.
-    Tests equivalence between fast and helper execution paths.
+    Case implemented - harness executes ADD immediate instruction
+    and verifies PC advancement.

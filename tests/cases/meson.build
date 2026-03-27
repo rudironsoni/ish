@@ -219,6 +219,41 @@ test('case:EXEC-005', semantic_micro_harness,
      timeout: 120,
      is_parallel: false)
 
+test('case:EXEC-006', semantic_micro_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '03-semantic-exec/EXEC-006-fast-vs-helper-equivalence/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/EXEC-006'],
+     suite: ['cases', 'phase-03-semantic-exec'],
+     timeout: 120,
+     is_parallel: false)
+
+test('case:EXEC-007', semantic_micro_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '03-semantic-exec/EXEC-007-block-save-restore/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/EXEC-007'],
+     suite: ['cases', 'phase-03-semantic-exec'],
+     timeout: 120,
+     is_parallel: false)
+
+test('case:EXEC-008', semantic_micro_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '03-semantic-exec/EXEC-008-next-pc-selection/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/EXEC-008'],
+     suite: ['cases', 'phase-03-semantic-exec'],
+     timeout: 120,
+     is_parallel: false)
+
+test('case:EXEC-009', semantic_micro_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '03-semantic-exec/EXEC-009-svc-entry/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/EXEC-009'],
+     suite: ['cases', 'phase-03-semantic-exec'],
+     timeout: 120,
+     is_parallel: false)
+
+test('case:EXEC-010', semantic_micro_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '03-semantic-exec/EXEC-010-fault-address-propagation/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/EXEC-010'],
+     suite: ['cases', 'phase-03-semantic-exec'],
+     timeout: 120,
+     is_parallel: false)
+
 test('case:ABI-001', abi_fixture_harness,
      args: ['--case-yaml', meson.current_source_dir() / '04-mmu-abi/ABI-001-process-entry-stack/case.yaml',
             '--artifact-dir', artifact_base / 'artifacts/ABI-001'],

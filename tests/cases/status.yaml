@@ -660,7 +660,7 @@ phase_03:
       phase: "03-semantic-exec"
       current_status: STUB
       gate_case: true
-      scaffolded: false
+      scaffolded: true
       expected_artifacts: []
       observed_artifacts: []
       verifier_result: null
@@ -669,15 +669,15 @@ phase_03:
       phase_gate_result: null
       last_run_command: null
       last_run_at: null
-      block_reason: "No implementation yet"
+      block_reason: "Simulated execution, no real TCTI verification"
       evidence_hash: null
-      artifact_dir: "tests/cases/03-semantic-exec/EXEC-006"
+      artifact_dir: "tests/cases/03-semantic-exec/EXEC-006-fast-vs-helper-equivalence"
     EXEC-007:
       case_id: "EXEC-007"
       phase: "03-semantic-exec"
       current_status: STUB
       gate_case: true
-      scaffolded: false
+      scaffolded: true
       expected_artifacts: []
       observed_artifacts: []
       verifier_result: null
@@ -686,15 +686,15 @@ phase_03:
       phase_gate_result: null
       last_run_command: null
       last_run_at: null
-      block_reason: "No implementation yet"
+      block_reason: "Simulated execution, no real TCTI verification"
       evidence_hash: null
-      artifact_dir: "tests/cases/03-semantic-exec/EXEC-007"
+      artifact_dir: "tests/cases/03-semantic-exec/EXEC-007-block-save-restore"
     EXEC-008:
       case_id: "EXEC-008"
       phase: "03-semantic-exec"
       current_status: STUB
       gate_case: true
-      scaffolded: false
+      scaffolded: true
       expected_artifacts: []
       observed_artifacts: []
       verifier_result: null
@@ -703,15 +703,15 @@ phase_03:
       phase_gate_result: null
       last_run_command: null
       last_run_at: null
-      block_reason: "No implementation yet"
+      block_reason: "Simulated execution, no real TCTI verification"
       evidence_hash: null
-      artifact_dir: "tests/cases/03-semantic-exec/EXEC-008"
+      artifact_dir: "tests/cases/03-semantic-exec/EXEC-008-next-pc-selection"
     EXEC-009:
       case_id: "EXEC-009"
       phase: "03-semantic-exec"
       current_status: STUB
       gate_case: true
-      scaffolded: false
+      scaffolded: true
       expected_artifacts: []
       observed_artifacts: []
       verifier_result: null
@@ -720,15 +720,15 @@ phase_03:
       phase_gate_result: null
       last_run_command: null
       last_run_at: null
-      block_reason: "No implementation yet"
+      block_reason: "SVC not implemented in TCTI - bypassed generation"
       evidence_hash: null
-      artifact_dir: "tests/cases/03-semantic-exec/EXEC-009"
+      artifact_dir: "tests/cases/03-semantic-exec/EXEC-009-svc-entry"
     EXEC-010:
       case_id: "EXEC-010"
       phase: "03-semantic-exec"
       current_status: STUB
       gate_case: true
-      scaffolded: false
+      scaffolded: true
       expected_artifacts: []
       observed_artifacts: []
       verifier_result: null
@@ -737,9 +737,9 @@ phase_03:
       phase_gate_result: null
       last_run_command: null
       last_run_at: null
-      block_reason: "No implementation yet"
+      block_reason: "Simulated fault detection, no real fault propagation"
       evidence_hash: null
-      artifact_dir: "tests/cases/03-semantic-exec/EXEC-010"
+      artifact_dir: "tests/cases/03-semantic-exec/EXEC-010-fault-address-propagation"
 
 # Phase 04: MMU and Linux ABI
 phase_04:
@@ -2032,13 +2032,17 @@ phase_11:
 
 # Evidence-bearing summary
 summary:
-  total_stub: 82
-  total_real_pass: 25
+  total_stub: 87
+  total_real_pass: 20
   total_real_fail: 0
   total_blocked: 1
   total_invalid: 0
   earliest_unsatisfied_phase: "03-semantic-exec"
-  earliest_unsatisfied_case: "EXEC-001"
-  last_updated: "2026-03-27T00:00:00Z"
+  earliest_unsatisfied_case: "EXEC-006"
+  last_updated: "2026-03-27T05:30:00Z"
   evidence_completeness: "PARTIAL"  # FULL | PARTIAL | NONE
-  verification_status: "PHASE_03_BLOCKED_BY_EXEC-001"
+  verification_status: "PHASE_03_BLOCKED_BY_EXEC-006"
+  notes: |
+    EXEC-001 through EXEC-005 use simulated execution (not real TCTI).
+    EXEC-006 through EXEC-010 downgraded to STUB after anti-slop review.
+    Phase 03 requires real TCTI execution implementation.
