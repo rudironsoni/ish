@@ -178,6 +178,11 @@ void trace_emit(trace_event_id_t event, uint64_t pc) {
         return;
     }
     
+    /* Check if event should be emitted (level, PC filter, etc) */
+    if (!trace_event_enabled(event, pc)) {
+        return;
+    }
+    
     /* Check max events limit BEFORE incrementing */
     if (g_trace_ctx->config.max_events > 0 && 
         g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
@@ -201,6 +206,11 @@ void trace_emit(trace_event_id_t event, uint64_t pc) {
 /* Emit with 8-byte payload */
 void trace_emit_u64(trace_event_id_t event, uint64_t pc, uint64_t val) {
     if (!g_trace_ctx || !g_trace_ctx->backend_ops || !g_trace_ctx->backend_ops->emit) {
+        return;
+    }
+    
+    /* Check if event should be emitted (level, PC filter, etc) */
+    if (!trace_event_enabled(event, pc)) {
         return;
     }
     
@@ -232,6 +242,11 @@ void trace_emit_u32(trace_event_id_t event, uint64_t pc, uint32_t val) {
         return;
     }
     
+    /* Check if event should be emitted (level, PC filter, etc) */
+    if (!trace_event_enabled(event, pc)) {
+        return;
+    }
+    
     /* Check max events limit BEFORE incrementing */
     if (g_trace_ctx->config.max_events > 0 && 
         g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
@@ -257,6 +272,11 @@ void trace_emit_u32(trace_event_id_t event, uint64_t pc, uint32_t val) {
 /* Emit fault event */
 void trace_emit_fault(uint64_t pc, uint64_t fault_addr, int is_write, int reason) {
     if (!g_trace_ctx || !g_trace_ctx->backend_ops || !g_trace_ctx->backend_ops->emit) {
+        return;
+    }
+    
+    /* Check if event should be emitted (level, PC filter, etc) */
+    if (!trace_event_enabled(TRACE_EVENT_FAULT, pc)) {
         return;
     }
     
@@ -287,6 +307,11 @@ void trace_emit_fault(uint64_t pc, uint64_t fault_addr, int is_write, int reason
 /* Emit syscall enter */
 void trace_emit_syscall_enter(uint64_t pc, uint64_t num, uint64_t x0, uint64_t x1, uint64_t x2) {
     if (!g_trace_ctx || !g_trace_ctx->backend_ops || !g_trace_ctx->backend_ops->emit) {
+        return;
+    }
+    
+    /* Check if event should be emitted (level, PC filter, etc) */
+    if (!trace_event_enabled(TRACE_EVENT_SYSCALL_ENTER, pc)) {
         return;
     }
     
@@ -323,6 +348,11 @@ void trace_emit_syscall_return(uint64_t pc, uint64_t retval) {
 /* Emit process entry */
 void trace_emit_process_entry(uint64_t entry_pc, uint64_t sp, uint64_t at_entry, uint64_t at_base) {
     if (!g_trace_ctx || !g_trace_ctx->backend_ops || !g_trace_ctx->backend_ops->emit) {
+        return;
+    }
+    
+    /* Check if event should be emitted (level, PC filter, etc) */
+    if (!trace_event_enabled(TRACE_EVENT_PROCESS_ENTRY, entry_pc)) {
         return;
     }
     
@@ -392,6 +422,11 @@ void trace_emit_block_entry(uint64_t pc, uint32_t gadget_count) {
 /* Emit block exit */
 void trace_emit_block_exit(uint64_t pc, int exit_reason, uint64_t next_pc) {
     if (!g_trace_ctx || !g_trace_ctx->backend_ops || !g_trace_ctx->backend_ops->emit) {
+        return;
+    }
+    
+    /* Check if event should be emitted (level, PC filter, etc) */
+    if (!trace_event_enabled(TRACE_EVENT_BLOCK_EXIT, pc)) {
         return;
     }
     
