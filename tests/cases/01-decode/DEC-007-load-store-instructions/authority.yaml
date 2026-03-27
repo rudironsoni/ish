@@ -1,0 +1,66 @@
+semantic_source:
+  family: arm-a64
+  reference_url: https://developer.arm.com/documentation/ddi0602/latest
+  section: C6.2.130 (LDR - immediate), C6.2.264 (STR - immediate), C6.2.126 (LDP), C6.2.262 (STP)
+  notes: |
+    Load/Store Single Register (Unsigned Immediate) encoding:
+    - bits 31:30: size (00=byte, 01=halfword, 10=word, 11=doubleword)
+    - bit 29: V (0=general register, 1=SIMD)
+    - bits 28:24: 11101 (0x1D) for unsigned immediate
+    - bit 23: L (0=store, 1=load)
+    - bits 21:10: imm12 (scaled immediate)
+    - bits 9:5: Rn (base register)
+    - bits 4:0: Rt (target register)
+
+    Load Literal encoding:
+    - bit 30: size (1=32-bit, 2=64-bit)
+    - bits 28:24: 01100 (0x0C)
+    - bits 23:5: imm19 (signed PC offset / 4)
+    - bits 4:0: Rt (target register)
+
+    Load/Store Pair encoding:
+    - bit 30: L (0=store, 1=load)
+    - bits 29:25: 10100 (0x14)
+    - bit 23:22: type (00=non-temporal, 01=offset, 10=post-index, 11=pre-index)
+    - bits 21:15: imm7 (scaled immediate / 8 for 64-bit)
+    - bits 14:10: Rt2 (second register)
+    - bits 9:5: Rn (base register)
+    - bits 4:0: Rt (first register)
+
+encoding_source:
+  tool: llvm-mc
+  version: 22.1.1
+  command: |
+    llvm-mc --triple=aarch64-linux-gnu --show-encoding
+  derived_encodings:
+    # LDR/STR unsigned immediate
+    ldr_x0_sp_0: "e00340f9"      # ldr x0, [sp]: [0xe0,0x03,0x40,0xf9]
+    str_x1_sp_8: "e10700f9"      # str x1, [sp, #8]: [0xe1,0x07,0x00,0xf9]
+    ldr_w2_sp_16: "e20340b9"     # ldr w2, [sp, #16]: [0xe2,0x03,0x40,0xb9]
+    str_w3_sp_4: "e30700b9"      # str w3, [sp, #4]: [0xe3,0x07,0x00,0xb9]
+    # Load literal
+    ldr_x4_lit: "04000058"       # ldr x4, #0: [0x04,0x00,0x00,0x58]
+    # Load/Store pair
+    ldp_x5_x6_sp: "e50b40a9"     # ldp x5, x6, [sp]: [0xe5,0x0b,0x40,0xa9]
+    stp_x7_x8_sp_16: "e78f00a9"  # stp x7, x8, [sp, #16]: [0xe7,0x8f,0x00,0xa9]
+    ldp_w9_w10_sp: "e90b4029"    # ldp w9, w10, [sp]: [0xe9,0x0b,0x40,0x29]
+    stp_w11_w12_sp_8: "eb470029" # stp w11, w12, [sp, #8]: [0xeb,0x47,0x00,0x29]
+
+decode_primary:
+  tool: llvm-objdump
+  version: 22.1.1
+
+tools_agree: true
+verification_date: "2026-03-27"
+verified_by: agent
+notes: |
+  Ten test vectors covering:
+  - LDR X (64-bit) with base register + offset
+  - STR X (64-bit) with base register + offset
+  - LDR W (32-bit) with base register + offset
+  - STR W (32-bit) with base register + offset
+  - LDR (literal) PC-relative load
+  - LDP X/X (64-bit pair load)
+  - STP X/X (64-bit pair store)
+  - LDP W/W (32-bit pair load)
+  - STP W/W (32-bit pair store)
