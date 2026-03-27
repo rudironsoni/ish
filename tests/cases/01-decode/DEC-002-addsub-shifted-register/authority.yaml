@@ -1,0 +1,46 @@
+semantic_source:
+  family: arm-a64
+  reference_url: https://developer.arm.com/documentation/ddi0602/latest
+  section: C6.2.4
+  notes: |
+    ADD/SUB (shifted register) encoding:
+    - sf bit (31): 1 for 64-bit, 0 for 32-bit
+    - op bit (30): 0=ADD, 1=SUB
+    - S bit (29): 1=set flags (ADDS/SUBS)
+    - Bits 28:24: 0b01011 (01011 binary)
+    - shift (23:22): 00=LSL, 01=LSR, 10=ASR, 11=reserved
+    - N bit (21): 0 (must be 0)
+    - Rm (20:16): second source register
+    - imm6 (15:10): shift amount (0-63)
+    - Rn (9:5): first source register
+    - Rd (4:0): destination register
+
+encoding_source:
+  tool: llvm-mc
+  version: 22.1.1
+  command: |
+    llvm-mc --triple=aarch64-linux-gnu --show-encoding
+  derived_encodings:
+    add_x0_x1_x2_lsl0: "2000028b"  # add x0, x1, x2: [0x20,0x00,0x02,0x8b]
+    sub_x3_x4_x5_lsl3: "830c05cb"  # sub x3, x4, x5, lsl #3: [0x83,0x0c,0x05,0xcb]
+    adds_x6_x7_x8_lsr4: "e61048ab" # adds x6, x7, x8, lsr #4: [0xe6,0x10,0x48,0xab]
+    subs_x9_x10_x11_asr5: "49158beb" # subs x9, x10, x11, asr #5: [0x49,0x15,0x8b,0xeb]
+
+decode_primary:
+  tool: llvm-objdump
+  version: 22.1.1
+
+tools_agree: true
+verification_date: "2026-03-27"
+verified_by: agent
+notes: |
+  Four test vectors covering:
+  - Basic ADD with no shift (LSL #0 implied)
+  - SUB with LSL shift
+  - ADDS with LSR shift and flag setting
+  - SUBS with ASR shift and flag setting
+
+  Correction history:
+  - 2026-03-27: Fixed incorrect encodings in derived_encodings.
+    Previous values had incorrect imm6/shift fields.
+    Verified with llvm-mc --triple=aarch64-linux-gnu --show-encoding
