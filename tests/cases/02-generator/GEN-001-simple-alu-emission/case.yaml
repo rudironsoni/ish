@@ -1,0 +1,44 @@
+id: GEN-001
+phase: 02-generator
+title: Generator emits correct TCTI sequence for simple ALU
+class: generator
+kind: generator_golden
+harness: generator_golden
+meson_test: case:GEN-001
+
+prerequisites:
+  - DEC-001
+
+expectation_authority:
+  semantic_source: arm-a64
+  primary_tool: llvm-mc
+  secondary_tool: llvm-objdump
+  tertiary_tool: aarch64-linux-gnu-objdump
+
+success_criteria:
+  structural:
+    - harness exits 0
+    - report.json exists and valid
+    - emitted.json exists
+  semantic:
+    - emitted gadgets match architectural expectation
+    - register allocation correct
+    - no direct edits to generated gadget output
+
+allowed_patch_scope:
+  - tcti/aarch64/gen.c
+  - tcti/aarch64/tcti-gadget-gen.py
+  - tests/cases/02-generator/GEN-001-simple-alu-emission/*
+
+regression_target:
+  meson_test: case:GEN-001
+
+trace_defaults:
+  backend: nop
+  level: 0
+  events: ""
+  pc_range: null
+  regs: []
+  dump_on: none
+
+informational_only: false

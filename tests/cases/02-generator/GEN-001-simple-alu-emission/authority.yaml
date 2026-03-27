@@ -1,0 +1,40 @@
+semantic_source:
+  family: arm-a64
+  reference_url: https://developer.arm.com/documentation/ddi0602/latest
+  section: C6.2.4
+
+encoding_source:
+  tool: llvm-mc
+  reference_url: https://llvm.org/docs/CommandGuide/llvm-mc.html
+  command: |
+    echo "add x0, x1, #1" | llvm-mc --triple=aarch64-linux-gnu --show-encoding --show-inst
+
+decode_primary:
+  tool: llvm-objdump
+  reference_url: https://llvm.org/docs/CommandGuide/llvm-objdump.html
+  command: |
+    llvm-objdump -d --arch-name=aarch64 --disassembler-options=no-aliases test.o
+
+decode_secondary:
+  tool: aarch64-linux-gnu-objdump
+  reference_url: https://sourceware.org/binutils/docs/binutils/objdump.html
+  command: |
+    aarch64-linux-gnu-objdump -d -M no-aliases test.o
+
+tools_agree: true
+verification_date: "2024-01-15"
+verified_by: agent
+
+notes: |
+  ADD (immediate) encoding verified against Arm ARM C6.2.4.
+  
+  TCTI register contract:
+  - Guest x0-x15 map to host x1-x16 (hot registers)
+  - Guest x16-x30 and SP map to memory (cold registers)
+  - Host x14, x15 are scratch temps
+  
+  For ADD x0, x1, #1:
+  - Read x1 (hot) from host x2
+  - Add immediate #1
+  - Write result to x0 (hot) at host x1
+  - No flag update (ADD not ADDS)

@@ -1,0 +1,89 @@
+version: 1
+
+execution_policy: |
+  Cases MUST execute in phase order. Within each phase, cases execute
+  in alphanumeric order by case ID. Prerequisites within a phase form
+  a DAG; cases with satisfied prerequisites execute first.
+
+phases:
+  - phase: 00-trace-harness
+    name: Trace Subsystem Validation
+    description: |
+      Validate the tracing subsystem before using it for debugging.
+      These cases ensure trace capture, filtering, and dump mechanisms
+      work correctly without source modifications.
+    gate_cases:
+      - TRACE-001
+    informational_only: false
+    next_phase_prerequisite: all_gate_cases_pass
+
+  - phase: 01-decode
+    name: Instruction Decode
+    description: |
+      Validate the AArch64 instruction decoder. Each case tests a
+      specific instruction family or addressing mode. Expected values
+      derived from Arm docs + LLVM + GNU binutils.
+    gate_cases:
+      - DEC-001
+    informational_only: false
+    next_phase_prerequisite: all_gate_cases_pass
+
+  - phase: 02-generator
+    name: TCTI Code Generation
+    description: |
+      Validate the TCTI generator emits correct gadget sequences.
+      Tests decoder output feeds into generator; generator output
+      checked against architectural expectations.
+    gate_cases:
+      - GEN-001
+    informational_only: false
+    next_phase_prerequisite: all_gate_cases_pass
+
+  - phase: 03-semantic-exec
+    name: Semantic Execution
+    description: |
+      Validate instruction execution semantics. Microtests exercise
+      specific instruction sequences and verify register/memory state
+      matches Arm architectural expectations.
+    gate_cases:
+      - EXEC-001
+    informational_only: false
+    next_phase_prerequisite: all_gate_cases_pass
+
+  - phase: 04-mmu-abi
+    name: MMU and Linux ABI
+    description: |
+      Validate memory management and Linux AArch64 ABI compliance.
+      Tests anonymous mmap, heap growth, stack layout, and process
+      entry conventions.
+    gate_cases:
+      - ABI-001
+    informational_only: false
+    next_phase_prerequisite: all_gate_cases_pass
+
+  - phase: 05-elf-loader
+    name: ELF and Dynamic Loader
+    description: |
+      Validate ELF parsing, PT_LOAD mapping, relocation application,
+      and dynamic loader handoff. Tests static and dynamic binaries.
+    gate_cases:
+      - ELF-001
+    informational_only: false
+    next_phase_prerequisite: all_gate_cases_pass
+
+bootstrap_sequence:
+  - TRACE-001
+  - DEC-001
+  - GEN-001
+  - EXEC-001
+  - ABI-001
+  - ELF-001
+
+gating_rules: |
+  1. Agent MUST NOT proceed to phase N+1 until all non-informational
+     gate cases in phase N pass.
+  2. Informational-only phases do NOT gate subsequent phases.
+  3. If a gate case fails, agent MUST debug and fix within the
+     current phase before proceeding.
+  4. Prerequisites within a phase MAY be satisfied out of order if
+     the dependency DAG permits.

@@ -1,0 +1,41 @@
+id: TRACE-001
+phase: 00-trace-harness
+title: Boundary-level tracing initializes and records block boundaries
+class: trace
+kind: runtime_trace
+harness: runtime_trace
+meson_test: case:TRACE-001
+
+prerequisites: []
+
+expectation_authority:
+  semantic_source: internal-trace-contract
+  primary_tool: runtime-trace
+  secondary_tool: null
+  tertiary_tool: null
+
+success_criteria:
+  structural:
+    - harness exits 0
+    - trace.ring exists and non-empty
+    - report.json exists and valid
+    - at least one boundary event decoded successfully
+  semantic: []
+
+allowed_patch_scope:
+  - trace/*
+  - tests/cases/harness/runtime_trace.c
+  - tests/cases/00-trace-harness/TRACE-001-boundary-smoke/*
+
+regression_target:
+  meson_test: case:TRACE-001
+
+trace_defaults:
+  backend: ring
+  level: 2
+  events: block.entry,block.exit,fault,syscall
+  pc_range: null
+  regs: []
+  dump_on: fault
+
+informational_only: false

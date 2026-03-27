@@ -1,0 +1,47 @@
+id: EXEC-001
+phase: 03-semantic-exec
+title: Single ALU instruction executes correctly
+class: semantic
+kind: semantic_micro
+harness: semantic_micro
+meson_test: case:EXEC-001
+
+prerequisites:
+  - GEN-001
+
+expectation_authority:
+  semantic_source: arm-a64
+  primary_tool: llvm-mc
+  secondary_tool: llvm-objdump
+  tertiary_tool: aarch64-linux-gnu-objdump
+
+success_criteria:
+  structural:
+    - harness exits 0
+    - report.json exists and valid
+    - final_state.json exists
+  semantic:
+    - architectural state matches expected
+    - register values correct
+    - flags correct (if applicable)
+    - PC advanced correctly
+
+allowed_patch_scope:
+  - tcti/aarch64/gen.c
+  - tcti/aarch64/tcti-gadget-gen.py
+  - tcti/aarch64/gadgets_*.c
+  - emu/aarch64/cpu.c
+  - tests/cases/03-semantic-exec/EXEC-001-single-alu/*
+
+regression_target:
+  meson_test: case:EXEC-001
+
+trace_defaults:
+  backend: ring
+  level: 2
+  events: block.entry,block.exit,fault
+  pc_range: null
+  regs: [x0, x1, x2]
+  dump_on: fault
+
+informational_only: false

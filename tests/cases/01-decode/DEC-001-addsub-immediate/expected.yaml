@@ -1,0 +1,35 @@
+vectors:
+  - name: add_x0_x1_imm1
+    asm: "add x0, x1, #1"
+    encoding_hex_le: "20040091"
+    canonical_disasm: "add x0, x1, #0x1"
+    expected_decode:
+      category: 8  # A64_SIMD0 (bits 28:25 = 0x8), but routed to DP_IMM decoder
+      rd: 0
+      rn: 1
+      imm12: 1
+      set_flags: false
+    
+  - name: sub_x2_x3_imm8
+    asm: "sub x2, x3, #8"
+    encoding_hex_le: "622000d1"
+    canonical_disasm: "sub x2, x3, #0x8"
+    expected_decode:
+      category: 8  # A64_SIMD0 (bits 28:25 = 0x8), routed to DP_IMM decoder
+      rd: 2
+      rn: 3
+      imm12: 8
+      set_flags: false
+    
+  - name: cmp_x4_imm0
+    asm: "cmp x4, #0"
+    encoding_hex_le: "9f0000f1"
+    canonical_disasm: "subs xzr, x4, #0x0"
+    expected_decode:
+      category: 8  # A64_SIMD0 (bits 28:25 = 0x8), routed to DP_IMM decoder
+      rd: 31      # xzr (encoded as 31)
+      rn: 4
+      imm12: 0
+      set_flags: true
+
+success_threshold: 3  # All vectors must pass
