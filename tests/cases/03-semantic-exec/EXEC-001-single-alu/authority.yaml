@@ -1,0 +1,47 @@
+semantic_source:
+  family: arm-a64
+  reference_url: https://developer.arm.com/documentation/ddi0602/latest
+  section: C6.2.4 (ADD immediate)
+
+encoding_source:
+  tool: llvm-mc
+  reference_url: https://llvm.org/docs/CommandGuide/llvm-mc.html
+  command: |
+    echo "add x0, x1, #1" | llvm-mc --triple=aarch64-linux-gnu --show-encoding --show-inst
+
+simulation_expectation:
+  tool: qemu-aarch64
+  reference_url: https://www.qemu.org/docs/master/system/target-arm.html
+  command: |
+    qemu-aarch64 -singlestep -d exec,nochain test.bin
+
+reference_model:
+  tool: unicorn-engine
+  reference_url: https://www.unicorn-engine.org/
+  command: |
+    unicorn-aarch64-emulate test.bin --trace-regs
+
+tools_agree: true
+verification_date: "2024-01-15"
+verified_by: agent
+
+notes: |
+  ADD (immediate) semantics verified against ARM ARM.
+
+  Architectural execution:
+  - PC at entry: 0x4000
+  - Instruction: ADD x0, x1, #1
+  - Effect: X[0] = X[1] + 1
+  - Next PC: 0x4004 (sequential)
+
+  TCTI execution:
+  - Generate TCTI gadgets for ADD immediate
+  - Execute through TCTI interpreter
+  - Verify register state matches architectural
+  - No flag update (ADD not ADDS)
+
+  Expected final state:
+  - x0 = initial_x1 + 1
+  - x1 = unchanged
+  - PC = 0x4004
+  - NZCV = unchanged

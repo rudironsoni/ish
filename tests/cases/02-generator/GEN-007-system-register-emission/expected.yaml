@@ -1,7 +1,7 @@
 input_instruction:
   name: svc_0x80
   asm: "svc #0x80"
-  encoding_hex_le: "010000d4"
+  encoding_hex_le: "800020d4"
   instruction_type: system
 
 instruction_details:
