@@ -1,0 +1,89 @@
+# Active Case Lock
+# Machine-readable single active case state
+# Only ONE case may be active at any time
+# This file is read/written by case-next, case-preflight, and case-promote
+
+version: "2.0"
+last_updated: "2026-03-27T00:00:00Z"
+
+# Active case identification
+active_case:
+  case_id: "TRACE-002"
+  phase: "00-trace-harness"
+  status_before: "STUB"
+  owner: "orchestrator"
+  started_at: "2026-03-27T00:00:00Z"
+
+# Retry budget tracking
+retry_budget:
+  retry_budget_remaining: 3
+  repair_attempts: 0
+  last_error: null
+  last_mismatch: null
+
+# Patch scope enforcement
+allowed_patch_scope:
+  level: "case-only"
+  allowed_paths:
+    - "tests/cases/00-trace-harness/TRACE-002/**"
+  forbidden_paths:
+    - "tests/cases/00-trace-harness/TRACE-001/**"
+    - "tests/cases/01-decode/**"
+    - "tests/cases/02-generator/**"
+
+# Required control actors
+required_commands:
+  next: "case-preflight"
+  subsequent:
+    - "case-work"
+    - "case-run"
+    - "case-verify"
+    - "case-promote"
+
+required_subagents:
+  - "orchestrator"
+  - "harness-author"
+  - "trace-observer"
+
+required_skills:
+  - "active-case-lifecycle"
+  - "phase-gate-audit"
+  - "anti-slop-review"
+
+# Command execution history
+command_history:
+  last_command: "case-next"
+  last_result: "SUCCESS"
+  last_run_at: "2026-03-27T00:00:00Z"
+
+# Stop conditions for this active case
+stop_conditions:
+  - "Case produces artifacts matching expected.yaml"
+  - "Verifier confirms REAL PASS"
+  - "Anti-slop review passes"
+  - "Phase gate audit confirms progression"
+
+# Next lawful action determination
+next_lawful_action:
+  active_phase: "00-trace-harness"
+  active_case: "TRACE-002"
+  current_status: "STUB"
+  next_action: "SCAFFOLD"  # SCAFFOLD | IMPLEMENT | REPAIR | VERIFY | PROMOTE | BLOCKED
+  reason: "Case directory does not exist; must scaffold first"
+  required_immediate:
+    command: "case-preflight"
+    purpose: "Verify case is ready and identify blockers"
+  required_subsequent:
+    - command: "case-work"
+      purpose: "Implement or repair the active case"
+    - command: "case-run"
+      purpose: "Execute case through Meson entrypoint"
+    - command: "case-verify"
+      purpose: "Produce evidence-backed classification"
+    - command: "case-promote"
+      purpose: "Update status ledger and close active lock"
+
+# Validation checksum (for integrity verification)
+validation:
+  checksum: null  # Reserved for future integrity checking
+  schema_version: "2.0"
