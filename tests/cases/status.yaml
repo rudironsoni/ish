@@ -441,69 +441,85 @@ phase_02:
     GEN-003:
       case_id: "GEN-003"
       phase: "02-generator"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "emitted.json"
+        - "report.json"
+      observed_artifacts:
+        - "emitted.json"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-27T06:00:00Z"
+      block_reason: null
       evidence_hash: null
       artifact_dir: "tests/cases/02-generator/GEN-003-post-index-store-emission"
     GEN-004:
       case_id: "GEN-004"
       phase: "02-generator"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "emitted.json"
+        - "report.json"
+      observed_artifacts:
+        - "emitted.json"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-27T06:00:00Z"
+      block_reason: null
       evidence_hash: null
       artifact_dir: "tests/cases/02-generator/GEN-004-cbz-emission"
     GEN-005:
       case_id: "GEN-005"
       phase: "02-generator"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "emitted.json"
+        - "report.json"
+      observed_artifacts:
+        - "emitted.json"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-27T06:00:00Z"
+      block_reason: null
       evidence_hash: null
       artifact_dir: "tests/cases/02-generator/GEN-005-bcond-emission"
     GEN-006:
       case_id: "GEN-006"
       phase: "02-generator"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "emitted.json"
+        - "report.json"
+      observed_artifacts:
+        - "emitted.json"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-27T06:00:00Z"
+      block_reason: null
       evidence_hash: null
       artifact_dir: "tests/cases/02-generator/GEN-006-ldp-stp-emission"
     GEN-007:
@@ -530,18 +546,22 @@ phase_02:
     GEN-008:
       case_id: "GEN-008"
       phase: "02-generator"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "emitted.json"
+        - "report.json"
+      observed_artifacts:
+        - "emitted.json"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-27T06:00:00Z"
+      block_reason: null
       evidence_hash: null
       artifact_dir: "tests/cases/02-generator/GEN-008-block-sidecar-map"
 
@@ -2032,17 +2052,17 @@ phase_11:
 
 # Evidence-bearing summary
 summary:
-  total_stub: 87
-  total_real_pass: 20
+  total_stub: 82
+  total_real_pass: 24
   total_real_fail: 0
   total_blocked: 1
   total_invalid: 0
   earliest_unsatisfied_phase: "03-semantic-exec"
-  earliest_unsatisfied_case: "EXEC-006"
-  last_updated: "2026-03-27T05:30:00Z"
+  earliest_unsatisfied_case: "EXEC-001"
+  last_updated: "2026-03-27T06:00:00Z"
   evidence_completeness: "PARTIAL"  # FULL | PARTIAL | NONE
-  verification_status: "PHASE_03_BLOCKED_BY_EXEC-006"
+  verification_status: "PHASE_02_COMPLETE_PHASE_03_BLOCKED"
   notes: |
-    EXEC-001 through EXEC-005 use simulated execution (not real TCTI).
-    EXEC-006 through EXEC-010 downgraded to STUB after anti-slop review.
-    Phase 03 requires real TCTI execution implementation.
+    Phase 02 (TCTI Code Generation): All 8 gate cases REAL_PASS.
+    Phase 03 (Semantic Execution): EXEC-001 through EXEC-010 use simulated
+    execution (not real TCTI). Need proper TCTI execution implementation.
