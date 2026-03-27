@@ -1,0 +1,50 @@
+id: GLIBC-009
+phase: 09-glibc
+title: libstdc++ and unwind work
+class: glibc
+kind: distro_fixture
+harness: distro_fixture
+meson_test: case:GLIBC-009
+
+prerequisites:
+  - GLIBC-008
+
+expectation_authority:
+  semantic_source: glibc-contract
+  primary_tool: runtime-fixture
+  secondary_tool: null
+  tertiary_tool: null
+
+success_criteria:
+  structural:
+    - harness exits 0
+    - report.json exists and valid
+  semantic:
+    - test validates expected behavior
+
+allowed_patch_scope:
+  - kernel/*
+  - emu/*
+  - tests/cases/09-glibc/GLIBC-009-libstdcxx-unwind-smoke/*
+
+regression_target:
+  meson_test: case:GLIBC-009
+
+trace_defaults:
+  backend: nop
+  level: 0
+  events: ""
+  pc_range: null
+  regs: []
+  dump_on: none
+
+informational_only: false
+status: STUB
+is_gate_case: true
+
+metadata:
+  scaffolded: true
+  implementation_ready: false
+  notes: |
+    Scaffolded case - implementation pending.
+    Prerequisites: GLIBC-008 must be REAL PASS. Tests C++ runtime.

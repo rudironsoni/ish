@@ -1,0 +1,50 @@
+id: MUSL-002
+phase: 08-musl
+title: Dynamic busybox true command executes
+class: musl
+kind: distro_fixture
+harness: distro_fixture
+meson_test: case:MUSL-002
+
+prerequisites:
+  - MUSL-001
+
+expectation_authority:
+  semantic_source: musl-libc-contract
+  primary_tool: runtime-fixture
+  secondary_tool: null
+  tertiary_tool: null
+
+success_criteria:
+  structural:
+    - harness exits 0
+    - report.json exists and valid
+  semantic:
+    - test validates expected behavior
+
+allowed_patch_scope:
+  - kernel/*
+  - emu/*
+  - tests/cases/08-musl/MUSL-002-dynamic-busybox-true/*
+
+regression_target:
+  meson_test: case:MUSL-002
+
+trace_defaults:
+  backend: nop
+  level: 0
+  events: ""
+  pc_range: null
+  regs: []
+  dump_on: none
+
+informational_only: false
+status: STUB
+is_gate_case: true
+
+metadata:
+  scaffolded: true
+  implementation_ready: false
+  notes: |
+    Scaffolded case - implementation pending.
+    Prerequisites: MUSL-001 must be REAL PASS. Tests dynamic busybox binary.

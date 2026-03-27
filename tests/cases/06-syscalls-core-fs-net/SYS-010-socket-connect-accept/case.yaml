@@ -1,0 +1,57 @@
+id: SYS-010
+phase: 06-syscalls-core-fs-net
+title: Socket creation, connection, and acceptance
+class: syscall
+kind: syscall_fixture
+harness: syscall_fixture
+meson_test: case:SYS-010
+
+prerequisites:
+  - SYS-009
+
+expectation_authority:
+  semantic_source: linux-aarch64-abi
+  primary_tool: runtime-fixture
+  secondary_tool: strace
+  tertiary_tool: null
+
+success_criteria:
+  structural:
+    - harness exits 0
+    - report.json exists and valid
+    - syscall_log.json exists
+  semantic:
+    - socket creates fd
+    - connect establishes connection
+    - bind assigns address
+    - listen enables connections
+    - accept accepts connections
+
+allowed_patch_scope:
+  - kernel/syscall.c
+  - kernel/socket.c
+  - kernel/net.c
+  - emu/aarch64/syscall.c
+  - tests/cases/06-syscalls-core-fs-net/SYS-010-socket-connect-accept/*
+
+regression_target:
+  meson_test: case:SYS-010
+
+trace_defaults:
+  backend: ring
+  level: 2
+  events: block.entry,block.exit,fault,syscall
+  pc_range: null
+  regs: [x0, x1, x2, x3, x4, x5, x8]
+  dump_on: fault
+
+informational_only: false
+status: STUB
+is_gate_case: true
+
+metadata:
+  scaffolded: true
+  implementation_ready: false
+  notes: |
+    Scaffolded case - implementation pending.
+    Tests socket, connect, bind, listen, accept syscalls.

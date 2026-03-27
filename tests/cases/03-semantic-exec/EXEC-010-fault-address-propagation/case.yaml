@@ -1,0 +1,58 @@
+id: EXEC-010
+phase: 03-semantic-exec
+title: Fault address propagates correctly to handler
+class: semantic
+kind: semantic_micro
+harness: semantic_micro
+meson_test: case:EXEC-010
+
+prerequisites:
+  - EXEC-009
+
+expectation_authority:
+  semantic_source: arm-a64
+  primary_tool: llvm-mc
+  secondary_tool: llvm-objdump
+  tertiary_tool: aarch64-linux-gnu-objdump
+
+success_criteria:
+  structural:
+    - harness exits 0
+    - report.json exists and valid
+    - final_state.json exists
+  semantic:
+    - architectural state matches expected
+    - fault address correctly identified
+    - fault type correctly classified
+    - FAR_EL1 contains correct address
+
+allowed_patch_scope:
+  - tcti/aarch64/gen.c
+  - tcti/aarch64/tcti-gadget-gen.py
+  - tcti/aarch64/gadgets_*.c
+  - emu/aarch64/cpu.c
+  - emu/aarch64/fault.c
+  - kernel/fault.c
+  - tests/cases/03-semantic-exec/EXEC-010-fault-address-propagation/*
+
+regression_target:
+  meson_test: case:EXEC-010
+
+trace_defaults:
+  backend: ring
+  level: 2
+  events: block.entry,block.exit,fault
+  pc_range: null
+  regs: [x0, x1, pc, far_el1]
+  dump_on: fault
+
+informational_only: false
+status: STUB
+is_gate_case: true
+
+metadata:
+  scaffolded: true
+  implementation_ready: false
+  notes: |
+    Scaffolded case - implementation pending.
+    Tests fault address propagation to fault handler.

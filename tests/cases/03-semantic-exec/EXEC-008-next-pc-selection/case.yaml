@@ -1,0 +1,57 @@
+id: EXEC-008
+phase: 03-semantic-exec
+title: Next PC selection is correct for all branch types
+class: semantic
+kind: semantic_micro
+harness: semantic_micro
+meson_test: case:EXEC-008
+
+prerequisites:
+  - EXEC-007
+
+expectation_authority:
+  semantic_source: arm-a64
+  primary_tool: llvm-mc
+  secondary_tool: llvm-objdump
+  tertiary_tool: aarch64-linux-gnu-objdump
+
+success_criteria:
+  structural:
+    - harness exits 0
+    - report.json exists and valid
+    - final_state.json exists
+  semantic:
+    - architectural state matches expected
+    - PC targets correct for conditional branches
+    - PC targets correct for unconditional branches
+    - PC targets correct for indirect branches
+
+allowed_patch_scope:
+  - tcti/aarch64/gen.c
+  - tcti/aarch64/tcti-gadget-gen.py
+  - tcti/aarch64/gadgets_*.c
+  - emu/aarch64/cpu.c
+  - emu/aarch64/branch.c
+  - tests/cases/03-semantic-exec/EXEC-008-next-pc-selection/*
+
+regression_target:
+  meson_test: case:EXEC-008
+
+trace_defaults:
+  backend: ring
+  level: 2
+  events: block.entry,block.exit,fault
+  pc_range: null
+  regs: [x0, x1, pc, nzcv]
+  dump_on: fault
+
+informational_only: false
+status: STUB
+is_gate_case: true
+
+metadata:
+  scaffolded: true
+  implementation_ready: false
+  notes: |
+    Scaffolded case - implementation pending.
+    Tests next PC selection for various branch types.

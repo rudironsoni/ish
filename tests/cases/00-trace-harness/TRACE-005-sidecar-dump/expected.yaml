@@ -1,0 +1,62 @@
+version: 1
+
+# Expected trace output for TRACE-005-sidecar-dump
+# This defines the structural expectations for sidecar auxiliary trace output
+
+harness_exit_code: 0
+
+required_artifacts:
+  - name: trace.ring
+    type: binary
+    description: Primary ring buffer trace output
+    min_size_bytes: 64
+    
+  - name: sidecar.dump
+    type: binary
+    description: Sidecar auxiliary trace dump
+    min_size_bytes: 0
+    optional: false
+    
+  - name: report.json
+    type: json
+    description: Harness execution report
+    required_fields:
+      - status
+      - case_id
+      - harness
+      - exit_code
+      - timestamp
+      - sidecar_enabled
+      - sidecar_path
+      
+  - name: decoded_trace.txt
+    type: text
+    description: Human-readable trace decode
+    optional: true
+
+structural_expectations:
+  trace_ring:
+    - must_exist: true
+    - must_be_non_empty: true
+    - must_contain_valid_headers: true
+    
+  sidecar_dump:
+    - must_exist: true
+    - must_be_synced_with_primary: true
+    
+  report:
+    status: "completed"
+    exit_code: 0
+    case_id: "TRACE-005"
+    harness: "runtime_trace"
+    sidecar_dumped: true
+
+semantic_expectations:
+  - sidecar_dump_enabled: true
+  - sidecar_content_valid: true
+  - sidecar_synced_with_primary: true
+  - no_decode_errors: true
+  - trace_integrity_valid: true
+
+# Scaffolded - implementation pending
+# This file defines what "REAL PASS" looks like for TRACE-005

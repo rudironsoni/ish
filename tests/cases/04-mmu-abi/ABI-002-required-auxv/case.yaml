@@ -1,0 +1,56 @@
+id: ABI-002
+phase: 04-mmu-abi
+title: Required auxiliary vector entries present
+class: abi
+kind: abi_fixture
+harness: abi_fixture
+meson_test: case:ABI-002
+
+prerequisites:
+  - ABI-001
+
+expectation_authority:
+  semantic_source: linux-aarch64-abi
+  primary_tool: runtime-fixture
+  secondary_tool: null
+  tertiary_tool: null
+
+success_criteria:
+  structural:
+    - harness exits 0
+    - report.json exists and valid
+    - auxv.json exists
+  semantic:
+    - AT_PAGESZ present and correct
+    - AT_PHDR present and valid
+    - AT_PHENT present and correct
+    - AT_PHNUM present and correct
+    - AT_ENTRY present and valid
+
+allowed_patch_scope:
+  - kernel/exec.c
+  - kernel/aarch64/*
+  - emu/aarch64/cpu.c
+  - tests/cases/04-mmu-abi/ABI-002-required-auxv/*
+
+regression_target:
+  meson_test: case:ABI-002
+
+trace_defaults:
+  backend: ring
+  level: 2
+  events: fault,block.entry,block.exit,process.entry
+  pc_range: null
+  regs: [sp, x0, x1]
+  dump_on: fault
+
+informational_only: false
+status: STUB
+is_gate_case: true
+
+metadata:
+  scaffolded: true
+  implementation_ready: false
+  notes: |
+    Scaffolded case - implementation pending.
+    Tests required auxiliary vector entries.

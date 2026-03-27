@@ -1,0 +1,53 @@
+version: 1
+
+# Expected trace output for TRACE-004-dump-on-fault
+# This defines the structural expectations for fault-triggered trace dumping
+
+harness_exit_code: 0
+
+required_artifacts:
+  - name: trace.ring
+    type: binary
+    description: Ring buffer trace output captured at fault point
+    min_size_bytes: 64
+    
+  - name: report.json
+    type: json
+    description: Harness execution report
+    required_fields:
+      - status
+      - case_id
+      - harness
+      - exit_code
+      - timestamp
+      - fault_triggered
+      - dump_location
+      
+  - name: decoded_trace.txt
+    type: text
+    description: Human-readable trace decode showing fault context
+    optional: true
+
+structural_expectations:
+  trace_ring:
+    - must_exist: true
+    - must_be_non_empty: true
+    - must_contain_valid_headers: true
+    - must_contain_fault_context: true
+    
+  report:
+    status: "completed"
+    exit_code: 0
+    case_id: "TRACE-004"
+    harness: "runtime_trace"
+    fault_handled: true
+
+semantic_expectations:
+  - fault_triggered_as_expected: true
+  - trace_dumped_on_fault: true
+  - fault_context_preserved: true
+  - no_decode_errors: true
+  - trace_integrity_valid: true
+
+# Scaffolded - implementation pending
+# This file defines what "REAL PASS" looks like for TRACE-004

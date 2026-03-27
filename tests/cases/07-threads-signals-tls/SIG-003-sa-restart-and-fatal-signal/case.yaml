@@ -1,0 +1,50 @@
+id: SIG-003
+phase: 07-threads-signals-tls
+title: SA_RESTART and fatal signal handling
+class: signal
+kind: signal_fixture
+harness: signal_fixture
+meson_test: case:SIG-003
+
+prerequisites:
+  - SIG-002
+
+expectation_authority:
+  semantic_source: linux-aarch64-abi
+  primary_tool: runtime-fixture
+  secondary_tool: null
+  tertiary_tool: null
+
+success_criteria:
+  structural:
+    - harness exits 0
+    - report.json exists and valid
+  semantic:
+    - test validates expected behavior
+
+allowed_patch_scope:
+  - kernel/*
+  - emu/*
+  - tests/cases/07-threads-signals-tls/SIG-003-sa-restart-and-fatal-signal/*
+
+regression_target:
+  meson_test: case:SIG-003
+
+trace_defaults:
+  backend: nop
+  level: 0
+  events: ""
+  pc_range: null
+  regs: []
+  dump_on: none
+
+informational_only: false
+status: STUB
+is_gate_case: true
+
+metadata:
+  scaffolded: true
+  implementation_ready: false
+  notes: |
+    Scaffolded case - implementation pending.
+    Prerequisites: SIG-002 must be REAL PASS. Tests SA_RESTART and fatal signals. Final gate for phase 07.

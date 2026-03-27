@@ -1,0 +1,54 @@
+id: DEC-006
+phase: 01-decode
+title: Decode CBZ, CBNZ, TBZ, TBNZ branch instructions correctly
+class: decode
+kind: decode_golden
+harness: decode_golden
+meson_test: case:DEC-006
+
+prerequisites:
+  - DEC-005
+
+expectation_authority:
+  semantic_source: arm-a64
+  primary_tool: llvm-mc
+  secondary_tool: llvm-objdump
+  tertiary_tool: aarch64-linux-gnu-objdump
+
+success_criteria:
+  structural:
+    - harness exits 0
+    - report.json exists and valid
+    - decoded.json exists
+  semantic:
+    - decoded fields match expected values
+    - canonical disassembly matches expectation
+    - all vectors pass
+
+allowed_patch_scope:
+  - emu/aarch64/decode.c
+  - tests/cases/01-decode/DEC-006-cbz-cbnz-tbz-tbnz/*
+
+regression_target:
+  meson_test: case:DEC-006
+
+trace_defaults:
+  backend: nop
+  level: 0
+  events: ""
+  pc_range: null
+  regs: []
+  dump_on: none
+
+informational_only: false
+status: STUB
+is_gate_case: true
+
+metadata:
+  scaffolded: true
+  implementation_ready: false
+  notes: |
+    Scaffolded case - implementation pending.
+    Tests CBZ, CBNZ (compare and branch on zero/non-zero),
+    TBZ, TBNZ (test and branch on bit zero/non-zero).
+    Prerequisites: DEC-005 must be REAL PASS.

@@ -1,0 +1,55 @@
+id: MMU-001
+phase: 04-mmu-abi
+title: Anonymous mmap allocates readable writable memory
+class: mmu
+kind: abi_fixture
+harness: abi_fixture
+meson_test: case:MMU-001
+
+prerequisites:
+  - EXEC-010
+
+expectation_authority:
+  semantic_source: linux-aarch64-abi
+  primary_tool: runtime-fixture
+  secondary_tool: null
+  tertiary_tool: null
+
+success_criteria:
+  structural:
+    - harness exits 0
+    - report.json exists and valid
+    - memory_map.json exists
+  semantic:
+    - mmap returns valid address
+    - memory is readable and writable
+    - page aligned address returned
+    - memory zero-initialized
+
+allowed_patch_scope:
+  - kernel/mmap.c
+  - kernel/mm.c
+  - emu/aarch64/cpu.c
+  - tests/cases/04-mmu-abi/MMU-001-anon-mmap/*
+
+regression_target:
+  meson_test: case:MMU-001
+
+trace_defaults:
+  backend: ring
+  level: 2
+  events: fault,block.entry,block.exit,syscall
+  pc_range: null
+  regs: [x0, x1, x2, x8, sp]
+  dump_on: fault
+
+informational_only: false
+status: STUB
+is_gate_case: true
+
+metadata:
+  scaffolded: true
+  implementation_ready: false
+  notes: |
+    Scaffolded case - implementation pending.
+    Tests anonymous mmap allocation and access.

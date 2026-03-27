@@ -1,0 +1,55 @@
+id: ABI-004
+phase: 04-mmu-abi
+title: TPIDR_EL0 initialized for TLS access
+class: abi
+kind: abi_fixture
+harness: abi_fixture
+meson_test: case:ABI-004
+
+prerequisites:
+  - ABI-003
+
+expectation_authority:
+  semantic_source: linux-aarch64-abi
+  primary_tool: runtime-fixture
+  secondary_tool: null
+  tertiary_tool: null
+
+success_criteria:
+  structural:
+    - harness exits 0
+    - report.json exists and valid
+    - tls_state.json exists
+  semantic:
+    - TPIDR_EL0 initialized at process entry
+    - points to TLS block
+    - TLS block accessible
+    - mrs TPIDR_EL0 reads correct value
+
+allowed_patch_scope:
+  - kernel/exec.c
+  - kernel/aarch64/*
+  - emu/aarch64/cpu.c
+  - tests/cases/04-mmu-abi/ABI-004-initial-tpidr-el0/*
+
+regression_target:
+  meson_test: case:ABI-004
+
+trace_defaults:
+  backend: ring
+  level: 2
+  events: fault,block.entry,block.exit,process.entry
+  pc_range: null
+  regs: [sp, x0, x1, tpidr_el0]
+  dump_on: fault
+
+informational_only: false
+status: STUB
+is_gate_case: true
+
+metadata:
+  scaffolded: true
+  implementation_ready: false
+  notes: |
+    Scaffolded case - implementation pending.
+    Tests TPIDR_EL0 initialization for TLS.

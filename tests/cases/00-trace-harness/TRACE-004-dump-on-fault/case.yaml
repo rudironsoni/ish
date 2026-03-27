@@ -1,12 +1,13 @@
-id: TRACE-001
+id: TRACE-004
 phase: 00-trace-harness
-title: Boundary-level tracing initializes and records block boundaries
+title: Automatic trace dump triggers correctly on fault conditions
 class: trace
 kind: runtime_trace
 harness: runtime_trace
-meson_test: case:TRACE-001
+meson_test: case:TRACE-004
 
-prerequisites: []
+prerequisites:
+  - TRACE-003
 
 expectation_authority:
   semantic_source: internal-trace-contract
@@ -19,23 +20,24 @@ success_criteria:
     - harness exits 0
     - trace.ring exists and non-empty
     - report.json exists and valid
-    - at least one boundary event decoded successfully
-  semantic: []
+    - trace_dump.json created on fault
+  semantic:
+    - dump contains recent events before fault
 
 allowed_patch_scope:
   - trace/*
   - tests/cases/harness/runtime_trace.c
-  - tests/cases/00-trace-harness/TRACE-001-boundary-smoke/*
+  - tests/cases/00-trace-harness/TRACE-004-dump-on-fault/*
 
 regression_target:
-  meson_test: case:TRACE-001
+  meson_test: case:TRACE-004
 
 trace_defaults:
   backend: ring
   level: 2
   events: block.entry,block.exit,fault,syscall
   pc_range: null
-  regs: []
+  regs: [x0, x1, sp, pc]
   dump_on: fault
 
 informational_only: false
@@ -47,4 +49,4 @@ metadata:
   implementation_ready: false
   notes: |
     Scaffolded case - implementation pending.
-    First gate case of phase 00. Prerequisites: None.
+    Prerequisites: TRACE-003 must be REAL PASS.

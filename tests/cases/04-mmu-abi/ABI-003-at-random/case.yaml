@@ -1,0 +1,55 @@
+id: ABI-003
+phase: 04-mmu-abi
+title: AT_RANDOM provides entropy for stack canaries
+class: abi
+kind: abi_fixture
+harness: abi_fixture
+meson_test: case:ABI-003
+
+prerequisites:
+  - ABI-002
+
+expectation_authority:
+  semantic_source: linux-aarch64-abi
+  primary_tool: runtime-fixture
+  secondary_tool: null
+  tertiary_tool: null
+
+success_criteria:
+  structural:
+    - harness exits 0
+    - report.json exists and valid
+    - auxv.json exists
+  semantic:
+    - AT_RANDOM entry present
+    - points to 16 random bytes
+    - bytes non-zero and vary between runs
+    - memory readable
+
+allowed_patch_scope:
+  - kernel/exec.c
+  - kernel/aarch64/*
+  - emu/aarch64/cpu.c
+  - tests/cases/04-mmu-abi/ABI-003-at-random/*
+
+regression_target:
+  meson_test: case:ABI-003
+
+trace_defaults:
+  backend: ring
+  level: 2
+  events: fault,block.entry,block.exit,process.entry
+  pc_range: null
+  regs: [sp, x0, x1]
+  dump_on: fault
+
+informational_only: false
+status: STUB
+is_gate_case: true
+
+metadata:
+  scaffolded: true
+  implementation_ready: false
+  notes: |
+    Scaffolded case - implementation pending.
+    Tests AT_RANDOM entropy provision.

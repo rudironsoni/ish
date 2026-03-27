@@ -1,0 +1,57 @@
+id: ELF-004
+phase: 05-elf-loader
+title: PT_LOAD segments mapped with correct permissions
+class: elf
+kind: elf_fixture
+harness: elf_fixture
+meson_test: case:ELF-004
+
+prerequisites:
+  - ELF-003
+
+expectation_authority:
+  semantic_source: elf-and-linux-abi
+  primary_tool: runtime-fixture
+  secondary_tool: llvm-objdump
+  tertiary_tool: aarch64-linux-gnu-objdump
+
+success_criteria:
+  structural:
+    - harness exits 0
+    - report.json exists and valid
+    - segment_map.json exists
+  semantic:
+    - all PT_LOAD segments mapped
+    - PF_R segments readable
+    - PF_W segments writable
+    - PF_X segments executable
+    - file offset to vaddr mapping correct
+
+allowed_patch_scope:
+  - kernel/exec.c
+  - kernel/elf.c
+  - kernel/mmap.c
+  - emu/aarch64/*
+  - tests/cases/05-elf-loader/ELF-004-pt-load-mapping/*
+
+regression_target:
+  meson_test: case:ELF-004
+
+trace_defaults:
+  backend: ring
+  level: 2
+  events: block.entry,block.exit,fault
+  pc_range: null
+  regs: [x0, x1, x2, x3, x4, sp]
+  dump_on: fault
+
+informational_only: false
+status: STUB
+is_gate_case: true
+
+metadata:
+  scaffolded: true
+  implementation_ready: false
+  notes: |
+    Scaffolded case - implementation pending.
+    Tests PT_LOAD segment mapping with permissions.

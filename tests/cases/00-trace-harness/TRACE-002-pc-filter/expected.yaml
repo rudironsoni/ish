@@ -1,0 +1,52 @@
+version: 1
+
+# Expected trace output for TRACE-002-pc-filter
+# This defines the structural expectations for PC range filtering validation
+
+harness_exit_code: 0
+
+required_artifacts:
+  - name: trace.ring
+    type: binary
+    description: Ring buffer trace output with PC-filtered events
+    min_size_bytes: 64
+    
+  - name: report.json
+    type: json
+    description: Harness execution report
+    required_fields:
+      - status
+      - case_id
+      - harness
+      - exit_code
+      - timestamp
+      - pc_filter_config
+      
+  - name: decoded_trace.txt
+    type: text
+    description: Human-readable trace decode showing PC-filtered events
+    optional: true
+
+structural_expectations:
+  trace_ring:
+    - must_exist: true
+    - must_be_non_empty: true
+    - must_contain_valid_headers: true
+    - must_respect_pc_bounds: true
+    
+  report:
+    status: "completed"
+    exit_code: 0
+    case_id: "TRACE-002"
+    harness: "runtime_trace"
+    pc_filter_applied: true
+
+semantic_expectations:
+  - pc_filter_config_applied: true
+  - events_within_pc_range_only: true
+  - events_outside_range_excluded: true
+  - no_decode_errors: true
+  - trace_integrity_valid: true
+
+# Scaffolded - implementation pending
+# This file defines what "REAL PASS" looks like for TRACE-002

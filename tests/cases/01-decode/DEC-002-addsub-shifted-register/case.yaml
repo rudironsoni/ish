@@ -1,0 +1,53 @@
+id: DEC-002
+phase: 01-decode
+title: Decode ADD/SUB shifted register encodings correctly
+class: decode
+kind: decode_golden
+harness: decode_golden
+meson_test: case:DEC-002
+
+prerequisites:
+  - DEC-001
+
+expectation_authority:
+  semantic_source: arm-a64
+  primary_tool: llvm-mc
+  secondary_tool: llvm-objdump
+  tertiary_tool: aarch64-linux-gnu-objdump
+
+success_criteria:
+  structural:
+    - harness exits 0
+    - report.json exists and valid
+    - decoded.json exists
+  semantic:
+    - decoded fields match expected values
+    - canonical disassembly matches expectation
+    - all vectors pass
+
+allowed_patch_scope:
+  - emu/aarch64/decode.c
+  - tests/cases/01-decode/DEC-002-addsub-shifted-register/*
+
+regression_target:
+  meson_test: case:DEC-002
+
+trace_defaults:
+  backend: nop
+  level: 0
+  events: ""
+  pc_range: null
+  regs: []
+  dump_on: none
+
+informational_only: false
+status: STUB
+is_gate_case: true
+
+metadata:
+  scaffolded: true
+  implementation_ready: false
+  notes: |
+    Scaffolded case - implementation pending.
+    Tests ADD/SUB with register shifts (LSL, LSR, ASR).
+    Prerequisites: DEC-001 must be REAL PASS.

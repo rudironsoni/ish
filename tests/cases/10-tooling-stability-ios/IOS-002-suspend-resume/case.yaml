@@ -1,0 +1,51 @@
+id: IOS-002
+phase: 10-tooling-stability-ios
+title: iOS app suspend/resume preserves state
+class: ios
+kind: ios_fixture
+harness: ios_fixture
+meson_test: case:IOS-002
+
+prerequisites:
+  - IOS-001
+
+expectation_authority:
+  semantic_source: ios-sandbox-contract
+  primary_tool: runtime-fixture
+  secondary_tool: null
+  tertiary_tool: null
+
+success_criteria:
+  structural:
+    - harness exits 0
+    - report.json exists and valid
+  semantic:
+    - test validates expected behavior
+
+allowed_patch_scope:
+  - kernel/*
+  - emu/*
+  - tests/cases/*
+  - tests/cases/10-tooling-stability-ios/IOS-002-suspend-resume/*
+
+regression_target:
+  meson_test: case:IOS-002
+
+trace_defaults:
+  backend: nop
+  level: 0
+  events: ""
+  pc_range: null
+  regs: []
+  dump_on: none
+
+informational_only: false
+status: STUB
+is_gate_case: true
+
+metadata:
+  scaffolded: true
+  implementation_ready: false
+  notes: |
+    Scaffolded case - implementation pending.
+    Prerequisites: IOS-001 must be REAL PASS. Tests iOS lifecycle.

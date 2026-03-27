@@ -1,0 +1,50 @@
+id: THR-003
+phase: 07-threads-signals-tls
+title: Set_robust_list syscall for mutex handling
+class: thread
+kind: thread_fixture
+harness: thread_fixture
+meson_test: case:THR-003
+
+prerequisites:
+  - THR-002
+
+expectation_authority:
+  semantic_source: linux-aarch64-abi
+  primary_tool: runtime-fixture
+  secondary_tool: null
+  tertiary_tool: null
+
+success_criteria:
+  structural:
+    - harness exits 0
+    - report.json exists and valid
+  semantic:
+    - test validates expected behavior
+
+allowed_patch_scope:
+  - kernel/*
+  - emu/*
+  - tests/cases/07-threads-signals-tls/THR-003-set-robust-list/*
+
+regression_target:
+  meson_test: case:THR-003
+
+trace_defaults:
+  backend: nop
+  level: 0
+  events: ""
+  pc_range: null
+  regs: []
+  dump_on: none
+
+informational_only: false
+status: STUB
+is_gate_case: true
+
+metadata:
+  scaffolded: true
+  implementation_ready: false
+  notes: |
+    Scaffolded case - implementation pending.
+    Prerequisites: THR-002 must be REAL PASS. Tests set_robust_list for robust mutexes.
