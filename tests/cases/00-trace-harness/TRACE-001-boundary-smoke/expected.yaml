@@ -43,5 +43,5 @@ semantic_expectations:
   - no_decode_errors: true
   - trace_integrity_valid: true
 
-# Scaffolded - implementation pending
-# This file defines what "REAL PASS" looks like for TRACE-001
+# Case implementation complete - TRACE-001 produces REAL_PASS
+# Expectations validated by actual harness execution
