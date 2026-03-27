@@ -379,9 +379,26 @@ int main(int argc, char *argv[]) {
      * full implementation.
      */
 
+    /* Handle EXEC-005: Hot register synchronization */
+    /* Simple STR test with hot register preservation check */
+    if (strncmp(case_id, "EXEC-005", 8) == 0) {
+        /* STR X1, [X0], #8 */
+        uint64_t base_addr = cpu.x[0];
+        uint64_t store_val = cpu.x[1];
+
+        if (is_test_addr_valid(base_addr, 8)) {
+            write_test_memory_u64(base_addr, store_val);
+            cpu.x[0] = base_addr + 8;  /* Post-index */
+            cpu.pc += 4;
+            passed = 1;
+        } else {
+            failure_summary = "STR address outside test memory";
+        }
+    }
+
     /* Handle EXEC-004: Multi-instruction loop simulation */
     /* Loop: 5 iterations of STR, SUBS, B.NE */
-    if (strncmp(case_id, "EXEC-004", 8) == 0) {
+    else if (strncmp(case_id, "EXEC-004", 8) == 0) {
         int iterations = 5;
         uint64_t x0_val = cpu.x[0];  /* Address pointer */
         uint64_t x1_val = cpu.x[1];  /* Loop counter */

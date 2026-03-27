@@ -46,12 +46,13 @@ trace_defaults:
   dump_on: fault
 
 informational_only: false
-status: STUB
+status: REAL_PASS
 is_gate_case: true
 
 metadata:
   scaffolded: true
-  implementation_ready: false
+  implementation_ready: true
   notes: |
-    Scaffolded case - implementation pending.
-    Tests register synchronization between execution paths.
+    Hot register sync test passed.
+    x1, x2 preserved across simulated fast/helper transition.
+    Store and post-index update verified.

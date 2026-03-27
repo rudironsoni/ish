@@ -1,0 +1,44 @@
+initial_state:
+  registers:
+    x0: 0x0000000000001000  # Memory address
+    x1: 0xDEADBEEFCAFEBABE  # Value to preserve
+    x2: 0x123456789ABCDEF0  # Value to preserve
+    x3: 0x0                 # Scratch
+    x4: 0x0                 # Scratch
+    x5: 0x0                 # Scratch
+  pc: 0x4000
+  sp: 0x2000
+  nzcv: {n: 0, z: 0, c: 0, v: 0}
+
+code:
+  # Test hot register synchronization across fast/helper path transition
+  # Fast path uses x0-x5 as hot registers, need to sync on fallback
+  # encoding: str x1, [x0], #8 -> [0x01, 0x84, 0x00, 0xf8]
+  encoding_hex_le: "018400f8"
+
+execution_sequence:
+  description: |
+    Simulates hot register sync scenario:
+    1. Store x1 to memory (sync to memory)
+    2. Load back from memory (sync from memory)
+    3. Verify x1 unchanged across transition
+
+  final_registers:
+    x0: 0x0000000000001010  # Post-increment (0x1000 + 16)
+    x1: 0xDEADBEEFCAFEBABE  # Unchanged
+    x2: 0x123456789ABCDEF0  # Unchanged
+    x3: 0x0
+    x4: 0x0
+    x5: 0x0
+
+  final_pc: 0x4008
+
+success_criteria:
+  - name: hot_regs_preserved
+    description: Hot register values unchanged after sync
+  - name: pc_advanced
+    description: PC advanced correctly
+
+notes: |
+  Tests register state consistency across fast/helper path transitions.
+  Hot registers (x0-x15) must be preserved on sync.
