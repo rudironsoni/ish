@@ -73,6 +73,33 @@ This command MUST refuse and report ILLEGAL if:
 - Explicit Meson identity is missing
 - Patch scope extends beyond active case boundaries
 - Working on BLOCKED case without addressing prerequisite
+- **Harness-only task attempts to modify product code** (trace/, emu/, tcti/, loader/, abi/, syscall/)
+
+## Harness-Only Scope Validation
+
+When `allowed_patch_scope.level` is `harness-only`:
+
+1. Check that NO product code paths are in the scope
+2. Product code paths include:
+   - `trace/**`
+   - `emu/**`
+   - `tcti/**`
+   - `loader/**`
+   - `abi/**`
+   - `syscall/**`
+   - Any decoder/generator/execution implementation
+
+3. Verify ONLY control-plane files are targeted:
+   - `AGENTS.md`
+   - `.rulesync/**/*.md`
+   - `tests/cases/*.yaml`
+   - `tests/cases/**/*.md`
+   - `.opencode/skill/**/*.md`
+
+4. If product code paths detected, fail closed with:
+   - `blocker: "Harness-only task attempted to modify product code: <path>"`
+   - `ready_for_work: false`
+   - `required_first: "Remove product code paths from patch scope"`
 
 ## Required Sequence
 
