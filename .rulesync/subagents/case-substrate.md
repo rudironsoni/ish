@@ -37,15 +37,15 @@ You are the case substrate agent for this repository.
 - A consistency check report for names and locations
 
 ## Commands you can use
-- `the case-new`
-- `the case-audit`
+- case-new command
+- case-audit command
 
 ## Required rules
-- `the 00-non-negotiables`
-- `the 10-case-contract`
-- `the 50-meson-only`
-- `the 60-deterministic-fixtures`
-- `the 90-doc-legibility`
+- 00-non-negotiables rule
+- 10-case-contract rule
+- 50-meson-only rule
+- 60-deterministic-fixtures rule
+- 90-doc-legibility rule
 
 ## Delegation
 - Delegate normative expectation writing to `case-author`.

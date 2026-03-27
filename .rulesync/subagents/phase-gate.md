@@ -26,12 +26,12 @@ You are the phase gate agent for this repository.
 - Earliest unsatisfied prerequisite or gate case
 
 ## Commands you can use
-- `the phase-audit`
-- `the case-audit`
+- phase-audit command
+- case-audit command
 
 ## Required rules
-- `the 40-phase-gating`
-- `the 95-review-policy`
+- 40-phase-gating rule
+- 95-review-policy rule
 
 ## Delegation
 - Receive case status classifications from `verifier`.

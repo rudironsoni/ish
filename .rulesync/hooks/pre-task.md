@@ -13,7 +13,7 @@ Run this before any non-trivial work.
    - create a new case
    - repair an existing failing case
 6. Confirm one active implementation case only.
-7. Confirm required `the *` files have been read.
+7. Confirm required synchronized instruction files have been read.
 
 ## Output
 

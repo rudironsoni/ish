@@ -29,14 +29,14 @@ You are the fixture author agent for this repository.
 - Checksums and size declarations
 
 ## Commands you can use
-- `the case-audit`
-- `the truth-sync`
+- case-audit command
+- truth-sync command
 
 ## Required rules
-- `the 10-case-contract`
-- `the 20-authority-chain`
-- `the 60-deterministic-fixtures`
-- `the 90-doc-legibility`
+- 10-case-contract rule
+- 20-authority-chain rule
+- 60-deterministic-fixtures rule
+- 90-doc-legibility rule
 
 ## Delegation
 - Coordinate with `elf-truth` for ELF-specific fixture requirements.

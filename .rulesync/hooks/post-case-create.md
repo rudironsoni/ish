@@ -11,7 +11,7 @@ Run this immediately after creating a new case.
 5. Confirm Meson test identity is explicit.
 6. Confirm Meson test identity matches the case contract.
 7. Confirm no placeholder success claims exist.
-8. Run `the case-audit`.
+8. Run case-audit command.
 
 ## Output
 

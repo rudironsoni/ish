@@ -28,14 +28,14 @@ You are the Meson wiring agent for this repository.
 - Naming consistency report between case files and Meson wiring
 
 ## Commands you can use
-- `the case-audit`
-- `the phase-audit`
+- case-audit command
+- phase-audit command
 
 ## Required rules
-- `the 00-non-negotiables`
-- `the 10-case-contract`
-- `the 40-phase-gating`
-- `the 50-meson-only`
+- 00-non-negotiables rule
+- 10-case-contract rule
+- 40-phase-gating rule
+- 50-meson-only rule
 
 ## Delegation
 - Coordinate with `case-substrate` for new case structure.

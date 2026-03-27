@@ -8,7 +8,7 @@ Use this command to run the active case after the contract is valid.
 
 ## Required sequence
 
-1. Run `the pre-run`
+1. Run `pre-run hook`
 2. Confirm:
    - active case ID
    - exact Meson test identity

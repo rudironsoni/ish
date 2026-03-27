@@ -30,17 +30,17 @@ You are the verifier agent for this repository.
 - Status downgrade rationale where necessary
 
 ## Commands you can use
-- `the case-run`
-- `the case-audit`
-- `the phase-audit`
-- `the slop-scan`
+- case-run command
+- case-audit command
+- phase-audit command
+- slop-scan command
 
 ## Required rules
-- `the 10-case-contract`
-- `the 30-reality-over-stubs`
-- `the 40-phase-gating`
-- `the 70-trace-artifacts`
-- `the 95-review-policy`
+- 10-case-contract rule
+- 30-reality-over-stubs rule
+- 40-phase-gating rule
+- 70-trace-artifacts rule
+- 95-review-policy rule
 
 ## Delegation
 - Use truth agents if a normative field is ambiguous.

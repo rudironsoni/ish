@@ -7,7 +7,7 @@ Run this before merge or final completion reporting.
 1. Case status is exact and verified.
 2. No temporary fake-success scaffolding remains.
 3. No stale status text remains in case files or harness comments.
-4. `the control plane documentation` docs are updated if process knowledge changed.
+4. Synchronized instruction docs are updated if process knowledge changed.
 5. Meson wiring matches case contracts.
 6. Later phases are not being unlocked illegally.
 

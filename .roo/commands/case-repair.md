@@ -8,7 +8,7 @@ Use this command when the active case is not `REAL PASS` and the next action is 
 
 ## Required sequence
 
-1. Run `the on-failure`
+1. Run `on-failure hook`
 2. Classify the current status:
    - `REAL FAIL`
    - `STUB`
@@ -21,7 +21,7 @@ Use this command when the active case is not `REAL PASS` and the next action is 
    - retry budget
    - stop conditions
 5. Invoke the necessary specialist agent
-6. Re-run `the case-run`
+6. Re-run `case-run command`
 7. Re-run verifier and anti-slop
 
 ## Required outputs

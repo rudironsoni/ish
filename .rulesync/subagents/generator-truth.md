@@ -34,14 +34,14 @@ You are the generator truth agent for this repository.
   - unstable details that must not be treated as golden truth
 
 ## Commands you can use
-- `the truth-sync`
-- `the case-audit`
+- truth-sync command
+- case-audit command
 
 ## Required rules
-- `the 10-case-contract`
-- `the 20-authority-chain`
-- `the 30-reality-over-stubs`
-- `the 90-doc-legibility`
+- 10-case-contract rule
+- 20-authority-chain rule
+- 30-reality-over-stubs rule
+- 90-doc-legibility rule
 
 ## Delegation
 - Delegate semantic instruction meaning to `isa-truth`.

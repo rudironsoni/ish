@@ -24,7 +24,7 @@ Use this command when `authority.yaml` or `expected.yaml` need to be aligned wit
 3. Invoke the relevant truth agents
 4. Update `authority.yaml`
 5. Update `expected.yaml` through `case-author`
-6. Re-run `the case-audit`
+6. Re-run `case-audit command`
 
 ## Outputs
 

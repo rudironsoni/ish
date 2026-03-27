@@ -34,15 +34,15 @@ You are the ELF truth agent for this repository.
   - required runtime evidence
 
 ## Commands you can use
-- `the truth-sync`
-- `the case-audit`
+- truth-sync command
+- case-audit command
 
 ## Required rules
-- `the 10-case-contract`
-- `the 20-authority-chain`
-- `the 30-reality-over-stubs`
-- `the 60-deterministic-fixtures`
-- `the 70-trace-artifacts`
+- 10-case-contract rule
+- 20-authority-chain rule
+- 30-reality-over-stubs rule
+- 60-deterministic-fixtures rule
+- 70-trace-artifacts rule
 
 ## Delegation
 - Delegate ABI entry-state truth to `abi-truth`.
