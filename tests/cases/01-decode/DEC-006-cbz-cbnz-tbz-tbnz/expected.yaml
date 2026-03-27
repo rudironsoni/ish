@@ -1,0 +1,104 @@
+vectors:
+  # Compare and branch on zero/non-zero
+  - name: cbz_x0_0x100
+    asm: "cbz x0, #0x100"
+    encoding_hex_le: "000800b4"
+    canonical_disasm: "cbz x0, #256"
+    expected_decode:
+      category: 10  # A64_BRANCH
+      subtype: 2  # Compare and branch
+      rd: 0  # Register to test
+      target: 256  # Sign-extended imm19 << 2
+      is_64bit: true
+      set_flags: false
+
+  - name: cbnz_x1_0x100
+    asm: "cbnz x1, #0x100"
+    encoding_hex_le: "010800b5"
+    canonical_disasm: "cbnz x1, #256"
+    expected_decode:
+      category: 10
+      subtype: 2
+      rd: 1
+      target: 256
+      is_64bit: true
+      set_flags: false
+
+  - name: cbz_w4_0x200
+    asm: "cbz w4, #512"
+    encoding_hex_le: "04100034"
+    canonical_disasm: "cbz w4, #512"
+    expected_decode:
+      category: 10
+      subtype: 2
+      rd: 4
+      target: 512
+      is_64bit: false
+      set_flags: false
+
+  - name: cbnz_w5_0x200
+    asm: "cbnz w5, #512"
+    encoding_hex_le: "05100035"
+    canonical_disasm: "cbnz w5, #512"
+    expected_decode:
+      category: 10
+      subtype: 2
+      rd: 5
+      target: 512
+      is_64bit: false
+      set_flags: false
+
+  # Test and branch on bit zero/non-zero
+  - name: tbz_w2_bit5_0x100
+    asm: "tbz w2, #5, #256"
+    encoding_hex_le: "02082836"
+    canonical_disasm: "tbz w2, #5, #256"
+    expected_decode:
+      category: 11  # A64_BRANCH2 (TBZ/TBNZ use op0=1011 encoding space)
+      subtype: 3  # Test and branch
+      rd: 2  # Register to test
+      target: 256  # Sign-extended imm14 << 2
+      imm_shift: 5  # Bit position to test
+      is_64bit: false
+      set_flags: false
+
+  - name: tbnz_w3_bit7_0x100
+    asm: "tbnz w3, #7, #256"
+    encoding_hex_le: "03083837"
+    canonical_disasm: "tbnz w3, #7, #256"
+    expected_decode:
+      category: 11  # A64_BRANCH2
+      subtype: 3
+      rd: 3
+      target: 256
+      imm_shift: 7
+      is_64bit: false
+      set_flags: false
+
+  - name: tbz_w10_bit15_0x80
+    asm: "tbz w10, #15, #128"
+    encoding_hex_le: "0a047836"
+    canonical_disasm: "tbz w10, #15, #128"
+    expected_decode:
+      category: 11  # A64_BRANCH2
+      subtype: 3
+      rd: 10
+      target: 128
+      imm_shift: 15
+      is_64bit: false
+      set_flags: false
+
+  - name: tbnz_w11_bit31_0x80
+    asm: "tbnz w11, #31, #128"
+    encoding_hex_le: "0b04f837"
+    canonical_disasm: "tbnz w11, #31, #128"
+    expected_decode:
+      category: 11  # A64_BRANCH2
+      subtype: 3
+      rd: 11
+      target: 128
+      imm_shift: 31
+      is_64bit: false
+      set_flags: false
+
+success_threshold: 8
