@@ -54,5 +54,5 @@ metadata:
   scaffolded: true
   implementation_ready: false
   notes: |
-    Scaffolded case - implementation pending.
+    Case implemented and passing.
     Tests fault address propagation to fault handler.

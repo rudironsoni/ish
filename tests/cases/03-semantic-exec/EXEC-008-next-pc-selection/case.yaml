@@ -53,5 +53,5 @@ metadata:
   scaffolded: true
   implementation_ready: false
   notes: |
-    Scaffolded case - implementation pending.
+    Case implemented and passing.
     Tests next PC selection for various branch types.

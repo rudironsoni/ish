@@ -1,0 +1,29 @@
+initial_state:
+  registers:
+    x0: 0x0000000000001000
+    x1: 0xAAAAAAAA55555555
+    x2: 0x0
+  pc: 0x4000
+  sp: 0x2000
+  nzcv: {n: 0, z: 0, c: 0, v: 0}
+
+code:
+  # Block entry/exit save/restore test
+  encoding_hex_le: "028400f8"  # str x2, [x0], #8
+
+execution_sequence:
+  final_registers:
+    x0: 0x0000000000001008
+    x1: 0xAAAAAAAA55555555
+    x2: 0x0000000000000000
+
+  final_pc: 0x4004
+
+success_criteria:
+  - name: store_complete
+    description: Store to block entry succeeds
+  - name: base_updated
+    description: Base register updated
+
+notes: |
+  Tests block save/restore semantics.

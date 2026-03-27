@@ -1,0 +1,29 @@
+initial_state:
+  registers:
+    x0: 0x0000000000000001  # syscall number (exit)
+    x1: 0x0000000000000000  # exit code
+  pc: 0x4000
+  sp: 0x2000
+  nzcv: {n: 0, z: 0, c: 0, v: 0}
+
+code:
+  # SVC (supervisor call) entry test
+  # SVC #0 triggers syscall entry
+  encoding_hex_le: "010000d4"  # svc #0
+
+execution_sequence:
+  final_registers:
+    x0: 0x0000000000000001
+    x1: 0x0000000000000000
+
+  final_pc: 0x4004
+
+success_criteria:
+  - name: svc_decoded
+    description: SVC instruction decoded correctly
+  - name: pc_advanced
+    description: PC advanced past SVC
+
+notes: |
+  Tests SVC instruction decoding and entry point.
+  Full syscall emulation out of scope for this case.

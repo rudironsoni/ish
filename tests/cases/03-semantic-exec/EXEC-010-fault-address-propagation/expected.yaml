@@ -1,0 +1,28 @@
+initial_state:
+  registers:
+    x0: 0xFFFFFFFFFFFFFFFF  # Invalid address (triggers fault)
+    x1: 0xDEADBEEFCAFEBABE
+  pc: 0x4000
+  sp: 0x2000
+  nzcv: {n: 0, z: 0, c: 0, v: 0}
+
+code:
+  # Test fault address propagation on invalid access
+  encoding_hex_le: "010000f8"  # str x1, [x0]
+
+execution_sequence:
+  final_registers:
+    x0: 0xFFFFFFFFFFFFFFFF
+    x1: 0xDEADBEEFCAFEBABE
+
+  final_pc: 0x4004
+
+success_criteria:
+  - name: fault_detected
+    description: Invalid address fault detected
+  - name: address_preserved
+    description: Fault address propagated to fault handler
+
+notes: |
+  Tests fault address propagation on invalid memory access.
+  Address validation should catch this before store.
