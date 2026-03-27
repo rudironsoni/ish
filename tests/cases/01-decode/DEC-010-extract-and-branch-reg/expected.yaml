@@ -1,0 +1,74 @@
+vectors:
+  # EXTR - Extract register from pair
+  - name: extr_x0_x1_x2_8
+    asm: "extr x0, x1, x2, #8"
+    encoding_hex_le: "2020c293"
+    canonical_disasm: "extr x0, x1, x2, #8"
+    expected_decode:
+      category: 9  # A64_DP_IMM
+      subtype: 14  # EXTRACT
+      rd: 0
+      rn: 1
+      rm: 2
+      imm: 8
+      is_64bit: true
+      set_flags: false
+
+  - name: extr_w3_w4_w5_16
+    asm: "extr w3, w4, w5, #16"
+    encoding_hex_le: "83408513"
+    canonical_disasm: "extr w3, w4, w5, #16"
+    expected_decode:
+      category: 9
+      subtype: 14
+      rd: 3
+      rn: 4
+      rm: 5
+      imm: 16
+      is_64bit: false
+      set_flags: false
+
+  # BR/BLR/RET - Branch register
+  - name: br_x6
+    asm: "br x6"
+    encoding_hex_le: "c0001fd6"
+    canonical_disasm: "br x6"
+    expected_decode:
+      category: 11  # A64_BRANCH2
+      subtype: 5    # Branch register
+      rd: 0
+      rn: 6
+      rm: 0
+      imm: 0
+      is_64bit: false
+      set_flags: false
+
+  - name: blr_x7
+    asm: "blr x7"
+    encoding_hex_le: "e0003fd6"
+    canonical_disasm: "blr x7"
+    expected_decode:
+      category: 11
+      subtype: 5
+      rd: 0
+      rn: 7
+      rm: 0
+      imm: 0
+      is_64bit: false
+      set_flags: false
+
+  - name: ret
+    asm: "ret"
+    encoding_hex_le: "c0035fd6"
+    canonical_disasm: "ret"
+    expected_decode:
+      category: 11
+      subtype: 5
+      rd: 0
+      rn: 30  # x30 (LR) is default for RET
+      rm: 0
+      imm: 0
+      is_64bit: false
+      set_flags: false
+
+success_threshold: 5
