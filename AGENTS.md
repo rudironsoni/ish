@@ -376,6 +376,40 @@ When the user says "commit" or asks you to commit changes:
 
 ---
 
+## 17. Critical Status Ledger Ownership Boundary
+
+**`tests/cases/status.yaml` may ONLY be mutated by `case-promote`.**
+
+This is the key ownership boundary that keeps implementation from laundering itself into success.
+
+### 17.1 Forbidden Mutations
+
+The following are **ILLEGAL** and MUST be refused:
+
+- `case-work` modifying status.yaml — **FORBIDDEN**
+- `case-run` modifying status.yaml — **FORBIDDEN**
+- Implementation code modifying status.yaml — **FORBIDDEN**
+- Ad hoc edits to status.yaml — **FORBIDDEN**
+- Direct status changes without verification — **FORBIDDEN**
+
+### 17.2 Lawful Mutation Path
+
+Status changes MUST follow this exact path:
+
+1. `case-work` implements the case (does NOT touch status.yaml)
+2. `case-run` executes and produces artifacts (does NOT touch status.yaml)
+3. `case-verify` produces evidence-backed classification (does NOT touch status.yaml)
+4. `case-promote` updates status.yaml based on verify results (ONLY lawful mutator)
+
+### 17.3 Enforcement
+
+- `case-work` and `case-run` MUST refuse if asked to modify status.yaml
+- `case-promote` MUST validate verification passed before mutating
+- Any direct edit to status.yaml MUST fail harness-doctor
+- Status promotion without `case-verify` is ILLEGAL
+
+---
+
 **Version:** 2.0
 **Last Updated:** 2026-03-27
 **Control System Status:** STRICT MODE
