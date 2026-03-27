@@ -1,0 +1,73 @@
+refactor: Migrate control plane from .ai/ to .rulesync/ for Rulesync-managed multi-agent sync
+
+## Migration Summary
+
+Migrated the agent-first harness engineering control plane to be Rulesync-managed.
+
+### Structural Changes
+
+**Removed:**
+- .ai/agents/ (17 files) - old agent definitions
+- .ai/rules/ (11 files) - old rule definitions  
+- .ai/commands/ (8 files) - old command definitions
+- .ai/hooks/ (8 files) - old hook definitions
+- .ai/*.sh (2 files) - old creation scripts
+
+**Created:**
+- .rulesync/subagents/ (17 files) - agent definitions
+- .rulesync/rules/ (11 files) - rule definitions
+- .rulesync/commands/ (8 files) - command definitions
+- .rulesync/hooks/ (8 files) - hook definitions
+- .rulesync/skills/ (5 files) - NEW reusable skills layer
+
+### Path Refactoring
+
+All Markdown source files in .rulesync/ now use semantic references instead of hardcoded paths:
+
+- "Read .ai/agents/orchestrator.md" → "Read the orchestrator subagent"
+- "Run .ai/commands/case-audit.md" → "Run the case-audit command"
+- "Use .ai/rules/00-non-negotiables.md" → "Use the non-negotiables rule"
+- "Follow .ai/hooks/pre-task.md" → "Follow the pre-task hook"
+
+Zero hardcoded control-plane path references remain in source Markdown bodies.
+
+### New Skills Layer
+
+Added 5 reusable procedural skills for cross-tool synchronization:
+
+1. active-case-lifecycle.md - Complete case lifecycle management
+2. truth-first-case-authoring.md - Truth chain before implementation
+3. phase-gate-audit.md - Bootstrap phase gating enforcement
+4. anti-slop-review.md - Fake success and overclaiming detection
+5. meson-wire-check.md - Explicit Meson registration verification
+
+### Policy Preservation
+
+All repository policy preserved exactly:
+- No stub may count as pass
+- No dynamic case discovery
+- No hidden runtime dispatcher
+- Exact status vocabulary: REAL PASS, REAL FAIL, STUB, BLOCKED, INVALID
+- Phase gating enforced
+- Truth before code
+- Meson-only case wiring
+- Verifier and anti-slop review required
+
+### Generated Artifacts
+
+The root AGENTS.md is now intended to be generated from Rulesync for the agentsmd target.
+
+Current targets configured for Rulesync sync:
+- agentsmd (primary documentation)
+- claudecode
+- codexcli
+- copilot
+- geminicli
+- opencode
+
+### Tool Support
+
+Rulesync handles feature availability per target gracefully. The source material in .rulesync/ is tool-agnostic and semantic.
+
+Total files: 49 (44 migrated + 5 new skills)
+All content path-agnostic and future-agent-readable.
