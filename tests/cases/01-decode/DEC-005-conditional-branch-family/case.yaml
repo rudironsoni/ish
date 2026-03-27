@@ -41,13 +41,13 @@ trace_defaults:
   dump_on: none
 
 informational_only: false
-status: STUB
+status: REAL_PASS
 is_gate_case: true
 
 metadata:
   scaffolded: true
-  implementation_ready: false
+  implementation_ready: true
   notes: |
-    Scaffolded case - implementation pending.
+    Implemented case.
     Tests B.cond family (BEQ, BNE, BCS, BCC, BMI, BPL, etc.).
     Prerequisites: DEC-004 must be REAL PASS.
