@@ -1,0 +1,736 @@
+# Case Status Ledger
+# Machine-readable status for all gate cases defined in execution-order.yaml
+# Status values: REAL_PASS | REAL_FAIL | STUB | BLOCKED | INVALID
+
+version: "1.0"
+last_updated: "2026-03-27"
+total_cases: 108
+
+# Phase 00: Trace Subsystem Validation
+phase_00:
+  phase_id: "00-trace-harness"
+  name: "Trace Subsystem Validation"
+  cases:
+    TRACE-001:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/00-trace-harness/TRACE-001"
+    TRACE-002:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/00-trace-harness/TRACE-002"
+    TRACE-003:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/00-trace-harness/TRACE-003"
+    TRACE-004:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/00-trace-harness/TRACE-004"
+    TRACE-005:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/00-trace-harness/TRACE-005"
+    TRACE-006:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/00-trace-harness/TRACE-006"
+
+# Phase 01: Instruction Decode
+phase_01:
+  phase_id: "01-decode"
+  name: "Instruction Decode"
+  cases:
+    DEC-001:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/01-decode/DEC-001"
+    DEC-002:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/01-decode/DEC-002"
+    DEC-003:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/01-decode/DEC-003"
+    DEC-004:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/01-decode/DEC-004"
+    DEC-005:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/01-decode/DEC-005"
+    DEC-006:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/01-decode/DEC-006"
+    DEC-007:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/01-decode/DEC-007"
+    DEC-008:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/01-decode/DEC-008"
+    DEC-009:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/01-decode/DEC-009"
+    DEC-010:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/01-decode/DEC-010"
+    DEC-011:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/01-decode/DEC-011"
+
+# Phase 02: TCTI Code Generation
+phase_02:
+  phase_id: "02-generator"
+  name: "TCTI Code Generation"
+  cases:
+    GEN-001:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/02-generator/GEN-001"
+    GEN-002:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/02-generator/GEN-002"
+    GEN-003:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/02-generator/GEN-003"
+    GEN-004:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/02-generator/GEN-004"
+    GEN-005:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/02-generator/GEN-005"
+    GEN-006:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/02-generator/GEN-006"
+    GEN-007:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/02-generator/GEN-007"
+    GEN-008:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/02-generator/GEN-008"
+
+# Phase 03: Semantic Execution
+phase_03:
+  phase_id: "03-semantic-exec"
+  name: "Semantic Execution"
+  cases:
+    EXEC-001:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/03-semantic-exec/EXEC-001"
+    EXEC-002:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/03-semantic-exec/EXEC-002"
+    EXEC-003:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/03-semantic-exec/EXEC-003"
+    EXEC-004:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/03-semantic-exec/EXEC-004"
+    EXEC-005:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/03-semantic-exec/EXEC-005"
+    EXEC-006:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/03-semantic-exec/EXEC-006"
+    EXEC-007:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/03-semantic-exec/EXEC-007"
+    EXEC-008:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/03-semantic-exec/EXEC-008"
+    EXEC-009:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/03-semantic-exec/EXEC-009"
+    EXEC-010:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/03-semantic-exec/EXEC-010"
+
+# Phase 04: MMU and Linux ABI
+phase_04:
+  phase_id: "04-mmu-abi"
+  name: "MMU and Linux ABI"
+  cases:
+    MMU-001:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/04-mmu-abi/MMU-001"
+    MMU-002:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/04-mmu-abi/MMU-002"
+    MMU-003:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/04-mmu-abi/MMU-003"
+    MMU-004:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/04-mmu-abi/MMU-004"
+    MMU-005:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/04-mmu-abi/MMU-005"
+    MMU-006:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/04-mmu-abi/MMU-006"
+    ABI-001:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/04-mmu-abi/ABI-001"
+    ABI-002:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/04-mmu-abi/ABI-002"
+    ABI-003:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/04-mmu-abi/ABI-003"
+    ABI-004:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/04-mmu-abi/ABI-004"
+    ABI-005:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/04-mmu-abi/ABI-005"
+
+# Phase 05: ELF and Dynamic Loader
+phase_05:
+  phase_id: "05-elf-loader"
+  name: "ELF and Dynamic Loader"
+  cases:
+    ELF-001:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/05-elf-loader/ELF-001"
+    ELF-002:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/05-elf-loader/ELF-002"
+    ELF-003:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/05-elf-loader/ELF-003"
+    ELF-004:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/05-elf-loader/ELF-004"
+    ELF-005:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/05-elf-loader/ELF-005"
+    ELF-006:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/05-elf-loader/ELF-006"
+    ELF-007:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/05-elf-loader/ELF-007"
+    ELF-008:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/05-elf-loader/ELF-008"
+    ELF-009:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/05-elf-loader/ELF-009"
+
+# Phase 06: System Calls - Core, Filesystem, Network
+phase_06:
+  phase_id: "06-syscalls-core-fs-net"
+  name: "System Calls - Core, Filesystem, Network"
+  cases:
+    SYS-001:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-001"
+    SYS-002:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-002"
+    SYS-003:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-003"
+    SYS-004:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-004"
+    SYS-005:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-005"
+    SYS-006:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-006"
+    SYS-007:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-007"
+    SYS-008:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-008"
+    SYS-009:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-009"
+    SYS-010:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-010"
+    SYS-011:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-011"
+    SYS-012:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-012"
+
+# Phase 07: Threads, Signals, and TLS
+phase_07:
+  phase_id: "07-threads-signals-tls"
+  name: "Threads, Signals, and TLS"
+  cases:
+    THR-001:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/07-threads-signals-tls/THR-001"
+    THR-002:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/07-threads-signals-tls/THR-002"
+    THR-003:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/07-threads-signals-tls/THR-003"
+    THR-004:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/07-threads-signals-tls/THR-004"
+    THR-005:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/07-threads-signals-tls/THR-005"
+    THR-006:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/07-threads-signals-tls/THR-006"
+    SIG-001:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/07-threads-signals-tls/SIG-001"
+    SIG-002:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/07-threads-signals-tls/SIG-002"
+    SIG-003:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/07-threads-signals-tls/SIG-003"
+
+# Phase 08: musl libc Compatibility
+phase_08:
+  phase_id: "08-musl"
+  name: "musl libc Compatibility"
+  cases:
+    MUSL-001:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/08-musl/MUSL-001"
+    MUSL-002:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/08-musl/MUSL-002"
+    MUSL-003:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/08-musl/MUSL-003"
+    MUSL-004:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/08-musl/MUSL-004"
+    MUSL-005:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/08-musl/MUSL-005"
+    MUSL-006:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/08-musl/MUSL-006"
+    MUSL-007:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/08-musl/MUSL-007"
+    MUSL-008:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/08-musl/MUSL-008"
+
+# Phase 09: glibc Compatibility
+phase_09:
+  phase_id: "09-glibc"
+  name: "glibc Compatibility"
+  cases:
+    GLIBC-001:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/09-glibc/GLIBC-001"
+    GLIBC-002:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/09-glibc/GLIBC-002"
+    GLIBC-003:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/09-glibc/GLIBC-003"
+    GLIBC-004:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/09-glibc/GLIBC-004"
+    GLIBC-005:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/09-glibc/GLIBC-005"
+    GLIBC-006:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/09-glibc/GLIBC-006"
+    GLIBC-007:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/09-glibc/GLIBC-007"
+    GLIBC-008:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/09-glibc/GLIBC-008"
+    GLIBC-009:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/09-glibc/GLIBC-009"
+    GLIBC-010:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/09-glibc/GLIBC-010"
+
+# Phase 10: Tooling, Stability, and iOS Integration
+phase_10:
+  phase_id: "10-tooling-stability-ios"
+  name: "Tooling, Stability, and iOS Integration"
+  cases:
+    TOOL-001:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/10-tooling-stability-ios/TOOL-001"
+    TOOL-002:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/10-tooling-stability-ios/TOOL-002"
+    TOOL-003:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/10-tooling-stability-ios/TOOL-003"
+    TOOL-004:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/10-tooling-stability-ios/TOOL-004"
+    STAB-001:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/10-tooling-stability-ios/STAB-001"
+    STAB-002:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/10-tooling-stability-ios/STAB-002"
+    STAB-003:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/10-tooling-stability-ios/STAB-003"
+    IOS-001:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/10-tooling-stability-ios/IOS-001"
+    IOS-002:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/10-tooling-stability-ios/IOS-002"
+    IOS-003:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/10-tooling-stability-ios/IOS-003"
+
+# Phase 11: Distribution Matrix
+phase_11:
+  phase_id: "11-distro-matrix"
+  name: "Distribution Matrix"
+  cases:
+    DISTRO-001:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/11-distro-matrix/DISTRO-001"
+    DISTRO-002:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/11-distro-matrix/DISTRO-002"
+    DISTRO-003:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/11-distro-matrix/DISTRO-003"
+    DISTRO-004:
+      status: STUB
+      last_verified_at: null
+      verifier_result: null
+      blocking_reason: "No implementation yet"
+      artifact_dir: "tests/cases/11-distro-matrix/DISTRO-004"
+
+summary:
+  total_stub: 108
+  total_real_pass: 0
+  total_real_fail: 0
+  total_blocked: 0
+  total_invalid: 0
+  earliest_unsatisfied_phase: "00-trace-harness"
+  earliest_unsatisfied_case: "TRACE-001"
