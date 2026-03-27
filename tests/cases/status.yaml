@@ -60,71 +60,99 @@ phase_00:
     TRACE-003:
       case_id: "TRACE-003"
       phase: "00-trace-harness"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "trace.ring"
+        - "trace.json"
+        - "report.json"
+      observed_artifacts:
+        - "trace.ring"
+        - "trace.json"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-27T00:00:00Z"
+      block_reason: null
       evidence_hash: null
       artifact_dir: "tests/cases/00-trace-harness/TRACE-003"
     TRACE-004:
       case_id: "TRACE-004"
       phase: "00-trace-harness"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "trace.ring"
+        - "trace.json"
+        - "report.json"
+      observed_artifacts:
+        - "trace.ring"
+        - "trace.json"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-27T00:00:00Z"
+      block_reason: null
       evidence_hash: null
       artifact_dir: "tests/cases/00-trace-harness/TRACE-004"
     TRACE-005:
       case_id: "TRACE-005"
       phase: "00-trace-harness"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "trace.ring"
+        - "trace.json"
+        - "report.json"
+        - "sidecar.dump"
+      observed_artifacts:
+        - "trace.ring"
+        - "trace.json"
+        - "report.json"
+        - "sidecar.dump"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-27T00:00:00Z"
+      block_reason: null
       evidence_hash: null
       artifact_dir: "tests/cases/00-trace-harness/TRACE-005"
     TRACE-006:
       case_id: "TRACE-006"
       phase: "00-trace-harness"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "trace.ring"
+        - "trace.json"
+        - "report.json"
+        - "decoded_trace.txt"
+      observed_artifacts:
+        - "trace.ring"
+        - "trace.json"
+        - "report.json"
+        - "decoded_trace.txt"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-27T00:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/00-trace-harness/TRACE-006"
+      artifact_dir: "tests/cases/00-trace-harness/TRACE-006-offline-decode"
 
 # Phase 01: Instruction Decode
 phase_01:
@@ -134,190 +162,234 @@ phase_01:
     DEC-001:
       case_id: "DEC-001"
       phase: "01-decode"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "decoded.json"
+        - "report.json"
+      observed_artifacts:
+        - "decoded.json"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-27T00:00:00Z"
+      block_reason: null
       evidence_hash: null
       artifact_dir: "tests/cases/01-decode/DEC-001"
     DEC-002:
       case_id: "DEC-002"
       phase: "01-decode"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "decoded.json"
+        - "report.json"
+      observed_artifacts:
+        - "decoded.json"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-27T00:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/01-decode/DEC-002"
+      artifact_dir: "tests/cases/01-decode/DEC-002-addsub-shifted-register"
     DEC-003:
       case_id: "DEC-003"
       phase: "01-decode"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "decoded.json"
+        - "report.json"
+      observed_artifacts:
+        - "decoded.json"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-27T00:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/01-decode/DEC-003"
+      artifact_dir: "tests/cases/01-decode/DEC-003-logical-immediate-and-register"
     DEC-004:
       case_id: "DEC-004"
       phase: "01-decode"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "decoded.json"
+        - "report.json"
+      observed_artifacts:
+        - "decoded.json"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-27T00:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/01-decode/DEC-004"
+      artifact_dir: "tests/cases/01-decode/DEC-004-unconditional-branch"
     DEC-005:
       case_id: "DEC-005"
       phase: "01-decode"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "decoded.json"
+        - "report.json"
+      observed_artifacts:
+        - "decoded.json"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-27T00:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/01-decode/DEC-005"
+      artifact_dir: "tests/cases/01-decode/DEC-005-conditional-branch-family"
     DEC-006:
       case_id: "DEC-006"
       phase: "01-decode"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "decoded.json"
+        - "report.json"
+      observed_artifacts:
+        - "decoded.json"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-27T00:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/01-decode/DEC-006"
+      artifact_dir: "tests/cases/01-decode/DEC-006-cbz-cbnz-tbz-tbnz"
     DEC-007:
       case_id: "DEC-007"
       phase: "01-decode"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "decoded.json"
+        - "report.json"
+      observed_artifacts:
+        - "decoded.json"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-27T00:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/01-decode/DEC-007"
+      artifact_dir: "tests/cases/01-decode/DEC-007-load-store-instructions"
     DEC-008:
       case_id: "DEC-008"
       phase: "01-decode"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "decoded.json"
+        - "report.json"
+      observed_artifacts:
+        - "decoded.json"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-27T00:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/01-decode/DEC-008"
+      artifact_dir: "tests/cases/01-decode/DEC-008-move-wide-immediate"
     DEC-009:
       case_id: "DEC-009"
       phase: "01-decode"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "decoded.json"
+        - "report.json"
+      observed_artifacts:
+        - "decoded.json"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-27T00:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/01-decode/DEC-009"
+      artifact_dir: "tests/cases/01-decode/DEC-009-bitfield-move"
     DEC-010:
       case_id: "DEC-010"
       phase: "01-decode"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "decoded.json"
+        - "report.json"
+      observed_artifacts:
+        - "decoded.json"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-27T00:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/01-decode/DEC-010"
+      artifact_dir: "tests/cases/01-decode/DEC-010-extract-and-branch-reg"
     DEC-011:
       case_id: "DEC-011"
       phase: "01-decode"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "decoded.json"
+        - "report.json"
+      observed_artifacts:
+        - "decoded.json"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-27T00:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/01-decode/DEC-011"
+      artifact_dir: "tests/cases/01-decode/DEC-011-system-and-barrier"
 
 # Phase 02: TCTI Code Generation
 phase_02:
@@ -340,7 +412,7 @@ phase_02:
       last_run_at: null
       block_reason: "No implementation yet"
       evidence_hash: null
-      artifact_dir: "tests/cases/02-generator/GEN-001"
+      artifact_dir: "tests/cases/02-generator/GEN-001-simple-alu-emission"
     GEN-002:
       case_id: "GEN-002"
       phase: "02-generator"
@@ -357,7 +429,7 @@ phase_02:
       last_run_at: null
       block_reason: "No implementation yet"
       evidence_hash: null
-      artifact_dir: "tests/cases/02-generator/GEN-002"
+      artifact_dir: "tests/cases/02-generator/GEN-002-flag-setting-compare"
     GEN-003:
       case_id: "GEN-003"
       phase: "02-generator"
@@ -374,7 +446,7 @@ phase_02:
       last_run_at: null
       block_reason: "No implementation yet"
       evidence_hash: null
-      artifact_dir: "tests/cases/02-generator/GEN-003"
+      artifact_dir: "tests/cases/02-generator/GEN-003-post-index-store-emission"
     GEN-004:
       case_id: "GEN-004"
       phase: "02-generator"
@@ -391,7 +463,7 @@ phase_02:
       last_run_at: null
       block_reason: "No implementation yet"
       evidence_hash: null
-      artifact_dir: "tests/cases/02-generator/GEN-004"
+      artifact_dir: "tests/cases/02-generator/GEN-004-cbz-emission"
     GEN-005:
       case_id: "GEN-005"
       phase: "02-generator"
@@ -408,7 +480,7 @@ phase_02:
       last_run_at: null
       block_reason: "No implementation yet"
       evidence_hash: null
-      artifact_dir: "tests/cases/02-generator/GEN-005"
+      artifact_dir: "tests/cases/02-generator/GEN-005-bcond-emission"
     GEN-006:
       case_id: "GEN-006"
       phase: "02-generator"
@@ -425,7 +497,7 @@ phase_02:
       last_run_at: null
       block_reason: "No implementation yet"
       evidence_hash: null
-      artifact_dir: "tests/cases/02-generator/GEN-006"
+      artifact_dir: "tests/cases/02-generator/GEN-006-ldp-stp-emission"
     GEN-007:
       case_id: "GEN-007"
       phase: "02-generator"
@@ -442,7 +514,7 @@ phase_02:
       last_run_at: null
       block_reason: "No implementation yet"
       evidence_hash: null
-      artifact_dir: "tests/cases/02-generator/GEN-007"
+      artifact_dir: "tests/cases/02-generator/GEN-007-system-register-emission"
     GEN-008:
       case_id: "GEN-008"
       phase: "02-generator"
@@ -459,7 +531,7 @@ phase_02:
       last_run_at: null
       block_reason: "No implementation yet"
       evidence_hash: null
-      artifact_dir: "tests/cases/02-generator/GEN-008"
+      artifact_dir: "tests/cases/02-generator/GEN-008-block-sidecar-map"
 
 # Phase 03: Semantic Execution
 phase_03:
@@ -1928,13 +2000,13 @@ phase_11:
 
 # Evidence-bearing summary
 summary:
-  total_stub: 106
-  total_real_pass: 2
+  total_stub: 92
+  total_real_pass: 17
   total_real_fail: 0
   total_blocked: 0
   total_invalid: 0
-  earliest_unsatisfied_phase: "00-trace-harness"
-  earliest_unsatisfied_case: "TRACE-003"
+  earliest_unsatisfied_phase: "02-generator"
+  earliest_unsatisfied_case: "GEN-001"
   last_updated: "2026-03-27T00:00:00Z"
   evidence_completeness: "PARTIAL"  # FULL | PARTIAL | NONE
-  verification_status: "REQUIRES_NEXT"
+  verification_status: "PHASE_02_READY"
