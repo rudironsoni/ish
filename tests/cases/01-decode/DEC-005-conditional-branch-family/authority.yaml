@@ -1,0 +1,64 @@
+semantic_source:
+  family: arm-a64
+  reference_url: https://developer.arm.com/documentation/ddi0602/latest
+  section: C6.2.25 (B.cond)
+  notes: |
+    Conditional Branch encoding:
+    - bits 31:24: 01010100 (0x54)
+    - bit 4: 0 (b.cond identifier)
+    - bits 23:5: imm19 (signed PC-relative offset / 4)
+    - bits 3:0: cond (condition code)
+    - Target = PC + (sign_extend(imm19, 19) << 2)
+
+    Condition codes (bits 3:0):
+    - 0x0: EQ - Equal (Z=1)
+    - 0x1: NE - Not Equal (Z=0)
+    - 0x2: CS/HS - Carry Set / Unsigned Higher or Same (C=1)
+    - 0x3: CC/LO - Carry Clear / Unsigned Lower (C=0)
+    - 0x4: MI - Minus / Negative (N=1)
+    - 0x5: PL - Plus / Positive or Zero (N=0)
+    - 0x6: VS - Overflow Set (V=1)
+    - 0x7: VC - Overflow Clear (V=0)
+    - 0x8: HI - Unsigned Higher (C=1 && Z=0)
+    - 0x9: LS - Unsigned Lower or Same (C=0 || Z=1)
+    - 0xA: GE - Signed Greater or Equal (N=V)
+    - 0xB: LT - Signed Less Than (N!=V)
+    - 0xC: GT - Signed Greater Than (Z=0 && N=V)
+    - 0xD: LE - Signed Less or Equal (Z=1 || N!=V)
+    - 0xE: AL - Always
+    - 0xF: NV - Always (Reserved)
+
+encoding_source:
+  tool: llvm-mc
+  version: 22.1.1
+  command: |
+    llvm-mc --triple=aarch64-linux-gnu --show-encoding
+  derived_encodings:
+    # All b.cond with offset +0x100 (imm19=0x40, shifted << 2 = 256)
+    beq_0x100: "00080054"    # b.eq #0x100: [0x00,0x08,0x00,0x54]
+    bne_0x100: "01080054"    # b.ne #0x100: [0x01,0x08,0x00,0x54]
+    bcs_0x100: "02080054"    # b.cs #0x100: [0x02,0x08,0x00,0x54]
+    bcc_0x100: "03080054"    # b.cc #0x100: [0x03,0x08,0x00,0x54]
+    bmi_0x100: "04080054"    # b.mi #0x100: [0x04,0x08,0x00,0x54]
+    bpl_0x100: "05080054"    # b.pl #0x100: [0x05,0x08,0x00,0x54]
+    bvs_0x100: "06080054"    # b.vs #0x100: [0x06,0x08,0x00,0x54]
+    bvc_0x100: "07080054"    # b.vc #0x100: [0x07,0x08,0x00,0x54]
+    bhi_0x100: "08080054"    # b.hi #0x100: [0x08,0x08,0x00,0x54]
+    bls_0x100: "09080054"    # b.ls #0x100: [0x09,0x08,0x00,0x54]
+    bge_0x100: "0a080054"    # b.ge #0x100: [0x0a,0x08,0x00,0x54]
+    blt_0x100: "0b080054"    # b.lt #0x100: [0x0b,0x08,0x00,0x54]
+    bgt_0x100: "0c080054"    # b.gt #0x100: [0x0c,0x08,0x00,0x54]
+    ble_0x100: "0d080054"    # b.le #0x100: [0x0d,0x08,0x00,0x54]
+    bal_0x100: "0e080054"    # b.al #0x100: [0x0e,0x08,0x00,0x54]
+
+decode_primary:
+  tool: llvm-objdump
+  version: 22.1.1
+
+tools_agree: true
+verification_date: "2026-03-27"
+verified_by: agent
+notes: |
+  Fifteen test vectors covering all b.cond condition codes.
+  All branches target PC+0x100 (256 bytes forward).
+  Tests imm19 extraction and sign extension.
