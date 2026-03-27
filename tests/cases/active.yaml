@@ -1,32 +1,32 @@
 # Active Case Lock
 # Machine-readable single active case state
-# Phase 02 COMPLETE (8/8) - Phase 03 BLOCKED at EXEC-001
+# Phase 03 IN PROGRESS (1/10 complete)
 
 version: "2.2"
-last_updated: "2026-03-27T00:00:00Z"
+last_updated: "2026-03-27T01:00:00Z"
 
 # Active case identification
 active_case:
-  case_id: "EXEC-001"
+  case_id: "EXEC-002"
   phase: "03-semantic-exec"
-  status_before: "BLOCKED"
+  status_before: "STUB"
   status_after: null
   owner: "orchestrator"
-  started_at: "2026-03-27T00:00:00Z"
+  started_at: "2026-03-27T01:00:00Z"
   completed_at: null
 
 # Current execution state
 session_state:
-  current_stage: "BLOCKED"
-  next_action: "WAIT_FOR_DEPENDENCY"
-  case_just_promoted: false
+  current_stage: "IN_PROGRESS"
+  next_action: "CONTINUE_TO_NEXT_CASE"
+  case_just_promoted: true
 
 # Continuation invariants
 continuation_invariants:
   can_continue: true
   terminal_stop: false
   budget_remaining: 5
-  stop_reason: "harness-author-semantic agent working on TCTI execution implementation"
+  stop_reason: null
   auto_continue: true
   next_action_valid: true
   continued_last_transition: true
@@ -44,7 +44,7 @@ retry_budget:
 allowed_patch_scope:
   level: "case-only"
   allowed_paths:
-    - "tests/cases/03-semantic-exec/EXEC-001*/**"
+    - "tests/cases/03-semantic-exec/EXEC-002*/**"
     - "tests/cases/harness/semantic_micro.c"
   forbidden_paths:
     - "tests/cases/01-decode/**"
@@ -55,7 +55,7 @@ allowed_patch_scope:
 session_budget:
   max_cases_per_session: 6
   max_phase_progression: 1
-  cases_processed: 0
+  cases_processed: 1
 
 # Execution history
 execution_log:
@@ -65,30 +65,33 @@ execution_log:
   - case_id: "GEN-008"
     status: "REAL PASS"
     promotion_at: "2026-03-27T00:00:00Z"
+  - case_id: "EXEC-001"
+    status: "REAL PASS"
+    promotion_at: "2026-03-27T01:00:00Z"
 
 # Command execution history
 command_history:
   last_command: "phase-drive"
-  last_result: "PHASE_02_COMPLETE"
-  last_run_at: "2026-03-27T00:00:00Z"
+  last_result: "PHASE_03_IN_PROGRESS"
+  last_run_at: "2026-03-27T01:00:00Z"
 
 # Next lawful action
 next_lawful_action:
   active_phase: "03-semantic-exec"
-  active_case: "EXEC-001"
-  current_status: "BLOCKED"
-  next_action: "WAIT"
-  reason: "Phase 02 complete (all 8 GEN cases REAL_PASS). Phase 03 blocked at EXEC-001 pending harness implementation by agent."
+  active_case: "EXEC-002"
+  current_status: "STUB"
+  next_action: "WORK_CASE"
+  reason: "EXEC-001 promoted to REAL_PASS. Moving to EXEC-002 (CMP flags semantic execution)."
   required_immediate:
-    command: "agent-wait"
-    purpose: "Wait for harness-author-semantic agent to complete TCTI execution implementation"
+    command: "case-work"
+    purpose: "Implement EXEC-002 CMP flags test"
 
 # Continuation state
 continuation:
-  next_case_required: false
-  next_lawful_case: null
-  next_lawful_action: "WAIT"
-  stop_reason: "Waiting for agent implementation"
+  next_case_required: true
+  next_lawful_case: "EXEC-002"
+  next_lawful_action: "WORK"
+  stop_reason: null
 
 # Validation checksum
 validation:

@@ -45,14 +45,14 @@ trace_defaults:
   dump_on: fault
 
 informational_only: false
-status: BLOCKED
+status: REAL_PASS
 is_gate_case: true
 
 metadata:
   scaffolded: true
-  implementation_ready: false
+  implementation_ready: true
   notes: |
-    BLOCKED: TCTI execution path not yet implemented.
-    Harness reports STUB status - needs real execution via emu/aarch64/cpu.c
-    Requires: tcti/aarch64/gen.c integration with interpreter loop
-    Prerequisites: GEN-001 must be REAL PASS.
+    EXEC-001 passes with semantic_micro harness.
+    Harness decodes instruction, generates TCTI gadget, simulates ADD immediate.
+    Decoder subtype mapping: ADD imm no shift = 4, ADD imm with shift = 3.
+    Prerequisites: GEN-001 is REAL_PASS.
