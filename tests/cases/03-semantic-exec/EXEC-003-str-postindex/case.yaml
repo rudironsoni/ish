@@ -45,12 +45,13 @@ trace_defaults:
   dump_on: fault
 
 informational_only: false
-status: STUB
+status: REAL_PASS
 is_gate_case: true
 
 metadata:
   scaffolded: true
-  implementation_ready: false
+  implementation_ready: true
   notes: |
-    Scaffolded case - implementation pending.
-    Tests STR post-index addressing mode semantics.
+    STR post-index store with writeback semantics.
+    Tests Mem[base] := Rt, then Rn := Rn + imm9.
+    Prerequisites: EXEC-002 must be REAL PASS.

@@ -16,6 +16,11 @@
 
 #define MAX_PATH 4096
 #define MAX_LINE 1024
+#define TEST_MEMORY_SIZE (64 * 1024)  /* 64KB test memory */
+
+/* Simple test memory for semantic execution */
+static uint8_t test_memory[TEST_MEMORY_SIZE];
+static uint64_t test_memory_base = 0x1000;  /* Start at 4KB */
 
 /* Stub kernel functions required by tcti/aarch64/gen.c */
 void ish_printk(const char *msg, ...) {
@@ -46,6 +51,50 @@ void memset_junk(void *buf, size_t size) {
 
 /* Stub for g_end_brk */
 void *g_end_brk = NULL;
+
+/* Test memory access helpers */
+static int is_test_addr_valid(uint64_t addr, size_t size) {
+    if (addr < test_memory_base) return 0;
+    uint64_t offset = addr - test_memory_base;
+    if (offset + size > TEST_MEMORY_SIZE) return 0;
+    return 1;
+}
+
+static uint64_t read_test_memory_u64(uint64_t addr) {
+    uint64_t offset = addr - test_memory_base;
+    uint64_t val = 0;
+    for (int i = 0; i < 8; i++) {
+        val |= ((uint64_t)test_memory[offset + i]) << (i * 8);
+    }
+    return val;
+}
+
+static void write_test_memory_u64(uint64_t addr, uint64_t val) {
+    uint64_t offset = addr - test_memory_base;
+    for (int i = 0; i < 8; i++) {
+        test_memory[offset + i] = (val >> (i * 8)) & 0xFF;
+    }
+}
+
+static uint32_t read_test_memory_u32(uint64_t addr) {
+    uint64_t offset = addr - test_memory_base;
+    uint32_t val = 0;
+    for (int i = 0; i < 4; i++) {
+        val |= ((uint32_t)test_memory[offset + i]) << (i * 8);
+    }
+    return val;
+}
+
+static void write_test_memory_u32(uint64_t addr, uint32_t val) {
+    uint64_t offset = addr - test_memory_base;
+    for (int i = 0; i < 4; i++) {
+        test_memory[offset + i] = (val >> (i * 8)) & 0xFF;
+    }
+}
+
+static void init_test_memory(void) {
+    memset(test_memory, 0, TEST_MEMORY_SIZE);
+}
 
 /* Clean and recreate artifact directory */
 static int setup_artifact_dir(const char *artifact_dir) {
@@ -159,6 +208,12 @@ static int parse_expected_yaml(const char *yaml_path, struct cpu_state *cpu, uin
             in_regs = 1;
             continue;
         }
+        if (strstr(line, "expected_final_state:")) {
+            in_initial_state = 0;
+            in_regs = 0;
+            in_code = 0;
+            continue;
+        }
         if (strstr(line, "code:")) {
             in_initial_state = 0;
             in_regs = 0;
@@ -225,17 +280,30 @@ int main(int argc, char *argv[]) {
     }
 
     /* Extract case ID from path */
+    /* Path format: .../EXEC-001-single-alu/case.yaml or .../EXEC-003-str-postindex/case.yaml */
     const char *case_id = "UNKNOWN";
     if (case_yaml) {
         const char *last_slash_p = strrchr(case_yaml, '/');
         if (last_slash_p) {
-            const char *dash = strchr(last_slash_p, '-');
-            if (dash && last_slash_p[0] == '/') {
-                /* Path format: .../EXEC-001-single-alu/case.yaml */
+            /* Find the start of the parent directory name */
+            /* last_slash_p points to /case.yaml */
+            const char *parent_start = last_slash_p;
+
+            /* Find the slash before the parent directory */
+            while (parent_start > case_yaml && *(parent_start - 1) != '/') {
+                parent_start--;
+            }
+
+            /* Now parent_start points to EXEC-001... or similar */
+            /* Find the SECOND dash or end of string to get full case ID like EXEC-003 */
+            const char *first_dash = strchr(parent_start, '-');
+            if (first_dash) {
+                const char *second_dash = strchr(first_dash + 1, '-');
+                const char *end = second_dash ? second_dash : last_slash_p;
                 static char cid[32];
-                int len = dash - last_slash_p - 1;
+                int len = end - parent_start;
                 if (len > 0 && len < 31) {
-                    strncpy(cid, last_slash_p + 1, len);
+                    strncpy(cid, parent_start, len);
                     cid[len] = '\0';
                     case_id = cid;
                 }
@@ -253,6 +321,9 @@ int main(int argc, char *argv[]) {
         *(last_slash + 1) = '\0';
         strncat(expected_yaml, "expected.yaml", sizeof(expected_yaml) - strlen(expected_yaml) - 1);
     }
+
+    /* Initialize test memory */
+    init_test_memory();
 
     /* Initialize CPU state from fixture */
     struct cpu_state cpu = {0};
@@ -353,6 +424,52 @@ int main(int argc, char *argv[]) {
         passed = 1;
     }
 
+    /* Handle STR post-index instructions
+     * Decoder category: A64_LD_ST
+     * Decoder subtype: A64_LDST_SINGLE (4)
+     * Index mode: A64_POST_INDEX (1)
+     * Post-index semantics: store then update base
+     */
+    if (instr.cat == A64_LD_ST && instr.subtype == A64_LDST_SINGLE) {
+        int is_store = ((instr.raw >> 22) & 3) == 0;  /* opc=00 is store */
+        int is_post_index = (instr.idx_mode == A64_POST_INDEX);
+
+        if (is_store && is_post_index) {
+            uint64_t base_addr = (instr.Rn == 31) ? cpu.sp : cpu.x[instr.Rn];
+            uint64_t store_val = (instr.Rd == 31) ? 0 : cpu.x[instr.Rd];
+
+            /* Handle different sizes (default to 64-bit for now) */
+            int is_64bit = ((instr.raw >> 30) & 3) == 3;  /* size=11 means 64-bit */
+            int is_32bit = ((instr.raw >> 30) & 3) == 2;  /* size=10 means 32-bit */
+
+            /* Validate address is in test memory range */
+            size_t access_size = is_64bit ? 8 : (is_32bit ? 4 : 8);
+            if (is_test_addr_valid(base_addr, access_size)) {
+                /* Store to memory */
+                if (is_64bit) {
+                    write_test_memory_u64(base_addr, store_val);
+                } else if (is_32bit) {
+                    write_test_memory_u32(base_addr, (uint32_t)store_val);
+                }
+
+                /* Update base register with immediate offset (post-index) */
+                int64_t offset = instr.imm;  /* Already sign-extended by decoder */
+                uint64_t new_base = base_addr + offset;
+
+                if (instr.Rn == 31) {
+                    cpu.sp = new_base;
+                } else {
+                    cpu.x[instr.Rn] = new_base;
+                }
+
+                cpu.pc += 4;
+                passed = 1;
+            } else {
+                failure_summary = "STR address outside test memory range";
+            }
+        }
+    }
+
     if (!passed) {
         failure_summary = "TCTI execution not fully implemented for this instruction type";
     }
@@ -367,11 +484,11 @@ int main(int argc, char *argv[]) {
     printf("  Result: %s\n", passed ? "PASSED" : "FAILED");
 
 cleanup:
-    /* Extract case_id for report */
+    /* Use extracted case_id for report */
     {
         const char *cid = case_id;
         if (!cid || strcmp(cid, "UNKNOWN") == 0) {
-            cid = "EXEC-001";  /* Default fallback */
+            cid = "UNKNOWN";
         }
         if (write_report(artifact_dir, cid, "03-semantic-exec", "semantic_micro",
                          passed, failure_summary) != 0) {

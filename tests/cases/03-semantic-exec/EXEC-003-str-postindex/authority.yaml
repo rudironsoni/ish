@@ -1,0 +1,97 @@
+semantic_authority:
+  source: ARMv8-A Architecture Reference Manual
+  section: C3.3.12 - Load/Store (immediate) post-indexed
+  url: https://developer.arm.com/documentation/ddi0487/latest
+
+decode_authority:
+  encoding: STR (immediate) - Post-indexed variant
+  pattern: size=11, V=0, opc=00 (store), post-index=01
+  bit_encoding: |
+    31:30 - size (11 = 64-bit, 10 = 32-bit, 01 = 16-bit, 00 = 8-bit)
+    29:27 - 111 (fixed)
+    26    - V (0 = general purpose register)
+    25:24 - 00 (fixed for unscaled immediate)
+    23:21 - opc (000 for store)
+    20:12 - imm9 (signed 9-bit immediate, -256 to +255)
+    11:10 - 01 (post-index indicator)
+    9:5   - Rn (base register)
+    4:0   - Rt (source register for store)
+
+semantic_expectation:
+  operation: |
+    address = X[Rn]
+    Mem[address, size] = X[Rt]<size*8-1:0>
+    X[Rn] = X[Rn] + SignExtend(imm9, 64)
+  post_index_behavior: |
+    1. Compute address using current value of base register (Rn)
+    2. Store value from source register (Rt) to computed address
+    3. Update base register: Rn = Rn + imm9 (signed offset)
+  properties:
+    - No alignment checking (may fault if unaligned based on system config)
+    - Flags are NOT affected by STR
+    - Source register (Rt) is unchanged
+    - For XZR (register 31) as Rt: stores zero
+    - For SP (register 31) as Rn: uses stack pointer as base
+
+test_vectors:
+  - name: basic_post_index
+    asm: "str x1, [x2], #8"
+    initial:
+      x1: 0xDEADBEEFCAFEBABE
+      x2: 0x1000
+    expected:
+      memory_at_0x1000: 0xDEADBEEFCAFEBABE
+      x2_final: 0x1008
+
+  - name: negative_offset
+    asm: "str x3, [x4], #-16"
+    initial:
+      x3: 0x123456789ABCDEF0
+      x4: 0x2000
+    expected:
+      memory_at_0x2000: 0x123456789ABCDEF0
+      x4_final: 0x1FF0
+
+  - name: zero_offset
+    asm: "str x5, [x6], #0"
+    initial:
+      x5: 0xAAAAAAAA55555555
+      x6: 0x3000
+    expected:
+      memory_at_0x3000: 0xAAAAAAAA55555555
+      x6_final: 0x3000
+
+toolchain_verification:
+  llvm_mc: "echo 'str x1, [x2], #8' | llvm-mc --triple=aarch64 --show-encoding"
+  objdump: "aarch64-linux-gnu-objdump -d"
+  expected_encoding_le: "410400f8"  # f8 04 00 41 in LE memory order
+
+generator_authority:
+  gadget_sequence: |
+    For STR X1, [X2], #8 (post-index):
+    1. Load guest X2 (base) to host register
+    2. Load guest X1 (data) to host register
+    3. Translate virtual address through TLB
+    4. Store data to host memory
+    5. Compute new base value (X2 + 8)
+    6. Store updated base back to guest X2
+  sidecar_requirements:
+    - instruction_count: 1
+    - gadget_count: 6
+    - has_memory_op: true
+    - has_writeback: true
+    - addressing_mode: post-index
+
+known_gaps:
+  - name: unaligned_access
+    description: This test uses aligned addresses; unaligned behavior is platform-dependent
+  - name: mmu_fault
+    description: Page fault handling not tested here (separate case)
+  - name: vector_registers
+    description: STR using SIMD/FP registers is out of scope for this case
+
+non_authoritative_fields:
+  - field: timing
+    note: Execution timing is implementation-defined
+  - field: tlb_caching
+    note: TLB hit/miss behavior is microarchitecture-dependent
