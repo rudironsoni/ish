@@ -1,0 +1,75 @@
+semantic_source:
+  family: arm-a64
+  reference_url: https://developer.arm.com/documentation/ddi0602/latest
+  section: C6.2.193 (MRS), C6.2.194 (MSR - register)
+  notes: |
+    Move System Register (MRS) encoding:
+    - bits 31:21: 11010101001 (0x6A8) - identifies system instructions
+    - bit 20: L (1=read from sysreg, 0=write to sysreg)
+    - bits 19:16: op1 (CRm field for some operations)
+    - bits 15:12: CRn
+    - bits 11:8: CRm
+    - bits 7:5: op2
+    - bits 4:0: Rt (target register for MRS, source for MSR)
+
+    System register encoding:
+    - op0: 2 bits (always 0b11 for system registers)
+    - op1: 3 bits (selects the exception level/level of access)
+    - CRn: 4 bits (primary register group)
+    - CRm: 4 bits (secondary register group)
+    - op2: 3 bits (register select within group)
+
+    Common system registers:
+    - NZCV (condition flags): op1=3, CRn=4, CRm=2, op2=0 -> encoding 0xda10
+    - DAIF (interrupt masks): op1=3, CRn=4, CRm=2, op2=1 -> encoding 0xda11
+    - TPIDR_EL0 (thread pointer): op1=3, CRn=13, CRm=0, op2=2 -> encoding 0xde82
+    - TPIDRRO_EL0 (read-only thread pointer): op1=3, CRn=13, CRm=0, op2=3 -> encoding 0xde83
+    - CNTVCT_EL0 (virtual counter): op1=3, CRn=14, CRm=0, op2=2 -> encoding 0xdf02
+    - DCZID_EL0 (dcache zero ID): op1=3, CRn=0, CRm=0, op2=7 -> encoding 0xd807
+
+encoding_source:
+  tool: llvm-mc
+  version: 22.1.1
+  command: |
+    llvm-mc --triple=aarch64-linux-gnu --show-encoding
+  derived_encodings:
+    # MRS (read system register to X register)
+    mrs_x0_nzcv: "000042d5"       # mrs x0, nzcv: [0x00,0x00,0x42,0xd5]
+    mrs_x1_daif: "010142d5"       # mrs x1, daif: [0x01,0x01,0x42,0xd5]
+    mrs_x2_tpidr_el0: "0202ddd5"  # mrs x2, tpidr_el0: [0x02,0x02,0xdd,0xd5]
+    mrs_x3_cntvct_el0: "0302dfd5" # mrs x3, cntvct_el0: [0x03,0x02,0xdf,0xd5]
+    mrs_x4_dczid_el0: "0400d3d5"  # mrs x4, dczid_el0: [0x04,0x00,0xd3,0xd5]
+    # MSR (write X register to system register)
+    msr_nzcv_x5: "050041d5"       # msr nzcv, x5: [0x05,0x00,0x41,0xd5]
+    msr_daif_x6: "060141d5"       # msr daif, x6: [0x06,0x01,0x41,0xd5]
+    msr_tpidr_el0_x7: "0702ddd5"  # msr tpidr_el0, x7: [0x07,0x02,0xdd,0xd5]
+
+decode_primary:
+  tool: llvm-objdump
+  version: 22.1.1
+
+tools_agree: true
+verification_date: "2026-03-27"
+verified_by: agent
+notes: |
+  Nine test vectors covering:
+  - MRS NZCV (read condition flags)
+  - MRS DAIF (read interrupt masks)
+  - MRS TPIDR_EL0 (read thread pointer)
+  - MRS CNTVCT_EL0 (read virtual timer)
+  - MRS DCZID_EL0 (read cache zero ID)
+  - MSR NZCV (write condition flags)
+  - MSR DAIF (write interrupt masks)
+  - MSR TPIDR_EL0 (write thread pointer)
+
+  System register accesses are typically privileged.
+  In user-mode (EL0), only certain registers are accessible:
+  - NZCV, DAIF (accessible)
+  - TPIDR_EL0, TPIDRRO_EL0 (accessible)
+  - CNTVCT_EL0, CNTFRQ_EL0 (accessible)
+  - Most others cause an exception
+
+  The generator must:
+  1. Map system register encoding to host operations
+  2. For NZCV: map to host flag register
+  3. For others: potentially emit helper calls or use shadow state

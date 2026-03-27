@@ -1,0 +1,368 @@
+input_instructions:
+  # Core condition codes - most commonly used
+  - name: beq_equal
+    asm: "b.eq #0x100"
+    encoding_hex_le: "00080054"
+    pc: 0x2000
+
+  - name: bne_not_equal
+    asm: "b.ne #0x100"
+    encoding_hex_le: "01080054"
+    pc: 0x2004
+
+  - name: bcs_carry_set
+    asm: "b.cs #0x100"
+    encoding_hex_le: "02080054"
+    pc: 0x2008
+
+  - name: bcc_carry_clear
+    asm: "b.cc #0x100"
+    encoding_hex_le: "03080054"
+    pc: 0x200c
+
+  - name: bmi_minus
+    asm: "b.mi #0x100"
+    encoding_hex_le: "04080054"
+    pc: 0x2010
+
+  - name: bpl_plus
+    asm: "b.pl #0x100"
+    encoding_hex_le: "05080054"
+    pc: 0x2014
+
+  - name: bhi_unsigned_higher
+    asm: "b.hi #0x100"
+    encoding_hex_le: "08080054"
+    pc: 0x2018
+
+  - name: bls_unsigned_lower_same
+    asm: "b.ls #0x100"
+    encoding_hex_le: "09080054"
+    pc: 0x201c
+
+  - name: bge_signed_ge
+    asm: "b.ge #0x100"
+    encoding_hex_le: "0a080054"
+    pc: 0x2020
+
+  - name: blt_signed_lt
+    asm: "b.lt #0x100"
+    encoding_hex_le: "0b080054"
+    pc: 0x2024
+
+  - name: bgt_signed_gt
+    asm: "b.gt #0x100"
+    encoding_hex_le: "0c080054"
+    pc: 0x2028
+
+  - name: ble_signed_le
+    asm: "b.le #0x100"
+    encoding_hex_le: "0d080054"
+    pc: 0x202c
+
+  # Negative offset
+  - name: blt_backward
+    asm: "b.lt #-0x80"
+    encoding_hex_le: "e0ffff54"
+    pc: 0x2030
+
+generator_expectations:
+  beq_equal:
+    architectural_effect:
+      - "if Z == 1 then PC := 0x2100 else PC := 0x2004"
+
+    emitted_sequence:
+      - gadget: branch_cond
+        description: Branch if zero flag set
+        condition: eq
+        target_guest_pc: 0x2100
+        target_offset: 0x100
+        flag_dependency: Z
+
+    sidecar_metadata:
+      instruction_count: 1
+      gadget_count: 1
+      has_branch: true
+      is_conditional_branch: true
+      branch_type: b_cond
+      condition: eq
+      reads_flags: true
+      flag_mapping:
+        guest_N: host_N
+        guest_Z: host_Z
+        guest_C: host_C
+        guest_V: host_V
+      fallthrough_pc: 0x2004
+
+  bne_not_equal:
+    architectural_effect:
+      - "if Z == 0 then PC := 0x2108 else PC := 0x2008"
+
+    emitted_sequence:
+      - gadget: branch_cond
+        description: Branch if zero flag clear
+        condition: ne
+        target_guest_pc: 0x2108
+        target_offset: 0x100
+        flag_dependency: Z
+
+    sidecar_metadata:
+      instruction_count: 1
+      gadget_count: 1
+      has_branch: true
+      is_conditional_branch: true
+      branch_type: b_cond
+      condition: ne
+      reads_flags: true
+      fallthrough_pc: 0x2008
+
+  bcs_carry_set:
+    architectural_effect:
+      - "if C == 1 then PC := 0x2110 else PC := 0x200c"
+
+    emitted_sequence:
+      - gadget: branch_cond
+        description: Branch if carry flag set
+        condition: cs
+        target_guest_pc: 0x2110
+        target_offset: 0x100
+        flag_dependency: C
+
+    sidecar_metadata:
+      instruction_count: 1
+      gadget_count: 1
+      has_branch: true
+      is_conditional_branch: true
+      branch_type: b_cond
+      condition: cs
+      reads_flags: true
+      fallthrough_pc: 0x200c
+
+  bcc_carry_clear:
+    architectural_effect:
+      - "if C == 0 then PC := 0x2114 else PC := 0x2010"
+
+    emitted_sequence:
+      - gadget: branch_cond
+        description: Branch if carry flag clear
+        condition: cc
+        target_guest_pc: 0x2114
+        target_offset: 0x100
+        flag_dependency: C
+
+    sidecar_metadata:
+      instruction_count: 1
+      gadget_count: 1
+      has_branch: true
+      is_conditional_branch: true
+      branch_type: b_cond
+      condition: cc
+      reads_flags: true
+      fallthrough_pc: 0x2010
+
+  bmi_minus:
+    architectural_effect:
+      - "if N == 1 then PC := 0x2118 else PC := 0x2014"
+
+    emitted_sequence:
+      - gadget: branch_cond
+        description: Branch if negative flag set
+        condition: mi
+        target_guest_pc: 0x2118
+        target_offset: 0x100
+        flag_dependency: N
+
+    sidecar_metadata:
+      instruction_count: 1
+      gadget_count: 1
+      has_branch: true
+      is_conditional_branch: true
+      branch_type: b_cond
+      condition: mi
+      reads_flags: true
+      fallthrough_pc: 0x2014
+
+  bpl_plus:
+    architectural_effect:
+      - "if N == 0 then PC := 0x211c else PC := 0x2018"
+
+    emitted_sequence:
+      - gadget: branch_cond
+        description: Branch if negative flag clear
+        condition: pl
+        target_guest_pc: 0x211c
+        target_offset: 0x100
+        flag_dependency: N
+
+    sidecar_metadata:
+      instruction_count: 1
+      gadget_count: 1
+      has_branch: true
+      is_conditional_branch: true
+      branch_type: b_cond
+      condition: pl
+      reads_flags: true
+      fallthrough_pc: 0x2018
+
+  bhi_unsigned_higher:
+    architectural_effect:
+      - "if C == 1 && Z == 0 then PC := 0x2120 else PC := 0x201c"
+
+    emitted_sequence:
+      - gadget: branch_cond
+        description: Branch if unsigned higher (C=1 && Z=0)
+        condition: hi
+        target_guest_pc: 0x2120
+        target_offset: 0x100
+        flag_dependency: "C,Z"
+
+    sidecar_metadata:
+      instruction_count: 1
+      gadget_count: 1
+      has_branch: true
+      is_conditional_branch: true
+      branch_type: b_cond
+      condition: hi
+      reads_flags: true
+      fallthrough_pc: 0x201c
+
+  bls_unsigned_lower_same:
+    architectural_effect:
+      - "if C == 0 || Z == 1 then PC := 0x2124 else PC := 0x2020"
+
+    emitted_sequence:
+      - gadget: branch_cond
+        description: Branch if unsigned lower or same (C=0 || Z=1)
+        condition: ls
+        target_guest_pc: 0x2124
+        target_offset: 0x100
+        flag_dependency: "C,Z"
+
+    sidecar_metadata:
+      instruction_count: 1
+      gadget_count: 1
+      has_branch: true
+      is_conditional_branch: true
+      branch_type: b_cond
+      condition: ls
+      reads_flags: true
+      fallthrough_pc: 0x2020
+
+  bge_signed_ge:
+    architectural_effect:
+      - "if N == V then PC := 0x2128 else PC := 0x2024"
+
+    emitted_sequence:
+      - gadget: branch_cond
+        description: Branch if signed greater or equal (N=V)
+        condition: ge
+        target_guest_pc: 0x2128
+        target_offset: 0x100
+        flag_dependency: "N,V"
+
+    sidecar_metadata:
+      instruction_count: 1
+      gadget_count: 1
+      has_branch: true
+      is_conditional_branch: true
+      branch_type: b_cond
+      condition: ge
+      reads_flags: true
+      fallthrough_pc: 0x2024
+
+  blt_signed_lt:
+    architectural_effect:
+      - "if N != V then PC := 0x212c else PC := 0x2028"
+
+    emitted_sequence:
+      - gadget: branch_cond
+        description: Branch if signed less than (N!=V)
+        condition: lt
+        target_guest_pc: 0x212c
+        target_offset: 0x100
+        flag_dependency: "N,V"
+
+    sidecar_metadata:
+      instruction_count: 1
+      gadget_count: 1
+      has_branch: true
+      is_conditional_branch: true
+      branch_type: b_cond
+      condition: lt
+      reads_flags: true
+      fallthrough_pc: 0x2028
+
+  bgt_signed_gt:
+    architectural_effect:
+      - "if Z == 0 && N == V then PC := 0x2130 else PC := 0x202c"
+
+    emitted_sequence:
+      - gadget: branch_cond
+        description: Branch if signed greater than (Z=0 && N=V)
+        condition: gt
+        target_guest_pc: 0x2130
+        target_offset: 0x100
+        flag_dependency: "Z,N,V"
+
+    sidecar_metadata:
+      instruction_count: 1
+      gadget_count: 1
+      has_branch: true
+      is_conditional_branch: true
+      branch_type: b_cond
+      condition: gt
+      reads_flags: true
+      fallthrough_pc: 0x202c
+
+  ble_signed_le:
+    architectural_effect:
+      - "if Z == 1 || N != V then PC := 0x2134 else PC := 0x2030"
+
+    emitted_sequence:
+      - gadget: branch_cond
+        description: Branch if signed less or equal (Z=1 || N!=V)
+        condition: le
+        target_guest_pc: 0x2134
+        target_offset: 0x100
+        flag_dependency: "Z,N,V"
+
+    sidecar_metadata:
+      instruction_count: 1
+      gadget_count: 1
+      has_branch: true
+      is_conditional_branch: true
+      branch_type: b_cond
+      condition: le
+      reads_flags: true
+      fallthrough_pc: 0x2030
+
+  blt_backward:
+    architectural_effect:
+      - "if N != V then PC := 0x1fb4 else PC := 0x2034"
+
+    emitted_sequence:
+      - gadget: branch_cond
+        description: Branch backward if signed less than
+        condition: lt
+        target_guest_pc: 0x1fb4
+        target_offset: -0x80
+        flag_dependency: "N,V"
+
+    sidecar_metadata:
+      instruction_count: 1
+      gadget_count: 1
+      has_branch: true
+      is_conditional_branch: true
+      branch_type: b_cond
+      condition: lt
+      reads_flags: true
+      fallthrough_pc: 0x2034
+
+success_criteria:
+  - emitted_sequence produces correct architectural_effect
+  - all 12 condition codes handled correctly
+  - negative offsets handled correctly
+  - flag dependencies tracked in sidecar metadata
+  - generator produces 1 gadget per B.cond (host branch)
+
+success_threshold: 12

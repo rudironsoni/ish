@@ -1,13 +1,13 @@
 # Active Case Lock
 # Machine-readable single active case state
-# Phase 01 COMPLETE - moving to Phase 02 TCTI Generator
+# Phase 02 IN PROGRESS - GEN-002 complete, GEN-003 next
 
 version: "2.2"
 last_updated: "2026-03-27T00:00:00Z"
 
 # Active case identification
 active_case:
-  case_id: "GEN-001"
+  case_id: "GEN-003"
   phase: "02-generator"
   status_before: "STUB"
   status_after: null
@@ -25,7 +25,7 @@ session_state:
 continuation_invariants:
   can_continue: true
   terminal_stop: false
-  budget_remaining: 6
+  budget_remaining: 4
   stop_reason: null
   auto_continue: true
   next_action_valid: true
@@ -44,22 +44,29 @@ retry_budget:
 allowed_patch_scope:
   level: "case-only"
   allowed_paths:
-    - "tests/cases/02-generator/GEN-001*/**"
+    - "tests/cases/02-generator/GEN-003*/**"
     - "tcti/aarch64/gen.c"
-    - "tcti/aarch64/tcti-gadget-gen.py"
     - "tests/cases/harness/generator_golden.c"
   forbidden_paths:
     - "tests/cases/01-decode/**"
+    - "tests/cases/02-generator/GEN-001*/**"
+    - "tests/cases/02-generator/GEN-002*/**"
     - "tests/cases/03-semantic-exec/**"
 
 # Session budget
 session_budget:
   max_cases_per_session: 6
   max_phase_progression: 1
-  cases_processed: 0
+  cases_processed: 2
 
 # Execution history
 execution_log:
+  - case_id: "GEN-002"
+    status: "REAL PASS"
+    promotion_at: "2026-03-27T00:00:00Z"
+  - case_id: "GEN-001"
+    status: "REAL PASS"
+    promotion_at: "2026-03-27T00:00:00Z"
   - case_id: "DEC-011"
     status: "REAL PASS"
     promotion_at: "2026-03-27T00:00:00Z"
@@ -72,49 +79,28 @@ execution_log:
   - case_id: "DEC-008"
     status: "REAL PASS"
     promotion_at: "2026-03-27T00:00:00Z"
-  - case_id: "DEC-007"
-    status: "REAL PASS"
-    promotion_at: "2026-03-27T00:00:00Z"
-  - case_id: "DEC-006"
-    status: "REAL PASS"
-    promotion_at: "2026-03-27T00:00:00Z"
-  - case_id: "DEC-005"
-    status: "REAL PASS"
-    promotion_at: "2026-03-27T00:00:00Z"
-  - case_id: "DEC-004"
-    status: "REAL PASS"
-    promotion_at: "2026-03-27T00:00:00Z"
-  - case_id: "DEC-003"
-    status: "REAL PASS"
-    promotion_at: "2026-03-27T00:00:00Z"
-  - case_id: "DEC-002"
-    status: "REAL PASS"
-    promotion_at: "2026-03-27T00:00:00Z"
-  - case_id: "DEC-001"
-    status: "REAL PASS"
-    promotion_at: "2026-03-27T00:00:00Z"
 
 # Command execution history
 command_history:
-  last_command: "phase-drive"
-  last_result: "PHASE_01_COMPLETE"
+  last_command: "case-promote"
+  last_result: "PROMOTED"
   last_run_at: "2026-03-27T00:00:00Z"
 
 # Next lawful action
 next_lawful_action:
   active_phase: "02-generator"
-  active_case: "GEN-001"
+  active_case: "GEN-003"
   current_status: "STUB"
-  next_action: "SCAFFOLD"
-  reason: "Phase 01 complete (all 11 DEC cases REAL_PASS). Phase 02 generator cases unlocked."
+  next_action: "IMPLEMENT"
+  reason: "GEN-002 complete. Next Phase 02 case is GEN-003 (post-index store emission)."
   required_immediate:
     command: "case-preflight"
-    purpose: "Scaffold GEN-001 for first generator case"
+    purpose: "Scaffold GEN-003 for post-index store emission"
 
 # Continuation state
 continuation:
   next_case_required: true
-  next_lawful_case: "GEN-001"
+  next_lawful_case: "GEN-003"
   next_lawful_action: "SCAFFOLD"
   stop_reason: null
 

@@ -399,35 +399,43 @@ phase_02:
     GEN-001:
       case_id: "GEN-001"
       phase: "02-generator"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "emitted.json"
+        - "report.json"
+      observed_artifacts:
+        - "emitted.json"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-27T00:00:00Z"
+      block_reason: null
       evidence_hash: null
       artifact_dir: "tests/cases/02-generator/GEN-001-simple-alu-emission"
     GEN-002:
       case_id: "GEN-002"
       phase: "02-generator"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "emitted.json"
+        - "report.json"
+      observed_artifacts:
+        - "emitted.json"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-27T00:00:00Z"
+      block_reason: null
       evidence_hash: null
       artifact_dir: "tests/cases/02-generator/GEN-002-flag-setting-compare"
     GEN-003:
@@ -2000,13 +2008,14 @@ phase_11:
 
 # Evidence-bearing summary
 summary:
-  total_stub: 92
-  total_real_pass: 17
+  total_stub: 90
+  total_real_pass: 19
   total_real_fail: 0
   total_blocked: 0
   total_invalid: 0
   earliest_unsatisfied_phase: "02-generator"
-  earliest_unsatisfied_case: "GEN-001"
+  earliest_unsatisfied_case: "GEN-003"
   last_updated: "2026-03-27T00:00:00Z"
   evidence_completeness: "PARTIAL"  # FULL | PARTIAL | NONE
-  verification_status: "PHASE_02_READY"
+  verification_status: "PHASE_02_IN_PROGRESS"
+  verification_status: "PHASE_02_IN_PROGRESS"

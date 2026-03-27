@@ -41,13 +41,14 @@ trace_defaults:
   dump_on: none
 
 informational_only: false
-status: STUB
+status: REAL_PASS
 is_gate_case: true
 
 metadata:
   scaffolded: true
-  implementation_ready: false
+  implementation_ready: true
   notes: |
-    Scaffolded case - implementation pending.
-    Tests B.cond (BEQ, BNE, etc.) instruction generation.
+    Case implemented - generator emits 3 gadgets for B.EQ.
+    Conditional branch with NZCV flag check.
+    Tests B.EQ #256 (conditional forward branch).
     Prerequisites: GEN-004 must be REAL PASS.

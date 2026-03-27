@@ -1,0 +1,201 @@
+input_blocks:
+  - name: simple_alu_block
+    instructions:
+      - asm: "add x0, x1, #1"
+        encoding_hex_le: "20040091"
+        pc: 0x5000
+      - asm: "sub x2, x3, #2"
+        encoding_hex_le: "620800d1"
+        pc: 0x5004
+    entry_pc: 0x5000
+    exit_pc: 0x5008
+
+  - name: conditional_branch_block
+    instructions:
+      - asm: "cmp x0, #0"
+        encoding_hex_le: "1f0000f1"
+        pc: 0x6000
+      - asm: "b.eq #0x100"
+        encoding_hex_le: "00080054"
+        pc: 0x6004
+    entry_pc: 0x6000
+    exit_pc: 0x6008
+
+  - name: compare_branch_block
+    instructions:
+      - asm: "cbz x1, #0x200"
+        encoding_hex_le: "012000b4"
+        pc: 0x7000
+    entry_pc: 0x7000
+    exit_pc: 0x7004
+
+  - name: load_store_pair_block
+    instructions:
+      - asm: "ldp x0, x1, [sp]"
+        encoding_hex_le: "e00b40a9"
+        pc: 0x8000
+      - asm: "stp x2, x3, [sp, #16]"
+        encoding_hex_le: "e28f00a9"
+        pc: 0x8004
+      - asm: "ret"
+        encoding_hex_le: "c0035fd6"
+        pc: 0x8008
+    entry_pc: 0x8000
+    exit_pc: 0x800c
+
+  - name: system_register_block
+    instructions:
+      - asm: "mrs x0, nzcv"
+        encoding_hex_le: "000042d5"
+        pc: 0x9000
+      - asm: "orr x0, x0, #0xf0000000"
+        encoding_hex_le: "000060b2"
+        pc: 0x9004
+      - asm: "msr nzcv, x0"
+        encoding_hex_le: "000041d5"
+        pc: 0x9008
+    entry_pc: 0x9000
+    exit_pc: 0x900c
+
+generator_expectations:
+  sidecar_map_schema:
+    type: object
+    required:
+      - schema_version
+      - blocks
+    properties:
+      schema_version:
+        type: string
+        const: "1.0"
+      blocks:
+        type: array
+        items:
+          type: object
+          required:
+            - block_id
+            - entry_pc
+            - exit_pc
+            - instruction_count
+            - gadget_count
+
+  expected_blocks:
+    simple_alu_block:
+      block_id: "0x5000"
+      entry_pc: 0x5000
+      exit_pc: 0x5008
+      instruction_count: 2
+      expected_gadget_count: 2
+      trace_events:
+        - reg_write
+        - reg_write
+      branch_info:
+        has_branch: false
+        is_conditional: false
+      register_effects:
+        writes:
+          - 0  # x0
+          - 2  # x2
+        reads:
+          - 1  # x1
+          - 3  # x3
+
+    conditional_branch_block:
+      block_id: "0x6000"
+      entry_pc: 0x6000
+      exit_pc: 0x6008
+      instruction_count: 2
+      expected_gadget_count: 2
+      trace_events:
+        - reg_read
+        - flag_write
+        - branch_cond
+      branch_info:
+        has_branch: true
+        is_conditional: true
+        branch_type: b_cond
+        condition: eq
+        target_pc: 0x6108
+        fallthrough_pc: 0x6008
+      flag_effects:
+        reads_flags: false
+        writes_flags: true
+
+    compare_branch_block:
+      block_id: "0x7000"
+      entry_pc: 0x7000
+      exit_pc: 0x7004
+      instruction_count: 1
+      expected_gadget_count: 2
+      trace_events:
+        - reg_read
+        - branch_cond
+      branch_info:
+        has_branch: true
+        is_conditional: true
+        branch_type: cbz
+        target_pc: 0x7204
+        fallthrough_pc: 0x7004
+
+    load_store_pair_block:
+      block_id: "0x8000"
+      entry_pc: 0x8000
+      exit_pc: 0x800c
+      instruction_count: 3
+      expected_gadget_count: 5
+      trace_events:
+        - memory_load
+        - memory_load
+        - memory_store
+        - memory_store
+        - branch_uncond
+      branch_info:
+        has_branch: true
+        is_conditional: false
+        branch_type: ret
+      memory_effects:
+        loads:
+          - { base: 31, offset: 0, size: 8 }
+          - { base: 31, offset: 8, size: 8 }
+        stores:
+          - { base: 31, offset: 16, size: 8 }
+          - { base: 31, offset: 24, size: 8 }
+
+    system_register_block:
+      block_id: "0x9000"
+      entry_pc: 0x9000
+      exit_pc: 0x900c
+      instruction_count: 3
+      expected_gadget_count: 3
+      trace_events:
+        - system_reg_read
+        - reg_write
+        - system_reg_write
+      system_effects:
+        reads:
+          - nzcv
+        writes:
+          - nzcv
+      flag_effects:
+        reads_flags: true
+        writes_flags: true
+
+success_criteria:
+  structural:
+    - sidecar_map.json exists and is valid JSON
+    - sidecar_map.json validates against schema
+    - all input_blocks have corresponding entries
+    - block_id matches entry_pc in hex format
+
+  semantic:
+    - entry_pc and exit_pc match expected ranges
+    - instruction_count is accurate
+    - gadget_count is reasonable (>= instruction_count)
+    - branch_info correctly identifies branch types
+    - trace_events list is complete
+
+  consistency:
+    - no overlapping PC ranges
+    - block IDs are unique
+    - all references are internally consistent
+
+success_threshold: 5
