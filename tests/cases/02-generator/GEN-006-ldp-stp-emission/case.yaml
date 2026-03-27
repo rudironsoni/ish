@@ -41,13 +41,14 @@ trace_defaults:
   dump_on: none
 
 informational_only: false
-status: STUB
+status: REAL_PASS
 is_gate_case: true
 
 metadata:
   scaffolded: true
-  implementation_ready: false
+  implementation_ready: true
   notes: |
-    Scaffolded case - implementation pending.
-    Tests LDP/STP instruction generation.
+    Case implemented - generator emits 16 gadgets for LDP.
+    Load pair with offset addressing mode.
+    Tests LDP x0, x1, [sp, #0] (pair load from stack).
     Prerequisites: GEN-005 must be REAL PASS.

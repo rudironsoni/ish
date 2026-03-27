@@ -41,13 +41,14 @@ trace_defaults:
   dump_on: none
 
 informational_only: false
-status: STUB
+status: BLOCKED
 is_gate_case: true
 
 metadata:
   scaffolded: true
   implementation_ready: false
   notes: |
-    Scaffolded case - implementation pending.
-    Tests MRS/MSR system register instruction generation.
+    BLOCKED: Generator lacks support for SVC/MRS/MSR system instructions.
+    Decoder parses SVC but generator returns error -2 (unsupported).
+    Requires: tcti/aarch64/gen.c system instruction emission support.
     Prerequisites: GEN-006 must be REAL PASS.

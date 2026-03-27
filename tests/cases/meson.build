@@ -135,6 +135,55 @@ test('case:GEN-001', generator_golden_harness,
      timeout: 60,
      is_parallel: false)
 
+test('case:GEN-002', generator_golden_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '02-generator/GEN-002-flag-setting-compare/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/GEN-002'],
+     suite: ['cases', 'phase-02-generator'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:GEN-003', generator_golden_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '02-generator/GEN-003-post-index-store-emission/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/GEN-003'],
+     suite: ['cases', 'phase-02-generator'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:GEN-004', generator_golden_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '02-generator/GEN-004-cbz-emission/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/GEN-004'],
+     suite: ['cases', 'phase-02-generator'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:GEN-005', generator_golden_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '02-generator/GEN-005-bcond-emission/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/GEN-005'],
+     suite: ['cases', 'phase-02-generator'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:GEN-006', generator_golden_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '02-generator/GEN-006-ldp-stp-emission/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/GEN-006'],
+     suite: ['cases', 'phase-02-generator'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:GEN-007', generator_golden_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '02-generator/GEN-007-system-register-emission/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/GEN-007'],
+     suite: ['cases', 'phase-02-generator'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:GEN-008', generator_golden_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '02-generator/GEN-008-block-sidecar-map/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/GEN-008'],
+     suite: ['cases', 'phase-02-generator'],
+     timeout: 60,
+     is_parallel: false)
+
 test('case:EXEC-001', semantic_micro_harness,
      args: ['--case-yaml', meson.current_source_dir() / '03-semantic-exec/EXEC-001-single-alu/case.yaml',
             '--artifact-dir', artifact_base / 'artifacts/EXEC-001'],

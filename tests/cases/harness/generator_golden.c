@@ -247,6 +247,18 @@ static int write_emitted(const char *artifact_dir, const a64_instr_t *instr,
     return 0;
 }
 
+/* Detect case ID from yaml path */
+static const char* detect_case_id(const char *yaml_path) {
+    if (strstr(yaml_path, "GEN-002")) return "GEN-002";
+    if (strstr(yaml_path, "GEN-003")) return "GEN-003";
+    if (strstr(yaml_path, "GEN-004")) return "GEN-004";
+    if (strstr(yaml_path, "GEN-005")) return "GEN-005";
+    if (strstr(yaml_path, "GEN-006")) return "GEN-006";
+    if (strstr(yaml_path, "GEN-007")) return "GEN-007";
+    if (strstr(yaml_path, "GEN-008")) return "GEN-008";
+    return "GEN-001"; /* default */
+}
+
 int main(int argc, char *argv[]) {
     const char *case_yaml = NULL;
     const char *artifact_dir = NULL;
@@ -270,7 +282,8 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    printf("Generator Golden Harness - GEN-001\n");
+    const char *case_id = detect_case_id(case_yaml);
+    printf("Generator Golden Harness - %s\n", case_id);
 
     /* Step 1: Parse encoding from expected.yaml (which we read from the case dir) */
     char expected_yaml[MAX_PATH];
@@ -348,7 +361,7 @@ int main(int argc, char *argv[]) {
     passed = 1;
 
 cleanup:
-    if (write_report(artifact_dir, "GEN-001", "02-generator", "generator_golden",
+    if (write_report(artifact_dir, case_id, "02-generator", "generator_golden",
                      passed, failure_summary) != 0) {
         return 1;
     }

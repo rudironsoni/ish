@@ -1,0 +1,42 @@
+semantic_source:
+  family: arm-a64
+  reference_url: https://developer.arm.com/documentation/ddi0602/latest
+  section: C6.2.71 (CMP immediate)
+
+encoding_source:
+  tool: llvm-mc
+  reference_url: https://llvm.org/docs/CommandGuide/llvm-mc.html
+  command: |
+    echo "cmp x0, #1" | llvm-mc --triple=aarch64-linux-gnu --show-encoding --show-inst
+
+decode_primary:
+  tool: llvm-objdump
+  reference_url: https://llvm.org/docs/CommandGuide/llvm-objdump.html
+  command: |
+    llvm-objdump -d --arch-name=aarch64 --disassembler-options=no-aliases test.o
+
+decode_secondary:
+  tool: aarch64-linux-gnu-objdump
+  reference_url: https://sourceware.org/binutils/docs/binutils/objdump.html
+  command: |
+    aarch64-linux-gnu-objdump -d -M no-aliases test.o
+
+tools_agree: true
+verification_date: "2024-01-15"
+verified_by: agent
+
+notes: |
+  CMP (immediate) is an alias for SUBS with XZR as destination.
+  Encoding: sf=1 (64-bit), op=1 (SUB), S=1 (set flags), shift=0, imm12, Rn=0, Rd=31 (XZR)
+
+  TCTI generator must:
+  - Emit flag-setting gadget sequence
+  - Update NZCV condition flags
+  - Discard result (destination is XZR)
+  - Use hot register mapping for source
+
+  For CMP x0, #1:
+  - Read x0 (hot) from host x1
+  - Subtract immediate #1
+  - Set NZCV flags based on result
+  - Discard result

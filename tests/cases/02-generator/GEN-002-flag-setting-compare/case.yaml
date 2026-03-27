@@ -41,13 +41,14 @@ trace_defaults:
   dump_on: none
 
 informational_only: false
-status: STUB
+status: REAL_PASS
 is_gate_case: true
 
 metadata:
   scaffolded: true
-  implementation_ready: false
+  implementation_ready: true
   notes: |
-    Scaffolded case - implementation pending.
-    Tests CMP instruction generation with flag setting.
+    Case implemented - generator emits 3 gadgets for CMP x0, #1.
+    CMP is SUBS with XZR destination. Emits: load, sub_imm_flags, store_nzcv.
+    Tests flag-setting compare with hot register mapping.
     Prerequisites: GEN-001 must be REAL PASS.

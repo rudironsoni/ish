@@ -41,13 +41,14 @@ trace_defaults:
   dump_on: none
 
 informational_only: false
-status: STUB
+status: REAL_PASS
 is_gate_case: true
 
 metadata:
   scaffolded: true
-  implementation_ready: false
+  implementation_ready: true
   notes: |
-    Scaffolded case - implementation pending.
-    Tests STR with post-index addressing mode generation.
+    Case implemented - generator emits 8 gadgets for STR x1, [x2], #8.
+    Tests post-index store with writeback semantics.
+    Store-then-update addressing mode correctly handled.
     Prerequisites: GEN-002 must be REAL PASS.
