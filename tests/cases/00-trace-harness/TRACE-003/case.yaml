@@ -1,0 +1,53 @@
+id: TRACE-003
+phase: 00-trace-harness
+title: Register filtering correctly captures only specified registers
+class: trace
+kind: runtime_trace
+harness: runtime_trace
+meson_test: case:TRACE-003
+
+prerequisites:
+  - TRACE-002
+
+expectation_authority:
+  semantic_source: internal-trace-contract
+  primary_tool: runtime-trace
+  secondary_tool: null
+  tertiary_tool: null
+
+success_criteria:
+  structural:
+    - harness exits 0
+    - trace.ring exists and non-empty
+    - report.json exists and valid
+    - only specified registers captured in snapshots
+  semantic:
+    - register snapshots contain only requested registers
+    - no extraneous register data in trace
+
+allowed_patch_scope:
+  - trace/*
+  - tests/cases/harness/runtime_trace.c
+  - tests/cases/00-trace-harness/TRACE-003/*
+
+regression_target:
+  meson_test: case:TRACE-003
+
+trace_defaults:
+  backend: ring
+  level: 3
+  events: block.entry,block.exit,register.snapshot
+  pc_range: "0x1000-0x2000"
+  regs: [x0, x1, x2]
+  dump_on: fault
+
+informational_only: false
+status: STUB
+is_gate_case: true
+
+metadata:
+  scaffolded: true
+  implementation_ready: false
+  notes: |
+    Scaffolded case - implementation pending.
+    Prerequisites: TRACE-002 must be REAL PASS.
