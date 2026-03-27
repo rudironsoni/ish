@@ -1,0 +1,89 @@
+vectors:
+  # SBFM - Signed bitfield move (includes SXTB, SXTH)
+  - name: sxtb_x0_w1
+    asm: "sxtb x0, w1"
+    encoding_hex_le: "201c4093"
+    canonical_disasm: "sxtb x0, w1"
+    expected_decode:
+      category: 9  # A64_DP_IMM
+      subtype: 11  # SBFM
+      rd: 0
+      rn: 1
+      imm: 0
+      imm_shift: 7  # immr = 0, imms = 7 (extract byte and sign extend)
+      is_64bit: true
+      set_flags: false
+
+  - name: sxth_w2_w3
+    asm: "sxth w2, w3"
+    encoding_hex_le: "623c0013"
+    canonical_disasm: "sxth w2, w3"
+    expected_decode:
+      category: 9
+      subtype: 11  # SBFM
+      rd: 2
+      rn: 3
+      imm: 0
+      imm_shift: 15  # immr = 0, imms = 15 (extract halfword and sign extend)
+      is_64bit: false
+      set_flags: false
+
+  # UBFM - Unsigned bitfield move (includes UXTB, UXTH, LSR)
+  - name: uxtb_w4_w5
+    asm: "uxtb w4, w5"
+    encoding_hex_le: "a41c0053"
+    canonical_disasm: "uxtb w4, w5"
+    expected_decode:
+      category: 9
+      subtype: 13  # UBFM
+      rd: 4
+      rn: 5
+      imm: 7
+      imm_shift: 0
+      is_64bit: false
+      set_flags: false
+
+  - name: uxth_w6_w7
+    asm: "uxth w6, w7"
+    encoding_hex_le: "e63c0053"
+    canonical_disasm: "uxth w6, w7"
+    expected_decode:
+      category: 9
+      subtype: 13  # UBFM
+      rd: 6
+      rn: 7
+      imm: 15
+      imm_shift: 0
+      is_64bit: false
+      set_flags: false
+
+  - name: lsr_w0_w1_8
+    asm: "lsr w0, w1, #8"
+    encoding_hex_le: "207c0853"
+    canonical_disasm: "lsr w0, w1, #8"
+    expected_decode:
+      category: 9
+      subtype: 13  # UBFM
+      rd: 0
+      rn: 1
+      imm: 8
+      imm_shift: 31  # LSR is UBFM with imms=31
+      is_64bit: false
+      set_flags: false
+
+  # UBFX - Unsigned bitfield extract (alias of UBFM)
+  - name: ubfx_w2_w3_4_8
+    asm: "ubfx w2, w3, #4, #8"
+    encoding_hex_le: "622c0453"
+    canonical_disasm: "ubfx w2, w3, #4, #8"
+    expected_decode:
+      category: 9
+      subtype: 13  # UBFM
+      rd: 2
+      rn: 3
+      imm: 4   # immr
+      imm_shift: 11  # imms = immr + width - 1 = 4 + 8 - 1 = 11
+      is_64bit: false
+      set_flags: false
+
+success_threshold: 6
