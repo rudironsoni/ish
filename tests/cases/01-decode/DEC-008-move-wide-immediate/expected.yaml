@@ -1,0 +1,78 @@
+vectors:
+  # MOVZ - Move wide with zero (subtype 1 per decoder)
+  - name: movz_x0_0x1234
+    asm: "movz x0, #0x1234"
+    encoding_hex_le: "804682d2"
+    canonical_disasm: "mov x0, #4660"
+    expected_decode:
+      category: 9  # A64_DP_IMM
+      subtype: 1  # MOVZ
+      rd: 0
+      imm: 0x1234
+      is_64bit: true
+      set_flags: false
+
+  - name: movz_w3_0xff
+    asm: "movz w3, #0xff"
+    encoding_hex_le: "e31f8052"
+    canonical_disasm: "mov w3, #255"
+    expected_decode:
+      category: 9
+      subtype: 1  # MOVZ
+      rd: 3
+      imm: 0xff
+      is_64bit: false
+      set_flags: false
+
+  # MOVN - Move wide with NOT (subtype 0 per decoder)
+  - name: movn_x1_0xffff
+    asm: "movn x1, #0xffff"
+    encoding_hex_le: "e1ff9f92"
+    canonical_disasm: "mov x1, #-65536"
+    expected_decode:
+      category: 9
+      subtype: 0  # MOVN
+      rd: 1
+      imm: 0xffff
+      is_64bit: true
+      set_flags: false
+
+  - name: movn_w4_0x0
+    asm: "movn w4, #0x0"
+    encoding_hex_le: "04008012"
+    canonical_disasm: "mov w4, #-1"
+    expected_decode:
+      category: 9
+      subtype: 0  # MOVN
+      rd: 4
+      imm: 0
+      is_64bit: false
+      set_flags: false
+
+  # MOVK - Move wide with keep (subtype 2 per decoder)
+  # Note: Decoder stores shifted immediate (imm16 << hw*16)
+  - name: movk_x2_0xabcd_lsl16
+    asm: "movk x2, #0xabcd, lsl #16"
+    encoding_hex_le: "a279b5f2"
+    canonical_disasm: "movk x2, #43981, lsl #16"
+    expected_decode:
+      category: 9
+      subtype: 2  # MOVK
+      rd: 2
+      imm: 0xabcd0000  # Decoder stores shifted value
+      is_64bit: true
+      set_flags: false
+
+  - name: movk_w5_0x1234
+    asm: "movk w5, #0x1234"
+    encoding_hex_le: "85468272"
+    canonical_disasm: "movk w5, #4660"
+    expected_decode:
+      category: 9
+      subtype: 2  # MOVK
+      rd: 5
+      imm: 0x1234
+      is_64bit: false
+      set_flags: false
+
+success_threshold: 6
