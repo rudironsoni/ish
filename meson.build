@@ -273,3 +273,6 @@ endif
 validate_generated = run_target('validate-generated',
     command: [find_program('tools/validate_generated.sh')]
 )
+
+# Case system (bootstrap - 6 cases)
+subdir('tests/cases')
