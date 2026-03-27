@@ -1,0 +1,55 @@
+id: ELF-003
+phase: 05-elf-loader
+title: Dynamic PIE binary loads with interpreter
+class: elf
+kind: elf_fixture
+harness: elf_fixture
+meson_test: case:ELF-003
+
+prerequisites:
+  - ELF-002
+
+expectation_authority:
+  semantic_source: elf-and-linux-abi
+  primary_tool: runtime-fixture
+  secondary_tool: llvm-objdump
+  tertiary_tool: aarch64-linux-gnu-objdump
+
+success_criteria:
+  structural:
+    - harness exits 0
+    - report.json exists and valid
+    - load_map.json exists
+  semantic:
+    - interpreter loaded
+    - binary mapped correctly
+    - dynamic section parsed
+    - reaches interpreter entry
+
+allowed_patch_scope:
+  - kernel/exec.c
+  - kernel/elf.c
+  - emu/aarch64/*
+  - tests/cases/05-elf-loader/ELF-003-dynamic-pie-hello/*
+
+regression_target:
+  meson_test: case:ELF-003
+
+trace_defaults:
+  backend: ring
+  level: 2
+  events: block.entry,block.exit,fault
+  pc_range: null
+  regs: [x0, x1, x2, x3, x4, sp]
+  dump_on: fault
+
+informational_only: false
+status: STUB
+is_gate_case: true
+
+metadata:
+  scaffolded: true
+  implementation_ready: false
+  notes: |
+    Scaffolded case - implementation pending.
+    Tests dynamic PIE binary loading with interpreter.

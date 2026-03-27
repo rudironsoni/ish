@@ -1,0 +1,55 @@
+id: EXEC-002
+phase: 03-semantic-exec
+title: CMP instruction sets flags correctly
+class: semantic
+kind: semantic_micro
+harness: semantic_micro
+meson_test: case:EXEC-002
+
+prerequisites:
+  - EXEC-001
+
+expectation_authority:
+  semantic_source: arm-a64
+  primary_tool: llvm-mc
+  secondary_tool: llvm-objdump
+  tertiary_tool: aarch64-linux-gnu-objdump
+
+success_criteria:
+  structural:
+    - harness exits 0
+    - report.json exists and valid
+    - final_state.json exists
+  semantic:
+    - architectural state matches expected
+    - NZCV flags correct for signed/unsigned comparison
+    - PC advanced correctly
+
+allowed_patch_scope:
+  - tcti/aarch64/gen.c
+  - tcti/aarch64/tcti-gadget-gen.py
+  - tcti/aarch64/gadgets_*.c
+  - emu/aarch64/cpu.c
+  - tests/cases/03-semantic-exec/EXEC-002-cmp-flags/*
+
+regression_target:
+  meson_test: case:EXEC-002
+
+trace_defaults:
+  backend: ring
+  level: 2
+  events: block.entry,block.exit,fault
+  pc_range: null
+  regs: [x0, x1, nzcv]
+  dump_on: fault
+
+informational_only: false
+status: STUB
+is_gate_case: true
+
+metadata:
+  scaffolded: true
+  implementation_ready: false
+  notes: |
+    Scaffolded case - implementation pending.
+    Tests CMP instruction flag setting semantics.

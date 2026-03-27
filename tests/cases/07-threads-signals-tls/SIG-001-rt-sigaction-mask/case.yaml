@@ -1,0 +1,50 @@
+id: SIG-001
+phase: 07-threads-signals-tls
+title: Realtime signal action and mask operations
+class: signal
+kind: signal_fixture
+harness: signal_fixture
+meson_test: case:SIG-001
+
+prerequisites:
+  - THR-006
+
+expectation_authority:
+  semantic_source: linux-aarch64-abi
+  primary_tool: runtime-fixture
+  secondary_tool: null
+  tertiary_tool: null
+
+success_criteria:
+  structural:
+    - harness exits 0
+    - report.json exists and valid
+  semantic:
+    - test validates expected behavior
+
+allowed_patch_scope:
+  - kernel/*
+  - emu/*
+  - tests/cases/07-threads-signals-tls/SIG-001-rt-sigaction-mask/*
+
+regression_target:
+  meson_test: case:SIG-001
+
+trace_defaults:
+  backend: nop
+  level: 0
+  events: ""
+  pc_range: null
+  regs: []
+  dump_on: none
+
+informational_only: false
+status: STUB
+is_gate_case: true
+
+metadata:
+  scaffolded: true
+  implementation_ready: false
+  notes: |
+    Scaffolded case - implementation pending.
+    Prerequisites: THR-006 must be REAL PASS. Tests rt_sigaction and signal masks.

@@ -1,0 +1,52 @@
+version: 1
+
+# Expected trace output for TRACE-003-reg-filter
+# This defines the structural expectations for register filtering validation
+
+harness_exit_code: 0
+
+required_artifacts:
+  - name: trace.ring
+    type: binary
+    description: Ring buffer trace output with register-filtered events
+    min_size_bytes: 64
+    
+  - name: report.json
+    type: json
+    description: Harness execution report
+    required_fields:
+      - status
+      - case_id
+      - harness
+      - exit_code
+      - timestamp
+      - reg_filter_config
+      
+  - name: decoded_trace.txt
+    type: text
+    description: Human-readable trace decode showing register-filtered events
+    optional: true
+
+structural_expectations:
+  trace_ring:
+    - must_exist: true
+    - must_be_non_empty: true
+    - must_contain_valid_headers: true
+    - must_respect_reg_filter: true
+    
+  report:
+    status: "completed"
+    exit_code: 0
+    case_id: "TRACE-003"
+    harness: "runtime_trace"
+    reg_filter_applied: true
+
+semantic_expectations:
+  - reg_filter_config_applied: true
+  - only_selected_registers_traced: true
+  - unselected_registers_excluded: true
+  - no_decode_errors: true
+  - trace_integrity_valid: true
+
+# Scaffolded - implementation pending
+# This file defines what "REAL PASS" looks like for TRACE-003

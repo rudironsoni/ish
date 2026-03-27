@@ -1,16 +1,17 @@
-id: TRACE-001
+id: TRACE-006
 phase: 00-trace-harness
-title: Boundary-level tracing initializes and records block boundaries
+title: Offline trace decoder produces human-readable output from ring buffer
 class: trace
 kind: runtime_trace
 harness: runtime_trace
-meson_test: case:TRACE-001
+meson_test: case:TRACE-006
 
-prerequisites: []
+prerequisites:
+  - TRACE-005
 
 expectation_authority:
   semantic_source: internal-trace-contract
-  primary_tool: runtime-trace
+  primary_tool: offline-decoder
   secondary_tool: null
   tertiary_tool: null
 
@@ -18,25 +19,28 @@ success_criteria:
   structural:
     - harness exits 0
     - trace.ring exists and non-empty
+    - decoded_trace.txt exists
     - report.json exists and valid
-    - at least one boundary event decoded successfully
-  semantic: []
+  semantic:
+    - decoded output is human-readable
+    - all events decoded without errors
 
 allowed_patch_scope:
   - trace/*
+  - util/offline_decoder.c
   - tests/cases/harness/runtime_trace.c
-  - tests/cases/00-trace-harness/TRACE-001-boundary-smoke/*
+  - tests/cases/00-trace-harness/TRACE-006-offline-decode/*
 
 regression_target:
-  meson_test: case:TRACE-001
+  meson_test: case:TRACE-006
 
 trace_defaults:
   backend: ring
   level: 2
   events: block.entry,block.exit,fault,syscall
   pc_range: null
-  regs: []
-  dump_on: fault
+  regs: [x0, x1, sp, pc]
+  dump_on: none
 
 informational_only: false
 status: STUB
@@ -47,4 +51,5 @@ metadata:
   implementation_ready: false
   notes: |
     Scaffolded case - implementation pending.
-    First gate case of phase 00. Prerequisites: None.
+    Prerequisites: TRACE-005 must be REAL PASS.
+    Final gate case for phase 00-trace-harness.

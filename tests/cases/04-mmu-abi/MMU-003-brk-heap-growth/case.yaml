@@ -1,0 +1,55 @@
+id: MMU-003
+phase: 04-mmu-abi
+title: brk system call manages heap growth correctly
+class: mmu
+kind: abi_fixture
+harness: abi_fixture
+meson_test: case:MMU-003
+
+prerequisites:
+  - MMU-002
+
+expectation_authority:
+  semantic_source: linux-aarch64-abi
+  primary_tool: runtime-fixture
+  secondary_tool: null
+  tertiary_tool: null
+
+success_criteria:
+  structural:
+    - harness exits 0
+    - report.json exists and valid
+    - heap_state.json exists
+  semantic:
+    - brk returns correct break address
+    - heap grows upward
+    - new heap pages accessible
+    - brk(0) returns current break
+
+allowed_patch_scope:
+  - kernel/brk.c
+  - kernel/mm.c
+  - emu/aarch64/cpu.c
+  - tests/cases/04-mmu-abi/MMU-003-brk-heap-growth/*
+
+regression_target:
+  meson_test: case:MMU-003
+
+trace_defaults:
+  backend: ring
+  level: 2
+  events: fault,block.entry,block.exit,syscall
+  pc_range: null
+  regs: [x0, x8, sp]
+  dump_on: fault
+
+informational_only: false
+status: STUB
+is_gate_case: true
+
+metadata:
+  scaffolded: true
+  implementation_ready: false
+  notes: |
+    Scaffolded case - implementation pending.
+    Tests brk heap growth management.

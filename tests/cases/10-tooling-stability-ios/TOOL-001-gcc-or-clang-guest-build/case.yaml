@@ -1,0 +1,51 @@
+id: TOOL-001
+phase: 10-tooling-stability-ios
+title: Guest compiler can build simple programs
+class: tooling
+kind: ios_fixture
+harness: ios_fixture
+meson_test: case:TOOL-001
+
+prerequisites:
+  - GLIBC-010
+
+expectation_authority:
+  semantic_source: ios-sandbox-contract
+  primary_tool: runtime-fixture
+  secondary_tool: null
+  tertiary_tool: null
+
+success_criteria:
+  structural:
+    - harness exits 0
+    - report.json exists and valid
+  semantic:
+    - test validates expected behavior
+
+allowed_patch_scope:
+  - kernel/*
+  - emu/*
+  - tests/cases/*
+  - tests/cases/10-tooling-stability-ios/TOOL-001-gcc-or-clang-guest-build/*
+
+regression_target:
+  meson_test: case:TOOL-001
+
+trace_defaults:
+  backend: nop
+  level: 0
+  events: ""
+  pc_range: null
+  regs: []
+  dump_on: none
+
+informational_only: false
+status: STUB
+is_gate_case: true
+
+metadata:
+  scaffolded: true
+  implementation_ready: false
+  notes: |
+    Scaffolded case - implementation pending.
+    Prerequisites: GLIBC-010 must be REAL PASS. Tests guest compiler functionality.

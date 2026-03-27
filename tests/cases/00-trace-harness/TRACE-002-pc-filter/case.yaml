@@ -1,12 +1,13 @@
-id: TRACE-001
+id: TRACE-002
 phase: 00-trace-harness
-title: Boundary-level tracing initializes and records block boundaries
+title: PC range filtering correctly captures only relevant blocks
 class: trace
 kind: runtime_trace
 harness: runtime_trace
-meson_test: case:TRACE-001
+meson_test: case:TRACE-002
 
-prerequisites: []
+prerequisites:
+  - TRACE-001
 
 expectation_authority:
   semantic_source: internal-trace-contract
@@ -19,22 +20,23 @@ success_criteria:
     - harness exits 0
     - trace.ring exists and non-empty
     - report.json exists and valid
-    - at least one boundary event decoded successfully
-  semantic: []
+    - only blocks within specified PC range captured
+  semantic:
+    - no events outside PC range in trace
 
 allowed_patch_scope:
   - trace/*
   - tests/cases/harness/runtime_trace.c
-  - tests/cases/00-trace-harness/TRACE-001-boundary-smoke/*
+  - tests/cases/00-trace-harness/TRACE-002-pc-filter/*
 
 regression_target:
-  meson_test: case:TRACE-001
+  meson_test: case:TRACE-002
 
 trace_defaults:
   backend: ring
   level: 2
   events: block.entry,block.exit,fault,syscall
-  pc_range: null
+  pc_range: "0x1000-0x2000"
   regs: []
   dump_on: fault
 
@@ -47,4 +49,4 @@ metadata:
   implementation_ready: false
   notes: |
     Scaffolded case - implementation pending.
-    First gate case of phase 00. Prerequisites: None.
+    Prerequisites: TRACE-001 must be REAL PASS.

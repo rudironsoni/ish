@@ -1,0 +1,54 @@
+id: GEN-008
+phase: 02-generator
+title: Generate block-to-sidecar map for trace correlation correctly
+class: generator
+kind: generator_golden
+harness: generator_golden
+meson_test: case:GEN-008
+
+prerequisites:
+  - GEN-007
+
+expectation_authority:
+  semantic_source: internal-trace-contract
+  primary_tool: generator-self-check
+  secondary_tool: null
+  tertiary_tool: null
+
+success_criteria:
+  structural:
+    - harness exits 0
+    - report.json exists and valid
+    - sidecar_map.json exists and valid
+  semantic:
+    - block IDs map correctly to sidecar entries
+    - trace correlation data present
+
+allowed_patch_scope:
+  - emu/aarch64/generator.c
+  - emu/aarch64/tcti/
+  - tests/cases/02-generator/GEN-008-block-sidecar-map/*
+
+regression_target:
+  meson_test: case:GEN-008
+
+trace_defaults:
+  backend: nop
+  level: 0
+  events: ""
+  pc_range: null
+  regs: []
+  dump_on: none
+
+informational_only: false
+status: STUB
+is_gate_case: true
+
+metadata:
+  scaffolded: true
+  implementation_ready: false
+  notes: |
+    Scaffolded case - implementation pending.
+    Tests block-to-sidecar map generation for trace correlation.
+    Prerequisites: GEN-007 must be REAL PASS.
+    Final gate case for phase 02-generator.

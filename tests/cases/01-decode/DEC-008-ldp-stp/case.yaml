@@ -1,0 +1,53 @@
+id: DEC-008
+phase: 01-decode
+title: Decode LDP/STP load/store pair instructions correctly
+class: decode
+kind: decode_golden
+harness: decode_golden
+meson_test: case:DEC-008
+
+prerequisites:
+  - DEC-007
+
+expectation_authority:
+  semantic_source: arm-a64
+  primary_tool: llvm-mc
+  secondary_tool: llvm-objdump
+  tertiary_tool: aarch64-linux-gnu-objdump
+
+success_criteria:
+  structural:
+    - harness exits 0
+    - report.json exists and valid
+    - decoded.json exists
+  semantic:
+    - decoded fields match expected values
+    - canonical disassembly matches expectation
+    - all vectors pass
+
+allowed_patch_scope:
+  - emu/aarch64/decode.c
+  - tests/cases/01-decode/DEC-008-ldp-stp/*
+
+regression_target:
+  meson_test: case:DEC-008
+
+trace_defaults:
+  backend: nop
+  level: 0
+  events: ""
+  pc_range: null
+  regs: []
+  dump_on: none
+
+informational_only: false
+status: STUB
+is_gate_case: true
+
+metadata:
+  scaffolded: true
+  implementation_ready: false
+  notes: |
+    Scaffolded case - implementation pending.
+    Tests LDP/STP (load/store pair) with various addressing modes.
+    Prerequisites: DEC-007 must be REAL PASS.

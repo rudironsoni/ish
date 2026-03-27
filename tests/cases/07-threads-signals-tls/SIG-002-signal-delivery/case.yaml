@@ -1,0 +1,50 @@
+id: SIG-002
+phase: 07-threads-signals-tls
+title: Signal delivery to threads works correctly
+class: signal
+kind: signal_fixture
+harness: signal_fixture
+meson_test: case:SIG-002
+
+prerequisites:
+  - SIG-001
+
+expectation_authority:
+  semantic_source: linux-aarch64-abi
+  primary_tool: runtime-fixture
+  secondary_tool: null
+  tertiary_tool: null
+
+success_criteria:
+  structural:
+    - harness exits 0
+    - report.json exists and valid
+  semantic:
+    - test validates expected behavior
+
+allowed_patch_scope:
+  - kernel/*
+  - emu/*
+  - tests/cases/07-threads-signals-tls/SIG-002-signal-delivery/*
+
+regression_target:
+  meson_test: case:SIG-002
+
+trace_defaults:
+  backend: nop
+  level: 0
+  events: ""
+  pc_range: null
+  regs: []
+  dump_on: none
+
+informational_only: false
+status: STUB
+is_gate_case: true
+
+metadata:
+  scaffolded: true
+  implementation_ready: false
+  notes: |
+    Scaffolded case - implementation pending.
+    Prerequisites: SIG-001 must be REAL PASS. Tests signal delivery mechanism.

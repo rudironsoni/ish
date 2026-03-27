@@ -1,0 +1,55 @@
+id: ABI-005
+phase: 04-mmu-abi
+title: Signal frame layout and rt_sigreturn ABI correct
+class: abi
+kind: abi_fixture
+harness: abi_fixture
+meson_test: case:ABI-005
+
+prerequisites:
+  - ABI-004
+
+expectation_authority:
+  semantic_source: linux-aarch64-abi
+  primary_tool: runtime-fixture
+  secondary_tool: null
+  tertiary_tool: null
+
+success_criteria:
+  structural:
+    - harness exits 0
+    - report.json exists and valid
+    - sigframe.json exists
+  semantic:
+    - signal frame layout matches ABI
+    - ucontext structure correct
+    - siginfo accessible
+    - rt_sigreturn restores context
+
+allowed_patch_scope:
+  - kernel/signal.c
+  - kernel/aarch64/signal.c
+  - emu/aarch64/cpu.c
+  - tests/cases/04-mmu-abi/ABI-005-signal-frame-rt-sigreturn/*
+
+regression_target:
+  meson_test: case:ABI-005
+
+trace_defaults:
+  backend: ring
+  level: 2
+  events: fault,block.entry,block.exit,signal
+  pc_range: null
+  regs: [sp, x0, x1, x2, x8]
+  dump_on: fault
+
+informational_only: false
+status: STUB
+is_gate_case: true
+
+metadata:
+  scaffolded: true
+  implementation_ready: false
+  notes: |
+    Scaffolded case - implementation pending.
+    Tests signal frame layout and rt_sigreturn.
