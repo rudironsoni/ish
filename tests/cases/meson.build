@@ -37,10 +37,94 @@ test('case_TRACE-004', runtime_trace_harness,
      timeout: 60,
      is_parallel: false)
 
+test('case_TRACE-005', runtime_trace_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '00-trace-harness/TRACE-005/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/TRACE-005'],
+     suite: ['cases', 'phase-00-trace-harness'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case_TRACE-006', runtime_trace_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '00-trace-harness/TRACE-006-offline-decode/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/TRACE-006'],
+     suite: ['cases', 'phase-00-trace-harness'],
+     timeout: 60,
+     is_parallel: false)
+
 test('case:DEC-001', decode_golden_harness,
      args: ['--case-yaml', meson.current_source_dir() / '01-decode/DEC-001-addsub-immediate/case.yaml',
             '--artifact-dir', artifact_base / 'artifacts/DEC-001'],
      suite: ['cases', 'phase-01-decode', 'bootstrap'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:DEC-002', decode_golden_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '01-decode/DEC-002-addsub-shifted-register/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/DEC-002'],
+     suite: ['cases', 'phase-01-decode'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:DEC-003', decode_golden_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '01-decode/DEC-003-logical-immediate-and-register/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/DEC-003'],
+     suite: ['cases', 'phase-01-decode'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:DEC-004', decode_golden_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '01-decode/DEC-004-unconditional-branch/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/DEC-004'],
+     suite: ['cases', 'phase-01-decode'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:DEC-005', decode_golden_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '01-decode/DEC-005-conditional-branch-family/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/DEC-005'],
+     suite: ['cases', 'phase-01-decode'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:DEC-006', decode_golden_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '01-decode/DEC-006-cbz-cbnz-tbz-tbnz/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/DEC-006'],
+     suite: ['cases', 'phase-01-decode'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:DEC-007', decode_golden_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '01-decode/DEC-007-load-store-instructions/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/DEC-007'],
+     suite: ['cases', 'phase-01-decode'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:DEC-008', decode_golden_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '01-decode/DEC-008-move-wide-immediate/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/DEC-008'],
+     suite: ['cases', 'phase-01-decode'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:DEC-009', decode_golden_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '01-decode/DEC-009-bitfield-move/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/DEC-009'],
+     suite: ['cases', 'phase-01-decode'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:DEC-010', decode_golden_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '01-decode/DEC-010-extract-and-branch-reg/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/DEC-010'],
+     suite: ['cases', 'phase-01-decode'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:DEC-011', decode_golden_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '01-decode/DEC-011-system-and-barrier/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/DEC-011'],
+     suite: ['cases', 'phase-01-decode'],
      timeout: 60,
      is_parallel: false)
 
