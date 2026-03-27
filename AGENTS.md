@@ -208,8 +208,36 @@ The harness FAILS CLOSED if:
 |-------------|----------------------|
 | `case-only` | Only files in `tests/cases/<phase>/<case>/` |
 | `harness-local` | Case files + harness-specific files |
+| `harness-only` | Control-plane files ONLY (see Section 9.2) |
 | `subsystem` | Case files + relevant subsystem (e.g., trace/, decode/) |
 | `global` | Global changes (requires special authorization) |
+
+### 9.2 Harness-Only Task Boundary
+
+**CRITICAL RULE:** When the active task is a **harness-only** task, the allowed patch scope is strictly limited to control-plane files only.
+
+**Harness-only tasks MAY touch:**
+- `AGENTS.md`
+- `.rulesync/**/*.md`
+- `tests/cases/*.yaml`
+- `tests/cases/**/*.md`
+- `.opencode/skill/**/*.md`
+- Explicitly named control files in task description
+
+**Harness-only tasks MUST REFUSE to touch:**
+- `trace/**` (product code)
+- `emu/**` (product code)
+- `tcti/**` (product code)
+- `loader/**` (product code)
+- `abi/**` (product code)
+- `syscall/**` (product code)
+- Any decoder, generator, or execution implementation files
+
+**Enforcement:**
+- `case-preflight` MUST validate that harness-only tasks don't target product code
+- `case-work` MUST fail closed if patch scope includes forbidden product paths
+- `phase-drive` MUST check scope before each iteration
+- Any attempt to modify product code during harness-only task MUST be refused
 
 ---
 

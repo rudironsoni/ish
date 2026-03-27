@@ -58,6 +58,24 @@ This command MUST refuse and report ILLEGAL if:
 - Status ledger being modified directly
 - Required subagents not available
 - Retry budget is 0
+- **Harness-only task attempts to modify product code**
+
+## Harness-Only Enforcement
+
+When `allowed_patch_scope.level` is `harness-only`:
+
+1. Verify ALL modifications are within control-plane files only
+2. Refuse to modify product code:
+   - trace/*, emu/*, tcti/*, loader/*, abi/*, syscall/*
+   - decoder/generator/execution implementations
+3. Only allow:
+   - AGENTS.md
+   - .rulesync/**/*.md
+   - tests/cases/*.yaml and **/*.md
+   - .opencode/skill/**/*.md
+4. If product code modification detected, abort with:
+   - `implementation_result: FAILED`
+   - `failure_reason: "Harness-only task scope violation"`
 
 ## Output Format
 

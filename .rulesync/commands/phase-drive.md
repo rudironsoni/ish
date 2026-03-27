@@ -92,6 +92,16 @@ The agent stops ONLY if:
 5. **Budget exhausted** - Session case budget reached
 6. **Explicit user stop** - User requests stop
 
+## Scope Enforcement
+
+Before each iteration, `phase-drive` MUST:
+
+1. Check `allowed_patch_scope.level` from `active.yaml`
+2. If level is `harness-only`:
+   - Verify NO product code paths are in scope
+   - Product code includes: trace/, emu/, tcti/, loader/, abi/, syscall/
+   - Fail closed if harness-only task tries to modify product code
+
 ## Required Subagents
 
 - `orchestrator` - overall coordination
@@ -107,6 +117,7 @@ The agent stops ONLY if:
 
 - This is the ONLY lawful entrypoint for autonomous work
 - MUST check budget before each iteration
+- MUST check scope before each iteration
 - MUST emit checkpoint report after each case
 - MUST stop cleanly with explicit reason
 - MUST NOT stop after promotion without checking continuation

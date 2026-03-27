@@ -43,7 +43,7 @@ session_state:
   
 # Session budget configuration
 session_budget:
-  max_cases_per_session: 3
+  max_cases_per_session: 6
   max_phase_progression: 1
   cases_processed: 2
 
