@@ -254,6 +254,13 @@ test('case:EXEC-010', semantic_micro_harness,
      timeout: 120,
      is_parallel: false)
 
+test('case:MMU-001', abi_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '04-mmu-abi/MMU-001-anon-mmap/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/MMU-001'],
+     suite: ['cases', 'phase-04-mmu-abi', 'bootstrap'],
+     timeout: 60,
+     is_parallel: false)
+
 test('case:ABI-001', abi_fixture_harness,
      args: ['--case-yaml', meson.current_source_dir() / '04-mmu-abi/ABI-001-process-entry-stack/case.yaml',
             '--artifact-dir', artifact_base / 'artifacts/ABI-001'],
