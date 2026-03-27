@@ -1,0 +1,84 @@
+semantic_authority:
+  source: ARMv8-A Architecture Reference Manual
+  section: C3.2 - Conditional branch, C3.3 - Load/Store, C3.3.1 - Add/Subtract immediate
+  url: https://developer.arm.com/documentation/ddi0487/latest
+
+decode_authority:
+  str_post_index:
+    encoding: STR (immediate) post-indexed
+    pattern: size=11, V=0, opc=00, I=01
+    bits: "11111000 0xxx xxxx xxxx 01 xxxxx xxxxx"
+    imm9: signed 9-bit offset
+
+  subs_immediate:
+    encoding: SUBS immediate
+    pattern: sf=1, op=1 (SUB), S=1, sh=0
+    bits: "1 1 1 100010 0 xxxxxxxxxx xxxxx xxxxx"
+    operation: Xd = Xn - imm12, set flags
+
+  b_cond:
+    encoding: B.cond - Conditional branch
+    pattern: 01010100 cond imm19 0
+    bits: "01010100 xxxx xxxxxxxxxxxxxxxxxxx 0"
+    condition: 4-bit condition code (NE = 0001, EQ = 0000, etc.)
+    offset: Signed 19-bit offset, shifted left 2, added to PC
+
+semantic_expectation:
+  loop_execution:
+    description: |
+      The loop body consists of 3 instructions:
+      1. STR X2, [X0], #8 - Store value, post-increment pointer
+      2. SUBS X1, X1, #1 - Decrement counter, set flags
+      3. B.NE -0xC - Branch back if result not zero
+
+    iteration_count: 5
+    termination_condition: "X1 becomes 0, Z flag set, branch not taken"
+
+  flag_computation_subs:
+    N: "(result >> 63) & 1"
+    Z: "result == 0"
+    C: "No borrow (Xn >= imm)"
+    V: "Signed overflow detection"
+
+  conditional_branch_bne:
+    condition: NE (Not Equal)
+    condition_code: 0x1
+    mnemonic: Z == 0
+    description: "Branch taken when Z flag is 0 (result was not zero)"
+    target_computation: "PC + SignExtend(imm19 << 2, 64)"
+
+toolchain_verification:
+  str_x2_x0_post8: "echo 'str x2, [x0], #8' | llvm-mc --triple=aarch64 --show-encoding"
+  subs_x1_x1_1: "echo 'subs x1, x1, #1' | llvm-mc --triple=aarch64 --show-encoding"
+  bne_back: "echo 'b.ne -12' | llvm-mc --triple=aarch64 --show-encoding"
+
+generator_authority:
+  loop_body_gadgets:
+    str_instruction: |
+      - load_guest_base (X0)
+      - load_guest_data (X2)
+      - translate_address
+      - store_data
+      - add_imm_base (+8)
+      - store_guest_base (X0)
+
+    subs_instruction: |
+      - load_guest_register (X1)
+      - subtract_immediate (1)
+      - set_nzcv_flags
+      - store_guest_register (X1)
+
+    bne_instruction: |
+      - evaluate_condition (NE)
+      - branch_if_true (compute target)
+      - fallthrough_if_false
+
+known_gaps:
+  - name: precise_flag_modeling
+    description: Full NZCV computation may not cover all edge cases
+  - name: branch_range
+    description: Limited branch offset range tested
+
+non_authoritative_fields:
+  - field: timing
+    note: Loop execution time is implementation-dependent
