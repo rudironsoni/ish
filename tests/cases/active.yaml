@@ -3,12 +3,12 @@
 # Only ONE case may be active at any time
 # This file is read/written by case-next, case-preflight, and case-promote
 
-version: "2.0"
+version: "2.1"
 last_updated: "2026-03-27T00:00:00Z"
 
 # Active case identification
 active_case:
-  case_id: "TRACE-002"
+  case_id: "TRACE-003"
   phase: "00-trace-harness"
   status_before: "STUB"
   owner: "orchestrator"
@@ -25,11 +25,36 @@ retry_budget:
 allowed_patch_scope:
   level: "case-only"
   allowed_paths:
-    - "tests/cases/00-trace-harness/TRACE-002/**"
+    - "tests/cases/00-trace-harness/TRACE-003/**"
   forbidden_paths:
     - "tests/cases/00-trace-harness/TRACE-001/**"
+    - "tests/cases/00-trace-harness/TRACE-002/**"
     - "tests/cases/01-decode/**"
     - "tests/cases/02-generator/**"
+
+# Session budget and autonomous continuation state
+session_state:
+  session_id: "2026-03-27T00:00:00Z"
+  started_at: "2026-03-27T00:00:00Z"
+  case_count: 2
+  budget_remaining: 1
+  auto_continue: true
+  continue_until: "budget_exhausted"  # or "phase_complete" or "explicit_stop"
+  
+# Session budget configuration
+session_budget:
+  max_cases_per_session: 3
+  max_phase_progression: 1
+  cases_processed: 2
+
+# Execution history for this session
+execution_log:
+  - case_id: "TRACE-001"
+    status: "REAL PASS"
+    promotion_at: "2026-03-27T00:00:00Z"
+  - case_id: "TRACE-002"
+    status: "REAL PASS"
+    promotion_at: "2026-03-27T00:00:00Z"
 
 # Required control actors
 required_commands:
@@ -52,8 +77,8 @@ required_skills:
 
 # Command execution history
 command_history:
-  last_command: "case-next"
-  last_result: "SUCCESS"
+  last_command: "phase-drive"
+  last_result: "CHECKPOINT"
   last_run_at: "2026-03-27T00:00:00Z"
 
 # Stop conditions for this active case
@@ -66,10 +91,10 @@ stop_conditions:
 # Next lawful action determination
 next_lawful_action:
   active_phase: "00-trace-harness"
-  active_case: "TRACE-002"
+  active_case: "TRACE-003"
   current_status: "STUB"
-  next_action: "SCAFFOLD"  # SCAFFOLD | IMPLEMENT | REPAIR | VERIFY | PROMOTE | BLOCKED
-  reason: "Case directory does not exist; must scaffold first"
+  next_action: "IMPLEMENT"  # IMPLEMENT | REPAIR | SCAFFOLD | VERIFY | PROMOTE | BLOCKED
+  reason: "Case ready for implementation, budget remaining"
   required_immediate:
     command: "case-preflight"
     purpose: "Verify case is ready and identify blockers"
@@ -83,7 +108,14 @@ next_lawful_action:
     - command: "case-promote"
       purpose: "Update status ledger and close active lock"
 
+# Continuation state - updated by phase-drive
+continuation:
+  next_case_required: true
+  next_lawful_case: "TRACE-003"
+  next_lawful_action: "IMPLEMENT"
+  stop_reason: null  # set to explicit reason if stopping
+
 # Validation checksum (for integrity verification)
 validation:
   checksum: null  # Reserved for future integrity checking
-  schema_version: "2.0"
+  schema_version: "2.1"

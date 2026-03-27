@@ -27,7 +27,7 @@ success_criteria:
 allowed_patch_scope:
   - trace/*
   - tests/cases/harness/runtime_trace.c
-  - tests/cases/00-trace-harness/TRACE-002-pc-filter/*
+  - tests/cases/00-trace-harness/TRACE-002/*
 
 regression_target:
   meson_test: case:TRACE-002
