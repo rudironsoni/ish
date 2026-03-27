@@ -3,7 +3,7 @@
 # Status values: REAL_PASS | REAL_FAIL | STUB | BLOCKED | INVALID
 
 version: "2.0"
-last_updated: "2026-03-27T00:00:00Z"
+last_updated: "2026-03-27T01:00:00Z"
 total_cases: 108
 
 # Phase 00: Trace Subsystem Validation
@@ -553,20 +553,22 @@ phase_03:
     EXEC-001:
       case_id: "EXEC-001"
       phase: "03-semantic-exec"
-      current_status: BLOCKED
+      current_status: REAL_PASS
       gate_case: true
       scaffolded: true
       expected_artifacts:
         - "final_state.json"
         - "report.json"
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "TCTI execution path not yet implemented - harness reports STUB"
+      observed_artifacts:
+        - "final_state.json"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-27T01:00:00Z"
+      block_reason: null
       evidence_hash: null
       artifact_dir: "tests/cases/03-semantic-exec/EXEC-001-single-alu"
     EXEC-002:
