@@ -1,0 +1,58 @@
+semantic_source:
+  family: arm-a64
+  reference_url: https://developer.arm.com/documentation/ddi0602/latest
+  section: C6.2.2 (logical shifted register), C6.2.3 (logical immediate)
+  notes: |
+    Logical Shifted Register encoding (bits 31:21):
+    - sf (31): 1 for 64-bit, 0 for 32-bit
+    - opc (30:29): 00=AND, 01=ORR, 10=EOR, 11=ANDS
+    - Bits 28:24: 0b01010 (01010 binary)
+    - N (21): Must be 0 for shifted register
+    - shift (23:22): 00=LSL, 01=LSR, 10=ASR, 11=ROR
+    - imm6 (15:10): shift amount
+    - Rm (20:16): second source register
+    - Rn (9:5): first source register
+    - Rd (4:0): destination register
+
+    Logical Immediate encoding (bits 31:22):
+    - sf (31): 1 for 64-bit, 0 for 32-bit
+    - opc (30:29): 00=AND, 01=ORR, 10=EOR, 11=ANDS
+    - Bits 28:23: 0b100100 (100100 binary)
+    - N (22): part of immediate encoding
+    - immr (21:16): rotation
+    - imms (15:10): size and immediate value
+    - Rn (9:5): source register
+    - Rd (4:0): destination register
+
+encoding_source:
+  tool: llvm-mc
+  version: 22.1.1
+  command: |
+    llvm-mc --triple=aarch64-linux-gnu --show-encoding
+  derived_encodings:
+    # Logical shifted register
+    and_x0_x1_x2: "2000028a"      # and x0, x1, x2: [0x20,0x00,0x02,0x8a]
+    orr_x3_x4_x5: "830005aa"      # orr x3, x4, x5: [0x83,0x00,0x05,0xaa]
+    eor_x6_x7_x8: "e60008ca"      # eor x6, x7, x8: [0xe6,0x00,0x08,0xca]
+    ands_x9_x10_x11: "49010bea"   # ands x9, x10, x11: [0x49,0x01,0x0b,0xea]
+    # Logical immediate
+    and_x0_x1_imm_ff: "201c4092"       # and x0, x1, #0xff: [0x20,0x1c,0x40,0x92]
+    orr_x2_x3_imm_ffff: "623c40b2"     # orr x2, x3, #0xffff: [0x62,0x3c,0x40,0xb2]
+    eor_x4_x5_imm_f: "a40c40d2"        # eor x4, x5, #0xf: [0xa4,0x0c,0x40,0xd2]
+
+decode_primary:
+  tool: llvm-objdump
+  version: 22.1.1
+
+tools_agree: true
+verification_date: "2026-03-27"
+verified_by: agent
+notes: |
+  Seven test vectors covering:
+  - AND shifted register (opc=00)
+  - ORR shifted register (opc=01)
+  - EOR shifted register (opc=10)
+  - ANDS shifted register (opc=11)
+  - AND immediate (opc=00 with immediate encoding)
+  - ORR immediate (opc=01 with immediate encoding)
+  - EOR immediate (opc=10 with immediate encoding)
