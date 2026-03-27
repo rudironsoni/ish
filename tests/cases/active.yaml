@@ -1,38 +1,35 @@
 # Active Case Lock
 # Machine-readable single active case state
 # Only ONE case may be active at any time
-# This file is read/written by case-next, case-preflight, and case-promote
 
 version: "2.2"
 last_updated: "2026-03-27T00:00:00Z"
 
-# Active case identification
+# Active case identification - cleared after promotion
 active_case:
-  case_id: "TRACE-003"
-  phase: "00-trace-harness"
-  status_before: "STUB"
+  case_id: null
+  phase: null
+  status_before: null
   owner: "orchestrator"
-  started_at: "2026-03-27T00:00:00Z"
+  started_at: null
 
 # Current execution state
 session_state:
-  current_stage: "SCAFFOLDED"  # Where we are now
-  next_action: "IMPLEMENT"       # Where we're going next
-  case_just_promoted: false      # Marks transition after promotion
+  current_stage: "PROMOTED"
+  next_action: "SELECT"
+  case_just_promoted: true
 
-# Continuation invariants - MUST be checked before each iteration
+# Continuation invariants
 continuation_invariants:
-  can_continue: true          # Must be true to continue
-  terminal_stop: false        # Must be false to continue  
-  budget_remaining: 4         # Must be > 0
-  stop_reason: null           # Must be null
-  auto_continue: true         # Must be true
-  next_action_valid: true     # Must be actionable (SCAFFOLD/IMPLEMENT/REPAIR/RUN/VERIFY/PROMOTE)
-  
-  # These expose illegal stopping:
-  continued_last_transition: true   # Did we actually continue last time?
-  invariants_violated: false        # If true, session is invalid
-  invalid_stop_detected: false      # Flag if stopped illegally
+  can_continue: true
+  terminal_stop: false
+  budget_remaining: 4
+  stop_reason: null
+  auto_continue: true
+  next_action_valid: true
+  continued_last_transition: true
+  invariants_violated: false
+  invalid_stop_detected: false
 
 # Retry budget tracking
 retry_budget:
@@ -41,85 +38,40 @@ retry_budget:
   last_error: null
   last_mismatch: null
 
-# Patch scope enforcement
-allowed_patch_scope:
-  level: "case-only"
-  allowed_paths:
-    - "tests/cases/00-trace-harness/TRACE-003/**"
-  forbidden_paths:
-    - "tests/cases/00-trace-harness/TRACE-001/**"
-    - "tests/cases/00-trace-harness/TRACE-002/**"
-    - "tests/cases/01-decode/**"
-    - "tests/cases/02-generator/**"
-
-# Session budget and autonomous continuation state
+# Session budget
 session_budget:
   max_cases_per_session: 6
   max_phase_progression: 1
   cases_processed: 2
 
-# Execution history for this session
+# Execution history
 execution_log:
   - case_id: "TRACE-001"
     status: "REAL PASS"
     promotion_at: "2026-03-27T00:00:00Z"
-    continued_to: "TRACE-002"
   - case_id: "TRACE-002"
     status: "REAL PASS"
     promotion_at: "2026-03-27T00:00:00Z"
-    continued_to: "TRACE-003"
-
-# Terminal stop conditions
-stop_conditions:
-  - "Control plane failure (harness-doctor fails)"
-  - "Mission complete (all 108 cases REAL PASS)"
-  - "Next case BLOCKED"
-  - "Next case INVALID"
-  - "Retry budget exhausted"
-  - "Session budget exhausted"
-  - "Explicit user stop"
-
-# Non-terminal states (must continue from these)
-non_terminal_states:
-  - "Case just selected"
-  - "Case just scaffolded"
-  - "Preflight just succeeded"
-  - "Work just completed"
-  - "Run just produced artifacts"
-  - "Verify just classified"
-  - "Case just promoted"
 
 # Command execution history
 command_history:
-  last_command: "phase-drive"
-  last_result: "CONTINUING"
+  last_command: "case-promote"
+  last_result: "PROMOTED"
   last_run_at: "2026-03-27T00:00:00Z"
 
-# Next lawful action determination
+# Next lawful action
 next_lawful_action:
   active_phase: "00-trace-harness"
   active_case: "TRACE-003"
   current_status: "STUB"
-  next_action: "IMPLEMENT"
-  reason: "TRACE-003 scaffolded, ready for implementation, budget remaining"
-  required_immediate:
-    command: "case-preflight"
-    purpose: "Verify case is ready"
-  required_subsequent:
-    - command: "case-work"
-      purpose: "Implement the active case"
-    - command: "case-run"
-      purpose: "Execute case through Meson entrypoint"
-    - command: "case-verify"
-      purpose: "Produce evidence-backed classification"
-    - command: "case-promote"
-      purpose: "Update status ledger and close active lock"
+  next_action: "SELECT"
+  reason: "TRACE-002 promoted, TRACE-003 is next lawful case"
 
-# Continuation state - updated by phase-drive
+# Continuation state
 continuation:
   next_case_required: true
   next_lawful_case: "TRACE-003"
-  next_lawful_action: "IMPLEMENT"
+  next_lawful_action: "SELECT"
   stop_reason: null
 
 # Validation checksum
