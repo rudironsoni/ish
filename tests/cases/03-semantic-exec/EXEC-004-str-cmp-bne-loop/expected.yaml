@@ -1,0 +1,104 @@
+initial_state:
+  registers:
+    x0: 0x0000000000001000  # Destination address pointer
+    x1: 0x5                 # Loop counter (5 iterations)
+    x2: 0xABCD1234ABCD1234  # Value to store
+  pc: 0x4000
+  sp: 0x2000
+  nzcv: {n: 0, z: 0, c: 0, v: 0}
+
+code:
+  # Simple loop: store x2 to [x0], increment x0, decrement x1, branch if not zero
+  # Address 0x4000: str x2, [x0], #8    # Store and post-increment
+  # Address 0x4004: subs x1, x1, #1     # Decrement counter, set flags
+  # Address 0x4008: b.ne 0x4000         # Branch back if not equal (Z=0)
+
+  # First instruction encoding (at initial PC = 0x4000)
+  encoding_hex_le: "428400f8"
+
+  instructions:
+    - name: str_post_loop
+      address: 0x4000
+      asm: "str x2, [x0], #8"
+      encoding_hex_le: "428400f8"
+      description: "Store x2 to [x0], then x0 += 8"
+
+    - name: subs_counter
+      address: 0x4004
+      asm: "subs x1, x1, #1"
+      encoding_hex_le: "210400f1"
+      description: "x1 = x1 - 1, set flags"
+
+    - name: bne_loop
+      address: 0x4008
+      asm: "b.ne -0xc"  # Branch back 12 bytes (3 instructions) to 0x4000
+      encoding_hex_le: "41ffff54"
+      description: "Branch to 0x4000 if Z=0 (not equal)"
+
+execution_sequence:
+  description: |
+    Loop iterates 5 times:
+    - Iteration 1: store to 0x1000, x0=0x1008, x1=4, branch taken
+    - Iteration 2: store to 0x1008, x0=0x1010, x1=3, branch taken
+    - Iteration 3: store to 0x1010, x0=0x1018, x1=2, branch taken
+    - Iteration 4: store to 0x1018, x0=0x1020, x1=1, branch taken
+    - Iteration 5: store to 0x1020, x0=0x1028, x1=0, branch NOT taken
+
+  final_registers:
+    x0: 0x0000000000001028  # 0x1000 + (5 * 8)
+    x1: 0x0                 # Counter decremented to 0
+    x2: 0xABCD1234ABCD1234  # Unchanged
+
+  final_pc: 0x400C          # Fall through after loop
+
+  final_nzcv:
+    n: 0                    # Result was 0 (positive)
+    z: 1                    # Zero flag set (x1 became 0)
+    c: 1                    # No borrow
+    v: 0                    # No overflow
+
+code_expectations:
+  instruction_count: 3
+  loop_iterations: 5
+  total_instructions_executed: 15  # 3 instructions * 5 iterations
+
+semantic_effects:
+  - operation: loop_store
+    iterations: 5
+    description: "Store x2 to 5 consecutive 64-bit locations"
+    memory_addresses:
+      - 0x1000
+      - 0x1008
+      - 0x1010
+      - 0x1018
+      - 0x1020
+    stored_value: 0xABCD1234ABCD1234
+
+  - operation: counter_decrement
+    description: "Decrement loop counter each iteration"
+    initial: 5
+    final: 0
+
+  - operation: conditional_branch
+    description: "B.NE taken when Z=0 (counter not zero)"
+    taken_count: 4
+    not_taken_count: 1
+
+success_criteria:
+  - name: loop_completes
+    description: Loop runs exactly 5 iterations
+  - name: memory_stores_correct
+    description: All 5 memory locations contain correct value
+  - name: pointer_updated
+    description: x0 advanced by 40 bytes (5 * 8)
+  - name: counter_zero
+    description: x1 decremented to 0
+  - name: flags_set
+    description: Z flag set after final SUBS
+  - name: branch_fallthrough
+    description: Loop exits when counter reaches 0
+
+notes: |
+  Tests multi-instruction execution with conditional branching.
+  This is the first case requiring instruction sequencing and loop control.
+  Verifies that B.NE correctly checks Z flag from SUBS.
