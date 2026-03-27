@@ -32,3 +32,11 @@ tests/aarch64/e2e/results/
 
 .cache/**
 .DS_Store
+
+# Rulesync generated outputs. Source of truth lives in .rulesync/
+.agentsmd/
+.claude/
+.codex/
+.github/copilot-instructions.md
+.gemini/
+.opencode/
