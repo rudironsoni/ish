@@ -3,7 +3,7 @@
 # Status values: REAL_PASS | REAL_FAIL | STUB | BLOCKED | INVALID
 
 version: "2.0"
-last_updated: "2026-03-27T01:00:00Z"
+last_updated: "2026-03-27T02:00:00Z"
 total_cases: 108
 
 # Phase 00: Trace Subsystem Validation
@@ -574,20 +574,24 @@ phase_03:
     EXEC-002:
       case_id: "EXEC-002"
       phase: "03-semantic-exec"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "final_state.json"
+        - "report.json"
+      observed_artifacts:
+        - "final_state.json"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-27T02:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/03-semantic-exec/EXEC-002"
+      artifact_dir: "tests/cases/03-semantic-exec/EXEC-002-cmp-flags"
     EXEC-003:
       case_id: "EXEC-003"
       phase: "03-semantic-exec"

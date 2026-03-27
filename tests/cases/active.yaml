@@ -1,18 +1,18 @@
 # Active Case Lock
 # Machine-readable single active case state
-# Phase 03 IN PROGRESS (1/10 complete)
+# Phase 03 IN PROGRESS (2/10 complete)
 
 version: "2.2"
-last_updated: "2026-03-27T01:00:00Z"
+last_updated: "2026-03-27T02:00:00Z"
 
 # Active case identification
 active_case:
-  case_id: "EXEC-002"
+  case_id: "EXEC-003"
   phase: "03-semantic-exec"
   status_before: "STUB"
   status_after: null
   owner: "orchestrator"
-  started_at: "2026-03-27T01:00:00Z"
+  started_at: "2026-03-27T02:00:00Z"
   completed_at: null
 
 # Current execution state
@@ -44,7 +44,7 @@ retry_budget:
 allowed_patch_scope:
   level: "case-only"
   allowed_paths:
-    - "tests/cases/03-semantic-exec/EXEC-002*/**"
+    - "tests/cases/03-semantic-exec/EXEC-003*/**"
     - "tests/cases/harness/semantic_micro.c"
   forbidden_paths:
     - "tests/cases/01-decode/**"
@@ -55,7 +55,7 @@ allowed_patch_scope:
 session_budget:
   max_cases_per_session: 6
   max_phase_progression: 1
-  cases_processed: 1
+  cases_processed: 2
 
 # Execution history
 execution_log:
@@ -68,28 +68,31 @@ execution_log:
   - case_id: "EXEC-001"
     status: "REAL PASS"
     promotion_at: "2026-03-27T01:00:00Z"
+  - case_id: "EXEC-002"
+    status: "REAL PASS"
+    promotion_at: "2026-03-27T02:00:00Z"
 
 # Command execution history
 command_history:
   last_command: "phase-drive"
   last_result: "PHASE_03_IN_PROGRESS"
-  last_run_at: "2026-03-27T01:00:00Z"
+  last_run_at: "2026-03-27T02:00:00Z"
 
 # Next lawful action
 next_lawful_action:
   active_phase: "03-semantic-exec"
-  active_case: "EXEC-002"
+  active_case: "EXEC-003"
   current_status: "STUB"
   next_action: "WORK_CASE"
-  reason: "EXEC-001 promoted to REAL_PASS. Moving to EXEC-002 (CMP flags semantic execution)."
+  reason: "EXEC-002 promoted to REAL_PASS. Moving to EXEC-003 (STR post-index)."
   required_immediate:
     command: "case-work"
-    purpose: "Implement EXEC-002 CMP flags test"
+    purpose: "Implement EXEC-003 STR post-index memory store"
 
 # Continuation state
 continuation:
   next_case_required: true
-  next_lawful_case: "EXEC-002"
+  next_lawful_case: "EXEC-003"
   next_lawful_action: "WORK"
   stop_reason: null
 

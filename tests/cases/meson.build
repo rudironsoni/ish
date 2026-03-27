@@ -191,6 +191,13 @@ test('case:EXEC-001', semantic_micro_harness,
      timeout: 120,
      is_parallel: false)
 
+test('case:EXEC-002', semantic_micro_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '03-semantic-exec/EXEC-002-cmp-flags/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/EXEC-002'],
+     suite: ['cases', 'phase-03-semantic-exec'],
+     timeout: 120,
+     is_parallel: false)
+
 test('case:ABI-001', abi_fixture_harness,
      args: ['--case-yaml', meson.current_source_dir() / '04-mmu-abi/ABI-001-process-entry-stack/case.yaml',
             '--artifact-dir', artifact_base / 'artifacts/ABI-001'],
