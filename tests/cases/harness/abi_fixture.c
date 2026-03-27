@@ -164,6 +164,104 @@ static int test_mmu_001_anon_mmap(const char *artifact_dir) {
     return 0;
 }
 
+/* MMU-002: mprotect permissions test */
+static int test_mmu_002_mprotect(const char *artifact_dir) {
+    (void)artifact_dir;
+    printf("MMU-002: Testing mprotect permissions...\n");
+
+    size_t size = 4096;
+    void *addr = mmap(NULL, size, PROT_READ | PROT_WRITE,
+                      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (addr == MAP_FAILED) {
+        printf("  FAIL: mmap failed\n");
+        return -1;
+    }
+    printf("  mmap: %p (R/W)\n", addr);
+
+    /* Test write */
+    volatile uint64_t *ptr = (uint64_t*)addr;
+    *ptr = 0x123456789ABCDEF0ULL;
+    printf("  Write with PROT_WRITE: OK\n");
+
+    /* Change to read-only */
+    if (mprotect(addr, size, PROT_READ) != 0) {
+        printf("  FAIL: mprotect(PROT_READ) failed\n");
+        munmap(addr, size);
+        return -1;
+    }
+    printf("  mprotect(PROT_READ): OK\n");
+
+    /* Verify read still works */
+    uint64_t val = *ptr;
+    if (val != 0x123456789ABCDEF0ULL) {
+        printf("  FAIL: Read after mprotect failed\n");
+        munmap(addr, size);
+        return -1;
+    }
+    printf("  Read with PROT_READ: OK\n");
+
+    /* Change to no access */
+    if (mprotect(addr, size, PROT_NONE) != 0) {
+        printf("  FAIL: mprotect(PROT_NONE) failed\n");
+        munmap(addr, size);
+        return -1;
+    }
+    printf("  mprotect(PROT_NONE): OK\n");
+
+    /* Restore R/W for cleanup */
+    mprotect(addr, size, PROT_READ | PROT_WRITE);
+    munmap(addr, size);
+    printf("  Result: PASSED\n");
+    return 0;
+}
+
+/* MMU-003: brk heap growth test */
+static int test_mmu_003_brk(const char *artifact_dir) {
+    (void)artifact_dir;
+    printf("MMU-003: Testing brk heap growth...\n");
+
+    /* Get current break */
+    void *initial_brk = sbrk(0);
+    printf("  Initial brk: %p\n", initial_brk);
+
+    /* Allocate 1 page */
+    void *new_brk = sbrk(4096);
+    if (new_brk == (void*)-1) {
+        printf("  FAIL: sbrk(4096) failed\n");
+        return -1;
+    }
+    printf("  After sbrk(4096): %p\n", sbrk(0));
+
+    /* Verify we can access the new memory */
+    volatile uint64_t *ptr = (volatile uint64_t*)new_brk;
+    *ptr = 0xDEADBEEFCAFEBABEULL;
+    if (*ptr != 0xDEADBEEFCAFEBABEULL) {
+        printf("  FAIL: Heap access failed\n");
+        return -1;
+    }
+    printf("  Heap write/read: OK\n");
+
+    /* Note: On macOS, sbrk is deprecated and may not support shrinking.
+     * We skip the shrink test on Darwin and just verify allocation works. */
+#if defined(__APPLE__) && defined(__MACH__)
+    printf("  brk shrink: SKIPPED (deprecated on macOS)\n");
+#else
+    /* Return to original break */
+    sbrk(-4096);
+    void *final_brk = sbrk(0);
+    printf("  After sbrk(-4096): %p\n", final_brk);
+
+    if (final_brk != initial_brk) {
+        printf("  FAIL: brk not restored to initial value\n");
+        return -1;
+    }
+    printf("  brk restored: OK\n");
+#endif
+
+    printf("  Result: PASSED\n");
+    return 0;
+}
+
 /* ABI-001: Process entry stack test */
 static int test_abi_001_stack(const char *artifact_dir) {
     printf("ABI-001: Testing process entry stack...\n");
@@ -224,6 +322,12 @@ int main(int argc, char *argv[]) {
     if (strncmp(case_id, "MMU-001", 7) == 0) {
         result = test_mmu_001_anon_mmap(artifact_dir);
         if (result != 0) failure_reason = "MMU-001 anon mmap test failed";
+    } else if (strncmp(case_id, "MMU-002", 7) == 0) {
+        result = test_mmu_002_mprotect(artifact_dir);
+        if (result != 0) failure_reason = "MMU-002 mprotect test failed";
+    } else if (strncmp(case_id, "MMU-003", 7) == 0) {
+        result = test_mmu_003_brk(artifact_dir);
+        if (result != 0) failure_reason = "MMU-003 brk test failed";
     } else if (strncmp(case_id, "ABI-001", 7) == 0) {
         result = test_abi_001_stack(artifact_dir);
         if (result != 0) failure_reason = "ABI-001 stack test failed";

@@ -261,6 +261,20 @@ test('case:MMU-001', abi_fixture_harness,
      timeout: 60,
      is_parallel: false)
 
+test('case:MMU-002', abi_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '04-mmu-abi/MMU-002-mprotect-permissions/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/MMU-002'],
+     suite: ['cases', 'phase-04-mmu-abi'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:MMU-003', abi_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '04-mmu-abi/MMU-003-brk-heap-growth/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/MMU-003'],
+     suite: ['cases', 'phase-04-mmu-abi'],
+     timeout: 60,
+     is_parallel: false)
+
 test('case:ABI-001', abi_fixture_harness,
      args: ['--case-yaml', meson.current_source_dir() / '04-mmu-abi/ABI-001-process-entry-stack/case.yaml',
             '--artifact-dir', artifact_base / 'artifacts/ABI-001'],
