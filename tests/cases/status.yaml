@@ -16,7 +16,7 @@ phase_00:
       last_verified_at: null
       verifier_result: null
       blocking_reason: "No implementation yet"
-      artifact_dir: "tests/cases/00-trace-harness/TRACE-001"
+      artifact_dir: "tests/cases/00-trace-harness/TRACE-001-boundary-smoke"
     TRACE-002:
       status: STUB
       last_verified_at: null

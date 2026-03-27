@@ -22,17 +22,16 @@ If AGENTS.md conflicts with the above, stop and repair the harness before doing 
 
 On every non-trivial task, execute in this exact order:
 
-1. Load orchestrator instructions (provided by Rulesync)
-2. Read `AGENTS.md` non-negotiables (this file)
-3. Load phase gating rules (provided by Rulesync)
-4. Read `tests/cases/execution-order.yaml`
-5. Read `tests/cases/status.yaml` (if exists; if not, infer from artifacts)
-6. Compute earliest unsatisfied gate case
-7. Select exactly one active case
-8. Verify substrate and contract validity
-9. Only then patch code
+1. Run `case-next` command to deterministically select the single lawful next case
+2. Run `case-preflight` command to verify the case is valid and progression is lawful
+3. Only then patch code
 
-Never skip steps. Never assume you know the active case without reading the phase inventory.
+The agent MUST NOT:
+- Manually compute the active case
+- Skip case-next and case-preflight
+- Begin work without a deterministically selected active case
+
+Never assume you know the active case without running case-next.
 
 ## 4. Exact Active-Case Algorithm
 
@@ -120,7 +119,6 @@ Never "choose whichever doc sounds easiest".
 
 ## 10. Current Known Limitations
 
-- `tests/cases/status.yaml` does not yet exist — status must be inferred from case artifacts
 - Not all 108 gate cases have scaffolded directories — substrate may need creation on first encounter
 - The bootstrap sequence (6 cases in phases 00-05) must be completed before autonomous progression is fully reliable
 
