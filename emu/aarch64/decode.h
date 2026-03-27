@@ -218,7 +218,9 @@ static inline a64_category_t a64_get_category(uint32_t insn) {
 
     // Load/store pair uses a separate major encoding space that does not map
     // cleanly to bits 28:25. Route it into the load/store decoder explicitly.
-    if (top7 == 0x54) { // 1010100x - STP/LDP family seen in startup code
+    // 32-bit pairs: top7 = 0010100 (0x14), 64-bit pairs: top7 = 1010100 (0x54)
+    // Check bits 29:25 (mask 0x1E) for pattern 0x14 (10100)
+    if ((top7 & 0x1E) == 0x14) { // x010100x - STP/LDP family
         return A64_LD_ST;
     }
     
