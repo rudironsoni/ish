@@ -37,18 +37,24 @@ phase_00:
     TRACE-002:
       case_id: "TRACE-002"
       phase: "00-trace-harness"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "trace.ring"
+        - "trace.json"
+        - "report.json"
+      observed_artifacts:
+        - "trace.ring"
+        - "trace.json"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-27T00:00:00Z"
+      block_reason: null
       evidence_hash: null
       artifact_dir: "tests/cases/00-trace-harness/TRACE-002"
     TRACE-003:
@@ -1922,13 +1928,13 @@ phase_11:
 
 # Evidence-bearing summary
 summary:
-  total_stub: 107
-  total_real_pass: 1
+  total_stub: 106
+  total_real_pass: 2
   total_real_fail: 0
   total_blocked: 0
   total_invalid: 0
   earliest_unsatisfied_phase: "00-trace-harness"
-  earliest_unsatisfied_case: "TRACE-002"
+  earliest_unsatisfied_case: "TRACE-003"
   last_updated: "2026-03-27T00:00:00Z"
   evidence_completeness: "PARTIAL"  # FULL | PARTIAL | NONE
   verification_status: "REQUIRES_NEXT"
