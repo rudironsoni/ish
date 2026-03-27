@@ -30,6 +30,13 @@ test('case_TRACE-003', runtime_trace_harness,
      timeout: 60,
      is_parallel: false)
 
+test('case_TRACE-004', runtime_trace_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '00-trace-harness/TRACE-004/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/TRACE-004'],
+     suite: ['cases', 'phase-00-trace-harness'],
+     timeout: 60,
+     is_parallel: false)
+
 test('case:DEC-001', decode_golden_harness,
      args: ['--case-yaml', meson.current_source_dir() / '01-decode/DEC-001-addsub-immediate/case.yaml',
             '--artifact-dir', artifact_base / 'artifacts/DEC-001'],

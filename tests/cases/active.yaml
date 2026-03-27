@@ -3,7 +3,7 @@
 # Only ONE case may be active at any time
 # This file is read/written by case-next, case-preflight, and case-promote
 
-version: "2.1"
+version: "2.2"
 last_updated: "2026-03-27T00:00:00Z"
 
 # Active case identification
@@ -13,6 +13,26 @@ active_case:
   status_before: "STUB"
   owner: "orchestrator"
   started_at: "2026-03-27T00:00:00Z"
+
+# Current execution state
+session_state:
+  current_stage: "SCAFFOLDED"  # Where we are now
+  next_action: "IMPLEMENT"       # Where we're going next
+  case_just_promoted: false      # Marks transition after promotion
+
+# Continuation invariants - MUST be checked before each iteration
+continuation_invariants:
+  can_continue: true          # Must be true to continue
+  terminal_stop: false        # Must be false to continue  
+  budget_remaining: 4         # Must be > 0
+  stop_reason: null           # Must be null
+  auto_continue: true         # Must be true
+  next_action_valid: true     # Must be actionable (SCAFFOLD/IMPLEMENT/REPAIR/RUN/VERIFY/PROMOTE)
+  
+  # These expose illegal stopping:
+  continued_last_transition: true   # Did we actually continue last time?
+  invariants_violated: false        # If true, session is invalid
+  invalid_stop_detected: false      # Flag if stopped illegally
 
 # Retry budget tracking
 retry_budget:
@@ -33,15 +53,6 @@ allowed_patch_scope:
     - "tests/cases/02-generator/**"
 
 # Session budget and autonomous continuation state
-session_state:
-  session_id: "2026-03-27T00:00:00Z"
-  started_at: "2026-03-27T00:00:00Z"
-  case_count: 2
-  budget_remaining: 1
-  auto_continue: true
-  continue_until: "budget_exhausted"  # or "phase_complete" or "explicit_stop"
-  
-# Session budget configuration
 session_budget:
   max_cases_per_session: 6
   max_phase_progression: 1
@@ -52,55 +63,51 @@ execution_log:
   - case_id: "TRACE-001"
     status: "REAL PASS"
     promotion_at: "2026-03-27T00:00:00Z"
+    continued_to: "TRACE-002"
   - case_id: "TRACE-002"
     status: "REAL PASS"
     promotion_at: "2026-03-27T00:00:00Z"
+    continued_to: "TRACE-003"
 
-# Required control actors
-required_commands:
-  next: "case-preflight"
-  subsequent:
-    - "case-work"
-    - "case-run"
-    - "case-verify"
-    - "case-promote"
+# Terminal stop conditions
+stop_conditions:
+  - "Control plane failure (harness-doctor fails)"
+  - "Mission complete (all 108 cases REAL PASS)"
+  - "Next case BLOCKED"
+  - "Next case INVALID"
+  - "Retry budget exhausted"
+  - "Session budget exhausted"
+  - "Explicit user stop"
 
-required_subagents:
-  - "orchestrator"
-  - "harness-author"
-  - "trace-observer"
-
-required_skills:
-  - "active-case-lifecycle"
-  - "phase-gate-audit"
-  - "anti-slop-review"
+# Non-terminal states (must continue from these)
+non_terminal_states:
+  - "Case just selected"
+  - "Case just scaffolded"
+  - "Preflight just succeeded"
+  - "Work just completed"
+  - "Run just produced artifacts"
+  - "Verify just classified"
+  - "Case just promoted"
 
 # Command execution history
 command_history:
   last_command: "phase-drive"
-  last_result: "CHECKPOINT"
+  last_result: "CONTINUING"
   last_run_at: "2026-03-27T00:00:00Z"
-
-# Stop conditions for this active case
-stop_conditions:
-  - "Case produces artifacts matching expected.yaml"
-  - "Verifier confirms REAL PASS"
-  - "Anti-slop review passes"
-  - "Phase gate audit confirms progression"
 
 # Next lawful action determination
 next_lawful_action:
   active_phase: "00-trace-harness"
   active_case: "TRACE-003"
   current_status: "STUB"
-  next_action: "IMPLEMENT"  # IMPLEMENT | REPAIR | SCAFFOLD | VERIFY | PROMOTE | BLOCKED
-  reason: "Case ready for implementation, budget remaining"
+  next_action: "IMPLEMENT"
+  reason: "TRACE-003 scaffolded, ready for implementation, budget remaining"
   required_immediate:
     command: "case-preflight"
-    purpose: "Verify case is ready and identify blockers"
+    purpose: "Verify case is ready"
   required_subsequent:
     - command: "case-work"
-      purpose: "Implement or repair the active case"
+      purpose: "Implement the active case"
     - command: "case-run"
       purpose: "Execute case through Meson entrypoint"
     - command: "case-verify"
@@ -113,9 +120,9 @@ continuation:
   next_case_required: true
   next_lawful_case: "TRACE-003"
   next_lawful_action: "IMPLEMENT"
-  stop_reason: null  # set to explicit reason if stopping
+  stop_reason: null
 
-# Validation checksum (for integrity verification)
+# Validation checksum
 validation:
-  checksum: null  # Reserved for future integrity checking
-  schema_version: "2.1"
+  checksum: null
+  schema_version: "2.2"
