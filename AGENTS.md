@@ -410,6 +410,161 @@ Status changes MUST follow this exact path:
 
 ---
 
-**Version:** 2.0
+## 18. Non-Terminal Completion Rules
+
+### 18.1 REAL PASS is Non-Terminal by Default
+
+A `REAL PASS` case promotion is an **iteration success**, not a **session stop**.
+
+After successful `case-promote`:
+- The agent MUST automatically re-enter `case-next`
+- The agent MUST determine the next lawful case
+- The agent MUST continue work automatically within session budget
+- Post-run reporting is a **checkpoint**, not a terminal condition
+
+### 18.2 Automatic Continuation
+
+The only lawful entrypoint for non-trivial autonomous work is the outer-loop command (`phase-drive` or `agent-loop`).
+
+This command must:
+1. Run `harness-doctor`
+2. Run `case-next` to select active case
+3. Run `case-preflight` to verify readiness
+4. Run `case-work` to implement
+5. Run `case-run` to execute
+6. Run `case-verify` to classify
+7. Run `case-promote` to promote status
+8. If promoted to `REAL PASS` and budget remains, re-enter step 2 automatically
+9. Stop only on explicit stop conditions
+
+### 18.3 Explicit Stop Conditions
+
+The agent MAY stop only if one of the following is true:
+
+- `harness-doctor` fails (control plane broken)
+- Next lawful case is `BLOCKED` (dependency not satisfied)
+- Next lawful case is `INVALID` (contract corrupted)
+- Retry budget exhausted for active case
+- Session case budget exhausted (see Section 19)
+- All 108 gate cases are `REAL PASS` (mission complete)
+- User explicitly requests stop
+
+Stopping after successful promotion to report is **FORBIDDEN**.
+
+---
+
+## 19. Session Budgets and Bounded Autonomy
+
+### 19.1 Session Case Budget
+
+To prevent unbounded autonomous runs, enforce a session budget:
+
+```yaml
+session_budget:
+  max_cases_per_session: 3  # Process up to 3 cases per invocation
+  max_phase_progression: 1  # OR: progress at most 1 phase per session
+  session_case_count: 0     # Incremented each case-promote
+```
+
+### 19.2 Budget Enforcement
+
+The outer-loop command must:
+- Increment `session_case_count` after each `case-promote`
+- Check budget before re-entering `case-next`
+- If budget exhausted, emit machine-readable `stop_reason: session_budget_exhausted`
+- Complete gracefully with checkpoint report
+
+### 19.3 Machine-Readable Session State
+
+Extend `active.yaml` with session continuation state:
+
+```yaml
+session_state:
+  session_id: "uuid-or-timestamp"
+  started_at: "2026-03-27T00:00:00Z"
+  case_count: 2
+  budget_remaining: 1
+  auto_continue: true
+  continue_until: "phase_00_complete"  # or "budget_exhausted" or "explicit_stop"
+  
+continuation:
+  next_case_required: true
+  next_lawful_case: "TRACE-003"
+  next_lawful_action: "IMPLEMENT"
+  stop_reason: null  # set when stopping
+```
+
+---
+
+## 20. Outer-Loop Command: phase-drive
+
+### 20.1 Purpose
+
+The `phase-drive` command is the only lawful entrypoint for autonomous case work.
+
+It implements the self-continuing loop that processes cases until a stop condition is met.
+
+### 20.2 Command Sequence
+
+```
+phase-drive:
+  1. harness-doctor
+     └─ fail → stop with reason: control_plane_failure
+  
+  2. case-next
+     └─ select active case → create/update active.yaml
+     └─ no unsatisfied cases → stop with reason: mission_complete
+  
+  3. case-preflight
+     └─ fail → stop with reason: preflight_blocked
+  
+  4. case-work
+     └─ implement/repair active case
+  
+  5. case-run
+     └─ execute and produce artifacts
+  
+  6. case-verify
+     └─ produce evidence-backed classification
+  
+  7. case-promote
+     └─ update status.yaml and active.yaml
+  
+  8. Check continuation:
+     ├─ if REAL PASS and budget remains → GOTO step 2
+     ├─ if REAL FAIL and retry budget remains → GOTO step 4
+     └─ if stop condition met → stop with reason
+```
+
+### 20.3 Output Format
+
+```yaml
+phase_drive_result:
+  session:
+    session_id: "2026-03-27T00:00:00Z"
+    cases_processed: 2
+    budget_remaining: 1
+  
+  last_case:
+    case_id: "TRACE-002"
+    status: "REAL PASS"
+    promotion_successful: true
+  
+  continuation:
+    next_case_required: true
+    next_lawful_case: "TRACE-003"
+    next_lawful_action: "IMPLEMENT"
+    stop_reason: null  # or explicit reason if stopping
+  
+  stop_condition:
+    stop_requested: false
+    budget_exhausted: false
+    all_complete: false
+    explicit_reason: null
+```
+
+---
+
+**Version:** 2.1
 **Last Updated:** 2026-03-27
-**Control System Status:** STRICT MODE
+**Control System Status:** STRICT MODE - NON-TERMINAL

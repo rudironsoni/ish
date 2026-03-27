@@ -45,33 +45,56 @@ This command owns the promotion of case status. It updates status.yaml with evid
 promote_result:
   case_id: "TRACE-002"
   phase: "00-trace-harness"
+  
   promotion:
     previous_status: "STUB"
     new_status: "REAL PASS"
     promotion_lawful: true
     verification_passed: true
+  
   status_updates:
     status_yaml:
       updated: true
       fields_changed:
         - "current_status: STUB -> REAL PASS"
         - "verifier_result: null -> PASS"
+        - "anti_slop_result: null -> PASS"
+        - "review_skeptic_result: null -> PASS"
+        - "observed_artifacts: [] -> [trace.ring, report.json]"
+    
   active_lock:
     previous:
       case_id: "TRACE-002"
       status: "STUB"
     current:
-      case_id: null
-      status: null
-    cleared: true
+      case_id: "TRACE-003"  # Advanced to next case, not cleared
+      status: "STUB"
+    advanced: true
+  
+  session_state:
+    case_count: 2
+    budget_remaining: 1
+    auto_continue: true
+  
+  continuation:
+    next_case_required: true
+    next_lawful_case: "TRACE-003"
+    next_lawful_action: "IMPLEMENT"
+    reason: "Budget remaining, more cases in phase"
+  
   phase_progression:
     phase_unlocked: false
     unlocked_phase: null
+  
   summary:
     total_real_pass: 2
     total_stub: 106
     earliest_unsatisfied_case: "TRACE-003"
+    phase_completion: "2/6 gates complete"
 ```
+
+**NOTE:** This output MUST NOT use terminal language like "complete" or "done". 
+A promotion is an iteration checkpoint, not a session end. The `continuation` block signals whether more work is required.
 
 ## Lawful Promotion Conditions
 

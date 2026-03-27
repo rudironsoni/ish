@@ -37,8 +37,8 @@ bool trace_event_enabled(trace_event_id_t event, uint64_t pc) {
         return false;
     }
     
-    /* Check event mask */
-    if (!(cfg->event_mask & (1ULL << event))) {
+    /* Check event mask - if 0, allow all events */
+    if (cfg->event_mask != 0 && !(cfg->event_mask & (1ULL << event))) {
         return false;
     }
     
