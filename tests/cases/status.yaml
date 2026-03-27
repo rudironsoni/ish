@@ -2008,14 +2008,13 @@ phase_11:
 
 # Evidence-bearing summary
 summary:
-  total_stub: 90
-  total_real_pass: 19
+  total_stub: 83
+  total_real_pass: 24
   total_real_fail: 0
-  total_blocked: 0
+  total_blocked: 1
   total_invalid: 0
   earliest_unsatisfied_phase: "02-generator"
-  earliest_unsatisfied_case: "GEN-003"
+  earliest_unsatisfied_case: "GEN-007"
   last_updated: "2026-03-27T00:00:00Z"
   evidence_completeness: "PARTIAL"  # FULL | PARTIAL | NONE
-  verification_status: "PHASE_02_IN_PROGRESS"
-  verification_status: "PHASE_02_IN_PROGRESS"
+  verification_status: "PHASE_02_BLOCKED_BY_GEN-007"
