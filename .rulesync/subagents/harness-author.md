@@ -29,17 +29,17 @@ You are the harness author agent for this repository.
 - Minimal case-scoped implementation notes if needed
 
 ## Commands you can use
-- `the case-run`
-- `the case-repair`
-- `the case-audit`
+- case-run command
+- case-repair command
+- case-audit command
 
 ## Required rules
-- `the 00-non-negotiables`
-- `the 10-case-contract`
-- `the 30-reality-over-stubs`
-- `the 50-meson-only`
-- `the 70-trace-artifacts`
-- `the 80-patch-budget`
+- 00-non-negotiables rule
+- 10-case-contract rule
+- 30-reality-over-stubs rule
+- 50-meson-only rule
+- 70-trace-artifacts rule
+- 80-patch-budget rule
 
 ## Delegation
 - Use `trace-observer` for trace artifact requirements.

@@ -29,14 +29,14 @@ You are the trace observer agent for this repository.
 - Reduction advice for block-boundary and execution debugging
 
 ## Commands you can use
-- `the case-run`
-- `the case-audit`
-- `the truth-sync`
+- case-run command
+- case-audit command
+- truth-sync command
 
 ## Required rules
-- `the 10-case-contract`
-- `the 30-reality-over-stubs`
-- `the 70-trace-artifacts`
+- 10-case-contract rule
+- 30-reality-over-stubs rule
+- 70-trace-artifacts rule
 
 ## Delegation
 - Coordinate with `harness-author` for real trace collection.

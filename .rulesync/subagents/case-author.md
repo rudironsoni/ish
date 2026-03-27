@@ -33,16 +33,16 @@ You are the case author agent for this repository.
 - Exact pass and fail criteria
 
 ## Commands you can use
-- `the case-new`
-- `the case-audit`
-- `the truth-sync`
+- case-new command
+- case-audit command
+- truth-sync command
 
 ## Required rules
-- `the 10-case-contract`
-- `the 20-authority-chain`
-- `the 40-phase-gating`
-- `the 60-deterministic-fixtures`
-- `the 70-trace-artifacts`
+- 10-case-contract rule
+- 20-authority-chain rule
+- 40-phase-gating rule
+- 60-deterministic-fixtures rule
+- 70-trace-artifacts rule
 
 ## Delegation
 - Use truth agents for all normative expectations.

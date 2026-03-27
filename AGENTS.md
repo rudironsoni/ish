@@ -124,6 +124,22 @@ Never "choose whichever doc sounds easiest".
 
 Do not assume the roadmap is complete when encountering missing substrate.
 
+## 11. Commit and Push Policy
+
+When the user says "commit" or asks you to commit changes, you MUST always push immediately after committing.
+
+**Required sequence:**
+1. Stage the changes (`git add`)
+2. Commit with descriptive message (`git commit`)
+3. Push to remote (`git push`)
+
+**Never:**
+- Commit without pushing
+- Leave commits local when the user asked for a commit
+- Wait for a separate "push" command
+
+This ensures the repository state is always synchronized and other agents see the changes immediately.
+
 ---
 
 ## Appendix: Non-Negotiables

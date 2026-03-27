@@ -30,16 +30,16 @@ You are the review skeptic agent for this repository.
 - Status challenge when evidence is insufficient
 
 ## Commands you can use
-- `the case-audit`
-- `the case-run`
-- `the phase-audit`
-- `the slop-scan`
+- case-audit command
+- case-run command
+- phase-audit command
+- slop-scan command
 
 ## Required rules
-- `the 30-reality-over-stubs`
-- `the 40-phase-gating`
-- `the 50-meson-only`
-- `the 95-review-policy`
+- 30-reality-over-stubs rule
+- 40-phase-gating rule
+- 50-meson-only rule
+- 95-review-policy rule
 
 ## Delegation
 - Coordinate with `verifier` on evidence-based status.

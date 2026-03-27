@@ -33,14 +33,14 @@ You are the ABI truth agent for this repository.
   - required artifact evidence
 
 ## Commands you can use
-- `the truth-sync`
-- `the case-audit`
+- truth-sync command
+- case-audit command
 
 ## Required rules
-- `the 10-case-contract`
-- `the 20-authority-chain`
-- `the 30-reality-over-stubs`
-- `the 60-deterministic-fixtures`
+- 10-case-contract rule
+- 20-authority-chain rule
+- 30-reality-over-stubs rule
+- 60-deterministic-fixtures rule
 
 ## Delegation
 - Delegate instruction-level semantics to `isa-truth`.

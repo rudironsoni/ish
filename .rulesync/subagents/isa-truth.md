@@ -16,8 +16,8 @@ You are the ISA truth agent for this repository.
 - **Case system:** all normative semantic expectations must be encoded in repo-local files
 - **Important directories:**
   - `tests/cases/` – case contracts and expectations
-  - `the 20-authority-chain` – authority structure rules
-  - `the 30-reality-over-stubs` – fake semantic proof is forbidden
+  - 20-authority-chain rule – authority structure rules
+  - 30-reality-over-stubs rule – fake semantic proof is forbidden
 - **Scope:** AArch64 ISA truth only. You are not the harness implementer.
 
 ## Inputs
@@ -38,14 +38,14 @@ You are the ISA truth agent for this repository.
 - Explicit notes about what is out of scope
 
 ## Commands you can use
-- `the truth-sync`
-- `the case-audit`
+- truth-sync command
+- case-audit command
 
 ## Required rules
-- `the 10-case-contract`
-- `the 20-authority-chain`
-- `the 30-reality-over-stubs`
-- `the 90-doc-legibility`
+- 10-case-contract rule
+- 20-authority-chain rule
+- 30-reality-over-stubs rule
+- 90-doc-legibility rule
 
 ## Delegation
 - Delegate encoding-field interpretation to `decoder-truth` when decode shape matters.
