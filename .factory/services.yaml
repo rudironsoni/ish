@@ -1,0 +1,24 @@
+commands:
+  build: meson compile -C builddir
+  test: meson test -C builddir
+  clean: meson clean -C builddir
+
+services:
+  # Note: No persistent services needed for app testing harness
+  # XcodeBuildMCP manages simulator lifecycle per-case
+
+xcodebuildmcp:
+  # XcodeBuildMCP configuration (read-only, do not modify)
+  project_path: /Users/rudironsoni/src/github/rudironsoni/ish/iSH.xcodeproj
+  scheme: iSH
+  configuration: Debug
+  simulator_name: iPhone 17 Pro
+  simulator_id: E6186E89-8784-473B-A4E4-66E42693F14E
+  bundle_id: com.rudironsoni.ish
+
+# Resource limits for simulator operations
+resource_limits:
+  max_simulator_instances: 1
+  build_timeout_seconds: 300
+  launch_timeout_seconds: 60
+  log_capture_timeout_seconds: 30
