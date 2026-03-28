@@ -1,0 +1,33 @@
+at_random_requirements:
+  entry_properties:
+    - type: 25 (AT_RANDOM)
+    - points_to: 16 bytes of random data
+    - purpose: stack canaries, pointer guard, etc.
+
+  randomness_criteria:
+    - bytes are non-zero (basic sanity check)
+    - bytes vary between runs (not verified in harness)
+    - memory is readable
+
+invariants:
+  - "AT_RANDOM entry present in auxv"
+  - "points to 16 readable bytes"
+  - "bytes contain entropy (non-zero)"
+
+validation_checks:
+  - name: at_random_present
+    assertion: "AT_RANDOM entry found"
+    critical: true
+
+  - name: at_random_readable
+    assertion: "can read 16 bytes from pointer"
+    critical: true
+
+  - name: at_random_nonzero
+    assertion: "not all bytes are zero"
+    critical: true
+
+success_criteria:
+  - AT_RANDOM entry present
+  - 16 bytes of entropy readable
+  - entropy is non-zero

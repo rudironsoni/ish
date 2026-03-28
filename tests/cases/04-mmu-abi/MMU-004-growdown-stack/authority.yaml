@@ -1,0 +1,32 @@
+semantic_authority:
+  source: Linux AArch64 ABI
+  url: https://github.com/ARM-software/abi-aa/releases
+  stack_alignment: 16-byte
+  stack_direction: growdown (toward lower addresses)
+
+abi_authority:
+  source: Linux AArch64 ABI
+  notes: |
+    The AArch64 ABI requires:
+    - Stack pointer (SP) must be 16-byte aligned at all times
+    - Stack grows downward (toward lower addresses)
+    - Stack frame must be set up on function entry
+
+toolchain_notes:
+  runtime_verification: |
+    This case uses runtime fixture testing on the host system.
+    Tests verify actual stack behavior against ABI requirements.
+
+platform_notes:
+  aarch64_specific: |
+    This test uses inline assembly to read SP, which is
+    AArch64-specific. The harness only runs on AArch64.
+
+known_gaps:
+  - Guard page testing not performed
+  - Stack overflow behavior not validated
+  - Stack limit enforcement not tested
+
+non_authoritative_fields:
+  - Exact stack limit values
+  - Stack red zone behavior

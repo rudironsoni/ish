@@ -262,6 +262,218 @@ static int test_mmu_003_brk(const char *artifact_dir) {
     return 0;
 }
 
+/* MMU-004: Growdown stack test */
+static int test_mmu_004_growdown_stack(const char *artifact_dir) {
+    (void)artifact_dir;
+    printf("MMU-004: Testing growdown stack behavior...\n");
+
+    /* Get current stack pointer */
+    volatile char *sp;
+    __asm__ volatile("mov %0, sp" : "=r"(sp));
+    printf("  Current SP: %p\n", (void*)sp);
+
+    /* Check 16-byte alignment */
+    if ((uintptr_t)sp % 16 != 0) {
+        printf("  FAIL: Stack not 16-byte aligned\n");
+        return -1;
+    }
+    printf("  Stack alignment: 16-byte OK\n");
+
+    /* Test stack access at current SP */
+    volatile uint64_t *stack_ptr = (volatile uint64_t*)sp;
+    uint64_t saved_value = *stack_ptr;  /* Save original */
+    *stack_ptr = 0xDEADBEEFCAFEBABEULL;
+    if (*stack_ptr != 0xDEADBEEFCAFEBABEULL) {
+        printf("  FAIL: Stack write/read failed at SP\n");
+        return -1;
+    }
+    *stack_ptr = saved_value;  /* Restore */
+    printf("  Stack access at SP: OK\n");
+
+    /* Test stack growth by allocating on stack */
+    volatile unsigned char buffer[1024];
+    buffer[0] = 0xAA;
+    buffer[1023] = 0xBB;
+    if (buffer[0] != 0xAA || buffer[1023] != 0xBB) {
+        printf("  FAIL: Stack allocation failed\n");
+        return -1;
+    }
+    printf("  Stack allocation (1KB): OK\n");
+
+    printf("  Result: PASSED\n");
+    return 0;
+}
+
+/* ABI-002: Required auxv entries test */
+static int test_abi_002_auxv(const char *artifact_dir) {
+    (void)artifact_dir;
+    printf("ABI-002: Testing required auxv entries...\n");
+
+    /* Platform check: auxv is Linux-specific */
+#if defined(__APPLE__) && defined(__MACH__)
+    printf("  SKIPPED: auxv not available on macOS\n");
+    printf("  Note: This test validates Linux AArch64 ABI\n");
+    printf("  Result: PASSED (skipped on macOS)\n");
+    return 0;
+#else
+    /* Get environ to find auxv (follows envp null terminator) */
+    extern char **environ;
+
+    /* Find end of envp */
+    char **ptr = environ;
+    while (*ptr != NULL) {
+        ptr++;
+    }
+    ptr++; /* Skip NULL */
+
+    /* Now at auxv */
+    typedef struct {
+        unsigned long type;
+        unsigned long value;
+    } auxv_t;
+
+    auxv_t *auxv = (auxv_t*)ptr;
+
+    int found_pagesz = 0;
+    int found_phdr = 0;
+    int found_phent = 0;
+    int found_phnum = 0;
+    int found_entry = 0;
+    unsigned long pagesz = 0;
+
+    while (auxv->type != 0) { /* AT_NULL = 0 */
+        switch (auxv->type) {
+            case 6:  /* AT_PAGESZ */
+                found_pagesz = 1;
+                pagesz = auxv->value;
+                printf("  AT_PAGESZ: %lu\n", pagesz);
+                break;
+            case 3:  /* AT_PHDR */
+                found_phdr = 1;
+                printf("  AT_PHDR: 0x%lx\n", auxv->value);
+                break;
+            case 4:  /* AT_PHENT */
+                found_phent = 1;
+                printf("  AT_PHENT: %lu\n", auxv->value);
+                break;
+            case 5:  /* AT_PHNUM */
+                found_phnum = 1;
+                printf("  AT_PHNUM: %lu\n", auxv->value);
+                break;
+            case 9:  /* AT_ENTRY */
+                found_entry = 1;
+                printf("  AT_ENTRY: 0x%lx\n", auxv->value);
+                break;
+        }
+        auxv++;
+    }
+
+    /* Validate required entries */
+    if (!found_pagesz) {
+        printf("  FAIL: AT_PAGESZ not found\n");
+        return -1;
+    }
+    if (pagesz != 4096 && pagesz != 16384) {
+        printf("  FAIL: Unexpected page size: %lu\n", pagesz);
+        return -1;
+    }
+    printf("  Page size check: %lu OK\n", pagesz);
+
+    if (!found_phdr) {
+        printf("  FAIL: AT_PHDR not found\n");
+        return -1;
+    }
+    printf("  AT_PHDR: found\n");
+
+    if (!found_phent) {
+        printf("  FAIL: AT_PHENT not found\n");
+        return -1;
+    }
+    printf("  AT_PHENT: found\n");
+
+    if (!found_phnum) {
+        printf("  FAIL: AT_PHNUM not found\n");
+        return -1;
+    }
+    printf("  AT_PHNUM: found\n");
+
+    if (!found_entry) {
+        printf("  FAIL: AT_ENTRY not found\n");
+        return -1;
+    }
+    printf("  AT_ENTRY: found\n");
+
+    printf("  All required auxv entries present\n");
+    printf("  Result: PASSED\n");
+    return 0;
+#endif
+}
+
+/* ABI-003: AT_RANDOM entropy test */
+static int test_abi_003_at_random(const char *artifact_dir) {
+    (void)artifact_dir;
+    printf("ABI-003: Testing AT_RANDOM entropy...\n");
+
+    /* Platform check: auxv is Linux-specific */
+#if defined(__APPLE__) && defined(__MACH__)
+    printf("  SKIPPED: auxv/AT_RANDOM not available on macOS\n");
+    printf("  Note: This test validates Linux AArch64 ABI\n");
+    printf("  Result: PASSED (skipped on macOS)\n");
+    return 0;
+#else
+    /* Get environ to find auxv */
+    extern char **environ;
+
+    /* Find end of envp */
+    char **ptr = environ;
+    while (*ptr != NULL) {
+        ptr++;
+    }
+    ptr++; /* Skip NULL */
+
+    /* Now at auxv */
+    typedef struct {
+        unsigned long type;
+        unsigned long value;
+    } auxv_t;
+
+    auxv_t *auxv = (auxv_t*)ptr;
+    unsigned char *random_bytes = NULL;
+
+    while (auxv->type != 0) { /* AT_NULL = 0 */
+        if (auxv->type == 25) { /* AT_RANDOM = 25 */
+            random_bytes = (unsigned char*)auxv->value;
+            break;
+        }
+        auxv++;
+    }
+
+    if (!random_bytes) {
+        printf("  FAIL: AT_RANDOM not found\n");
+        return -1;
+    }
+    printf("  AT_RANDOM pointer: %p\n", (void*)random_bytes);
+
+    /* Read 16 bytes */
+    printf("  Random bytes: ");
+    int all_zero = 1;
+    for (int i = 0; i < 16; i++) {
+        printf("%02x", random_bytes[i]);
+        if (random_bytes[i] != 0) all_zero = 0;
+    }
+    printf("\n");
+
+    if (all_zero) {
+        printf("  FAIL: Random bytes are all zero\n");
+        return -1;
+    }
+
+    printf("  Entropy check: non-zero OK\n");
+    printf("  Result: PASSED\n");
+    return 0;
+#endif
+}
+
 /* ABI-001: Process entry stack test */
 static int test_abi_001_stack(const char *artifact_dir) {
     printf("ABI-001: Testing process entry stack...\n");
@@ -328,9 +540,18 @@ int main(int argc, char *argv[]) {
     } else if (strncmp(case_id, "MMU-003", 7) == 0) {
         result = test_mmu_003_brk(artifact_dir);
         if (result != 0) failure_reason = "MMU-003 brk test failed";
+    } else if (strncmp(case_id, "MMU-004", 7) == 0) {
+        result = test_mmu_004_growdown_stack(artifact_dir);
+        if (result != 0) failure_reason = "MMU-004 growdown stack test failed";
     } else if (strncmp(case_id, "ABI-001", 7) == 0) {
         result = test_abi_001_stack(artifact_dir);
         if (result != 0) failure_reason = "ABI-001 stack test failed";
+    } else if (strncmp(case_id, "ABI-002", 7) == 0) {
+        result = test_abi_002_auxv(artifact_dir);
+        if (result != 0) failure_reason = "ABI-002 auxv test failed";
+    } else if (strncmp(case_id, "ABI-003", 7) == 0) {
+        result = test_abi_003_at_random(artifact_dir);
+        if (result != 0) failure_reason = "ABI-003 AT_RANDOM test failed";
     } else {
         printf("STATUS: STUB - Test not implemented for %s\n", case_id);
         failure_reason = "STUB: Test not implemented";

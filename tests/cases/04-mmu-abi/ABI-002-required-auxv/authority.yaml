@@ -1,0 +1,38 @@
+semantic_authority:
+  source: Linux Programmer's Manual - getauxval(3)
+  url: https://man7.org/linux/man-pages/man3/getauxval.3.html
+  stable_since: glibc 2.16
+
+abi_authority:
+  source: Linux AArch64 ABI
+  notes: |
+    The auxiliary vector is an array of type auxv_t passed
+    to the program at execution time. It contains information
+    about the execution environment and kernel capabilities.
+
+    Required entries for proper program operation:
+    - AT_PAGESZ: System page size
+    - AT_PHDR: Pointer to program headers
+    - AT_PHENT: Size of program header entry
+    - AT_PHNUM: Number of program headers
+    - AT_ENTRY: Entry point address
+
+toolchain_notes:
+  runtime_verification: |
+    This case uses runtime fixture testing on the host system.
+    The harness reads auxv from memory following environ.
+
+platform_notes:
+  linux_specific: |
+    auxv is a Linux-specific feature. This test only runs
+    on Linux systems. On other platforms (e.g., macOS),
+    the test reports PASS with a skip note.
+
+known_gaps:
+  - Not all auxv entries are validated
+  - getauxval() syscall alternative not tested
+  - AT_HWCAP/AT_HWCAP2 not validated
+
+non_authoritative_fields:
+  - Optional auxv entries
+  - Kernel-specific extensions

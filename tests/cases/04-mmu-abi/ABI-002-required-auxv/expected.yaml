@@ -1,0 +1,56 @@
+auxv_requirements:
+  required_entries:
+    - entry: AT_PAGESZ
+      type: 6
+      validation: value is 4096 or 16384
+
+    - entry: AT_PHDR
+      type: 3
+      validation: value is valid pointer to program headers
+
+    - entry: AT_PHENT
+      type: 4
+      validation: value equals sizeof(Elf64_Phdr)
+
+    - entry: AT_PHNUM
+      type: 5
+      validation: value > 0
+
+    - entry: AT_ENTRY
+      type: 9
+      validation: value is valid entry point address
+
+invariants:
+  - "auxv follows envp null terminator"
+  - "auxv terminates with AT_NULL (type 0)"
+  - "all required entries must be present"
+
+validation_checks:
+  - name: at_pagesz_present
+    assertion: "AT_PAGESZ entry found"
+    critical: true
+
+  - name: at_pagesz_valid
+    assertion: "page size is expected value"
+    critical: true
+
+  - name: at_phdr_present
+    assertion: "AT_PHDR entry found"
+    critical: true
+
+  - name: at_phent_present
+    assertion: "AT_PHENT entry found"
+    critical: true
+
+  - name: at_phnum_present
+    assertion: "AT_PHNUM entry found"
+    critical: true
+
+  - name: at_entry_present
+    assertion: "AT_ENTRY entry found"
+    critical: true
+
+success_criteria:
+  - all required auxv entries present
+  - all critical checks pass
+  - entry values are valid

@@ -44,12 +44,12 @@ trace_defaults:
   dump_on: fault
 
 informational_only: false
-status: STUB
+status: REAL_PASS
 is_gate_case: true
 
 metadata:
   scaffolded: true
-  implementation_ready: false
+  implementation_ready: true
   notes: |
-    Scaffolded case - implementation pending.
-    Tests brk heap growth management.
+    brk heap growth test implemented.
+    Validates heap growth via sbrk and accessibility of new memory.

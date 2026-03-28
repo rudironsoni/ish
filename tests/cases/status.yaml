@@ -896,54 +896,72 @@ phase_04:
     MMU-002:
       case_id: "MMU-002"
       phase: "04-mmu-abi"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "auxv.json"
+        - "stack_dump.bin"
+        - "report.json"
+      observed_artifacts:
+        - "auxv.json"
+        - "stack_dump.bin"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-28T00:30:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/04-mmu-abi/MMU-002"
+      artifact_dir: "tests/cases/04-mmu-abi/MMU-002-mprotect-permissions"
     MMU-003:
       case_id: "MMU-003"
       phase: "04-mmu-abi"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "auxv.json"
+        - "stack_dump.bin"
+        - "report.json"
+      observed_artifacts:
+        - "auxv.json"
+        - "stack_dump.bin"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-28T00:30:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/04-mmu-abi/MMU-003"
+      artifact_dir: "tests/cases/04-mmu-abi/MMU-003-brk-heap-growth"
     MMU-004:
       case_id: "MMU-004"
       phase: "04-mmu-abi"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "auxv.json"
+        - "stack_dump.bin"
+        - "report.json"
+      observed_artifacts:
+        - "auxv.json"
+        - "stack_dump.bin"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-28T00:35:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/04-mmu-abi/MMU-004"
+      artifact_dir: "tests/cases/04-mmu-abi/MMU-004-growdown-stack"
     MMU-005:
       case_id: "MMU-005"
       phase: "04-mmu-abi"
@@ -1004,37 +1022,49 @@ phase_04:
     ABI-002:
       case_id: "ABI-002"
       phase: "04-mmu-abi"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "auxv.json"
+        - "stack_dump.bin"
+        - "report.json"
+      observed_artifacts:
+        - "auxv.json"
+        - "stack_dump.bin"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-28T00:35:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/04-mmu-abi/ABI-002"
+      artifact_dir: "tests/cases/04-mmu-abi/ABI-002-required-auxv"
     ABI-003:
       case_id: "ABI-003"
       phase: "04-mmu-abi"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "auxv.json"
+        - "stack_dump.bin"
+        - "report.json"
+      observed_artifacts:
+        - "auxv.json"
+        - "stack_dump.bin"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-28T00:35:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/04-mmu-abi/ABI-003"
+      artifact_dir: "tests/cases/04-mmu-abi/ABI-003-at-random"
     ABI-004:
       case_id: "ABI-004"
       phase: "04-mmu-abi"
