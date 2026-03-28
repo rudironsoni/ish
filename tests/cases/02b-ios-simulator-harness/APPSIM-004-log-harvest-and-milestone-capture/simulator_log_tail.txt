@@ -1,0 +1,112 @@
+iSH App Launch Log Capture
+=========================
+Timestamp: 2026-03-28T20:47:35Z
+Device ID: E6186E89-8784-473B-A4E4-66E42693F14E
+Bundle ID: com.rudironsoni.ish
+Launch PID: 18685
+
+--- Captured Log Content ---
+
+getpwuid_r did not find a match for uid 501
+Timestamp                       Thread     Type        Activity             PID    TTL  
+2026-03-28 21:47:25.833470+0100 0x23159    Default     0x0                  18655  0    iSH: (libxpc.dylib) [com.apple.xpc:connection] [0x105a6f220] activating connection: mach=true listener=false peer=false name=com.apple.cfprefsd.daemon
+2026-03-28 21:47:25.839066+0100 0x23174    Activity    0x74af0              18655  0    iSH: (CoreFoundation) Loading Preferences From User Session CFPrefsD
+2026-03-28 21:47:25.839578+0100 0x23159    Default     0x0                  18655  0    iSH: (libMobileGestalt.dylib) No persisted cache on this platform.
+2026-03-28 21:47:25.843578+0100 0x23176    Default     0x0                  18655  0    iSH: (BoardServices) [com.apple.BoardServices:XPCErrors] [C:1] Alloc com.apple.frontboard.systemappservices
+2026-03-28 21:47:25.844198+0100 0x23176    Default     0x0                  18655  0    iSH: (libxpc.dylib) [com.apple.xpc:connection] [0x106168140] activating connection: mach=false listener=false peer=false name=(anonymous)
+2026-03-28 21:47:25.845601+0100 0x23173    Default     0x0                  18655  0    iSH: (UIKitCore) [com.apple.UIKit:BackgroundTask] Creating new assertion because there is no existing background assertion.
+2026-03-28 21:47:25.854528+0100 0x23173    Default     0x0                  18655  0    iSH: (UIKitCore) [com.apple.UIKit:BackgroundTask] Creating new background assertion
+2026-03-28 21:47:25.854876+0100 0x23173    Default     0x0                  18655  0    iSH: (UIKitCore) [com.apple.UIKit:BackgroundTask] Created new background assertion <BKSProcessAssertion: 0x105a7ba40>
+2026-03-28 21:47:25.854924+0100 0x23173    Default     0x0                  18655  0    iSH: (RunningBoardServices) [com.apple.runningboard:connection] Initializing connection
+2026-03-28 21:47:25.854976+0100 0x23173    Default     0x0                  18655  0    iSH: (RunningBoardServices) [com.apple.runningboard:process] Removing all cached process handles
+2026-03-28 21:47:25.855005+0100 0x23175    Default     0x0                  18655  0    iSH: (RunningBoardServices) [com.apple.runningboard:connection] Sending handshake request attempt #1 to server
+2026-03-28 21:47:25.855243+0100 0x23175    Default     0x0                  18655  0    iSH: (RunningBoardServices) [com.apple.runningboard:connection] Creating connection to com.apple.runningboard
+2026-03-28 21:47:25.855261+0100 0x23175    Default     0x0                  18655  0    iSH: (libxpc.dylib) [com.apple.xpc:connection] [0x106168280] activating connection: mach=true listener=false peer=false name=com.apple.runningboard
+2026-03-28 21:47:25.855884+0100 0x23159    Default     0x0                  18655  0    iSH: (UIKitCore) [com.apple.UIKit:Application] Deactivation reason added: 10; deactivation reasons: 0 -> 1024; animating application lifecycle event: 0
+2026-03-28 21:47:25.856373+0100 0x23159    Default     0x0                  18655  0    iSH: (BoardServices) [com.apple.BoardServices:Injection] activating monitor for service com.apple.frontboard.open
+2026-03-28 21:47:25.856380+0100 0x23176    Activity    0x74af1              18655  0    iSH: (RunningBoardServices) didChangeInheritances
+2026-03-28 21:47:25.856614+0100 0x23175    Default     0x0                  18655  0    iSH: (RunningBoardServices) [com.apple.runningboard:connection] Handshake succeeded
+2026-03-28 21:47:25.856635+0100 0x23175    Default     0x0                  18655  0    iSH: (RunningBoardServices) [com.apple.runningboard:connection] Identity resolved as app<com.rudironsoni.ish((null))>
+2026-03-28 21:47:25.856810+0100 0x23159    Default     0x0                  18655  0    iSH: (BoardServices) [com.apple.BoardServices:Injection] activating monitor for service com.apple.frontboard.workspace-service
+2026-03-28 21:47:25.856881+0100 0x23173    Default     0x0                  18655  0    iSH: (UIKitCore) [com.apple.UIKit:BackgroundTask] Incrementing reference count for background assertion <BKSProcessAssertion: 0x105a7ba40>
+2026-03-28 21:47:25.857653+0100 0x23173    Default     0x0                  18655  0    iSH: (UIKitCore) [com.apple.UIKit:BackgroundTask] Created background task <_UIBackgroundTaskInfo: 0x106098a40>: taskID = 1, taskName = Launch Background Task for Coalescing, creationTime = 4399 (elapsed = 0).
+2026-03-28 21:47:25.857752+0100 0x23173    Default     0x0                  18655  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UIApplicationSceneKeyboardSettings on FBSSceneSettings
+2026-03-28 21:47:25.858276+0100 0x23159    Default     0x0                  18655  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:Common] FBSWorkspace registering source: com.apple.frontboard.systemappservices
+2026-03-28 21:47:25.868790+0100 0x23173    Default     0x0                  18655  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneOcclusionSettings> on FBSSceneSettings
+2026-03-28 21:47:25.869661+0100 0x23159    Default     0x0                  18655  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:Common] FBSWorkspace connected to endpoint : <BSServiceConnectionEndpoint: 0x1060d0920; target: com.apple.frontboard.systemappservices; service: com.apple.frontboard.workspace-service>
+2026-03-28 21:47:25.869743+0100 0x23159    Default     0x0                  18655  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:Common] <FBSWorkspaceScenesClient:0x1060e0b40 com.apple.frontboard.systemappservices> attempting immediate handshake from activate
+2026-03-28 21:47:25.869929+0100 0x23159    Default     0x0                  18655  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:Common] <FBSWorkspaceScenesClient:0x1060e0b40 com.apple.frontboard.systemappservices> sent handshake
+2026-03-28 21:47:25.870080+0100 0x23159    Default     0x0                  18655  0    iSH: (RunningBoardServices) [com.apple.runningboard:general] Added observer for process assertions expiration warning: <_RBSExpirationWarningClient: 0x1060d14e0>
+2026-03-28 21:47:25.870707+0100 0x23173    Default     0x0                  18655  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneInterfaceProtectionSettings> on FBSSceneSettings
+2026-03-28 21:47:25.871553+0100 0x23173    Default     0x0                  18655  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneLayoutPreferencesHostSettingsExtension on FBSSceneSettings
+2026-03-28 21:47:25.872275+0100 0x23173    Default     0x0                  18655  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneSafeAreaSettingsExtension on FBSSceneSettings
+2026-03-28 21:47:25.873718+0100 0x23159    Default     0x0                  18655  0    iSH: (UIKitCore) [com.apple.UIKit:UIScreen] Evaluated capturing state as 0 on <UIScreen: 0x106168500> for initial
+2026-03-28 21:47:25.873890+0100 0x23159    Default     0x0                  18655  0    iSH: (UIKitCore) [com.apple.UIKit:UIScreen] Evaluated capturing state as 0 on <UIScreen: 0x106168500> for CADisplay KVO
+2026-03-28 21:47:25.874664+0100 0x23173    Default     0x0                  18655  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneLayoutPreferenceClientSettingsExtension on FBSSceneClientSettings
+2026-03-28 21:47:25.875331+0100 0x23173    Default     0x0                  18655  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UIHomeAffordanceHostSceneSettings> on FBSSceneSettings
+2026-03-28 21:47:25.876102+0100 0x23173    Default     0x0                  18655  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISystemShellSceneHostingEnvironmentSettings on FBSSceneSettings
+2026-03-28 21:47:25.876291+0100 0x23173    Default     0x0                  18655  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneRenderingEnvironmentSettings on FBSSceneSettings
+2026-03-28 21:47:25.876902+0100 0x23173    Default     0x0                  18655  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneRenderingEnvironmentClientSettings> on FBSSceneClientSettings
+2026-03-28 21:47:25.876983+0100 0x23173    Default     0x0                  18655  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneTransitioningHostSettings> on FBSSceneSettings
+2026-03-28 21:47:25.877172+0100 0x23173    Default     0x0                  18655  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneFocusSystemSettings> on FBSSceneSettings
+2026-03-28 21:47:25.877505+0100 0x23173    Default     0x0                  18655  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneOrientationSettingsExtension on FBSSceneSettings
+2026-03-28 21:47:25.877657+0100 0x23173    Default     0x0                  18655  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneOrientationClientSettingsExtension on FBSSceneClientSettings
+2026-03-28 21:47:25.877828+0100 0x23159    Default     0x0                  18655  0    iSH: (libAccessibility.dylib) [com.apple.Accessibility:AXSupportCommon] Read CategoryName: per-app = 1, category name = (null)
+2026-03-28 21:47:25.877852+0100 0x23173    Default     0x0                  18655  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneWindowingControlClientSettings on FBSSceneClientSettings
+2026-03-28 21:47:25.878049+0100 0x23159    Default     0x0                  18655  0    iSH: (libAccessibility.dylib) [com.apple.Accessibility:AXSupportCommon] Read CategoryName: per-app = 0, category name = (null)
+2026-03-28 21:47:25.879922+0100 0x23173    Default     0x0                  18655  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneHostingContentSizePreferenceClientSettings> on FBSSceneClientSettings
+2026-03-28 21:47:25.880315+0100 0x23173    Default     0x0                  18655  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneHostingTraitCollectionPropagationSettings on FBSSceneSettings
+2026-03-28 21:47:25.882572+0100 0x23173    Default     0x0                  18655  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneHostingSheetPresentationSettings> on FBSSceneSettings
+2026-03-28 21:47:25.883491+0100 0x23173    Default     0x0                  18655  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneHostingSheetPresentationClientSettings> on FBSSceneClientSettings
+2026-03-28 21:47:25.884119+0100 0x23173    Default     0x0                  18655  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneHostingEventDeferringSettings> on FBSSceneSettings
+2026-03-28 21:47:25.885832+0100 0x23173    Default     0x0                  18655  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <UIKit__UITypedKeyValueSceneSettings> on FBSSceneSettings
+2026-03-28 21:47:25.887490+0100 0x23173    Default     0x0                  18655  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <UIKit__UITypedKeyValueSceneSettings> on FBSSceneClientSettings
+2026-03-28 21:47:25.887661+0100 0x23173    Default     0x0                  18655  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneHostingViewControllerPreferencePropagationClientSettings> on FBSSceneClientSettings
+2026-03-28 21:47:25.888479+0100 0x23173    Default     0x0                  18655  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneZoomTransitionSettings> on FBSSceneSettings
+2026-03-28 21:47:25.889057+0100 0x23176    Default     0x0                  18655  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension FBSSceneSettingsCore on FBSSceneSettings
+2026-03-28 21:47:25.891975+0100 0x23176    Default     0x0                  18655  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension FBSSceneClientSettingsCore on FBSSceneClientSettings
+2026-03-28 21:47:26.037913+0100 0x23176    Default     0x0                  18655  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] UIMutableApplicationSceneSettings setting counterpart class: UIApplicationSceneSettings
+2026-03-28 21:47:26.038115+0100 0x23176    Default     0x0                  18655  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] UIMutableApplicationSceneClientSettings setting counterpart class: UIApplicationSceneClientSettings
+2026-03-28 21:47:26.038209+0100 0x23176    Default     0x0                  18655  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension FBSSceneTransitionContextCore on FBSSceneTransitionContext
+2026-03-28 21:47:26.634014+0100 0x23176    Activity    0x74af2              18655  0    iSH: (CoreFoundation) Updating Key-Value Observers Of Preferences
+2026-03-28 21:47:26.654069+0100 0x23159    Default     0x0                  18655  0    iSH: (XCTTargetBootstrap) [com.apple.dt.xctest:Default] Registering for test daemon availability notify post.
+2026-03-28 21:47:26.654167+0100 0x23159    Default     0x0                  18655  0    iSH: (XCTTargetBootstrap) [com.apple.dt.xctest:Default] notify_get_state check indicated test daemon not ready.
+2026-03-28 21:47:26.654244+0100 0x23159    Default     0x0                  18655  0    iSH: (XCTTargetBootstrap) [com.apple.dt.xctest:Default] notify_get_state check indicated test daemon not ready.
+2026-03-28 21:47:26.654313+0100 0x23159    Default     0x0                  18655  0    iSH: (XCTTargetBootstrap) [com.apple.dt.xctest:Default] notify_get_state check indicated test daemon not ready.
+2026-03-28 21:47:26.654899+0100 0x23159    Default     0x0                  18655  0    iSH: (UIKitCore) [com.apple.UIKit:Application] Deactivation reason added: 11; deactivation reasons: 1024 -> 3072; animating application lifecycle event: 0
+2026-03-28 21:47:26.657644+0100 0x23159    Activity    0x74af3              18655  0    iSH: (libsystem_containermanager.dylib) container_create_or_lookup_app_group_path_by_app_group_identifier
+2026-03-28 21:47:26.658237+0100 0x23159    Default     0x74af3              18655  7    iSH: (libsystem_containermanager.dylib) [com.apple.containermanager:xpc] Requesting app group container lookup; identifier = group.com.rudironsoni.emuLnx, euid = 501, uid = 501, platform = 7
+2026-03-28 21:47:26.671748+0100 0x23159    Default     0x74af3              18655  7    iSH: (libsystem_containermanager.dylib) [com.apple.containermanager:sandbox] Consumed sandbox extension; path = [/Users/rudironsoni/Library/Developer/CoreSimulator/Devices/E6186E89-8784-473B-A4E4-66E42693F14E/data/Containers/Shared/AppGroup/F437521E-C2C3-4952-9C7A-4CD4036298EE], handle = 0
+2026-03-28 21:47:26.693371+0100 0x23159    Default     0x0                  18655  7    iSH: (libsystem_containermanager.dylib) [com.apple.containermanager:unspecified] container_create_or_lookup_app_group_path_by_app_group_identifier: success
+2026-03-28 21:47:26.704739+0100 0x23159    Default     0x0                  18655  0    iSH: (libxpc.dylib) [com.apple.xpc:connection] [0x106168c80] activating connection: mach=true listener=false peer=false name=com.apple.lsd.mapdb
+2026-03-28 21:47:26.709388+0100 0x23159    Activity    0x74af4              18655  0    iSH: (libsystem_containermanager.dylib) container_create_or_lookup_app_group_path_by_app_group_identifier
+2026-03-28 21:47:26.709405+0100 0x23159    Default     0x74af4              18655  7    iSH: (libsystem_containermanager.dylib) [com.apple.containermanager:xpc] Requesting app group container lookup; identifier = group.com.rudironsoni.ish, euid = 501, uid = 501, platform = 7
+2026-03-28 21:47:26.709608+0100 0x23159    Error       0x0                  18655  7    iSH: (libsystem_containermanager.dylib) [com.apple.containermanager:unspecified] container_create_or_lookup_app_group_path_by_app_group_identifier: client is not entitled
+2026-03-28 21:47:26.716750+0100 0x23159    Default     0x0                  18655  0    iSH: (libxpc.dylib) [com.apple.xpc:connection] [0x1061688c0] activating connection: mach=true listener=false peer=false name=com.apple.FileProvider
+2026-03-28 21:47:26.717433+0100 0x23159    Activity    0x74af5              18655  0    iSH: (libsystem_containermanager.dylib) container_create_or_lookup_app_group_path_by_app_group_identifier
+2026-03-28 21:47:26.717450+0100 0x23159    Default     0x74af5              18655  7    iSH: (libsystem_containermanager.dylib) [com.apple.containermanager:xpc] Requesting app group container lookup; identifier = group.com.rudironsoni.ish, euid = 501, uid = 501, platform = 7
+2026-03-28 21:47:26.717579+0100 0x23159    Error       0x0                  18655  7    iSH: (libsystem_containermanager.dylib) [com.apple.containermanager:unspecified] container_create_or_lookup_app_group_path_by_app_group_identifier: client is not entitled
+2026-03-28 21:47:26.717612+0100 0x23159    Error       0x0                  18655  0    iSH: (Foundation) [com.apple.Foundation:general] *** Assertion failure in -[NSFileProviderManager documentStorageURL], NSFileProviderManager.m:925
+2026-03-28 21:47:26.718734+0100 0x23159    Default     0x0                  18655  0    iSH: [Roots] File Provider not available (exception: NSInternalInconsistencyException)
+2026-03-28 21:47:26.718789+0100 0x23159    Default     0x0                  18655  0    iSH: [Roots] Skipping File Provider sync - not available for sideloaded build
+2026-03-28 21:47:26.731673+0100 0x23159    Default     0x0                  18655  0    iSH: (libxpc.dylib) [com.apple.xpc:connection] [0x106168f00] activating connection: mach=true listener=false peer=false name=com.apple.SystemConfiguration.DNSConfiguration_sim
+2026-03-28 21:47:26.735052+0100 0x23159    Default     0x0                  18655  0    iSH: (libxpc.dylib) [com.apple.xpc:connection] [0x106168f00] invalidated after the last release of the connection object
+2026-03-28 21:47:26.738044+0100 0x23159    Default     0x0                  18655  0    iSH: (libxpc.dylib) [com.apple.xpc:connection] [0x106168f00] activating connection: mach=true listener=false peer=false name=com.apple.FileCoordination
+2026-03-28 21:47:26.738347+0100 0x23174    Default     0x0                  18655  0    iSH: (Foundation) [com.apple.foundation.filecoordination:presenter] Adding presenter 8AC70F41-06E7-4487-8AAD-52360CD3A57F for URL: file:///Users/rudironsoni/Library/Developer/CoreSimulator/Devices/E6186E89-8784-473B-A4E4-66E42693F14E/data/Containers/Data/Application/6E3557A6-EEBA-4307-A5C8-5069866F8FC8/Documents/themes/
+2026-03-28 21:47:26.738469+0100 0x23159    Default     0x0                  18655  0    iSH: ================================================
+2026-03-28 21:47:26.738516+0100 0x23159    Default     0x0                  18655  0    iSH: iSH BOOT: Starting execution
+2026-03-28 21:47:26.738554+0100 0x23159    Default     0x0                  18655  0    iSH: iSH BOOT: Command path: /bin/busybox
+2026-03-28 21:47:26.738588+0100 0x23159    Default     0x0                  18655  0    iSH: ================================================
+2026-03-28 21:47:26.738725+0100 0x23159    Default     0x0                  18655  0    iSH: [Boot] About to call do_execve with: /bin/busybox
+2026-03-28 21:47:26.738769+0100 0x23159    Default     0x0                  18655  0    iSH: [Boot] Current working directory: /
+2026-03-28 21:47:26.738798+0100 0x23159    Default     0x0                  18655  0    iSH: [Boot] File system root: /Users/rudironsoni/Library/Developer/CoreSimulator/Devices/E6186E89-8784-473B-A4E4-66E42693F14E/data/Containers/Shared/AppGroup/F437521E-C2C3-4952-9C7A-4CD4036298EE/roots/default
+2026-03-28 21:47:26.743069+0100 0x23159    Default     0x0                  18655  0    iSH: [iSH] EXEC: file=/bin/busybox argc=2
+2026-03-28 21:47:26.743194+0100 0x23159    Default     0x0                  18655  0    iSH: [iSH] EXEC: generic_open succeeded
+2026-03-28 21:47:26.743238+0100 0x23159    Default     0x0                  18655  0    iSH: [iSH] EXEC: fstat ok, mode=100755 size=919304
+2026-03-28 21:47:26.743278+0100 0x23159    Default     0x0                  18655  0    iSH: [iSH] EXEC: Read 16 bytes
+2026-03-28 21:47:26.743309+0100 0x23159    Default     0x0                  18655  0    iSH: [iSH] EXEC: BYTES: 7f 45 4c 46 02 01 01 00
+2026-03-28 21:47:26.743337+0100 0x23159    Default     0x0                  18655  0    iSH: [exec] elf_exec: ENTRY for file=/bin/busybox
+2026-03-28 21:47:26.743363+0100 0x23159    Default     0x0                  18655  0    iSH: [exec] About to call read_header
+
+--- Detected Milestones ---
+[FOUND] app_launched (order=1)
