@@ -1,0 +1,37 @@
+id: SYS-005
+phase: 06-syscalls-core-fs-net
+
+structural_expectations:
+  exit_code: 0
+  artifact_presence:
+    - report.json
+    - syscall_log.json
+
+artifact_schema:
+  report.json:
+    required_fields:
+      - case_id
+      - phase
+      - harness
+      - passed
+      - artifacts
+      - timestamp
+    passed_value: true
+
+  syscall_log.json:
+    required_fields:
+      - case_id
+      - syscall_count
+      - log
+    expected_syscalls:
+      - brk
+
+semantic_expectations:
+  test_results:
+    brk_allocates_heap: passed
+    heap_accessible: passed
+    brk_restores_original: passed
+  syscall_behavior:
+    brk_returns_current_break_on_query: true
+    brk_extends_heap_on_increase: true
+    heap_memory_is_accessible: true

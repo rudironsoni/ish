@@ -1,0 +1,42 @@
+id: SYS-008
+phase: 06-syscalls-core-fs-net
+
+semantic_authority:
+  source: linux-aarch64-abi
+  reference: Linux kernel source - drivers/char/random.c, kernel/sys.c
+  syscall_numbers:
+    getrandom: 278
+    uname: 160
+    prctl: 167
+  abi_conformance: aarch64-linux-gnu
+  utsname_fields:
+    - sysname
+    - nodename
+    - release
+    - version
+    - machine
+
+decode_authority:
+  instruction_type: svc
+  syscall_classes:
+    - system_information
+    - process_control
+
+toolchain_notes:
+  host_requirements:
+    - Linux operating system (getrandom/prctl are Linux-specific)
+  cross_platform: partially
+    # getrandom/prctl are Linux-specific; uname is portable
+
+known_gaps:
+  - name: emulation_validation
+    description: These tests validate host syscall behavior, not iSH emulation
+    status: harness_runs_host_tests
+  - name: macos_getrandom
+    description: getrandom is Linux-specific; uses getentropy on macOS
+    status: test_skips_getrandom_on_macos
+
+non_authoritative_fields:
+  - timestamp
+  - specific_random_bytes
+  - exact_system_values

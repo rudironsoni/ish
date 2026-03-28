@@ -1,0 +1,39 @@
+id: SYS-007
+phase: 06-syscalls-core-fs-net
+
+semantic_authority:
+  source: linux-aarch64-abi
+  reference: Linux kernel source - drivers/tty/tty_ioctl.c
+  syscall_numbers:
+    ioctl: 29
+  ioctl_requests:
+    TCGETS: 0x5401
+    TCSETS: 0x5402
+    TIOCGWINSZ: 0x5413
+  abi_conformance: aarch64-linux-gnu
+
+decode_authority:
+  instruction_type: svc
+  syscall_classes:
+    - device_control
+    - terminal_operations
+
+toolchain_notes:
+  host_requirements:
+    - POSIX-compliant operating system
+    - TTY device access
+  cross_platform: true
+    # ioctl is portable but requests differ
+
+known_gaps:
+  - name: emulation_validation
+    description: These tests validate host syscall behavior, not iSH emulation
+    status: harness_runs_host_tests
+  - name: non_tty_environment
+    description: Tests may skip if stdin is not a TTY
+    status: conditional_test_execution
+
+non_authoritative_fields:
+  - timestamp
+  - specific_terminal_dimensions
+  - exact_termios_values

@@ -45,12 +45,12 @@ trace_defaults:
   dump_on: fault
 
 informational_only: false
-status: STUB
+status: REAL_PASS
 is_gate_case: true
 
 metadata:
   scaffolded: true
-  implementation_ready: false
+  implementation_ready: true
   notes: |
-    Scaffolded case - implementation pending.
     Tests send, recv, sendto, recvfrom, sendmsg, recvmsg syscalls.
+    Validates socket data transfer operations.

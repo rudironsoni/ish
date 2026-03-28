@@ -42,3 +42,10 @@ elf_loader_harness = executable('elf_loader',
     link_with: [libish_emu],
     install: false
 )
+
+syscall_fixture_harness = executable('syscall_fixture',
+    'syscall_fixture.c',
+    include_directories: [include_directories('../../..')],
+    link_with: [libish_emu],
+    install: false
+)

@@ -1357,207 +1357,255 @@ phase_06:
     SYS-001:
       case_id: "SYS-001"
       phase: "06-syscalls-core-fs-net"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "report.json"
+        - "syscall_log.json"
+      observed_artifacts:
+        - "report.json"
+        - "syscall_log.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-28T02:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-001"
+      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-001-read-write-close"
     SYS-002:
       case_id: "SYS-002"
       phase: "06-syscalls-core-fs-net"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "report.json"
+        - "syscall_log.json"
+      observed_artifacts:
+        - "report.json"
+        - "syscall_log.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-28T02:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-002"
+      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-002-openat-fstat-lseek"
     SYS-003:
       case_id: "SYS-003"
       phase: "06-syscalls-core-fs-net"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "report.json"
+        - "syscall_log.json"
+      observed_artifacts:
+        - "report.json"
+        - "syscall_log.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-28T02:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-003"
+      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-003-getdents64"
     SYS-004:
       case_id: "SYS-004"
       phase: "06-syscalls-core-fs-net"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "report.json"
+        - "syscall_log.json"
+      observed_artifacts:
+        - "report.json"
+        - "syscall_log.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-28T02:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-004"
+      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-004-mmap-munmap-mprotect"
     SYS-005:
       case_id: "SYS-005"
       phase: "06-syscalls-core-fs-net"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "report.json"
+        - "syscall_log.json"
+      observed_artifacts:
+        - "report.json"
+        - "syscall_log.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-28T02:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-005"
+      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-005-brk"
     SYS-006:
       case_id: "SYS-006"
       phase: "06-syscalls-core-fs-net"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "report.json"
+        - "syscall_log.json"
+      observed_artifacts:
+        - "report.json"
+        - "syscall_log.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-28T02:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-006"
+      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-006-dup-pipe-pipe2"
     SYS-007:
       case_id: "SYS-007"
       phase: "06-syscalls-core-fs-net"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "report.json"
+        - "syscall_log.json"
+      observed_artifacts:
+        - "report.json"
+        - "syscall_log.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-28T02:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-007"
+      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-007-ioctl-tty-pty-minimum"
     SYS-008:
       case_id: "SYS-008"
       phase: "06-syscalls-core-fs-net"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "report.json"
+        - "syscall_log.json"
+      observed_artifacts:
+        - "report.json"
+        - "syscall_log.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-28T02:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-008"
+      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-008-getrandom-prctl-uname"
     SYS-009:
       case_id: "SYS-009"
       phase: "06-syscalls-core-fs-net"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "report.json"
+        - "syscall_log.json"
+      observed_artifacts:
+        - "report.json"
+        - "syscall_log.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-28T02:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-009"
+      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-009-poll-ppoll-select-epoll"
     SYS-010:
       case_id: "SYS-010"
       phase: "06-syscalls-core-fs-net"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "report.json"
+        - "syscall_log.json"
+      observed_artifacts:
+        - "report.json"
+        - "syscall_log.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-28T02:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-010"
+      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-010-socket-connect-accept"
     SYS-011:
       case_id: "SYS-011"
       phase: "06-syscalls-core-fs-net"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "report.json"
+        - "syscall_log.json"
+      observed_artifacts:
+        - "report.json"
+        - "syscall_log.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-28T02:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-011"
+      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-011-send-recv-msg"
     SYS-012:
       case_id: "SYS-012"
       phase: "06-syscalls-core-fs-net"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "report.json"
+        - "syscall_log.json"
+      observed_artifacts:
+        - "report.json"
+        - "syscall_log.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-28T02:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-012"
+      artifact_dir: "tests/cases/06-syscalls-core-fs-net/SYS-012-rename-link-symlink-readlink"
 
 # Phase 07: Threads, Signals, and TLS
 phase_07:
@@ -2288,16 +2336,16 @@ phase_11:
 
 # Evidence-bearing summary
 summary:
-  total_stub: 68
-  total_real_pass: 48
+  total_stub: 56
+  total_real_pass: 60
   total_real_fail: 0
   total_blocked: 0
   total_invalid: 0
-  earliest_unsatisfied_phase: "06-syscalls-core-fs-net"
-  earliest_unsatisfied_case: "SYS-001"
-  last_updated: "2026-03-28T01:00:00Z"
+  earliest_unsatisfied_phase: "07-threads-signals-tls"
+  earliest_unsatisfied_case: "THR-001"
+  last_updated: "2026-03-28T02:00:00Z"
   evidence_completeness: "PARTIAL"  # FULL | PARTIAL | NONE
-  verification_status: "PHASE_05_COMPLETE"
+  verification_status: "PHASE_06_COMPLETE"
   notes: |
     Phase 00 (Trace): 6/6 REAL_PASS
     Phase 01 (Decode): 11/11 REAL_PASS
@@ -2305,3 +2353,4 @@ summary:
     Phase 03 (Semantic Execution): 10/10 REAL_PASS
     Phase 04 (MMU/ABI): 11/11 REAL_PASS
     Phase 05 (ELF Loader): 9/9 REAL_PASS
+    Phase 06 (Syscalls Core/FS/Net): 12/12 REAL_PASS
