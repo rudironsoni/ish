@@ -637,7 +637,7 @@ phase_02b:
     APPSIM-003:
       case_id: "APPSIM-003"
       phase: "02b-ios-simulator-harness"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
       scaffolded: true
       expected_artifacts:
@@ -647,20 +647,26 @@ phase_02b:
         - "launch_result.json"
         - "alive_check.json"
         - "report.json"
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
+      observed_artifacts:
+        - "sim_launch.json"
+        - "build_result.json"
+        - "install_result.json"
+        - "launch_result.json"
+        - "alive_check.json"
+        - "report.json"
+      verifier_result: PASS
+      anti_slop_result: PASS
+      review_skeptic_result: PASS
+      phase_gate_result: PASS
+      last_run_command: "meson test -C builddir 'ish:case_APPSIM-003'"
+      last_run_at: "2026-03-28T20:37:31Z"
       block_reason: null
-      evidence_hash: null
+      evidence_hash: "build_58s_launch_pid_14615"
       artifact_dir: "tests/cases/02b-ios-simulator-harness/APPSIM-003-build-install-launch-smoke"
       app_specific_fields:
         simulator_tool: xcodebuildmcp
         harness_kind: ios_simulator_app
-        milestone_reached: null
+        milestone_reached: app_launched
         crash_signature_hash: null
         retry_count: 0
         relaunch_count: 0
