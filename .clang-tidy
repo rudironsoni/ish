@@ -1,0 +1,84 @@
+# iSH Clang-Tidy Configuration
+# Enables checks for code quality, safety, and maintainability
+
+---
+Checks: >
+  bugprone-*,
+  cppcoreguidelines-*,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-avoid-non-const-global-variables,
+  clang-analyzer-*,
+  concurrency-*,
+  misc-*,
+  -misc-unused-parameters,
+  modernize-*,
+  -modernize-use-trailing-return-type,
+  performance-*,
+  portability-*,
+  readability-*,
+  -readability-named-parameter,
+  -readability-magic-numbers,
+  -cppcoreguidelines-init-variables,
+  cert-*,
+  -cert-err33-c,
+  llvm-*,
+  -llvm-include-order,
+  -llvm-header-guard,
+  -bugprone-easily-swappable-parameters,
+  -readability-function-cognitive-complexity,
+  -cppcoreguidelines-special-member-functions
+
+WarningsAsErrors: ''
+HeaderFilterRegex: '.*'
+AnalyzeTemporaryDtors: false
+FormatStyle: file
+User: iSH
+
+CheckOptions:
+  # Naming conventions
+  - key:   readability-identifier-naming.ClassCase
+    value: lower_case
+  - key:   readability-identifier-naming.EnumCase
+    value: CamelCase
+  - key:   readability-identifier-naming.EnumConstantCase
+    value: UPPER_CASE
+  - key:   readability-identifier-naming.FunctionCase
+    value: lower_case
+  - key:   readability-identifier-naming.GlobalConstantCase
+    value: UPPER_CASE
+  - key:   readability-identifier-naming.GlobalFunctionCase
+    value: lower_case
+  - key:   readability-identifier-naming.GlobalVariableCase
+    value: lower_case
+  - key:   readability-identifier-naming.LocalVariableCase
+    value: lower_case
+  - key:   readability-identifier-naming.MacroDefinitionCase
+    value: UPPER_CASE
+  - key:   readability-identifier-naming.MemberCase
+    value: lower_case
+  - key:   readability-identifier-naming.ParameterCase
+    value: lower_case
+  - key:   readability-identifier-naming.StructCase
+    value: lower_case
+  - key:   readability-identifier-naming.TypedefCase
+    value: lower_case
+  - key:   readability-identifier-naming.UnionCase
+    value: lower_case
+  - key:   readability-identifier-naming.VariableCase
+    value: lower_case
+
+  # Code quality thresholds
+  - key:   readability-function-cognitive-complexity.Threshold
+    value: '25'
+  - key:   readability-function-cognitive-complexity.DescribeBasicIncrements
+    value: '1'
+  - key:   cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor
+    value: '0'
+  - key:   cppcoreguidelines-avoid-magic-numbers.IgnoredFloatingPointValues
+    value: '0;1;2;0.5;1.0;2.0;0.0'
+  - key:   readability-magic-numbers.IgnoredFloatingPointValues
+    value: '0;1;2;0.5;1.0;2.0;0.0'
+  - key:   cppcoreguidelines-avoid-magic-numbers.IgnoredIntegerValues
+    value: '0;1;2;3;4;8;16;32;64;128;256;512;1024'
+  - key:   readability-magic-numbers.IgnoredIntegerValues
+    value: '0;1;2;3;4;8;16;32;64;128;256;512;1024'
