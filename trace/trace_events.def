@@ -89,4 +89,14 @@ TRACE_EVENT(COMPLEX_DECODE_FAIL, 2, TRACE_CAT_DECODE, 4)
 /* Failed to fetch instruction - payload: uint32_t fault_reason */
 TRACE_EVENT(COMPLEX_FETCH_FAIL, 2, TRACE_CAT_FAULT, 4)
 
+/* ============================================
+ * Task Lifecycle Events
+ * ============================================ */
+
+/* Task created - payload: struct { uint32_t pid; uint32_t parent_pid; } */
+TRACE_EVENT(TASK_CREATE, 1, TRACE_CAT_SYSCALL, 8)
+
+/* Task started execution - payload: uint32_t pid */
+TRACE_EVENT(TASK_START, 1, TRACE_CAT_SYSCALL, 4)
+
 #undef TRACE_EVENT

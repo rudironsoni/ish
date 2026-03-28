@@ -18,6 +18,8 @@ execution_sequence:
 
   final_pc: 0x4004
 
+  expected_tcti_exit_reason: 0  # TCTI_EXIT_NORMAL
+
 success_criteria:
   - name: svc_decoded
     description: SVC instruction decoded correctly

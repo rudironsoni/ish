@@ -184,10 +184,10 @@ test('case:GEN-008', generator_golden_harness,
      timeout: 60,
      is_parallel: false)
 
-# EXEC-REAL-001: Real TCTI gadget execution (first REAL_PASS in semantic exec)
-test('case:EXEC-REAL-001', semantic_micro_harness,
-  args: ['--case-yaml', meson.current_source_dir() / '03-semantic-exec/EXEC-REAL-001-str-execution/case.yaml',
-         '--artifact-dir', artifact_base / 'artifacts/EXEC-REAL-001'],
+# EXEC-011: Real TCTI gadget execution
+test('case:EXEC-011', semantic_micro_harness,
+  args: ['--case-yaml', meson.current_source_dir() / '03-semantic-exec/EXEC-011-str-execution/case.yaml',
+         '--artifact-dir', artifact_base / 'artifacts/EXEC-011'],
   suite: ['cases', 'phase-03-semantic-exec', 'bootstrap'],
   timeout: 300,
   is_parallel: false)
@@ -214,7 +214,7 @@ test('case:EXEC-003', semantic_micro_harness,
      is_parallel: false)
 
 test('case:EXEC-004', semantic_micro_harness,
-     args: ['--case-yaml', meson.current_source_dir() / '03-semantic-exec/EXEC-004-str-cmp-bne-loop/case.yaml',
+     args: ['--case-yaml', meson.current_source_dir() / '03-semantic-exec/EXEC-004-ldr-postindex/case.yaml',
             '--artifact-dir', artifact_base / 'artifacts/EXEC-004'],
      suite: ['cases', 'phase-03-semantic-exec'],
      timeout: 120,

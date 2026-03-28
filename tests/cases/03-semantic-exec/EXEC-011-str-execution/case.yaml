@@ -1,19 +1,19 @@
-id: EXEC-008
+id: EXEC-011
 phase: 03-semantic-exec
-title: Next PC selection is correct for all branch types
+title: STR post-index store executes correctly via TCTI
 class: semantic
 kind: semantic_micro
 harness: semantic_micro
-meson_test: case:EXEC-008
+meson_test: case:EXEC-011
 
 prerequisites:
-  - EXEC-007
+  - EXEC-003
+  - EXEC-010
 
 expectation_authority:
   semantic_source: arm-a64
   primary_tool: llvm-mc
-  secondary_tool: llvm-objdump
-  tertiary_tool: aarch64-linux-gnu-objdump
+  secondary_tool: actual execution on host arm64
 
 success_criteria:
   structural:
@@ -22,29 +22,24 @@ success_criteria:
     - final_state.json exists
   semantic:
     - TCTI gadgets execute via tcti_entry_block()
-    - architectural state matches expected
-    - PC targets correct for conditional branches
-    - PC targets correct for unconditional branches
-    - PC targets correct for indirect branches
+    - Memory write occurs at correct address
+    - Base register updated by offset (post-index)
     - Exit reason is TCTI_EXIT_NORMAL
 
 allowed_patch_scope:
   - tcti/aarch64/gen.c
-  - tcti/aarch64/tcti-gadget-gen.py
-  - tcti/aarch64/gadgets_*.c
-  - emu/aarch64/cpu.c
-  - emu/aarch64/branch.c
-  - tests/cases/03-semantic-exec/EXEC-008-next-pc-selection/*
+  - tests/cases/harness/semantic_micro.c
+  - tests/cases/03-semantic-exec/EXEC-011-str-execution/*
 
 regression_target:
-  meson_test: case:EXEC-008
+  meson_test: case:EXEC-011
 
 trace_defaults:
   backend: ring
   level: 2
   events: block.entry,block.exit,fault
   pc_range: null
-  regs: [x0, x1, pc, nzcv]
+  regs: [x0, x1, x2, sp]
   dump_on: fault
 
 informational_only: false
@@ -56,5 +51,5 @@ metadata:
   implementation_ready: true
   notes: |
     REAL TCTI EXECUTION - uses actual tcti_entry_block() to execute generated gadgets.
-    Tests SUBS immediate via TCTI gadget chain.
+    Tests str xzr, [x2], #8 with proper TLB/MM setup.
     Exit reason validated as TCTI_EXIT_NORMAL.

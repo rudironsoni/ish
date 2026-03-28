@@ -343,12 +343,14 @@ static NSString *const kSkipStartupMessage = @"Skip Startup Message";
     msg = @"[Boot] do_execve succeeded, starting task...\n";
     [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
     
-    // ALWAYS use task_start for proper TCTI execution
-    NSLog(@"[Boot] Calling task_start for TCTI execution");
-    task_start(current);
-    msg = @"[Boot] task_start called\n";
+    // CRITICAL: Do NOT call task_start here - the init process (pid=1) should
+    // NOT execute yet. We only set up the initial process context here.
+    // The actual execution will be started by TerminalViewController via startNewSession.
+    // task_start(current) would create a detached thread that immediately crashes
+    // because iOS will kill the app when the main thread exits.
+    NSLog(@"[Boot] Boot setup complete - init process ready but not started");
+    msg = @"[Boot] Boot setup complete - init process ready\n";
     [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
-    NSLog(@"[Boot] task_start returned (this should not happen immediately)");
 #endif // !ISH_LINUX - End of iOS-specific boot path
 
     // DISABLED: Linux path - we're using TCTI now

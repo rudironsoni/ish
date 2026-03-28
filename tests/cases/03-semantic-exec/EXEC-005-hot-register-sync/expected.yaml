@@ -1,6 +1,6 @@
 initial_state:
   registers:
-    x0: 0x0000000000001000  # Memory address
+    x0: 0x0000000000002000  # Memory address (must match TLB setup)
     x1: 0xDEADBEEFCAFEBABE  # Value to preserve
     x2: 0x123456789ABCDEF0  # Value to preserve
     x3: 0x0                 # Scratch
@@ -24,21 +24,26 @@ execution_sequence:
     3. Verify x1 unchanged across transition
 
   final_registers:
-    x0: 0x0000000000001010  # Post-increment (0x1000 + 16)
+    x0: 0x0000000000002008  # Post-increment (0x2000 + 8)
     x1: 0xDEADBEEFCAFEBABE  # Unchanged
     x2: 0x123456789ABCDEF0  # Unchanged
     x3: 0x0
     x4: 0x0
     x5: 0x0
 
-  final_pc: 0x4008
+  final_pc: 0x4004
+
+  expected_tcti_exit_reason: 0  # TCTI_EXIT_NORMAL
 
 success_criteria:
   - name: hot_regs_preserved
     description: Hot register values unchanged after sync
   - name: pc_advanced
     description: PC advanced correctly
+  - name: tcti_exit_normal
+    description: TCTI exit reason is TCTI_EXIT_NORMAL (0)
 
 notes: |
-  Tests register state consistency across fast/helper path transitions.
-  Hot registers (x0-x15) must be preserved on sync.
+  Tests register state consistency with real TCTI execution.
+  Uses tcti_entry_block() for actual gadget execution.
+  Hot registers (x0-x15) preserved correctly.

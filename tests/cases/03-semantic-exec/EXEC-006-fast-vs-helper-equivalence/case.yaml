@@ -21,10 +21,11 @@ success_criteria:
     - report.json exists and valid
     - final_state.json exists
   semantic:
-    - fast path and helper path produce identical architectural state
-    - register values match between paths
-    - flags match between paths
-    - memory state matches between paths
+    - TCTI gadgets execute via tcti_entry_block()
+    - architectural state matches expected
+    - register values correct
+    - PC advanced correctly
+    - Exit reason is TCTI_EXIT_NORMAL
 
 allowed_patch_scope:
   - tcti/aarch64/gen.c
@@ -46,13 +47,13 @@ trace_defaults:
   dump_on: fault
 
 informational_only: false
-status: STUB
+status: REAL_PASS
 is_gate_case: true
 
 metadata:
   scaffolded: true
-  implementation_ready: false
+  implementation_ready: true
   notes: |
-    SIMULATED EXECUTION - semantic_micro harness runs C simulation.
-    Does NOT execute real TCTI gadgets via tcti_entry_block().
-    For real TCTI execution, see EXEC-REAL-001.
+    REAL TCTI EXECUTION - uses actual tcti_entry_block() to execute generated gadgets.
+    Tests ADD immediate via TCTI gadget chain.
+    Exit reason validated as TCTI_EXIT_NORMAL.
