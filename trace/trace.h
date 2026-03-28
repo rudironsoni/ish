@@ -91,6 +91,17 @@ void trace_emit_process_entry(uint64_t entry_pc, uint64_t sp, uint64_t at_entry,
 void trace_emit_task_create(uint32_t pid, uint32_t parent_pid);
 void trace_emit_task_start(uint32_t pid);
 
+/* Emit task thread diagnostic events. */
+void trace_emit_task_thread_entry(uint64_t task_ptr);
+void trace_emit_task_thread_current_set(uint32_t pid, uint64_t mm, uint64_t mem);
+void trace_emit_task_run_current_entry(uint64_t current_ptr, uint32_t pid);
+void trace_emit_task_run_current_mem_check(uint64_t mm, uint64_t mem);
+
+/* Additional task diagnostic events. */
+void trace_emit_task_create_return(uint32_t pid, uint64_t task_ptr);
+void trace_emit_construct_task_done(uint32_t pid, uint64_t task_ptr, uint64_t mm, uint64_t mem);
+void trace_emit_task_start_pointer(uint64_t task_ptr);
+
 /* Emit block compilation events. */
 void trace_emit_block_compile_start(uint64_t pc);
 void trace_emit_block_compile_end(uint64_t pc, uint64_t end_pc, uint32_t insn_count);

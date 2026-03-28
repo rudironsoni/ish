@@ -185,6 +185,58 @@ static void stderr_emit(void *ctx, trace_record_t *record) {
                     (unsigned long long)nzcv);
             break;
         }
+
+        case TRACE_EVENT_TASK_START: {
+            uint32_t pid;
+            memcpy(&pid, record->payload, 4);
+            fprintf(stderr, " pid=%u", pid);
+            break;
+        }
+
+        case TRACE_EVENT_TASK_THREAD_ENTRY: {
+            uint64_t task_ptr;
+            memcpy(&task_ptr, record->payload, 8);
+            fprintf(stderr, " task=0x%llx", (unsigned long long)task_ptr);
+            break;
+        }
+
+        case TRACE_EVENT_TASK_THREAD_CURRENT_SET: {
+            uint32_t pid;
+            uint64_t mm, mem;
+            memcpy(&pid, record->payload, 4);
+            memcpy(&mm, record->payload + 4, 8);
+            memcpy(&mem, record->payload + 12, 8);
+            fprintf(stderr, " pid=%u mm=0x%llx mem=0x%llx",
+                    pid, (unsigned long long)mm, (unsigned long long)mem);
+            break;
+        }
+
+        case TRACE_EVENT_TASK_RUN_CURRENT_ENTRY: {
+            uint64_t current_ptr;
+            uint32_t pid;
+            memcpy(&current_ptr, record->payload, 8);
+            memcpy(&pid, record->payload + 8, 4);
+            fprintf(stderr, " current=0x%llx pid=%u",
+                    (unsigned long long)current_ptr, pid);
+            break;
+        }
+
+        case TRACE_EVENT_TASK_RUN_CURRENT_MEM_CHECK: {
+            uint64_t mm, mem;
+            memcpy(&mm, record->payload, 8);
+            memcpy(&mem, record->payload + 8, 8);
+            fprintf(stderr, " mm=0x%llx mem=0x%llx",
+                    (unsigned long long)mm, (unsigned long long)mem);
+            break;
+        }
+
+        case TRACE_EVENT_TASK_CREATE: {
+            uint32_t pid, parent_pid;
+            memcpy(&pid, record->payload, 4);
+            memcpy(&parent_pid, record->payload + 4, 4);
+            fprintf(stderr, " pid=%u parent_pid=%u", pid, parent_pid);
+            break;
+        }
             
         default:
             break;

@@ -91,6 +91,10 @@ static struct task *construct_task(struct task *parent) {
 
     // Emit trace event for task creation
     trace_emit_task_create(task->pid, parent ? parent->pid : 0);
+    
+    // Diagnostic: trace at end of construct_task with all fields
+    trace_emit_construct_task_done(task->pid, (uint64_t)task, 
+                                   (uint64_t)task->mm, (uint64_t)task->mem);
 
     return task;
 }
@@ -133,6 +137,11 @@ int become_new_init_child() {
     // Memory barrier to ensure all task initialization is visible
     // before any potential task_start() call
     __sync_synchronize();
+    
+    // Diagnostic: trace task state just before returning
+    trace_emit_construct_task_done(task->pid, (uint64_t)task, 
+                                   (uint64_t)task->mm, (uint64_t)task->mem);
+    
     return 0;
 }
 

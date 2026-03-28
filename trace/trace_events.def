@@ -99,4 +99,33 @@ TRACE_EVENT(TASK_CREATE, 1, TRACE_CAT_SYSCALL, 8)
 /* Task started execution - payload: uint32_t pid */
 TRACE_EVENT(TASK_START, 1, TRACE_CAT_SYSCALL, 4)
 
+/* ============================================
+ * Task Thread Diagnostics (for crash debugging)
+ * ============================================ */
+
+/* Task thread entry - payload: uint64_t task_ptr */
+TRACE_EVENT(TASK_THREAD_ENTRY, 1, TRACE_CAT_SYSCALL, 8)
+
+/* Task thread current set - payload: struct { uint32_t pid; uint64_t mm; uint64_t mem; } */
+TRACE_EVENT(TASK_THREAD_CURRENT_SET, 1, TRACE_CAT_SYSCALL, 24)
+
+/* Task run_current entry - payload: struct { uint64_t current_ptr; uint32_t pid; } */
+TRACE_EVENT(TASK_RUN_CURRENT_ENTRY, 1, TRACE_CAT_SYSCALL, 16)
+
+/* Task run_current mem check - payload: struct { uint64_t mm; uint64_t mem; } */
+TRACE_EVENT(TASK_RUN_CURRENT_MEM_CHECK, 1, TRACE_CAT_SYSCALL, 16)
+
+/* ============================================
+ * Additional Task Diagnostics
+ * ============================================ */
+
+/* Task create return - payload: struct { uint32_t pid; uint64_t task_ptr; } */
+TRACE_EVENT(TASK_CREATE_RETURN, 1, TRACE_CAT_SYSCALL, 16)
+
+/* Construct task done - payload: struct { uint32_t pid; uint64_t task_ptr; uint64_t mm; uint64_t mem; } */
+TRACE_EVENT(CONSTRUCT_TASK_DONE, 1, TRACE_CAT_SYSCALL, 32)
+
+/* Task start pointer - payload: uint64_t task_ptr */
+TRACE_EVENT(TASK_START_POINTER, 1, TRACE_CAT_SYSCALL, 8)
+
 #undef TRACE_EVENT

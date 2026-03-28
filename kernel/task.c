@@ -93,6 +93,10 @@ struct task *task_create_(struct task *parent) {
     // may see partially initialized memory (pid=0, mm=NULL, etc).
     __sync_synchronize();
     unlock(&pids_lock);
+    
+    // Diagnostic: trace immediately after returning with pid
+    trace_emit_task_create_return(task->pid, (uint64_t)task);
+    
     return task;
 }
 
@@ -103,6 +107,18 @@ void task_destroy(struct task *task) {
 }
 
 void task_run_current() {
+    trace_emit_task_run_current_entry((uint64_t)current, current ? current->pid : 0);
+    trace_emit_task_run_current_mem_check((uint64_t)(current ? current->mm : 0), 
+                                          (uint64_t)(current ? current->mem : 0));
+    
+    // Defensive: check that current and current->mem are valid before proceeding
+    if (!current) {
+        die("task_run_current: NULL current");
+    }
+    if (!current->mem) {
+        die("task_run_current: NULL current->mem");
+    }
+    
     struct cpu_state *cpu = &current->cpu;
     struct tlb tlb = {};
     tlb_refresh(&tlb, &current->mem->mmu);
@@ -113,7 +129,13 @@ void task_run_current() {
 static void *task_thread(void *task) {
     // Pass task pointer via __thread current to ensure proper visibility
     // The task pointer was fully initialized before task_start was called
+    trace_emit_task_thread_entry((uint64_t)task);
     current = task;
+    // CRITICAL: Memory barrier ensures all task initialization stores from
+    // the parent thread are visible before we read task fields. Without this,
+    // the child may see zeroed/corrupted values (pid=0, mm=NULL, etc).
+    __sync_synchronize();
+    trace_emit_task_thread_current_set(current->pid, (uint64_t)current->mm, (uint64_t)current->mem);
     update_thread_name();
     task_run_current();
     die("task_thread returned");
@@ -127,7 +149,19 @@ __attribute__((constructor)) static void create_attr() {
 
 void task_start(struct task *task) {
     __sync_synchronize();
-    trace_emit_task_start(task->pid);
+
+    // Initialize trace system if not already done
+    // This must happen before pthread_create so child thread can emit trace events
+    extern trace_ctx_t *g_trace_ctx;
+    if (!g_trace_ctx) {
+        trace_config_t trace_config;
+        trace_config_from_env(&trace_config);
+        trace_init(&trace_config);
+    }
+
+    // Diagnostic: trace the pointer value and dereferenced pid
+    trace_emit_task_start_pointer((uint64_t)task);
+    trace_emit_task_start(task ? task->pid : 999999);  // 999999 indicates null task
     if (pthread_create(&task->thread, &task_thread_attr, task_thread, task) < 0)
         die("could not create thread");
 }
