@@ -1,0 +1,16 @@
+{
+  "algorithm": "normalized_hash_v1",
+  "fields": [
+    "crash_type",
+    "exception_code",
+    "faulting_pc",
+    "milestone_context"
+  ],
+  "hash": "61ac355a9ad34f24964aa7d50000000100000000bd7ea35d0000000000000000",
+  "crash_type": "assertion_failure",
+  "exception_code": "EXC_CRASH",
+  "faulting_pc": "0x100000000",
+  "deterministic": true,
+  "normalized": true,
+  "timestamp": "2026-03-28T20:53:57Z"
+}
