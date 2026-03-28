@@ -873,20 +873,26 @@ phase_04:
     MMU-001:
       case_id: "MMU-001"
       phase: "04-mmu-abi"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "auxv.json"
+        - "stack_dump.bin"
+        - "report.json"
+      observed_artifacts:
+        - "auxv.json"
+        - "stack_dump.bin"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-27T08:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/04-mmu-abi/MMU-001"
+      artifact_dir: "tests/cases/04-mmu-abi/MMU-001-anon-mmap"
     MMU-002:
       case_id: "MMU-002"
       phase: "04-mmu-abi"
@@ -975,20 +981,26 @@ phase_04:
     ABI-001:
       case_id: "ABI-001"
       phase: "04-mmu-abi"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "auxv.json"
+        - "stack_dump.bin"
+        - "report.json"
+      observed_artifacts:
+        - "auxv.json"
+        - "stack_dump.bin"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-27T08:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/04-mmu-abi/ABI-001"
+      artifact_dir: "tests/cases/04-mmu-abi/ABI-001-process-entry-stack"
     ABI-002:
       case_id: "ABI-002"
       phase: "04-mmu-abi"
