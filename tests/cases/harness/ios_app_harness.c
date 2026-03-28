@@ -278,6 +278,7 @@ static int test_appsim_002(const char *artifact_dir, char *log_buf, size_t log_s
     if (fp) {
         fprintf(fp, "{\n");
         fprintf(fp, "  \"booted\": true,\n");
+        fprintf(fp, "  \"status\": \"booted\",\n");
         fprintf(fp, "  \"boot_time_ms\": 15000,\n");
         fprintf(fp, "  \"error\": null\n");
         fprintf(fp, "}\n");

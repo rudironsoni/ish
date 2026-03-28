@@ -605,7 +605,7 @@ phase_02b:
     APPSIM-002:
       case_id: "APPSIM-002"
       phase: "02b-ios-simulator-harness"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
       scaffolded: true
       expected_artifacts:
@@ -613,20 +613,24 @@ phase_02b:
         - "device_runtime.json"
         - "boot_status.json"
         - "report.json"
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
+      observed_artifacts:
+        - "simulator_target.json"
+        - "device_runtime.json"
+        - "boot_status.json"
+        - "report.json"
+      verifier_result: pass
+      anti_slop_result: pass
+      review_skeptic_result: pass
+      phase_gate_result: pass
+      last_run_command: "meson test -C builddir --suite phase-02b-ios-simulator-harness"
+      last_run_at: "2026-03-28T20:33:05Z"
       block_reason: null
-      evidence_hash: null
+      evidence_hash: "simulator_booted_e6186e89"
       artifact_dir: "tests/cases/02b-ios-simulator-harness/APPSIM-002-simulator-target-selection-and-boot"
       app_specific_fields:
         simulator_tool: xcodebuildmcp
         harness_kind: ios_simulator_app
-        milestone_reached: null
+        milestone_reached: simulator_booted
         crash_signature_hash: null
         retry_count: 0
         relaunch_count: 0
