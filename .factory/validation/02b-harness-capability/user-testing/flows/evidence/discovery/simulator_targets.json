@@ -1,0 +1,52 @@
+{
+  "ios_runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-4",
+  "devices": [
+    {
+      "name": "iPhone 17 Pro",
+      "id": "E6186E89-8784-473B-A4E4-66E42693F14E",
+      "status": "Booted"
+    },
+    {
+      "name": "iPhone 17 Pro Max",
+      "id": "CD9BC49C-1E8D-4402-91A9-0CDC0F568460"
+    },
+    {
+      "name": "iPhone 17e",
+      "id": "0A9CB30E-6EB6-44F8-BBF3-72151BEDCF95"
+    },
+    {
+      "name": "iPhone Air",
+      "id": "C1F99CE6-2673-4C8D-A05E-A07B9FDBBE4B"
+    },
+    {
+      "name": "iPhone 17",
+      "id": "971A2EC4-3492-4F21-8D79-96E6863127B4"
+    },
+    {
+      "name": "iPad Pro 13-inch (M5)",
+      "id": "0B953D24-B797-4103-815F-803C09A905DC"
+    },
+    {
+      "name": "iPad Pro 11-inch (M5)",
+      "id": "1A1C5C93-F1F6-408D-8653-DA0A8E0A8FB8"
+    },
+    {
+      "name": "iPad mini (A17 Pro)",
+      "id": "023EBADE-A344-48F5-89F3-05CE7610853C"
+    },
+    {
+      "name": "iPad Air 13-inch (M4)",
+      "id": "90AAA6D0-B444-4393-80F1-3204D43D43D1"
+    },
+    {
+      "name": "iPad Air 11-inch (M4)",
+      "id": "021DFB56-DA23-4505-85CB-C3C98B23DF1E"
+    },
+    {
+      "name": "iPad (A16)",
+      "id": "B9F0E710-1225-4551-9F42-5D98980487FA"
+    }
+  ],
+  "count": 11,
+  "has_ios_simulator": true
+}

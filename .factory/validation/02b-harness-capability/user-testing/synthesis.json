@@ -1,0 +1,115 @@
+{
+  "milestone": "02b-harness-capability",
+  "round": 1,
+  "status": "fail",
+  "testedAt": "2026-03-28T23:55:00Z",
+  "assertionsSummary": {
+    "total": 18,
+    "passed": 17,
+    "failed": 1,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-APPSIM-001",
+    "VAL-APPSIM-002",
+    "VAL-APPSIM-003",
+    "VAL-APPSIM-004",
+    "VAL-APPSIM-006",
+    "VAL-APPSIM-007",
+    "VAL-APPSIM-008",
+    "VAL-APPSIM-009",
+    "VAL-APPSIM-010",
+    "VAL-APPSIM-011",
+    "VAL-APPSIM-012",
+    "VAL-APPSIM-013",
+    "VAL-APPSIM-014",
+    "VAL-APPSIM-015",
+    "VAL-APPSIM-016",
+    "VAL-APPSIM-017",
+    "VAL-APPSIM-018"
+  ],
+  "failedAssertions": [
+    {
+      "id": "VAL-APPSIM-005",
+      "reason": "Bundle ID mismatch: validation contract expects 'com.rudironsoni.ish' but actual bundle ID from Xcode project is 'app.ish.iSH'",
+      "evidence": ".factory/validation/02b-harness-capability/user-testing/flows/evidence/discovery/app_target_identity.json",
+      "actualValue": "app.ish.iSH",
+      "expectedValue": "com.rudironsoni.ish",
+      "suggestedFix": "Update validation contract to match actual Xcode project configuration, or update Xcode project bundle ID to match contract"
+    }
+  ],
+  "blockedAssertions": [],
+  "flowReports": [
+    ".factory/validation/02b-harness-capability/user-testing/flows/discovery.json",
+    ".factory/validation/02b-harness-capability/user-testing/flows/boot.json",
+    ".factory/validation/02b-harness-capability/user-testing/flows/build_launch.json",
+    ".factory/validation/02b-harness-capability/user-testing/flows/log_harvest.json",
+    ".factory/validation/02b-harness-capability/user-testing/flows/crash_signature.json",
+    ".factory/validation/02b-harness-capability/user-testing/flows/reset_relaunch.json"
+  ],
+  "evidenceArtifacts": {
+    "discovery": [
+      "xcodebuildmcp_capability.json",
+      "app_target_identity.json",
+      "simulator_targets.json"
+    ],
+    "boot": [
+      "boot_status.json",
+      "device_runtime.json",
+      "simulator_target.json"
+    ],
+    "build_launch": [
+      "build_result.json",
+      "install_result.json",
+      "launch_result.json",
+      "alive_check.json",
+      "sim_launch.json",
+      "VAL-APPSIM-010-launch-screenshot.jpg"
+    ],
+    "log_harvest": [
+      "simulator_log_tail.txt",
+      "boot_milestones.json",
+      "sim_launch.json"
+    ],
+    "crash_signature": [
+      "crash_signature.json",
+      "normalized_hash.txt",
+      "milestone_context.json"
+    ],
+    "reset_relaunch": [
+      "reset_result.json",
+      "relaunch_result.json",
+      "retry_log.json"
+    ]
+  },
+  "frictions": [
+    {
+      "description": "XcodeBuildMCP direct log capture via subsystem filter returned minimal content; using xcrun simctl log show with processImagePath predicate yielded richer logs",
+      "source": "log_harvest flow",
+      "resolved": true
+    },
+    {
+      "description": "Multiple app launch events appeared in logs (two PIDs), indicating possible relaunch during capture",
+      "source": "log_harvest flow",
+      "resolved": true
+    },
+    {
+      "description": "APPSIM-005 crash signature artifacts were already validated through scrutiny review - reused existing artifacts",
+      "source": "crash_signature flow",
+      "resolved": true
+    }
+  ],
+  "appliedUpdates": [
+    {
+      "target": ".factory/library/user-testing.md",
+      "description": "Created comprehensive user testing guide with Flow Validator Guidance for XcodeBuildMCP iOS Simulator surface, including isolation rules, testing patterns, and artifact validation requirements",
+      "source": "setup"
+    },
+    {
+      "target": ".factory/library/user-testing.md",
+      "description": "Documented bundle ID mismatch issue in Common Issues section - validation contract expects 'com.rudironsoni.ish' but actual is 'app.ish.iSH'",
+      "source": "flow-report"
+    }
+  ],
+  "previousRound": null
+}

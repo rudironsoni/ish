@@ -1,0 +1,51 @@
+{
+  "groupId": "boot",
+  "testedAt": "2026-03-28T23:50:00Z",
+  "isolation": {
+    "simulatorId": "E6186E89-8784-473B-A4E4-66E42693F14E",
+    "simulatorName": "iPhone 17 Pro"
+  },
+  "toolsUsed": ["XcodeBuildMCP"],
+  "assertions": [
+    {
+      "id": "VAL-APPSIM-006",
+      "title": "Simulator Boot - Target simulator (iPhone 17 Pro) boots successfully within timeout",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Call XcodeBuildMCP boot_sim for iPhone 17 Pro",
+          "expected": "Simulator boots successfully or is already booted",
+          "observed": "Simulator was already in 'Booted' state (E6186E89-8784-473B-A4E4-66E42693F14E)"
+        }
+      ],
+      "evidence": {
+        "artifact": "02b-harness-capability/user-testing/flows/evidence/boot/boot_status.json",
+        "simulatorId": "E6186E89-8784-473B-A4E4-66E42693F14E",
+        "status": "booted"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-APPSIM-007",
+      "title": "Simulator Device Runtime - Device runtime is available and targetable for the selected simulator",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Call XcodeBuildMCP list_sims with enabled flag",
+          "expected": "Returns iPhone 17 Pro with valid runtime version (iOS 18.x or later)",
+          "observed": "Found iPhone 17 Pro with runtime 'com.apple.CoreSimulator.SimRuntime.iOS-26-4' (iOS 26.4), device state: Booted"
+        }
+      ],
+      "evidence": {
+        "artifact": "02b-harness-capability/user-testing/flows/evidence/boot/device_runtime.json",
+        "runtimeVersion": "26.4",
+        "runtimeIdentifier": "com.apple.CoreSimulator.SimRuntime.iOS-26-4",
+        "available": true
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 2 assertions: 2 passed. VAL-APPSIM-006: Simulator iPhone 17 Pro was already in booted state. VAL-APPSIM-007: Device runtime iOS 26.4 is available and targetable."
+}

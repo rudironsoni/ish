@@ -1,0 +1,38 @@
+{
+  "assertionId": "VAL-APPSIM-018",
+  "assertionTitle": "Retry Log - Retry attempts are logged with attempt count and outcomes",
+  "testedAt": "2026-03-28T23:47:30Z",
+  "status": "success",
+  "maxRetries": 1,
+  "retryCount": 0,
+  "withinBudget": true,
+  "perAttemptResults": [
+    {
+      "attempt": 1,
+      "operation": "erase_sims",
+      "status": "success",
+      "timestamp": "2026-03-28T23:47:00Z",
+      "details": "Successfully erased simulator E6186E89-8784-473B-A4E4-66E42693F14E"
+    },
+    {
+      "attempt": 1,
+      "operation": "boot_sim",
+      "status": "success",
+      "timestamp": "2026-03-28T23:47:15Z",
+      "details": "Simulator booted successfully"
+    },
+    {
+      "attempt": 1,
+      "operation": "launch_app_logs_sim",
+      "status": "success",
+      "timestamp": "2026-03-28T23:47:30Z",
+      "details": "App launched successfully with log capture enabled"
+    }
+  ],
+  "summary": {
+    "totalOperations": 3,
+    "successfulFirstAttempts": 3,
+    "retriesNeeded": 0,
+    "retryBudgetExceeded": false
+  }
+}

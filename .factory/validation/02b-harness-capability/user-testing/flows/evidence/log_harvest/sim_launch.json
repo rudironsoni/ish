@@ -1,0 +1,14 @@
+{
+  "launchMethod": "launch_app_sim",
+  "simulatorId": "E6186E89-8784-473B-A4E4-66E42693F14E",
+  "bundleId": "com.rudironsoni.ish",
+  "launchTimestamp": "2026-03-28T23:49:30+0100",
+  "logCaptureSessionId": "c517263a-caa0-4b35-9a12-d8ef4b67a840",
+  "logFileSize": 113092,
+  "logFileLines": 609,
+  "logFilePath": "evidence/log_harvest/simulator_log_tail.txt",
+  "firstLogTimestamp": "2026-03-28T23:49:30.493263+0100",
+  "lastLogTimestamp": "2026-03-28T23:49:34.282292+0100",
+  "milestonesDetected": 5,
+  "status": "success"
+}

@@ -1,0 +1,83 @@
+{
+  "groupId": "reset_relaunch",
+  "testedAt": "2026-03-28T23:48:00Z",
+  "isolation": {
+    "simulatorId": "E6186E89-8784-473B-A4E4-66E42693F14E",
+    "simulatorName": "iPhone 17 Pro",
+    "bundleId": "app.ish.iSH",
+    "projectPath": "/Users/rudironsoni/src/github/rudironsoni/ish/iSH.xcodeproj",
+    "scheme": "iSH"
+  },
+  "toolsUsed": ["XcodeBuildMCP"],
+  "assertions": [
+    {
+      "id": "VAL-APPSIM-016",
+      "title": "Bounded Reset - Simulator reset executes within retry budget",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Call erase_sims with shutdownFirst=true",
+          "expected": "Simulator erased successfully within retry budget",
+          "observed": "Successfully erased simulator E6186E89-8784-473B-A4E4-66E42693F14E"
+        }
+      ],
+      "evidence": {
+        "artifactPath": "02b-harness-capability/user-testing/flows/evidence/reset_relaunch/reset_result.json",
+        "consoleErrors": "none",
+        "retryBudget": "1 attempt made, within budget"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-APPSIM-017",
+      "title": "Relaunch After Reset - App relaunches successfully after simulator reset",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Call boot_sim after erase",
+          "expected": "Simulator boots successfully",
+          "observed": "Simulator booted successfully"
+        },
+        {
+          "action": "Call launch_app_logs_sim",
+          "expected": "App launches with log capture",
+          "observed": "App launched successfully in simulator with log capture enabled"
+        },
+        {
+          "action": "Stop log capture",
+          "expected": "Logs retrieved successfully",
+          "observed": "Log capture stopped successfully"
+        }
+      ],
+      "evidence": {
+        "artifactPath": "02b-harness-capability/user-testing/flows/evidence/reset_relaunch/relaunch_result.json",
+        "logSessionId": "587440ea-9898-4918-9d33-da530655d630",
+        "consoleErrors": "none"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-APPSIM-018",
+      "title": "Retry Log - Retry attempts are logged with attempt count and outcomes",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Track retry attempts across all operations",
+          "expected": "retry_count <= 1 with per-attempt results logged",
+          "observed": "retry_count: 0, all 3 operations succeeded on first attempt"
+        }
+      ],
+      "evidence": {
+        "artifactPath": "02b-harness-capability/user-testing/flows/evidence/reset_relaunch/retry_log.json",
+        "retryCount": 0,
+        "maxRetries": 1,
+        "withinBudget": true,
+        "perAttemptResults": "3 operations tracked"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 3 assertions: 3 passed (VAL-APPSIM-016, VAL-APPSIM-017, VAL-APPSIM-018). Simulator reset completed successfully, app relaunched after reset, and retry logging confirmed within budget (0 retries needed, max=1)."
+}
