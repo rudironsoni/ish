@@ -19,6 +19,8 @@
 #include "kernel/task.h"
 #include "kernel/calls.h"
 #include "fs/devices.h"
+#include "emu/aarch64/cpu.h"
+#include "emu/tlb.h"
 
 @interface TerminalViewController () <UIGestureRecognizerDelegate>
 
@@ -196,6 +198,14 @@
         return err;
     self.sessionPid = current->pid;
     task_start(current);
+
+    // CRITICAL: Keep the main thread alive with a runloop
+    // task_start creates a detached thread - if main thread exits, iOS kills the app
+    // We use a runloop to allow UI events while keeping the app alive
+    NSLog(@"[TerminalViewController] task_start called - entering runloop to keep app alive");
+    while (1) {
+        [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.1]];
+    }
 #else
     const char *argv_arr[command.count + 1];
     for (NSUInteger i = 0; i < command.count; i++)

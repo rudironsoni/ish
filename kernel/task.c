@@ -97,25 +97,20 @@ void task_destroy(struct task *task) {
 }
 
 void task_run_current() {
-    printk("[task] task_run_current ENTRY, current=%p\n", current);
     struct cpu_state *cpu = &current->cpu;
     struct tlb tlb = {};
-    printk("[task] About to call tlb_refresh\n");
     tlb_refresh(&tlb, &current->mem->mmu);
-    
-    // Switch to 100% TCTI execution
-    printk("[task] Switching to TCTI mode for pid=%d\n", current->pid);
     a64_cpu_run(cpu, &tlb);
+    die("a64_cpu_run returned");
 }
 
 static void *task_thread(void *task) {
-    printk("[task] task_thread ENTRY, task=%p\n", task);
+    // Pass task pointer via __thread current to ensure proper visibility
+    // The task pointer was fully initialized before task_start was called
     current = task;
-    printk("[task] current set to %p\n", current);
     update_thread_name();
-    printk("[task] Thread started for pid=%d, entering task_run_current\n", current->pid);
     task_run_current();
-    die("task_thread returned"); // above function call should never return
+    die("task_thread returned");
 }
 
 static pthread_attr_t task_thread_attr;
@@ -125,6 +120,10 @@ __attribute__((constructor)) static void create_attr() {
 }
 
 void task_start(struct task *task) {
+    // Ensure all task initialization is visible to the new thread
+    // This is critical: without a memory barrier, the new thread may see
+    // stale values (pid=0, mem=NULL) due to CPU reordering
+    __sync_synchronize();
     if (pthread_create(&task->thread, &task_thread_attr, task_thread, task) < 0)
         die("could not create thread");
 }

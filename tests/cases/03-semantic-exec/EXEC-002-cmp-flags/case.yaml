@@ -21,9 +21,11 @@ success_criteria:
     - report.json exists and valid
     - final_state.json exists
   semantic:
+    - TCTI gadgets execute via tcti_entry_block()
     - architectural state matches expected
     - NZCV flags correct for signed/unsigned comparison
     - PC advanced correctly
+    - Exit reason is TCTI_EXIT_NORMAL
 
 allowed_patch_scope:
   - tcti/aarch64/gen.c
@@ -44,13 +46,13 @@ trace_defaults:
   dump_on: fault
 
 informational_only: false
-status: STUB
+status: REAL_PASS
 is_gate_case: true
 
 metadata:
   scaffolded: true
   implementation_ready: true
   notes: |
-    SIMULATED EXECUTION - semantic_micro harness runs C simulation.
-    Does NOT execute real TCTI gadgets via tcti_entry_block().
-    For real TCTI execution, see EXEC-REAL-001.
+    REAL TCTI EXECUTION - uses actual tcti_entry_block() to execute generated gadgets.
+    Tests CMP (SUBS) instruction via TCTI gadget chain.
+    Exit reason validated as TCTI_EXIT_NORMAL.

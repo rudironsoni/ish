@@ -52,7 +52,9 @@ static struct rlimit_ init_rlimits[16] = {
 
 // TODO error propagation
 static struct task *construct_task(struct task *parent) {
+    printk("[init] construct_task ENTRY, parent=%p, parent_pid=%d\n", parent, parent ? parent->pid : -1);
     struct task *task = task_create_(parent);
+    printk("[init] task_create_ returned task=%p, pid=%d\n", task, IS_ERR(task) ? -1 : task->pid);
 
     struct tgroup *group = malloc(sizeof(struct tgroup));
     *group = (struct tgroup) {};
@@ -68,7 +70,9 @@ static struct task *construct_task(struct task *parent) {
     task->tgid = task->pid;
     task_setsid(task);
 
+    printk("[init] construct_task: about to call task_set_mm\n");
     task_set_mm(task, mm_new());
+    printk("[init] construct_task: task_set_mm done, mm=%p, mem=%p\n", task->mm, task->mem);
     task->sighand = sighand_new();
     task->files = fdtable_new(3); // why is there a 3 here
 
@@ -108,9 +112,14 @@ int become_first_process() {
 }
 
 int become_new_init_child() {
+    printk("[init] become_new_init_child ENTRY\n");
     // locking? who needs locking?!
     struct task *init = pid_get_task(1);
-    assert(init != NULL);
+    printk("[init] pid_get_task(1) returned %p\n", init);
+    if (init == NULL) {
+        printk("[init] ERROR: pid_get_task(1) returned NULL!\n");
+        return -1;
+    }
 
     struct task *task = construct_task(init);
     if (IS_ERR(task)) {
@@ -126,6 +135,8 @@ int become_new_init_child() {
     // TODO: think about whether it would be a good idea to inherit fs_info
 
     current = task;
+    printk("[init] become_new_init_child: current set to pid=%d, task=%p, mm=%p, mem=%p\n",
+           task->pid, task, task->mm, task->mem);
     return 0;
 }
 

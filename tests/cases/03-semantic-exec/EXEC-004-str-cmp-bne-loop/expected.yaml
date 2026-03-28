@@ -1,6 +1,6 @@
 initial_state:
   registers:
-    x0: 0x0000000000001000  # Destination address pointer
+    x0: 0x0000000000002000  # Destination address pointer (must match TLB setup)
     x1: 0x5                 # Loop counter (5 iterations)
     x2: 0xABCD1234ABCD1234  # Value to store
   pc: 0x4000
@@ -38,14 +38,14 @@ code:
 execution_sequence:
   description: |
     Loop iterates 5 times:
-    - Iteration 1: store to 0x1000, x0=0x1008, x1=4, branch taken
-    - Iteration 2: store to 0x1008, x0=0x1010, x1=3, branch taken
-    - Iteration 3: store to 0x1010, x0=0x1018, x1=2, branch taken
-    - Iteration 4: store to 0x1018, x0=0x1020, x1=1, branch taken
-    - Iteration 5: store to 0x1020, x0=0x1028, x1=0, branch NOT taken
+    - Iteration 1: store to 0x2000, x0=0x2008, x1=4, branch taken
+    - Iteration 2: store to 0x2008, x0=0x2010, x1=3, branch taken
+    - Iteration 3: store to 0x2010, x0=0x2018, x1=2, branch taken
+    - Iteration 4: store to 0x2018, x0=0x2020, x1=1, branch taken
+    - Iteration 5: store to 0x2020, x0=0x2028, x1=0, branch NOT taken
 
   final_registers:
-    x0: 0x0000000000001028  # 0x1000 + (5 * 8)
+    x0: 0x0000000000002028  # 0x2000 + (5 * 8)
     x1: 0x0                 # Counter decremented to 0
     x2: 0xABCD1234ABCD1234  # Unchanged
 
@@ -56,6 +56,7 @@ execution_sequence:
     z: 1                    # Zero flag set (x1 became 0)
     c: 1                    # No borrow
     v: 0                    # No overflow
+    expected_tcti_exit_reason: 0  # TCTI_EXIT_NORMAL
 
 code_expectations:
   instruction_count: 3
@@ -67,11 +68,11 @@ semantic_effects:
     iterations: 5
     description: "Store x2 to 5 consecutive 64-bit locations"
     memory_addresses:
-      - 0x1000
-      - 0x1008
-      - 0x1010
-      - 0x1018
-      - 0x1020
+      - 0x2000
+      - 0x2008
+      - 0x2010
+      - 0x2018
+      - 0x2020
     stored_value: 0xABCD1234ABCD1234
 
   - operation: counter_decrement

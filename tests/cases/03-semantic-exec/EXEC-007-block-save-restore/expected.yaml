@@ -1,6 +1,6 @@
 initial_state:
   registers:
-    x0: 0x0000000000001000
+    x0: 0x0000000000002000  # Must match TLB setup
     x1: 0xAAAAAAAA55555555
     x2: 0x0
   pc: 0x4000
@@ -13,11 +13,13 @@ code:
 
 execution_sequence:
   final_registers:
-    x0: 0x0000000000001008
+    x0: 0x0000000000002008
     x1: 0xAAAAAAAA55555555
     x2: 0x0000000000000000
 
   final_pc: 0x4004
+
+  expected_tcti_exit_reason: 0  # TCTI_EXIT_NORMAL
 
 success_criteria:
   - name: store_complete

@@ -1,5 +1,5 @@
 version: "1"
-description: "Minimal fixture for EXEC-REAL-001 - no external binaries needed"
+description: "Minimal fixture for EXEC-011 - no external binaries needed"
 
 fixtures:
   - name: test_memory

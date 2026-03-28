@@ -17,6 +17,7 @@ execution_sequence:
 
   final_pc: 0x4004
   final_nzcv: {n: 0, z: 0, c: 1, v: 0}
+  expected_tcti_exit_reason: 0  # TCTI_EXIT_NORMAL
 
 success_criteria:
   - name: pc_advanced

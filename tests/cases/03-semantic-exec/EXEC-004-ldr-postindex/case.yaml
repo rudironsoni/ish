@@ -1,19 +1,19 @@
-id: EXEC-REAL-001
+id: EXEC-004
 phase: 03-semantic-exec
-title: Real TCTI execution of STR post-index store
+title: LDR with post-index addressing executes correctly
 class: semantic
 kind: semantic_micro
 harness: semantic_micro
-meson_test: case:EXEC-REAL-001
+meson_test: case:EXEC-004
 
 prerequisites:
-  - GEN-003
   - EXEC-003
 
 expectation_authority:
   semantic_source: arm-a64
   primary_tool: llvm-mc
-  secondary_tool: actual execution on host arm64
+  secondary_tool: llvm-objdump
+  tertiary_tool: aarch64-linux-gnu-objdump
 
 success_criteria:
   structural:
@@ -22,17 +22,20 @@ success_criteria:
     - final_state.json exists
   semantic:
     - TCTI gadgets execute via tcti_entry_block()
-    - Memory write occurs at correct address
+    - Memory loaded correctly into destination register
     - Base register updated by offset (post-index)
+    - PC advanced correctly
     - Exit reason is TCTI_EXIT_NORMAL
 
 allowed_patch_scope:
   - tcti/aarch64/gen.c
-  - tests/cases/harness/semantic_micro.c
-  - tests/cases/03-semantic-exec/EXEC-REAL-001-str-execution/*
+  - tcti/aarch64/tcti-gadget-gen.py
+  - tcti/aarch64/gadgets_*.c
+  - emu/aarch64/cpu.c
+  - tests/cases/03-semantic-exec/EXEC-004-ldr-postindex/*
 
 regression_target:
-  meson_test: case:EXEC-REAL-001
+  meson_test: case:EXEC-004
 
 trace_defaults:
   backend: ring
@@ -50,7 +53,7 @@ metadata:
   scaffolded: true
   implementation_ready: true
   notes: |
-    FIRST REAL TCTI EXECUTION TEST.
-    Uses actual tcti_entry_block() to execute generated gadgets.
-    Tests str xzr, [x2], #8 with proper TLB/MM setup.
-    Validates that semantic simulation matches real execution.
+    REAL TCTI EXECUTION - uses actual tcti_entry_block() to execute generated gadgets.
+    Tests LDR (load with post-index) instruction via TCTI gadget chain.
+    Complements EXEC-003 (STR) to verify load/store pair works correctly.
+    Exit reason validated as TCTI_EXIT_NORMAL.

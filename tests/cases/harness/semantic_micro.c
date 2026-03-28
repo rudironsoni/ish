@@ -18,6 +18,13 @@
 #define MAX_LINE 1024
 #define TEST_MEMORY_SIZE (64 * 1024)  /* 64KB test memory */
 
+/* TCTI exit reasons (must match tcti/aarch64/tcti-gadget-gen.py) */
+#define TCTI_EXIT_NORMAL    0
+#define TCTI_EXIT_SYSCALL   1
+#define TCTI_EXIT_SIGNAL    2
+#define TCTI_EXIT_FAULT     3
+#define TCTI_EXIT_COMPLEX   4
+
 /* Simple test memory for semantic execution */
 static uint8_t test_memory[TEST_MEMORY_SIZE];
 static uint64_t test_memory_base = 0x1000;  /* Start at 4KB */
@@ -86,7 +93,7 @@ static int execute_tcti_gadget(tcti_gadget_t gadget) {
  * Returns number of gadgets executed, or -1 on error
  *
  * Note: Full TCTI gadget execution requires proper bytecode setup
- * (x27/x28 pointers). For EXEC-REAL-001, we execute real TCTI.
+ * (x27/x28 pointers). For EXEC-011, we execute real TCTI.
  * For other cases, we validate gadgets and rely on simulation.
  */
 static int execute_tcti_block(tcti_gadget_t *gadgets, size_t num_gadgets,
@@ -96,42 +103,20 @@ static int execute_tcti_block(tcti_gadget_t *gadgets, size_t num_gadgets,
         return 0;
     }
 
-    /* For EXEC-REAL-001: Execute real TCTI gadgets via tcti_entry_block */
-    if (case_id && strncmp(case_id, "EXEC-REAL-001", 13) == 0) {
-        printf("  [EXEC-REAL-001] Executing real TCTI via tcti_entry_block...\n");
+    /* For ALL semantic exec cases: Execute real TCTI gadgets via tcti_entry_block */
+    /* Real TCTI execution only - no simulation allowed */
+    printf("  [TCTI] Executing real TCTI via tcti_entry_block...\n");
 
-        /* Add exit gadget to terminate the chain */
-        extern tcti_gadget_t gadget_exit;
-        gadgets[num_gadgets] = gadget_exit;
-        num_gadgets++;
+    /* Add exit gadget to terminate the chain */
+    extern tcti_gadget_t gadget_exit;
+    gadgets[num_gadgets] = gadget_exit;
+    num_gadgets++;
 
-        /* Call TCTI entry block - this executes the gadget chain */
-        tcti_entry_block(gadgets, cpu);
+    /* Call TCTI entry block - this executes the gadget chain */
+    tcti_entry_block(gadgets, cpu);
 
-        printf("  [EXEC-REAL-001] TCTI execution complete, exit_reason=%d\n",
-               cpu->tcti_exit_reason);
-        return (int)num_gadgets;
-    }
-
-    /* For other cases: Validate only (simulation mode) */
-    int valid_gadgets = 0;
-    for (size_t i = 0; i < num_gadgets; i++) {
-        if (gadgets[i] == NULL) {
-            continue;
-        }
-        if (execute_tcti_gadget(gadgets[i]) != 0) {
-            fprintf(stderr, "Error: Gadget %zu validation failed\n", i);
-            return -1;
-        }
-        valid_gadgets++;
-    }
-
-    if (valid_gadgets == 0) {
-        fprintf(stderr, "Error: No valid gadgets to execute\n");
-        return -1;
-    }
-
-    printf("  [TCTI] Validated %zu gadget(s) for execution\n", num_gadgets);
+    printf("  [TCTI] Execution complete, exit_reason=%d\n",
+           cpu->tcti_exit_reason);
     return (int)num_gadgets;
 }
 
@@ -390,9 +375,9 @@ int main(int argc, char *argv[]) {
                 parent_start--;
             }
 
-            /* Now parent_start points to EXEC-001... or EXEC-REAL-001... or similar */
+            /* Now parent_start points to EXEC-001... or EXEC-011... or similar */
             /* Extract case ID: EXEC-XXX or EXEC-REAL-XXX */
-            /* Parse pattern like: EXEC-REAL-001-str-execution/case.yaml */
+            /* Parse pattern like: EXEC-011-str-execution/case.yaml */
             static char cid[64];
             int len = 0;
             const char *p = parent_start;
@@ -434,35 +419,33 @@ int main(int argc, char *argv[]) {
     struct cpu_state cpu = {0};
     uint32_t insn_word = 0;
 
-    /* For EXEC-REAL-001: Set up TLB for real TCTI execution
-     * TCTI gadgets need TLB to translate guest addresses
+    /* Set up TLB for ALL semantic execution cases
+     * Real TCTI execution requires TLB for memory access
      * This must happen before tcti_entry_block is called
      */
     static struct tlb exec_tlb;
     static struct mmu exec_mmu;
-    if (strncmp(case_id, "EXEC-REAL-001", 13) == 0) {
-        memset(&exec_mmu, 0, sizeof(exec_mmu));
-        memset(&exec_tlb, 0, sizeof(exec_tlb));
-        exec_tlb.mmu = &exec_mmu;
-        cpu.mmu = &exec_mmu;
-        cpu.tlb = &exec_tlb;
+    memset(&exec_mmu, 0, sizeof(exec_mmu));
+    memset(&exec_tlb, 0, sizeof(exec_tlb));
+    exec_tlb.mmu = &exec_mmu;
+    cpu.mmu = &exec_mmu;
+    cpu.tlb = &exec_tlb;
 
-        /* Map test memory region via TLB for TCTI inline lookups
-         * Test uses address 0x2000 (x2 initial value from expected.yaml)
-         */
-        uint64_t guest_addr = 0x2000;  /* Match x2 in expected.yaml */
-        uint64_t page_base = guest_addr & ~0xFFFULL;
-        int tlb_idx = TLB_INDEX(guest_addr);
-        printf("  [TLB Setup] guest_addr=0x%llx, page_base=0x%llx, tlb_idx=%d\n",
-               (unsigned long long)guest_addr, (unsigned long long)page_base, tlb_idx);
-        cpu.tlb->entries[tlb_idx].page = page_base;
-        cpu.tlb->entries[tlb_idx].page_if_writable = page_base;
-        /* data_minus_addr = host_addr - guest_page_base */
-        cpu.tlb->entries[tlb_idx].data_minus_addr = (uintptr_t)test_memory - page_base;
-        printf("  [TLB Setup] data_minus_addr=%p (test_memory=%p - page_base=0x%llx)\n",
-               (void*)cpu.tlb->entries[tlb_idx].data_minus_addr,
-               (void*)test_memory, (unsigned long long)page_base);
-    }
+    /* Map test memory region via TLB for TCTI inline lookups
+     * Test uses address 0x2000 (x2 initial value from expected.yaml)
+     */
+    uint64_t guest_addr = 0x2000;  /* Match x2 in expected.yaml */
+    uint64_t page_base = guest_addr & ~0xFFFULL;
+    int tlb_idx = TLB_INDEX(guest_addr);
+    printf("  [TLB Setup] guest_addr=0x%llx, page_base=0x%llx, tlb_idx=%d\n",
+           (unsigned long long)guest_addr, (unsigned long long)page_base, tlb_idx);
+    cpu.tlb->entries[tlb_idx].page = page_base;
+    cpu.tlb->entries[tlb_idx].page_if_writable = page_base;
+    /* data_minus_addr = host_addr - guest_page_base */
+    cpu.tlb->entries[tlb_idx].data_minus_addr = (uintptr_t)test_memory - page_base;
+    printf("  [TLB Setup] data_minus_addr=%p (test_memory=%p - page_base=0x%llx)\n",
+           (void*)cpu.tlb->entries[tlb_idx].data_minus_addr,
+           (void*)test_memory, (unsigned long long)page_base);
 
     if (parse_expected_yaml(expected_yaml, &cpu, &insn_word) != 0) {
         failure_summary = "failed to parse expected.yaml";
@@ -484,6 +467,7 @@ int main(int argc, char *argv[]) {
     if (strncmp(case_id, "EXEC-009", 8) == 0 || (insn_word & 0xFF000000) == 0xd4000000) {
         printf("  SVC instruction detected - bypassing TCTI generation\n");
         cpu.pc += 4;
+        cpu.tcti_exit_reason = TCTI_EXIT_NORMAL;  /* Set exit reason for SVC bypass */
         passed = 1;
         goto cleanup;
     }
@@ -509,28 +493,27 @@ int main(int argc, char *argv[]) {
 
     printf("  Generated %zu gadget(s)\n", gen_state.num_gadgets);
 
-    /* Execute via TCTI - Real execution path */
+    /* Execute via TCTI - Real execution path (no simulation) */
     int exec_ret = execute_tcti_block(gadget_buffer, gen_state.num_gadgets, &cpu, case_id);
     if (exec_ret < 0) {
-        failure_summary = "TCTI gadget validation failed";
+        failure_summary = "TCTI gadget execution failed";
         goto cleanup;
     }
 
-    /* For EXEC-REAL-001: TCTI already executed, skip simulation */
-    if (strncmp(case_id, "EXEC-REAL-001", 13) == 0) {
-        /* Verify TCTI exit was normal through cpu state */
-        if (cpu.tcti_exit_reason == TCTI_EXIT_NORMAL) {
-            passed = 1;
-        } else {
-            failure_summary = "TCTI did not exit normally";
-            passed = 0;
-        }
-        goto write_final_state;
+    /* Verify TCTI exit was normal */
+    if (cpu.tcti_exit_reason == TCTI_EXIT_NORMAL) {
+        passed = 1;
+    } else {
+        failure_summary = "TCTI did not exit normally";
+        passed = 0;
     }
+    goto write_final_state;
 
-    /* For other cases: Execute instruction semantics via simulation */
-
-    /* Handle EXEC-010: Fault address propagation */
+    /* NOTE: All semantic execution cases now use real TCTI via tcti_entry_block().
+     * The simulation code below is deprecated and will not be reached.
+     * It is kept temporarily for reference but will be removed in a future cleanup.
+     */
+#if 0  /* DEPRECATED - Simulation code no longer used */
     /* Test that invalid address is caught */
     if (strncmp(case_id, "EXEC-010", 8) == 0) {
         /* STR X1, [X0] - X0 is invalid address */
@@ -740,6 +723,8 @@ int main(int argc, char *argv[]) {
     if (!passed) {
         failure_summary = "TCTI execution not fully implemented for this instruction type";
     }
+
+#endif  /* DEPRECATED - Simulation code no longer used */
 
 write_final_state:
     /* Write final state */

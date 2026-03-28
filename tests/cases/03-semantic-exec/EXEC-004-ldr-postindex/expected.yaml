@@ -1,0 +1,71 @@
+initial_state:
+  registers:
+    x0: 0x0                 # Destination register (will receive loaded value)
+    x1: 0x2000              # Base address (points to test memory, TLB mapped)
+    x2: 0xABCD12345678EF01  # Value pre-written at memory address 0x2000
+  pc: 0x4000
+  sp: 0x2000
+  nzcv: {n: 0, z: 0, c: 0, v: 0}
+
+code:
+  # LDR (immediate) post-indexed: ldr x0, [x1], #8
+  # Verified with: echo 'ldr x0, [x1], #8' | llvm-mc --triple=aarch64 --show-encoding
+  # encoding: [0x20, 0x84, 0x40, 0xf8]
+  instruction:
+    name: ldr_post_index
+    asm: "ldr x0, [x1], #8"
+    encoding_hex_le: "208440f8"
+    description: "Load x0 from [x1], then x1 = x1 + 8"
+
+execution_sequence:
+  - step: 1
+    instruction: ldr_post_index
+    description: "Load from address in x1 into x0, then increment x1 by 8"
+    expected_registers:
+      x0: 0xABCD12345678EF01  # Value loaded from memory at 0x2000
+      x1: 0x2008               # Post-index: base + 8
+      x2: 0xABCD12345678EF01  # Unchanged (value that was in memory)
+    expected_pc: 0x4004
+    expected_nzcv:
+      n: 0  # Unchanged (LDR does not modify flags)
+      z: 0  # Unchanged
+      c: 0  # Unchanged
+      v: 0  # Unchanged
+    expected_tcti_exit_reason: 0  # TCTI_EXIT_NORMAL
+
+code_expectations:
+  instruction_category: A64_LD_ST
+  instruction_subtype: 4   # A64_LDST_SINGLE
+  idx_mode: 1              # A64_POST_INDEX
+  size: 64-bit
+  Rt: 0    # X0 (destination)
+  Rn: 1    # X1 (base)
+  imm9: 8  # Post-index offset
+
+semantic_effects:
+  - operation: load
+    description: "X0 = Mem[x1]"
+    address: "X1 initial value (0x2000)"
+    value: "0xABCD12345678EF01"
+    size: 64-bit
+  - operation: add
+    description: "X1 = X1 + 8"
+    result: "0x2008"
+
+success_criteria:
+  - name: load_executes
+    description: "Value from memory at 0x2000 loaded into x0"
+  - name: base_updated
+    description: "Base register x1 updated to 0x2008 (0x2000 + 8)"
+  - name: memory_preserved
+    description: "Source memory location unchanged"
+  - name: pc_advanced
+    description: "Program counter advanced by 4"
+  - name: tcti_exit_normal
+    description: "TCTI exit reason is TCTI_EXIT_NORMAL (0)"
+
+notes: |
+  Tests LDR post-index addressing mode with real TCTI execution.
+  Complements EXEC-003 (STR) to verify the load/store gadget pair.
+  Post-index means: load using initial base address, then update base.
+  TCTI TLB must be configured for address 0x2000 for load to succeed.

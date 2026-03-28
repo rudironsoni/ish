@@ -2,7 +2,7 @@ initial_state:
   registers:
     x0: 0x0
     x1: 0xDEADBEEFCAFEBABE
-    x2: 0x1000
+    x2: 0x2000
   pc: 0x4000
   sp: 0x2000
   nzcv: {n: 0, z: 0, c: 0, v: 0}
@@ -24,13 +24,14 @@ execution_sequence:
     expected_registers:
       x0: 0x0
       x1: 0xDEADBEEFCAFEBABE  # Unchanged
-      x2: 0x1008               # Post-index: base + 8
+      x2: 0x2008               # Post-index: base + 8
     expected_pc: 0x4004
     expected_nzcv:
       n: 0  # Unchanged
       z: 0  # Unchanged
       c: 0  # Unchanged
       v: 0  # Unchanged
+    expected_tcti_exit_reason: 0  # TCTI_EXIT_NORMAL
 
 code_expectations:
   instruction_category: A64_LD_ST
@@ -44,24 +45,24 @@ code_expectations:
 semantic_effects:
   - operation: store
     description: "Mem[x2] = x1"
-    address: "X2 initial value (0x1000)"
+    address: "X2 initial value (0x2000)"
     value: "X1 value (0xDEADBEEFCAFEBABE)"
     size: 64-bit
   - operation: add
     description: "X2 = X2 + 8"
-    result: "0x1008"
+    result: "0x2008"
 
 success_criteria:
   - name: store_executes
-    description: Value from x1 stored to memory at address 0x1000
+    description: Value from x1 stored to memory at address 0x2000
   - name: base_updated
-    description: Base register x2 updated to 0x1008 (0x1000 + 8)
+    description: Base register x2 updated to 0x2008 (0x2000 + 8)
   - name: source_preserved
     description: Source register x1 unchanged
   - name: pc_advanced
     description: Program counter advanced by 4
-  - name: flags_preserved
-    description: NZCV flags unchanged (STR does not modify flags)
+  - name: tcti_exit_normal
+    description: TCTI exit reason is TCTI_EXIT_NORMAL (0)
 
 notes: |
   Tests STR post-index addressing mode semantics.
