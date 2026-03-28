@@ -380,6 +380,43 @@ void trace_emit_process_entry(uint64_t entry_pc, uint64_t sp, uint64_t at_entry,
     g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
 }
 
+/* Emit task creation event */
+void trace_emit_task_create(uint32_t pid, uint32_t parent_pid) {
+    if (!g_trace_ctx || !g_trace_ctx->backend_ops || !g_trace_ctx->backend_ops->emit) {
+        return;
+    }
+    
+    if (!trace_event_enabled(TRACE_EVENT_TASK_CREATE, 0)) {
+        return;
+    }
+    
+    if (g_trace_ctx->config.max_events > 0 &&
+        g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
+        g_trace_ctx->enabled = false;
+        return;
+    }
+    
+    trace_record_t record;
+    memset(&record, 0, sizeof(record));
+    
+    record.header.seq = g_trace_ctx->emitted_count++;
+    record.header.event_id = TRACE_EVENT_TASK_CREATE;
+    record.header.level = TRACE_LEVEL_SUMMARY;
+    record.header.cpu_id = 0;
+    record.header.pc = 0;
+    record.header.payload_size = 8;
+    
+    memcpy(record.payload + 0, &pid, 4);
+    memcpy(record.payload + 4, &parent_pid, 4);
+    
+    g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
+}
+
+/* Emit task start event */
+void trace_emit_task_start(uint32_t pid) {
+    trace_emit_u32(TRACE_EVENT_TASK_START, 0, pid);
+}
+
 /* Emit block compile start */
 void trace_emit_block_compile_start(uint64_t pc) {
     trace_emit_u64(TRACE_EVENT_BLOCK_COMPILE_START, pc, pc);

@@ -8,6 +8,7 @@
 #include "kernel/calls.h"
 #include "kernel/init.h"
 #include "kernel/personality.h"
+#include "trace/trace.h"
 
 int mount_root(const struct fs_ops *fs, const char *source) {
     char source_realpath[MAX_PATH + 1];
@@ -52,9 +53,9 @@ static struct rlimit_ init_rlimits[16] = {
 
 // TODO error propagation
 static struct task *construct_task(struct task *parent) {
-    printk("[init] construct_task ENTRY, parent=%p, parent_pid=%d\n", parent, parent ? parent->pid : -1);
     struct task *task = task_create_(parent);
-    printk("[init] task_create_ returned task=%p, pid=%d\n", task, IS_ERR(task) ? -1 : task->pid);
+    if (task == NULL || IS_ERR(task))
+        return ERR_PTR(task ? PTR_ERR(task) : -ENOMEM);
 
     struct tgroup *group = malloc(sizeof(struct tgroup));
     *group = (struct tgroup) {};
@@ -70,9 +71,7 @@ static struct task *construct_task(struct task *parent) {
     task->tgid = task->pid;
     task_setsid(task);
 
-    printk("[init] construct_task: about to call task_set_mm\n");
     task_set_mm(task, mm_new());
-    printk("[init] construct_task: task_set_mm done, mm=%p, mem=%p\n", task->mm, task->mem);
     task->sighand = sighand_new();
     task->files = fdtable_new(3); // why is there a 3 here
 
@@ -89,6 +88,9 @@ static struct task *construct_task(struct task *parent) {
     }
     task->fs->pwd = fd_retain(task->fs->root);
     current = old_current;
+
+    // Emit trace event for task creation
+    trace_emit_task_create(task->pid, parent ? parent->pid : 0);
 
     return task;
 }
@@ -107,25 +109,17 @@ int become_first_process() {
     }
 
     current = task;
-    printk("INFO: First process created successfully, pid=%d\n", task->pid);
     return 0;
 }
 
 int become_new_init_child() {
-    printk("[init] become_new_init_child ENTRY\n");
-    // locking? who needs locking?!
     struct task *init = pid_get_task(1);
-    printk("[init] pid_get_task(1) returned %p\n", init);
-    if (init == NULL) {
-        printk("[init] ERROR: pid_get_task(1) returned NULL!\n");
+    if (init == NULL)
         return -1;
-    }
 
     struct task *task = construct_task(init);
-    if (IS_ERR(task)) {
-        printk("ERROR: become_new_init_child: construct_task failed with %d\n", PTR_ERR(task));
+    if (IS_ERR(task))
         return PTR_ERR(task);
-    }
 
     // these are things we definitely don't want to inherit
     task->clear_tid = 0;
@@ -135,8 +129,10 @@ int become_new_init_child() {
     // TODO: think about whether it would be a good idea to inherit fs_info
 
     current = task;
-    printk("[init] become_new_init_child: current set to pid=%d, task=%p, mm=%p, mem=%p\n",
-           task->pid, task, task->mm, task->mem);
+
+    // Memory barrier to ensure all task initialization is visible
+    // before any potential task_start() call
+    __sync_synchronize();
     return 0;
 }
 

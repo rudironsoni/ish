@@ -273,17 +273,7 @@ static uint64_t a64_apply_shift(uint64_t value, int shift_type, int amount, bool
  * This is the main entry point from the kernel
  */
 void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
-    printk("[cpu] a64_cpu_run ENTRY, cpu=%p, tlb=%p\n", cpu, tlb);
-    if (!cpu) {
-        printk("[cpu] ERROR: cpu is NULL\n");
-        return;
-    }
-    if (!tlb) {
-        printk("[cpu] ERROR: tlb is NULL\n");
-        return;
-    }
-    if (!cpu->mmu) {
-        printk("[cpu] ERROR: cpu->mmu is NULL\n");
+    if (!cpu || !tlb || !cpu->mmu) {
         return;
     }
 
@@ -297,16 +287,13 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
     cpu->tlb = tlb;  // Store TLB pointer in cpu_state for inline TLB access
 
     // Get or create persistent execution context for this CPU
-    printk("[cpu] Getting fiber_exec_ctx...\n");
     struct fiber_exec_ctx *ctx = fiber_exec_ctx_get(cpu);
     if (!ctx) {
-        printk("[cpu] ERROR: fiber_exec_ctx_get returned NULL\n");
         trace_emit(TRACE_EVENT_FAULT, cpu->pc);
         handle_interrupt(INT_GPF);
         trace_shutdown();
         return;
     }
-    printk("[cpu] fiber_exec_ctx=%p\n", ctx);
     
     // Reset frame state for new execution run
     fiber_exec_ctx_reset(ctx, cpu);

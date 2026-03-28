@@ -87,6 +87,10 @@ void trace_emit_syscall_return(uint64_t pc, uint64_t retval);
 /* Emit process entry snapshot. */
 void trace_emit_process_entry(uint64_t entry_pc, uint64_t sp, uint64_t at_entry, uint64_t at_base);
 
+/* Emit task lifecycle events. */
+void trace_emit_task_create(uint32_t pid, uint32_t parent_pid);
+void trace_emit_task_start(uint32_t pid);
+
 /* Emit block compilation events. */
 void trace_emit_block_compile_start(uint64_t pc);
 void trace_emit_block_compile_end(uint64_t pc, uint64_t end_pc, uint32_t insn_count);
