@@ -45,13 +45,13 @@ trace_defaults:
   dump_on: fault
 
 informational_only: false
-status: REAL_PASS
+status: STUB
 is_gate_case: true
 
 metadata:
   scaffolded: true
   implementation_ready: true
   notes: |
-    STR post-index store with writeback semantics.
-    Tests Mem[base] := Rt, then Rn := Rn + imm9.
-    Prerequisites: EXEC-002 must be REAL PASS.
+    SIMULATED EXECUTION - semantic_micro harness runs C simulation.
+    Does NOT execute real TCTI gadgets via tcti_entry_block().
+    For real TCTI execution, see EXEC-REAL-001.

@@ -44,14 +44,13 @@ trace_defaults:
   dump_on: fault
 
 informational_only: false
-status: REAL_PASS
+status: STUB
 is_gate_case: true
 
 metadata:
   scaffolded: true
   implementation_ready: true
   notes: |
-    CMP flag setting works - SUBS immediate with set_flags.
-    Harness computes N, Z, C, V flags from subtraction result.
-    C=1 when Rn >= imm (no borrow), C=0 when borrow needed.
-    Z=1 when result is zero (Rn == imm).
+    SIMULATED EXECUTION - semantic_micro harness runs C simulation.
+    Does NOT execute real TCTI gadgets via tcti_entry_block().
+    For real TCTI execution, see EXEC-REAL-001.

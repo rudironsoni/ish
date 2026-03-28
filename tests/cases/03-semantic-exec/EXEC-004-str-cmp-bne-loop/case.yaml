@@ -45,13 +45,13 @@ trace_defaults:
   dump_on: fault
 
 informational_only: false
-status: REAL_PASS
+status: STUB
 is_gate_case: true
 
 metadata:
   scaffolded: true
   implementation_ready: true
   notes: |
-    Loop with STR, SUBS, B.NE executes correctly.
-    Tests multi-instruction execution with control flow.
-    5 iterations, final state verified.
+    SIMULATED EXECUTION - semantic_micro harness runs C simulation.
+    Does NOT execute real TCTI gadgets via tcti_entry_block().
+    For real TCTI execution, see EXEC-REAL-001.
