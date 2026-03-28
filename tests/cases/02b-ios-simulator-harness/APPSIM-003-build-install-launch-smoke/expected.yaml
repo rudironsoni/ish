@@ -1,0 +1,35 @@
+expected_artifacts:
+  sim_launch.json:
+    build_success: true
+    install_success: true
+    launch_success: true
+    app_alive: true
+    launch_timestamp: "ISO8601"
+    device_id: "string"
+    bundle_id: "app.ish.iSH"
+    
+  build_result.json:
+    success: true
+    exit_code: 0
+    build_duration_ms: "integer"
+    app_path: "string"
+    
+  install_result.json:
+    success: true
+    install_duration_ms: "integer"
+    error: null
+    
+  launch_result.json:
+    success: true
+    launch_duration_ms: "integer"
+    pid: "integer"
+    
+  alive_check.json:
+    alive: true
+    check_count: "integer"
+    total_wait_ms: "integer"
+    
+  report.json:
+    case_id: "APPSIM-003"
+    status: "REAL_PASS"
+    summary: "Build, install, launch, and alive check all successful"

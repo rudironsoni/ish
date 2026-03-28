@@ -15,9 +15,10 @@ This command is the ONLY lawful way to select an active case. It reads the machi
 ## Behavior
 
 1. Read `tests/cases/execution-order.yaml` to get:
-   - Canonical phase order (00 through 11)
+   - Canonical phase order (00, 01, 02, 02b, 02c, 03 through 11)
    - Complete gate inventory for each phase
    - Gating rules and prerequisites
+   - Legacy/deprecated cases to exclude (exclude_from_selection: true)
 
 2. Read `tests/cases/status.yaml` to get:
    - Current status of every gate case

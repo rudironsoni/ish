@@ -1,9 +1,18 @@
-version: "2"
+version: "3"
 
 execution_policy: |
   Cases MUST execute in phase order. Within each phase, cases execute
   in alphanumeric order by case ID. Prerequisites within a phase form
   a DAG; cases with satisfied prerequisites execute first.
+  
+  Phase order is determined by the literal ordered sequence in this file's
+  `phases` list, NOT by lexical sort or numeric parsing of phase IDs.
+  Phase IDs are opaque strings; order is positional.
+  
+  Examples:
+    - "02b" comes after "02" because it is position 4 in the list
+    - "02c" comes after "02b" because it is position 5 in the list
+    - "03" comes after "02c" because it is position 6 in the list
   
   AUTONOMOUS ACTIVE CASE SELECTION:
   1. Read this file to get the canonical phase order and gate inventory.
@@ -13,6 +22,7 @@ execution_policy: |
   5. If the active case directory does not exist, scaffold it first.
   6. If the active case contract is invalid, repair it before implementation.
   7. Only work on the active case. Never skip phases. Never work on multiple cases.
+  8. Skip deprecated legacy cases (exclude_from_selection: true).
 
 phases:
   - phase: 00-trace-harness
@@ -67,6 +77,39 @@ phases:
       - GEN-006
       - GEN-007
       - GEN-008
+    informational_only: false
+    next_phase_prerequisite: all_gate_cases_pass
+
+  - phase: 02b-ios-simulator-harness
+    name: iOS Simulator Harness Capability
+    description: |
+      Validate iOS simulator app testing harness capability.
+      Prove XcodeBuildMCP availability, simulator targeting, build/install/launch,
+      log harvesting, crash normalization, and bounded reset/retry.
+      These cases make app testing lawful before later product phases complete.
+    gate_cases:
+      - APPSIM-001
+      - APPSIM-002
+      - APPSIM-003
+      - APPSIM-004
+      - APPSIM-005
+      - APPSIM-006
+    informational_only: false
+    next_phase_prerequisite: all_gate_cases_pass
+
+  - phase: 02c-ios-app-runtime-entry
+    name: iOS App Runtime-Entry
+    description: |
+      Reduce current crash class to earliest failing boot milestone.
+      Prove first ELF exec, second exec/login entry, process-entry contract,
+      and login ELF boundaries. These are early app runtime cases that can
+      be lawfully run now to reduce the crash to smallest failing unit.
+    gate_cases:
+      - APP-001
+      - APP-002
+      - APP-003
+      - APP-004
+      - APP-005
     informational_only: false
     next_phase_prerequisite: all_gate_cases_pass
 
@@ -210,6 +253,8 @@ phases:
     description: |
       Validate developer tooling within emulated environment,
       long-running stability under stress, and iOS-specific integration.
+      Includes later app stability/product cases (guest loop entry,
+      login-ready, shell-ready, relaunch stability, suspend/resume).
     gate_cases:
       - TOOL-001
       - TOOL-002
@@ -218,11 +263,26 @@ phases:
       - STAB-001
       - STAB-002
       - STAB-003
-      - IOS-001
-      - IOS-002
-      - IOS-003
+      - APP-006
+      - APP-007
+      - APP-008
+      - APP-009
+      - APP-010
     informational_only: false
     next_phase_prerequisite: all_gate_cases_pass
+    legacy_cases:
+      - case_id: IOS-001
+        status: deprecated
+        superseded_by: APPSIM-003
+        exclude_from_selection: true
+      - case_id: IOS-002
+        status: deprecated
+        superseded_by: APP-009
+        exclude_from_selection: true
+      - case_id: IOS-003
+        status: deprecated
+        superseded_by: APPSIM-004
+        exclude_from_selection: true
 
   - phase: 11-distro-matrix
     name: Distribution Matrix
@@ -263,6 +323,8 @@ gating_rules: |
      current phase before proceeding.
   5. Prerequisites within a phase MAY be satisfied out of order if
      the dependency DAG permits.
+  6. Deprecated legacy cases with exclude_from_selection: true are NOT
+     eligible for active case selection and do NOT count as gate cases.
   
   ILLEGAL OPERATIONS (agent MUST refuse):
   - Phase skipping: Never jump from phase N to phase N+M where M > 1.
@@ -271,6 +333,13 @@ gating_rules: |
   - Broad runtime debugging: If a smaller missing case can be created,
     create the case first instead of debugging the symptom.
   - Direct edits to generated outputs: Modify source, not artifacts.
+  - Selecting deprecated legacy cases for active work.
 
-phase_count: 12
-total_gate_cases: 108
+phase_count: 14
+total_gate_cases: 122
+
+# Gate case count verification:
+# Phase 00: 6, Phase 01: 11, Phase 02: 8, Phase 02b: 6, Phase 02c: 5
+# Phase 03: 11, Phase 04: 11, Phase 05: 9, Phase 06: 12, Phase 07: 9
+# Phase 08: 8, Phase 09: 10, Phase 10: 12, Phase 11: 4
+# Total: 122 (excluding IOS-001..003 which are deprecated)

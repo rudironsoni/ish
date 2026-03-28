@@ -1,25 +1,49 @@
 # Active Case Lock
 # Machine-readable single active case state
-# Phase 03 IN PROGRESS (4/10 complete)
+# Phase architecture revised - 02b and 02c inserted
 
-version: "2.2"
-last_updated: "2026-03-27T04:00:00Z"
+version: "3.0"
+last_updated: "2026-03-28T06:00:00Z"
+
+# Migration Policy
+# Handles stale active cases after phase inventory changes
+migration_policy:
+  version: "3.0"
+  from_version: "2.2"
+  
+  stale_active_case_handler:
+    condition: |
+      active_case.phase not in ["00-trace-harness", "01-decode", "02-generator", 
+                                "02b-ios-simulator-harness", "02c-ios-app-runtime-entry",
+                                "03-semantic-exec", "04-mmu-abi", "05-elf-loader",
+                                "06-syscalls-core-fs-net", "07-threads-signals-tls",
+                                "08-musl", "09-glibc", "10-tooling-stability-ios",
+                                "11-distro-matrix"] OR
+      active_case.case_id in ["IOS-001", "IOS-002", "IOS-003"]
+    action: |
+      1. Clear active case lock (case_id: null, phase: null)
+      2. Reset session state to INITIAL
+      3. Log migration: "Active case reset due to phase inventory change"
+      4. Trigger case-next to select lawful next case from new phase order
+    auto_trigger: true
 
 # Active case identification
 active_case:
-  case_id: "EXEC-005"
-  phase: "03-semantic-exec"
-  status_before: "STUB"
+  case_id: null
+  phase: null
+  status_before: null
   status_after: null
   owner: "orchestrator"
-  started_at: "2026-03-27T04:00:00Z"
+  started_at: null
   completed_at: null
+  migration_triggered: "2026-03-28T06:00:00Z"
+  migration_reason: "Phase inventory changed - 02b and 02c inserted, IOS-001..003 deprecated"
 
 # Current execution state
 session_state:
-  current_stage: "IN_PROGRESS"
-  next_action: "WORK_CASE"
-  case_just_promoted: true
+  current_stage: "INITIAL"
+  next_action: "case-next"
+  case_just_promoted: false
 
 # Continuation invariants
 continuation_invariants:
@@ -29,7 +53,7 @@ continuation_invariants:
   stop_reason: null
   auto_continue: true
   next_action_valid: true
-  continued_last_transition: true
+  continued_last_transition: false
   invariants_violated: false
   invalid_stop_detected: false
 
@@ -42,20 +66,19 @@ retry_budget:
 
 # Patch scope enforcement
 allowed_patch_scope:
-  level: "case-only"
-  allowed_paths:
-    - "tests/cases/03-semantic-exec/EXEC-005*/**"
-    - "tests/cases/harness/semantic_micro.c"
+  level: "none"
+  allowed_paths: []
   forbidden_paths:
+    - "tests/cases/00-trace-harness/**"
     - "tests/cases/01-decode/**"
     - "tests/cases/02-generator/**"
-    - "tests/cases/04-mmu-abi/**"
 
 # Session budget
 session_budget:
   max_cases_per_session: 6
   max_phase_progression: 1
-  cases_processed: 4
+  cases_processed: 0
+  phases_completed: ["00-trace-harness", "01-decode", "02-generator"]
 
 # Execution history
 execution_log:
@@ -77,32 +100,48 @@ execution_log:
   - case_id: "EXEC-004"
     status: "REAL PASS"
     promotion_at: "2026-03-27T04:00:00Z"
+  - event: "MIGRATION"
+    description: "Phase inventory updated - 02b and 02c inserted"
+    timestamp: "2026-03-28T06:00:00Z"
 
 # Command execution history
 command_history:
-  last_command: "case-promote"
-  last_result: "EXEC-004_PROMOTED"
-  last_run_at: "2026-03-27T04:00:00Z"
+  last_command: "migration"
+  last_result: "PHASE_INVENTORY_UPDATED"
+  last_run_at: "2026-03-28T06:00:00Z"
 
 # Next lawful action
 next_lawful_action:
-  active_phase: "03-semantic-exec"
-  active_case: "EXEC-005"
-  current_status: "STUB"
-  next_action: "WORK_CASE"
-  reason: "EXEC-004 promoted to REAL_PASS. Moving to EXEC-005 (hot register sync)."
+  active_phase: null
+  active_case: null
+  current_status: null
+  next_action: "case-next"
+  reason: "Phase inventory changed. Must recompute earliest unsatisfied gate case."
   required_immediate:
-    command: "case-work"
-    purpose: "Implement EXEC-005 hot register synchronization"
+    command: "harness-doctor"
+    purpose: "Validate control plane integrity after phase insertion"
 
 # Continuation state
 continuation:
   next_case_required: true
-  next_lawful_case: "EXEC-005"
-  next_lawful_action: "WORK"
+  next_lawful_case: null
+  next_lawful_action: "SELECT"
   stop_reason: null
+
+# App Session State
+app_session_state:
+  current_app_stage: null
+  selected_simulator: null
+  selected_bundle: null
+  retry_budget_remaining: 3
+  relaunch_count: 0
+  current_boot_milestone: null
+  current_crash_signature: null
+  highest_completed_milestone: null
+  first_failing_milestone: null
+  app_specific_in_progress: false
 
 # Validation checksum
 validation:
   checksum: null
-  schema_version: "2.2"
+  schema_version: "3.0"

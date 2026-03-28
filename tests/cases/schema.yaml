@@ -1,4 +1,4 @@
-version: "2"
+version: "3"
 
 schema_documentation: |
   This schema defines the canonical structure for all test cases in the
@@ -52,6 +52,8 @@ field_definitions:
       - 00-trace-harness
       - 01-decode
       - 02-generator
+      - 02b-ios-simulator-harness
+      - 02c-ios-app-runtime-entry
       - 03-semantic-exec
       - 04-mmu-abi
       - 05-elf-loader
@@ -87,6 +89,9 @@ field_definitions:
       - ios
       - stability
       - tooling
+      - app_harness_capability
+      - app_runtime_entry
+      - app_stability
 
   kind:
     type: enum
@@ -102,6 +107,7 @@ field_definitions:
       - signal_fixture
       - distro_fixture
       - ios_fixture
+      - ios_app_harness
 
   harness:
     type: enum
@@ -117,6 +123,7 @@ field_definitions:
       - signal_fixture
       - distro_fixture
       - ios_fixture
+      - ios_app_harness
 
   meson_test:
     type: string
@@ -404,10 +411,83 @@ autonomous_operation:
       description: Modify source only, never edit generated artifacts directly.
       severity: FATAL
 
+# NEW: App-specific case fields
+  # For ios_app_harness kind cases
+  harness_kind:
+    type: enum
+    values:
+      - ios_simulator_app
+      - guest_unit
+    description: Type of harness for this case
+
+  simulator_tool:
+    type: enum
+    values:
+      - xcodebuildmcp
+      - none
+    description: Simulator control tool for app cases
+
+  milestone_model:
+    type: object
+    properties:
+      ordered_milestones:
+        type: array
+        items:
+          type: string
+      highest_completed:
+        type: string
+      first_failing:
+        type: string
+
+  crash_signature_contract:
+    type: object
+    properties:
+      algorithm:
+        type: string
+        enum: [sha256, md5]
+      fields:
+        type: array
+        items:
+          type: string
+
+  retry_policy:
+    type: object
+    properties:
+      max_retries:
+        type: integer
+        minimum: 0
+        maximum: 3
+      allow_reset:
+        type: boolean
+      reset_on_retry:
+        type: boolean
+
+  app_target:
+    type: object
+    properties:
+      bundle_id:
+        type: string
+      scheme:
+        type: string
+      workspace:
+        type: string
+      project:
+        type: string
+
+  timeout_policy:
+    type: object
+    properties:
+      launch_timeout:
+        type: integer
+      alive_check_interval:
+        type: integer
+      max_alive_wait:
+        type: integer
+
 # NEW: Case counts by phase
 case_inventory:
-  total_phases: 12
-  total_gate_cases: 108
+  total_phases: 14
+  total_gate_cases: 122
   phases:
     00-trace-harness:
       gate_count: 6
@@ -418,8 +498,14 @@ case_inventory:
     02-generator:
       gate_count: 8
       case_prefix: GEN
+    02b-ios-simulator-harness:
+      gate_count: 6
+      case_prefix: APPSIM
+    02c-ios-app-runtime-entry:
+      gate_count: 5
+      case_prefix: APP
     03-semantic-exec:
-      gate_count: 10
+      gate_count: 11
       case_prefix: EXEC
     04-mmu-abi:
       gate_count: 11
@@ -440,8 +526,12 @@ case_inventory:
       gate_count: 10
       case_prefix: GLIBC
     10-tooling-stability-ios:
-      gate_count: 10
-      case_prefixes: [TOOL, STAB, IOS]
+      gate_count: 12
+      case_prefixes: [TOOL, STAB, APP]
+      legacy_cases:
+        - IOS-001
+        - IOS-002
+        - IOS-003
     11-distro-matrix:
       gate_count: 4
       case_prefix: DISTRO

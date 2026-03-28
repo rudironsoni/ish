@@ -1,0 +1,91 @@
+id: APPSIM-001
+phase: 02b-ios-simulator-harness
+title: XcodeBuildMCP Tool Availability and Discovery
+class: app_harness_capability
+kind: ios_app_harness
+harness: ios_app_harness
+meson_test: case:APPSIM-001
+prerequisites: []
+is_gate_case: true
+informational_only: false
+
+expectation_authority:
+  semantic_source: ios-sandbox-contract
+  primary_tool: XcodeBuildMCP
+  secondary_tool: xcodebuild
+  tertiary_tool: simctl
+
+success_criteria:
+  structural:
+    - "XcodeBuildMCP session_show_defaults returns valid configuration"
+    - "discover_projs finds the iSH Xcode project"
+    - "list_schemes lists available build schemes"
+    - "list_sims returns available simulator targets"
+  semantic:
+    - "App target identity can be determined (bundle_id, scheme)"
+    - "Simulator targets are available and targetable"
+    - "XcodeBuildMCP operations are functional"
+
+allowed_patch_scope:
+  - "tests/cases/02b-ios-simulator-harness/APPSIM-001*/**"
+  - "tests/cases/harness/ios_app_harness.c"
+
+regression_target:
+  meson_test: case:APPSIM-001
+
+harness_kind: ios_simulator_app
+simulator_tool: xcodebuildmcp
+
+app_target:
+  bundle_id: "app.ish.iSH"
+  scheme: "iSH"
+  workspace: null
+  project: "ish/iSH.xcodeproj"
+
+discovery_flow:
+  - name: session_show_defaults
+    purpose: Verify XcodeBuildMCP is available and configured
+    required: true
+  - name: discover_projs
+    purpose: Find the iSH Xcode project
+    required: true
+  - name: list_schemes
+    purpose: List available build schemes
+    required: true
+  - name: list_sims
+    purpose: Verify simulator targets available
+    required: true
+  - name: session_set_defaults
+    purpose: Persist app target identity for subsequent cases
+    required: true
+
+retry_policy:
+  max_retries: 0
+  allow_reset: false
+  reset_on_retry: false
+
+timeout_policy:
+  launch_timeout: 60
+  alive_check_interval: 5
+  max_alive_wait: 30
+
+required_artifacts:
+  - name: xcodebuildmcp_capability.json
+    type: json
+    description: XcodeBuildMCP availability check results
+  - name: app_target_identity.json
+    type: json
+    description: Discovered app bundle_id, scheme, project path
+  - name: simulator_targets.json
+    type: json
+    description: Available simulator devices and runtimes
+  - name: report.json
+    type: json
+    description: Case execution report
+
+metadata:
+  created_date: "2026-03-28"
+  last_modified: "2026-03-28"
+  scaffolded: true
+  implementation_ready: true
+  notes: "First app harness capability case - proves XcodeBuildMCP is available and discoverable"
