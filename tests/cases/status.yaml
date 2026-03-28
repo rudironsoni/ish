@@ -573,297 +573,311 @@ phase_03:
     EXEC-001:
       case_id: "EXEC-001"
       phase: "03-semantic-exec"
-      current_status: REAL_PASS
+      current_status: STUB
       gate_case: true
       scaffolded: true
+      notes: "SIMULATED EXECUTION - harness validates gadgets but does not execute real TCTI"
       expected_artifacts:
         - "final_state.json"
         - "report.json"
       observed_artifacts:
         - "final_state.json"
         - "report.json"
-      verifier_result: "PASS"
-      anti_slop_result: "PASS"
-      review_skeptic_result: "PASS"
-      phase_gate_result: "PASS"
+      verifier_result: "STUB"
+      anti_slop_result: "STUB"
+      review_skeptic_result: "STUB"
+      phase_gate_result: "STUB"
       last_run_command: "case-run"
       last_run_at: "2026-03-27T07:00:00Z"
-      block_reason: null
+      block_reason: "Harness simulates execution instead of running real TCTI gadgets"
       evidence_hash: null
       artifact_dir: "tests/cases/03-semantic-exec/EXEC-001-single-alu"
     EXEC-002:
       case_id: "EXEC-002"
       phase: "03-semantic-exec"
-      current_status: REAL_PASS
+      current_status: STUB
       gate_case: true
       scaffolded: true
+      notes: "SIMULATED EXECUTION - harness validates gadgets but does not execute real TCTI"
       expected_artifacts:
         - "final_state.json"
         - "report.json"
       observed_artifacts:
         - "final_state.json"
         - "report.json"
-      verifier_result: "PASS"
-      anti_slop_result: "PASS"
-      review_skeptic_result: "PASS"
-      phase_gate_result: "PASS"
+      verifier_result: "STUB"
+      anti_slop_result: "STUB"
+      review_skeptic_result: "STUB"
+      phase_gate_result: "STUB"
       last_run_command: "case-run"
       last_run_at: "2026-03-27T07:00:00Z"
-      block_reason: null
+      block_reason: "Harness simulates execution instead of running real TCTI gadgets"
       evidence_hash: null
-      artifact_dir: "tests/cases/03-semantic-exec/EXEC-002-cmp-flags"
+      artifact_dir: "tests/cases/03-semantic-exec/EXEC-002-placeholder"
     EXEC-003:
       case_id: "EXEC-003"
       phase: "03-semantic-exec"
-      current_status: REAL_PASS
+      current_status: STUB
       gate_case: true
       scaffolded: true
+      notes: "SIMULATED EXECUTION - harness validates gadgets but does not execute real TCTI"
       expected_artifacts:
         - "final_state.json"
         - "report.json"
       observed_artifacts:
         - "final_state.json"
         - "report.json"
-      verifier_result: "PASS"
-      anti_slop_result: "PASS"
-      review_skeptic_result: "PASS"
-      phase_gate_result: "PASS"
+      verifier_result: "STUB"
+      anti_slop_result: "STUB"
+      review_skeptic_result: "STUB"
+      phase_gate_result: "STUB"
       last_run_command: "case-run"
       last_run_at: "2026-03-27T07:00:00Z"
-      block_reason: null
+      block_reason: "Harness simulates execution instead of running real TCTI gadgets"
       evidence_hash: null
-      artifact_dir: "tests/cases/03-semantic-exec/EXEC-003-str-postindex"
+      artifact_dir: "tests/cases/03-semantic-exec/EXEC-003-placeholder"
     EXEC-004:
       case_id: "EXEC-004"
       phase: "03-semantic-exec"
-      current_status: REAL_PASS
+      current_status: STUB
       gate_case: true
       scaffolded: true
+      notes: "SIMULATED EXECUTION - harness validates gadgets but does not execute real TCTI"
       expected_artifacts:
         - "final_state.json"
         - "report.json"
       observed_artifacts:
         - "final_state.json"
         - "report.json"
-      verifier_result: "PASS"
-      anti_slop_result: "PASS"
-      review_skeptic_result: "PASS"
-      phase_gate_result: "PASS"
+      verifier_result: "STUB"
+      anti_slop_result: "STUB"
+      review_skeptic_result: "STUB"
+      phase_gate_result: "STUB"
       last_run_command: "case-run"
       last_run_at: "2026-03-27T07:00:00Z"
-      block_reason: null
+      block_reason: "Harness simulates execution instead of running real TCTI gadgets"
       evidence_hash: null
-      artifact_dir: "tests/cases/03-semantic-exec/EXEC-004-str-cmp-bne-loop"
+      artifact_dir: "tests/cases/03-semantic-exec/EXEC-004-placeholder"
     EXEC-005:
       case_id: "EXEC-005"
       phase: "03-semantic-exec"
-      current_status: REAL_PASS
+      current_status: STUB
       gate_case: true
       scaffolded: true
+      notes: "SIMULATED EXECUTION - harness validates gadgets but does not execute real TCTI"
       expected_artifacts:
         - "final_state.json"
         - "report.json"
       observed_artifacts:
         - "final_state.json"
         - "report.json"
-      verifier_result: "PASS"
-      anti_slop_result: "PASS"
-      review_skeptic_result: "PASS"
-      phase_gate_result: "PASS"
+      verifier_result: "STUB"
+      anti_slop_result: "STUB"
+      review_skeptic_result: "STUB"
+      phase_gate_result: "STUB"
       last_run_command: "case-run"
       last_run_at: "2026-03-27T07:00:00Z"
-      block_reason: null
+      block_reason: "Harness simulates execution instead of running real TCTI gadgets"
       evidence_hash: null
-      artifact_dir: "tests/cases/03-semantic-exec/EXEC-005-hot-register-sync"
+      artifact_dir: "tests/cases/03-semantic-exec/EXEC-005-placeholder"
     EXEC-002:
       case_id: "EXEC-002"
       phase: "03-semantic-exec"
-      current_status: REAL_PASS
+      current_status: STUB
       gate_case: true
       scaffolded: true
+      notes: "SIMULATED EXECUTION - harness validates gadgets but does not execute real TCTI"
       expected_artifacts:
         - "final_state.json"
         - "report.json"
       observed_artifacts:
         - "final_state.json"
         - "report.json"
-      verifier_result: "PASS"
-      anti_slop_result: "PASS"
-      review_skeptic_result: "PASS"
-      phase_gate_result: "PASS"
+      verifier_result: "STUB"
+      anti_slop_result: "STUB"
+      review_skeptic_result: "STUB"
+      phase_gate_result: "STUB"
       last_run_command: "case-run"
-      last_run_at: "2026-03-27T02:00:00Z"
-      block_reason: null
+      last_run_at: "2026-03-27T07:00:00Z"
+      block_reason: "Harness simulates execution instead of running real TCTI gadgets"
       evidence_hash: null
-      artifact_dir: "tests/cases/03-semantic-exec/EXEC-002-cmp-flags"
+      artifact_dir: "tests/cases/03-semantic-exec/EXEC-002-placeholder"
     EXEC-003:
       case_id: "EXEC-003"
       phase: "03-semantic-exec"
-      current_status: REAL_PASS
+      current_status: STUB
       gate_case: true
       scaffolded: true
+      notes: "SIMULATED EXECUTION - harness validates gadgets but does not execute real TCTI"
       expected_artifacts:
         - "final_state.json"
         - "report.json"
       observed_artifacts:
         - "final_state.json"
         - "report.json"
-      verifier_result: "PASS"
-      anti_slop_result: "PASS"
-      review_skeptic_result: "PASS"
-      phase_gate_result: "PASS"
+      verifier_result: "STUB"
+      anti_slop_result: "STUB"
+      review_skeptic_result: "STUB"
+      phase_gate_result: "STUB"
       last_run_command: "case-run"
-      last_run_at: "2026-03-27T03:00:00Z"
-      block_reason: null
+      last_run_at: "2026-03-27T07:00:00Z"
+      block_reason: "Harness simulates execution instead of running real TCTI gadgets"
       evidence_hash: null
-      artifact_dir: "tests/cases/03-semantic-exec/EXEC-003-str-postindex"
+      artifact_dir: "tests/cases/03-semantic-exec/EXEC-003-placeholder"
     EXEC-004:
       case_id: "EXEC-004"
       phase: "03-semantic-exec"
-      current_status: REAL_PASS
+      current_status: STUB
       gate_case: true
       scaffolded: true
+      notes: "SIMULATED EXECUTION - harness validates gadgets but does not execute real TCTI"
       expected_artifacts:
         - "final_state.json"
         - "report.json"
       observed_artifacts:
         - "final_state.json"
         - "report.json"
-      verifier_result: "PASS"
-      anti_slop_result: "PASS"
-      review_skeptic_result: "PASS"
-      phase_gate_result: "PASS"
+      verifier_result: "STUB"
+      anti_slop_result: "STUB"
+      review_skeptic_result: "STUB"
+      phase_gate_result: "STUB"
       last_run_command: "case-run"
-      last_run_at: "2026-03-27T04:00:00Z"
-      block_reason: null
+      last_run_at: "2026-03-27T07:00:00Z"
+      block_reason: "Harness simulates execution instead of running real TCTI gadgets"
       evidence_hash: null
-      artifact_dir: "tests/cases/03-semantic-exec/EXEC-004-str-cmp-bne-loop"
+      artifact_dir: "tests/cases/03-semantic-exec/EXEC-004-placeholder"
     EXEC-005:
       case_id: "EXEC-005"
       phase: "03-semantic-exec"
-      current_status: REAL_PASS
+      current_status: STUB
       gate_case: true
       scaffolded: true
+      notes: "SIMULATED EXECUTION - harness validates gadgets but does not execute real TCTI"
       expected_artifacts:
         - "final_state.json"
         - "report.json"
       observed_artifacts:
         - "final_state.json"
         - "report.json"
-      verifier_result: "PASS"
-      anti_slop_result: "PASS"
-      review_skeptic_result: "PASS"
-      phase_gate_result: "PASS"
+      verifier_result: "STUB"
+      anti_slop_result: "STUB"
+      review_skeptic_result: "STUB"
+      phase_gate_result: "STUB"
       last_run_command: "case-run"
-      last_run_at: "2026-03-28T00:00:00Z"
-      block_reason: null
+      last_run_at: "2026-03-27T07:00:00Z"
+      block_reason: "Harness simulates execution instead of running real TCTI gadgets"
       evidence_hash: null
-      artifact_dir: "tests/cases/03-semantic-exec/EXEC-005-hot-register-sync"
+      artifact_dir: "tests/cases/03-semantic-exec/EXEC-005-placeholder"
     EXEC-006:
       case_id: "EXEC-006"
       phase: "03-semantic-exec"
-      current_status: REAL_PASS
+      current_status: STUB
       gate_case: true
       scaffolded: true
+      notes: "SIMULATED EXECUTION - harness validates gadgets but does not execute real TCTI"
       expected_artifacts:
         - "final_state.json"
         - "report.json"
       observed_artifacts:
         - "final_state.json"
         - "report.json"
-      verifier_result: "PASS"
-      anti_slop_result: "PASS"
-      review_skeptic_result: "PASS"
-      phase_gate_result: "PASS"
+      verifier_result: "STUB"
+      anti_slop_result: "STUB"
+      review_skeptic_result: "STUB"
+      phase_gate_result: "STUB"
       last_run_command: "case-run"
       last_run_at: "2026-03-27T07:00:00Z"
-      block_reason: null
+      block_reason: "Harness simulates execution instead of running real TCTI gadgets"
       evidence_hash: null
-      artifact_dir: "tests/cases/03-semantic-exec/EXEC-006-fast-vs-helper-equivalence"
+      artifact_dir: "tests/cases/03-semantic-exec/EXEC-006-placeholder"
     EXEC-007:
       case_id: "EXEC-007"
       phase: "03-semantic-exec"
-      current_status: REAL_PASS
+      current_status: STUB
       gate_case: true
       scaffolded: true
+      notes: "SIMULATED EXECUTION - harness validates gadgets but does not execute real TCTI"
       expected_artifacts:
         - "final_state.json"
         - "report.json"
       observed_artifacts:
         - "final_state.json"
         - "report.json"
-      verifier_result: "PASS"
-      anti_slop_result: "PASS"
-      review_skeptic_result: "PASS"
-      phase_gate_result: "PASS"
+      verifier_result: "STUB"
+      anti_slop_result: "STUB"
+      review_skeptic_result: "STUB"
+      phase_gate_result: "STUB"
       last_run_command: "case-run"
       last_run_at: "2026-03-27T07:00:00Z"
-      block_reason: null
+      block_reason: "Harness simulates execution instead of running real TCTI gadgets"
       evidence_hash: null
-      artifact_dir: "tests/cases/03-semantic-exec/EXEC-007-block-save-restore"
+      artifact_dir: "tests/cases/03-semantic-exec/EXEC-007-placeholder"
     EXEC-008:
       case_id: "EXEC-008"
       phase: "03-semantic-exec"
-      current_status: REAL_PASS
+      current_status: STUB
       gate_case: true
       scaffolded: true
+      notes: "SIMULATED EXECUTION - harness validates gadgets but does not execute real TCTI"
       expected_artifacts:
         - "final_state.json"
         - "report.json"
       observed_artifacts:
         - "final_state.json"
         - "report.json"
-      verifier_result: "PASS"
-      anti_slop_result: "PASS"
-      review_skeptic_result: "PASS"
-      phase_gate_result: "PASS"
+      verifier_result: "STUB"
+      anti_slop_result: "STUB"
+      review_skeptic_result: "STUB"
+      phase_gate_result: "STUB"
       last_run_command: "case-run"
       last_run_at: "2026-03-27T07:00:00Z"
-      block_reason: null
+      block_reason: "Harness simulates execution instead of running real TCTI gadgets"
       evidence_hash: null
-      artifact_dir: "tests/cases/03-semantic-exec/EXEC-008-next-pc-selection"
+      artifact_dir: "tests/cases/03-semantic-exec/EXEC-008-placeholder"
     EXEC-009:
       case_id: "EXEC-009"
       phase: "03-semantic-exec"
-      current_status: REAL_PASS
+      current_status: STUB
       gate_case: true
       scaffolded: true
+      notes: "SIMULATED EXECUTION - harness validates gadgets but does not execute real TCTI"
       expected_artifacts:
         - "final_state.json"
         - "report.json"
       observed_artifacts:
         - "final_state.json"
         - "report.json"
-      verifier_result: "PASS"
-      anti_slop_result: "PASS"
-      review_skeptic_result: "PASS"
-      phase_gate_result: "PASS"
+      verifier_result: "STUB"
+      anti_slop_result: "STUB"
+      review_skeptic_result: "STUB"
+      phase_gate_result: "STUB"
       last_run_command: "case-run"
       last_run_at: "2026-03-27T07:00:00Z"
-      block_reason: null
+      block_reason: "Harness simulates execution instead of running real TCTI gadgets"
       evidence_hash: null
-      artifact_dir: "tests/cases/03-semantic-exec/EXEC-009-svc-entry"
+      artifact_dir: "tests/cases/03-semantic-exec/EXEC-009-placeholder"
     EXEC-010:
       case_id: "EXEC-010"
       phase: "03-semantic-exec"
-      current_status: REAL_PASS
+      current_status: STUB
       gate_case: true
       scaffolded: true
+      notes: "SIMULATED EXECUTION - harness validates gadgets but does not execute real TCTI"
       expected_artifacts:
         - "final_state.json"
         - "report.json"
       observed_artifacts:
         - "final_state.json"
         - "report.json"
-      verifier_result: "PASS"
-      anti_slop_result: "PASS"
-      review_skeptic_result: "PASS"
-      phase_gate_result: "PASS"
+      verifier_result: "STUB"
+      anti_slop_result: "STUB"
+      review_skeptic_result: "STUB"
+      phase_gate_result: "STUB"
       last_run_command: "case-run"
       last_run_at: "2026-03-27T07:00:00Z"
-      block_reason: null
+      block_reason: "Harness simulates execution instead of running real TCTI gadgets"
       evidence_hash: null
-      artifact_dir: "tests/cases/03-semantic-exec/EXEC-010-fault-address-propagation"
+      artifact_dir: "tests/cases/03-semantic-exec/EXEC-010-placeholder"
 
 # Phase 04: MMU and Linux ABI
 phase_04:
@@ -2502,21 +2516,21 @@ phase_11:
 
 # Evidence-bearing summary
 summary:
-  total_stub: 0
-  total_real_pass: 112
+  total_stub: 10
+  total_real_pass: 102
   total_real_fail: 0
   total_blocked: 0
   total_invalid: 0
-  earliest_unsatisfied_phase: null
-  earliest_unsatisfied_case: null
-  last_updated: "2026-03-28T11:00:00Z"
-  evidence_completeness: "FULL"  # FULL | PARTIAL | NONE
-  verification_status: "ALL_PHASES_COMPLETE"
+  earliest_unsatisfied_phase: "03-semantic-exec"
+  earliest_unsatisfied_case: "EXEC-001"
+  last_updated: "2026-03-28T12:00:00Z"
+  evidence_completeness: "PARTIAL"  # FULL | PARTIAL | NONE
+  verification_status: "PARTIAL_COMPLETE"
   notes: |
     Phase 00 (Trace): 6/6 REAL_PASS
     Phase 01 (Decode): 11/11 REAL_PASS
     Phase 02 (Generator): 8/8 REAL_PASS
-    Phase 03 (Semantic Execution): 10/10 REAL_PASS
+    Phase 03 (Semantic Execution): 0/10 STUB - SIMULATED EXECUTION ONLY
     Phase 04 (MMU/ABI): 11/11 REAL_PASS
     Phase 05 (ELF Loader): 9/9 REAL_PASS
     Phase 06 (Syscalls Core/FS/Net): 12/12 REAL_PASS
@@ -2525,4 +2539,5 @@ summary:
     Phase 09 (glibc Compatibility): 10/10 REAL_PASS
     Phase 10 (Tooling, Stability, iOS): 11/11 REAL_PASS
     Phase 11 (Distribution Matrix): 4/4 REAL_PASS
-    ALL PHASES COMPLETE - 112/112 cases at REAL_PASS
+    KNOWN_ISSUE: App crashes in real execution - semantic tests simulate only
+    ACTION_NEEDED: EXEC-001 through EXEC-010 need real TCTI execution tests
