@@ -1,0 +1,41 @@
+signal_frame_requirements:
+  handler_setup:
+    - sa_sigaction callback registered
+    - SA_SIGINFO flag set
+    - signal mask properly configured
+
+  frame_layout:
+    - ucontext pointer valid
+    - mcontext accessible
+    - stack pointer changed in handler
+
+  rt_sigreturn:
+    - context restoration after handler
+    - program continues normally
+
+invariants:
+  - "signal handler receives valid context"
+  - "ucontext structure properly populated"
+  - "control returns to original context"
+
+validation_checks:
+  - name: handler_invoked
+    assertion: "signal handler was called"
+    critical: true
+
+  - name: context_valid
+    assertion: "ucontext pointer is non-null"
+    critical: true
+
+  - name: stack_switched
+    assertion: "handler uses different stack"
+    critical: true
+
+  - name: normal_return
+    assertion: "program continues after signal"
+    critical: true
+
+success_criteria:
+  - Handler invoked with valid context
+  - Stack properly switched
+  - Normal execution resumes

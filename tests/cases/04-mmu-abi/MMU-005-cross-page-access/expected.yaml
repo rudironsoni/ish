@@ -1,0 +1,43 @@
+cross_page_requirements:
+  allocation:
+    - allocate multiple contiguous pages
+    - each page accessible independently
+    - permission changes affect individual pages
+
+  access_patterns:
+    - pattern: first byte of page 1
+      expected: readable and writable
+    - pattern: last byte of page 1
+      expected: readable and writable
+    - pattern: first byte of page 2
+      expected: readable and writable
+    - pattern: last byte of page 2
+      expected: readable and writable
+
+  permission_tests:
+    - test: change page 2 to read-only
+      expected: mprotect succeeds
+      note: actual write test would SIGSEGV
+
+invariants:
+  - "multi-page mmap returns contiguous region"
+  - "each page has independent permissions"
+  - "mprotect applies to specified page only"
+
+validation_checks:
+  - name: page1_access
+    assertion: "can access first and last byte of page 1"
+    critical: true
+
+  - name: page2_access
+    assertion: "can access first and last byte of page 2"
+    critical: true
+
+  - name: permission_isolation
+    assertion: "mprotect on one page doesn't affect other"
+    critical: true
+
+success_criteria:
+  - all pages accessible
+  - permission changes isolated
+  - no spurious faults
