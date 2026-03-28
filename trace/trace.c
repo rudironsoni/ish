@@ -671,3 +671,176 @@ void trace_emit_complex_decode_fail(uint64_t pc, uint32_t insn) {
 void trace_emit_complex_fetch_fail(uint64_t pc, int reason) {
     trace_emit_u32(TRACE_EVENT_COMPLEX_FETCH_FAIL, pc, (uint32_t)reason);
 }
+
+/* Emit task thread entry - payload: uint64_t task_ptr */
+void trace_emit_task_thread_entry(uint64_t task_ptr) {
+    trace_emit_u64(TRACE_EVENT_TASK_THREAD_ENTRY, 0, task_ptr);
+}
+
+/* Emit task thread current set - payload: struct { uint32_t pid; uint64_t mm; uint64_t mem; } */
+void trace_emit_task_thread_current_set(uint32_t pid, uint64_t mm, uint64_t mem) {
+    if (!g_trace_ctx || !g_trace_ctx->backend_ops || !g_trace_ctx->backend_ops->emit) {
+        return;
+    }
+    
+    if (!trace_event_enabled(TRACE_EVENT_TASK_THREAD_CURRENT_SET, 0)) {
+        return;
+    }
+    
+    if (g_trace_ctx->config.max_events > 0 &&
+        g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
+        g_trace_ctx->enabled = false;
+        return;
+    }
+    
+    trace_record_t record;
+    memset(&record, 0, sizeof(record));
+    
+    record.header.seq = g_trace_ctx->emitted_count++;
+    record.header.event_id = TRACE_EVENT_TASK_THREAD_CURRENT_SET;
+    record.header.level = TRACE_LEVEL_SUMMARY;
+    record.header.cpu_id = 0;
+    record.header.pc = 0;
+    record.header.payload_size = 24;
+    
+    memcpy(record.payload + 0, &pid, 4);
+    memcpy(record.payload + 8, &mm, 8);
+    memcpy(record.payload + 16, &mem, 8);
+    
+    g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
+}
+
+/* Emit task run_current entry - payload: struct { uint64_t current_ptr; uint32_t pid; } */
+void trace_emit_task_run_current_entry(uint64_t current_ptr, uint32_t pid) {
+    if (!g_trace_ctx || !g_trace_ctx->backend_ops || !g_trace_ctx->backend_ops->emit) {
+        return;
+    }
+    
+    if (!trace_event_enabled(TRACE_EVENT_TASK_RUN_CURRENT_ENTRY, 0)) {
+        return;
+    }
+    
+    if (g_trace_ctx->config.max_events > 0 &&
+        g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
+        g_trace_ctx->enabled = false;
+        return;
+    }
+    
+    trace_record_t record;
+    memset(&record, 0, sizeof(record));
+    
+    record.header.seq = g_trace_ctx->emitted_count++;
+    record.header.event_id = TRACE_EVENT_TASK_RUN_CURRENT_ENTRY;
+    record.header.level = TRACE_LEVEL_SUMMARY;
+    record.header.cpu_id = 0;
+    record.header.pc = 0;
+    record.header.payload_size = 16;
+    
+    memcpy(record.payload + 0, &current_ptr, 8);
+    memcpy(record.payload + 8, &pid, 4);
+    
+    g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
+}
+
+/* Emit task run_current mem check - payload: struct { uint64_t mm; uint64_t mem; } */
+void trace_emit_task_run_current_mem_check(uint64_t mm, uint64_t mem) {
+    if (!g_trace_ctx || !g_trace_ctx->backend_ops || !g_trace_ctx->backend_ops->emit) {
+        return;
+    }
+    
+    if (!trace_event_enabled(TRACE_EVENT_TASK_RUN_CURRENT_MEM_CHECK, 0)) {
+        return;
+    }
+    
+    if (g_trace_ctx->config.max_events > 0 &&
+        g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
+        g_trace_ctx->enabled = false;
+        return;
+    }
+    
+    trace_record_t record;
+    memset(&record, 0, sizeof(record));
+    
+    record.header.seq = g_trace_ctx->emitted_count++;
+    record.header.event_id = TRACE_EVENT_TASK_RUN_CURRENT_MEM_CHECK;
+    record.header.level = TRACE_LEVEL_SUMMARY;
+    record.header.cpu_id = 0;
+    record.header.pc = 0;
+    record.header.payload_size = 16;
+    
+    memcpy(record.payload + 0, &mm, 8);
+    memcpy(record.payload + 8, &mem, 8);
+    
+    g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
+}
+
+/* Emit task create return - payload: struct { uint32_t pid; uint64_t task_ptr; } */
+void trace_emit_task_create_return(uint32_t pid, uint64_t task_ptr) {
+    if (!g_trace_ctx || !g_trace_ctx->backend_ops || !g_trace_ctx->backend_ops->emit) {
+        return;
+    }
+    
+    if (!trace_event_enabled(TRACE_EVENT_TASK_CREATE_RETURN, 0)) {
+        return;
+    }
+    
+    if (g_trace_ctx->config.max_events > 0 &&
+        g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
+        g_trace_ctx->enabled = false;
+        return;
+    }
+    
+    trace_record_t record;
+    memset(&record, 0, sizeof(record));
+    
+    record.header.seq = g_trace_ctx->emitted_count++;
+    record.header.event_id = TRACE_EVENT_TASK_CREATE_RETURN;
+    record.header.level = TRACE_LEVEL_SUMMARY;
+    record.header.cpu_id = 0;
+    record.header.pc = 0;
+    record.header.payload_size = 16;
+    
+    memcpy(record.payload + 0, &pid, 4);
+    memcpy(record.payload + 8, &task_ptr, 8);
+    
+    g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
+}
+
+/* Emit construct task done - payload: struct { uint32_t pid; uint64_t task_ptr; uint64_t mm; uint64_t mem; } */
+void trace_emit_construct_task_done(uint32_t pid, uint64_t task_ptr, uint64_t mm, uint64_t mem) {
+    if (!g_trace_ctx || !g_trace_ctx->backend_ops || !g_trace_ctx->backend_ops->emit) {
+        return;
+    }
+    
+    if (!trace_event_enabled(TRACE_EVENT_CONSTRUCT_TASK_DONE, 0)) {
+        return;
+    }
+    
+    if (g_trace_ctx->config.max_events > 0 &&
+        g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
+        g_trace_ctx->enabled = false;
+        return;
+    }
+    
+    trace_record_t record;
+    memset(&record, 0, sizeof(record));
+    
+    record.header.seq = g_trace_ctx->emitted_count++;
+    record.header.event_id = TRACE_EVENT_CONSTRUCT_TASK_DONE;
+    record.header.level = TRACE_LEVEL_SUMMARY;
+    record.header.cpu_id = 0;
+    record.header.pc = 0;
+    record.header.payload_size = 32;
+    
+    memcpy(record.payload + 0, &pid, 4);
+    memcpy(record.payload + 8, &task_ptr, 8);
+    memcpy(record.payload + 16, &mm, 8);
+    memcpy(record.payload + 24, &mem, 8);
+    
+    g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
+}
+
+/* Emit task start pointer - payload: uint64_t task_ptr */
+void trace_emit_task_start_pointer(uint64_t task_ptr) {
+    trace_emit_u64(TRACE_EVENT_TASK_START_POINTER, 0, task_ptr);
+}

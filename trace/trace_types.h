@@ -64,6 +64,17 @@ typedef enum {
     TRACE_EVENT_TASK_CREATE,              /* Task created */
     TRACE_EVENT_TASK_START,               /* Task started execution */
     
+    /* Task thread diagnostics (level 1) */
+    TRACE_EVENT_TASK_THREAD_ENTRY,        /* Task thread entry */
+    TRACE_EVENT_TASK_THREAD_CURRENT_SET,  /* Task thread current set */
+    TRACE_EVENT_TASK_RUN_CURRENT_ENTRY,   /* Task run_current entry */
+    TRACE_EVENT_TASK_RUN_CURRENT_MEM_CHECK, /* Task run_current mem check */
+    
+    /* Additional task diagnostics (level 1) */
+    TRACE_EVENT_TASK_CREATE_RETURN,       /* Task create return */
+    TRACE_EVENT_CONSTRUCT_TASK_DONE,      /* Construct task done */
+    TRACE_EVENT_TASK_START_POINTER,       /* Task start pointer */
+    
     TRACE_EVENT_MAX
 } trace_event_id_t;
 
