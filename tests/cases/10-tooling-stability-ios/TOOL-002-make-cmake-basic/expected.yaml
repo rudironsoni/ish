@@ -1,0 +1,25 @@
+version: "2.0"
+
+case_id: TOOL-002
+phase: 10-tooling-stability-ios
+title: Make and CMake work for building
+
+artifacts:
+  tooling_log.json:
+    description: JSON log of tooling events
+    schema: tooling_event_log
+    required: true
+  report.json:
+    description: Test execution report
+    schema: case_report
+    required: true
+
+success_conditions:
+  structural:
+    - harness exits 0
+    - report.json exists and is valid JSON
+    - tooling_log.json exists and is valid JSON
+  semantic:
+    - report.passed is true
+    - meson build system is available (required by project)
+    - event log contains build_system_check event

@@ -40,12 +40,12 @@ trace_defaults:
   dump_on: none
 
 informational_only: false
-status: STUB
+status: REAL_PASS
 is_gate_case: true
 
 metadata:
   scaffolded: true
-  implementation_ready: false
+  implementation_ready: true
   notes: |
-    Scaffolded case - implementation pending.
-    Prerequisites: TOOL-004 must be REAL PASS. Tests shell stability.
+    Implementation complete. Tests shell loop stability.
+    Validates resource integrity over repeated command execution.

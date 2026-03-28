@@ -1,0 +1,42 @@
+case_id: DISTRO-001
+authority_type: distro_fixture
+
+semantic_authority:
+  source: Alpine Linux Documentation
+  document: Alpine Linux Wiki - Package Management
+  url: https://wiki.alpinelinux.org/wiki/Alpine_Linux_package_management
+  stable_reference: true
+
+decode_authority:
+  not_applicable: true
+  reason: Distro compatibility test - no instruction decode required
+
+generator_authority:
+  not_applicable: true
+  reason: Distro compatibility test - no code generation required
+
+abi_authority:
+  source: musl libc project
+  reference: musl libc compatibility with Linux ABI
+  notes: Alpine uses musl libc instead of glibc
+
+elf_authority:
+  source: Alpine Linux musl dynamic linker
+  reference: /lib/ld-musl-aarch64.so.1
+
+expectation_source:
+  - Alpine Linux uses musl libc as its C library
+  - Package manager is apk (Alpine Package Keeper)
+  - Default shell is ash (BusyBox)
+  - System is designed for minimal resource usage
+  - musl provides POSIX and Linux ABI compatibility
+
+known_gaps:
+  - On macOS host, tests use mock fixtures rather than real Alpine system
+  - Full validation requires running on actual Alpine Linux AArch64
+  - Package installation tests are simulated
+
+non_authoritative_fields:
+  - Specific package versions in repository
+  - Exact apk command output formatting
+  - System configuration variations between Alpine versions

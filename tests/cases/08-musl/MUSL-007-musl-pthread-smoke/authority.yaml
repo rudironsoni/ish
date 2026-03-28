@@ -1,0 +1,34 @@
+case_id: MUSL-007
+authority_type: distro_fixture
+
+semantic_authority:
+  source: musl libc project
+  document: pthread implementation
+  url: https://musl.libc.org/
+  stable_reference: true
+
+decode_authority:
+  not_applicable: true
+  reason: Runtime fixture test - no instruction decode required
+
+generator_authority:
+  not_applicable: true
+  reason: Runtime fixture test - no code generation required
+
+abi_authority:
+  source: Linux AArch64 ABI
+  reference: ARM Architecture Procedure Call Standard (AAPCS)
+  threading: POSIX Threads (pthreads) standard
+
+expectation_source:
+  - musl provides POSIX-compliant pthread implementation
+  - Thread creation and synchronization work correctly
+  - Thread-local storage is properly managed
+
+known_gaps:
+  - On macOS, tests use system pthreads (informational mode)
+  - Full validation requires musl-linked pthread library
+
+non_authoritative_fields:
+  - Specific scheduling behavior
+  - Thread priority handling

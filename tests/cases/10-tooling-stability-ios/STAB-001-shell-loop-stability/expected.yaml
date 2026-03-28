@@ -1,0 +1,26 @@
+version: "2.0"
+
+case_id: STAB-001
+phase: 10-tooling-stability-ios
+title: Shell loops run without resource leaks
+
+artifacts:
+  tooling_log.json:
+    description: JSON log of tooling events
+    schema: tooling_event_log
+    required: true
+  report.json:
+    description: Test execution report
+    schema: case_report
+    required: true
+
+success_conditions:
+  structural:
+    - harness exits 0
+    - report.json exists and is valid JSON
+    - tooling_log.json exists and is valid JSON
+  semantic:
+    - report.passed is true
+    - all 100 shell iterations complete successfully
+    - event log contains shell_loop_start and shell_loop_complete events
+    - no resource exhaustion during test execution

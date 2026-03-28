@@ -1,0 +1,34 @@
+version: "2.0"
+
+case_id: STAB-003
+phase: 10-tooling-stability-ios
+
+semantic_authority:
+  source: stability-contract
+  normative_reference: POSIX.1-2017 threads (pthreads)
+  description: |
+    Validates that rapid thread creation is stable and does not
+    exhaust system resources. Critical for emulation of
+    multi-threaded guest workloads.
+
+toolchain_notes:
+  - Uses pthread_create and pthread_join
+  - Tests 50 concurrent threads
+  - Each thread performs simple computation
+  - Verifies thread-local storage isolation
+
+expected_behavior:
+  - Creates 50 threads successfully
+  - All threads complete assigned work
+  - All threads join without error
+  - No thread resource exhaustion
+
+known_gaps:
+  - Limited thread count for test speed
+  - Simple work in threads
+  - Does not test thread cancellation
+
+non_authoritative_fields:
+  - Specific thread count (50)
+  - Work performed per thread
+  - Thread scheduling behavior

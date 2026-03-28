@@ -1,0 +1,33 @@
+case_id: MUSL-008
+authority_type: distro_fixture
+
+semantic_authority:
+  source: musl libc project
+  document: Network socket and DNS implementation
+  url: https://musl.libc.org/
+  stable_reference: true
+
+decode_authority:
+  not_applicable: true
+  reason: Runtime fixture test - no instruction decode required
+
+generator_authority:
+  not_applicable: true
+  reason: Runtime fixture test - no code generation required
+
+abi_authority:
+  source: Linux AArch64 ABI
+  reference: Standard BSD sockets API
+
+expectation_source:
+  - musl provides standard POSIX socket interface
+  - DNS resolution uses standard getaddrinfo
+  - Network operations work with musl's network stack
+
+known_gaps:
+  - On macOS, tests use system network stack (informational mode)
+  - Full validation requires musl-linked network functions
+
+non_authoritative_fields:
+  - Specific resolver configuration
+  - Network timeout behavior

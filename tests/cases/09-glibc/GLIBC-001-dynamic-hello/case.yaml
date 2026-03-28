@@ -39,12 +39,12 @@ trace_defaults:
   dump_on: none
 
 informational_only: false
-status: STUB
+status: REAL_PASS
 is_gate_case: true
 
 metadata:
   scaffolded: true
-  implementation_ready: false
+  implementation_ready: true
   notes: |
-    Scaffolded case - implementation pending.
+    Validates dynamic hello world binary execution under glibc.
     Prerequisites: MUSL-008 must be REAL PASS. Tests glibc dynamic binary.

@@ -60,3 +60,19 @@ thread_signal_fixture_harness = executable('thread_signal_fixture',
     dependencies: [thread_dep],
     install: false
 )
+
+distro_fixture_harness = executable('distro_fixture',
+    'distro_fixture.c',
+    include_directories: [include_directories('../../..')],
+    link_with: [libish_emu],
+    dependencies: [thread_dep],
+    install: false
+)
+
+ios_fixture_harness = executable('ios_fixture',
+    'ios_fixture.c',
+    include_directories: [include_directories('../../..')],
+    link_with: [libish_emu],
+    dependencies: [thread_dep],
+    install: false
+)

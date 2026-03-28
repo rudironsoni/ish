@@ -44,7 +44,7 @@ is_gate_case: true
 
 metadata:
   scaffolded: true
-  implementation_ready: false
+  implementation_ready: true
   notes: |
-    Scaffolded case - implementation pending.
-    Prerequisites: MUSL-007 must be REAL PASS. Tests musl networking. Final gate for phase 08.
+    Implemented. Tests musl networking. Final gate for phase 08.
+    Prerequisites: MUSL-007 must be REAL PASS.

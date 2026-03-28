@@ -1,0 +1,34 @@
+case_id: MUSL-002
+authority_type: distro_fixture
+
+semantic_authority:
+  source: musl libc project
+  document: Dynamic linking with musl
+  url: https://musl.libc.org/
+  stable_reference: true
+
+decode_authority:
+  not_applicable: true
+  reason: Runtime fixture test - no instruction decode required
+
+generator_authority:
+  not_applicable: true
+  reason: Runtime fixture test - no code generation required
+
+abi_authority:
+  source: Linux AArch64 ABI
+  reference: ARM Architecture Procedure Call Standard (AAPCS)
+  dynamic_linker: /lib/ld-musl-aarch64.so.1
+
+expectation_source:
+  - Dynamic binaries rely on musl libc.so for runtime services
+  - musl dynamic linker (ld.so) performs relocation and initialization
+  - Shared library dependencies resolve correctly
+
+known_gaps:
+  - On macOS, tests run in informational mode (musl is Linux-specific)
+  - Full validation requires Alpine Linux environment with musl dynamic linker
+
+non_authoritative_fields:
+  - Specific library loading order
+  - Dynamic linker internal implementation details

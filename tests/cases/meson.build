@@ -542,3 +542,231 @@ test('case:SIG-003', thread_signal_fixture_harness,
      suite: ['cases', 'phase-07-threads-signals-tls'],
      timeout: 60,
      is_parallel: false)
+
+# Phase 08: musl libc Compatibility
+test('case:MUSL-001', distro_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '08-musl/MUSL-001-static-busybox-true/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/MUSL-001'],
+     suite: ['cases', 'phase-08-musl', 'bootstrap'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:MUSL-002', distro_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '08-musl/MUSL-002-dynamic-busybox-true/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/MUSL-002'],
+     suite: ['cases', 'phase-08-musl'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:MUSL-003', distro_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '08-musl/MUSL-003-dynamic-busybox-sh/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/MUSL-003'],
+     suite: ['cases', 'phase-08-musl'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:MUSL-004', distro_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '08-musl/MUSL-004-coreutils-smoke/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/MUSL-004'],
+     suite: ['cases', 'phase-08-musl'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:MUSL-005', distro_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '08-musl/MUSL-005-apk-update/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/MUSL-005'],
+     suite: ['cases', 'phase-08-musl'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:MUSL-006', distro_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '08-musl/MUSL-006-apk-install-tiny-package/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/MUSL-006'],
+     suite: ['cases', 'phase-08-musl'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:MUSL-007', distro_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '08-musl/MUSL-007-musl-pthread-smoke/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/MUSL-007'],
+     suite: ['cases', 'phase-08-musl'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:MUSL-008', distro_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '08-musl/MUSL-008-musl-network-smoke/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/MUSL-008'],
+     suite: ['cases', 'phase-08-musl'],
+     timeout: 60,
+     is_parallel: false)
+
+# Phase 09: glibc Compatibility
+test('case:GLIBC-001', distro_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '09-glibc/GLIBC-001-dynamic-hello/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/GLIBC-001'],
+     suite: ['cases', 'phase-09-glibc', 'bootstrap'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:GLIBC-002', distro_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '09-glibc/GLIBC-002-bin-true/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/GLIBC-002'],
+     suite: ['cases', 'phase-09-glibc'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:GLIBC-003', distro_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '09-glibc/GLIBC-003-bin-sh/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/GLIBC-003'],
+     suite: ['cases', 'phase-09-glibc'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:GLIBC-004', distro_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '09-glibc/GLIBC-004-bash-startup/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/GLIBC-004'],
+     suite: ['cases', 'phase-09-glibc'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:GLIBC-005', distro_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '09-glibc/GLIBC-005-coreutils-smoke/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/GLIBC-005'],
+     suite: ['cases', 'phase-09-glibc'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:GLIBC-006', distro_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '09-glibc/GLIBC-006-apt-update/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/GLIBC-006'],
+     suite: ['cases', 'phase-09-glibc'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:GLIBC-007', distro_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '09-glibc/GLIBC-007-glibc-pthread-smoke/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/GLIBC-007'],
+     suite: ['cases', 'phase-09-glibc'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:GLIBC-008', distro_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '09-glibc/GLIBC-008-python-startup/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/GLIBC-008'],
+     suite: ['cases', 'phase-09-glibc'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:GLIBC-009', distro_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '09-glibc/GLIBC-009-libstdcxx-unwind-smoke/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/GLIBC-009'],
+     suite: ['cases', 'phase-09-glibc'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:GLIBC-010', distro_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '09-glibc/GLIBC-010-curl-https-smoke/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/GLIBC-010'],
+     suite: ['cases', 'phase-09-glibc'],
+     timeout: 60,
+     is_parallel: false)
+
+# Phase 10: Tooling, Stability, and iOS Integration
+test('case:TOOL-001', ios_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '10-tooling-stability-ios/TOOL-001-gcc-or-clang-guest-build/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/TOOL-001'],
+     suite: ['cases', 'phase-10-tooling-stability-ios', 'bootstrap'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:TOOL-002', ios_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '10-tooling-stability-ios/TOOL-002-make-cmake-basic/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/TOOL-002'],
+     suite: ['cases', 'phase-10-tooling-stability-ios'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:TOOL-003', ios_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '10-tooling-stability-ios/TOOL-003-git-clone-status/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/TOOL-003'],
+     suite: ['cases', 'phase-10-tooling-stability-ios'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:TOOL-004', ios_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '10-tooling-stability-ios/TOOL-004-tar-xz-zstd-smoke/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/TOOL-004'],
+     suite: ['cases', 'phase-10-tooling-stability-ios'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:STAB-001', ios_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '10-tooling-stability-ios/STAB-001-shell-loop-stability/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/STAB-001'],
+     suite: ['cases', 'phase-10-tooling-stability-ios'],
+     timeout: 120,
+     is_parallel: false)
+
+test('case:STAB-002', ios_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '10-tooling-stability-ios/STAB-002-fork-exec-storm/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/STAB-002'],
+     suite: ['cases', 'phase-10-tooling-stability-ios'],
+     timeout: 120,
+     is_parallel: false)
+
+test('case:STAB-003', ios_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '10-tooling-stability-ios/STAB-003-thread-storm/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/STAB-003'],
+     suite: ['cases', 'phase-10-tooling-stability-ios'],
+     timeout: 120,
+     is_parallel: false)
+
+test('case:IOS-001', ios_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '10-tooling-stability-ios/IOS-001-execution-strategy-sandbox/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/IOS-001'],
+     suite: ['cases', 'phase-10-tooling-stability-ios'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:IOS-002', ios_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '10-tooling-stability-ios/IOS-002-suspend-resume/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/IOS-002'],
+     suite: ['cases', 'phase-10-tooling-stability-ios'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:IOS-003', ios_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '10-tooling-stability-ios/IOS-003-trace-artifact-export/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/IOS-003'],
+     suite: ['cases', 'phase-10-tooling-stability-ios'],
+     timeout: 60,
+     is_parallel: false)
+
+# Phase 11: Distribution Matrix
+test('case:DISTRO-001', distro_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '11-distro-matrix/DISTRO-001-alpine-minimal/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/DISTRO-001'],
+     suite: ['cases', 'phase-11-distro-matrix', 'bootstrap'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:DISTRO-002', distro_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '11-distro-matrix/DISTRO-002-alpine-package-manager/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/DISTRO-002'],
+     suite: ['cases', 'phase-11-distro-matrix'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:DISTRO-003', distro_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '11-distro-matrix/DISTRO-003-ubuntu-minimal/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/DISTRO-003'],
+     suite: ['cases', 'phase-11-distro-matrix'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:DISTRO-004', distro_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '11-distro-matrix/DISTRO-004-ubuntu-package-manager/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/DISTRO-004'],
+     suite: ['cases', 'phase-11-distro-matrix'],
+     timeout: 60,
+     is_parallel: false)

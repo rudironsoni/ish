@@ -44,7 +44,7 @@ is_gate_case: true
 
 metadata:
   scaffolded: true
-  implementation_ready: false
+  implementation_ready: true
   notes: |
-    Scaffolded case - implementation pending.
-    Prerequisites: MUSL-003 must be REAL PASS. Tests coreutils package.
+    Implemented. Tests coreutils package.
+    Prerequisites: MUSL-003 must be REAL PASS.

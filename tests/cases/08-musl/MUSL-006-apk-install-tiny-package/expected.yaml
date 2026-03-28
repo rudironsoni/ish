@@ -1,0 +1,30 @@
+case_id: MUSL-006
+phase: 08-musl
+description: Alpine package manager (apk) can install small packages
+
+expected_behavior:
+  - apk install command executes successfully
+  - Small package (e.g., hello) installs without errors
+  - Package files are placed in correct locations
+  - Dependencies are resolved and installed
+
+expected_artifacts:
+  report.json:
+    schema: case_report_v1
+    required_fields:
+      - case_id: "MUSL-006"
+      - phase: "08-musl"
+      - harness: "distro_fixture"
+      - passed: true
+      - artifacts: ["distro_log.json", "report.json"]
+
+  distro_log.json:
+    schema: distro_log_v1
+    required_events:
+      - event: "apk_install_test"
+
+success_criteria:
+  - Harness exits with code 0
+  - report.json indicates passed: true
+  - distro_log.json contains expected event
+  - Package installation works correctly

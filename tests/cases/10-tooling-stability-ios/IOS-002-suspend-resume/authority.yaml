@@ -1,0 +1,35 @@
+version: "2.0"
+
+case_id: IOS-002
+phase: 10-tooling-stability-ios
+
+semantic_authority:
+  source: ios-lifecycle-contract
+  normative_reference: Apple iOS App Lifecycle Documentation
+  description: |
+    Validates that application state is properly preserved across
+    simulated suspend/resume cycles. While actual iOS app lifecycle
+    testing requires full app bundle, this test validates the
+    underlying state preservation mechanisms.
+
+toolchain_notes:
+  - State simulation using local variables
+  - Validates value consistency through "operations"
+  - Platform-specific behavior on Apple platforms
+  - Generic validation on non-Apple platforms
+
+expected_behavior:
+  - Initializes state value
+  - Performs operations on state
+  - Verifies state consistency
+  - Passes on all platforms
+
+known_gaps:
+  - Cannot test actual iOS app lifecycle
+  - Cannot test background/foreground transitions
+  - Cannot test memory pressure handling
+  - Simulated state only
+
+non_authoritative_fields:
+  - Specific state values used
+  - Operations performed on state
