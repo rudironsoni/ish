@@ -44,7 +44,7 @@ is_gate_case: true
 
 metadata:
   scaffolded: true
-  implementation_ready: false
+  implementation_ready: true
   notes: |
-    Scaffolded case - implementation pending.
-    Prerequisites: MUSL-002 must be REAL PASS. Tests busybox shell functionality.
+    Implemented. Tests busybox shell functionality.
+    Prerequisites: MUSL-002 must be REAL PASS.

@@ -1,0 +1,30 @@
+case_id: MUSL-004
+phase: 08-musl
+description: Coreutils basic commands work correctly with musl
+
+expected_behavior:
+  - Coreutils binaries (ls, cat, echo) execute successfully
+  - Basic file operations work
+  - Text processing utilities function correctly
+  - Exit codes match expected values
+
+expected_artifacts:
+  report.json:
+    schema: case_report_v1
+    required_fields:
+      - case_id: "MUSL-004"
+      - phase: "08-musl"
+      - harness: "distro_fixture"
+      - passed: true
+      - artifacts: ["distro_log.json", "report.json"]
+
+  distro_log.json:
+    schema: distro_log_v1
+    required_events:
+      - event: "coreutils_test"
+
+success_criteria:
+  - Harness exits with code 0
+  - report.json indicates passed: true
+  - distro_log.json contains expected event
+  - Coreutils commands execute successfully

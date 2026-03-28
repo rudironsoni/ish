@@ -44,7 +44,7 @@ is_gate_case: true
 
 metadata:
   scaffolded: true
-  implementation_ready: false
+  implementation_ready: true
   notes: |
-    Scaffolded case - implementation pending.
-    Prerequisites: MUSL-001 must be REAL PASS. Tests dynamic busybox binary.
+    Implemented. Tests dynamic busybox binary.
+    Prerequisites: MUSL-001 must be REAL PASS.

@@ -1,0 +1,30 @@
+case_id: MUSL-002
+phase: 08-musl
+description: Dynamic busybox binary executes correctly with musl dynamic linker
+
+expected_behavior:
+  - Dynamic binary loads with musl ld.so
+  - Library resolution completes successfully
+  - Busybox true command executes and exits 0
+  - Dynamic linker handoff works correctly
+
+expected_artifacts:
+  report.json:
+    schema: case_report_v1
+    required_fields:
+      - case_id: "MUSL-002"
+      - phase: "08-musl"
+      - harness: "distro_fixture"
+      - passed: true
+      - artifacts: ["distro_log.json", "report.json"]
+
+  distro_log.json:
+    schema: distro_log_v1
+    required_events:
+      - event: "dynamic_binary_test"
+
+success_criteria:
+  - Harness exits with code 0
+  - report.json indicates passed: true
+  - distro_log.json contains expected event
+  - Dynamic linker loads binary correctly

@@ -44,7 +44,7 @@ is_gate_case: true
 
 metadata:
   scaffolded: true
-  implementation_ready: false
+  implementation_ready: true
   notes: |
-    Scaffolded case - implementation pending.
-    Prerequisites: MUSL-005 must be REAL PASS. Tests apk install.
+    Implemented. Tests apk install.
+    Prerequisites: MUSL-005 must be REAL PASS.

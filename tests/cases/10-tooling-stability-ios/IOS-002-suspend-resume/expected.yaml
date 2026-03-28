@@ -1,0 +1,26 @@
+version: "2.0"
+
+case_id: IOS-002
+phase: 10-tooling-stability-ios
+title: iOS app suspend/resume preserves state
+
+artifacts:
+  tooling_log.json:
+    description: JSON log of tooling events
+    schema: tooling_event_log
+    required: true
+  report.json:
+    description: Test execution report
+    schema: case_report
+    required: true
+
+success_conditions:
+  structural:
+    - harness exits 0
+    - report.json exists and is valid JSON
+    - tooling_log.json exists and is valid JSON
+  semantic:
+    - report.passed is true
+    - state preservation validated
+    - event log contains suspend_resume_check event
+    - state value consistency verified

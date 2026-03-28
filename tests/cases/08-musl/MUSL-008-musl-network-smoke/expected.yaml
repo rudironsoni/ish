@@ -1,0 +1,32 @@
+case_id: MUSL-008
+phase: 08-musl
+description: musl network stack works correctly
+
+expected_behavior:
+  - Socket creation and binding work
+  - getaddrinfo resolves hostnames correctly
+  - Basic network operations succeed
+  - DNS resolution functions properly
+
+expected_artifacts:
+  report.json:
+    schema: case_report_v1
+    required_fields:
+      - case_id: "MUSL-008"
+      - phase: "08-musl"
+      - harness: "distro_fixture"
+      - passed: true
+      - artifacts: ["distro_log.json", "report.json"]
+
+  distro_log.json:
+    schema: distro_log_v1
+    required_events:
+      - event: "musl_network_test"
+      - event: "socket_create_ok"
+      - event: "getaddrinfo_ok"
+
+success_criteria:
+  - Harness exits with code 0
+  - report.json indicates passed: true
+  - distro_log.json contains expected events
+  - Network operations succeed

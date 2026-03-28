@@ -1,0 +1,44 @@
+case_id: DISTRO-004
+authority_type: distro_fixture
+
+semantic_authority:
+  source: Debian/Ubuntu Documentation
+  document: apt and dpkg Manual Pages
+  url: https://manpages.ubuntu.com/manpages/apt.8.html
+  stable_reference: true
+
+decode_authority:
+  not_applicable: true
+  reason: Package manager test - no instruction decode required
+
+generator_authority:
+  not_applicable: true
+  reason: Package manager test - no code generation required
+
+abi_authority:
+  source: GNU C Library (glibc)
+  reference: glibc syscall and ABI compatibility
+  notes: apt/dpkg rely on glibc-specific features
+
+elf_authority:
+  source: Ubuntu glibc dynamic linker
+  reference: /lib/aarch64-linux-gnu/ld-linux-aarch64.so.1
+  notes: Debian/Ubuntu packages link against glibc
+
+expectation_source:
+  - apt is the Advanced Package Tool
+  - apt uses /etc/apt/sources.list for package sources
+  - Package database is managed by dpkg
+  - apt supports operations: install, remove, update, upgrade, search, show
+  - glibc-compatible packages are required for Ubuntu
+  - dpkg provides low-level package management
+
+known_gaps:
+  - On macOS host, tests use mock fixtures
+  - Actual package installation is not performed
+  - Network repository access is simulated
+
+non_authoritative_fields:
+  - Specific package versions in Ubuntu repositories
+  - Network latency and repository availability
+  - Custom PPA and repository configurations
