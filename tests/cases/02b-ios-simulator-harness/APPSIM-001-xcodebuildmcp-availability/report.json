@@ -1,0 +1,74 @@
+{
+  "case_id": "APPSIM-001",
+  "case_name": "XcodeBuildMCP Tool Availability and Discovery",
+  "status": "REAL_PASS",
+  "timestamp": "2026-03-28T05:00:00Z",
+  "operations": [
+    {
+      "operation": "session_show_defaults",
+      "status": "success",
+      "result": "XcodeBuildMCP available and configured",
+      "details": {
+        "projectPath": "/Users/rudironsoni/src/github/rudironsoni/ish/iSH.xcodeproj",
+        "scheme": "iSH",
+        "configuration": "Debug",
+        "simulatorName": "iPhone 17 Pro",
+        "simulatorId": "E6186E89-8784-473B-A4E4-66E42693F14E",
+        "simulatorPlatform": "iOS Simulator",
+        "bundleId": "com.rudironsoni.ish"
+      }
+    },
+    {
+      "operation": "discover_projs",
+      "status": "success",
+      "result": "Found iSH Xcode project",
+      "details": {
+        "projects_found": 2,
+        "ish_project_path": "/Users/rudironsoni/src/github/rudironsoni/ish/iSH.xcodeproj"
+      }
+    },
+    {
+      "operation": "list_schemes",
+      "status": "success",
+      "result": "Retrieved available build schemes",
+      "details": {
+        "schemes": ["iSH", "Screenshots", "UnitTests"],
+        "target_scheme": "iSH"
+      }
+    },
+    {
+      "operation": "list_sims",
+      "status": "success",
+      "result": "Retrieved available simulator targets",
+      "details": {
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-4",
+        "device_count": 11,
+        "default_target": "iPhone 17 Pro"
+      }
+    },
+    {
+      "operation": "session_set_defaults",
+      "status": "success",
+      "result": "Persisted app target identity",
+      "details": {
+        "projectPath": "/Users/rudironsoni/src/github/rudironsoni/ish/iSH.xcodeproj",
+        "scheme": "iSH",
+        "bundleId": "app.ish.iSH",
+        "simulatorId": "E6186E89-8784-473B-A4E4-66E42693F14E"
+      }
+    }
+  ],
+  "findings": {
+    "xcodebuildmcp_available": true,
+    "project_discovered": true,
+    "schemes_listed": true,
+    "simulators_available": true,
+    "target_identity_determined": true
+  },
+  "artifacts_generated": [
+    "xcodebuildmcp_capability.json",
+    "app_target_identity.json",
+    "simulator_targets.json",
+    "report.json"
+  ]
+}

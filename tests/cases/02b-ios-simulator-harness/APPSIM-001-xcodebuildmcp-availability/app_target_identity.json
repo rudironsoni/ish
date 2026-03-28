@@ -1,0 +1,26 @@
+{
+  "app_target_identity": {
+    "discovered": {
+      "project_path": "/Users/rudironsoni/src/github/rudironsoni/ish/iSH.xcodeproj",
+      "project_name": "iSH",
+      "scheme": "iSH",
+      "bundle_id": "com.rudironsoni.ish",
+      "configuration": "Debug",
+      "platform": "iOS Simulator"
+    },
+    "schemes_available": [
+      "iSH",
+      "Screenshots",
+      "UnitTests"
+    ],
+    "discovery_source": {
+      "project_discovery": "discover_projs",
+      "scheme_discovery": "list_schemes",
+      "defaults_discovery": "session_show_defaults"
+    },
+    "verified": {
+      "timestamp": "2026-03-28T05:00:00Z",
+      "operations": ["session_show_defaults", "discover_projs", "list_schemes", "list_sims"]
+    }
+  }
+}
