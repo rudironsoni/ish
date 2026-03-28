@@ -1,0 +1,41 @@
+{
+  "featureId": "appsim-003-build-install-launch-smoke",
+  "reviewedAt": "2026-03-28T22:15:00Z",
+  "commitId": "a6a8e87d8df845f9d1808ac2af36cad78aa19ba5",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "APPSIM-003 implementation is complete and achieves REAL PASS. The implementation correctly builds the iSH iOS app using xcodebuild, installs it via simctl install, launches via simctl launch, and verifies the app is alive through process checks. All 6 required JSON artifacts are produced with real execution data.",
+    "issues": []
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "The worker correctly used xcodebuild and xcrun simctl directly rather than XcodeBuildMCP tools. This is appropriate since the test harness binary (ios_app_harness.c) needs to execute these commands directly via popen/exec_cmd_to_file. The AGENTS.md should document this pattern: app harness tests use native Xcode toolchain commands, not MCP tools.",
+      "evidence": "tests/cases/harness/ios_app_harness.c test_appsim_003(): uses xcodebuild -project, xcrun simctl install, xcrun simctl launch directly"
+    },
+    {
+      "area": "skills",
+      "observation": "Skill procedure was followed correctly. The worker invoked mission-worker-base skill, read all required context files (mission.md, validation-contract.md, validation-state.json), and implemented the real execution as required.",
+      "evidence": "Transcript shows: Skill 'mission-worker-base' invoked, all context files read before implementation"
+    },
+    {
+      "area": "services",
+      "observation": "XcodeBuildMCP configuration is properly documented in .factory/services.yaml with project_path, scheme, simulator_id, and bundle_id. However, the worker discovered that direct xcodebuild/simctl commands work better for harness tests than MCP tool invocations.",
+      "evidence": ".factory/services.yaml contains full xcodebuildmcp configuration; ios_app_harness.c uses hardcoded defaults matching this config (DEFAULT_PROJECT_PATH, DEFAULT_SCHEME, etc.)"
+    },
+    {
+      "area": "knowledge",
+      "observation": "The worker correctly identified that case:APPSIM-003 meson test name format doesn't work directly, and used 'ish:case_APPSIM-003' format instead. This is a meson test naming quirk that should be documented.",
+      "evidence": "Transcript shows: 'case:APPSIM-003' failed with 'test name does not match any test', then worker tried 'ish:case_APPSIM-003' which succeeded"
+    },
+    {
+      "area": "knowledge",
+      "observation": "The expected.yaml for APPSIM-003 references bundle_id 'app.ish.iSH' but the actual bundle ID in the system is 'com.rudironsoni.ish'. The worker correctly used the actual bundle ID from .xcodebuildmcp/config.yaml.",
+      "evidence": "expected.yaml shows bundle_id: 'app.ish.iSH' but actual artifacts show 'com.rudironsoni.ish'; .xcodebuildmcp/config.yaml and services.yaml both specify 'com.rudironsoni.ish'"
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "APPSIM-003 implementation review: PASS. The feature correctly implements build/install/launch smoke testing using real Xcode toolchain commands. Build completed in 58.9s, install in 5.9s, launch achieved PID 14615, and alive check passed after 12 checks (60s). All required artifacts (sim_launch.json, build_result.json, install_result.json, launch_result.json, alive_check.json, report.json) are produced with real execution data. The implementation fulfills validation assertions VAL-APPSIM-008 (Build Success), VAL-APPSIM-009 (Install Success), and VAL-APPSIM-010 (Launch Success). All 119 meson tests pass including the full phase-02b-ios-simulator-harness suite."
+}

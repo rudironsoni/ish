@@ -1,0 +1,36 @@
+{
+  "featureId": "infra-ios-app-harness-meson",
+  "reviewedAt": "2026-03-28T20:45:00Z",
+  "commitId": "fed5f05f4cff6dc2d20aac2a86158a8176a7d9bc",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The ios_app_harness binary implementation is comprehensive and correctly wired into the meson.build system. The implementation creates a new test harness executable at tests/cases/harness/ios_app_harness.c that implements 6 APPSIM test cases (APPSIM-001 through APPSIM-006). The meson.build changes properly declare the executable and wire it into the test suite with appropriate suite tags (phase-02b-ios-simulator-harness, bootstrap, gate) and timeouts. The binary successfully links against libish_emu as required.",
+    "issues": []
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "The ios_app_harness.c uses system() and popen() calls with shell commands (xcodebuild, xcrun simctl) rather than using XcodeBuildMCP tools directly. This is acceptable for a test harness that runs outside the MCP context, but it's a notable deviation from the AGENTS.md convention which specifies 'Use XcodeBuildMCP tools - Never use xcodebuild or simctl directly'. However, since this is a compiled C harness that runs as a meson test, it cannot directly invoke MCP tools and the shell command approach is appropriate.",
+      "evidence": "tests/cases/harness/ios_app_harness.c:340-350 - uses xcodebuild command via exec_cmd_to_file(); tests/cases/harness/ios_app_harness.c:380-390 - uses xcrun simctl commands"
+    },
+    {
+      "area": "conventions", 
+      "observation": "The harness correctly follows the explicit test declaration pattern from the existing codebase. All 6 APPSIM tests are explicitly declared in tests/cases/meson.build with proper suite tags, timeouts, and is_parallel: false (appropriate for simulator tests that cannot run concurrently).",
+      "evidence": "tests/cases/meson.build lines containing 'case:APPSIM-00[1-6]' declarations"
+    },
+    {
+      "area": "knowledge",
+      "observation": "The worker discovered the correct pattern for implementing test harnesses in this codebase: (1) create harness C file with case routing logic, (2) add executable declaration in harness/meson.build, (3) add explicit test declarations in cases/meson.build. This pattern is consistent with existing harnesses like ios_fixture_harness and semantic_micro_harness.",
+      "evidence": "Transcript shows worker examined existing harness files (ios_fixture.c, semantic_micro_harness) before implementing ios_app_harness.c"
+    },
+    {
+      "area": "services",
+      "observation": "The services.yaml already contains XcodeBuildMCP configuration which the harness uses as defaults. The harness hardcodes values from services.yaml (DEFAULT_SIMULATOR_ID, DEFAULT_BUNDLE_ID, etc.) which is appropriate for a test harness.",
+      "evidence": ".factory/services.yaml contains simulator_id: E6186E89-8784-473B-A4E4-66E42693F14E and bundle_id: com.rudironsoni.ish; tests/cases/harness/ios_app_harness.c defines matching DEFAULT_SIMULATOR_ID and DEFAULT_BUNDLE_ID"
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "The feature implementation is complete and correct. The ios_app_harness binary builds successfully, links against libish_emu, and all 6 APPSIM test cases (APPSIM-001 through APPSIM-006) are properly wired into meson.build with appropriate suite tags and timeouts. The harness implements the expected behavior for each test case including artifact generation for simulator testing. No blocking issues found."
+}
