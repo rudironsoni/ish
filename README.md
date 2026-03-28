@@ -40,6 +40,20 @@ Open the project in Xcode, open iSH.xcconfig, and change `ROOT_BUNDLE_IDENTIFIER
 
 ## Build command line tool for testing
 
+### Using Just (recommended)
+
+Install [just](https://github.com/casey/just) (`brew install just`), then run:
+
+```bash
+just build    # Build the project
+just test     # Run tests
+just lint     # Run linting
+```
+
+See `just --list` for all available commands.
+
+### Using Meson directly
+
 To set up your environment, cd to the project and run `meson build` to create a build directory in `build`. Then cd to the build directory and run `ninja`.
 
 To set up a self-contained Alpine linux filesystem, download the Alpine minirootfs tarball for aarch64 from the [Alpine website](https://alpinelinux.org/downloads/) and run `./tools/fakefsify`, with the minirootfs tarball as the first argument and the name of the output directory as the second argument. Then you can run things inside the Alpine filesystem with `./ish -f alpine /bin/sh`, assuming the output directory is called `alpine`. If `tools/fakefsify` doesn't exist for you in your build directory, that might be because it couldn't find libarchive on your system (see above for ways to install it.)
