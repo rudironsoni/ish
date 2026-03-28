@@ -1,0 +1,24 @@
+semantic_authority:
+  source: ARM Architecture Reference Manual
+  tlb_maintenance: TLB operations required after permission changes
+
+abi_authority:
+  source: Linux Kernel Documentation - MM
+  notes: |
+    The kernel must invalidate TLB entries after any
+    permission changes to ensure consistency.
+
+toolchain_notes:
+  runtime_verification: |
+    This case uses runtime fixture testing.
+    Verifies permission changes take effect immediately.
+
+known_gaps:
+  - Direct TLB state inspection not possible from userspace
+  - Only verify behavior, not implementation details
+  - Cache coherency not explicitly tested
+
+non_authoritative_fields:
+  - Exact TLB hardware implementation
+  - Number of TLB entries
+  - Replacement policy

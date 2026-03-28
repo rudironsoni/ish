@@ -303,6 +303,34 @@ test('case:ABI-003', abi_fixture_harness,
      timeout: 60,
      is_parallel: false)
 
+test('case:MMU-005', abi_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '04-mmu-abi/MMU-005-cross-page-access/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/MMU-005'],
+     suite: ['cases', 'phase-04-mmu-abi'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:MMU-006', abi_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '04-mmu-abi/MMU-006-tlb-invalidation/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/MMU-006'],
+     suite: ['cases', 'phase-04-mmu-abi'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:ABI-004', abi_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '04-mmu-abi/ABI-004-initial-tpidr-el0/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/ABI-004'],
+     suite: ['cases', 'phase-04-mmu-abi'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:ABI-005', abi_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '04-mmu-abi/ABI-005-signal-frame-rt-sigreturn/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/ABI-005'],
+     suite: ['cases', 'phase-04-mmu-abi'],
+     timeout: 60,
+     is_parallel: false)
+
 test('case:ELF-001', elf_loader_harness,
      args: ['--case-yaml', meson.current_source_dir() / '05-elf-loader/ELF-001-static-hello/case.yaml',
             '--artifact-dir', artifact_base / 'artifacts/ELF-001'],
