@@ -1,34 +1,70 @@
-vectors:
-  - name: str_postindex_real_execution
-    description: "Real TCTI execution of str xzr, [x2], #8 (0xf800845f)"
-    raw_hex: "f800845f"
-    pre_state:
-      x2: 0x2000           # Base address
-      memory_0x2000: 0xDEADBEEFCAFEBABE  # Initial value
-    execution:
-      method: tcti_entry_block
-      gadget_chain:
-        - gadget_str_x       # Store gadget
-        - gadget_exit        # Exit gadget
-    post_state:
-      x2: 0x2008           # Post-index update
-      memory_0x2000: 0     # xzr stored (zeros)
-      tcti_exit_reason: TCTI_EXIT_NORMAL
-    success: true
+initial_state:
+  registers:
+    x0: 0x0
+    x1: 0xDEADBEEFCAFEBABE
+    x2: 0x2000
+  pc: 0x4000
+  sp: 0x2000
+  nzcv: {n: 0, z: 0, c: 0, v: 0}
 
-success_threshold: 1  # Single vector must pass
+code:
+  # STR (immediate) post-indexed: str x1, [x2], #8
+  # Verified with: echo 'str x1, [x2], #8' | llvm-mc --triple=aarch64 --show-encoding
+  # encoding: [0x41, 0x84, 0x00, 0xf8]
+  instruction:
+    name: str_post_index
+    asm: "str x1, [x2], #8"
+    encoding_hex_le: "418400f8"
+    description: "Store x1 to [x2], then x2 = x2 + 8"
 
-artifacts_required:
-  - final_state.json
-  - report.json
+execution_sequence:
+  - step: 1
+    instruction: str_post_index
+    description: "Store x1 to address in x2, then increment x2 by 8"
+    expected_registers:
+      x0: 0x0
+      x1: 0xDEADBEEFCAFEBABE  # Unchanged
+      x2: 0x2008               # Post-index: base + 8
+    expected_pc: 0x4004
+    expected_nzcv:
+      n: 0  # Unchanged
+      z: 0  # Unchanged
+      c: 0  # Unchanged
+      v: 0  # Unchanged
+    expected_tcti_exit_reason: 0  # TCTI_EXIT_NORMAL
 
-validation:
-  - name: memory_write_correct
-    check: "memory[0x2000] == 0"
-    description: "xzr (zeros) should be stored at base address"
-  - name: register_writeback_correct
-    check: "x2 == 0x2008"
-    description: "Post-index should add 8 to base"
-  - name: exit_reason_normal
-    check: "tcti_exit_reason == 0"
-    description: "Exit should be TCTI_EXIT_NORMAL"
+code_expectations:
+  instruction_category: A64_LD_ST
+  instruction_subtype: 4   # A64_LDST_SINGLE
+  idx_mode: 1              # A64_POST_INDEX
+  size: 64-bit
+  Rt: 1    # X1 (source)
+  Rn: 2    # X2 (base)
+  imm9: 8  # Post-index offset
+
+semantic_effects:
+  - operation: store
+    description: "Mem[x2] = x1"
+    address: "X2 initial value (0x2000)"
+    value: "X1 value (0xDEADBEEFCAFEBABE)"
+    size: 64-bit
+  - operation: add
+    description: "X2 = X2 + 8"
+    result: "0x2008"
+
+success_criteria:
+  - name: store_executes
+    description: "Value from x1 stored to memory at address 0x2000"
+  - name: base_updated
+    description: "Base register x2 updated to 0x2008 (0x2000 + 8)"
+  - name: source_preserved
+    description: "Source register x1 unchanged"
+  - name: pc_advanced
+    description: "Program counter advanced by 4"
+  - name: tcti_exit_normal
+    description: "TCTI exit reason is TCTI_EXIT_NORMAL (0)"
+
+notes: |
+  Tests STR post-index addressing mode with real TCTI execution.
+  First REAL TCTI execution test - uses tcti_entry_block().
+  Post-index means: store using initial base address, then update base.

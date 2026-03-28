@@ -61,9 +61,6 @@ void handle_interrupt(int interrupt) {
  * 4. We capture the final state
  */
 
-/* Exit block flag - set by tcti_exit_block (defined in tcti_entry.S) */
-extern volatile int tcti_exit_reason;
-
 /* TCTI entry point - defined in tcti_entry.S */
 extern void tcti_entry_block(void *gadgets, struct cpu_state *cpu);
 
@@ -112,7 +109,7 @@ static int execute_tcti_block(tcti_gadget_t *gadgets, size_t num_gadgets,
         tcti_entry_block(gadgets, cpu);
 
         printf("  [EXEC-REAL-001] TCTI execution complete, exit_reason=%d\n",
-               tcti_exit_reason);
+               cpu->tcti_exit_reason);
         return (int)num_gadgets;
     }
 
@@ -393,20 +390,29 @@ int main(int argc, char *argv[]) {
                 parent_start--;
             }
 
-            /* Now parent_start points to EXEC-001... or similar */
-            /* Find the SECOND dash or end of string to get full case ID like EXEC-003 */
-            const char *first_dash = strchr(parent_start, '-');
-            if (first_dash) {
-                const char *second_dash = strchr(first_dash + 1, '-');
-                const char *end = second_dash ? second_dash : last_slash_p;
-                static char cid[32];
-                int len = end - parent_start;
-                if (len > 0 && len < 31) {
-                    strncpy(cid, parent_start, len);
-                    cid[len] = '\0';
-                    case_id = cid;
+            /* Now parent_start points to EXEC-001... or EXEC-REAL-001... or similar */
+            /* Extract case ID: EXEC-XXX or EXEC-REAL-XXX */
+            /* Parse pattern like: EXEC-REAL-001-str-execution/case.yaml */
+            static char cid[64];
+            int len = 0;
+            const char *p = parent_start;
+            /* Copy until we hit '/' */
+            while (*p && *p != '/' && len < 63) {
+                cid[len++] = *p++;
+            }
+            cid[len] = '\0';
+            /* Truncate at third dash to remove description */
+            int dashes = 0;
+            for (int i = 0; cid[i]; i++) {
+                if (cid[i] == '-') {
+                    dashes++;
+                    if (dashes == 3) {
+                        cid[i] = '\0';
+                        break;
+                    }
                 }
             }
+            case_id = cid;
         }
     }
     printf("Semantic Micro Harness - %s\n", case_id);
@@ -427,6 +433,36 @@ int main(int argc, char *argv[]) {
     /* Initialize CPU state from fixture */
     struct cpu_state cpu = {0};
     uint32_t insn_word = 0;
+
+    /* For EXEC-REAL-001: Set up TLB for real TCTI execution
+     * TCTI gadgets need TLB to translate guest addresses
+     * This must happen before tcti_entry_block is called
+     */
+    static struct tlb exec_tlb;
+    static struct mmu exec_mmu;
+    if (strncmp(case_id, "EXEC-REAL-001", 13) == 0) {
+        memset(&exec_mmu, 0, sizeof(exec_mmu));
+        memset(&exec_tlb, 0, sizeof(exec_tlb));
+        exec_tlb.mmu = &exec_mmu;
+        cpu.mmu = &exec_mmu;
+        cpu.tlb = &exec_tlb;
+
+        /* Map test memory region via TLB for TCTI inline lookups
+         * Test uses address 0x2000 (x2 initial value from expected.yaml)
+         */
+        uint64_t guest_addr = 0x2000;  /* Match x2 in expected.yaml */
+        uint64_t page_base = guest_addr & ~0xFFFULL;
+        int tlb_idx = TLB_INDEX(guest_addr);
+        printf("  [TLB Setup] guest_addr=0x%llx, page_base=0x%llx, tlb_idx=%d\n",
+               (unsigned long long)guest_addr, (unsigned long long)page_base, tlb_idx);
+        cpu.tlb->entries[tlb_idx].page = page_base;
+        cpu.tlb->entries[tlb_idx].page_if_writable = page_base;
+        /* data_minus_addr = host_addr - guest_page_base */
+        cpu.tlb->entries[tlb_idx].data_minus_addr = (uintptr_t)test_memory - page_base;
+        printf("  [TLB Setup] data_minus_addr=%p (test_memory=%p - page_base=0x%llx)\n",
+               (void*)cpu.tlb->entries[tlb_idx].data_minus_addr,
+               (void*)test_memory, (unsigned long long)page_base);
+    }
 
     if (parse_expected_yaml(expected_yaml, &cpu, &insn_word) != 0) {
         failure_summary = "failed to parse expected.yaml";
@@ -482,8 +518,8 @@ int main(int argc, char *argv[]) {
 
     /* For EXEC-REAL-001: TCTI already executed, skip simulation */
     if (strncmp(case_id, "EXEC-REAL-001", 13) == 0) {
-        /* Verify TCTI exit was normal */
-        if (tcti_exit_reason == TCTI_EXIT_NORMAL) {
+        /* Verify TCTI exit was normal through cpu state */
+        if (cpu.tcti_exit_reason == TCTI_EXIT_NORMAL) {
             passed = 1;
         } else {
             failure_summary = "TCTI did not exit normally";
