@@ -7,6 +7,7 @@
 #include "kernel/memory.h"
 #include "emu/tlb.h"
 #include "emu/aarch64/cpu.h"
+#include "trace/trace.h"
 
 __thread struct task *current;
 
@@ -68,7 +69,6 @@ struct task *task_create_(struct task *parent) {
         task->parent = parent;
         list_add(&parent->children, &task->siblings);
     }
-    unlock(&pids_lock);
 
     task->pending = 0;
     list_init(&task->queue);
@@ -87,6 +87,12 @@ struct task *task_create_(struct task *parent) {
 
     lock_init(&task->ptrace.lock);
     cond_init(&task->ptrace.cond);
+
+    // CRITICAL: Memory barrier ensures all task initialization is complete
+    // and visible before the lock is released. Without this, the child thread
+    // may see partially initialized memory (pid=0, mm=NULL, etc).
+    __sync_synchronize();
+    unlock(&pids_lock);
     return task;
 }
 
@@ -120,10 +126,8 @@ __attribute__((constructor)) static void create_attr() {
 }
 
 void task_start(struct task *task) {
-    // Ensure all task initialization is visible to the new thread
-    // This is critical: without a memory barrier, the new thread may see
-    // stale values (pid=0, mem=NULL) due to CPU reordering
     __sync_synchronize();
+    trace_emit_task_start(task->pid);
     if (pthread_create(&task->thread, &task_thread_attr, task_thread, task) < 0)
         die("could not create thread");
 }

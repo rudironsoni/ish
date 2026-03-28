@@ -60,6 +60,10 @@ typedef enum {
     TRACE_EVENT_COMPLEX_DECODE_FAIL,      /* COMPLEX decode failure */
     TRACE_EVENT_COMPLEX_FETCH_FAIL,       /* COMPLEX fetch failure */
     
+    /* Task lifecycle events (level 1) */
+    TRACE_EVENT_TASK_CREATE,              /* Task created */
+    TRACE_EVENT_TASK_START,               /* Task started execution */
+    
     TRACE_EVENT_MAX
 } trace_event_id_t;
 
