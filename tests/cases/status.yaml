@@ -615,6 +615,27 @@ phase_03:
       evidence_hash: null
       artifact_dir: "tests/cases/03-semantic-exec/EXEC-002-placeholder"
     EXEC-003:
+  EXEC-REAL-001:
+    case_id: "EXEC-REAL-001"
+    phase: "03-semantic-exec"
+    current_status: STUB
+    gate_case: true
+    scaffolded: true
+    notes: "REAL TCTI EXECUTION - first test to actually execute TCTI gadgets"
+    expected_artifacts:
+      - "final_state.json"
+      - "report.json"
+    observed_artifacts: []
+    verifier_result: "PENDING"
+    anti_slop_result: "PENDING"
+    review_skeptic_result: "PENDING"
+    phase_gate_result: "PENDING"
+    last_run_command: "case-run"
+    last_run_at: null
+    block_reason: "Test case created, harness needs modification for real TCTI execution"
+    evidence_hash: null
+    artifact_dir: "tests/cases/03-semantic-exec/EXEC-REAL-001-str-execution"
+
       case_id: "EXEC-003"
       phase: "03-semantic-exec"
       current_status: STUB

@@ -77,6 +77,7 @@ phases:
       specific instruction sequences and verify register/memory state
       matches Arm architectural expectations.
     gate_cases:
+  - EXEC-REAL-001
       - EXEC-001
       - EXEC-002
       - EXEC-003
@@ -240,7 +241,7 @@ bootstrap_sequence:
   - TRACE-001
   - DEC-001
   - GEN-001
-  - EXEC-001
+  - EXEC-REAL-001
   - ABI-001
   - ELF-001
 
