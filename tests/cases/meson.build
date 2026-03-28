@@ -184,6 +184,49 @@ test('case:GEN-008', generator_golden_harness,
      timeout: 60,
      is_parallel: false)
 
+# Phase 02b: iOS Simulator Harness (APPSIM-001 through APPSIM-006)
+test('case:APPSIM-001', ios_app_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '02b-ios-simulator-harness/APPSIM-001-xcodebuildmcp-availability/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/APPSIM-001'],
+     suite: ['cases', 'phase-02b-ios-simulator-harness', 'bootstrap'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:APPSIM-002', ios_app_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '02b-ios-simulator-harness/APPSIM-002-simulator-target-selection-and-boot/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/APPSIM-002'],
+     suite: ['cases', 'phase-02b-ios-simulator-harness'],
+     timeout: 120,
+     is_parallel: false)
+
+test('case:APPSIM-003', ios_app_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '02b-ios-simulator-harness/APPSIM-003-build-install-launch-smoke/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/APPSIM-003'],
+     suite: ['cases', 'phase-02b-ios-simulator-harness', 'gate'],
+     timeout: 300,
+     is_parallel: false)
+
+test('case:APPSIM-004', ios_app_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '02b-ios-simulator-harness/APPSIM-004-log-harvest-and-milestone-capture/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/APPSIM-004'],
+     suite: ['cases', 'phase-02b-ios-simulator-harness'],
+     timeout: 180,
+     is_parallel: false)
+
+test('case:APPSIM-005', ios_app_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '02b-ios-simulator-harness/APPSIM-005-crash-signature-normalization/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/APPSIM-005'],
+     suite: ['cases', 'phase-02b-ios-simulator-harness'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:APPSIM-006', ios_app_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '02b-ios-simulator-harness/APPSIM-006-bounded-reset-and-relaunch/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/APPSIM-006'],
+     suite: ['cases', 'phase-02b-ios-simulator-harness'],
+     timeout: 300,
+     is_parallel: false)
+
 # EXEC-011: Real TCTI gadget execution
 test('case:EXEC-011', semantic_micro_harness,
   args: ['--case-yaml', meson.current_source_dir() / '03-semantic-exec/EXEC-011-str-execution/case.yaml',

@@ -76,3 +76,10 @@ ios_fixture_harness = executable('ios_fixture',
     dependencies: [thread_dep],
     install: false
 )
+
+ios_app_harness = executable('ios_app_harness',
+    'ios_app_harness.c',
+    include_directories: [include_directories('../../..')],
+    link_with: [libish_emu],
+    install: false
+)
