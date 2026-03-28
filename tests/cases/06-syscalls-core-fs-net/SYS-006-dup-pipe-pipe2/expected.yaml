@@ -1,0 +1,42 @@
+id: SYS-006
+phase: 06-syscalls-core-fs-net
+
+structural_expectations:
+  exit_code: 0
+  artifact_presence:
+    - report.json
+    - syscall_log.json
+
+artifact_schema:
+  report.json:
+    required_fields:
+      - case_id
+      - phase
+      - harness
+      - passed
+      - artifacts
+      - timestamp
+    passed_value: true
+
+  syscall_log.json:
+    required_fields:
+      - case_id
+      - syscall_count
+      - log
+    expected_syscalls:
+      - dup
+      - pipe
+      - pipe2
+
+semantic_expectations:
+  test_results:
+    dup_duplicates_fd: passed
+    dup_shares_offset: passed
+    pipe_creates_pair: passed
+    pipe_io: passed
+    pipe2_with_cloexec: passed
+  syscall_behavior:
+    dup_duplicates_fd: true
+    dup2_duplicates_to_specific_fd: true
+    pipe_creates_connected_pair: true
+    pipe2_creates_with_flags: true

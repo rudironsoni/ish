@@ -1,0 +1,35 @@
+id: SYS-007
+phase: 06-syscalls-core-fs-net
+
+structural_expectations:
+  exit_code: 0
+  artifact_presence:
+    - report.json
+    - syscall_log.json
+
+artifact_schema:
+  report.json:
+    required_fields:
+      - case_id
+      - phase
+      - harness
+      - passed
+      - artifacts
+      - timestamp
+    passed_value: true
+
+  syscall_log.json:
+    required_fields:
+      - case_id
+      - syscall_count
+      - log
+    expected_syscalls:
+      - ioctl
+
+semantic_expectations:
+  test_results:
+    tcgets_returns_termios: passed
+    tiocgwinsz_returns_size: passed
+  syscall_behavior:
+    tcgets_returns_termios: true
+    tiocgwinsz_returns_window_size: true

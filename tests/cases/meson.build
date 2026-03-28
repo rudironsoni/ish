@@ -393,3 +393,88 @@ test('case:ELF-009', elf_loader_harness,
      suite: ['cases', 'phase-05-elf-loader'],
      timeout: 300,
      is_parallel: false)
+
+# Phase 06: System Calls - Core, Filesystem, Network
+test('case:SYS-001', syscall_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '06-syscalls-core-fs-net/SYS-001-read-write-close/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/SYS-001'],
+     suite: ['cases', 'phase-06-syscalls-core-fs-net', 'bootstrap'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:SYS-002', syscall_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '06-syscalls-core-fs-net/SYS-002-openat-fstat-lseek/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/SYS-002'],
+     suite: ['cases', 'phase-06-syscalls-core-fs-net'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:SYS-003', syscall_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '06-syscalls-core-fs-net/SYS-003-getdents64/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/SYS-003'],
+     suite: ['cases', 'phase-06-syscalls-core-fs-net'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:SYS-004', syscall_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '06-syscalls-core-fs-net/SYS-004-mmap-munmap-mprotect/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/SYS-004'],
+     suite: ['cases', 'phase-06-syscalls-core-fs-net'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:SYS-005', syscall_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '06-syscalls-core-fs-net/SYS-005-brk/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/SYS-005'],
+     suite: ['cases', 'phase-06-syscalls-core-fs-net'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:SYS-006', syscall_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '06-syscalls-core-fs-net/SYS-006-dup-pipe-pipe2/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/SYS-006'],
+     suite: ['cases', 'phase-06-syscalls-core-fs-net'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:SYS-007', syscall_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '06-syscalls-core-fs-net/SYS-007-ioctl-tty-pty-minimum/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/SYS-007'],
+     suite: ['cases', 'phase-06-syscalls-core-fs-net'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:SYS-008', syscall_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '06-syscalls-core-fs-net/SYS-008-getrandom-prctl-uname/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/SYS-008'],
+     suite: ['cases', 'phase-06-syscalls-core-fs-net'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:SYS-009', syscall_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '06-syscalls-core-fs-net/SYS-009-poll-ppoll-select-epoll/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/SYS-009'],
+     suite: ['cases', 'phase-06-syscalls-core-fs-net'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:SYS-010', syscall_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '06-syscalls-core-fs-net/SYS-010-socket-connect-accept/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/SYS-010'],
+     suite: ['cases', 'phase-06-syscalls-core-fs-net'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:SYS-011', syscall_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '06-syscalls-core-fs-net/SYS-011-send-recv-msg/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/SYS-011'],
+     suite: ['cases', 'phase-06-syscalls-core-fs-net'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:SYS-012', syscall_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '06-syscalls-core-fs-net/SYS-012-rename-link-symlink-readlink/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/SYS-012'],
+     suite: ['cases', 'phase-06-syscalls-core-fs-net'],
+     timeout: 60,
+     is_parallel: false)

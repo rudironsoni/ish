@@ -1,0 +1,39 @@
+id: SYS-008
+phase: 06-syscalls-core-fs-net
+
+structural_expectations:
+  exit_code: 0
+  artifact_presence:
+    - report.json
+    - syscall_log.json
+
+artifact_schema:
+  report.json:
+    required_fields:
+      - case_id
+      - phase
+      - harness
+      - passed
+      - artifacts
+      - timestamp
+    passed_value: true
+
+  syscall_log.json:
+    required_fields:
+      - case_id
+      - syscall_count
+      - log
+    expected_syscalls:
+      - getrandom
+      - uname
+      - prctl
+
+semantic_expectations:
+  test_results:
+    getrandom_returns_random_bytes: passed
+    uname_returns_system_info: passed
+    uname_machine_matches: passed
+  syscall_behavior:
+    getrandom_returns_random_bytes: true
+    uname_populates_utsname: true
+    prctl_sets_gets_options: true

@@ -1,0 +1,45 @@
+id: SYS-012
+phase: 06-syscalls-core-fs-net
+
+structural_expectations:
+  exit_code: 0
+  artifact_presence:
+    - report.json
+    - syscall_log.json
+
+artifact_schema:
+  report.json:
+    required_fields:
+      - case_id
+      - phase
+      - harness
+      - passed
+      - artifacts
+      - timestamp
+    passed_value: true
+
+  syscall_log.json:
+    required_fields:
+      - case_id
+      - syscall_count
+      - log
+    expected_syscalls:
+      - rename
+      - link
+      - symlink
+      - readlink
+      - unlink
+
+semantic_expectations:
+  test_results:
+    rename_moves_file: passed
+    link_creates_hard_link: passed
+    hard_links_share_inode: passed
+    symlink_creates_symlink: passed
+    readlink_returns_target: passed
+  syscall_behavior:
+    rename_moves_files: true
+    link_creates_hard_links: true
+    unlink_removes_files: true
+    symlink_creates_symbolic_links: true
+    readlink_reads_symlink_targets: true

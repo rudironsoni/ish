@@ -1,0 +1,36 @@
+id: SYS-012
+phase: 06-syscalls-core-fs-net
+
+semantic_authority:
+  source: linux-aarch64-abi
+  reference: Linux kernel source - fs/namei.c, fs/namespace.c
+  syscall_numbers:
+    rename: 82
+    link: 86
+    unlink: 87
+    symlink: 88
+    readlink: 89
+  abi_conformance: aarch64-linux-gnu
+  note: AT_FDCWD used for openat-style variants
+
+decode_authority:
+  instruction_type: svc
+  syscall_classes:
+    - filesystem_operations
+    - name_resolution
+
+toolchain_notes:
+  host_requirements:
+    - POSIX-compliant operating system
+    - /tmp writeable for temp files
+  cross_platform: true
+
+known_gaps:
+  - name: emulation_validation
+    description: These tests validate host syscall behavior, not iSH emulation
+    status: harness_runs_host_tests
+
+non_authoritative_fields:
+  - timestamp
+  - specific_inode_numbers
+  - exact_ordering_of_operations

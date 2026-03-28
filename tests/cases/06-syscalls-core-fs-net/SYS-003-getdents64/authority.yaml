@@ -1,0 +1,39 @@
+id: SYS-003
+phase: 06-syscalls-core-fs-net
+
+semantic_authority:
+  source: linux-aarch64-abi
+  reference: Linux kernel source - fs/readdir.c
+  syscall_numbers:
+    getdents64: 61
+  abi_conformance: aarch64-linux-gnu
+  dirent_structure:
+    d_ino: inode number
+    d_off: offset to next entry
+    d_reclen: length of record
+    d_type: file type
+
+decode_authority:
+  instruction_type: svc
+  syscall_classes:
+    - directory_operations
+
+toolchain_notes:
+  host_requirements:
+    - Linux operating system (getdents64 is Linux-specific)
+    - SYS_getdents64 syscall number defined
+  cross_platform: false
+    # getdents64 is Linux-specific
+
+known_gaps:
+  - name: emulation_validation
+    description: These tests validate host syscall behavior, not iSH emulation
+    status: harness_runs_host_tests
+  - name: macos_alternative
+    description: On macOS, getdirentries is used instead
+    status: test_skips_on_macos
+
+non_authoritative_fields:
+  - timestamp
+  - specific_entry_count
+  - exact_ordering_of_entries
