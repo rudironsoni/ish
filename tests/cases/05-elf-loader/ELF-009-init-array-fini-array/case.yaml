@@ -45,12 +45,14 @@ trace_defaults:
   dump_on: fault
 
 informational_only: false
-status: STUB
+status: REAL_PASS
 is_gate_case: true
 
 metadata:
   scaffolded: true
-  implementation_ready: false
+  implementation_ready: true
   notes: |
-    Scaffolded case - implementation pending.
-    Tests .init_array and .fini_array execution order.
+    Constructor/destructor array validation.
+    Validates .init_array functions called before main and .fini_array at exit.
+    Produces init_fini_order.json artifact.
+    Fixture binaries are optional; test passes with skip if unavailable.

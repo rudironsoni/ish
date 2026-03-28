@@ -1,0 +1,36 @@
+elf_loading_requirements:
+  binary_type: static PIE
+  architecture: aarch64
+
+  loading_checks:
+    - check: ELF header valid
+      expected: magic bytes match 0x7f 'ELF'
+    - check: PIE flag set
+      expected: ET_DYN or ET_EXEC with PF flags
+    - check: Entry point reachable
+      expected: _start executed at runtime address
+    - check: Position independent
+      expected: can load at varying addresses
+
+invariants:
+  - "Static PIE has no PT_INTERP"
+  - "PIE binaries can be loaded at any address"
+  - "Relocations applied at load time"
+
+validation_checks:
+  - name: pie_flag_set
+    assertion: "PIE flag present in header"
+    critical: true
+
+  - name: entry_point_reached
+    assertion: "_start executed"
+    critical: true
+
+  - name: relocations_applied
+    assertion: "runtime addresses correct"
+    critical: true
+
+success_criteria:
+  - ELF loads successfully at varying addresses
+  - Relocations applied correctly
+  - Clean execution to exit

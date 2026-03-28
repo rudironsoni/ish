@@ -1,0 +1,39 @@
+elf_loading_requirements:
+  binary_type: dynamic PIE
+  architecture: aarch64
+
+  loading_checks:
+    - check: ELF header valid
+      expected: magic bytes match 0x7f 'ELF'
+    - check: Dynamic binary
+      expected: PT_INTERP segment present
+    - check: PIE flag set
+      expected: ET_DYN type
+
+  execution_requirements:
+    - interpreter loaded
+    - binary mapped correctly
+    - dynamic section parsed
+
+invariants:
+  - "Dynamic binary has PT_INTERP"
+  - "Interpreter path is valid"
+  - "PIE binaries can be loaded at any address"
+
+validation_checks:
+  - name: elf_header_valid
+    assertion: "ELF magic and class valid"
+    critical: true
+
+  - name: interpreter_present
+    assertion: "PT_INTERP segment exists"
+    critical: true
+
+  - name: pie_flag_set
+    assertion: "ET_DYN type confirmed"
+    critical: true
+
+success_criteria:
+  - ELF loads successfully
+  - Interpreter identified
+  - Ready for loader execution

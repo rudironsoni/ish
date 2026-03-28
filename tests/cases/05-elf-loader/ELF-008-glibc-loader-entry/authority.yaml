@@ -1,0 +1,30 @@
+semantic_authority:
+  source: GNU C Library source
+  url: https://www.gnu.org/software/libc/
+
+abi_authority:
+  source: Linux AArch64 ABI
+  loader: glibc
+  notes: |
+    glibc dynamic loader (ld-linux-aarch64.so.1) entry at
+    _dl_start performs complex initialization including:
+    - Self-relocation
+    - Reading auxiliary vector
+    - Loading shared dependencies recursively
+    - Symbol resolution
+    - Transfer to program entry
+
+toolchain_notes:
+  build_command: |
+    aarch64-linux-gnu-gcc -o hello hello.c
+  notes: |
+    glibc loader is separate from libc.so
+    Supports lazy binding (PLT/GOT) and prelinking
+
+known_gaps:
+  - Actual glibc loader execution requires iSH runtime
+  - glibc-specific behaviors not fully emulated
+
+non_authoritative_fields:
+  - Internal loader data structures
+  - Link map layout details

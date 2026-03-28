@@ -1,0 +1,20 @@
+semantic_authority:
+  source: ELF Specification v1.2 - Position Independent Executables
+  url: https://refspecs.linuxfoundation.org/elf/elf.pdf
+
+abi_authority:
+  source: Linux AArch64 ABI
+  binary_type: static PIE executable
+  notes: |
+    Static PIE binaries are position-independent executables
+    that can be loaded at any address without an interpreter.
+
+toolchain_notes:
+  build_command: |
+    aarch64-linux-musl-gcc -static-pie -o hello_pie hello.c
+
+known_gaps:
+  - Address randomization not verified
+
+non_authoritative_fields:
+  - Load address specifics

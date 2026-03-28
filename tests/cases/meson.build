@@ -337,3 +337,59 @@ test('case:ELF-001', elf_loader_harness,
      suite: ['cases', 'phase-05-elf-loader', 'bootstrap'],
      timeout: 300,
      is_parallel: false)
+
+test('case:ELF-002', elf_loader_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '05-elf-loader/ELF-002-static-pie-hello/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/ELF-002'],
+     suite: ['cases', 'phase-05-elf-loader'],
+     timeout: 300,
+     is_parallel: false)
+
+test('case:ELF-003', elf_loader_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '05-elf-loader/ELF-003-dynamic-pie-hello/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/ELF-003'],
+     suite: ['cases', 'phase-05-elf-loader'],
+     timeout: 300,
+     is_parallel: false)
+
+test('case:ELF-004', elf_loader_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '05-elf-loader/ELF-004-pt-load-mapping/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/ELF-004'],
+     suite: ['cases', 'phase-05-elf-loader'],
+     timeout: 300,
+     is_parallel: false)
+
+test('case:ELF-005', elf_loader_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '05-elf-loader/ELF-005-relocations-basic/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/ELF-005'],
+     suite: ['cases', 'phase-05-elf-loader'],
+     timeout: 300,
+     is_parallel: false)
+
+test('case:ELF-006', elf_loader_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '05-elf-loader/ELF-006-interpreter-handoff/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/ELF-006'],
+     suite: ['cases', 'phase-05-elf-loader'],
+     timeout: 300,
+     is_parallel: false)
+
+test('case:ELF-007', elf_loader_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '05-elf-loader/ELF-007-musl-loader-entry/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/ELF-007'],
+     suite: ['cases', 'phase-05-elf-loader'],
+     timeout: 300,
+     is_parallel: false)
+
+test('case:ELF-008', elf_loader_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '05-elf-loader/ELF-008-glibc-loader-entry/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/ELF-008'],
+     suite: ['cases', 'phase-05-elf-loader'],
+     timeout: 300,
+     is_parallel: false)
+
+test('case:ELF-009', elf_loader_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '05-elf-loader/ELF-009-init-array-fini-array/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/ELF-009'],
+     suite: ['cases', 'phase-05-elf-loader'],
+     timeout: 300,
+     is_parallel: false)
