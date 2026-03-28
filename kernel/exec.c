@@ -19,6 +19,7 @@
 #include "kernel/elf.h"
 #include "kernel/vdso.h"
 #include "emu/aarch64/tls.h"
+#include "emu/aarch64/cpu.h"
 // Simple debug logging - outputs to system console
 #define exec_log(fmt, ...) printk("[iSH-exec] " fmt, ##__VA_ARGS__)
 
@@ -629,6 +630,11 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     current->mm->auxv_end = p;
 
     current->mm->stack_start = sp;
+
+    // Initialize CPU state properly before setting up registers
+    // This zeros all X registers, PSTATE, and other state to prevent garbage values
+    a64_cpu_init(&current->cpu);
+
     current->cpu.sp = sp;
     current->cpu.pc = entry;
     // aarch64 doesn't have x87 FPU control word
@@ -652,8 +658,8 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     // Correct AArch64 musl startup: pass stack pointer in x0
     current->cpu.x[0] = sp;  // Points to argc on stack
     current->cpu.x[1] = dynamic_addr;   // _DYNAMIC - address of PT_DYNAMIC section
-    for (int i = 2; i < 8; i++)
-        current->cpu.x[i] = 0;
+    // x[2-7] already zeroed by a64_cpu_init()
+    // x[8-30] also zeroed by a64_cpu_init()
     
     printk("[exec] CPU REGISTERS INITIALIZED - about to start execution\n");
     printk("[exec] x0=%llu (argc), x1=0x%llx (argv), x2=0x%llx (envp), x3=0x%llx (auxv)\n",
