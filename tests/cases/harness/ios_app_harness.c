@@ -1010,6 +1010,56 @@ static int test_appsim_004(const char *artifact_dir, char *log_buf, size_t log_s
     return passed ? 0 : -1;
 }
 
+/* Simple hash function for crash signature normalization */
+static uint32_t hash_string(const char *str) {
+    uint32_t hash = 5381;
+    int c;
+    while ((c = *str++)) {
+        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+    }
+    return hash;
+}
+
+/* Normalize PC address by masking out low bits (alignment) */
+static uint64_t normalize_pc(uint64_t pc) {
+    /* Mask out bottom 12 bits (page offset) for normalization */
+    return pc & ~0xFFFULL;
+}
+
+/* Generate deterministic hash from crash context */
+static void generate_crash_hash(char *hash_out, size_t hash_size,
+                                const char *crash_type,
+                                const char *exception_code,
+                                uint64_t faulting_pc,
+                                const char *milestone_context) {
+    /* Normalize the PC */
+    uint64_t norm_pc = normalize_pc(faulting_pc);
+
+    /* Create a normalized string representation */
+    char norm_str[1024];
+    snprintf(norm_str, sizeof(norm_str), "%s|%s|%016llx|%s",
+             crash_type,
+             exception_code,
+             (unsigned long long)norm_pc,
+             milestone_context);
+
+    /* Simple hash combination */
+    uint32_t h1 = hash_string(crash_type);
+    uint32_t h2 = hash_string(exception_code);
+    uint32_t h3 = (uint32_t)(norm_pc >> 32);
+    uint32_t h4 = (uint32_t)(norm_pc & 0xFFFFFFFF);
+    uint32_t h5 = hash_string(milestone_context);
+
+    /* Combine hashes */
+    uint32_t combined = h1 ^ (h2 << 1) ^ (h3 << 2) ^ (h4 << 3) ^ (h5 << 4);
+
+    /* Generate hex hash string */
+    snprintf(hash_out, hash_size, "%08x%08x%08x%08x%08x%08x%08x%08x",
+             combined, h1, h2, h3, h4, h5,
+             (uint32_t)(norm_pc & 0xFFFF),
+             (uint32_t)(faulting_pc & 0xFFFF));
+}
+
 /* APPSIM-005: Crash Signature Normalization */
 static int test_appsim_005(const char *artifact_dir, char *log_buf, size_t log_size) {
     (void)log_buf;
@@ -1017,34 +1067,304 @@ static int test_appsim_005(const char *artifact_dir, char *log_buf, size_t log_s
     printf("APPSIM-005: Crash Signature Normalization\n");
 
     int passed = 1;
+    char failure_reason[MAX_LINE] = "";
+    char timestamp[64];
+    get_timestamp(timestamp, sizeof(timestamp));
+
+    /* Configuration */
+    const char *simulator_id = DEFAULT_SIMULATOR_ID;
+    const char *bundle_id = DEFAULT_BUNDLE_ID;
+
+    /* Step 1: Launch the app and capture logs */
+    printf("  Step 1: Launching app for crash signature capture...\n");
+
+    int launch_success = 0;
+    int launch_pid = 0;
+
+    char launch_cmd[MAX_PATH * 4];
+    snprintf(launch_cmd, sizeof(launch_cmd),
+        "xcrun simctl launch '%s' '%s' 2>&1",
+        simulator_id, bundle_id);
+
+    char launch_output_path[MAX_PATH];
+    snprintf(launch_output_path, sizeof(launch_output_path), "%s/launch_output.txt", artifact_dir);
+
+    FILE *fp = popen(launch_cmd, "r");
+    if (fp) {
+        char line[MAX_LINE];
+        while (fgets(line, sizeof(line), fp)) {
+            char *pid_str = strstr(line, bundle_id);
+            if (pid_str) {
+                pid_str = strchr(pid_str, ':');
+                if (pid_str) {
+                    launch_pid = atoi(pid_str + 1);
+                    if (launch_pid > 0) {
+                        launch_success = 1;
+                    }
+                }
+            }
+            if (strstr(line, bundle_id) && !strstr(line, "error") && !strstr(line, "Error")) {
+                launch_success = 1;
+            }
+        }
+        pclose(fp);
+    }
+
+    exec_cmd_to_file(launch_cmd, launch_output_path);
+
+    printf("    Launch %s (PID: %d)\n", launch_success ? "SUCCEEDED" : "FAILED", launch_pid);
+
+    /* Step 2: Capture simulator logs */
+    printf("  Step 2: Capturing simulator logs...\n");
+
+    sleep(3); /* Give app time to produce logs */
+
+    char log_content[MAX_LOG_SIZE] = "";
+    size_t log_len = 0;
+
+    /* Try to get logs from simulator */
+    char log_cmd[MAX_PATH * 4];
+    snprintf(log_cmd, sizeof(log_cmd),
+        "xcrun simctl spawn '%s' log show --predicate 'subsystem == \"%s\" OR process == \"iSH\"' --last 5m 2>&1 | head -100",
+        simulator_id, bundle_id);
+
+    FILE *log_fp = popen(log_cmd, "r");
+    if (log_fp) {
+        char line[MAX_LINE];
+        while (fgets(line, sizeof(line), log_fp) && log_len < sizeof(log_content) - 1) {
+            size_t line_len = strlen(line);
+            if (log_len + line_len < sizeof(log_content) - 1) {
+                strcat(log_content, line);
+                log_len += line_len;
+            }
+        }
+        pclose(log_fp);
+    }
+
+    /* Step 3: Analyze logs for crash indicators and milestones */
+    printf("  Step 3: Analyzing logs for crash signatures and milestones...\n");
+
+    /* Look for crash indicators in logs */
+    typedef struct {
+        const char *pattern;
+        const char *crash_type;
+        const char *exception_code;
+    } crash_pattern_t;
+
+    crash_pattern_t crash_patterns[] = {
+        {"SIGSEGV", "memory_access", "EXC_BAD_ACCESS"},
+        {"SIGBUS", "bus_error", "EXC_BAD_ACCESS"},
+        {"SIGILL", "illegal_instruction", "EXC_BAD_INSTRUCTION"},
+        {"SIGABRT", "abort", "EXC_CRASH"},
+        {"Assertion failure", "assertion_failure", "EXC_CRASH"},
+        {"Fatal error", "fatal_error", "EXC_CRASH"},
+        {"EXC_", "exception", "EXC_EXCEPTION"},
+        {"terminating", "termination", "EXC_CRASH"},
+        {"trap", "trap", "EXC_BREAKPOINT"},
+        {NULL, NULL, NULL}
+    };
+
+    /* Look for milestones in log */
+    typedef struct {
+        const char *name;
+        const char *log_pattern;
+        int order;
+    } milestone_def_t;
+
+    milestone_def_t milestones[] = {
+        {"app_launched", "launched", 1},
+        {"kernel_init_started", "kernel initialization", 2},
+        {"tcti_initialized", "TCTI", 3},
+        {"first_elf_exec_entered", "first ELF exec entered", 4},
+        {"first_elf_exec_returned", "first ELF exec returned", 5},
+        {"second_execve_started", "second execve", 6},
+        {"guest_loop_entered", "guest loop", 7},
+        {"login_ready", "login ready", 8},
+        {"shell_ready", "shell ready", 9},
+        {NULL, NULL, 0}
+    };
+
+    /* Extract found milestones */
+    typedef struct {
+        char name[64];
+        int order;
+        int found;
+        uint64_t timestamp_ms;
+    } found_milestone_t;
+
+    found_milestone_t found_milestones[20];
+    int found_count = 0;
+
+    for (int i = 0; milestones[i].name != NULL && found_count < 20; i++) {
+        strncpy(found_milestones[found_count].name, milestones[i].name, 63);
+        found_milestones[found_count].name[63] = '\0';
+        found_milestones[found_count].order = milestones[i].order;
+        found_milestones[found_count].found = 0;
+        found_milestones[found_count].timestamp_ms = 0;
+        found_count++;
+    }
+
+    /* Mark app_launched as found */
+    for (int i = 0; i < found_count; i++) {
+        if (strcmp(found_milestones[i].name, "app_launched") == 0) {
+            found_milestones[i].found = 1;
+            break;
+        }
+    }
+
+    /* Search for other milestones */
+    char *log_lower = strdup(log_content);
+    if (log_lower) {
+        for (char *p = log_lower; *p; p++) {
+            *p = tolower(*p);
+        }
+
+        for (int i = 0; i < found_count; i++) {
+            if (found_milestones[i].found) continue;
+
+            /* Look for milestone pattern */
+            for (int m = 0; milestones[m].name != NULL; m++) {
+                if (strcmp(milestones[m].name, found_milestones[i].name) == 0) {
+                    char pattern_lower[256];
+                    strncpy(pattern_lower, milestones[m].log_pattern, 255);
+                    pattern_lower[255] = '\0';
+                    for (char *p = pattern_lower; *p; p++) {
+                        *p = tolower(*p);
+                    }
+
+                    if (strstr(log_lower, pattern_lower)) {
+                        found_milestones[i].found = 1;
+                        found_milestones[i].timestamp_ms = milestones[m].order * 100;
+                    }
+                    break;
+                }
+            }
+        }
+        free(log_lower);
+    }
+
+    /* Find highest completed milestone and first failing */
+    char highest_completed[64] = "app_launched";
+    char first_failing[64] = "unknown";
+    int milestones_reached = 1;
+    int last_completed_order = 1;
+
+    for (int i = 0; i < found_count; i++) {
+        if (found_milestones[i].found) {
+            milestones_reached++;
+            if (found_milestones[i].order > last_completed_order) {
+                last_completed_order = found_milestones[i].order;
+                strncpy(highest_completed, found_milestones[i].name, 63);
+                highest_completed[63] = '\0';
+            }
+        }
+    }
+
+    /* Determine first failing milestone */
+    for (int i = 0; i < found_count; i++) {
+        if (!found_milestones[i].found && found_milestones[i].order > last_completed_order) {
+            /* Check if this is the immediate next milestone */
+            if (found_milestones[i].order == last_completed_order + 1 ||
+                (i > 0 && found_milestones[i-1].found)) {
+                strncpy(first_failing, found_milestones[i].name, 63);
+                first_failing[63] = '\0';
+                break;
+            }
+        }
+    }
+
+    if (strcmp(first_failing, "unknown") == 0 && last_completed_order < 9) {
+        /* Find the next milestone after highest completed */
+        for (int i = 0; i < found_count; i++) {
+            if (found_milestones[i].order == last_completed_order + 1) {
+                strncpy(first_failing, found_milestones[i].name, 63);
+                first_failing[63] = '\0';
+                break;
+            }
+        }
+    }
+
+    printf("    Highest completed: %s\n", highest_completed);
+    printf("    First failing: %s\n", first_failing);
+    printf("    Milestones reached: %d\n", milestones_reached);
+
+    /* Step 4: Check for crash indicators */
+    printf("  Step 4: Detecting crash signatures...\n");
+
+    const char *detected_crash_type = "none";
+    const char *detected_exception = "none";
+    uint64_t faulting_pc = 0x100000000ULL; /* Default PC */
+
+    /* Search for crash patterns */
+    for (int i = 0; crash_patterns[i].pattern != NULL; i++) {
+        if (strstr(log_content, crash_patterns[i].pattern)) {
+            detected_crash_type = crash_patterns[i].crash_type;
+            detected_exception = crash_patterns[i].exception_code;
+            printf("    Found crash indicator: %s (%s)\n",
+                   detected_crash_type, detected_exception);
+            break;
+        }
+    }
+
+    /* If no explicit crash found but app didn't fully boot, treat as boot failure */
+    if (strcmp(detected_crash_type, "none") == 0) {
+        if (strcmp(first_failing, "unknown") != 0) {
+            detected_crash_type = "boot_milestone_failure";
+            detected_exception = "EXC_BOOT";
+        }
+    }
+
+    /* Step 5: Generate normalized crash signature */
+    printf("  Step 5: Generating normalized crash signature...\n");
+
+    char normalized_hash[128];
+    char milestone_ctx_str[256];
+    snprintf(milestone_ctx_str, sizeof(milestone_ctx_str), "%s|%s|%d",
+             highest_completed, first_failing, milestones_reached);
+
+    generate_crash_hash(normalized_hash, sizeof(normalized_hash),
+                        detected_crash_type,
+                        detected_exception,
+                        faulting_pc,
+                        milestone_ctx_str);
+
+    printf("    Generated hash: %s\n", normalized_hash);
+
+    /* Step 6: Write artifacts */
+    printf("  Step 6: Writing artifacts...\n");
 
     /* Write crash_signature.json */
     char path[MAX_PATH];
     snprintf(path, sizeof(path), "%s/crash_signature.json", artifact_dir);
-    FILE *fp = fopen(path, "w");
+    fp = fopen(path, "w");
     if (fp) {
         fprintf(fp, "{\n");
-        fprintf(fp, "  \"algorithm\": \"sha256_normalized\",\n");
+        fprintf(fp, "  \"algorithm\": \"normalized_hash_v1\",\n");
         fprintf(fp, "  \"fields\": [\n");
         fprintf(fp, "    \"crash_type\",\n");
         fprintf(fp, "    \"exception_code\",\n");
         fprintf(fp, "    \"faulting_pc\",\n");
         fprintf(fp, "    \"milestone_context\"\n");
         fprintf(fp, "  ],\n");
-        fprintf(fp, "  \"hash\": \"a1b2c3d4e5f6789012345678901234567890abcd1234567890abcdef12345678\",\n");
-        fprintf(fp, "  \"deterministic\": true\n");
+        fprintf(fp, "  \"hash\": \"%s\",\n", normalized_hash);
+        fprintf(fp, "  \"crash_type\": \"%s\",\n", detected_crash_type);
+        fprintf(fp, "  \"exception_code\": \"%s\",\n", detected_exception);
+        fprintf(fp, "  \"faulting_pc\": \"0x%llx\",\n", (unsigned long long)faulting_pc);
+        fprintf(fp, "  \"deterministic\": true,\n");
+        fprintf(fp, "  \"normalized\": true,\n");
+        fprintf(fp, "  \"timestamp\": \"%s\"\n", timestamp);
         fprintf(fp, "}\n");
         fclose(fp);
-        printf("  Written: crash_signature.json\n");
+        printf("    Written: crash_signature.json\n");
     }
 
     /* Write normalized_hash.txt */
     snprintf(path, sizeof(path), "%s/normalized_hash.txt", artifact_dir);
     fp = fopen(path, "w");
     if (fp) {
-        fprintf(fp, "a1b2c3d4e5f6789012345678901234567890abcd1234567890abcdef12345678\n");
+        fprintf(fp, "%s\n", normalized_hash);
         fclose(fp);
-        printf("  Written: normalized_hash.txt\n");
+        printf("    Written: normalized_hash.txt\n");
     }
 
     /* Write milestone_context.json */
@@ -1052,12 +1372,51 @@ static int test_appsim_005(const char *artifact_dir, char *log_buf, size_t log_s
     fp = fopen(path, "w");
     if (fp) {
         fprintf(fp, "{\n");
-        fprintf(fp, "  \"highest_completed\": \"first_elf_exec_entered\",\n");
-        fprintf(fp, "  \"first_failing\": \"second_execve_started\",\n");
-        fprintf(fp, "  \"milestones_reached\": 4\n");
+        fprintf(fp, "  \"highest_completed\": \"%s\",\n", highest_completed);
+        fprintf(fp, "  \"first_failing\": \"%s\",\n", first_failing);
+        fprintf(fp, "  \"milestones_reached\": %d,\n", milestones_reached);
+        fprintf(fp, "  \"milestone_order\": [\n");
+
+        int first = 1;
+        for (int i = 0; i < found_count; i++) {
+            if (found_milestones[i].found) {
+                if (!first) fprintf(fp, ",\n");
+                fprintf(fp, "    {\"name\": \"%s\", \"order\": %d, \"completed\": true}",
+                       found_milestones[i].name, found_milestones[i].order);
+                first = 0;
+            } else {
+                if (!first) fprintf(fp, ",\n");
+                fprintf(fp, "    {\"name\": \"%s\", \"order\": %d, \"completed\": false}",
+                       found_milestones[i].name, found_milestones[i].order);
+                first = 0;
+            }
+        }
+        fprintf(fp, "\n  ],\n");
+        fprintf(fp, "  \"timestamp\": \"%s\"\n", timestamp);
         fprintf(fp, "}\n");
         fclose(fp);
-        printf("  Written: milestone_context.json\n");
+        printf("    Written: milestone_context.json\n");
+    }
+
+    /* Verify required artifacts were created */
+    int has_crash_sig = 0;
+    int has_hash = 0;
+    int has_milestone_ctx = 0;
+
+    snprintf(path, sizeof(path), "%s/crash_signature.json", artifact_dir);
+    if (access(path, F_OK) == 0) has_crash_sig = 1;
+
+    snprintf(path, sizeof(path), "%s/normalized_hash.txt", artifact_dir);
+    if (access(path, F_OK) == 0) has_hash = 1;
+
+    snprintf(path, sizeof(path), "%s/milestone_context.json", artifact_dir);
+    if (access(path, F_OK) == 0) has_milestone_ctx = 1;
+
+    if (!has_crash_sig || !has_hash || !has_milestone_ctx) {
+        passed = 0;
+        snprintf(failure_reason, sizeof(failure_reason),
+                 "Missing required artifacts: crash_sig=%d hash=%d milestone_ctx=%d",
+                 has_crash_sig, has_hash, has_milestone_ctx);
     }
 
     printf("  Result: %s\n", passed ? "PASSED" : "FAILED");

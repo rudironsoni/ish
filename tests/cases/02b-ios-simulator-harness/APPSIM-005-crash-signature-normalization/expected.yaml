@@ -1,0 +1,39 @@
+expected_artifacts:
+  crash_signature.json:
+    algorithm: "normalized_hash_v1"
+    fields: 
+      - "crash_type"
+      - "exception_code"
+      - "faulting_pc"
+      - "milestone_context"
+    hash: "64-character-hex-string"
+    crash_type: "string"
+    exception_code: "string"
+    faulting_pc: "string"
+    deterministic: true
+    normalized: true
+    timestamp: "ISO8601"
+    
+  normalized_hash.txt:
+    non_empty: true
+    format: "64-char-hex-hash"
+    
+  milestone_context.json:
+    highest_completed: "string"
+    first_failing: "string"
+    milestones_reached: "number"
+    milestone_order: "array"
+    timestamp: "ISO8601"
+    
+  report.json:
+    case_id: "APPSIM-005"
+    status: "REAL_PASS"
+    phase: "02b-ios-simulator-harness"
+    harness: "ios_app_harness"
+    passed: true
+
+success_criteria:
+  - "crash_signature.json contains algorithm, fields, and hash"
+  - "normalized_hash.txt contains 64-character hexadecimal hash"
+  - "milestone_context.json contains highest_completed and first_failing"
+  - "report.json shows passed: true and status: REAL_PASS"
