@@ -447,7 +447,7 @@ TEST(test_branch_zero_negative_offset) {
     // TBZ w1, #0, .-0xc
     uint32_t insn = encode_tbz(1, 0, -12, 0);
     ASSERT_EQ(a64_decode(insn, &instr), 0);
-    ASSERT_EQ(instr.cat, A64_BRANCH);
+    ASSERT_EQ(instr.cat, A64_BRANCH2);
     ASSERT_EQ(instr.subtype, A64_BRANCH_TEST);
     ASSERT_EQ(instr.Rd, 1);
     ASSERT_EQ(instr.op, 0);
@@ -461,7 +461,7 @@ TEST(test_branch_nonzero_negative_offset) {
     // TBNZ w1, #0, .-0x34
     uint32_t insn = encode_tbz(1, 0, -52, 1);
     ASSERT_EQ(a64_decode(insn, &instr), 0);
-    ASSERT_EQ(instr.cat, A64_BRANCH);
+    ASSERT_EQ(instr.cat, A64_BRANCH2);
     ASSERT_EQ(instr.subtype, A64_BRANCH_TEST);
     ASSERT_EQ(instr.Rd, 1);
     ASSERT_EQ(instr.op, 1);

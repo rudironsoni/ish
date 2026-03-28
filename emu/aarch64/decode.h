@@ -202,8 +202,7 @@ static inline int64_t sign_extend(uint64_t val, int bits) {
 // For branches, the encoding is different (bits 31:26 determine type)
 static inline a64_category_t a64_get_category(uint32_t insn) {
     uint32_t top = (insn >> 25) & 0xF;
-    uint32_t top7 = (insn >> 25) & 0x7F;
-    
+
     // Check for branch encodings
     uint32_t branch_type = (insn >> 26) & 0x3F;
     if (branch_type == 0x05) { // 000101 - Unconditional branch
@@ -216,14 +215,13 @@ static inline a64_category_t a64_get_category(uint32_t insn) {
         return A64_BRANCH;
     }
 
-    // Load/store pair uses a separate major encoding space that does not map
-    // cleanly to bits 28:25. Route it into the load/store decoder explicitly.
-    // 32-bit pairs: top7 = 0010100 (0x14), 64-bit pairs: top7 = 1010100 (0x54)
-    // Check bits 29:25 (mask 0x1E) for pattern 0x14 (10100)
-    if ((top7 & 0x1E) == 0x14) { // x010100x - STP/LDP family
+    // Load/store pair: bits 29:25 = 10100 (0x14)
+    // Distinguishes from logical register ops (AND/ORR/EOR) which have
+    // bits 29:25 = 10101 (0x15) when sf=1.
+    if (((insn >> 25) & 0x1F) == 0x14) {
         return A64_LD_ST;
     }
-    
+
     // Otherwise, use standard category from bits 28:25
     return (a64_category_t)top;
 }
