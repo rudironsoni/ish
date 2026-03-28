@@ -11,7 +11,7 @@ The primary testing surface is the iOS Simulator controlled via XcodeBuildMCP to
 - **configuration**: `Debug`
 - **simulator_name**: `iPhone 17 Pro`
 - **simulator_id**: `E6186E89-8784-473B-A4E4-66E42693F14E`
-- **bundle_id**: `com.rudironsoni.ish`
+- **bundle_id**: `app.ish.iSH`
 
 ## Validation Concurrency
 
@@ -158,11 +158,9 @@ Each flow validator must produce:
 
 1. **Simulator already in use**: Stop any running simulator app or use `stop_app_sim`
 2. **Build timeout**: Increase timeout or check for compilation errors
-3. **Bundle ID mismatch**: 
-   - Validation contract expects "com.rudironsoni.ish" (per services.yaml)
-   - Actual bundle ID in Xcode project is "app.ish.iSH"
-   - Use actual bundle ID from session_show_defaults for testing
-   - This discrepancy should be resolved by updating validation contract or Xcode config
+3. **Bundle ID**: 
+   - Actual bundle ID from XcodeBuildMCP config: "app.ish.iSH"
+   - This is the configured value in .xcodebuildmcp/config.yaml sessionDefaults
 4. **Log capture empty**: Ensure app actually launched and produced output
 5. **Boot failures**: Try `erase_sims` before `boot_sim` for clean state
 

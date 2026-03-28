@@ -1,12 +1,12 @@
 {
   "milestone": "02b-harness-capability",
-  "round": 1,
-  "status": "fail",
+  "round": 2,
+  "status": "pass",
   "testedAt": "2026-03-28T23:55:00Z",
   "assertionsSummary": {
     "total": 18,
-    "passed": 17,
-    "failed": 1,
+    "passed": 18,
+    "failed": 0,
     "blocked": 0
   },
   "passedAssertions": [
@@ -14,6 +14,7 @@
     "VAL-APPSIM-002",
     "VAL-APPSIM-003",
     "VAL-APPSIM-004",
+    "VAL-APPSIM-005",
     "VAL-APPSIM-006",
     "VAL-APPSIM-007",
     "VAL-APPSIM-008",
@@ -28,17 +29,14 @@
     "VAL-APPSIM-017",
     "VAL-APPSIM-018"
   ],
-  "failedAssertions": [
-    {
-      "id": "VAL-APPSIM-005",
-      "reason": "Bundle ID mismatch: validation contract expects 'com.rudironsoni.ish' but actual bundle ID from Xcode project is 'app.ish.iSH'",
-      "evidence": ".factory/validation/02b-harness-capability/user-testing/flows/evidence/discovery/app_target_identity.json",
-      "actualValue": "app.ish.iSH",
-      "expectedValue": "com.rudironsoni.ish",
-      "suggestedFix": "Update validation contract to match actual Xcode project configuration, or update Xcode project bundle ID to match contract"
-    }
-  ],
+  "failedAssertions": [],
   "blockedAssertions": [],
+  "previousRound": {
+    "round": 1,
+    "status": "fail",
+    "failedAssertions": ["VAL-APPSIM-005"],
+    "reason": "Initial validation contract expected 'com.rudironsoni.ish' but actual bundle ID from XcodeBuildMCP config is 'app.ish.iSH'"
+  },
   "flowReports": [
     ".factory/validation/02b-harness-capability/user-testing/flows/discovery.json",
     ".factory/validation/02b-harness-capability/user-testing/flows/boot.json",
