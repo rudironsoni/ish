@@ -1,0 +1,103 @@
+{
+  "groupId": "discovery",
+  "testedAt": "2026-03-28T23:44:00Z",
+  "isolation": {
+    "projectPath": "/Users/rudironsoni/src/github/rudironsoni/ish/iSH.xcodeproj",
+    "simulatorId": "E6186E89-8784-473B-A4E4-66E42693F14E",
+    "simulatorName": "iPhone 17 Pro"
+  },
+  "toolsUsed": ["XcodeBuildMCP"],
+  "assertions": [
+    {
+      "id": "VAL-APPSIM-001",
+      "title": "XcodeBuildMCP Availability - session_show_defaults returns valid configuration",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Call XcodeBuildMCP session_show_defaults",
+          "expected": "Returns valid configuration with projectPath, scheme, simulatorName, and bundleId populated",
+          "observed": "Configuration returned with projectPath='/Users/rudironsoni/src/github/rudironsoni/ish/iSH.xcodeproj', scheme='iSH', simulatorName='iPhone 17 Pro', bundleId='app.ish.iSH'"
+        }
+      ],
+      "evidence": {
+        "artifact": "02b-harness-capability/user-testing/flows/evidence/discovery/xcodebuildmcp_capability.json",
+        "consoleErrors": "none"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-APPSIM-002",
+      "title": "Project Discovery - discover_projs finds the iSH.xcodeproj at repository root",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Call XcodeBuildMCP discover_projs with workspaceRoot='/Users/rudironsoni/src/github/rudironsoni/ish'",
+          "expected": "Discovers iSH.xcodeproj at repository root",
+          "observed": "Discovery found 2 projects including '/Users/rudironsoni/src/github/rudironsoni/ish/iSH.xcodeproj'"
+        }
+      ],
+      "evidence": {
+        "artifact": "02b-harness-capability/user-testing/flows/evidence/discovery/xcodebuildmcp_capability.json (contains projectPath)",
+        "consoleErrors": "none"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-APPSIM-003",
+      "title": "Scheme Enumeration - list_schemes returns available build schemes including 'iSH'",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Call XcodeBuildMCP list_schemes with projectPath",
+          "expected": "Returns schemes including 'iSH'",
+          "observed": "Available schemes: iSH, Screenshots, UnitTests - 'iSH' scheme present"
+        }
+      ],
+      "evidence": {
+        "artifact": "02b-harness-capability/user-testing/flows/evidence/discovery/xcodebuildmcp_capability.json (contains scheme)",
+        "consoleErrors": "none"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-APPSIM-004",
+      "title": "Simulator Target Discovery - list_sims returns available iOS simulator targets",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Call XcodeBuildMCP list_sims",
+          "expected": "Returns at least one iOS Simulator device",
+          "observed": "Found 11 iOS simulators including iPhone 17 Pro (Booted), iPhone 17, iPad Pro, iPad Air, iPad mini"
+        }
+      ],
+      "evidence": {
+        "artifact": "02b-harness-capability/user-testing/flows/evidence/discovery/simulator_targets.json",
+        "consoleErrors": "none"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-APPSIM-005",
+      "title": "App Target Identity - Bundle ID matches 'com.rudironsoni.ish'",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Verify bundle_id from session_show_defaults",
+          "expected": "bundle_id should be 'com.rudironsoni.ish'",
+          "observed": "bundle_id is 'app.ish.iSH' - does not match expected value"
+        }
+      ],
+      "evidence": {
+        "artifact": "02b-harness-capability/user-testing/flows/evidence/discovery/app_target_identity.json",
+        "consoleErrors": "none"
+      },
+      "issues": {
+        "description": "Bundle ID mismatch: expected 'com.rudironsoni.ish' but got 'app.ish.iSH'. This indicates the Xcode project is configured with a different bundle identifier than specified in the validation contract.",
+        "severity": "high"
+      }
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 5 assertions: 4 passed, 1 failed. VAL-APPSIM-005 failed due to bundle ID mismatch - actual bundle ID is 'app.ish.iSH' not 'com.rudironsoni.ish' as specified in the validation contract."
+}

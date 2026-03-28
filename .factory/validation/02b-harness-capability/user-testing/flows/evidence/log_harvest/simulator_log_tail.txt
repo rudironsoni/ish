@@ -1,0 +1,609 @@
+Timestamp                       Thread     Type        Activity             PID    TTL  
+2026-03-28 23:49:30.493263+0100 0x608d3    Default     0x0                  50153  0    iSH: (libxpc.dylib) [com.apple.xpc:connection] [0x103e4f240] activating connection: mach=true listener=false peer=false name=com.apple.cfprefsd.daemon
+2026-03-28 23:49:30.505118+0100 0x60901    Activity    0xed520              50153  0    iSH: (CoreFoundation) Loading Preferences From User Session CFPrefsD
+2026-03-28 23:49:30.505237+0100 0x608fe    Default     0x0                  50153  0    iSH: (UIKitCore) [com.apple.UIKit:BackgroundTask] Creating new assertion because there is no existing background assertion.
+2026-03-28 23:49:30.505279+0100 0x608fe    Default     0x0                  50153  0    iSH: (UIKitCore) [com.apple.UIKit:BackgroundTask] Creating new background assertion
+2026-03-28 23:49:30.505392+0100 0x608fe    Default     0x0                  50153  0    iSH: (UIKitCore) [com.apple.UIKit:BackgroundTask] Created new background assertion <BKSProcessAssertion: 0x103e50df0>
+2026-03-28 23:49:30.505433+0100 0x608fe    Default     0x0                  50153  0    iSH: (RunningBoardServices) [com.apple.runningboard:connection] Initializing connection
+2026-03-28 23:49:30.505475+0100 0x608fe    Default     0x0                  50153  0    iSH: (RunningBoardServices) [com.apple.runningboard:process] Removing all cached process handles
+2026-03-28 23:49:30.505536+0100 0x60902    Default     0x0                  50153  0    iSH: (RunningBoardServices) [com.apple.runningboard:connection] Sending handshake request attempt #1 to server
+2026-03-28 23:49:30.505661+0100 0x608fe    Default     0x0                  50153  0    iSH: (RunningBoardServices) [com.apple.runningboard:connection] Creating connection to com.apple.runningboard
+2026-03-28 23:49:30.505716+0100 0x608fe    Default     0x0                  50153  0    iSH: (libxpc.dylib) [com.apple.xpc:connection] [0x103e56ff0] activating connection: mach=true listener=false peer=false name=com.apple.runningboard
+2026-03-28 23:49:30.506475+0100 0x608d3    Default     0x0                  50153  0    iSH: (libMobileGestalt.dylib) No persisted cache on this platform.
+2026-03-28 23:49:30.506570+0100 0x60903    Activity    0xed521              50153  0    iSH: (RunningBoardServices) didChangeInheritances
+2026-03-28 23:49:30.507084+0100 0x60902    Default     0x0                  50153  0    iSH: (RunningBoardServices) [com.apple.runningboard:connection] Handshake succeeded
+2026-03-28 23:49:30.507107+0100 0x60902    Default     0x0                  50153  0    iSH: (RunningBoardServices) [com.apple.runningboard:connection] Identity resolved as app<com.rudironsoni.ish((null))>
+2026-03-28 23:49:30.507751+0100 0x608fe    Default     0x0                  50153  0    iSH: (UIKitCore) [com.apple.UIKit:BackgroundTask] Incrementing reference count for background assertion <BKSProcessAssertion: 0x103e50df0>
+2026-03-28 23:49:30.508002+0100 0x608fe    Default     0x0                  50153  0    iSH: (UIKitCore) [com.apple.UIKit:BackgroundTask] Created background task <_UIBackgroundTaskInfo: 0x1044944c0>: taskID = 1, taskName = Launch Background Task for Coalescing, creationTime = 11723 (elapsed = 0).
+2026-03-28 23:49:30.508146+0100 0x608fe    Default     0x0                  50153  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UIApplicationSceneKeyboardSettings on FBSSceneSettings
+2026-03-28 23:49:30.509760+0100 0x60904    Default     0x0                  50153  0    iSH: (BoardServices) [com.apple.BoardServices:XPCErrors] [C:1] Alloc com.apple.frontboard.systemappservices
+2026-03-28 23:49:30.518889+0100 0x608fe    Default     0x0                  50153  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneOcclusionSettings> on FBSSceneSettings
+2026-03-28 23:49:30.519502+0100 0x60904    Default     0x0                  50153  0    iSH: (libxpc.dylib) [com.apple.xpc:connection] [0x10459c3c0] activating connection: mach=false listener=false peer=false name=(anonymous)
+2026-03-28 23:49:30.519535+0100 0x608fe    Default     0x0                  50153  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneInterfaceProtectionSettings> on FBSSceneSettings
+2026-03-28 23:49:30.519793+0100 0x608fe    Default     0x0                  50153  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneLayoutPreferencesHostSettingsExtension on FBSSceneSettings
+2026-03-28 23:49:30.519961+0100 0x608fe    Default     0x0                  50153  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneSafeAreaSettingsExtension on FBSSceneSettings
+2026-03-28 23:49:30.520412+0100 0x608fe    Default     0x0                  50153  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneLayoutPreferenceClientSettingsExtension on FBSSceneClientSettings
+2026-03-28 23:49:30.520689+0100 0x608fe    Default     0x0                  50153  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UIHomeAffordanceHostSceneSettings> on FBSSceneSettings
+2026-03-28 23:49:30.521115+0100 0x608fe    Default     0x0                  50153  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISystemShellSceneHostingEnvironmentSettings on FBSSceneSettings
+2026-03-28 23:49:30.521620+0100 0x608fe    Default     0x0                  50153  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneRenderingEnvironmentSettings on FBSSceneSettings
+2026-03-28 23:49:30.522088+0100 0x608d3    Default     0x0                  50153  0    iSH: (UIKitCore) [com.apple.UIKit:Application] Deactivation reason added: 10; deactivation reasons: 0 -> 1024; animating application lifecycle event: 0
+2026-03-28 23:49:30.522263+0100 0x608fe    Default     0x0                  50153  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneRenderingEnvironmentClientSettings> on FBSSceneClientSettings
+2026-03-28 23:49:30.522804+0100 0x608fe    Default     0x0                  50153  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneTransitioningHostSettings> on FBSSceneSettings
+2026-03-28 23:49:30.522912+0100 0x608d3    Default     0x0                  50153  0    iSH: (BoardServices) [com.apple.BoardServices:Injection] activating monitor for service com.apple.frontboard.open
+2026-03-28 23:49:30.523014+0100 0x608fe    Default     0x0                  50153  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneFocusSystemSettings> on FBSSceneSettings
+2026-03-28 23:49:30.523256+0100 0x608fe    Default     0x0                  50153  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneOrientationSettingsExtension on FBSSceneSettings
+2026-03-28 23:49:30.523658+0100 0x608fe    Default     0x0                  50153  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneOrientationClientSettingsExtension on FBSSceneClientSettings
+2026-03-28 23:49:30.523896+0100 0x608fe    Default     0x0                  50153  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneWindowingControlClientSettings on FBSSceneClientSettings
+2026-03-28 23:49:30.524311+0100 0x608d3    Default     0x0                  50153  0    iSH: (BoardServices) [com.apple.BoardServices:Injection] activating monitor for service com.apple.frontboard.workspace-service
+2026-03-28 23:49:30.525768+0100 0x608fe    Default     0x0                  50153  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneHostingContentSizePreferenceClientSettings> on FBSSceneClientSettings
+2026-03-28 23:49:30.526278+0100 0x608d3    Default     0x0                  50153  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:Common] FBSWorkspace registering source: com.apple.frontboard.systemappservices
+2026-03-28 23:49:30.526469+0100 0x608fe    Default     0x0                  50153  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneHostingTraitCollectionPropagationSettings on FBSSceneSettings
+2026-03-28 23:49:30.527412+0100 0x608d3    Default     0x0                  50153  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:Common] FBSWorkspace connected to endpoint : <BSServiceConnectionEndpoint: 0x1044d17e0; target: com.apple.frontboard.systemappservices; service: com.apple.frontboard.workspace-service>
+2026-03-28 23:49:30.527892+0100 0x608d3    Default     0x0                  50153  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:Common] <FBSWorkspaceScenesClient:0x1044e0640 com.apple.frontboard.systemappservices> attempting immediate handshake from activate
+2026-03-28 23:49:30.528103+0100 0x608d3    Default     0x0                  50153  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:Common] <FBSWorkspaceScenesClient:0x1044e0640 com.apple.frontboard.systemappservices> sent handshake
+2026-03-28 23:49:30.528453+0100 0x608d3    Default     0x0                  50153  0    iSH: (RunningBoardServices) [com.apple.runningboard:general] Added observer for process assertions expiration warning: <_RBSExpirationWarningClient: 0x1044d1c80>
+2026-03-28 23:49:30.528477+0100 0x608fe    Default     0x0                  50153  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneHostingSheetPresentationSettings> on FBSSceneSettings
+2026-03-28 23:49:30.529447+0100 0x608fe    Default     0x0                  50153  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneHostingSheetPresentationClientSettings> on FBSSceneClientSettings
+2026-03-28 23:49:30.529668+0100 0x608fe    Default     0x0                  50153  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneHostingEventDeferringSettings> on FBSSceneSettings
+2026-03-28 23:49:30.531305+0100 0x608fe    Default     0x0                  50153  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <UIKit__UITypedKeyValueSceneSettings> on FBSSceneSettings
+2026-03-28 23:49:30.532262+0100 0x608fe    Default     0x0                  50153  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <UIKit__UITypedKeyValueSceneSettings> on FBSSceneClientSettings
+2026-03-28 23:49:30.532662+0100 0x608fe    Default     0x0                  50153  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneHostingViewControllerPreferencePropagationClientSettings> on FBSSceneClientSettings
+2026-03-28 23:49:30.533762+0100 0x608fe    Default     0x0                  50153  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneZoomTransitionSettings> on FBSSceneSettings
+2026-03-28 23:49:30.534645+0100 0x60904    Default     0x0                  50153  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension FBSSceneSettingsCore on FBSSceneSettings
+2026-03-28 23:49:30.535399+0100 0x60904    Default     0x0                  50153  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension FBSSceneClientSettingsCore on FBSSceneClientSettings
+2026-03-28 23:49:30.538458+0100 0x608d3    Default     0x0                  50153  0    iSH: (UIKitCore) [com.apple.UIKit:UIScreen] Evaluated capturing state as 0 on <UIScreen: 0x10459c640> for initial
+2026-03-28 23:49:30.538912+0100 0x608d3    Default     0x0                  50153  0    iSH: (UIKitCore) [com.apple.UIKit:UIScreen] Evaluated capturing state as 0 on <UIScreen: 0x10459c640> for CADisplay KVO
+2026-03-28 23:49:30.540583+0100 0x608d3    Default     0x0                  50153  0    iSH: (libAccessibility.dylib) [com.apple.Accessibility:AXSupportCommon] Read CategoryName: per-app = 1, category name = (null)
+2026-03-28 23:49:30.540805+0100 0x608d3    Default     0x0                  50153  0    iSH: (libAccessibility.dylib) [com.apple.Accessibility:AXSupportCommon] Read CategoryName: per-app = 0, category name = (null)
+2026-03-28 23:49:30.542673+0100 0x60904    Default     0x0                  50153  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] UIMutableApplicationSceneSettings setting counterpart class: UIApplicationSceneSettings
+2026-03-28 23:49:30.542929+0100 0x60904    Default     0x0                  50153  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] UIMutableApplicationSceneClientSettings setting counterpart class: UIApplicationSceneClientSettings
+2026-03-28 23:49:30.543045+0100 0x60904    Default     0x0                  50153  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension FBSSceneTransitionContextCore on FBSSceneTransitionContext
+2026-03-28 23:49:30.558344+0100 0x608d3    Default     0x0                  50153  0    iSH: (XCTTargetBootstrap) [com.apple.dt.xctest:Default] Registering for test daemon availability notify post.
+2026-03-28 23:49:30.558495+0100 0x608d3    Default     0x0                  50153  0    iSH: (XCTTargetBootstrap) [com.apple.dt.xctest:Default] notify_get_state check indicated test daemon not ready.
+2026-03-28 23:49:30.558584+0100 0x608d3    Default     0x0                  50153  0    iSH: (XCTTargetBootstrap) [com.apple.dt.xctest:Default] notify_get_state check indicated test daemon not ready.
+2026-03-28 23:49:30.558693+0100 0x608d3    Default     0x0                  50153  0    iSH: (XCTTargetBootstrap) [com.apple.dt.xctest:Default] notify_get_state check indicated test daemon not ready.
+2026-03-28 23:49:30.559847+0100 0x608d3    Default     0x0                  50153  0    iSH: (UIKitCore) [com.apple.UIKit:Application] Deactivation reason added: 11; deactivation reasons: 1024 -> 3072; animating application lifecycle event: 0
+2026-03-28 23:49:30.562250+0100 0x608d3    Activity    0xed522              50153  0    iSH: (libsystem_containermanager.dylib) container_create_or_lookup_app_group_path_by_app_group_identifier
+2026-03-28 23:49:30.562487+0100 0x608d3    Default     0xed522              50153  7    iSH: (libsystem_containermanager.dylib) [com.apple.containermanager:xpc] Requesting app group container lookup; identifier = group.com.rudironsoni.emuLnx, euid = 501, uid = 501, platform = 7
+2026-03-28 23:49:30.570422+0100 0x608d3    Default     0xed522              50153  7    iSH: (libsystem_containermanager.dylib) [com.apple.containermanager:sandbox] Consumed sandbox extension; path = [/Users/rudironsoni/Library/Developer/CoreSimulator/Devices/E6186E89-8784-473B-A4E4-66E42693F14E/data/Containers/Shared/AppGroup/D4DD681F-10A5-4CF8-A7DA-1AB6BD1E1083], handle = 0
+2026-03-28 23:49:30.570469+0100 0x608d3    Default     0x0                  50153  7    iSH: (libsystem_containermanager.dylib) [com.apple.containermanager:unspecified] container_create_or_lookup_app_group_path_by_app_group_identifier: success
+2026-03-28 23:49:30.685656+0100 0x608d3    Default     0x0                  50153  0    iSH: (libxpc.dylib) [com.apple.xpc:connection] [0x10459cdc0] activating connection: mach=true listener=false peer=false name=com.apple.lsd.mapdb
+2026-03-28 23:49:30.688623+0100 0x608d3    Activity    0xed523              50153  0    iSH: (libsystem_containermanager.dylib) container_create_or_lookup_app_group_path_by_app_group_identifier
+2026-03-28 23:49:30.688655+0100 0x608d3    Default     0xed523              50153  7    iSH: (libsystem_containermanager.dylib) [com.apple.containermanager:xpc] Requesting app group container lookup; identifier = group.com.rudironsoni.ish, euid = 501, uid = 501, platform = 7
+2026-03-28 23:49:30.690939+0100 0x608d3    Error       0x0                  50153  7    iSH: (libsystem_containermanager.dylib) [com.apple.containermanager:unspecified] container_create_or_lookup_app_group_path_by_app_group_identifier: client is not entitled
+2026-03-28 23:49:30.694384+0100 0x608d3    Default     0x0                  50153  0    iSH: (libxpc.dylib) [com.apple.xpc:connection] [0x10459ca00] activating connection: mach=true listener=false peer=false name=com.apple.FileProvider
+2026-03-28 23:49:30.695347+0100 0x608d3    Activity    0xed524              50153  0    iSH: (libsystem_containermanager.dylib) container_create_or_lookup_app_group_path_by_app_group_identifier
+2026-03-28 23:49:30.695428+0100 0x608d3    Default     0xed524              50153  7    iSH: (libsystem_containermanager.dylib) [com.apple.containermanager:xpc] Requesting app group container lookup; identifier = group.com.rudironsoni.ish, euid = 501, uid = 501, platform = 7
+2026-03-28 23:49:30.695778+0100 0x608d3    Error       0x0                  50153  7    iSH: (libsystem_containermanager.dylib) [com.apple.containermanager:unspecified] container_create_or_lookup_app_group_path_by_app_group_identifier: client is not entitled
+2026-03-28 23:49:30.695862+0100 0x608d3    Error       0x0                  50153  0    iSH: (Foundation) [com.apple.Foundation:general] *** Assertion failure in -[NSFileProviderManager documentStorageURL], NSFileProviderManager.m:925
+2026-03-28 23:49:30.697472+0100 0x608d3    Default     0x0                  50153  0    iSH: [Roots] File Provider not available (exception: NSInternalInconsistencyException)
+2026-03-28 23:49:30.697621+0100 0x608d3    Default     0x0                  50153  0    iSH: [Roots] Skipping File Provider sync - not available for sideloaded build
+2026-03-28 23:49:30.716975+0100 0x608d3    Default     0x0                  50153  0    iSH: (libxpc.dylib) [com.apple.xpc:connection] [0x10459d040] activating connection: mach=true listener=false peer=false name=com.apple.SystemConfiguration.DNSConfiguration_sim
+2026-03-28 23:49:30.719381+0100 0x608d3    Default     0x0                  50153  0    iSH: (libxpc.dylib) [com.apple.xpc:connection] [0x10459d040] invalidated after the last release of the connection object
+2026-03-28 23:49:30.721853+0100 0x608d3    Default     0x0                  50153  0    iSH: (libxpc.dylib) [com.apple.xpc:connection] [0x10459d180] activating connection: mach=true listener=false peer=false name=com.apple.FileCoordination
+2026-03-28 23:49:30.722402+0100 0x608fe    Default     0x0                  50153  0    iSH: (Foundation) [com.apple.foundation.filecoordination:presenter] Adding presenter 7DA4C351-06B2-4EA6-BC6F-E42BE512EC04 for URL: file:///Users/rudironsoni/Library/Developer/CoreSimulator/Devices/E6186E89-8784-473B-A4E4-66E42693F14E/data/Containers/Data/Application/F44C4C50-3D02-4EDB-83B6-77CA6E5EBBB4/Documents/themes
+2026-03-28 23:49:30.723849+0100 0x608d3    Default     0x0                  50153  0    iSH: ================================================
+2026-03-28 23:49:30.723937+0100 0x608d3    Default     0x0                  50153  0    iSH: iSH BOOT: Starting execution
+2026-03-28 23:49:30.723992+0100 0x608d3    Default     0x0                  50153  0    iSH: iSH BOOT: Command path: /bin/busybox
+2026-03-28 23:49:30.724033+0100 0x608d3    Default     0x0                  50153  0    iSH: ================================================
+2026-03-28 23:49:30.724621+0100 0x608d3    Default     0x0                  50153  0    iSH: [Boot] About to call do_execve with: /bin/busybox
+2026-03-28 23:49:30.724829+0100 0x608d3    Default     0x0                  50153  0    iSH: [Boot] Current working directory: /
+2026-03-28 23:49:30.724942+0100 0x608d3    Default     0x0                  50153  0    iSH: [Boot] File system root: /Users/rudironsoni/Library/Developer/CoreSimulator/Devices/E6186E89-8784-473B-A4E4-66E42693F14E/data/Containers/Shared/AppGroup/D4DD681F-10A5-4CF8-A7DA-1AB6BD1E1083/roots/default
+2026-03-28 23:49:30.730265+0100 0x608d3    Default     0x0                  50153  0    iSH: [iSH] EXEC: file=/bin/busybox argc=2
+2026-03-28 23:49:30.730762+0100 0x608d3    Default     0x0                  50153  0    iSH: [iSH] EXEC: generic_open succeeded
+2026-03-28 23:49:30.730976+0100 0x608d3    Default     0x0                  50153  0    iSH: [iSH] EXEC: fstat ok, mode=100755 size=919304
+2026-03-28 23:49:30.731069+0100 0x608d3    Default     0x0                  50153  0    iSH: [iSH] EXEC: Read 16 bytes
+2026-03-28 23:49:30.731152+0100 0x608d3    Default     0x0                  50153  0    iSH: [iSH] EXEC: BYTES: 7f 45 4c 46 02 01 01 00
+2026-03-28 23:49:30.731235+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] elf_exec: ENTRY for file=/bin/busybox
+2026-03-28 23:49:30.731320+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] About to call read_header
+2026-03-28 23:49:30.731405+0100 0x608d3    Default     0x0                  50153  0    iSH: [iSH-exec] [exec] RAW BYTES: [iSH-exec] 7f [iSH-exec] 45 [iSH-exec] 4c [iSH-exec] 46 [iSH-exec] 02 [iSH-exec] 01 [iSH-exec] 01 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec]
+2026-03-28 23:49:30.731487+0100 0x608d3    Default     0x0                  50153  0    iSH: [iSH-exec] [exec] PARSED: magic=7f 45 4c 46
+2026-03-28 23:49:30.731569+0100 0x608d3    Default     0x0                  50153  0    iSH: [iSH-exec] [exec] PARSED: bitness=2 endian=1 elfv1=1 type=3 machine=183
+2026-03-28 23:49:30.731652+0100 0x608d3    Default     0x0                  50153  0    iSH: [iSH-exec] [exec] read_header: ELF validation PASSED
+2026-03-28 23:49:30.731739+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] read_header SUCCEEDED
+2026-03-28 23:49:30.731908+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] About to call read_prg_headers
+2026-03-28 23:49:30.731954+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] read_prg_headers SUCCEEDED, phent_count=9
+2026-03-28 23:49:30.732149+0100 0x608d3    Default     0x0                  50153  0    iSH: [iSH-exec] [exec] RAW BYTES: [iSH-exec] 7f [iSH-exec] 45 [iSH-exec] 4c [iSH-exec] 46 [iSH-exec] 02 [iSH-exec] 01 [iSH-exec] 01 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec]
+2026-03-28 23:49:30.732259+0100 0x608d3    Default     0x0                  50153  0    iSH: [iSH-exec] [exec] PARSED: magic=7f 45 4c 46
+2026-03-28 23:49:30.732408+0100 0x608d3    Default     0x0                  50153  0    iSH: [iSH-exec] [exec] PARSED: bitness=2 endian=1 elfv1=1 type=3 machine=183
+2026-03-28 23:49:30.732489+0100 0x608d3    Default     0x0                  50153  0    iSH: [iSH-exec] [exec] read_header: ELF validation PASSED
+2026-03-28 23:49:30.732527+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] About to release old mm and create new mm
+2026-03-28 23:49:30.732583+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] Calling mm_release, current->mm=0x104555500
+2026-03-28 23:49:30.732651+0100 0x608d3    Default     0x0                  50153  0    iSH: [mm] mm_release: ENTRY, mm=0x104555500, refcount=1
+2026-03-28 23:49:30.732700+0100 0x608d3    Default     0x0                  50153  0    iSH: [mm] About to decrement refcount from 1
+2026-03-28 23:49:30.732754+0100 0x608d3    Default     0x0                  50153  0    iSH: [mm] refcount reached 0, cleaning up
+2026-03-28 23:49:30.732828+0100 0x608d3    Default     0x0                  50153  0    iSH: [mm] Destroying mem
+2026-03-28 23:49:30.732963+0100 0x608d3    Default     0x0                  50153  0    iSH: [mem] mem_destroy: ENTRY, mem=0x104555508
+2026-03-28 23:49:30.733079+0100 0x608d3    Default     0x0                  50153  0    iSH: [mem] About to write_wrlock, &mem->lock=0x104555530
+2026-03-28 23:49:30.733208+0100 0x608d3    Default     0x0                  50153  0    iSH: [mem] write_wrlock done, pgdir=0x10449e000
+2026-03-28 23:49:30.733319+0100 0x608d3    Default     0x0                  50153  0    iSH: [mem] About to pt_unmap_always
+2026-03-28 23:49:30.733438+0100 0x608d3    Default     0x0                  50153  0    iSH: [mem] pt_unmap_always done
+2026-03-28 23:49:30.733550+0100 0x608d3    Default     0x0                  50153  0    iSH: [mem] About to free pgdir entries
+2026-03-28 23:49:30.733666+0100 0x608d3    Default     0x0                  50153  0    iSH: [mem] About to free pgdir
+2026-03-28 23:49:30.733788+0100 0x608d3    Default     0x0                  50153  0    iSH: [mem] About to write_wrunlock
+2026-03-28 23:49:30.733904+0100 0x608d3    Default     0x0                  50153  0    iSH: [mem] About to wrlock_destroy
+2026-03-28 23:49:30.733962+0100 0x608d3    Default     0x0                  50153  0    iSH: [mem] mem_destroy complete
+2026-03-28 23:49:30.734008+0100 0x608d3    Default     0x0                  50153  0    iSH: [mm] Freeing mm
+2026-03-28 23:49:30.734179+0100 0x608d3    Default     0x0                  50153  0    iSH: [mm] mm_release complete
+2026-03-28 23:49:30.734296+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] mm_release done, calling mm_new
+2026-03-28 23:49:30.734366+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] write_wrlock done, mm->exefile set
+2026-03-28 23:49:30.734433+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] About to map 9 program headers
+2026-03-28 23:49:30.734668+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] ENTRY POINT CALCULATION: bias=0x56555000 + header.entry_point=0x7500 = entry=0x5655c500
+2026-03-28 23:49:30.734734+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   ELF type: ET_DYN (PIE) (ET_DYN=3, ET_EXEC=2)
+2026-03-28 23:49:30.734798+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] Found PT_DYNAMIC in main executable at 0x566340e8
+2026-03-28 23:49:30.734964+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] Found PT_DYNAMIC in interpreter at 0xf7ffad68 (using this for x1)
+2026-03-28 23:49:30.734999+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   file offset=0xafd68, vaddr=0xbfd68, interp_base=0xf7f3b000
+2026-03-28 23:49:30.735034+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] DUMPING _DYNAMIC table at 0xf7ffad68:
+2026-03-28 23:49:30.735074+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[0]: tag=14 (0xe) val=0x3b38
+2026-03-28 23:49:30.735221+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[1]: tag=12 (0xc) val=0x1fd94
+2026-03-28 23:49:30.735306+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[2]: tag=13 (0xd) val=0x20918
+2026-03-28 23:49:30.735384+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[3]: tag=4 (0x4) val=0x1f0
+2026-03-28 23:49:30.735454+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[4]: tag=1879047925 (0x6ffffef5) val=0x2ba0
+2026-03-28 23:49:30.735525+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[5]: tag=5 (0x5) val=0xf7d0
+2026-03-28 23:49:30.735595+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[6]: tag=6 (0x6) val=0x5d38
+2026-03-28 23:49:30.735660+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[7]: tag=10 (0xa) val=0x3b4f
+2026-03-28 23:49:30.735730+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[8]: tag=11 (0xb) val=0x18
+2026-03-28 23:49:30.735837+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[9]: tag=3 (0x3) val=0xbff18
+2026-03-28 23:49:30.735918+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[10]: tag=2 (0x2) val=0x90
+2026-03-28 23:49:30.735987+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[11]: tag=20 (0x14) val=0x7
+2026-03-28 23:49:30.736057+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[12]: tag=23 (0x17) val=0x13488
+2026-03-28 23:49:30.736213+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[13]: tag=7 (0x7) val=0x13320
+2026-03-28 23:49:30.736279+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[14]: tag=8 (0x8) val=0x168
+2026-03-28 23:49:30.736353+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[15]: tag=9 (0x9) val=0x18
+2026-03-28 23:49:30.736411+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[16]: tag=30 (0x1e) val=0x8
+2026-03-28 23:49:30.736478+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[17]: tag=1879048187 (0x6ffffffb) val=0x1
+2026-03-28 23:49:30.736561+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[18]: tag=36 (0x24) val=0x13518
+2026-03-28 23:49:30.736676+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[19]: tag=35 (0x23) val=0x30
+2026-03-28 23:49:30.736749+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] Interpreter PT_LOAD segments:
+2026-03-28 23:49:30.736849+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   PT_LOAD: vaddr=0xf7f3b000->0xf7fdc89c (memsize=0xa189c, filesize=0xa189c) flags=RX
+2026-03-28 23:49:30.736934+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   PT_LOAD: vaddr=0xf7ffab00->0xf7ffdf10 (memsize=0x3410, filesize=0x904) flags=RW
+2026-03-28 23:49:30.737028+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] About to map vdso
+2026-03-28 23:49:30.737103+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] vdso mapped successfully at page 1015801
+2026-03-28 23:49:30.737260+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] CPU INIT: saved_mmu=0x104555518 (must not be NULL)
+2026-03-28 23:49:30.737335+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] CPU STATE SET: cpu.mmu=0x104555518, cpu.pc=0xf7fa4604, cpu.sp=0xfffffe10
+2026-03-28 23:49:30.737452+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] CPU REGISTERS INITIALIZED - about to start execution
+2026-03-28 23:49:30.737575+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] x0=4294966800 (argc), x1=0xf7ffad68 (argv), x2=0x0 (envp), x3=0x0 (auxv)
+2026-03-28 23:49:30.737657+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] sp=0xfffffe10, pc=0xf7fa4604, entry=0xf7fa4604
+2026-03-28 23:49:30.737701+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] elf_exec COMPLETING SUCCESSFULLY, err=0
+2026-03-28 23:49:30.737776+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] elf_exec RETURNING err=0
+2026-03-28 23:49:30.737921+0100 0x608d3    Default     0x0                  50153  0    iSH: [iSH] EXEC: format_exec returned 0
+2026-03-28 23:49:30.738059+0100 0x608d3    Default     0x0                  50153  0    iSH: [Boot] do_execve returned with err=0
+2026-03-28 23:49:30.738389+0100 0x608d3    Default     0x0                  50153  0    iSH: [Boot] Boot setup complete - init process ready but not started
+2026-03-28 23:49:30.740506+0100 0x608d3    Default     0x0                  50153  0    iSH: (Network) [com.apple.network:] networkd_settings_read_from_file_locked initialized networkd settings by reading plist directly
+2026-03-28 23:49:30.740697+0100 0x608d3    Default     0x0                  50153  0    iSH: (Network) [com.apple.network:] networkd_settings_read_from_file_locked initialized networkd settings by reading plist directly
+2026-03-28 23:49:30.742859+0100 0x608d3    Default     0x0                  50153  0    iSH: (CFNetwork) [com.apple.CFNetwork:Default] Task <EA01BCDE-C33E-41A5-BD6A-EB08CA65D1C5>.<1> resuming, timeouts(60.0, 604800.0) qos(0x21) voucher((null)) activity(00000000-0000-0000-0000-000000000000)
+2026-03-28 23:49:30.743306+0100 0x608d3    Activity    0xed525              50153  0    iSH: (CoreFoundation) Loading Preferences From User Session CFPrefsD
+2026-03-28 23:49:30.744316+0100 0x608fe    Activity    0xed526              50153  0    iSH: (libsystem_containermanager.dylib) container_system_group_path_for_identifier
+2026-03-28 23:49:30.744402+0100 0x608fe    Default     0xed526              50153  7    iSH: (libsystem_containermanager.dylib) [com.apple.containermanager:xpc] Requesting container lookup; class = 13, identifier = com.apple.nsurlsessiond, group_identifier = systemgroup.com.apple.nsurlstoragedresources, create = 1, temp = 0, euid = 501, uid = 501
+2026-03-28 23:49:30.744446+0100 0x608fe    Activity    0xed527              50153  0    iSH: (libsystem_containermanager.dylib) container_query_t
+2026-03-28 23:49:30.744459+0100 0x608d3    Default     0x0                  50153  0    iSH: (Network) [com.apple.network:path] nw_path_evaluator_start [12FF545A-FC10-477C-BEA5-2592FF073AE7 <NULL> generic, attribution: developer]
+	path: satisfied (Path is satisfied), interface: en0[802.11], uses wifi, LQM: unknown
+2026-03-28 23:49:30.744484+0100 0x608fe    Default     0xed527              50153  7    iSH: (libsystem_containermanager.dylib) [com.apple.containermanager:xpc] Query; euid = 501, uid = 501, class = 13, identifier = [com.apple.nsurlsessiond](1), flags = 900000003
+2026-03-28 23:49:30.744644+0100 0x608d3    Default     0x0                  50153  0    iSH: (UIKitCore) [com.apple.UIKit:Application] Deactivation reason removed: 10; deactivation reasons: 3072 -> 2048; animating application lifecycle event: 0
+2026-03-28 23:49:30.745140+0100 0x608d3    Default     0x0                  50153  0    iSH: (UIKitCore) [com.apple.UIKit:EventBus] Event Timing Profile for Touch: not found, path="/System/Library/EventTimingProfiles/Sim.Touch.plist"
+2026-03-28 23:49:30.745273+0100 0x608d3    Default     0x0                  50153  0    iSH: (UIKitCore) [com.apple.UIKit:EventBus] Event Timing Profile for Pencil: not found, path="/System/Library/EventTimingProfiles/Sim.Pencil.plist"
+2026-03-28 23:49:30.745414+0100 0x608d3    Default     0x0                  50153  0    iSH: (UIKitCore) [com.apple.UIKit:UpdateScheduler] Selected display: name=LCD (PurpleMain), id=1
+2026-03-28 23:49:30.746934+0100 0x608fe    Default     0xed526              50153  7    iSH: (libsystem_containermanager.dylib) [com.apple.containermanager:unspecified] _container_query_get_result_at_index: success
+2026-03-28 23:49:30.747020+0100 0x608fe    Activity    0xed528              50153  0    iSH: (libsystem_containermanager.dylib) container_copy_object
+2026-03-28 23:49:30.747098+0100 0x608fe    Default     0xed526              50153  7    iSH: (libsystem_containermanager.dylib) [com.apple.containermanager:unspecified] container_system_group_path_for_identifier: success
+2026-03-28 23:49:30.759640+0100 0x608d3    Default     0x0                  50153  0    iSH: (BoardServices) [com.apple.BoardServices:XPCErrors] [C:2] Alloc com.apple.backboard.hid-services.xpc
+2026-03-28 23:49:30.759720+0100 0x608d3    Default     0x0                  50153  0    iSH: (libxpc.dylib) [com.apple.xpc:connection] [0x10459cb40] activating connection: mach=false listener=false peer=false name=(anonymous)
+2026-03-28 23:49:30.760877+0100 0x60904    Default     0x0                  50153  0    iSH: (BackBoardServices) [com.apple.BackBoard:EventDelivery] BKSHIDEventDeliveryManager - connection activation
+2026-03-28 23:49:30.763024+0100 0x608d3    Default     0x0                  50153  0    iSH: (libapp_launch_measurement.dylib) [com.apple.app_launch_measurement:ApplicationLaunch] alm_acquire_pageins_recording_assertion: acquired pageins recording assertion!
+2026-03-28 23:49:30.766573+0100 0x608d3    Default     0x0                  50153  0    iSH: (UIKitCore) [com.apple.UIKit:BackgroundTask] Will add backgroundTask with taskName: Persistent SceneSession Map Update, expirationHandler: <__NSGlobalBlock__: 0x1e7b10398>
+2026-03-28 23:49:30.766846+0100 0x608d3    Default     0x0                  50153  0    iSH: (UIKitCore) [com.apple.UIKit:BackgroundTask] Reusing background assertion <BKSProcessAssertion: 0x103e50df0>
+2026-03-28 23:49:30.767000+0100 0x608d3    Default     0x0                  50153  0    iSH: (UIKitCore) [com.apple.UIKit:BackgroundTask] Incrementing reference count for background assertion <BKSProcessAssertion: 0x103e50df0>
+2026-03-28 23:49:30.767090+0100 0x608d3    Default     0x0                  50153  0    iSH: (UIKitCore) [com.apple.UIKit:BackgroundTask] Created background task <_UIBackgroundTaskInfo: 0x104673040>: taskID = 2, taskName = Persistent SceneSession Map Update, creationTime = 11724 (elapsed = 0).
+2026-03-28 23:49:30.767397+0100 0x608d3    Default     0x0                  50153  0    iSH: (UIKitCore) [com.apple.UIKit:Application] Deactivation reason added: 5; deactivation reasons: 2048 -> 2080; animating application lifecycle event: 1
+2026-03-28 23:49:30.767688+0100 0x608d3    Default     0x0                  50153  0    iSH: (UIKitCore) [com.apple.UIKit:InterfaceStyle] Should send trait collection or coordinate space update, interface style 1 -> 1, <UIWindowScene: 0x1044dcc00> (FC16E963-90C0-4802-B919-DAD2BD9935CE)
+2026-03-28 23:49:30.768904+0100 0x608d3    Default     0x0                  50153  0    iSH: (UIKitCore) [com.apple.UIKit:InterfaceStyle] Not push traits update to screen for new style 1, <UIWindowScene: 0x1044dcc00> (FC16E963-90C0-4802-B919-DAD2BD9935CE)
+2026-03-28 23:49:30.769545+0100 0x608d3    Default     0x0                  50153  0    iSH: (UIKitCore) [com.apple.UIKit:HomeAffordanceObservation] Initializing: <_UIHomeAffordanceSceneNotifier: 0x10466db20>; with scene: <UIWindowScene: 0x1044dcc00>
+2026-03-28 23:49:30.769737+0100 0x608d3    Default     0x0                  50153  0    iSH: (BacklightServices) [com.apple.BacklightServices:scenes] 0x1047c0030 setDelegate:<0x1047c0180 _UIBacklightEnvironment> hasDelegate:YES for environment:sceneID:com.rudironsoni.ish-FC16E963-90C0-4802-B919-DAD2BD9935CE
+2026-03-28 23:49:30.770189+0100 0x608d3    Default     0x0                  50153  0    iSH: (UIKitCore) [com.apple.UIKit:InterfaceStyle] Not push traits update to screen for new style 1, <UIWindowScene: 0x1044dcc00> (FC16E963-90C0-4802-B919-DAD2BD9935CE)
+2026-03-28 23:49:30.770272+0100 0x608d3    Default     0x0                  50153  1    iSH: (UIKitCore) [com.apple.UIKit:EventDeferring] [0x10466da40] Initialized with scene: <UIWindowScene: 0x1044dcc00>; behavior: <_UIEventDeferringBehavior_iOS: 0x104739ec0>; availableForProcess: 1, systemShellManagesKeyboardFocus: 1
+2026-03-28 23:49:30.771721+0100 0x60904    Default     0x0                  50153  0    iSH: (BackBoardServices) [com.apple.BackBoard:EventDelivery] BKSHIDEventObserver - connection activation
+2026-03-28 23:49:30.771754+0100 0x608d3    Default     0x0                  50153  0    iSH: (BackBoardServices) [com.apple.BackBoard:EventDelivery] policyStatus:<BKSHIDEventDeliveryPolicyObserver: 0x104438fc0; process scope; status: target> was:none
+2026-03-28 23:49:30.771862+0100 0x608d3    Default     0x0                  50153  1    iSH: (UIKitCore) [com.apple.UIKit:KeyWindow] Setting default evaluation strategy for UIUserInterfaceIdiomPhone to LastOneWins
+2026-03-28 23:49:30.771895+0100 0x608d3    Default     0x0                  50153  1    iSH: (UIKitCore) [com.apple.UIKit:KeyWindow] Scene target of keyboard event deferring environment did change: 1; scene: UIWindowScene: 0x1044dcc00; scene identity: com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.rudironsoni.ish-FC16E963-90C0-4802-B919-DAD2BD9935CE
+2026-03-28 23:49:30.771936+0100 0x608d3    Default     0x0                  50153  1    iSH: (UIKitCore) [com.apple.UIKit:EventDeferring] [0x10466da40] Scene target of event deferring environments did update: scene: 0x1044dcc00; current systemShellManagesKeyboardFocus: 1; systemShellManagesKeyboardFocusForScene: 1; eligibleForRecordRemoval: 1;
+2026-03-28 23:49:30.771960+0100 0x608d3    Default     0x0                  50153  1    iSH: (UIKitCore) [com.apple.UIKit:KeyWindow] Scene became target of keyboard event deferring environment: UIWindowScene: 0x1044dcc00; scene identity: com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.rudironsoni.ish-FC16E963-90C0-4802-B919-DAD2BD9935CE
+2026-03-28 23:49:30.771984+0100 0x608d3    Default     0x0                  50153  1    iSH: (UIKitCore) [com.apple.UIKit:KeyWindow] Stack[KeyWindow] 0x1047c0660: Taking no further action for migration from LastOneWins -> SystemShellManaged as there are no scenes
+2026-03-28 23:49:30.772006+0100 0x608d3    Default     0x0                  50153  1    iSH: (UIKitCore) [com.apple.UIKit:KeyWindow] Setting default evaluation strategy for UIUserInterfaceIdiomPhone to SystemShellManaged
+2026-03-28 23:49:30.772047+0100 0x608d3    Default     0x0                  50153  1    iSH: (UIKitCore) [com.apple.UIKit:KeyWindow] Key window needs update: 0; currentKeyWindowScene: 0x0; evaluatedKeyWindowScene: 0x1044dcc00; currentApplicationKeyWindow: 0x0; evaluatedApplicationKeyWindow: 0x0; reason: UIWindowScene: 0x1044dcc00: Window scene became target of keyboard environment
+2026-03-28 23:49:30.772206+0100 0x608d3    Default     0x0                  50153  0    iSH: (UIKitCore) [com.apple.UIKit:InterfaceStyle] Not push traits update to screen for new style 1, <UIWindowScene: 0x1044dcc00> (FC16E963-90C0-4802-B919-DAD2BD9935CE)
+2026-03-28 23:49:30.772401+0100 0x608d3    Default     0x0                  50153  0    iSH: (UIKitCore) [com.apple.UIKit:InterfaceStyle] Not push traits update to screen for new style 1, <UIWindowScene: 0x1044dcc00> (FC16E963-90C0-4802-B919-DAD2BD9935CE)
+2026-03-28 23:49:30.773462+0100 0x60904    Activity    0xed529              50153  0    iSH: (Security) SecTrustReportNetworkingAnalytics
+2026-03-28 23:49:30.773503+0100 0x608d3    Default     0x0                  50153  0    iSH: (UIKitCore) [com.apple.UIKit:InterfaceStyle] Not push traits update to screen for new style 1, <UIWindowScene: 0x1044dcc00> (FC16E963-90C0-4802-B919-DAD2BD9935CE)
+2026-03-28 23:49:30.773844+0100 0x608fe    Default     0x0                  50153  0    iSH: (CFNetwork) [com.apple.CFNetwork:Default] Initializing NSHTTPCookieStorage singleton
+2026-03-28 23:49:30.774540+0100 0x608fe    Default     0x0                  50153  0    iSH: (CFNetwork) [com.apple.CFNetwork:Default] Initializing CFHTTPCookieStorage singleton
+2026-03-28 23:49:30.774558+0100 0x608fe    Default     0x0                  50153  0    iSH: (CFNetwork) [com.apple.CFNetwork:Default] Creating default cookie storage with process/bundle identifier
+2026-03-28 23:49:30.774838+0100 0x60904    Default     0xed529              50153  0    iSH: (Security) [com.apple.securityd:keychain] System Keychain Always Supported set via feature flag to disabled
+2026-03-28 23:49:30.774850+0100 0x608fe    Default     0x0                  50153  0    iSH: (CFNetwork) [com.apple.CFNetwork:Default] Initializing AlternativeServices Storage singleton
+2026-03-28 23:49:30.774869+0100 0x60904    Default     0xed529              50153  0    iSH: (libxpc.dylib) [com.apple.xpc:connection] [0x10459df40] activating connection: mach=true listener=false peer=false name=com.apple.trustd
+2026-03-28 23:49:30.775738+0100 0x60904    Default     0xed529              50153  0    iSH: (Security) [com.apple.securityd:SecError] SecTrustReportNetworkingAnalytics failed with error: -4
+2026-03-28 23:49:30.776421+0100 0x608fe    Default     0x0                  50153  0    iSH: (CoreServicesInternal) [com.apple.FileURL:default] kExcludedFromBackupXattrName set on path: /Users/rudironsoni/Library/Developer/CoreSimulator/Devices/E6186E89-8784-473B-A4E4-66E42693F14E/data/Containers/Data/Application/F44C4C50-3D02-4EDB-83B6-77CA6E5EBBB4/Library/HTTPStorages/com.rudironsoni.ish
+2026-03-28 23:49:30.781191+0100 0x60904    Default     0x0                  50153  0    iSH: (CFNetwork) [com.apple.CFNetwork:Default] Garbage collection for alternative services
+2026-03-28 23:49:30.786353+0100 0x60904    Default     0x0                  50153  0    iSH: (libxpc.dylib) [com.apple.xpc:connection] [0x10459e1c0] activating connection: mach=true listener=false peer=false name=com.apple.fontservicesd
+2026-03-28 23:49:30.843025+0100 0x608d3    Default     0x0                  50153  0    iSH: [iSH] EXEC: file=/bin/login argc=3
+2026-03-28 23:49:30.843317+0100 0x608d3    Default     0x0                  50153  0    iSH: [iSH] EXEC: generic_open succeeded
+2026-03-28 23:49:30.843378+0100 0x608d3    Default     0x0                  50153  0    iSH: [iSH] EXEC: fstat ok, mode=100755 size=919304
+2026-03-28 23:49:30.843465+0100 0x608d3    Default     0x0                  50153  0    iSH: [iSH] EXEC: Read 16 bytes
+2026-03-28 23:49:30.843573+0100 0x608d3    Default     0x0                  50153  0    iSH: [iSH] EXEC: BYTES: 7f 45 4c 46 02 01 01 00
+2026-03-28 23:49:30.843625+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] elf_exec: ENTRY for file=/bin/login
+2026-03-28 23:49:30.843675+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] About to call read_header
+2026-03-28 23:49:30.843785+0100 0x608d3    Default     0x0                  50153  0    iSH: [iSH-exec] [exec] RAW BYTES: [iSH-exec] 7f [iSH-exec] 45 [iSH-exec] 4c [iSH-exec] 46 [iSH-exec] 02 [iSH-exec] 01 [iSH-exec] 01 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec]
+2026-03-28 23:49:30.844133+0100 0x608d3    Default     0x0                  50153  0    iSH: [iSH-exec] [exec] PARSED: magic=7f 45 4c 46
+2026-03-28 23:49:30.844332+0100 0x608d3    Default     0x0                  50153  0    iSH: [iSH-exec] [exec] PARSED: bitness=2 endian=1 elfv1=1 type=3 machine=183
+2026-03-28 23:49:30.844432+0100 0x608d3    Default     0x0                  50153  0    iSH: [iSH-exec] [exec] read_header: ELF validation PASSED
+2026-03-28 23:49:30.844509+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] read_header SUCCEEDED
+2026-03-28 23:49:30.844594+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] About to call read_prg_headers
+2026-03-28 23:49:30.844685+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] read_prg_headers SUCCEEDED, phent_count=9
+2026-03-28 23:49:30.844901+0100 0x608d3    Default     0x0                  50153  0    iSH: [iSH-exec] [exec] RAW BYTES: [iSH-exec] 7f [iSH-exec] 45 [iSH-exec] 4c [iSH-exec] 46 [iSH-exec] 02 [iSH-exec] 01 [iSH-exec] 01 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec]
+2026-03-28 23:49:30.845012+0100 0x608d3    Default     0x0                  50153  0    iSH: [iSH-exec] [exec] PARSED: magic=7f 45 4c 46
+2026-03-28 23:49:30.845097+0100 0x608d3    Default     0x0                  50153  0    iSH: [iSH-exec] [exec] PARSED: bitness=2 endian=1 elfv1=1 type=3 machine=183
+2026-03-28 23:49:30.845177+0100 0x608d3    Default     0x0                  50153  0    iSH: [iSH-exec] [exec] read_header: ELF validation PASSED
+2026-03-28 23:49:30.845250+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] About to release old mm and create new mm
+2026-03-28 23:49:30.845323+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] Calling mm_release, current->mm=0x1074ac780
+2026-03-28 23:49:30.845395+0100 0x608d3    Default     0x0                  50153  0    iSH: [mm] mm_release: ENTRY, mm=0x1074ac780, refcount=1
+2026-03-28 23:49:30.845469+0100 0x608d3    Default     0x0                  50153  0    iSH: [mm] About to decrement refcount from 1
+2026-03-28 23:49:30.845554+0100 0x608d3    Default     0x0                  50153  0    iSH: [mm] refcount reached 0, cleaning up
+2026-03-28 23:49:30.845627+0100 0x608d3    Default     0x0                  50153  0    iSH: [mm] Destroying mem
+2026-03-28 23:49:30.845662+0100 0x608d3    Default     0x0                  50153  0    iSH: [mem] mem_destroy: ENTRY, mem=0x1074ac788
+2026-03-28 23:49:30.845696+0100 0x608d3    Default     0x0                  50153  0    iSH: [mem] About to write_wrlock, &mem->lock=0x1074ac7b0
+2026-03-28 23:49:30.845732+0100 0x608d3    Default     0x0                  50153  0    iSH: [mem] write_wrlock done, pgdir=0x1044a4000
+2026-03-28 23:49:30.845791+0100 0x608d3    Default     0x0                  50153  0    iSH: [mem] About to pt_unmap_always
+2026-03-28 23:49:30.845856+0100 0x608d3    Default     0x0                  50153  0    iSH: [mem] pt_unmap_always done
+2026-03-28 23:49:30.845893+0100 0x608d3    Default     0x0                  50153  0    iSH: [mem] About to free pgdir entries
+2026-03-28 23:49:30.845967+0100 0x608d3    Default     0x0                  50153  0    iSH: [mem] About to free pgdir
+2026-03-28 23:49:30.846031+0100 0x608d3    Default     0x0                  50153  0    iSH: [mem] About to write_wrunlock
+2026-03-28 23:49:30.846150+0100 0x608d3    Default     0x0                  50153  0    iSH: [mem] About to wrlock_destroy
+2026-03-28 23:49:30.846251+0100 0x608d3    Default     0x0                  50153  0    iSH: [mem] mem_destroy complete
+2026-03-28 23:49:30.846289+0100 0x608d3    Default     0x0                  50153  0    iSH: [mm] Freeing mm
+2026-03-28 23:49:30.846365+0100 0x608d3    Default     0x0                  50153  0    iSH: [mm] mm_release complete
+2026-03-28 23:49:30.846447+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] mm_release done, calling mm_new
+2026-03-28 23:49:30.846488+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] write_wrlock done, mm->exefile set
+2026-03-28 23:49:30.846671+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] About to map 9 program headers
+2026-03-28 23:49:30.846954+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] ENTRY POINT CALCULATION: bias=0x56555000 + header.entry_point=0x7500 = entry=0x5655c500
+2026-03-28 23:49:30.847048+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   ELF type: ET_DYN (PIE) (ET_DYN=3, ET_EXEC=2)
+2026-03-28 23:49:30.847209+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] Found PT_DYNAMIC in main executable at 0x566340e8
+2026-03-28 23:49:30.847388+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] Found PT_DYNAMIC in interpreter at 0xf7ffad68 (using this for x1)
+2026-03-28 23:49:30.847481+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   file offset=0xafd68, vaddr=0xbfd68, interp_base=0xf7f3b000
+2026-03-28 23:49:30.847565+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] DUMPING _DYNAMIC table at 0xf7ffad68:
+2026-03-28 23:49:30.847609+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[0]: tag=14 (0xe) val=0x3b38
+2026-03-28 23:49:30.847689+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[1]: tag=12 (0xc) val=0x1fd94
+2026-03-28 23:49:30.847771+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[2]: tag=13 (0xd) val=0x20918
+2026-03-28 23:49:30.847828+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[3]: tag=4 (0x4) val=0x1f0
+2026-03-28 23:49:30.847927+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[4]: tag=1879047925 (0x6ffffef5) val=0x2ba0
+2026-03-28 23:49:30.848011+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[5]: tag=5 (0x5) val=0xf7d0
+2026-03-28 23:49:30.848080+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[6]: tag=6 (0x6) val=0x5d38
+2026-03-28 23:49:30.848123+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[7]: tag=10 (0xa) val=0x3b4f
+2026-03-28 23:49:30.848191+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[8]: tag=11 (0xb) val=0x18
+2026-03-28 23:49:30.848370+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[9]: tag=3 (0x3) val=0xbff18
+2026-03-28 23:49:30.848526+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[10]: tag=2 (0x2) val=0x90
+2026-03-28 23:49:30.848570+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[11]: tag=20 (0x14) val=0x7
+2026-03-28 23:49:30.848659+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[12]: tag=23 (0x17) val=0x13488
+2026-03-28 23:49:30.848816+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[13]: tag=7 (0x7) val=0x13320
+2026-03-28 23:49:30.848942+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[14]: tag=8 (0x8) val=0x168
+2026-03-28 23:49:30.848985+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[15]: tag=9 (0x9) val=0x18
+2026-03-28 23:49:30.849048+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[16]: tag=30 (0x1e) val=0x8
+2026-03-28 23:49:30.849097+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[17]: tag=1879048187 (0x6ffffffb) val=0x1
+2026-03-28 23:49:30.849131+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[18]: tag=36 (0x24) val=0x13518
+2026-03-28 23:49:30.849180+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   _DYNAMIC[19]: tag=35 (0x23) val=0x30
+2026-03-28 23:49:30.849256+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] Interpreter PT_LOAD segments:
+2026-03-28 23:49:30.849311+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   PT_LOAD: vaddr=0xf7f3b000->0xf7fdc89c (memsize=0xa189c, filesize=0xa189c) flags=RX
+2026-03-28 23:49:30.849365+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec]   PT_LOAD: vaddr=0xf7ffab00->0xf7ffdf10 (memsize=0x3410, filesize=0x904) flags=RW
+2026-03-28 23:49:30.849425+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] About to map vdso
+2026-03-28 23:49:30.849498+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] vdso mapped successfully at page 1015801
+2026-03-28 23:49:30.849579+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] CPU INIT: saved_mmu=0x1074ac798 (must not be NULL)
+2026-03-28 23:49:30.849698+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] CPU STATE SET: cpu.mmu=0x1074ac798, cpu.pc=0xf7fa4604, cpu.sp=0xfffffe10
+2026-03-28 23:49:30.849874+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] CPU REGISTERS INITIALIZED - about to start execution
+2026-03-28 23:49:30.849957+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] x0=4294966800 (argc), x1=0xf7ffad68 (argv), x2=0x0 (envp), x3=0x0 (auxv)
+2026-03-28 23:49:30.850143+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] sp=0xfffffe10, pc=0xf7fa4604, entry=0xf7fa4604
+2026-03-28 23:49:30.850268+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] elf_exec COMPLETING SUCCESSFULLY, err=0
+2026-03-28 23:49:30.850463+0100 0x608d3    Default     0x0                  50153  0    iSH: [exec] elf_exec RETURNING err=0
+2026-03-28 23:49:30.850530+0100 0x608d3    Default     0x0                  50153  0    iSH: [iSH] EXEC: format_exec returned 0
+2026-03-28 23:49:30.850734+0100 0x608d3    Default     0x0                  50153  0    iSH: [TerminalViewController] task_start called - entering runloop to keep app alive
+2026-03-28 23:49:34.154525+0100 0x609ed    Default     0x0                  50175  0    iSH: (libxpc.dylib) [com.apple.xpc:connection] [0x105777240] activating connection: mach=true listener=false peer=false name=com.apple.cfprefsd.daemon
+2026-03-28 23:49:34.158613+0100 0x609ed    Default     0x0                  50175  0    iSH: (libMobileGestalt.dylib) No persisted cache on this platform.
+2026-03-28 23:49:34.161111+0100 0x60a13    Default     0x0                  50175  0    iSH: (UIKitCore) [com.apple.UIKit:BackgroundTask] Creating new assertion because there is no existing background assertion.
+2026-03-28 23:49:34.161186+0100 0x60a13    Default     0x0                  50175  0    iSH: (UIKitCore) [com.apple.UIKit:BackgroundTask] Creating new background assertion
+2026-03-28 23:49:34.161653+0100 0x60a13    Default     0x0                  50175  0    iSH: (UIKitCore) [com.apple.UIKit:BackgroundTask] Created new background assertion <BKSProcessAssertion: 0x105781e20>
+2026-03-28 23:49:34.161702+0100 0x60a13    Default     0x0                  50175  0    iSH: (RunningBoardServices) [com.apple.runningboard:connection] Initializing connection
+2026-03-28 23:49:34.161764+0100 0x60a13    Default     0x0                  50175  0    iSH: (RunningBoardServices) [com.apple.runningboard:process] Removing all cached process handles
+2026-03-28 23:49:34.162115+0100 0x60a13    Default     0x0                  50175  0    iSH: (RunningBoardServices) [com.apple.runningboard:connection] Creating connection to com.apple.runningboard
+2026-03-28 23:49:34.162194+0100 0x60a13    Default     0x0                  50175  0    iSH: (libxpc.dylib) [com.apple.xpc:connection] [0x105dc4000] activating connection: mach=true listener=false peer=false name=com.apple.runningboard
+2026-03-28 23:49:34.162420+0100 0x60a15    Default     0x0                  50175  0    iSH: (RunningBoardServices) [com.apple.runningboard:connection] Sending handshake request attempt #1 to server
+2026-03-28 23:49:34.164284+0100 0x60a18    Activity    0xedb80              50175  0    iSH: (RunningBoardServices) didChangeInheritances
+2026-03-28 23:49:34.165101+0100 0x60a14    Activity    0xedb81              50175  0    iSH: (CoreFoundation) Loading Preferences From User Session CFPrefsD
+2026-03-28 23:49:34.165689+0100 0x60a15    Default     0x0                  50175  0    iSH: (RunningBoardServices) [com.apple.runningboard:connection] Handshake succeeded
+2026-03-28 23:49:34.165710+0100 0x60a15    Default     0x0                  50175  0    iSH: (RunningBoardServices) [com.apple.runningboard:connection] Identity resolved as app<com.rudironsoni.ish((null))>
+2026-03-28 23:49:34.166520+0100 0x60a13    Default     0x0                  50175  0    iSH: (UIKitCore) [com.apple.UIKit:BackgroundTask] Incrementing reference count for background assertion <BKSProcessAssertion: 0x105781e20>
+2026-03-28 23:49:34.166696+0100 0x60a13    Default     0x0                  50175  0    iSH: (UIKitCore) [com.apple.UIKit:BackgroundTask] Created background task <_UIBackgroundTaskInfo: 0x105c94980>: taskID = 1, taskName = Launch Background Task for Coalescing, creationTime = 11727 (elapsed = 0).
+2026-03-28 23:49:34.166876+0100 0x60a13    Default     0x0                  50175  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UIApplicationSceneKeyboardSettings on FBSSceneSettings
+2026-03-28 23:49:34.166980+0100 0x60a16    Default     0x0                  50175  0    iSH: (BoardServices) [com.apple.BoardServices:XPCErrors] [C:1] Alloc com.apple.frontboard.systemappservices
+2026-03-28 23:49:34.167743+0100 0x60a16    Default     0x0                  50175  0    iSH: (libxpc.dylib) [com.apple.xpc:connection] [0x105dc4140] activating connection: mach=false listener=false peer=false name=(anonymous)
+2026-03-28 23:49:34.177624+0100 0x60a13    Default     0x0                  50175  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneOcclusionSettings> on FBSSceneSettings
+2026-03-28 23:49:34.178218+0100 0x60a13    Default     0x0                  50175  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneInterfaceProtectionSettings> on FBSSceneSettings
+2026-03-28 23:49:34.178424+0100 0x60a13    Default     0x0                  50175  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneLayoutPreferencesHostSettingsExtension on FBSSceneSettings
+2026-03-28 23:49:34.178521+0100 0x609ed    Default     0x0                  50175  0    iSH: (UIKitCore) [com.apple.UIKit:Application] Deactivation reason added: 10; deactivation reasons: 0 -> 1024; animating application lifecycle event: 0
+2026-03-28 23:49:34.178630+0100 0x60a13    Default     0x0                  50175  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneSafeAreaSettingsExtension on FBSSceneSettings
+2026-03-28 23:49:34.178997+0100 0x60a13    Default     0x0                  50175  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneLayoutPreferenceClientSettingsExtension on FBSSceneClientSettings
+2026-03-28 23:49:34.179981+0100 0x609ed    Default     0x0                  50175  0    iSH: (BoardServices) [com.apple.BoardServices:Injection] activating monitor for service com.apple.frontboard.open
+2026-03-28 23:49:34.180339+0100 0x609ed    Default     0x0                  50175  0    iSH: (BoardServices) [com.apple.BoardServices:Injection] activating monitor for service com.apple.frontboard.workspace-service
+2026-03-28 23:49:34.180574+0100 0x60a13    Default     0x0                  50175  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UIHomeAffordanceHostSceneSettings> on FBSSceneSettings
+2026-03-28 23:49:34.182581+0100 0x60a13    Default     0x0                  50175  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISystemShellSceneHostingEnvironmentSettings on FBSSceneSettings
+2026-03-28 23:49:34.182615+0100 0x609ed    Default     0x0                  50175  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:Common] FBSWorkspace registering source: com.apple.frontboard.systemappservices
+2026-03-28 23:49:34.182907+0100 0x60a13    Default     0x0                  50175  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneRenderingEnvironmentSettings on FBSSceneSettings
+2026-03-28 23:49:34.183219+0100 0x60a13    Default     0x0                  50175  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneRenderingEnvironmentClientSettings> on FBSSceneClientSettings
+2026-03-28 23:49:34.183637+0100 0x60a13    Default     0x0                  50175  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneTransitioningHostSettings> on FBSSceneSettings
+2026-03-28 23:49:34.183730+0100 0x609ed    Default     0x0                  50175  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:Common] FBSWorkspace connected to endpoint : <BSServiceConnectionEndpoint: 0x105cd1500; target: com.apple.frontboard.systemappservices; service: com.apple.frontboard.workspace-service>
+2026-03-28 23:49:34.184201+0100 0x60a13    Default     0x0                  50175  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneFocusSystemSettings> on FBSSceneSettings
+2026-03-28 23:49:34.184483+0100 0x609ed    Default     0x0                  50175  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:Common] <FBSWorkspaceScenesClient:0x105ce0b40 com.apple.frontboard.systemappservices> attempting immediate handshake from activate
+2026-03-28 23:49:34.184987+0100 0x60a13    Default     0x0                  50175  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneOrientationSettingsExtension on FBSSceneSettings
+2026-03-28 23:49:34.185017+0100 0x609ed    Default     0x0                  50175  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:Common] <FBSWorkspaceScenesClient:0x105ce0b40 com.apple.frontboard.systemappservices> sent handshake
+2026-03-28 23:49:34.185272+0100 0x60a13    Default     0x0                  50175  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneOrientationClientSettingsExtension on FBSSceneClientSettings
+2026-03-28 23:49:34.185898+0100 0x60a13    Default     0x0                  50175  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneWindowingControlClientSettings on FBSSceneClientSettings
+2026-03-28 23:49:34.185927+0100 0x609ed    Default     0x0                  50175  0    iSH: (RunningBoardServices) [com.apple.runningboard:general] Added observer for process assertions expiration warning: <_RBSExpirationWarningClient: 0x105cd1b40>
+2026-03-28 23:49:34.186196+0100 0x60a13    Default     0x0                  50175  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneHostingContentSizePreferenceClientSettings> on FBSSceneClientSettings
+2026-03-28 23:49:34.186773+0100 0x60a13    Default     0x0                  50175  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneHostingTraitCollectionPropagationSettings on FBSSceneSettings
+2026-03-28 23:49:34.187355+0100 0x60a13    Default     0x0                  50175  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneHostingSheetPresentationSettings> on FBSSceneSettings
+2026-03-28 23:49:34.187685+0100 0x60a13    Default     0x0                  50175  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneHostingSheetPresentationClientSettings> on FBSSceneClientSettings
+2026-03-28 23:49:34.188025+0100 0x60a13    Default     0x0                  50175  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneHostingEventDeferringSettings> on FBSSceneSettings
+2026-03-28 23:49:34.188365+0100 0x60a13    Default     0x0                  50175  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <UIKit__UITypedKeyValueSceneSettings> on FBSSceneSettings
+2026-03-28 23:49:34.188861+0100 0x60a13    Default     0x0                  50175  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <UIKit__UITypedKeyValueSceneSettings> on FBSSceneClientSettings
+2026-03-28 23:49:34.189085+0100 0x60a13    Default     0x0                  50175  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneHostingViewControllerPreferencePropagationClientSettings> on FBSSceneClientSettings
+2026-03-28 23:49:34.189629+0100 0x60a13    Default     0x0                  50175  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneZoomTransitionSettings> on FBSSceneSettings
+2026-03-28 23:49:34.189686+0100 0x609ed    Default     0x0                  50175  0    iSH: (UIKitCore) [com.apple.UIKit:UIScreen] Evaluated capturing state as 0 on <UIScreen: 0x105dc43c0> for initial
+2026-03-28 23:49:34.190213+0100 0x60a14    Default     0x0                  50175  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension FBSSceneSettingsCore on FBSSceneSettings
+2026-03-28 23:49:34.190832+0100 0x609ed    Default     0x0                  50175  0    iSH: (UIKitCore) [com.apple.UIKit:UIScreen] Evaluated capturing state as 0 on <UIScreen: 0x105dc43c0> for CADisplay KVO
+2026-03-28 23:49:34.191059+0100 0x60a14    Default     0x0                  50175  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension FBSSceneClientSettingsCore on FBSSceneClientSettings
+2026-03-28 23:49:34.193660+0100 0x609ed    Default     0x0                  50175  0    iSH: (libAccessibility.dylib) [com.apple.Accessibility:AXSupportCommon] Read CategoryName: per-app = 1, category name = (null)
+2026-03-28 23:49:34.193881+0100 0x609ed    Default     0x0                  50175  0    iSH: (libAccessibility.dylib) [com.apple.Accessibility:AXSupportCommon] Read CategoryName: per-app = 0, category name = (null)
+2026-03-28 23:49:34.199266+0100 0x609ed    Default     0x0                  50175  0    iSH: (XCTTargetBootstrap) [com.apple.dt.xctest:Default] Registering for test daemon availability notify post.
+2026-03-28 23:49:34.199650+0100 0x60a14    Default     0x0                  50175  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] UIMutableApplicationSceneSettings setting counterpart class: UIApplicationSceneSettings
+2026-03-28 23:49:34.199778+0100 0x609ed    Default     0x0                  50175  0    iSH: (XCTTargetBootstrap) [com.apple.dt.xctest:Default] notify_get_state check indicated test daemon not ready.
+2026-03-28 23:49:34.199915+0100 0x609ed    Default     0x0                  50175  0    iSH: (XCTTargetBootstrap) [com.apple.dt.xctest:Default] notify_get_state check indicated test daemon not ready.
+2026-03-28 23:49:34.199983+0100 0x60a14    Default     0x0                  50175  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] UIMutableApplicationSceneClientSettings setting counterpart class: UIApplicationSceneClientSettings
+2026-03-28 23:49:34.200074+0100 0x609ed    Default     0x0                  50175  0    iSH: (XCTTargetBootstrap) [com.apple.dt.xctest:Default] notify_get_state check indicated test daemon not ready.
+2026-03-28 23:49:34.200161+0100 0x60a14    Default     0x0                  50175  0    iSH: (FrontBoardServices) [com.apple.FrontBoard:SceneExtension] Realizing settings extension FBSSceneTransitionContextCore on FBSSceneTransitionContext
+2026-03-28 23:49:34.201486+0100 0x609ed    Default     0x0                  50175  0    iSH: (UIKitCore) [com.apple.UIKit:Application] Deactivation reason added: 11; deactivation reasons: 1024 -> 3072; animating application lifecycle event: 0
+2026-03-28 23:49:34.203896+0100 0x609ed    Activity    0xedb82              50175  0    iSH: (libsystem_containermanager.dylib) container_create_or_lookup_app_group_path_by_app_group_identifier
+2026-03-28 23:49:34.204587+0100 0x609ed    Default     0xedb82              50175  7    iSH: (libsystem_containermanager.dylib) [com.apple.containermanager:xpc] Requesting app group container lookup; identifier = group.com.rudironsoni.emuLnx, euid = 501, uid = 501, platform = 7
+2026-03-28 23:49:34.206365+0100 0x609ed    Default     0xedb82              50175  7    iSH: (libsystem_containermanager.dylib) [com.apple.containermanager:sandbox] Consumed sandbox extension; path = [/Users/rudironsoni/Library/Developer/CoreSimulator/Devices/E6186E89-8784-473B-A4E4-66E42693F14E/data/Containers/Shared/AppGroup/D4DD681F-10A5-4CF8-A7DA-1AB6BD1E1083], handle = 0
+2026-03-28 23:49:34.206471+0100 0x609ed    Default     0x0                  50175  7    iSH: (libsystem_containermanager.dylib) [com.apple.containermanager:unspecified] container_create_or_lookup_app_group_path_by_app_group_identifier: success
+2026-03-28 23:49:34.210648+0100 0x609ed    Default     0x0                  50175  0    iSH: (libxpc.dylib) [com.apple.xpc:connection] [0x105dc4b40] activating connection: mach=true listener=false peer=false name=com.apple.lsd.mapdb
+2026-03-28 23:49:34.212746+0100 0x609ed    Activity    0xedb83              50175  0    iSH: (libsystem_containermanager.dylib) container_create_or_lookup_app_group_path_by_app_group_identifier
+2026-03-28 23:49:34.212774+0100 0x609ed    Default     0xedb83              50175  7    iSH: (libsystem_containermanager.dylib) [com.apple.containermanager:xpc] Requesting app group container lookup; identifier = group.com.rudironsoni.ish, euid = 501, uid = 501, platform = 7
+2026-03-28 23:49:34.213056+0100 0x609ed    Error       0x0                  50175  7    iSH: (libsystem_containermanager.dylib) [com.apple.containermanager:unspecified] container_create_or_lookup_app_group_path_by_app_group_identifier: client is not entitled
+2026-03-28 23:49:34.215882+0100 0x609ed    Default     0x0                  50175  0    iSH: (libxpc.dylib) [com.apple.xpc:connection] [0x105dc4780] activating connection: mach=true listener=false peer=false name=com.apple.FileProvider
+2026-03-28 23:49:34.216755+0100 0x609ed    Activity    0xedb84              50175  0    iSH: (libsystem_containermanager.dylib) container_create_or_lookup_app_group_path_by_app_group_identifier
+2026-03-28 23:49:34.216847+0100 0x609ed    Default     0xedb84              50175  7    iSH: (libsystem_containermanager.dylib) [com.apple.containermanager:xpc] Requesting app group container lookup; identifier = group.com.rudironsoni.ish, euid = 501, uid = 501, platform = 7
+2026-03-28 23:49:34.217417+0100 0x609ed    Error       0x0                  50175  7    iSH: (libsystem_containermanager.dylib) [com.apple.containermanager:unspecified] container_create_or_lookup_app_group_path_by_app_group_identifier: client is not entitled
+2026-03-28 23:49:34.217669+0100 0x609ed    Error       0x0                  50175  0    iSH: (Foundation) [com.apple.Foundation:general] *** Assertion failure in -[NSFileProviderManager documentStorageURL], NSFileProviderManager.m:925
+2026-03-28 23:49:34.217872+0100 0x609ed    Default     0x0                  50175  0    iSH: [Roots] File Provider not available (exception: NSInternalInconsistencyException)
+2026-03-28 23:49:34.218050+0100 0x609ed    Default     0x0                  50175  0    iSH: [Roots] Skipping File Provider sync - not available for sideloaded build
+2026-03-28 23:49:34.227905+0100 0x609ed    Default     0x0                  50175  0    iSH: (libxpc.dylib) [com.apple.xpc:connection] [0x105dc4dc0] activating connection: mach=true listener=false peer=false name=com.apple.SystemConfiguration.DNSConfiguration_sim
+2026-03-28 23:49:34.229264+0100 0x609ed    Default     0x0                  50175  0    iSH: (libxpc.dylib) [com.apple.xpc:connection] [0x105dc4dc0] invalidated after the last release of the connection object
+2026-03-28 23:49:34.232192+0100 0x609ed    Default     0x0                  50175  0    iSH: (libxpc.dylib) [com.apple.xpc:connection] [0x105dc4f00] activating connection: mach=true listener=false peer=false name=com.apple.FileCoordination
+2026-03-28 23:49:34.232747+0100 0x60a14    Default     0x0                  50175  0    iSH: (Foundation) [com.apple.foundation.filecoordination:presenter] Adding presenter 13EB89E5-0642-46E6-8F6A-C7C3630165A3 for URL: file:///Users/rudironsoni/Library/Developer/CoreSimulator/Devices/E6186E89-8784-473B-A4E4-66E42693F14E/data/Containers/Data/Application/F44C4C50-3D02-4EDB-83B6-77CA6E5EBBB4/Documents/themes/
+2026-03-28 23:49:34.233431+0100 0x609ed    Default     0x0                  50175  0    iSH: ================================================
+2026-03-28 23:49:34.233555+0100 0x609ed    Default     0x0                  50175  0    iSH: iSH BOOT: Starting execution
+2026-03-28 23:49:34.233674+0100 0x609ed    Default     0x0                  50175  0    iSH: iSH BOOT: Command path: /bin/busybox
+2026-03-28 23:49:34.233731+0100 0x609ed    Default     0x0                  50175  0    iSH: ================================================
+2026-03-28 23:49:34.233982+0100 0x609ed    Default     0x0                  50175  0    iSH: [Boot] About to call do_execve with: /bin/busybox
+2026-03-28 23:49:34.234057+0100 0x609ed    Default     0x0                  50175  0    iSH: [Boot] Current working directory: /
+2026-03-28 23:49:34.234112+0100 0x609ed    Default     0x0                  50175  0    iSH: [Boot] File system root: /Users/rudironsoni/Library/Developer/CoreSimulator/Devices/E6186E89-8784-473B-A4E4-66E42693F14E/data/Containers/Shared/AppGroup/D4DD681F-10A5-4CF8-A7DA-1AB6BD1E1083/roots/default
+2026-03-28 23:49:34.238939+0100 0x609ed    Default     0x0                  50175  0    iSH: [iSH] EXEC: file=/bin/busybox argc=2
+2026-03-28 23:49:34.239166+0100 0x609ed    Default     0x0                  50175  0    iSH: [iSH] EXEC: generic_open succeeded
+2026-03-28 23:49:34.239301+0100 0x609ed    Default     0x0                  50175  0    iSH: [iSH] EXEC: fstat ok, mode=100755 size=919304
+2026-03-28 23:49:34.239410+0100 0x609ed    Default     0x0                  50175  0    iSH: [iSH] EXEC: Read 16 bytes
+2026-03-28 23:49:34.239467+0100 0x609ed    Default     0x0                  50175  0    iSH: [iSH] EXEC: BYTES: 7f 45 4c 46 02 01 01 00
+2026-03-28 23:49:34.239512+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] elf_exec: ENTRY for file=/bin/busybox
+2026-03-28 23:49:34.239588+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] About to call read_header
+2026-03-28 23:49:34.239792+0100 0x609ed    Default     0x0                  50175  0    iSH: [iSH-exec] [exec] RAW BYTES: [iSH-exec] 7f [iSH-exec] 45 [iSH-exec] 4c [iSH-exec] 46 [iSH-exec] 02 [iSH-exec] 01 [iSH-exec] 01 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec]
+2026-03-28 23:49:34.239866+0100 0x609ed    Default     0x0                  50175  0    iSH: [iSH-exec] [exec] PARSED: magic=7f 45 4c 46
+2026-03-28 23:49:34.239975+0100 0x609ed    Default     0x0                  50175  0    iSH: [iSH-exec] [exec] PARSED: bitness=2 endian=1 elfv1=1 type=3 machine=183
+2026-03-28 23:49:34.240022+0100 0x609ed    Default     0x0                  50175  0    iSH: [iSH-exec] [exec] read_header: ELF validation PASSED
+2026-03-28 23:49:34.240180+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] read_header SUCCEEDED
+2026-03-28 23:49:34.240256+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] About to call read_prg_headers
+2026-03-28 23:49:34.240357+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] read_prg_headers SUCCEEDED, phent_count=9
+2026-03-28 23:49:34.240789+0100 0x609ed    Default     0x0                  50175  0    iSH: [iSH-exec] [exec] RAW BYTES: [iSH-exec] 7f [iSH-exec] 45 [iSH-exec] 4c [iSH-exec] 46 [iSH-exec] 02 [iSH-exec] 01 [iSH-exec] 01 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec]
+2026-03-28 23:49:34.240959+0100 0x609ed    Default     0x0                  50175  0    iSH: [iSH-exec] [exec] PARSED: magic=7f 45 4c 46
+2026-03-28 23:49:34.241087+0100 0x609ed    Default     0x0                  50175  0    iSH: [iSH-exec] [exec] PARSED: bitness=2 endian=1 elfv1=1 type=3 machine=183
+2026-03-28 23:49:34.241210+0100 0x609ed    Default     0x0                  50175  0    iSH: [iSH-exec] [exec] read_header: ELF validation PASSED
+2026-03-28 23:49:34.241298+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] About to release old mm and create new mm
+2026-03-28 23:49:34.241380+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] Calling mm_release, current->mm=0x105db5680
+2026-03-28 23:49:34.241424+0100 0x609ed    Default     0x0                  50175  0    iSH: [mm] mm_release: ENTRY, mm=0x105db5680, refcount=1
+2026-03-28 23:49:34.241567+0100 0x609ed    Default     0x0                  50175  0    iSH: [mm] About to decrement refcount from 1
+2026-03-28 23:49:34.241677+0100 0x609ed    Default     0x0                  50175  0    iSH: [mm] refcount reached 0, cleaning up
+2026-03-28 23:49:34.241792+0100 0x609ed    Default     0x0                  50175  0    iSH: [mm] Destroying mem
+2026-03-28 23:49:34.241928+0100 0x609ed    Default     0x0                  50175  0    iSH: [mem] mem_destroy: ENTRY, mem=0x105db5688
+2026-03-28 23:49:34.242032+0100 0x609ed    Default     0x0                  50175  0    iSH: [mem] About to write_wrlock, &mem->lock=0x105db56b0
+2026-03-28 23:49:34.242141+0100 0x609ed    Default     0x0                  50175  0    iSH: [mem] write_wrlock done, pgdir=0x105d5e000
+2026-03-28 23:49:34.242254+0100 0x609ed    Default     0x0                  50175  0    iSH: [mem] About to pt_unmap_always
+2026-03-28 23:49:34.242423+0100 0x609ed    Default     0x0                  50175  0    iSH: [mem] pt_unmap_always done
+2026-03-28 23:49:34.242516+0100 0x609ed    Default     0x0                  50175  0    iSH: [mem] About to free pgdir entries
+2026-03-28 23:49:34.242655+0100 0x609ed    Default     0x0                  50175  0    iSH: [mem] About to free pgdir
+2026-03-28 23:49:34.242780+0100 0x609ed    Default     0x0                  50175  0    iSH: [mem] About to write_wrunlock
+2026-03-28 23:49:34.242863+0100 0x609ed    Default     0x0                  50175  0    iSH: [mem] About to wrlock_destroy
+2026-03-28 23:49:34.242992+0100 0x609ed    Default     0x0                  50175  0    iSH: [mem] mem_destroy complete
+2026-03-28 23:49:34.243080+0100 0x609ed    Default     0x0                  50175  0    iSH: [mm] Freeing mm
+2026-03-28 23:49:34.243127+0100 0x609ed    Default     0x0                  50175  0    iSH: [mm] mm_release complete
+2026-03-28 23:49:34.243194+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] mm_release done, calling mm_new
+2026-03-28 23:49:34.243253+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] write_wrlock done, mm->exefile set
+2026-03-28 23:49:34.243329+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] About to map 9 program headers
+2026-03-28 23:49:34.243702+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] ENTRY POINT CALCULATION: bias=0x56555000 + header.entry_point=0x7500 = entry=0x5655c500
+2026-03-28 23:49:34.243805+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   ELF type: ET_DYN (PIE) (ET_DYN=3, ET_EXEC=2)
+2026-03-28 23:49:34.243853+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] Found PT_DYNAMIC in main executable at 0x566340e8
+2026-03-28 23:49:34.244533+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] Found PT_DYNAMIC in interpreter at 0xf7ffad68 (using this for x1)
+2026-03-28 23:49:34.244606+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   file offset=0xafd68, vaddr=0xbfd68, interp_base=0xf7f3b000
+2026-03-28 23:49:34.244806+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] DUMPING _DYNAMIC table at 0xf7ffad68:
+2026-03-28 23:49:34.244902+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[0]: tag=14 (0xe) val=0x3b38
+2026-03-28 23:49:34.245034+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[1]: tag=12 (0xc) val=0x1fd94
+2026-03-28 23:49:34.245098+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[2]: tag=13 (0xd) val=0x20918
+2026-03-28 23:49:34.245210+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[3]: tag=4 (0x4) val=0x1f0
+2026-03-28 23:49:34.245350+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[4]: tag=1879047925 (0x6ffffef5) val=0x2ba0
+2026-03-28 23:49:34.245439+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[5]: tag=5 (0x5) val=0xf7d0
+2026-03-28 23:49:34.245512+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[6]: tag=6 (0x6) val=0x5d38
+2026-03-28 23:49:34.245575+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[7]: tag=10 (0xa) val=0x3b4f
+2026-03-28 23:49:34.245663+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[8]: tag=11 (0xb) val=0x18
+2026-03-28 23:49:34.245816+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[9]: tag=3 (0x3) val=0xbff18
+2026-03-28 23:49:34.245851+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[10]: tag=2 (0x2) val=0x90
+2026-03-28 23:49:34.245895+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[11]: tag=20 (0x14) val=0x7
+2026-03-28 23:49:34.246025+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[12]: tag=23 (0x17) val=0x13488
+2026-03-28 23:49:34.246095+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[13]: tag=7 (0x7) val=0x13320
+2026-03-28 23:49:34.246234+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[14]: tag=8 (0x8) val=0x168
+2026-03-28 23:49:34.246303+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[15]: tag=9 (0x9) val=0x18
+2026-03-28 23:49:34.246386+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[16]: tag=30 (0x1e) val=0x8
+2026-03-28 23:49:34.246507+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[17]: tag=1879048187 (0x6ffffffb) val=0x1
+2026-03-28 23:49:34.246613+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[18]: tag=36 (0x24) val=0x13518
+2026-03-28 23:49:34.246721+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[19]: tag=35 (0x23) val=0x30
+2026-03-28 23:49:34.246806+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] Interpreter PT_LOAD segments:
+2026-03-28 23:49:34.246943+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   PT_LOAD: vaddr=0xf7f3b000->0xf7fdc89c (memsize=0xa189c, filesize=0xa189c) flags=RX
+2026-03-28 23:49:34.247054+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   PT_LOAD: vaddr=0xf7ffab00->0xf7ffdf10 (memsize=0x3410, filesize=0x904) flags=RW
+2026-03-28 23:49:34.247242+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] About to map vdso
+2026-03-28 23:49:34.247346+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] vdso mapped successfully at page 1015801
+2026-03-28 23:49:34.247453+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] CPU INIT: saved_mmu=0x105db5698 (must not be NULL)
+2026-03-28 23:49:34.247531+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] CPU STATE SET: cpu.mmu=0x105db5698, cpu.pc=0xf7fa4604, cpu.sp=0xfffffe10
+2026-03-28 23:49:34.247640+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] CPU REGISTERS INITIALIZED - about to start execution
+2026-03-28 23:49:34.247716+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] x0=4294966800 (argc), x1=0xf7ffad68 (argv), x2=0x0 (envp), x3=0x0 (auxv)
+2026-03-28 23:49:34.247792+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] sp=0xfffffe10, pc=0xf7fa4604, entry=0xf7fa4604
+2026-03-28 23:49:34.247937+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] elf_exec COMPLETING SUCCESSFULLY, err=0
+2026-03-28 23:49:34.248018+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] elf_exec RETURNING err=0
+2026-03-28 23:49:34.248192+0100 0x609ed    Default     0x0                  50175  0    iSH: [iSH] EXEC: format_exec returned 0
+2026-03-28 23:49:34.248246+0100 0x609ed    Default     0x0                  50175  0    iSH: [Boot] do_execve returned with err=0
+2026-03-28 23:49:34.248786+0100 0x609ed    Default     0x0                  50175  0    iSH: [Boot] Boot setup complete - init process ready but not started
+2026-03-28 23:49:34.251713+0100 0x609ed    Default     0x0                  50175  0    iSH: (Network) [com.apple.network:] networkd_settings_read_from_file_locked initialized networkd settings by reading plist directly
+2026-03-28 23:49:34.252174+0100 0x609ed    Default     0x0                  50175  0    iSH: (Network) [com.apple.network:] networkd_settings_read_from_file_locked initialized networkd settings by reading plist directly
+2026-03-28 23:49:34.255015+0100 0x609ed    Default     0x0                  50175  0    iSH: (CFNetwork) [com.apple.CFNetwork:Default] Task <85BF5193-3CFE-4F7A-A24E-77C7B4332D31>.<1> resuming, timeouts(60.0, 604800.0) qos(0x21) voucher((null)) activity(00000000-0000-0000-0000-000000000000)
+2026-03-28 23:49:34.255353+0100 0x609ed    Activity    0xedb85              50175  0    iSH: (CoreFoundation) Loading Preferences From User Session CFPrefsD
+2026-03-28 23:49:34.256531+0100 0x60a13    Activity    0xedb86              50175  0    iSH: (libsystem_containermanager.dylib) container_system_group_path_for_identifier
+2026-03-28 23:49:34.256655+0100 0x60a13    Default     0xedb86              50175  7    iSH: (libsystem_containermanager.dylib) [com.apple.containermanager:xpc] Requesting container lookup; class = 13, identifier = com.apple.nsurlsessiond, group_identifier = systemgroup.com.apple.nsurlstoragedresources, create = 1, temp = 0, euid = 501, uid = 501
+2026-03-28 23:49:34.256697+0100 0x60a13    Activity    0xedb87              50175  0    iSH: (libsystem_containermanager.dylib) container_query_t
+2026-03-28 23:49:34.256730+0100 0x60a13    Default     0xedb87              50175  7    iSH: (libsystem_containermanager.dylib) [com.apple.containermanager:xpc] Query; euid = 501, uid = 501, class = 13, identifier = [com.apple.nsurlsessiond](1), flags = 900000003
+2026-03-28 23:49:34.257170+0100 0x609ed    Default     0x0                  50175  0    iSH: (Network) [com.apple.network:path] nw_path_evaluator_start [7B4B22FE-6D86-414F-89BB-7EE5B40CCF70 <NULL> generic, attribution: developer]
+	path: satisfied (Path is satisfied), interface: en0[802.11], uses wifi, LQM: unknown
+2026-03-28 23:49:34.257597+0100 0x609ed    Default     0x0                  50175  0    iSH: (UIKitCore) [com.apple.UIKit:Application] Deactivation reason removed: 10; deactivation reasons: 3072 -> 2048; animating application lifecycle event: 0
+2026-03-28 23:49:34.259654+0100 0x609ed    Default     0x0                  50175  0    iSH: (UIKitCore) [com.apple.UIKit:EventBus] Event Timing Profile for Touch: not found, path="/System/Library/EventTimingProfiles/Sim.Touch.plist"
+2026-03-28 23:49:34.259803+0100 0x609ed    Default     0x0                  50175  0    iSH: (UIKitCore) [com.apple.UIKit:EventBus] Event Timing Profile for Pencil: not found, path="/System/Library/EventTimingProfiles/Sim.Pencil.plist"
+2026-03-28 23:49:34.259868+0100 0x609ed    Default     0x0                  50175  0    iSH: (UIKitCore) [com.apple.UIKit:UpdateScheduler] Selected display: name=LCD (PurpleMain), id=1
+2026-03-28 23:49:34.260453+0100 0x60a13    Default     0xedb86              50175  7    iSH: (libsystem_containermanager.dylib) [com.apple.containermanager:unspecified] _container_query_get_result_at_index: success
+2026-03-28 23:49:34.260567+0100 0x60a13    Activity    0xedb88              50175  0    iSH: (libsystem_containermanager.dylib) container_copy_object
+2026-03-28 23:49:34.260613+0100 0x60a13    Default     0xedb86              50175  7    iSH: (libsystem_containermanager.dylib) [com.apple.containermanager:unspecified] container_system_group_path_for_identifier: success
+2026-03-28 23:49:34.280424+0100 0x60a1a    Activity    0xedb89              50175  0    iSH: (Security) SecTrustReportNetworkingAnalytics
+2026-03-28 23:49:34.281198+0100 0x60a14    Default     0x0                  50175  0    iSH: (CFNetwork) [com.apple.CFNetwork:Default] Initializing NSHTTPCookieStorage singleton
+2026-03-28 23:49:34.281706+0100 0x60a1a    Default     0xedb89              50175  0    iSH: (Security) [com.apple.securityd:keychain] System Keychain Always Supported set via feature flag to disabled
+2026-03-28 23:49:34.281754+0100 0x60a1a    Default     0xedb89              50175  0    iSH: (libxpc.dylib) [com.apple.xpc:connection] [0x105dc5040] activating connection: mach=true listener=false peer=false name=com.apple.trustd
+2026-03-28 23:49:34.281816+0100 0x60a14    Default     0x0                  50175  0    iSH: (CFNetwork) [com.apple.CFNetwork:Default] Initializing CFHTTPCookieStorage singleton
+2026-03-28 23:49:34.281835+0100 0x60a14    Default     0x0                  50175  0    iSH: (CFNetwork) [com.apple.CFNetwork:Default] Creating default cookie storage with process/bundle identifier
+2026-03-28 23:49:34.282292+0100 0x60a14    Default     0x0                  50175  0    iSH: (CFNetwork) [com.apple.CFNetwork:Default] Initializing AlternativeServices Storage singleton
+2026-03-28 23:49:34.282405+0100 0x60a1a    Default     0xedb89              50175  0    iSH: (Security) [com.apple.securityd:SecError] SecTrustReportNetworkingAnalytics failed with error: -4
+2026-03-28 23:49:34.283055+0100 0x609ed    Default     0x0                  50175  0    iSH: (BoardServices) [com.apple.BoardServices:XPCErrors] [C:2] Alloc com.apple.backboard.hid-services.xpc
+2026-03-28 23:49:34.283113+0100 0x609ed    Default     0x0                  50175  0    iSH: (libxpc.dylib) [com.apple.xpc:connection] [0x105dc52c0] activating connection: mach=false listener=false peer=false name=(anonymous)
+2026-03-28 23:49:34.283267+0100 0x60a14    Default     0x0                  50175  0    iSH: (CoreServicesInternal) [com.apple.FileURL:default] kExcludedFromBackupXattrName set on path: /Users/rudironsoni/Library/Developer/CoreSimulator/Devices/E6186E89-8784-473B-A4E4-66E42693F14E/data/Containers/Data/Application/F44C4C50-3D02-4EDB-83B6-77CA6E5EBBB4/Library/HTTPStorages/com.rudironsoni.ish
+2026-03-28 23:49:34.284555+0100 0x60a1a    Default     0x0                  50175  0    iSH: (BackBoardServices) [com.apple.BackBoard:EventDelivery] BKSHIDEventDeliveryManager - connection activation
+2026-03-28 23:49:34.284742+0100 0x609ed    Default     0x0                  50175  0    iSH: (libapp_launch_measurement.dylib) [com.apple.app_launch_measurement:ApplicationLaunch] alm_acquire_pageins_recording_assertion: acquired pageins recording assertion!
+2026-03-28 23:49:34.286630+0100 0x60a1a    Default     0x0                  50175  0    iSH: (CFNetwork) [com.apple.CFNetwork:Default] Garbage collection for alternative services
+2026-03-28 23:49:34.287610+0100 0x609ed    Default     0x0                  50175  0    iSH: (UIKitCore) [com.apple.UIKit:BackgroundTask] Will add backgroundTask with taskName: Persistent SceneSession Map Update, expirationHandler: <__NSGlobalBlock__: 0x1e7b10398>
+2026-03-28 23:49:34.287806+0100 0x609ed    Default     0x0                  50175  0    iSH: (UIKitCore) [com.apple.UIKit:BackgroundTask] Reusing background assertion <BKSProcessAssertion: 0x105781e20>
+2026-03-28 23:49:34.287859+0100 0x609ed    Default     0x0                  50175  0    iSH: (UIKitCore) [com.apple.UIKit:BackgroundTask] Incrementing reference count for background assertion <BKSProcessAssertion: 0x105781e20>
+2026-03-28 23:49:34.287911+0100 0x609ed    Default     0x0                  50175  0    iSH: (UIKitCore) [com.apple.UIKit:BackgroundTask] Created background task <_UIBackgroundTaskInfo: 0x105e73300>: taskID = 2, taskName = Persistent SceneSession Map Update, creationTime = 11727 (elapsed = 0).
+2026-03-28 23:49:34.288133+0100 0x609ed    Default     0x0                  50175  0    iSH: (UIKitCore) [com.apple.UIKit:Application] Deactivation reason added: 5; deactivation reasons: 2048 -> 2080; animating application lifecycle event: 1
+2026-03-28 23:49:34.288381+0100 0x609ed    Default     0x0                  50175  0    iSH: (UIKitCore) [com.apple.UIKit:InterfaceStyle] Should send trait collection or coordinate space update, interface style 1 -> 1, <UIWindowScene: 0x105cdca00> (FC16E963-90C0-4802-B919-DAD2BD9935CE)
+2026-03-28 23:49:34.288968+0100 0x609ed    Default     0x0                  50175  0    iSH: (UIKitCore) [com.apple.UIKit:InterfaceStyle] Not push traits update to screen for new style 1, <UIWindowScene: 0x105cdca00> (FC16E963-90C0-4802-B919-DAD2BD9935CE)
+2026-03-28 23:49:34.289071+0100 0x609ed    Default     0x0                  50175  0    iSH: (UIKitCore) [com.apple.UIKit:HomeAffordanceObservation] Initializing: <_UIHomeAffordanceSceneNotifier: 0x105e74e70>; with scene: <UIWindowScene: 0x105cdca00>
+2026-03-28 23:49:34.289152+0100 0x609ed    Default     0x0                  50175  0    iSH: (BacklightServices) [com.apple.BacklightServices:scenes] 0x105fa8990 setDelegate:<0x105fa8930 _UIBacklightEnvironment> hasDelegate:YES for environment:sceneID:com.rudironsoni.ish-FC16E963-90C0-4802-B919-DAD2BD9935CE
+2026-03-28 23:49:34.289817+0100 0x609ed    Default     0x0                  50175  0    iSH: (UIKitCore) [com.apple.UIKit:InterfaceStyle] Not push traits update to screen for new style 1, <UIWindowScene: 0x105cdca00> (FC16E963-90C0-4802-B919-DAD2BD9935CE)
+2026-03-28 23:49:34.289881+0100 0x609ed    Default     0x0                  50175  1    iSH: (UIKitCore) [com.apple.UIKit:EventDeferring] [0x105e74620] Initialized with scene: <UIWindowScene: 0x105cdca00>; behavior: <_UIEventDeferringBehavior_iOS: 0x105f220a0>; availableForProcess: 1, systemShellManagesKeyboardFocus: 1
+2026-03-28 23:49:34.290798+0100 0x60a13    Default     0x0                  50175  0    iSH: (BackBoardServices) [com.apple.BackBoard:EventDelivery] BKSHIDEventObserver - connection activation
+2026-03-28 23:49:34.290827+0100 0x609ed    Default     0x0                  50175  0    iSH: (BackBoardServices) [com.apple.BackBoard:EventDelivery] policyStatus:<BKSHIDEventDeliveryPolicyObserver: 0x105d80180; process scope; status: target> was:none
+2026-03-28 23:49:34.290915+0100 0x609ed    Default     0x0                  50175  1    iSH: (UIKitCore) [com.apple.UIKit:KeyWindow] Setting default evaluation strategy for UIUserInterfaceIdiomPhone to LastOneWins
+2026-03-28 23:49:34.290965+0100 0x609ed    Default     0x0                  50175  1    iSH: (UIKitCore) [com.apple.UIKit:KeyWindow] Scene target of keyboard event deferring environment did change: 1; scene: UIWindowScene: 0x105cdca00; scene identity: com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.rudironsoni.ish-FC16E963-90C0-4802-B919-DAD2BD9935CE
+2026-03-28 23:49:34.291131+0100 0x609ed    Default     0x0                  50175  1    iSH: (UIKitCore) [com.apple.UIKit:EventDeferring] [0x105e74620] Scene target of event deferring environments did update: scene: 0x105cdca00; current systemShellManagesKeyboardFocus: 1; systemShellManagesKeyboardFocusForScene: 1; eligibleForRecordRemoval: 1;
+2026-03-28 23:49:34.291160+0100 0x609ed    Default     0x0                  50175  1    iSH: (UIKitCore) [com.apple.UIKit:KeyWindow] Scene became target of keyboard event deferring environment: UIWindowScene: 0x105cdca00; scene identity: com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.rudironsoni.ish-FC16E963-90C0-4802-B919-DAD2BD9935CE
+2026-03-28 23:49:34.291186+0100 0x609ed    Default     0x0                  50175  1    iSH: (UIKitCore) [com.apple.UIKit:KeyWindow] Stack[KeyWindow] 0x105fa8780: Taking no further action for migration from LastOneWins -> SystemShellManaged as there are no scenes
+2026-03-28 23:49:34.291209+0100 0x609ed    Default     0x0                  50175  1    iSH: (UIKitCore) [com.apple.UIKit:KeyWindow] Setting default evaluation strategy for UIUserInterfaceIdiomPhone to SystemShellManaged
+2026-03-28 23:49:34.291259+0100 0x609ed    Default     0x0                  50175  1    iSH: (UIKitCore) [com.apple.UIKit:KeyWindow] Key window needs update: 0; currentKeyWindowScene: 0x0; evaluatedKeyWindowScene: 0x105cdca00; currentApplicationKeyWindow: 0x0; evaluatedApplicationKeyWindow: 0x0; reason: UIWindowScene: 0x105cdca00: Window scene became target of keyboard environment
+2026-03-28 23:49:34.291468+0100 0x609ed    Default     0x0                  50175  0    iSH: (UIKitCore) [com.apple.UIKit:InterfaceStyle] Not push traits update to screen for new style 1, <UIWindowScene: 0x105cdca00> (FC16E963-90C0-4802-B919-DAD2BD9935CE)
+2026-03-28 23:49:34.291677+0100 0x609ed    Default     0x0                  50175  0    iSH: (UIKitCore) [com.apple.UIKit:InterfaceStyle] Not push traits update to screen for new style 1, <UIWindowScene: 0x105cdca00> (FC16E963-90C0-4802-B919-DAD2BD9935CE)
+2026-03-28 23:49:34.292723+0100 0x609ed    Default     0x0                  50175  0    iSH: (UIKitCore) [com.apple.UIKit:InterfaceStyle] Not push traits update to screen for new style 1, <UIWindowScene: 0x105cdca00> (FC16E963-90C0-4802-B919-DAD2BD9935CE)
+2026-03-28 23:49:34.304067+0100 0x60a19    Default     0x0                  50175  0    iSH: (libxpc.dylib) [com.apple.xpc:connection] [0x105dc5f40] activating connection: mach=true listener=false peer=false name=com.apple.fontservicesd
+2026-03-28 23:49:34.328053+0100 0x609ed    Default     0x0                  50175  0    iSH: [iSH] EXEC: file=/bin/login argc=3
+2026-03-28 23:49:34.328417+0100 0x609ed    Default     0x0                  50175  0    iSH: [iSH] EXEC: generic_open succeeded
+2026-03-28 23:49:34.328476+0100 0x609ed    Default     0x0                  50175  0    iSH: [iSH] EXEC: fstat ok, mode=100755 size=919304
+2026-03-28 23:49:34.328527+0100 0x609ed    Default     0x0                  50175  0    iSH: [iSH] EXEC: Read 16 bytes
+2026-03-28 23:49:34.328581+0100 0x609ed    Default     0x0                  50175  0    iSH: [iSH] EXEC: BYTES: 7f 45 4c 46 02 01 01 00
+2026-03-28 23:49:34.328632+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] elf_exec: ENTRY for file=/bin/login
+2026-03-28 23:49:34.328669+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] About to call read_header
+2026-03-28 23:49:34.328724+0100 0x609ed    Default     0x0                  50175  0    iSH: [iSH-exec] [exec] RAW BYTES: [iSH-exec] 7f [iSH-exec] 45 [iSH-exec] 4c [iSH-exec] 46 [iSH-exec] 02 [iSH-exec] 01 [iSH-exec] 01 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec]
+2026-03-28 23:49:34.328820+0100 0x609ed    Default     0x0                  50175  0    iSH: [iSH-exec] [exec] PARSED: magic=7f 45 4c 46
+2026-03-28 23:49:34.328896+0100 0x609ed    Default     0x0                  50175  0    iSH: [iSH-exec] [exec] PARSED: bitness=2 endian=1 elfv1=1 type=3 machine=183
+2026-03-28 23:49:34.328970+0100 0x609ed    Default     0x0                  50175  0    iSH: [iSH-exec] [exec] read_header: ELF validation PASSED
+2026-03-28 23:49:34.329037+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] read_header SUCCEEDED
+2026-03-28 23:49:34.329121+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] About to call read_prg_headers
+2026-03-28 23:49:34.329198+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] read_prg_headers SUCCEEDED, phent_count=9
+2026-03-28 23:49:34.329354+0100 0x609ed    Default     0x0                  50175  0    iSH: [iSH-exec] [exec] RAW BYTES: [iSH-exec] 7f [iSH-exec] 45 [iSH-exec] 4c [iSH-exec] 46 [iSH-exec] 02 [iSH-exec] 01 [iSH-exec] 01 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec] 00 [iSH-exec]
+2026-03-28 23:49:34.329429+0100 0x609ed    Default     0x0                  50175  0    iSH: [iSH-exec] [exec] PARSED: magic=7f 45 4c 46
+2026-03-28 23:49:34.329499+0100 0x609ed    Default     0x0                  50175  0    iSH: [iSH-exec] [exec] PARSED: bitness=2 endian=1 elfv1=1 type=3 machine=183
+2026-03-28 23:49:34.329571+0100 0x609ed    Default     0x0                  50175  0    iSH: [iSH-exec] [exec] read_header: ELF validation PASSED
+2026-03-28 23:49:34.329636+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] About to release old mm and create new mm
+2026-03-28 23:49:34.329700+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] Calling mm_release, current->mm=0x109894780
+2026-03-28 23:49:34.329771+0100 0x609ed    Default     0x0                  50175  0    iSH: [mm] mm_release: ENTRY, mm=0x109894780, refcount=1
+2026-03-28 23:49:34.329847+0100 0x609ed    Default     0x0                  50175  0    iSH: [mm] About to decrement refcount from 1
+2026-03-28 23:49:34.329921+0100 0x609ed    Default     0x0                  50175  0    iSH: [mm] refcount reached 0, cleaning up
+2026-03-28 23:49:34.329995+0100 0x609ed    Default     0x0                  50175  0    iSH: [mm] Destroying mem
+2026-03-28 23:49:34.330074+0100 0x609ed    Default     0x0                  50175  0    iSH: [mem] mem_destroy: ENTRY, mem=0x109894788
+2026-03-28 23:49:34.330142+0100 0x609ed    Default     0x0                  50175  0    iSH: [mem] About to write_wrlock, &mem->lock=0x1098947b0
+2026-03-28 23:49:34.330214+0100 0x609ed    Default     0x0                  50175  0    iSH: [mem] write_wrlock done, pgdir=0x105d62000
+2026-03-28 23:49:34.330287+0100 0x609ed    Default     0x0                  50175  0    iSH: [mem] About to pt_unmap_always
+2026-03-28 23:49:34.330361+0100 0x609ed    Default     0x0                  50175  0    iSH: [mem] pt_unmap_always done
+2026-03-28 23:49:34.330504+0100 0x609ed    Default     0x0                  50175  0    iSH: [mem] About to free pgdir entries
+2026-03-28 23:49:34.330579+0100 0x609ed    Default     0x0                  50175  0    iSH: [mem] About to free pgdir
+2026-03-28 23:49:34.330634+0100 0x609ed    Default     0x0                  50175  0    iSH: [mem] About to write_wrunlock
+2026-03-28 23:49:34.330708+0100 0x609ed    Default     0x0                  50175  0    iSH: [mem] About to wrlock_destroy
+2026-03-28 23:49:34.330791+0100 0x609ed    Default     0x0                  50175  0    iSH: [mem] mem_destroy complete
+2026-03-28 23:49:34.330871+0100 0x609ed    Default     0x0                  50175  0    iSH: [mm] Freeing mm
+2026-03-28 23:49:34.330933+0100 0x609ed    Default     0x0                  50175  0    iSH: [mm] mm_release complete
+2026-03-28 23:49:34.330997+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] mm_release done, calling mm_new
+2026-03-28 23:49:34.331082+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] write_wrlock done, mm->exefile set
+2026-03-28 23:49:34.331179+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] About to map 9 program headers
+2026-03-28 23:49:34.331417+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] ENTRY POINT CALCULATION: bias=0x56555000 + header.entry_point=0x7500 = entry=0x5655c500
+2026-03-28 23:49:34.331502+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   ELF type: ET_DYN (PIE) (ET_DYN=3, ET_EXEC=2)
+2026-03-28 23:49:34.331577+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] Found PT_DYNAMIC in main executable at 0x566340e8
+2026-03-28 23:49:34.331772+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] Found PT_DYNAMIC in interpreter at 0xf7ffad68 (using this for x1)
+2026-03-28 23:49:34.331844+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   file offset=0xafd68, vaddr=0xbfd68, interp_base=0xf7f3b000
+2026-03-28 23:49:34.331922+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] DUMPING _DYNAMIC table at 0xf7ffad68:
+2026-03-28 23:49:34.331993+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[0]: tag=14 (0xe) val=0x3b38
+2026-03-28 23:49:34.332068+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[1]: tag=12 (0xc) val=0x1fd94
+2026-03-28 23:49:34.332127+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[2]: tag=13 (0xd) val=0x20918
+2026-03-28 23:49:34.332193+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[3]: tag=4 (0x4) val=0x1f0
+2026-03-28 23:49:34.332247+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[4]: tag=1879047925 (0x6ffffef5) val=0x2ba0
+2026-03-28 23:49:34.332303+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[5]: tag=5 (0x5) val=0xf7d0
+2026-03-28 23:49:34.332356+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[6]: tag=6 (0x6) val=0x5d38
+2026-03-28 23:49:34.332433+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[7]: tag=10 (0xa) val=0x3b4f
+2026-03-28 23:49:34.332508+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[8]: tag=11 (0xb) val=0x18
+2026-03-28 23:49:34.332570+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[9]: tag=3 (0x3) val=0xbff18
+2026-03-28 23:49:34.332633+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[10]: tag=2 (0x2) val=0x90
+2026-03-28 23:49:34.332693+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[11]: tag=20 (0x14) val=0x7
+2026-03-28 23:49:34.332753+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[12]: tag=23 (0x17) val=0x13488
+2026-03-28 23:49:34.332818+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[13]: tag=7 (0x7) val=0x13320
+2026-03-28 23:49:34.332892+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[14]: tag=8 (0x8) val=0x168
+2026-03-28 23:49:34.332952+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[15]: tag=9 (0x9) val=0x18
+2026-03-28 23:49:34.333015+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[16]: tag=30 (0x1e) val=0x8
+2026-03-28 23:49:34.333076+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[17]: tag=1879048187 (0x6ffffffb) val=0x1
+2026-03-28 23:49:34.333137+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[18]: tag=36 (0x24) val=0x13518
+2026-03-28 23:49:34.333203+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   _DYNAMIC[19]: tag=35 (0x23) val=0x30
+2026-03-28 23:49:34.333265+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] Interpreter PT_LOAD segments:
+2026-03-28 23:49:34.333325+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   PT_LOAD: vaddr=0xf7f3b000->0xf7fdc89c (memsize=0xa189c, filesize=0xa189c) flags=RX
+2026-03-28 23:49:34.333385+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec]   PT_LOAD: vaddr=0xf7ffab00->0xf7ffdf10 (memsize=0x3410, filesize=0x904) flags=RW
+2026-03-28 23:49:34.333443+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] About to map vdso
+2026-03-28 23:49:34.333506+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] vdso mapped successfully at page 1015801
+2026-03-28 23:49:34.333591+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] CPU INIT: saved_mmu=0x109894798 (must not be NULL)
+2026-03-28 23:49:34.333658+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] CPU STATE SET: cpu.mmu=0x109894798, cpu.pc=0xf7fa4604, cpu.sp=0xfffffe10
+2026-03-28 23:49:34.333729+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] CPU REGISTERS INITIALIZED - about to start execution
+2026-03-28 23:49:34.333807+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] x0=4294966800 (argc), x1=0xf7ffad68 (argv), x2=0x0 (envp), x3=0x0 (auxv)
+2026-03-28 23:49:34.333851+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] sp=0xfffffe10, pc=0xf7fa4604, entry=0xf7fa4604
+2026-03-28 23:49:34.333920+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] elf_exec COMPLETING SUCCESSFULLY, err=0
+2026-03-28 23:49:34.333956+0100 0x609ed    Default     0x0                  50175  0    iSH: [exec] elf_exec RETURNING err=0
+2026-03-28 23:49:34.333995+0100 0x609ed    Default     0x0                  50175  0    iSH: [iSH] EXEC: format_exec returned 0
+2026-03-28 23:49:34.334215+0100 0x609ed    Default     0x0                  50175  0    iSH: [TerminalViewController] task_start called - entering runloop to keep app alive
