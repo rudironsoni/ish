@@ -1,0 +1,69 @@
+{
+  "simulator_targets": {
+    "status": "available",
+    "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-4",
+    "verified_at": "2026-03-28T05:00:00Z",
+    "device_count": 11,
+    "devices": [
+      {
+        "name": "iPhone 17 Pro",
+        "udid": "E6186E89-8784-473B-A4E4-66E42693F14E",
+        "type": "iPhone"
+      },
+      {
+        "name": "iPhone 17 Pro Max",
+        "udid": "CD9BC49C-1E8D-4402-91A9-0CDC0F568460",
+        "type": "iPhone"
+      },
+      {
+        "name": "iPhone 17e",
+        "udid": "0A9CB30E-6EB6-44F8-BBF3-72151BEDCF95",
+        "type": "iPhone"
+      },
+      {
+        "name": "iPhone Air",
+        "udid": "C1F99CE6-2673-4C8D-A05E-A07B9FDBBE4E",
+        "type": "iPhone"
+      },
+      {
+        "name": "iPhone 17",
+        "udid": "971A2EC4-3492-4F21-8D79-96E6863127B4",
+        "type": "iPhone"
+      },
+      {
+        "name": "iPad Pro 13-inch (M5)",
+        "udid": "0B953D24-B797-4103-815F-803C09A905DC",
+        "type": "iPad"
+      },
+      {
+        "name": "iPad Pro 11-inch (M5)",
+        "udid": "1A1C5C93-F1F6-408D-8653-DA0A8E0A8FB8",
+        "type": "iPad"
+      },
+      {
+        "name": "iPad mini (A17 Pro)",
+        "udid": "023EBADE-A344-48F5-89F3-05CE7610853C",
+        "type": "iPad"
+      },
+      {
+        "name": "iPad Air 13-inch (M4)",
+        "udid": "90AAA6D0-B444-4393-80F1-3204D43D43D1",
+        "type": "iPad"
+      },
+      {
+        "name": "iPad Air 11-inch (M4)",
+        "udid": "021DFB56-DA23-4505-85CB-C3C98B23DF1E",
+        "type": "iPad"
+      },
+      {
+        "name": "iPad (A16)",
+        "udid": "B9F0E710-1225-4551-9F42-5D98980487FA",
+        "type": "iPad"
+      }
+    ],
+    "default_target": {
+      "name": "iPhone 17 Pro",
+      "udid": "E6186E89-8784-473B-A4E4-66E42693F14E"
+    }
+  }
+}
