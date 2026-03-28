@@ -20,6 +20,7 @@
 #include "kernel/vdso.h"
 #include "emu/aarch64/tls.h"
 #include "emu/aarch64/cpu.h"
+#include "trace/trace.h"
 // Simple debug logging - outputs to system console
 #define exec_log(fmt, ...) printk("[iSH-exec] " fmt, ##__VA_ARGS__)
 
@@ -140,21 +141,31 @@ static int read_header(struct fd *fd, struct elf_header *header) {
 
 static int read_prg_headers(struct fd *fd, struct elf_header header, struct prg_header **ph_out) {
     ssize_t ph_size = sizeof(struct prg_header) * header.phent_count;
+    trace_emit_u32(TRACE_EVENT_BLOCK_COMPILE_START, 0x1000, (uint32_t)ph_size);
     struct prg_header *ph = malloc(ph_size);
-    if (ph == NULL)
+    if (ph == NULL) {
+        trace_emit_u32(TRACE_EVENT_BLOCK_COMPILE_START, 0x1001, 0);
         return _ENOMEM;
+    }
 
+    trace_emit_u32(TRACE_EVENT_BLOCK_COMPILE_START, 0x1002, header.prghead_off);
     if (fd->ops->lseek(fd, header.prghead_off, LSEEK_SET) < 0) {
+        trace_emit_u32(TRACE_EVENT_BLOCK_COMPILE_START, 0x1003, 1);
         free(ph);
         return _EIO;
     }
-    if (fd->ops->read(fd, ph, ph_size) != ph_size) {
+    trace_emit_u32(TRACE_EVENT_BLOCK_COMPILE_START, 0x1004, ph_size);
+    ssize_t read_ret = fd->ops->read(fd, ph, ph_size);
+    trace_emit_u32(TRACE_EVENT_BLOCK_COMPILE_START, 0x1005, (uint32_t)read_ret);
+    if (read_ret != ph_size) {
+        trace_emit_u32(TRACE_EVENT_BLOCK_COMPILE_START, 0x1006, errno);
         free(ph);
         if (errno != 0)
             return _EIO;
         return _ENOEXEC;
     }
 
+    trace_emit_u32(TRACE_EVENT_BLOCK_COMPILE_START, 0x1007, 0);
     *ph_out = ph;
     return 0;
 }
@@ -633,7 +644,10 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
 
     // Initialize CPU state properly before setting up registers
     // This zeros all X registers, PSTATE, and other state to prevent garbage values
+    // CRITICAL: Save and restore mmu pointer since a64_cpu_init zeros all fields
+    struct mmu *saved_mmu = current->cpu.mmu;
     a64_cpu_init(&current->cpu);
+    current->cpu.mmu = saved_mmu;
 
     current->cpu.sp = sp;
     current->cpu.pc = entry;
