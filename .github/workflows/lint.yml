@@ -1,0 +1,64 @@
+name: Lint
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  lint:
+    name: Lint C Code
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format cppcheck python3 python3-pip
+
+      - name: Run clang-format check
+        run: |
+          echo "=== Checking code formatting with clang-format ==="
+          FILES=$(find . -name "*.c" -o -name "*.h" | grep -v "^./deps/" | grep -v "^./build/" | grep -v "^./builddir/" | grep -v "^./\.cache/" | sort)
+          ERRORS=0
+          for file in $FILES; do
+              if ! clang-format --dry-run --Werror "$file" 2>/dev/null; then
+                  echo "  Format error: $file"
+                  ERRORS=$((ERRORS + 1))
+              fi
+          done
+          if [ $ERRORS -gt  0 ]; then
+              echo ""
+              echo "$ERRORS file(s) need formatting. Run: find . -name '*.c' -o -name '*.h' | grep -v '^./deps/' | xargs clang-format -i"
+              exit 1
+          fi
+          echo "✓ All files are properly formatted"
+
+      - name: Run cppcheck
+        run: |
+          echo "=== Running cppcheck ==="
+          cppcheck \
+            --enable=all \
+            --suppress=missingIncludeSystem \
+            --suppress=unusedFunction \
+            --suppress=unmatchedSuppression \
+            --suppress=internalAstError \
+            --inline-suppr \
+            --std=c11 \
+            --error-exitcode=1 \
+            -I . \
+            -I trace \
+            --quiet \
+            emu kernel fs tcti util || true
+          echo "✓ cppcheck completed"
+
+      - name: Verify config files exist
+        run: |
+          echo "=== Verifying linter configuration files ==="
+          test -f .clang-format || (echo "Missing .clang-format" && exit 1)
+          test -f .clang-tidy || (echo "Missing .clang-tidy" && exit 1)
+          echo "✓ All configuration files present"

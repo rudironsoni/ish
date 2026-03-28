@@ -1,0 +1,68 @@
+# iSH Pre-commit Hooks Configuration
+# Install with: pip install pre-commit && pre-commit install
+
+repos:
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: '^(deps/|build/|builddir/|tests/cases/)'
+      - id: end-of-file-fixer
+        exclude: '^(deps/|build/|builddir/|tests/cases/)'
+      - id: check-yaml
+        exclude: '^(deps/|tests/cases/)'
+      - id: check-json
+        exclude: '^(deps/|build/|builddir/)'
+      - id: check-added-large-files
+        args: ['--maxkb=500']
+        exclude: '^(deps/|tests/aarch64/e2e/alpine-rootfs/)'
+      - id: check-merge-conflict
+      - id: check-symlinks
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+        exclude: '^(deps/)'
+
+  # C code linting (local hooks)
+  - repo: local
+    hooks:
+      - id: clang-format
+        name: clang-format
+        entry: clang-format --dry-run --Werror
+        language: system
+        files: '\.(c|h)$'
+        exclude: '^(deps/|build/|builddir/|\.cache/)'
+        stages: [pre-commit]
+
+      - id: cppcheck
+        name: cppcheck
+        entry: cppcheck --error-exitcode=1 --quiet --enable=warning,performance,portability --suppress=missingIncludeSystem --inline-suppr
+        language: system
+        files: '\.c$'
+        exclude: '^(deps/|build/|builddir/|tests/cases/|\.cache/)'
+        pass_filenames: true
+        stages: [pre-commit]
+
+  # Python linting (for generator scripts)
+  - repo: https://github.com/psf/black
+    rev: 23.12.1
+    hooks:
+      - id: black
+        language_version: python3
+        files: '\.py$'
+        exclude: '^(deps/|tcti/aarch64/tcti-gadget-gen\.py)'
+
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.0.0
+    hooks:
+      - id: flake8
+        files: '\.py$'
+        exclude: '^(deps/)'
+        args: ['--max-line-length=120', '--extend-ignore=E203,W503']
+
+  # Shell script checks
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.9.0.6
+    hooks:
+      - id: shellcheck
+        exclude: '^(deps/|tools/staticdefine\.sh)'
