@@ -1,0 +1,34 @@
+vectors:
+  - name: str_postindex_real_execution
+    description: "Real TCTI execution of str xzr, [x2], #8 (0xf800845f)"
+    raw_hex: "f800845f"
+    pre_state:
+      x2: 0x2000           # Base address
+      memory_0x2000: 0xDEADBEEFCAFEBABE  # Initial value
+    execution:
+      method: tcti_entry_block
+      gadget_chain:
+        - gadget_str_x       # Store gadget
+        - gadget_exit        # Exit gadget
+    post_state:
+      x2: 0x2008           # Post-index update
+      memory_0x2000: 0     # xzr stored (zeros)
+      tcti_exit_reason: TCTI_EXIT_NORMAL
+    success: true
+
+success_threshold: 1  # Single vector must pass
+
+artifacts_required:
+  - final_state.json
+  - report.json
+
+validation:
+  - name: memory_write_correct
+    check: "memory[0x2000] == 0"
+    description: "xzr (zeros) should be stored at base address"
+  - name: register_writeback_correct
+    check: "x2 == 0x2008"
+    description: "Post-index should add 8 to base"
+  - name: exit_reason_normal
+    check: "tcti_exit_reason == 0"
+    description: "Exit should be TCTI_EXIT_NORMAL"
