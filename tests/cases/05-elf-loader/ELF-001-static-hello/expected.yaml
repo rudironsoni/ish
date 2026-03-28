@@ -1,0 +1,43 @@
+elf_loading_requirements:
+  binary_type: static
+  architecture: aarch64
+
+  loading_checks:
+    - check: ELF header valid
+      expected: magic bytes match 0x7f 'ELF'
+    - check: Architecture matches
+      expected: e_machine = 183 (AARCH64)
+    - check: Entry point reachable
+      expected: _start executed
+    - check: No interpreter needed
+      expected: PT_INTERP segment absent
+
+  execution_requirements:
+    - reaches _start
+    - executes without fault
+    - reaches exit syscall
+    - exit code is 0
+
+invariants:
+  - "Static binary has no PT_INTERP"
+  - "PT_LOAD segments mapped with correct permissions"
+  - "Entry point (_start) is executable"
+
+validation_checks:
+  - name: elf_header_valid
+    assertion: "ELF magic and class valid"
+    critical: true
+
+  - name: entry_point_reached
+    assertion: "_start executed"
+    critical: true
+
+  - name: clean_exit
+    assertion: "exit code 0, no faults"
+    critical: true
+
+success_criteria:
+  - ELF loads successfully
+  - Entry point reached
+  - Clean execution to exit
+  - No runtime faults

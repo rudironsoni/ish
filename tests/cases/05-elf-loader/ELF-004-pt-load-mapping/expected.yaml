@@ -1,0 +1,36 @@
+elf_loading_requirements:
+  binary_type: any
+  architecture: aarch64
+
+  loading_checks:
+    - check: ELF header valid
+      expected: magic bytes match 0x7f 'ELF'
+    - check: PT_LOAD segments present
+      expected: at least one PT_LOAD segment
+    - check: Segment permissions valid
+      expected: PF_R, PF_W, PF_X flags valid
+
+  execution_requirements:
+    - all PT_LOAD segments mapped
+    - PF_R segments readable
+    - PF_W segments writable
+    - PF_X segments executable
+    - file offset to vaddr mapping correct
+
+invariants:
+  - "PT_LOAD segments mapped with correct permissions"
+  - "File offset aligns with virtual address"
+
+validation_checks:
+  - name: pt_load_present
+    assertion: "At least one PT_LOAD segment exists"
+    critical: true
+
+  - name: permissions_valid
+    assertion: "Segment permission flags are valid"
+    critical: true
+
+success_criteria:
+  - ELF loads successfully
+  - All PT_LOAD segments mapped
+  - Permissions correctly applied

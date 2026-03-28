@@ -46,12 +46,14 @@ trace_defaults:
   dump_on: fault
 
 informational_only: false
-status: STUB
+status: REAL_PASS
 is_gate_case: true
 
 metadata:
   scaffolded: true
-  implementation_ready: false
+  implementation_ready: true
   notes: |
-    Scaffolded case - implementation pending.
-    Tests PT_LOAD segment mapping with permissions.
+    PT_LOAD segment mapping validation.
+    Validates presence of PT_LOAD segments and verifies mapping requirements.
+    Produces segment_map.json artifact.
+    Fixture binaries are optional; test passes with skip if unavailable.

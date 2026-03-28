@@ -1,0 +1,25 @@
+semantic_authority:
+  source: ELF Specification v1.2
+  url: https://refspecs.linuxfoundation.org/elf/elf.pdf
+
+abi_authority:
+  source: Linux AArch64 ABI
+  notes: |
+    When loading a dynamic binary, the kernel loads the
+    interpreter (dynamic linker) and transfers control to it.
+    The stack layout including argc, argv, envp, and auxv
+    must be preserved and accessible to the interpreter.
+    AT_ENTRY auxv entry points to the program entry point.
+
+toolchain_notes:
+  notes: |
+    Interpreter handoff is critical for dynamic linking.
+    Stack must follow Linux AArch64 process startup convention.
+
+known_gaps:
+  - Full handoff simulation requires iSH runtime
+  - Actual loader execution not tested in isolation
+
+non_authoritative_fields:
+  - Specific stack addresses
+  - Exact auxv ordering beyond required entries

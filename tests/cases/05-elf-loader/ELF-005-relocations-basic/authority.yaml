@@ -1,0 +1,25 @@
+semantic_authority:
+  source: ELF Specification v1.2
+  url: https://refspecs.linuxfoundation.org/elf/elf.pdf
+
+abi_authority:
+  source: Linux AArch64 ABI
+  notes: |
+    AArch64 relocations include:
+    - R_AARCH64_RELATIVE (type 1027): Adjust by load address
+    - R_AARCH64_GLOB_DAT (type 1025): Global data symbol
+    - R_AARCH64_JUMP_SLOT (type 1026): PLT entry
+    Relocations are applied by the dynamic loader at load time.
+
+toolchain_notes:
+  verification: |
+    readelf -r <binary> shows relocation entries
+    readelf -d <binary> shows dynamic tags
+
+known_gaps:
+  - Full relocation processing requires dynamic loader
+  - Symbol resolution not tested in isolation
+
+non_authoritative_fields:
+  - Specific relocation addends
+  - Symbol table contents

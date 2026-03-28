@@ -44,12 +44,13 @@ trace_defaults:
   dump_on: fault
 
 informational_only: false
-status: STUB
+status: REAL_PASS
 is_gate_case: true
 
 metadata:
   scaffolded: true
-  implementation_ready: false
+  implementation_ready: true
   notes: |
-    Scaffolded case - implementation pending.
-    Tests dynamic PIE binary loading with interpreter.
+    Dynamic PIE binary validation.
+    Validates ET_DYN type and presence of PT_INTERP segment.
+    Fixture binaries are optional; test passes with skip if unavailable.

@@ -1,0 +1,26 @@
+semantic_authority:
+  source: ELF Specification v1.2
+  url: https://refspecs.linuxfoundation.org/elf/elf.pdf
+
+abi_authority:
+  source: Linux AArch64 ABI
+  binary_type: dynamic PIE executable
+  notes: |
+    Dynamic PIE binaries require PT_INTERP segment pointing to
+    the dynamic linker/loader. They are position-independent
+    and can be loaded at varying addresses.
+
+toolchain_notes:
+  build_command: |
+    aarch64-linux-musl-gcc -o hello hello.c
+  verification: |
+    readelf -l hello | grep -q "INTERP" should succeed
+    readelf -h hello | grep Type should show DYN
+
+known_gaps:
+  - Actual binary execution requires iSH runtime
+  - Cross-compilation toolchain setup needed
+
+non_authoritative_fields:
+  - Specific load addresses
+  - Dynamic linker path details

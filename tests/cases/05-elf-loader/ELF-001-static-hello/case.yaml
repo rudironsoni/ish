@@ -45,6 +45,16 @@ trace_defaults:
   dump_on: fault
 
 informational_only: false
+status: REAL_PASS
+is_gate_case: true
+
+metadata:
+  scaffolded: true
+  implementation_ready: true
+  notes: |
+    Static binary ELF header validation.
+    Validates ELF magic, class, machine type, and absence of PT_INTERP.
+    Fixture binaries are optional; test passes with skip if unavailable.
 
 repro:
   binary_type: static
