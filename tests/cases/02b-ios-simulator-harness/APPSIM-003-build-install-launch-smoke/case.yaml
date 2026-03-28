@@ -1,0 +1,77 @@
+id: APPSIM-003
+phase: 02b-ios-simulator-harness
+title: Build, Install, Launch Smoke Test
+class: app_harness_capability
+kind: ios_app_harness
+harness: ios_app_harness
+meson_test: case:APPSIM-003
+prerequisites:
+  - APPSIM-001
+  - APPSIM-002
+is_gate_case: true
+informational_only: false
+
+expectation_authority:
+  semantic_source: ios-sandbox-contract
+  primary_tool: XcodeBuildMCP
+
+success_criteria:
+  structural:
+    - "App builds successfully"
+    - "App installs on simulator"
+    - "App launches"
+    - "App alive check passes"
+  semantic:
+    - "Build produces valid .app bundle"
+    - "Install succeeds without errors"
+    - "Launch brings app to foreground"
+    - "App remains alive for check duration"
+
+allowed_patch_scope:
+  - "tests/cases/02b-ios-simulator-harness/APPSIM-003*/**"
+  - "tests/cases/harness/ios_app_harness.c"
+
+regression_target:
+  meson_test: case:APPSIM-003
+
+harness_kind: ios_simulator_app
+simulator_tool: xcodebuildmcp
+
+primary_operation: build_run_sim
+
+retry_policy:
+  max_retries: 1
+  allow_reset: true
+  reset_on_retry: true
+
+timeout_policy:
+  launch_timeout: 300
+  alive_check_interval: 5
+  max_alive_wait: 60
+
+required_artifacts:
+  - name: sim_launch.json
+    type: json
+    description: Launch metadata and timestamps
+  - name: build_result.json
+    type: json
+    description: Build success/failure and output
+  - name: install_result.json
+    type: json
+    description: Install success/failure
+  - name: launch_result.json
+    type: json
+    description: Launch success/failure
+  - name: alive_check.json
+    type: json
+    description: App alive check results
+  - name: report.json
+    type: json
+    description: Case execution report
+
+metadata:
+  created_date: "2026-03-28"
+  last_modified: "2026-03-28"
+  scaffolded: true
+  implementation_ready: true
+  notes: "Primary smoke test - proves end-to-end build/install/launch works. MUST reach REAL_PASS."

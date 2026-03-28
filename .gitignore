@@ -2,6 +2,10 @@ build/
 xcuserdata/
 .floo
 
+# Generated TCTI gadget files (build artifacts)
+tcti/aarch64/gadgets_tcti.h
+tcti/aarch64/gadgets_tcti_impl.c
+
 cross-*.txt
 root.tar.gz
 

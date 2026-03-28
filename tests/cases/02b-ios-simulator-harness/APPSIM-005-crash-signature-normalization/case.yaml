@@ -1,0 +1,67 @@
+id: APPSIM-005
+phase: 02b-ios-simulator-harness
+title: Crash Signature Normalization
+class: app_harness_capability
+kind: ios_app_harness
+harness: ios_app_harness
+meson_test: case:APPSIM-005
+prerequisites:
+  - APPSIM-004
+is_gate_case: true
+informational_only: false
+
+expectation_authority:
+  semantic_source: ios-sandbox-contract
+  primary_tool: XcodeBuildMCP
+
+success_criteria:
+  structural:
+    - "Crash signature is normalized into stable hash"
+    - "Last completed milestone is identified"
+    - "First failing milestone is identified"
+  semantic:
+    - "Signature is deterministic (same crash produces same hash)"
+    - "Milestone context is captured"
+    - "Signature fields include relevant crash metadata"
+
+allowed_patch_scope:
+  - "tests/cases/02b-ios-simulator-harness/APPSIM-005*/**"
+  - "tests/cases/harness/ios_app_harness.c"
+  - "tests/cases/harness/crash_signature_normalizer.c"
+
+regression_target:
+  meson_test: case:APPSIM-005
+
+harness_kind: ios_simulator_app
+simulator_tool: xcodebuildmcp
+
+retry_policy:
+  max_retries: 0
+  allow_reset: false
+  reset_on_retry: false
+
+timeout_policy:
+  launch_timeout: 60
+  alive_check_interval: 5
+  max_alive_wait: 30
+
+required_artifacts:
+  - name: crash_signature.json
+    type: json
+    description: Normalized crash signature with hash and context
+  - name: normalized_hash.txt
+    type: text
+    description: Deterministic crash signature hash
+  - name: milestone_context.json
+    type: json
+    description: Milestone state at time of crash
+  - name: report.json
+    type: json
+    description: Case execution report
+
+metadata:
+  created_date: "2026-03-28"
+  last_modified: "2026-03-28"
+  scaffolded: true
+  implementation_ready: true
+  notes: "Proves crash signatures can be normalized for comparison"

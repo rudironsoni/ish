@@ -1,0 +1,21 @@
+expected_artifacts:
+  simulator_target.json:
+    device_id: "string"
+    device_name: "string"
+    runtime: "string"
+    state: "Booted"
+    
+  device_runtime.json:
+    device_type: "iPhone"
+    runtime_version: "string"
+    available: true
+    
+  boot_status.json:
+    booted: true
+    boot_time_ms: "integer"
+    error: null
+    
+  report.json:
+    case_id: "APPSIM-002"
+    status: "REAL_PASS"
+    summary: "Simulator selected and booted successfully"

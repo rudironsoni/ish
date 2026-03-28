@@ -16,9 +16,10 @@ This is the FIRST REQUIRED COMMAND for all non-trivial work. No other commands m
 
 2. **Cross-check consistency:**
    - Execution-order.yaml and status.yaml must have matching case IDs
-   - Total case count must match (108)
-   - Phase inventory must be complete (12 phases)
+   - Total case count must match (122)
+   - Phase inventory must be complete (14 phases including 02b, 02c)
    - No duplicate case IDs
+   - App cases (APPSIM-*, APP-*) have required app-specific fields
 
 3. **Verify synchronized command files:**
    - All required commands must have synchronized definitions
@@ -40,6 +41,12 @@ This is the FIRST REQUIRED COMMAND for all non-trivial work. No other commands m
    - Patch-scope enforcement rules present
    - Retry budget limits defined
    - Refusal rules documented
+
+7. **Verify app harness readiness:**
+   - XcodeBuildMCP availability: `session_show_defaults` returns valid response
+   - Simulator targets discoverable: `list_sims` succeeds
+   - App artifact schemas present in schema.yaml
+   - Phase 02b and 02c cases exist in status.yaml
 
 ## Fail-Closed Conditions
 

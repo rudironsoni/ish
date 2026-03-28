@@ -19,7 +19,9 @@ tests/cases/
 │   ├── generator_golden.c  # Generator validation harness
 │   ├── semantic_micro.c    # Execution validation harness
 │   ├── abi_fixture.c       # ABI validation harness
-│   └── runtime_trace.c     # Runtime trace harness
+│   ├── runtime_trace.c     # Runtime trace harness
+│   ├── ios_app_harness.c   # iOS app validation harness (NEW)
+│   └── ...                 # Additional app harness utilities
 └── [phase]/[case]/
     ├── case.yaml           # REQUIRED: Case definition (see schema.yaml)
     ├── expected.yaml       # REQUIRED for decode/generator cases
@@ -63,15 +65,17 @@ The autonomous agent operates on **exactly one** active case at a time. The acti
 ### Step 1: Read Canonical Inventory
 ```yaml
 # Read execution-order.yaml to get:
-# - Phase order (00 → 01 → 02 → ...)
+# - Phase order (00 → 01 → 02 → 02b → 02c → 03 → ...)
 # - Gate case list for each phase
 # - Gating policy
+# - Legacy/deprecated cases to exclude
 ```
 
 ### Step 2: Find Earliest Unsatisfied Gate
 For each phase in order:
 - Check if all gate cases have status `REAL PASS`
 - First phase where NOT all gates pass → **target phase**
+- Skip deprecated/legacy cases (exclude_from_selection: true)
 
 ### Step 3: Find Active Case
 Within the target phase:
@@ -114,6 +118,68 @@ A case becomes "implementation-active" when:
 - Substrate exists and contract is valid
 - Work is in progress to move it from `STUB`/`REAL FAIL` to `REAL PASS`
 
+## App Harness Architecture
+
+The repository now supports **autonomous iOS app testing** through two app-related case families:
+
+### Family A: Early Simulator Harness Capability (Phase 02b)
+**Purpose**: Make app testing lawful NOW, before later product phases complete.
+**Cases**: APPSIM-001 through APPSIM-006
+**Proves**: XcodeBuildMCP availability, simulator targeting, build/install/launch, log harvesting, crash normalization, bounded reset/retry.
+
+### Family B: Early App Runtime-Entry (Phase 02c)
+**Purpose**: Reduce current crash class to earliest failing milestone.
+**Cases**: APP-001 through APP-005
+**Proves**: First ELF exec, second exec/login entry, process-entry contract, login ELF boundaries.
+
+### Family C: Later App Stability/Product (Phase 10)
+**Purpose**: Validate late-stage product behavior.
+**Cases**: APP-006 through APP-010
+**Proves**: Guest loop entry, login-ready, shell-ready, relaunch stability, suspend/resume.
+
+### Two-Layer App Harness Model
+
+**Layer 1: Execution/Orchestration (XcodeBuildMCP)**
+- Drives simulator boot, app build/install/launch
+- Collects structured artifacts
+- Primary operations: `build_run_sim`, `launch_app_logs_sim`, `list_sims`, `boot_sim`, `erase_sims`
+
+**Layer 2: Validation (Meson-wired)**
+- Validates Layer 1 artifacts
+- Enforces schema/contract correctness
+- Remains deterministic and repo-local
+
+### XcodeBuildMCP Operation Mapping
+
+| Stage | Primary Operation | Purpose |
+|-------|-------------------|---------|
+| harness-doctor | `session_show_defaults`, `list_sims` | Verify tool availability |
+| case-preflight | `session_set_defaults` (validation only) | Verify defaults resolvable |
+| case-work/run | `build_run_sim` | Build, install, launch, collect logs |
+| retry/reset | `erase_sims`, `boot_sim` | Clean state retry |
+
+### Milestone-First Crash Reduction
+
+When the app crashes on simulator launch, the agent MUST:
+1. Reduce the failure to the earliest failing app boot milestone
+2. Produce structured artifacts identifying:
+   - Highest completed milestone
+   - First failing milestone
+   - Crash signature hash
+3. NOT jump directly to MMU, TCTI, ELF, ABI, or broad runtime blame
+
+**Boot milestones (in order):**
+1. app_launched
+2. boot_setup_started
+3. first_elf_exec_entered
+4. first_elf_exec_returned
+5. second_execve_started
+6. bin_login_elf_header_parsed
+7. bin_login_program_headers_read
+8. guest_loop_entered
+9. login_ready
+10. shell_ready
+
 ## Phase Gating Policy
 
 **No phase skipping allowed**. The agent MUST:
@@ -121,24 +187,31 @@ A case becomes "implementation-active" when:
 - Refuse to work on phase N+1 cases when phase N gates are incomplete
 - Treat phase N+1 cases as **BLOCKED** if phase N gates are not `REAL PASS`
 
-### Phase Order (12 phases, 103 gate cases)
+### Phase Order (14 phases, 122 gate cases)
+
+Phase order is determined by the **literal ordered sequence** in `execution-order.yaml`, NOT by lexical sort or numeric parsing of phase IDs. Phase IDs are opaque strings.
 
 | Phase | Name | Gate Cases |
 |-------|------|------------|
-| 00 | Trace Harness | 6 cases (TRACE-001 to TRACE-006) |
-| 01 | Decode | 11 cases (DEC-001 to DEC-011) |
-| 02 | Generator | 8 cases (GEN-001 to GEN-008) |
-| 03 | Semantic Exec | 10 cases (EXEC-001 to EXEC-010) |
-| 04 | MMU/ABI | 11 cases (MMU-001 to MMU-006, ABI-001 to ABI-005) |
-| 05 | ELF Loader | 9 cases (ELF-001 to ELF-009) |
-| 06 | Syscalls | 12 cases (SYS-001 to SYS-012) |
-| 07 | Threads/Signals | 9 cases (THR-001 to THR-006, SIG-001 to SIG-003) |
-| 08 | musl | 8 cases (MUSL-001 to MUSL-008) |
-| 09 | glibc | 10 cases (GLIBC-001 to GLIBC-010) |
-| 10 | Tooling/Stability/iOS | 10 cases (TOOL-001 to TOOL-004, STAB-001 to STAB-003, IOS-001 to IOS-003) |
-| 11 | Distro Matrix | 4 cases (DISTRO-001 to DISTRO-004) |
+| 00 | Trace Harness | 6 (TRACE-001..006) |
+| 01 | Decode | 11 (DEC-001..011) |
+| 02 | Generator | 8 (GEN-001..008) |
+| 02b | iOS Simulator Harness | 6 (APPSIM-001..006) |
+| 02c | iOS App Runtime-Entry | 5 (APP-001..005) |
+| 03 | Semantic Exec | 11 (EXEC-001..011) |
+| 04 | MMU/ABI | 11 (MMU-001..006, ABI-001..005) |
+| 05 | ELF Loader | 9 (ELF-001..009) |
+| 06 | Syscalls | 12 (SYS-001..012) |
+| 07 | Threads/Signals | 9 (THR-001..006, SIG-001..003) |
+| 08 | musl | 8 (MUSL-001..008) |
+| 09 | glibc | 10 (GLIBC-001..010) |
+| 10 | Tooling/Stability/App | 12 (TOOL-001..004, STAB-001..003, APP-006..010) |
+| 11 | Distro Matrix | 4 (DISTRO-001..004) |
 
-**Total**: 12 phases, 103 gate cases
+**Total**: 14 phases, 122 gate cases
+
+**Legacy cases (excluded from gate counts):**
+- IOS-001, IOS-002, IOS-003: deprecated, superseded by APPSIM and APP families
 
 ## Execution
 
@@ -148,6 +221,12 @@ meson test case:DEC-001
 
 # Run all bootstrap cases (defined in meson.build)
 meson test --suite bootstrap
+
+# Run app harness capability cases
+meson test --suite app-harness-capability
+
+# Run app runtime-entry cases
+meson test --suite app-runtime-entry
 
 # Validate case schemas
 python3 tests/cases/harness/case_schema.py --validate-all
@@ -203,6 +282,9 @@ Expectation authorities (in priority order):
 8. **No phase skipping** - Complete phase N before phase N+1
 9. **Honest status** - Never claim STUB as REAL PASS
 10. **Refuse illegal ops** - Agent must refuse phase skipping and multi-case loops
+11. **Status ownership** - Only `case-promote` may mutate status.yaml
+12. **Milestone-first debugging** - Reduce crashes to earliest failing milestone before subsystem blame
+13. **XcodeBuildMCP canonical** - Use XcodeBuildMCP as primary simulator control surface
 
 ## File Requirements
 
@@ -220,6 +302,7 @@ Expectation authorities (in priority order):
 | musl fixture | `case.yaml` + fixtures |
 | glibc fixture | `case.yaml` + fixtures |
 | iOS fixture | `case.yaml`, `expected.yaml` (SHOULD) |
+| iOS app harness | `case.yaml`, expected app artifacts |
 | Distro fixture | `case.yaml` + fixtures |
 
 ## Autonomous Operation Checklist
@@ -233,6 +316,7 @@ Before starting work, verify:
 - [ ] Validated case.yaml against schema
 - [ ] Confirmed only working on active case
 - [ ] No phase skipping intended
+- [ ] For app cases: XcodeBuildMCP available and simulator targetable
 
 ## Troubleshooting
 
@@ -255,3 +339,15 @@ Before starting work, verify:
 - Check file requirements table above
 - Create required files per case type
 - Do not fake expected content
+
+**"App case crashes without milestone artifacts"**
+- Ensure boot_milestones.json is being generated
+- Check crash_signature.json is produced on crash
+- Verify simulator logs are being harvested
+- Review milestone-first debugging policy
+
+**"Status promotion refused"**
+- Verify required app artifacts present
+- Check milestone ordering consistency
+- Ensure crash signature present if crash occurred
+- Confirm structured artifacts match narrative

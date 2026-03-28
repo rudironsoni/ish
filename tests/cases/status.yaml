@@ -2,9 +2,9 @@
 # Machine-readable evidence-bearing status for all gate cases
 # Status values: REAL_PASS | REAL_FAIL | STUB | BLOCKED | INVALID
 
-version: "2.0"
+version: "3.0"
 last_updated: "2026-03-28T05:00:00Z"
-total_cases: 108
+total_cases: 122
 
 # Phase 00: Trace Subsystem Validation
 phase_00:
@@ -564,6 +564,345 @@ phase_02:
       block_reason: null
       evidence_hash: null
       artifact_dir: "tests/cases/02-generator/GEN-008-block-sidecar-map"
+
+# Phase 02b: iOS Simulator Harness Capability
+phase_02b:
+  phase_id: "02b-ios-simulator-harness"
+  name: "iOS Simulator Harness Capability"
+  cases:
+    APPSIM-001:
+      case_id: "APPSIM-001"
+      phase: "02b-ios-simulator-harness"
+      current_status: STUB
+      gate_case: true
+      scaffolded: true
+      expected_artifacts:
+        - "xcodebuildmcp_capability.json"
+        - "app_target_identity.json"
+        - "simulator_targets.json"
+        - "report.json"
+      observed_artifacts: []
+      verifier_result: null
+      anti_slop_result: null
+      review_skeptic_result: null
+      phase_gate_result: null
+      last_run_command: null
+      last_run_at: null
+      block_reason: null
+      evidence_hash: null
+      artifact_dir: "tests/cases/02b-ios-simulator-harness/APPSIM-001-xcodebuildmcp-availability"
+      app_specific_fields:
+        simulator_tool: xcodebuildmcp
+        harness_kind: ios_simulator_app
+        milestone_reached: null
+        crash_signature_hash: null
+        retry_count: 0
+        relaunch_count: 0
+    APPSIM-002:
+      case_id: "APPSIM-002"
+      phase: "02b-ios-simulator-harness"
+      current_status: STUB
+      gate_case: true
+      scaffolded: true
+      expected_artifacts:
+        - "simulator_target.json"
+        - "device_runtime.json"
+        - "boot_status.json"
+        - "report.json"
+      observed_artifacts: []
+      verifier_result: null
+      anti_slop_result: null
+      review_skeptic_result: null
+      phase_gate_result: null
+      last_run_command: null
+      last_run_at: null
+      block_reason: null
+      evidence_hash: null
+      artifact_dir: "tests/cases/02b-ios-simulator-harness/APPSIM-002-simulator-target-selection-and-boot"
+      app_specific_fields:
+        simulator_tool: xcodebuildmcp
+        harness_kind: ios_simulator_app
+        milestone_reached: null
+        crash_signature_hash: null
+        retry_count: 0
+        relaunch_count: 0
+    APPSIM-003:
+      case_id: "APPSIM-003"
+      phase: "02b-ios-simulator-harness"
+      current_status: STUB
+      gate_case: true
+      scaffolded: true
+      expected_artifacts:
+        - "sim_launch.json"
+        - "build_result.json"
+        - "install_result.json"
+        - "launch_result.json"
+        - "alive_check.json"
+        - "report.json"
+      observed_artifacts: []
+      verifier_result: null
+      anti_slop_result: null
+      review_skeptic_result: null
+      phase_gate_result: null
+      last_run_command: null
+      last_run_at: null
+      block_reason: null
+      evidence_hash: null
+      artifact_dir: "tests/cases/02b-ios-simulator-harness/APPSIM-003-build-install-launch-smoke"
+      app_specific_fields:
+        simulator_tool: xcodebuildmcp
+        harness_kind: ios_simulator_app
+        milestone_reached: null
+        crash_signature_hash: null
+        retry_count: 0
+        relaunch_count: 0
+        primary_operation: build_run_sim
+    APPSIM-004:
+      case_id: "APPSIM-004"
+      phase: "02b-ios-simulator-harness"
+      current_status: STUB
+      gate_case: true
+      scaffolded: true
+      expected_artifacts:
+        - "sim_launch.json"
+        - "simulator_log_tail.txt"
+        - "boot_milestones.json"
+        - "report.json"
+      observed_artifacts: []
+      verifier_result: null
+      anti_slop_result: null
+      review_skeptic_result: null
+      phase_gate_result: null
+      last_run_command: null
+      last_run_at: null
+      block_reason: null
+      evidence_hash: null
+      artifact_dir: "tests/cases/02b-ios-simulator-harness/APPSIM-004-log-harvest-and-milestone-capture"
+      app_specific_fields:
+        simulator_tool: xcodebuildmcp
+        harness_kind: ios_simulator_app
+        milestone_reached: null
+        crash_signature_hash: null
+        retry_count: 0
+        relaunch_count: 0
+    APPSIM-005:
+      case_id: "APPSIM-005"
+      phase: "02b-ios-simulator-harness"
+      current_status: STUB
+      gate_case: true
+      scaffolded: true
+      expected_artifacts:
+        - "crash_signature.json"
+        - "normalized_hash.txt"
+        - "milestone_context.json"
+        - "report.json"
+      observed_artifacts: []
+      verifier_result: null
+      anti_slop_result: null
+      review_skeptic_result: null
+      phase_gate_result: null
+      last_run_command: null
+      last_run_at: null
+      block_reason: null
+      evidence_hash: null
+      artifact_dir: "tests/cases/02b-ios-simulator-harness/APPSIM-005-crash-signature-normalization"
+      app_specific_fields:
+        simulator_tool: xcodebuildmcp
+        harness_kind: ios_simulator_app
+        milestone_reached: null
+        crash_signature_hash: null
+        retry_count: 0
+        relaunch_count: 0
+    APPSIM-006:
+      case_id: "APPSIM-006"
+      phase: "02b-ios-simulator-harness"
+      current_status: STUB
+      gate_case: true
+      scaffolded: true
+      expected_artifacts:
+        - "reset_result.json"
+        - "relaunch_result.json"
+        - "retry_log.json"
+        - "report.json"
+      observed_artifacts: []
+      verifier_result: null
+      anti_slop_result: null
+      review_skeptic_result: null
+      phase_gate_result: null
+      last_run_command: null
+      last_run_at: null
+      block_reason: null
+      evidence_hash: null
+      artifact_dir: "tests/cases/02b-ios-simulator-harness/APPSIM-006-bounded-reset-and-relaunch"
+      app_specific_fields:
+        simulator_tool: xcodebuildmcp
+        harness_kind: ios_simulator_app
+        milestone_reached: null
+        crash_signature_hash: null
+        retry_count: 0
+        relaunch_count: 0
+        max_retries: 1
+
+# Phase 02c: iOS App Runtime-Entry
+phase_02c:
+  phase_id: "02c-ios-app-runtime-entry"
+  name: "iOS App Runtime-Entry"
+  cases:
+    APP-001:
+      case_id: "APP-001"
+      phase: "02c-ios-app-runtime-entry"
+      current_status: STUB
+      gate_case: true
+      scaffolded: true
+      expected_artifacts:
+        - "sim_launch.json"
+        - "boot_milestones.json"
+        - "first_elf_exec.json"
+        - "report.json"
+      observed_artifacts: []
+      verifier_result: null
+      anti_slop_result: null
+      review_skeptic_result: null
+      phase_gate_result: null
+      last_run_command: null
+      last_run_at: null
+      block_reason: "Requires APPSIM-003 REAL PASS"
+      evidence_hash: null
+      artifact_dir: "tests/cases/02c-ios-app-runtime-entry/APP-001-boot-to-first-elf-exec"
+      app_specific_fields:
+        simulator_tool: xcodebuildmcp
+        harness_kind: ios_simulator_app
+        milestone_reached: null
+        highest_completed_milestone: null
+        first_failing_milestone: null
+        crash_signature_hash: null
+        retry_count: 0
+        relaunch_count: 0
+    APP-002:
+      case_id: "APP-002"
+      phase: "02c-ios-app-runtime-entry"
+      current_status: STUB
+      gate_case: true
+      scaffolded: true
+      expected_artifacts:
+        - "sim_launch.json"
+        - "boot_milestones.json"
+        - "first_elf_return.json"
+        - "report.json"
+      observed_artifacts: []
+      verifier_result: null
+      anti_slop_result: null
+      review_skeptic_result: null
+      phase_gate_result: null
+      last_run_command: null
+      last_run_at: null
+      block_reason: "Requires APPSIM-003 REAL PASS"
+      evidence_hash: null
+      artifact_dir: "tests/cases/02c-ios-app-runtime-entry/APP-002-first-elf-exec-return"
+      app_specific_fields:
+        simulator_tool: xcodebuildmcp
+        harness_kind: ios_simulator_app
+        milestone_reached: null
+        highest_completed_milestone: null
+        first_failing_milestone: null
+        crash_signature_hash: null
+        retry_count: 0
+        relaunch_count: 0
+    APP-003:
+      case_id: "APP-003"
+      phase: "02c-ios-app-runtime-entry"
+      current_status: STUB
+      gate_case: true
+      scaffolded: true
+      description: "Smallest lawful app case for current crash class - second exec/login entry"
+      expected_artifacts:
+        - "sim_launch.json"
+        - "boot_milestones.json"
+        - "second_exec.json"
+        - "crash_signature.json"
+        - "report.json"
+      observed_artifacts: []
+      verifier_result: null
+      anti_slop_result: null
+      review_skeptic_result: null
+      phase_gate_result: null
+      last_run_command: null
+      last_run_at: null
+      block_reason: "Requires APPSIM-003 REAL PASS"
+      evidence_hash: null
+      artifact_dir: "tests/cases/02c-ios-app-runtime-entry/APP-003-second-exec-login-entry"
+      app_specific_fields:
+        simulator_tool: xcodebuildmcp
+        harness_kind: ios_simulator_app
+        milestone_reached: null
+        highest_completed_milestone: null
+        first_failing_milestone: null
+        crash_signature_hash: null
+        retry_count: 0
+        relaunch_count: 0
+        target_milestone: second_execve_started
+    APP-004:
+      case_id: "APP-004"
+      phase: "02c-ios-app-runtime-entry"
+      current_status: STUB
+      gate_case: true
+      scaffolded: true
+      description: "Adjacent truth case for APP-003 - process entry contract validation"
+      expected_artifacts:
+        - "sim_launch.json"
+        - "process_entry.json"
+        - "argc_argv_envp.json"
+        - "auxv.json"
+        - "report.json"
+      observed_artifacts: []
+      verifier_result: null
+      anti_slop_result: null
+      review_skeptic_result: null
+      phase_gate_result: null
+      last_run_command: null
+      last_run_at: null
+      block_reason: "Requires APPSIM-003 REAL PASS"
+      evidence_hash: null
+      artifact_dir: "tests/cases/02c-ios-app-runtime-entry/APP-004-process-entry-register-contract"
+      app_specific_fields:
+        simulator_tool: xcodebuildmcp
+        harness_kind: ios_simulator_app
+        milestone_reached: null
+        highest_completed_milestone: null
+        first_failing_milestone: null
+        crash_signature_hash: null
+        retry_count: 0
+        relaunch_count: 0
+    APP-005:
+      case_id: "APP-005"
+      phase: "02c-ios-app-runtime-entry"
+      current_status: STUB
+      gate_case: true
+      scaffolded: true
+      expected_artifacts:
+        - "sim_launch.json"
+        - "login_elf_header.json"
+        - "program_headers.json"
+        - "report.json"
+      observed_artifacts: []
+      verifier_result: null
+      anti_slop_result: null
+      review_skeptic_result: null
+      phase_gate_result: null
+      last_run_command: null
+      last_run_at: null
+      block_reason: "Requires APPSIM-003 REAL PASS"
+      evidence_hash: null
+      artifact_dir: "tests/cases/02c-ios-app-runtime-entry/APP-005-login-elf-program-header-boundary"
+      app_specific_fields:
+        simulator_tool: xcodebuildmcp
+        harness_kind: ios_simulator_app
+        milestone_reached: null
+        highest_completed_milestone: null
+        first_failing_milestone: null
+        crash_signature_hash: null
+        retry_count: 0
+        relaunch_count: 0
 
 # Phase 03: Semantic Execution
 phase_03:
@@ -2401,6 +2740,9 @@ phase_10:
       block_reason: null
       evidence_hash: null
       artifact_dir: "tests/cases/10-tooling-stability-ios/IOS-001-execution-strategy-sandbox"
+      legacy: true
+      superseded_by: APPSIM-003
+      exclude_from_selection: true
     IOS-002:
       case_id: "IOS-002"
       phase: "10-tooling-stability-ios"
@@ -2422,6 +2764,9 @@ phase_10:
       block_reason: null
       evidence_hash: null
       artifact_dir: "tests/cases/10-tooling-stability-ios/IOS-002-suspend-resume"
+      legacy: true
+      superseded_by: APP-009
+      exclude_from_selection: true
     IOS-003:
       case_id: "IOS-003"
       phase: "10-tooling-stability-ios"
@@ -2445,6 +2790,159 @@ phase_10:
       block_reason: null
       evidence_hash: null
       artifact_dir: "tests/cases/10-tooling-stability-ios/IOS-003-trace-artifact-export"
+      legacy: true
+      superseded_by: APPSIM-004
+      exclude_from_selection: true
+    APP-006:
+      case_id: "APP-006"
+      phase: "10-tooling-stability-ios"
+      current_status: STUB
+      gate_case: true
+      scaffolded: true
+      expected_artifacts:
+        - "sim_launch.json"
+        - "boot_milestones.json"
+        - "guest_loop.json"
+        - "report.json"
+      observed_artifacts: []
+      verifier_result: null
+      anti_slop_result: null
+      review_skeptic_result: null
+      phase_gate_result: null
+      last_run_command: null
+      last_run_at: null
+      block_reason: "Requires APP-001..005 progression"
+      evidence_hash: null
+      artifact_dir: "tests/cases/10-tooling-stability-ios/APP-006-guest-loop-entry"
+      app_specific_fields:
+        simulator_tool: xcodebuildmcp
+        harness_kind: ios_simulator_app
+        milestone_reached: null
+        highest_completed_milestone: null
+        first_failing_milestone: null
+        crash_signature_hash: null
+        retry_count: 0
+        relaunch_count: 0
+    APP-007:
+      case_id: "APP-007"
+      phase: "10-tooling-stability-ios"
+      current_status: STUB
+      gate_case: true
+      scaffolded: true
+      expected_artifacts:
+        - "sim_launch.json"
+        - "boot_milestones.json"
+        - "login_ready.json"
+        - "report.json"
+      observed_artifacts: []
+      verifier_result: null
+      anti_slop_result: null
+      review_skeptic_result: null
+      phase_gate_result: null
+      last_run_command: null
+      last_run_at: null
+      block_reason: "Requires APP-001..005 progression"
+      evidence_hash: null
+      artifact_dir: "tests/cases/10-tooling-stability-ios/APP-007-login-ready"
+      app_specific_fields:
+        simulator_tool: xcodebuildmcp
+        harness_kind: ios_simulator_app
+        milestone_reached: null
+        highest_completed_milestone: null
+        first_failing_milestone: null
+        crash_signature_hash: null
+        retry_count: 0
+        relaunch_count: 0
+    APP-008:
+      case_id: "APP-008"
+      phase: "10-tooling-stability-ios"
+      current_status: STUB
+      gate_case: true
+      scaffolded: true
+      expected_artifacts:
+        - "sim_launch.json"
+        - "boot_milestones.json"
+        - "shell_ready.json"
+        - "report.json"
+      observed_artifacts: []
+      verifier_result: null
+      anti_slop_result: null
+      review_skeptic_result: null
+      phase_gate_result: null
+      last_run_command: null
+      last_run_at: null
+      block_reason: "Requires APP-001..005 progression"
+      evidence_hash: null
+      artifact_dir: "tests/cases/10-tooling-stability-ios/APP-008-shell-ready"
+      app_specific_fields:
+        simulator_tool: xcodebuildmcp
+        harness_kind: ios_simulator_app
+        milestone_reached: null
+        highest_completed_milestone: null
+        first_failing_milestone: null
+        crash_signature_hash: null
+        retry_count: 0
+        relaunch_count: 0
+    APP-009:
+      case_id: "APP-009"
+      phase: "10-tooling-stability-ios"
+      current_status: STUB
+      gate_case: true
+      scaffolded: true
+      expected_artifacts:
+        - "sim_launch.json"
+        - "relaunch_results.json"
+        - "stability_log.json"
+        - "report.json"
+      observed_artifacts: []
+      verifier_result: null
+      anti_slop_result: null
+      review_skeptic_result: null
+      phase_gate_result: null
+      last_run_command: null
+      last_run_at: null
+      block_reason: "Requires APP-001..005 progression"
+      evidence_hash: null
+      artifact_dir: "tests/cases/10-tooling-stability-ios/APP-009-relaunch-stability"
+      app_specific_fields:
+        simulator_tool: xcodebuildmcp
+        harness_kind: ios_simulator_app
+        milestone_reached: null
+        highest_completed_milestone: null
+        first_failing_milestone: null
+        crash_signature_hash: null
+        retry_count: 0
+        relaunch_count: 0
+    APP-010:
+      case_id: "APP-010"
+      phase: "10-tooling-stability-ios"
+      current_status: STUB
+      gate_case: true
+      scaffolded: true
+      expected_artifacts:
+        - "sim_launch.json"
+        - "suspend_resume.json"
+        - "foreground_log.json"
+        - "report.json"
+      observed_artifacts: []
+      verifier_result: null
+      anti_slop_result: null
+      review_skeptic_result: null
+      phase_gate_result: null
+      last_run_command: null
+      last_run_at: null
+      block_reason: "Requires APP-001..005 progression"
+      evidence_hash: null
+      artifact_dir: "tests/cases/10-tooling-stability-ios/APP-010-suspend-resume-foreground"
+      app_specific_fields:
+        simulator_tool: xcodebuildmcp
+        harness_kind: ios_simulator_app
+        milestone_reached: null
+        highest_completed_milestone: null
+        first_failing_milestone: null
+        crash_signature_hash: null
+        retry_count: 0
+        relaunch_count: 0
 
 # Phase 11: Distribution Matrix
 phase_11:
@@ -2538,13 +3036,13 @@ phase_11:
 
 # Evidence-bearing summary
 summary:
-  total_stub: 10
+  total_stub: 26
   total_real_pass: 102
   total_real_fail: 0
   total_blocked: 0
   total_invalid: 0
-  earliest_unsatisfied_phase: "03-semantic-exec"
-  earliest_unsatisfied_case: "EXEC-001"
+  earliest_unsatisfied_phase: "02b-ios-simulator-harness"
+  earliest_unsatisfied_case: "APPSIM-001"
   last_updated: "2026-03-28T12:00:00Z"
   evidence_completeness: "PARTIAL"  # FULL | PARTIAL | NONE
   verification_status: "PARTIAL_COMPLETE"
@@ -2552,14 +3050,18 @@ summary:
     Phase 00 (Trace): 6/6 REAL_PASS
     Phase 01 (Decode): 11/11 REAL_PASS
     Phase 02 (Generator): 8/8 REAL_PASS
-    Phase 03 (Semantic Execution): 0/10 STUB - SIMULATED EXECUTION ONLY
+    Phase 02b (iOS Simulator Harness): 6/6 STUB - NEW APP HARNESS CAPABILITY
+    Phase 02c (iOS App Runtime-Entry): 5/5 STUB - NEW CRASH REDUCTION TARGETS
+    Phase 03 (Semantic Execution): 0/11 STUB - SIMULATED EXECUTION ONLY
     Phase 04 (MMU/ABI): 11/11 REAL_PASS
     Phase 05 (ELF Loader): 9/9 REAL_PASS
     Phase 06 (Syscalls Core/FS/Net): 12/12 REAL_PASS
     Phase 07 (Threads, Signals, TLS): 9/9 REAL_PASS
     Phase 08 (musl libc Compatibility): 8/8 REAL_PASS
     Phase 09 (glibc Compatibility): 10/10 REAL_PASS
-    Phase 10 (Tooling, Stability, iOS): 11/11 REAL_PASS
+    Phase 10 (Tooling, Stability, App): 3/12 REAL_PASS, 5/12 STUB (APP-006..010)
     Phase 11 (Distribution Matrix): 4/4 REAL_PASS
-    KNOWN_ISSUE: App crashes in real execution - semantic tests simulate only
-    ACTION_NEEDED: EXEC-001 through EXEC-010 need real TCTI execution tests
+    LEGACY: IOS-001, IOS-002, IOS-003 deprecated, superseded by APPSIM and APP families
+    SMALLEST_LAWFUL_APP_CASE: APP-003-second-exec-login-entry (crash reduction target)
+    ACTION_NEEDED: APPSIM-001 through APPSIM-006 need implementation to make app harness lawful
+    ACTION_NEEDED: APP-001 through APP-005 for milestone-first crash reduction

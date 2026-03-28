@@ -1,0 +1,17 @@
+authority_chain:
+  - name: "XcodeBuildMCP Tools"
+    source: "https://github.com/getsentry/XcodeBuildMCP/blob/main/docs/TOOLS.md"
+    description: "Canonical simulator/build/launch control surface"
+    
+  - name: "XcodeBuildMCP Configuration"
+    source: "https://github.com/getsentry/XcodeBuildMCP/blob/main/docs/CONFIGURATION.md"
+    description: "Session defaults and workflow configuration"
+    
+  - name: "Xcode Project Structure"
+    source: "file://ish/iSH.xcodeproj"
+    description: "iSH iOS app project"
+
+expectation_grounding: |
+  This case expects XcodeBuildMCP to be available and functional.
+  The expectation authority is the XcodeBuildMCP tool documentation
+  and the actual iSH Xcode project structure.
