@@ -6,8 +6,9 @@ name: Test Migration - User Directions
 
 ## Decision Record
 
-**Status:** VERIFIED
+**Status:** COMPLETE
 **Date:** 2026-03-28
+**Migration Verified:** EXEC-REAL-001 passes with real TCTI execution
 
 ### Decisions Made
 
@@ -32,25 +33,27 @@ name: Test Migration - User Directions
 |--------|-------------|--------|
 | tests/aarch64/test_tcti_exec_str_postindex.c | EXEC-REAL-001 | REGISTERED |
 
-### Tests Deleted (Covered Elsewhere or Irrelevant)
+### Tests Deleted (Migrated to Case System)
 
-| Source | Reason |
-|--------|--------|
-| tests/Unit/DecoderTests.m | Covered by DEC-001..DEC-011 |
-| tests/Unit/GeneratorTests.m | Covered by GEN-001..GEN-008 |
-| tests/Unit/GadgetTests.m | CPU structure only, no semantic value |
-| tests/Unit/EmulatorTests.m | All XCTSkip |
-| tests/Unit/IntegrationTests.m | Decode patterns covered |
-| tests/e2e/* | Replaced by MUSL/GLIBC/DISTRO cases |
+| Source | Destination | Status |
+|--------|-------------|--------|
+| tests/Unit/ | DEC-001..DEC-011, GEN-001..GEN-008 | DELETED |
+| tests/e2e/* | MUSL/GLIBC/DISTRO cases | DELETED |
+| tests/aarch64/test_tcti_exec_str_postindex.c | EXEC-REAL-001 | REAL_PASS |
 
-## Remaining Directory Structure
+## Old Directory Structure (DELETED)
+
+The following directories were removed after successful migration:
+- `tests/Unit/` - XCTest files (all XCTSkip anyway) - DELETED
+- `tests/e2e/` - bash-based E2E tests - DELETED
+
+## Current Directory Structure
 
 ```
 tests/
 ├── aarch64/          # Standalone C tests (kept)
-├── cases/            # Case system (EXEC-REAL-001 ADDED)
-└── [Unit/ deleted]   # XCTests removed
-├── [e2e/ deleted]    # bash E2E removed
+├── cases/            # Case system (EXEC-REAL-001 as Phase 03 gate)
+└── DEPRECATED_TESTS.md  # This file - migration documentation
 ```
 
 ## Verification
