@@ -1,0 +1,51 @@
+brk_requirements:
+  operations:
+    - operation: brk(0) - get current break
+      expected_result: returns current program break address
+      validation: address is page-aligned
+
+    - operation: brk(increment) - grow heap
+      expected_result: returns new break address
+      validation: new address = old address + increment
+
+    - operation: brk(-increment) - shrink heap
+      expected_result: returns new break address
+      validation: new address = old address - increment
+      platform_note: deprecated on macOS, may not support shrinking
+
+  heap_properties:
+    - property: initial_break
+      description: program break starts after BSS/data segment
+      validation: address is valid and accessible
+
+    - property: heap_growth
+      description: heap grows toward higher addresses
+      validation: new_brk > old_brk after positive sbrk
+
+    - property: accessibility
+      description: newly allocated heap is read/write accessible
+      validation: can write and read back values
+
+invariants:
+  - "brk returns (void*)-1 on failure, sets errno"
+  - "heap memory is zero-initialized (typically)"
+  - "brk address is page-aligned"
+
+validation_checks:
+  - name: brk_query
+    assertion: "sbrk(0) returns valid address"
+    critical: true
+
+  - name: heap_growth
+    assertion: "sbrk(4096) returns address + 4096 aligned"
+    critical: true
+
+  - name: heap_access
+    assertion: "can write to and read from new heap region"
+    critical: true
+
+success_criteria:
+  - all critical checks pass
+  - heap growth succeeds
+  - new heap memory is accessible
+  - no memory corruption

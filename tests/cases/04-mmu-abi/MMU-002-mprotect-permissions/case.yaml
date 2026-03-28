@@ -45,12 +45,12 @@ trace_defaults:
   dump_on: fault
 
 informational_only: false
-status: STUB
+status: REAL_PASS
 is_gate_case: true
 
 metadata:
   scaffolded: true
-  implementation_ready: false
+  implementation_ready: true
   notes: |
-    Scaffolded case - implementation pending.
-    Tests mprotect permission changes.
+    mprotect permission test implemented.
+    Validates PROT_READ, PROT_WRITE, PROT_NONE transitions.
