@@ -1,0 +1,35 @@
+case_id: THR-005
+phase: 07-threads-signals-tls
+description: pthread_mutex and pthread_condvar synchronization primitives work
+
+expected_behavior:
+  - pthread_mutex_init initializes mutex correctly
+  - pthread_mutex_lock acquires mutex
+  - pthread_mutex_unlock releases mutex
+  - pthread_mutex_trylock attempts non-blocking lock
+  - pthread_cond_init initializes condition variable
+  - pthread_cond_signal signals waiting threads
+
+expected_artifacts:
+  report.json:
+    schema: case_report_v1
+    required_fields:
+      - case_id: "THR-005"
+      - phase: "07-threads-signals-tls"
+      - harness: "thread_signal_fixture"
+      - passed: true
+
+  thread_log.json:
+    schema: thread_log_v1
+    required_events:
+      - event: "pthread_mutex_init"
+      - event: "pthread_mutex_lock"
+      - event: "pthread_mutex_unlock"
+      - event: "pthread_cond_signal"
+
+success_criteria:
+  - Harness exits with code 0
+  - All mutex operations return 0 (success)
+  - Mutex lock/unlock pairs work correctly
+  - trylock succeeds on unlocked mutex
+  - Condition variable signal completes successfully

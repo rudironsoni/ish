@@ -1,6 +1,9 @@
 # Harness binaries for case system
 # Each harness reads case.yaml and produces artifacts
 
+# Thread dependency for thread/signal tests
+thread_dep = dependency('threads')
+
 decode_golden_harness = executable('decode_golden',
     'decode_golden.c',
     include_directories: [include_directories('../../..')],
@@ -47,5 +50,13 @@ syscall_fixture_harness = executable('syscall_fixture',
     'syscall_fixture.c',
     include_directories: [include_directories('../../..')],
     link_with: [libish_emu],
+    install: false
+)
+
+thread_signal_fixture_harness = executable('thread_signal_fixture',
+    'thread_signal_fixture.c',
+    include_directories: [include_directories('../../..')],
+    link_with: [libish_emu],
+    dependencies: [thread_dep],
     install: false
 )
