@@ -54,5 +54,6 @@ metadata:
   scaffolded: true
   implementation_ready: false
   notes: |
-    Case implemented and passing.
-    Tests SVC instruction entry into syscall handling.
+    SIMULATED EXECUTION - semantic_micro harness runs C simulation.
+    Does NOT execute real TCTI gadgets via tcti_entry_block().
+    For real TCTI execution, see EXEC-REAL-001.

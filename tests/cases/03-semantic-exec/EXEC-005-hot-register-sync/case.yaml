@@ -46,13 +46,13 @@ trace_defaults:
   dump_on: fault
 
 informational_only: false
-status: REAL_PASS
+status: STUB
 is_gate_case: true
 
 metadata:
   scaffolded: true
   implementation_ready: true
   notes: |
-    Hot register sync test passed.
-    x1, x2 preserved across simulated fast/helper transition.
-    Store and post-index update verified.
+    SIMULATED EXECUTION - semantic_micro harness runs C simulation.
+    Does NOT execute real TCTI gadgets via tcti_entry_block().
+    For real TCTI execution, see EXEC-REAL-001.

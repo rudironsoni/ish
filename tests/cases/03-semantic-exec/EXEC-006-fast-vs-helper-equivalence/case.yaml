@@ -53,5 +53,6 @@ metadata:
   scaffolded: true
   implementation_ready: false
   notes: |
-    Case implemented - harness executes ADD immediate instruction
-    and verifies PC advancement.
+    SIMULATED EXECUTION - semantic_micro harness runs C simulation.
+    Does NOT execute real TCTI gadgets via tcti_entry_block().
+    For real TCTI execution, see EXEC-REAL-001.
