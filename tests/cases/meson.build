@@ -478,3 +478,67 @@ test('case:SYS-012', syscall_fixture_harness,
      suite: ['cases', 'phase-06-syscalls-core-fs-net'],
      timeout: 60,
      is_parallel: false)
+
+# Phase 07: Threads, Signals, and TLS
+test('case:THR-001', thread_signal_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '07-threads-signals-tls/THR-001-clone-thread-start/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/THR-001'],
+     suite: ['cases', 'phase-07-threads-signals-tls', 'bootstrap'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:THR-002', thread_signal_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '07-threads-signals-tls/THR-002-set-tid-address/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/THR-002'],
+     suite: ['cases', 'phase-07-threads-signals-tls'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:THR-003', thread_signal_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '07-threads-signals-tls/THR-003-set-robust-list/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/THR-003'],
+     suite: ['cases', 'phase-07-threads-signals-tls'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:THR-004', thread_signal_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '07-threads-signals-tls/THR-004-futex-wait-wake/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/THR-004'],
+     suite: ['cases', 'phase-07-threads-signals-tls'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:THR-005', thread_signal_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '07-threads-signals-tls/THR-005-pthread-mutex-condvar/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/THR-005'],
+     suite: ['cases', 'phase-07-threads-signals-tls'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:THR-006', thread_signal_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '07-threads-signals-tls/THR-006-thread-local-storage/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/THR-006'],
+     suite: ['cases', 'phase-07-threads-signals-tls'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:SIG-001', thread_signal_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '07-threads-signals-tls/SIG-001-rt-sigaction-mask/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/SIG-001'],
+     suite: ['cases', 'phase-07-threads-signals-tls'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:SIG-002', thread_signal_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '07-threads-signals-tls/SIG-002-signal-delivery/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/SIG-002'],
+     suite: ['cases', 'phase-07-threads-signals-tls'],
+     timeout: 60,
+     is_parallel: false)
+
+test('case:SIG-003', thread_signal_fixture_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '07-threads-signals-tls/SIG-003-sa-restart-and-fatal-signal/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/SIG-003'],
+     suite: ['cases', 'phase-07-threads-signals-tls'],
+     timeout: 60,
+     is_parallel: false)

@@ -1,0 +1,33 @@
+case_id: THR-001
+phase: 07-threads-signals-tls
+description: pthread_create and pthread_join operations work correctly
+
+expected_behavior:
+  - pthread_create successfully creates a new thread
+  - Thread receives correct argument and produces expected result
+  - pthread_join successfully waits for thread completion
+  - Thread ID is valid and non-zero
+
+expected_artifacts:
+  report.json:
+    schema: case_report_v1
+    required_fields:
+      - case_id: "THR-001"
+      - phase: "07-threads-signals-tls"
+      - harness: "thread_signal_fixture"
+      - passed: true
+      - artifacts: ["thread_log.json", "report.json"]
+
+  thread_log.json:
+    schema: thread_log_v1
+    required_events:
+      - event: "pthread_create"
+      - event: "pthread_join"
+
+success_criteria:
+  - Harness exits with code 0
+  - report.json indicates passed: true
+  - thread_log.json contains expected event sequence
+  - pthread_create returns 0 (success)
+  - pthread_join returns 0 (success)
+  - Thread result matches expected value (10)

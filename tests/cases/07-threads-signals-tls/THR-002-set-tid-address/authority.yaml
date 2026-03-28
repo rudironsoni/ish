@@ -1,0 +1,24 @@
+case_id: THR-002
+authority_type: runtime_fixture
+
+semantic_authority:
+  source: Linux Kernel Documentation
+  document: set_tid_address(2) man page
+  reference: Linux Programmer's Manual
+
+abi_authority:
+  source: Linux AArch64 System Call ABI
+  syscall_number: SYS_set_tid_address
+  arguments:
+    - uaddr: pointer to int for clear child TID
+  return_value: Current thread ID
+
+platform_notes:
+  - Linux-specific syscall (not available on macOS)
+  - Used by pthread implementation for thread cleanup
+  - Enables futex-based thread joining
+
+known_gaps:
+  - Does not verify futex wake on thread exit
+  - Does not test multi-threaded TID scenarios
+  - Does not verify TID reuse behavior

@@ -39,12 +39,12 @@ trace_defaults:
   dump_on: none
 
 informational_only: false
-status: STUB
+status: REAL_PASS
 is_gate_case: true
 
 metadata:
   scaffolded: true
-  implementation_ready: false
+  implementation_ready: true
   notes: |
-    Scaffolded case - implementation pending.
-    Prerequisites: THR-005 must be REAL PASS. Tests TLS mechanisms.
+    Implemented. Tests thread-local storage via __thread keyword.
+    Prerequisites: THR-005 must be REAL PASS.

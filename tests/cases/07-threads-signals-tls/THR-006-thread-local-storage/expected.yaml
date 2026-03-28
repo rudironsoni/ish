@@ -1,0 +1,33 @@
+case_id: THR-006
+phase: 07-threads-signals-tls
+description: Thread-local storage via __thread/TLS works correctly
+
+expected_behavior:
+  - __thread variables have per-thread storage
+  - Each thread sees its own copy of TLS variables
+  - Main thread TLS is not affected by child threads
+  - TLS initialization values are correct
+  - TLS variables are accessible via compiler-generated code
+
+expected_artifacts:
+  report.json:
+    schema: case_report_v1
+    required_fields:
+      - case_id: "THR-006"
+      - phase: "07-threads-signals-tls"
+      - harness: "thread_signal_fixture"
+      - passed: true
+
+  thread_log.json:
+    schema: thread_log_v1
+    required_events:
+      - event: "tls_init"
+      - event: "pthread_create_tls"
+      - event: "tls_verify"
+
+success_criteria:
+  - Harness exits with code 0
+  - TLS initial value matches expected (42)
+  - Child threads can modify their TLS independently
+  - Main thread TLS remains unchanged after child threads exit
+  - TLS buffer can be written and read correctly

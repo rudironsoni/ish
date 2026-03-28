@@ -1,0 +1,35 @@
+case_id: SIG-003
+phase: 07-threads-signals-tls
+description: SA_RESTART flag and fatal signal handling work correctly
+
+expected_behavior:
+  - SA_RESTART flag allows automatic syscall restart
+  - sigaction with SA_RESTART sets appropriate handler behavior
+  - SIG_DFL restores default signal handling
+  - SIG_IGN ignores signals
+  - Ignored signals do not cause process termination
+  - Alarm signals can interrupt system calls
+
+expected_artifacts:
+  report.json:
+    schema: case_report_v1
+    required_fields:
+      - case_id: "SIG-003"
+      - phase: "07-threads-signals-tls"
+      - harness: "thread_signal_fixture"
+      - passed: true
+
+  thread_log.json:
+    schema: thread_log_v1
+    required_events:
+      - event: "sa_restart"
+      - event: "sig_dfl"
+      - event: "sig_ign"
+
+success_criteria:
+  - Harness exits with code 0
+  - sigaction with SA_RESTART succeeds
+  - Signal handler receives alarm signal
+  - sigaction SIG_DFL succeeds
+  - sigaction SIG_IGN succeeds
+  - Ignored signal does not terminate process

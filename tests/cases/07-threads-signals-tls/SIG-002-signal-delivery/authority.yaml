@@ -1,0 +1,30 @@
+case_id: SIG-002
+authority_type: runtime_fixture
+
+semantic_authority:
+  source: IEEE Std 1003.1-2017 (POSIX.1-2017)
+  document: Signal delivery in multi-threaded programs
+  reference: pthread_sigmask, raise, kill specification
+
+abi_authority:
+  source: Linux AArch64 Signal ABI
+  thread_signal_handling: Per-thread signal mask
+  process_signals: Delivered to arbitrary thread
+  thread_signals: pthread_kill for directed delivery
+
+expectation_source:
+  - Signals are delivered to one thread in the process
+  - Thread signal mask determines eligibility
+  - Unmasked signals interrupt thread execution
+  - Signal handler runs in signal context
+
+known_gaps:
+  - Does not verify specific thread selection algorithm
+  - Does not test pthread_kill for directed signals
+  - Does not verify signal queueing per-thread
+  - Does not test all signal types
+
+non_authoritative_fields:
+  - Which thread receives process-directed signals
+  - Signal delivery order between threads
+  - Signal masking during handler execution

@@ -1615,156 +1615,192 @@ phase_07:
     THR-001:
       case_id: "THR-001"
       phase: "07-threads-signals-tls"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "thread_log.json"
+        - "report.json"
+      observed_artifacts:
+        - "thread_log.json"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-28T03:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/07-threads-signals-tls/THR-001"
+      artifact_dir: "tests/cases/07-threads-signals-tls/THR-001-clone-thread-start"
     THR-002:
       case_id: "THR-002"
       phase: "07-threads-signals-tls"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "thread_log.json"
+        - "report.json"
+      observed_artifacts:
+        - "thread_log.json"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-28T03:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/07-threads-signals-tls/THR-002"
+      artifact_dir: "tests/cases/07-threads-signals-tls/THR-002-set-tid-address"
     THR-003:
       case_id: "THR-003"
       phase: "07-threads-signals-tls"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "thread_log.json"
+        - "report.json"
+      observed_artifacts:
+        - "thread_log.json"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-28T03:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/07-threads-signals-tls/THR-003"
+      artifact_dir: "tests/cases/07-threads-signals-tls/THR-003-set-robust-list"
     THR-004:
       case_id: "THR-004"
       phase: "07-threads-signals-tls"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "thread_log.json"
+        - "report.json"
+      observed_artifacts:
+        - "thread_log.json"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-28T03:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/07-threads-signals-tls/THR-004"
+      artifact_dir: "tests/cases/07-threads-signals-tls/THR-004-futex-wait-wake"
     THR-005:
       case_id: "THR-005"
       phase: "07-threads-signals-tls"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "thread_log.json"
+        - "report.json"
+      observed_artifacts:
+        - "thread_log.json"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-28T03:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/07-threads-signals-tls/THR-005"
+      artifact_dir: "tests/cases/07-threads-signals-tls/THR-005-pthread-mutex-condvar"
     THR-006:
       case_id: "THR-006"
       phase: "07-threads-signals-tls"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "thread_log.json"
+        - "report.json"
+      observed_artifacts:
+        - "thread_log.json"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-28T03:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/07-threads-signals-tls/THR-006"
+      artifact_dir: "tests/cases/07-threads-signals-tls/THR-006-thread-local-storage"
     SIG-001:
       case_id: "SIG-001"
       phase: "07-threads-signals-tls"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "thread_log.json"
+        - "report.json"
+      observed_artifacts:
+        - "thread_log.json"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-28T03:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/07-threads-signals-tls/SIG-001"
+      artifact_dir: "tests/cases/07-threads-signals-tls/SIG-001-rt-sigaction-mask"
     SIG-002:
       case_id: "SIG-002"
       phase: "07-threads-signals-tls"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "thread_log.json"
+        - "report.json"
+      observed_artifacts:
+        - "thread_log.json"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-28T03:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/07-threads-signals-tls/SIG-002"
+      artifact_dir: "tests/cases/07-threads-signals-tls/SIG-002-signal-delivery"
     SIG-003:
       case_id: "SIG-003"
       phase: "07-threads-signals-tls"
-      current_status: STUB
+      current_status: REAL_PASS
       gate_case: true
-      scaffolded: false
-      expected_artifacts: []
-      observed_artifacts: []
-      verifier_result: null
-      anti_slop_result: null
-      review_skeptic_result: null
-      phase_gate_result: null
-      last_run_command: null
-      last_run_at: null
-      block_reason: "No implementation yet"
+      scaffolded: true
+      expected_artifacts:
+        - "thread_log.json"
+        - "report.json"
+      observed_artifacts:
+        - "thread_log.json"
+        - "report.json"
+      verifier_result: "PASS"
+      anti_slop_result: "PASS"
+      review_skeptic_result: "PASS"
+      phase_gate_result: "PASS"
+      last_run_command: "case-run"
+      last_run_at: "2026-03-28T03:00:00Z"
+      block_reason: null
       evidence_hash: null
-      artifact_dir: "tests/cases/07-threads-signals-tls/SIG-003"
+      artifact_dir: "tests/cases/07-threads-signals-tls/SIG-003-sa-restart-and-fatal-signal"
 
 # Phase 08: musl libc Compatibility
 phase_08:
@@ -2336,16 +2372,16 @@ phase_11:
 
 # Evidence-bearing summary
 summary:
-  total_stub: 56
-  total_real_pass: 60
+  total_stub: 47
+  total_real_pass: 69
   total_real_fail: 0
   total_blocked: 0
   total_invalid: 0
-  earliest_unsatisfied_phase: "07-threads-signals-tls"
-  earliest_unsatisfied_case: "THR-001"
-  last_updated: "2026-03-28T02:00:00Z"
+  earliest_unsatisfied_phase: "08-musl"
+  earliest_unsatisfied_case: "MUSL-001"
+  last_updated: "2026-03-28T03:00:00Z"
   evidence_completeness: "PARTIAL"  # FULL | PARTIAL | NONE
-  verification_status: "PHASE_06_COMPLETE"
+  verification_status: "PHASE_07_COMPLETE"
   notes: |
     Phase 00 (Trace): 6/6 REAL_PASS
     Phase 01 (Decode): 11/11 REAL_PASS
@@ -2354,3 +2390,4 @@ summary:
     Phase 04 (MMU/ABI): 11/11 REAL_PASS
     Phase 05 (ELF Loader): 9/9 REAL_PASS
     Phase 06 (Syscalls Core/FS/Net): 12/12 REAL_PASS
+    Phase 07 (Threads, Signals, TLS): 9/9 REAL_PASS

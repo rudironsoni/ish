@@ -1,0 +1,25 @@
+case_id: THR-003
+authority_type: runtime_fixture
+
+semantic_authority:
+  source: Linux Kernel Documentation
+  document: set_robust_list(2) man page
+  reference: Linux Programmer's Manual
+
+abi_authority:
+  source: Linux AArch64 System Call ABI
+  syscall_number: SYS_set_robust_list
+  arguments:
+    - head: pointer to robust list head
+    - len: size of robust list structure
+  return_value: 0 on success, -1 on error
+
+platform_notes:
+  - Linux-specific syscall (not available on macOS)
+  - Required for robust mutex implementation
+  - Enables automatic mutex unlock on thread death
+
+known_gaps:
+  - Does not verify actual robust mutex behavior
+  - Does not test thread death scenarios
+  - Does not verify list traversal
