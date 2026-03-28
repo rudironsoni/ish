@@ -1,0 +1,27 @@
+expected_artifacts:
+  reset_result.json:
+    success: true
+    reset_type: "erase"
+    device_id: "string"
+    reset_duration_ms: "integer"
+    error: null
+
+  relaunch_result.json:
+    success: true
+    launch_duration_ms: "integer"
+    pid: "integer"
+    alive: true
+
+  retry_log.json:
+    retry_count: "integer"
+    max_retries: 1
+    attempts:
+      - attempt: "integer"
+        result: "string"
+        reset: "boolean"
+    bounded: true
+
+  report.json:
+    case_id: "APPSIM-006"
+    status: "REAL_PASS"
+    summary: "Bounded reset and relaunch test completed successfully"
