@@ -19,31 +19,91 @@
 #include <sys/stat.h>
 
 // Raw C helper: write marker file, no Foundation, no trace
-static void write_marker_raw(const char *name, const char *content) {
-    const char *home = getenv("HOME");
-    if (!home) {
-        home = "/tmp";
-    }
+// Returns 0 on success, -1 on failure
+static int write_marker_raw(const char *base_path, const char *name, const char *content) {
     char path[1024];
-    int n = snprintf(path, sizeof(path), "%s/Library/Caches/%s", home, name);
+    int n = snprintf(path, sizeof(path), "%s/%s", base_path, name);
     if (n < 0 || n >= (int)sizeof(path)) {
-        return;
+        return -1;
     }
     int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0) {
-        return;
+        return -1;
     }
     size_t len = strlen(content);
-    write(fd, content, len);
-    fsync(fd);
+    ssize_t written = write(fd, content, len);
+    int fsync_result = fsync(fd);
     close(fd);
+    return (written == (ssize_t)len && fsync_result == 0) ? 0 : -1;
+}
+
+// Try multiple candidate paths for markers
+static const char* get_marker_base_path(void) {
+    // Try HOME/Library/Caches first (normal iOS location)
+    const char *home = getenv("HOME");
+    if (home) {
+        static char path[1024];
+        int n = snprintf(path, sizeof(path), "%s/Library/Caches", home);
+        if (n > 0 && n < (int)sizeof(path)) {
+            return path;
+        }
+    }
+    
+    // Fall back to TMPDIR
+    const char *tmpdir = getenv("TMPDIR");
+    if (tmpdir) {
+        return tmpdir;
+    }
+    
+    // Last resort
+    return "/tmp";
+}
+
+// Write path probe marker to report what paths are available
+static void write_path_probe(void) {
+    const char *home = getenv("HOME");
+    const char *tmpdir = getenv("TMPDIR");
+    
+    char probe_content[1024];
+    int n = snprintf(probe_content, sizeof(probe_content),
+                     "HOME=%s\nTMPDIR=%s\n",
+                     home ? home : "(null)",
+                     tmpdir ? tmpdir : "(null)");
+    if (n < 0 || n >= (int)sizeof(probe_content)) {
+        return;
+    }
+    
+    // Write to all candidate locations
+    if (home) {
+        char home_cache[1024];
+        snprintf(home_cache, sizeof(home_cache), "%s/Library/Caches", home);
+        write_marker_raw(home_cache, "PATH_PROBE_HOME", probe_content);
+    }
+    if (tmpdir) {
+        write_marker_raw(tmpdir, "PATH_PROBE_TMPDIR", probe_content);
+    }
+    write_marker_raw("/tmp", "PATH_PROBE_FALLBACK", probe_content);
+}
+
+// Constructor-stage marker - runs before main()
+__attribute__((constructor))
+static void constructor_marker(void) {
+    const char *base_path = get_marker_base_path();
+    
+    // Write constructor-stage marker
+    write_marker_raw(base_path, "CONSTRUCTOR_PRE_MAIN", "CONSTRUCTOR_REACHED\n");
+    
+    // Write path probe to validate path mechanism
+    write_path_probe();
 }
 
 int main(int argc, char * argv[]) {
+    const char *base_path = get_marker_base_path();
+    
     // ============================================================
-    // EARLIEST POSSIBLE MARKER: Before ANY Foundation/Objective-C
+    // EARLIEST MAIN MARKER: Before ANY Foundation/Objective-C
     // ============================================================
-    write_marker_raw("MAIN_PRE_AUTORELEASEPOOL", "REACHED\n");
+    write_marker_raw(base_path, "MAIN_PRE_AUTORELEASEPOOL", "MAIN_REACHED\n");
     
     // ============================================================
     // STAGE 0: Minimal trace bootstrap (NOP backend only)
@@ -58,7 +118,7 @@ int main(int argc, char * argv[]) {
     trace_init(&trace_config);
     
     // Marker after minimal Stage 0 bootstrap
-    write_marker_raw("MAIN_POST_MINIMAL_STAGE0", "REACHED\n");
+    write_marker_raw(base_path, "MAIN_POST_MINIMAL_STAGE0", "STAGE0_DONE\n");
     
     // ============================================================
     // NOW safe to use Foundation

@@ -696,6 +696,46 @@ static int test_appsim_003(const char *artifact_dir, char *log_buf, size_t log_s
             pclose(ring_fp);
         }
 
+        /* Check for constructor-stage marker (runs before main()) */
+        char check_constructor_cmd[MAX_PATH * 4];
+        snprintf(check_constructor_cmd, sizeof(check_constructor_cmd),
+                 "xcrun simctl spawn '%s' ls -la "
+                 "/var/mobile/Containers/Data/Application/*/Library/Caches/CONSTRUCTOR_PRE_MAIN "
+                 "2>&1 | head -5",
+                 simulator_id);
+        FILE *constructor_fp = popen(check_constructor_cmd, "r");
+        int constructor_exists = 0;
+        if (constructor_fp) {
+            char output[MAX_LINE];
+            while (fgets(output, sizeof(output), constructor_fp)) {
+                if (strstr(output, "CONSTRUCTOR_PRE_MAIN")) {
+                    constructor_exists = 1;
+                    break;
+                }
+            }
+            pclose(constructor_fp);
+        }
+
+        /* Check for path probes (validates path mechanism) */
+        char check_path_probe_home_cmd[MAX_PATH * 4];
+        snprintf(check_path_probe_home_cmd, sizeof(check_path_probe_home_cmd),
+                 "xcrun simctl spawn '%s' ls -la "
+                 "/var/mobile/Containers/Data/Application/*/Library/Caches/PATH_PROBE_HOME "
+                 "2>&1 | head -5",
+                 simulator_id);
+        FILE *path_probe_home_fp = popen(check_path_probe_home_cmd, "r");
+        int path_probe_home_exists = 0;
+        if (path_probe_home_fp) {
+            char output[MAX_LINE];
+            while (fgets(output, sizeof(output), path_probe_home_fp)) {
+                if (strstr(output, "PATH_PROBE_HOME")) {
+                    path_probe_home_exists = 1;
+                    break;
+                }
+            }
+            pclose(path_probe_home_fp);
+        }
+
         /* Check for earliest bootstrap markers (raw C, before Foundation) */
         char check_pre_auto_cmd[MAX_PATH * 4];
         snprintf(
@@ -778,12 +818,13 @@ static int test_appsim_003(const char *artifact_dir, char *log_buf, size_t log_s
             pclose(stage1_post_fp);
         }
 
-        printf(
-            "    Run A state: pre_auto=%s, post_stage0=%s, stage1_pre=%s, stage1_post=%s, "
-            "bootstrap=%s\n",
-            pre_auto_exists ? "EXISTS" : "NOT FOUND", post_stage0_exists ? "EXISTS" : "NOT FOUND",
-            stage1_pre_exists ? "EXISTS" : "NOT FOUND", stage1_post_exists ? "EXISTS" : "NOT FOUND",
-            bootstrap_proof_exists ? "EXISTS" : "NOT FOUND");
+        printf("    Run A state: constructor=%s, path_probe=%s, pre_auto=%s, post_stage0=%s, "
+               "bootstrap=%s\n",
+               constructor_exists ? "EXISTS" : "NOT FOUND",
+               path_probe_home_exists ? "EXISTS" : "NOT FOUND",
+               pre_auto_exists ? "EXISTS" : "NOT FOUND",
+               post_stage0_exists ? "EXISTS" : "NOT FOUND",
+               bootstrap_proof_exists ? "EXISTS" : "NOT FOUND");
 
         /* Run B: Relaunch without wiping to test recovery */
         printf("  Step 7: CRASH RECOVERY PROOF - Run B: Relaunching to test recovery...\n");
