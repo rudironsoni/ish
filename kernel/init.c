@@ -1,16 +1,19 @@
-#include <signal.h>
-#include <string.h>
-#include <sys/stat.h>
+#include "kernel/init.h"
+
 #include "fs/devices.h"
 #include "fs/fd.h"
 #include "fs/real.h"
 #include "fs/tty.h"
 #include "kernel/calls.h"
-#include "kernel/init.h"
 #include "kernel/personality.h"
 #include "trace/trace.h"
 
-int mount_root(const struct fs_ops *fs, const char *source) {
+#include <signal.h>
+#include <string.h>
+#include <sys/stat.h>
+
+int mount_root(const struct fs_ops *fs, const char *source)
+{
     char source_realpath[MAX_PATH + 1];
     if (realpath(source, source_realpath) == NULL)
         return errno_map();
@@ -20,7 +23,8 @@ int mount_root(const struct fs_ops *fs, const char *source) {
     return 0;
 }
 
-static void establish_signal_handlers() {
+static void establish_signal_handlers()
+{
     extern void sigusr1_handler(int sig);
     struct sigaction sigact;
     sigact.sa_handler = sigusr1_handler;
@@ -33,32 +37,40 @@ static void establish_signal_handlers() {
 
 // copied from include/asm-generic/resource.h in the kernel
 static struct rlimit_ init_rlimits[16] = {
-    [RLIMIT_CPU_]        = {RLIM_INFINITY_, RLIM_INFINITY_},
-    [RLIMIT_FSIZE_]      = {RLIM_INFINITY_, RLIM_INFINITY_},
-    [RLIMIT_DATA_]       = {RLIM_INFINITY_, RLIM_INFINITY_},
-    [RLIMIT_STACK_]      = {8*1024*1024, RLIM_INFINITY_},
-    [RLIMIT_CORE_]       = {0, RLIM_INFINITY_},
-    [RLIMIT_RSS_]        = {RLIM_INFINITY_, RLIM_INFINITY_},
-    [RLIMIT_NPROC_]      = {1024, 1024},
-    [RLIMIT_NOFILE_]     = {1024, 4096},
-    [RLIMIT_MEMLOCK_]    = {64*1024, 64*1024},
-    [RLIMIT_AS_]         = {RLIM_INFINITY_, RLIM_INFINITY_},
-    [RLIMIT_LOCKS_]      = {RLIM_INFINITY_, RLIM_INFINITY_},
-    [RLIMIT_SIGPENDING_] = {1024, 1024},
-    [RLIMIT_MSGQUEUE_]   = {819200, 819200},
-    [RLIMIT_NICE_]       = {0, 0},
-    [RLIMIT_RTPRIO_]     = {0, 0},
-    [RLIMIT_RTTIME_]     = {RLIM_INFINITY_, RLIM_INFINITY_},
+    [RLIMIT_CPU_] = { RLIM_INFINITY_, RLIM_INFINITY_ },
+    [RLIMIT_FSIZE_] = { RLIM_INFINITY_, RLIM_INFINITY_ },
+    [RLIMIT_DATA_] = { RLIM_INFINITY_, RLIM_INFINITY_ },
+    [RLIMIT_STACK_] = { 8 * 1024 * 1024, RLIM_INFINITY_ },
+    [RLIMIT_CORE_] = { 0, RLIM_INFINITY_ },
+    [RLIMIT_RSS_] = { RLIM_INFINITY_, RLIM_INFINITY_ },
+    [RLIMIT_NPROC_] = { 1024, 1024 },
+    [RLIMIT_NOFILE_] = { 1024, 4096 },
+    [RLIMIT_MEMLOCK_] = { 64 * 1024, 64 * 1024 },
+    [RLIMIT_AS_] = { RLIM_INFINITY_, RLIM_INFINITY_ },
+    [RLIMIT_LOCKS_] = { RLIM_INFINITY_, RLIM_INFINITY_ },
+    [RLIMIT_SIGPENDING_] = { 1024, 1024 },
+    [RLIMIT_MSGQUEUE_] = { 819200, 819200 },
+    [RLIMIT_NICE_] = { 0, 0 },
+    [RLIMIT_RTPRIO_] = { 0, 0 },
+    [RLIMIT_RTTIME_] = { RLIM_INFINITY_, RLIM_INFINITY_ },
 };
 
 // TODO error propagation
-static struct task *construct_task(struct task *parent) {
+static struct task *construct_task(struct task *parent)
+{
+    // TRACE: Enter construct_task - capture parent and expected child relationship
+    trace_emit_u64(TRACE_EVENT_TASK_CREATE, 0, (uint64_t)(parent ? parent->pid : 0));
+
     struct task *task = task_create_(parent);
     if (task == NULL || IS_ERR(task))
         return ERR_PTR(task ? PTR_ERR(task) : -ENOMEM);
 
+    // PROOF TRACE: After task_create_ returns, log pid assignment
+    uint64_t host_thread_id = (uint64_t)pthread_self();
+    trace_emit_task_init_after_pid_write((uint64_t)task, task->pid, host_thread_id);
+
     struct tgroup *group = malloc(sizeof(struct tgroup));
-    *group = (struct tgroup) {};
+    *group = (struct tgroup){};
     list_init(&group->threads);
     lock_init(&group->lock);
     cond_init(&group->child_exit);
@@ -77,6 +89,11 @@ static struct task *construct_task(struct task *parent) {
         return ERR_PTR(-ENOMEM);
     }
     task_set_mm(task, new_mm);
+
+    // PROOF TRACE: After task_set_mm, log mm and mem assignments
+    trace_emit_task_init_after_mm_write((uint64_t)task, (uint64_t)task->mm, host_thread_id);
+    trace_emit_task_init_after_mem_write((uint64_t)task, (uint64_t)task->mem, host_thread_id);
+
     task->sighand = sighand_new();
     task->files = fdtable_new(3); // why is there a 3 here
 
@@ -96,15 +113,16 @@ static struct task *construct_task(struct task *parent) {
 
     // Emit trace event for task creation
     trace_emit_task_create(task->pid, parent ? parent->pid : 0);
-    
+
     // Diagnostic: trace at end of construct_task with all fields
-    trace_emit_construct_task_done(task->pid, (uint64_t)task, 
-                                   (uint64_t)task->mm, (uint64_t)task->mem);
+    trace_emit_construct_task_done(task->pid, (uint64_t)task, (uint64_t)task->mm,
+                                   (uint64_t)task->mem);
 
     return task;
 }
 
-int become_first_process() {
+int become_first_process()
+{
     printk("become_first_process: ENTRY\n");
 
     // now seems like a nice time
@@ -116,22 +134,24 @@ int become_first_process() {
 
     printk("become_first_process: calling construct_task...\n");
     struct task *task = construct_task(NULL);
-    printk("become_first_process: construct_task returned task=%p\n", (void*)task);
+    printk("become_first_process: construct_task returned task=%p\n", (void *)task);
 
     if (IS_ERR(task)) {
         printk("ERROR: become_first_process: construct_task failed with %d\n", PTR_ERR(task));
         return PTR_ERR(task);
     }
 
-    printk("become_first_process: setting current = task (task->pid=%d, task->mm=%p, task->mem=%p)\n",
-           task->pid, (void*)task->mm, (void*)task->mem);
+    printk(
+        "become_first_process: setting current = task (task->pid=%d, task->mm=%p, task->mem=%p)\n",
+        task->pid, (void *)task->mm, (void *)task->mem);
     current = task;
-    printk("become_first_process: current set successfully, current=%p\n", (void*)current);
+    printk("become_first_process: current set successfully, current=%p\n", (void *)current);
     printk("become_first_process: RETURN 0\n");
     return 0;
 }
 
-int become_new_init_child() {
+int become_new_init_child()
+{
     struct task *init = pid_get_task(1);
     if (init == NULL)
         return -1;
@@ -158,22 +178,20 @@ int become_new_init_child() {
     // Ensures the write to current is visible before any potential
     // task_start() call that spawns a child thread
     __sync_synchronize();
-    
-    // Diagnostic: trace task state just before returning
-    trace_emit_construct_task_done(task->pid, (uint64_t)task, 
-                                   (uint64_t)task->mm, (uint64_t)task->mem);
-    
+
     return 0;
 }
 
 extern int console_major;
 extern int console_minor;
-void set_console_device(int major, int minor) {
+void set_console_device(int major, int minor)
+{
     console_major = major;
     console_minor = minor;
 }
 
-int create_stdio(const char *file, int major, int minor) {
+int create_stdio(const char *file, int major, int minor)
+{
     struct fd *fd = generic_open(file, O_RDWR_, 0);
     if (IS_ERR(fd)) {
         // fallback to adhoc files for stdio
@@ -193,7 +211,8 @@ int create_stdio(const char *file, int major, int minor) {
     return 0;
 }
 
-static struct fd *open_fd_from_actual_fd(int fd_no) {
+static struct fd *open_fd_from_actual_fd(int fd_no)
+{
     struct fd *fd = adhoc_fd_create(&realfs_fdops);
     if (fd == NULL) {
         return NULL;
@@ -203,7 +222,8 @@ static struct fd *open_fd_from_actual_fd(int fd_no) {
     return fd;
 }
 
-int create_piped_stdio() {
+int create_piped_stdio()
+{
     if (!(current->files->files[0] = open_fd_from_actual_fd(STDIN_FILENO))) {
         return -1;
     }

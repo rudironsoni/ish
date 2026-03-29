@@ -40,3 +40,37 @@ Do not invent softer synonyms.
 - Prefer deterministic fixtures.
 - Prefer repo-local truth.
 - Prefer real execution paths over simulated proof.
+
+## Trace system exclusivity for investigation
+
+**CRITICAL:** Investigation instrumentation MUST use ONLY the trace system.
+
+### Product code isolation
+
+- kernel/*, app/*, emu/*, tcti/* MUST emit semantic trace events only
+- NO direct printk/ISH_LOG/NSLog/os_log for investigation
+- NO backend-specific formatting in product code
+- NO mixed observability (trace + direct logging)
+
+### Allowed trace producer path
+
+```
+Product code (kernel/app/emu/tcti)
+    ↓
+Emit trace events via trace API
+    ↓
+Trace system (trace_events.def, trace.c, trace.h)
+    ↓
+Backend-specific rendering (trace_backends.c)
+    ↓
+Output (printk/os_log/NSLog/ring/dump/JSON/etc)
+```
+
+### Violation cleanup required
+
+Any investigation-specific direct logging added to product code MUST be:
+1. Replaced with trace event definitions
+2. Replaced with trace event emissions
+3. Removed from product code entirely
+
+Backend-specific output (printk, os_log, NSLog) MUST live ONLY in trace backends.

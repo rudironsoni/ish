@@ -1,23 +1,24 @@
 #ifndef TASK_H
 #define TASK_H
 
-#include <pthread.h>
 #include "emu/cpu.h"
-#include "kernel/mm.h"
-#include "kernel/fs.h"
-#include "kernel/signal.h"
-#include "kernel/resource.h"
 #include "fs/sockrestart.h"
-#include "util/list.h"
-#include "util/timer.h"
-#include "util/sync.h"
+#include "kernel/fs.h"
+#include "kernel/mm.h"
+#include "kernel/resource.h"
+#include "kernel/signal.h"
 #include "trace/trace.h"
+#include "util/list.h"
+#include "util/sync.h"
+#include "util/timer.h"
+
+#include <pthread.h>
 
 // everything here is private to the thread executing this task and needs no
 // locking, unless otherwise specified
 struct task {
     struct cpu_state cpu;
-    struct mm *mm; // locked by general_lock
+    struct mm *mm;   // locked by general_lock
     struct mem *mem; // pointer to mm.mem, for convenience
     pthread_t thread;
     uint64_t threadid;
@@ -32,14 +33,14 @@ struct task {
     unsigned ngroups;
     uid_t_ groups[MAX_GROUPS];
     char comm[16] __strncpy_safe; // locked by general_lock
-    bool did_exec; // for that one annoying setsid edge case
+    bool did_exec;                // for that one annoying setsid edge case
 
     struct fdtable *files;
     struct fs_info *fs;
 
     // locked by sighand->lock
     struct sighand *sighand;
-    addr_t vdso_sigtramp;  // Address of VDSO signal trampoline
+    addr_t vdso_sigtramp; // Address of VDSO signal trampoline
     sigset_t_ blocked;
     sigset_t_ pending;
     sigset_t_ waiting; // if nonzero, an ongoing call to sigtimedwait is waiting on these
@@ -98,8 +99,17 @@ struct task {
 // if I have to stop using __thread, current will become a macro
 extern __thread struct task *current;
 
-static inline void task_set_mm(struct task *task, struct mm *mm) {
+static inline void task_set_mm(struct task *task, struct mm *mm)
+{
     trace_emit_task_set_mm((uint64_t)task, (uint64_t)mm);
+
+    // TRACK WRITE: mm and mem assignments
+    uint64_t host_tid = (uint64_t)pthread_self();
+    trace_emit_task_field_write((uint64_t)task, TASK_FIELD_MM, 3, (uint64_t)task->mm, (uint64_t)mm,
+                                host_tid);
+    trace_emit_task_field_write((uint64_t)task, TASK_FIELD_MEM, 3, (uint64_t)task->mem,
+                                (uint64_t)(mm ? &mm->mem : NULL), host_tid);
+
     task->mm = mm;
     task->mem = &task->mm->mem;
     task->cpu.mmu = &task->mem->mmu;
@@ -149,10 +159,10 @@ struct tgroup {
 
     // From https://twitter.com/tblodt/status/957706819236904960
     // > there are two distinct ways for a p̶r̶o̶c̶e̶s̶s̶ thread group to exit:
-    // > 
+    // >
     // > - each thread calls exit
     // > wait will return the exit code for the group leader
-    // > 
+    // >
     // > - any thread calls exit_group
     // > the SIGNAL_GROUP_EXIT flag will be set and wait will return the status passed to exit_group
     //
@@ -169,7 +179,8 @@ struct tgroup {
     lock_t lock;
 };
 
-static inline bool task_is_leader(struct task *task) {
+static inline bool task_is_leader(struct task *task)
+{
     return task->group->leader == task;
 }
 
