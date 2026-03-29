@@ -63,7 +63,12 @@ static int copy_task(struct task *task, dword_t flags, addr_t stack, addr_t ptid
     if (flags & CLONE_VM_) {
         mm_retain(mm);
     } else {
-        task_set_mm(task, mm_copy(mm));
+        struct mm *new_mm = mm_copy(mm);
+        if (IS_ERR(new_mm)) {
+            err = PTR_ERR(new_mm);
+            goto fail_free_mem;
+        }
+        task_set_mm(task, new_mm);
     }
 
     if (flags & CLONE_FILES_) {

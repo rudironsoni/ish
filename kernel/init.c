@@ -71,7 +71,12 @@ static struct task *construct_task(struct task *parent) {
     task->tgid = task->pid;
     task_setsid(task);
 
-    task_set_mm(task, mm_new());
+    struct mm *new_mm = mm_new();
+    if (new_mm == NULL) {
+        printk("ERROR: construct_task: mm_new() failed\n");
+        return ERR_PTR(-ENOMEM);
+    }
+    task_set_mm(task, new_mm);
     task->sighand = sighand_new();
     task->files = fdtable_new(3); // why is there a 3 here
 

@@ -18,7 +18,7 @@
 typedef uint64_t elf_addr_t;
 typedef uint64_t elf_off_t;
 
-struct elf_header {
+struct __attribute__((packed)) elf_header {
     uint32_t magic;
     byte_t bitness;
     byte_t endian;
@@ -51,7 +51,7 @@ struct elf_header {
 #define PT_TLS 7
 #define PT_NUM 8
 
-struct prg_header {
+struct __attribute__((packed)) prg_header {
     uint32_t type;
     uint32_t flags;  // In ELF64, flags comes right after type
     elf_off_t offset;
