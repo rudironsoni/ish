@@ -128,4 +128,26 @@ TRACE_EVENT(CONSTRUCT_TASK_DONE, 1, TRACE_CAT_SYSCALL, 32)
 /* Task start pointer - payload: uint64_t task_ptr */
 TRACE_EVENT(TASK_START_POINTER, 1, TRACE_CAT_SYSCALL, 8)
 
+/* ============================================
+ * MM Lifecycle Events (for crash debugging)
+ * ============================================ */
+
+/* mm_new called - payload: uint64_t mm_ptr */
+TRACE_EVENT(MM_NEW, 1, TRACE_CAT_MEMORY, 8)
+
+/* mm_copy called - payload: struct { uint64_t src_mm; uint64_t new_mm; } */
+TRACE_EVENT(MM_COPY, 1, TRACE_CAT_MEMORY, 16)
+
+/* mm_retain called - payload: struct { uint64_t mm_ptr; uint32_t new_refcount; } */
+TRACE_EVENT(MM_RETAIN, 1, TRACE_CAT_MEMORY, 16)
+
+/* mm_release called - payload: struct { uint64_t mm_ptr; uint32_t old_refcount; } */
+TRACE_EVENT(MM_RELEASE, 1, TRACE_CAT_MEMORY, 16)
+
+/* mm_release freed mm - payload: uint64_t mm_ptr */
+TRACE_EVENT(MM_RELEASE_FREED, 1, TRACE_CAT_MEMORY, 8)
+
+/* task_set_mm called - payload: struct { uint64_t task_ptr; uint64_t new_mm; } */
+TRACE_EVENT(TASK_SET_MM, 1, TRACE_CAT_MEMORY, 16)
+
 #undef TRACE_EVENT

@@ -11,6 +11,7 @@
 #include "util/list.h"
 #include "util/timer.h"
 #include "util/sync.h"
+#include "trace/trace.h"
 
 // everything here is private to the thread executing this task and needs no
 // locking, unless otherwise specified
@@ -98,6 +99,7 @@ struct task {
 extern __thread struct task *current;
 
 static inline void task_set_mm(struct task *task, struct mm *mm) {
+    trace_emit_task_set_mm((uint64_t)task, (uint64_t)mm);
     task->mm = mm;
     task->mem = &task->mm->mem;
     task->cpu.mmu = &task->mem->mmu;

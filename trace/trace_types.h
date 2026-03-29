@@ -75,6 +75,14 @@ typedef enum {
     TRACE_EVENT_CONSTRUCT_TASK_DONE,      /* Construct task done */
     TRACE_EVENT_TASK_START_POINTER,       /* Task start pointer */
     
+    /* MM lifecycle events (level 1) */
+    TRACE_EVENT_MM_NEW,                   /* mm_new called */
+    TRACE_EVENT_MM_COPY,                  /* mm_copy called */
+    TRACE_EVENT_MM_RETAIN,                /* mm_retain called */
+    TRACE_EVENT_MM_RELEASE,               /* mm_release called */
+    TRACE_EVENT_MM_RELEASE_FREED,         /* mm_release freed mm */
+    TRACE_EVENT_TASK_SET_MM,              /* task_set_mm called */
+    
     TRACE_EVENT_MAX
 } trace_event_id_t;
 

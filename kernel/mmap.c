@@ -6,11 +6,13 @@
 #include "fs/fd.h"
 #include "kernel/memory.h"
 #include "kernel/mm.h"
+#include "trace/trace.h"
 
 struct mm *mm_new() {
     struct mm *mm = malloc(sizeof(struct mm));
     if (mm == NULL)
         return NULL;
+    trace_emit_mm_new((uint64_t)mm);
     mem_init(&mm->mem);
     mm->start_brk = mm->brk = 0; // should get overwritten by exec
     mm->exefile = NULL;
@@ -19,9 +21,11 @@ struct mm *mm_new() {
 }
 
 struct mm *mm_copy(struct mm *mm) {
+    trace_emit_mm_copy((uint64_t)mm, 0);
     struct mm *new_mm = malloc(sizeof(struct mm));
     if (new_mm == NULL)
         return NULL;
+    trace_emit_mm_copy((uint64_t)mm, (uint64_t)new_mm);
     *new_mm = *mm;
     // Fix wrlock_init failing because it thinks it's reinitializing the same lock
     memset(&new_mm->mem.lock, 0, sizeof(new_mm->mem.lock));
@@ -36,6 +40,7 @@ struct mm *mm_copy(struct mm *mm) {
 
 void mm_retain(struct mm *mm) {
     mm->refcount++;
+    trace_emit_mm_retain((uint64_t)mm, mm->refcount);
 }
 
 void mm_release(struct mm *mm) {
@@ -45,7 +50,10 @@ void mm_release(struct mm *mm) {
         return;
     }
     printk("[mm] About to decrement refcount from %d\n", mm->refcount);
+    uint32_t old_refcount = mm->refcount;
+    trace_emit_mm_release((uint64_t)mm, old_refcount);
     if (--mm->refcount == 0) {
+        trace_emit_mm_release_freed((uint64_t)mm);
         printk("[mm] refcount reached 0, cleaning up\n");
         if (mm->exefile != NULL) {
             printk("[mm] Closing exefile\n");

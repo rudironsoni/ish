@@ -352,6 +352,9 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
         goto out_free_interp;
     }
     mm_release(current->mm);
+    // TRACE WINDOW: after mm_release, before task_set_mm
+    // current->mem may point to freed memory here if refcount reached 0
+    trace_emit(TRACE_EVENT_MM_RELEASE, 0);  // Event to mark window start
     printk("[exec] mm_release done, calling mm_new\n");
     struct mm *new_mm = mm_new();
     if (new_mm == NULL) {
@@ -361,6 +364,23 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
         goto out_free_interp;
     }
     task_set_mm(current, new_mm);
+    // TRACE: task_set_mm completed, mm window closed
+    trace_emit(TRACE_EVENT_TASK_SET_MM, 0);  // Event to mark window end
+    // DEFENSIVE: Verify current->mem was properly set by task_set_mm
+    // This catches any header/include issues where task_set_mm might not work correctly
+    if (current->mem == NULL) {
+        printk("[exec] FATAL: task_set_mm did not set current->mem properly!\n");
+        printk("[exec]   current->mm=%p, &current->mm->mem=%p\n",
+               (void*)current->mm, (void*)&current->mm->mem);
+        // Force set current->mem to the correct value
+        current->mem = &current->mm->mem;
+        printk("[exec]   Corrected current->mem to %p\n", (void*)current->mem);
+    }
+    // Additional safety: directly verify mem points to mm->mem
+    if (current->mem != &current->mm->mem) {
+        printk("[exec] WARNING: current->mem != &current->mm->mem, correcting\n");
+        current->mem = &current->mm->mem;
+    }
     unlock(&current->general_lock);
     write_wrlock(&current->mem->lock);
     printk("[exec] write_wrlock done, mm->exefile set\n");
@@ -412,6 +432,13 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     addr_t entry = bias + header.entry_point;
     addr_t interp_base = 0;
     addr_t dynamic_addr = 0;  // _DYNAMIC section address for x1
+
+    // DEBUG: Log entry point calculation for PIE binary debugging
+    printk("[exec] ENTRY POINT CALCULATION: bias=0x%llx + header.entry_point=0x%llx = entry=0x%llx\n",
+           (unsigned long long)bias, (unsigned long long)header.entry_point, (unsigned long long)entry);
+    printk("[exec]   ELF type: %s (ET_DYN=%d, ET_EXEC=%d)\n",
+           header.type == 3 ? "ET_DYN (PIE)" : (header.type == 2 ? "ET_EXEC" : "OTHER"),
+           3, 2);
 
     // Find PT_DYNAMIC in main executable (used if no interpreter)
     for (unsigned i = 0; i < header.phent_count; i++) {
@@ -646,11 +673,32 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     // This zeros all X registers, PSTATE, and other state to prevent garbage values
     // CRITICAL: Save and restore mmu pointer since a64_cpu_init zeros all fields
     struct mmu *saved_mmu = current->cpu.mmu;
+    printk("[exec] CPU INIT: saved_mmu=%p (must not be NULL)\n", (void*)saved_mmu);
     a64_cpu_init(&current->cpu);
     current->cpu.mmu = saved_mmu;
 
     current->cpu.sp = sp;
     current->cpu.pc = entry;
+
+    // DEBUG: Verify CPU state after initialization
+    printk("[exec] CPU STATE SET: cpu.mmu=%p, cpu.pc=0x%llx, cpu.sp=0x%llx\n",
+           (void*)current->cpu.mmu, (unsigned long long)current->cpu.pc, (unsigned long long)current->cpu.sp);
+
+    // CRITICAL: Validate entry point before returning
+    if (current->cpu.pc == 0) {
+        printk("[exec] FATAL ERROR: cpu.pc is 0 after setting entry point!\n");
+        printk("[exec]   entry=0x%llx, bias=0x%llx, header.entry_point=0x%llx\n",
+               (unsigned long long)entry, (unsigned long long)bias, (unsigned long long)header.entry_point);
+        err = _EFAULT;
+        goto beyond_hope;
+    }
+    if (current->cpu.pc == 0x100000000ULL) {
+        printk("[exec] FATAL ERROR: cpu.pc is at 4GB boundary (0x100000000) - PIE bias issue!\n");
+        printk("[exec]   entry=0x%llx, bias=0x%llx, header.entry_point=0x%llx\n",
+               (unsigned long long)entry, (unsigned long long)bias, (unsigned long long)header.entry_point);
+        err = _EFAULT;
+        goto beyond_hope;
+    }
     // aarch64 doesn't have x87 FPU control word
     // current->cpu.fcw = 0x37f;
 
