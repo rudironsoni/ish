@@ -122,6 +122,9 @@ TRACE_EVENT(APP_TASK_START_RUNLOOP, 1, TRACE_CAT_SYSCALL, 0)
 /* App trace bootstrap started - no payload */
 TRACE_EVENT(APP_TRACE_BOOTSTRAP_STARTED, 1, TRACE_CAT_SYSCALL, 0)
 
+/* App trace bootstrap ready (completed) - earliest guaranteed app event - no payload */
+TRACE_EVENT(APP_TRACE_BOOTSTRAP_READY, 1, TRACE_CAT_SYSCALL, 0)
+
 /* App boot started - no payload */
 TRACE_EVENT(APP_BOOT_STARTED, 1, TRACE_CAT_SYSCALL, 0)
 
@@ -130,6 +133,9 @@ TRACE_EVENT(APP_UI_SESSION_STARTED, 1, TRACE_CAT_SYSCALL, 0)
 
 /* App launch completed - no payload */
 TRACE_EVENT(APP_LAUNCH_COMPLETED, 1, TRACE_CAT_SYSCALL, 0)
+
+/* App crash recovery bundle found on next launch - no payload */
+TRACE_EVENT(APP_CRASH_RECOVERY_BUNDLE_FOUND, 1, TRACE_CAT_FAULT, 0)
 
 /* ============================================
  * Task Thread Diagnostics (for crash debugging)

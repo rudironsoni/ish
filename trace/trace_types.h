@@ -25,7 +25,8 @@ typedef enum {
     TRACE_BACKEND_NOP = 0,
     TRACE_BACKEND_RING = 1,
     TRACE_BACKEND_STDERR = 2,
-    TRACE_BACKEND_OS_LOG = 3, /* iOS/macOS Unified Logging */
+    TRACE_BACKEND_OS_LOG = 3,      /* iOS/macOS Unified Logging */
+    TRACE_BACKEND_UNIFIED_IOS = 4, /* iOS: os_log + ring buffer dual-sink */
 } trace_backend_t;
 
 /* Event IDs - core event taxonomy for phase 1 */
@@ -73,9 +74,12 @@ typedef enum {
     /* App-layer task lifecycle events (level 1) */
     TRACE_EVENT_APP_TASK_START_RUNLOOP,      /* App entered task runloop to keep alive */
     TRACE_EVENT_APP_TRACE_BOOTSTRAP_STARTED, /* App trace bootstrap started */
-    TRACE_EVENT_APP_BOOT_STARTED,            /* App boot started */
-    TRACE_EVENT_APP_UI_SESSION_STARTED,      /* App UI session started */
-    TRACE_EVENT_APP_LAUNCH_COMPLETED,        /* App launch completed */
+    TRACE_EVENT_APP_TRACE_BOOTSTRAP_READY, /* App trace bootstrap ready (earliest guaranteed event)
+                                            */
+    TRACE_EVENT_APP_BOOT_STARTED,          /* App boot started */
+    TRACE_EVENT_APP_UI_SESSION_STARTED,    /* App UI session started */
+    TRACE_EVENT_APP_LAUNCH_COMPLETED,      /* App launch completed */
+    TRACE_EVENT_APP_CRASH_RECOVERY_BUNDLE_FOUND, /* App crash recovery bundle found */
 
     /* Task thread diagnostics (level 1) */
     TRACE_EVENT_TASK_THREAD_ENTRY,          /* Task thread entry */

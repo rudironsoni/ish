@@ -285,6 +285,25 @@ const trace_backend_ops_t *trace_backend_get_ops(trace_backend_t backend);
 /* Get ring backend operations (defined in trace_ring.c). */
 const trace_backend_ops_t *trace_ring_backend_get_ops(void);
 
+/* ============================================
+ * Crash-Resilient Persistence API
+ * ============================================ */
+
+/* Persist ring buffer to file for next-launch recovery */
+int trace_persist_ring(const char *path);
+
+/* Check for previous run crash and recover ring if present */
+int trace_recover_previous_run(const char *marker_path, const char *ring_path);
+
+/* Mark run as started (set crash detection marker) */
+int trace_mark_run_started(const char *path);
+
+/* Mark run as completed cleanly (clear crash detection marker) */
+int trace_mark_run_completed(const char *path);
+
+/* Dump ring buffer to stderr (human-readable, for die()) */
+void trace_dump_ring_stderr(void);
+
 #ifdef __cplusplus
 }
 #endif

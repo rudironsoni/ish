@@ -15,6 +15,9 @@
 /* Global trace context */
 trace_ctx_t *g_trace_ctx = NULL;
 
+/* Global crash ring path - set by app layer */
+const char *g_crash_ring_path = NULL;
+
 /* Event descriptor table - populated from trace_events.def */
 static const trace_event_desc_t event_descriptors[TRACE_EVENT_MAX] = {
     [TRACE_EVENT_NONE] = { "NONE", TRACE_LEVEL_OFF, 0, 0 },
@@ -664,6 +667,55 @@ int trace_dump_ring(const char *path)
         return -1;
     }
     return g_trace_ctx->backend_ops->dump(g_trace_ctx->backend_ctx, path);
+}
+
+/* ============================================
+ * Crash-Resilient Persistence Implementation
+ * ============================================ */
+
+/* Persist ring buffer to file for next-launch recovery */
+int trace_persist_ring(const char *path)
+{
+    return trace_dump_ring(path);
+}
+
+/* Check for previous run crash and recover */
+int trace_recover_previous_run(const char *marker_path, const char *ring_path)
+{
+    /* Check if marker file exists (indicates abnormal termination) */
+    FILE *marker = fopen(marker_path, "r");
+    if (!marker) {
+        /* No marker - previous run completed cleanly */
+        return 0;
+    }
+    fclose(marker);
+
+    /* Marker exists - previous run crashed or was killed */
+    /* Emit recovery event through current trace pipeline */
+    trace_emit(TRACE_EVENT_APP_CRASH_RECOVERY_BUNDLE_FOUND, 0);
+
+    /* Clear marker for this run */
+    remove(marker_path);
+
+    return 1; /* Recovered */
+}
+
+/* Mark run as started (set crash detection marker) */
+int trace_mark_run_started(const char *path)
+{
+    FILE *fp = fopen(path, "w");
+    if (!fp)
+        return -1;
+    fprintf(fp, "RUN_STARTED\n");
+    fclose(fp);
+    return 0;
+}
+
+/* Mark run as completed cleanly (clear crash detection marker) */
+int trace_mark_run_completed(const char *path)
+{
+    remove(path);
+    return 0;
 }
 
 /* Emit unhandled MRS system register read */

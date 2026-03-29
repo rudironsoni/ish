@@ -206,6 +206,11 @@ static void stderr_emit(void *ctx, trace_record_t *record)
         break;
     }
 
+    case TRACE_EVENT_APP_TRACE_BOOTSTRAP_READY: {
+        fprintf(stderr, " (app trace bootstrap READY)");
+        break;
+    }
+
     case TRACE_EVENT_APP_BOOT_STARTED: {
         fprintf(stderr, " (app boot started)");
         break;
@@ -218,6 +223,11 @@ static void stderr_emit(void *ctx, trace_record_t *record)
 
     case TRACE_EVENT_APP_LAUNCH_COMPLETED: {
         fprintf(stderr, " (app launch completed)");
+        break;
+    }
+
+    case TRACE_EVENT_APP_CRASH_RECOVERY_BUNDLE_FOUND: {
+        fprintf(stderr, " (APP CRASH RECOVERY BUNDLE FOUND)");
         break;
     }
 
@@ -758,6 +768,12 @@ static void os_log_emit(void *ctx, trace_record_t *record)
         break;
     }
 
+    case TRACE_EVENT_APP_TRACE_BOOTSTRAP_READY: {
+        os_log(g_os_log, "[TRACE] %s seq=%llu (app trace bootstrap READY)", event_name,
+               (unsigned long long)record->header.seq);
+        break;
+    }
+
     case TRACE_EVENT_APP_BOOT_STARTED: {
         os_log(g_os_log, "[TRACE] %s seq=%llu (app boot started)", event_name,
                (unsigned long long)record->header.seq);
@@ -772,6 +788,12 @@ static void os_log_emit(void *ctx, trace_record_t *record)
 
     case TRACE_EVENT_APP_LAUNCH_COMPLETED: {
         os_log(g_os_log, "[TRACE] %s seq=%llu (app launch completed)", event_name,
+               (unsigned long long)record->header.seq);
+        break;
+    }
+
+    case TRACE_EVENT_APP_CRASH_RECOVERY_BUNDLE_FOUND: {
+        os_log(g_os_log, "[TRACE] %s seq=%llu (APP CRASH RECOVERY BUNDLE FOUND)", event_name,
                (unsigned long long)record->header.seq);
         break;
     }
@@ -1255,6 +1277,132 @@ static const trace_backend_ops_t os_log_backend_ops = {
 #endif /* __APPLE__ */
 
 /* ============================================
+ * Unified iOS Dual-Sink Backend
+ * os_log (live) + ring buffer (crash-resilient)
+ * ============================================ */
+
+#ifdef __APPLE__
+
+typedef struct unified_ios_ctx {
+    os_log_t os_log;
+    trace_ring_t ring;
+    trace_config_t *config;
+    bool ring_enabled;
+} unified_ios_ctx_t;
+
+static int unified_ios_init(void **ctx, trace_config_t *config)
+{
+    unified_ios_ctx_t *uctx = calloc(1, sizeof(unified_ios_ctx_t));
+    if (!uctx)
+        return -1;
+
+    /* Initialize os_log */
+    uctx->os_log = os_log_create("com.rudironsoni.ish", "Trace");
+
+    /* Initialize tiny always-on ring for crash resilience */
+    size_t ring_capacity = config->ring_size;
+    if (ring_capacity < 256)
+        ring_capacity = 256; /* Minimum for always-on */
+    if (ring_capacity > 8192)
+        ring_capacity = 8192; /* Cap for production */
+
+    uctx->ring.records = calloc(ring_capacity, sizeof(trace_record_t));
+    if (uctx->ring.records) {
+        uctx->ring.capacity = ring_capacity;
+        uctx->ring_enabled = true;
+    }
+
+    uctx->config = config;
+    *ctx = uctx;
+    return 0;
+}
+
+static void unified_ios_shutdown(void *ctx)
+{
+    unified_ios_ctx_t *uctx = (unified_ios_ctx_t *)ctx;
+    if (!uctx)
+        return;
+
+    if (uctx->os_log) {
+        os_release(uctx->os_log);
+    }
+    if (uctx->ring.records) {
+        free(uctx->ring.records);
+    }
+    free(uctx);
+}
+
+/* Unified emit: writes to both os_log and ring buffer */
+static void unified_ios_emit(void *ctx, trace_record_t *record)
+{
+    unified_ios_ctx_t *uctx = (unified_ios_ctx_t *)ctx;
+    if (!uctx)
+        return;
+
+    /* 1. Emit to os_log for live visibility */
+    if (uctx->os_log) {
+        const char *event_name = trace_event_name(record->header.event_id);
+        os_log(uctx->os_log, "[TRACE] %s seq=%llu", event_name,
+               (unsigned long long)record->header.seq);
+    }
+
+    /* 2. Write to ring buffer for crash survivability */
+    if (uctx->ring_enabled && uctx->ring.records) {
+        size_t idx = uctx->ring.head % uctx->ring.capacity;
+        memcpy(&uctx->ring.records[idx], record, sizeof(trace_record_t));
+
+        if (uctx->ring.head >= uctx->ring.capacity) {
+            uctx->ring.dropped++;
+            uctx->ring.wrapped = true;
+        }
+        uctx->ring.head++;
+        uctx->ring.seq++;
+    }
+}
+
+static void unified_ios_flush(void *ctx)
+{
+    (void)ctx;
+    /* os_log is async; ring is always current */
+}
+
+/* Dump ring buffer to file on crash or fatal boundary */
+static int unified_ios_dump(void *ctx, const char *path)
+{
+    unified_ios_ctx_t *uctx = (unified_ios_ctx_t *)ctx;
+    if (!uctx || !uctx->ring_enabled || !uctx->ring.records)
+        return -1;
+
+    FILE *fp = fopen(path, "wb");
+    if (!fp)
+        return -1;
+
+    /* Simple binary dump of last N records */
+    size_t count = uctx->ring.wrapped ? uctx->ring.capacity : uctx->ring.head;
+    size_t start = uctx->ring.wrapped ? uctx->ring.head % uctx->ring.capacity : 0;
+
+    fwrite(&count, sizeof(count), 1, fp);
+
+    for (size_t i = 0; i < count; i++) {
+        size_t idx = (start + i) % uctx->ring.capacity;
+        fwrite(&uctx->ring.records[idx], sizeof(trace_record_t), 1, fp);
+    }
+
+    fclose(fp);
+    return 0;
+}
+
+static const trace_backend_ops_t unified_ios_backend_ops = {
+    .init = unified_ios_init,
+    .shutdown = unified_ios_shutdown,
+    .emit = unified_ios_emit,
+    .flush = unified_ios_flush,
+    .dump = unified_ios_dump,
+};
+
+#endif /* __APPLE__ */
+
+/* ============================================
  * Backend Selection
  * ============================================ */
 
@@ -1270,6 +1418,8 @@ const trace_backend_ops_t *trace_backend_get_ops(trace_backend_t backend)
 #ifdef __APPLE__
     case TRACE_BACKEND_OS_LOG:
         return &os_log_backend_ops;
+    case TRACE_BACKEND_UNIFIED_IOS:
+        return &unified_ios_backend_ops;
 #endif
     default:
         return &nop_ops;
