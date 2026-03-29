@@ -1,0 +1,21 @@
+{
+  "featureId": "task2-create-bridge-h",
+  "reviewedAt": "2026-03-30T00:00:00Z",
+  "commitId": "df90cd1ab558f19c858b1d0022541ce8bd474f1c",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "ISHInstrumentationBridge.h fully implements the specified C bridge API. The file contains the exact origin enum with 8 values (App, UI, Session, Kernel, Task, Exec, Emulator, TCTI), the ish_instrumentation_attribute_t struct, and all 6 required function declarations with correct naming conventions.",
+    "issues": []
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The feature handoff shows commitId as '990df3b34d754a58362572b88a6696303bedd06c' but this commit doesn't contain the bridge header changes. The actual commit that created ISHInstrumentationBridge.h was df90cd1a (task1-thin-trace-backends worker). The task2-create-bridge-h worker appears to have verified the file existed rather than creating it, which is acceptable since the file was created as a missing precondition by the earlier worker.",
+      "evidence": "handoffs/2026-03-29T23-16-50-356Z__task2-create-bridge-h__1df91dcc-3b79-40f2-8575-c0e88c62636c.json shows commitId 990df3b3, but git show df90cd1a --stat confirms that's where ISHInstrumentationBridge.h was actually created"
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Code review PASSED. The file app/Instrumentation/ISHInstrumentationBridge.h exists at the correct path and contains: (1) ish_instrumentation_origin_t enum with all 8 required values (App=0, UI, Session, Kernel, Task, Exec, Emulator, TCTI), (2) ish_instrumentation_attribute_t struct with key/value fields, (3) All 6 function declarations with exact names: ish_instrumentation_bootstrap, ish_instrumentation_activate, ish_instrumentation_is_active, ish_instrumentation_record_event, ish_instrumentation_begin_interval, ish_instrumentation_end_interval. No obs_* prefixes are used. The file uses proper C++ extern guards and follows the exact API contract specified in VAL-TASK2-002."
+}

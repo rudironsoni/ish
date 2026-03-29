@@ -1,0 +1,53 @@
+{
+  "milestone": "task2-new-framework",
+  "round": 2,
+  "status": "pass",
+  "assertionsSummary": {
+    "total": 8,
+    "passed": 8,
+    "failed": 0,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-TASK2-001",
+    "VAL-TASK2-002",
+    "VAL-TASK2-003",
+    "VAL-TASK2-004",
+    "VAL-TASK2-005",
+    "VAL-TASK2-006",
+    "VAL-TASK2-007",
+    "VAL-CROSS-002"
+  ],
+  "failedAssertions": [],
+  "blockedAssertions": [],
+  "appliedUpdates": [],
+  "previousRound": ".factory/validation/task2-new-framework/user-testing/synthesis-round1.json",
+  "flowReports": [
+    ".factory/validation/task2-new-framework/user-testing/flows/task2-files.json",
+    ".factory/validation/task2-new-framework/user-testing/flows/bridge-forwarding.json",
+    ".factory/validation/task2-new-framework/user-testing/flows/trace-h.json"
+  ],
+  "synthesisDetails": {
+    "task2FrameworkFiles": {
+      "status": "pass",
+      "description": "All 10 ISHInstrumentation framework files exist with correct API surface",
+      "filesVerified": [
+        "app/Instrumentation/ISHInstrumentation.h",
+        "app/Instrumentation/ISHInstrumentation.m",
+        "app/Instrumentation/ISHInstrumentationBridge.h",
+        "app/Instrumentation/ISHInstrumentationBridge.mm",
+        "app/Instrumentation/ISHInstrumentationSinkApple.h",
+        "app/Instrumentation/ISHInstrumentationSinkApple.m",
+        "app/Instrumentation/ISHInstrumentationOpenTelemetry.swift",
+        "app/Instrumentation/ISHInstrumentationMetricKit.swift",
+        "app/Instrumentation/ISHInstrumentationEvents.h",
+        "app/Instrumentation/ISHRuntimeFlags.h"
+      ]
+    },
+    "bridgeForwarding": {
+      "status": "pass",
+      "description": "End-to-end instrumentation events flow correctly implemented: trace_backends.c -> ish_instrumentation_* -> ISHInstrumentation -> sinks"
+    }
+  },
+  "note": "Task 2 milestone validated successfully. Task 3 assertions (VAL-TASK3-001, VAL-TASK3-002) belong to milestone 'task3-trace-shim' and are not part of this milestone's validation scope."
+}

@@ -1,0 +1,239 @@
+{
+  "groupId": "task2-files",
+  "testedAt": "2026-03-30T00:00:00Z",
+  "isolation": {
+    "missionDir": "/Users/rudironsoni/.factory/missions/d4ecc6da-763e-4d16-a012-d5cf344b066d",
+    "repoRoot": "/Users/rudironsoni/src/github/rudironsoni/ish"
+  },
+  "toolsUsed": ["file-read", "code-review"],
+  "assertions": [
+    {
+      "id": "VAL-TASK2-001",
+      "title": "ISHInstrumentation.h exists with correct API surface",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Check file exists at app/Instrumentation/ISHInstrumentation.h",
+          "expected": "File exists",
+          "observed": "File exists"
+        },
+        {
+          "action": "Verify ISHInstrumentationEvent enum has 9 cases",
+          "expected": "9 enum cases: BootstrapReady, LaunchBegan, LaunchReady, SceneConnected, SessionStarted, SessionReady, SessionBootstrapDeferred, RecoveryDetected, ShutdownClean",
+          "observed": "All 9 cases present and correctly named"
+        },
+        {
+          "action": "Verify ISHInstrumentation class methods",
+          "expected": "+bootstrap, +activate, +isActive, +recordEvent:, +beginInterval:attributes:, +endInterval:attributes:",
+          "observed": "All required class methods present with correct signatures"
+        }
+      ],
+      "evidence": {
+        "filePath": "app/Instrumentation/ISHInstrumentation.h",
+        "apiSurface": "Complete",
+        "namingConventions": "Correct (no obs_* prefixes)"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-TASK2-002",
+      "title": "ISHInstrumentationBridge.h exists with correct C bridge API",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Check file exists at app/Instrumentation/ISHInstrumentationBridge.h",
+          "expected": "File exists",
+          "observed": "File exists"
+        },
+        {
+          "action": "Verify ish_instrumentation_origin_t enum has 8 values",
+          "expected": "8 values: App, UI, Session, Kernel, Task, Exec, Emulator, TCTI",
+          "observed": "All 8 values present: ISH_INSTRUMENTATION_ORIGIN_APP, UI, SESSION, KERNEL, TASK, EXEC, EMULATOR, TCTI"
+        },
+        {
+          "action": "Verify C bridge functions",
+          "expected": "6 functions: ish_instrumentation_bootstrap, ish_instrumentation_activate, ish_instrumentation_is_active, ish_instrumentation_record_event, ish_instrumentation_begin_interval, ish_instrumentation_end_interval",
+          "observed": "All 6 functions present with correct signatures"
+        }
+      ],
+      "evidence": {
+        "filePath": "app/Instrumentation/ISHInstrumentationBridge.h",
+        "apiSurface": "Complete",
+        "namingConventions": "Correct (ish_instrumentation_* prefix)"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-TASK2-003",
+      "title": "ISHInstrumentation.m implements all declared methods",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Check file exists at app/Instrumentation/ISHInstrumentation.m",
+          "expected": "File exists",
+          "observed": "File exists"
+        },
+        {
+          "action": "Verify +bootstrap implementation",
+          "expected": "Implements singleton bootstrap with sink setup",
+          "observed": "Implemented with performBootstrap, NSClassFromString for weak linking"
+        },
+        {
+          "action": "Verify +activate implementation",
+          "expected": "Implements activation forwarding to sinks",
+          "observed": "Implemented with performActivate, calls sink activate"
+        },
+        {
+          "action": "Verify +isActive implementation",
+          "expected": "Returns BOOL indicating active state",
+          "observed": "Implemented, returns isActivated property"
+        },
+        {
+          "action": "Verify event and interval methods",
+          "expected": "+recordEvent:, +beginInterval:attributes:, +endInterval:attributes: implemented",
+          "observed": "All implemented with internal forwarding to sinks"
+        }
+      ],
+      "evidence": {
+        "filePath": "app/Instrumentation/ISHInstrumentation.m",
+        "implementation": "Complete",
+        "singletonPattern": "dispatch_once used correctly",
+        "sinkForwarding": "Uses NSClassFromString for weak linking"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-TASK2-004",
+      "title": "ISHInstrumentationSinkApple files exist with os_log/signpost implementation",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Check ISHInstrumentationSinkApple.h exists",
+          "expected": "File exists",
+          "observed": "File exists"
+        },
+        {
+          "action": "Check ISHInstrumentationSinkApple.m exists",
+          "expected": "File exists",
+          "observed": "File exists"
+        },
+        {
+          "action": "Verify os_log usage",
+          "expected": "Uses os_log_create and os_log for logging",
+          "observed": "Uses os_log_create with subsystem com.rudironsoni.ish, os_log calls present"
+        },
+        {
+          "action": "Verify signpost usage",
+          "expected": "Uses os_signpost_event_emit, os_signpost_interval_begin/end",
+          "observed": "Signpost calls wrapped in availability checks for iOS 12.0+/macOS 10.14+"
+        }
+      ],
+      "evidence": {
+        "headerFile": "app/Instrumentation/ISHInstrumentationSinkApple.h",
+        "implementationFile": "app/Instrumentation/ISHInstrumentationSinkApple.m",
+        "osLog": "Present",
+        "signpost": "Present with availability checks"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-TASK2-005",
+      "title": "ISHInstrumentationOpenTelemetry.swift exists with @objc attribute",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Check file exists at app/Instrumentation/ISHInstrumentationOpenTelemetry.swift",
+          "expected": "File exists",
+          "observed": "File exists"
+        },
+        {
+          "action": "Verify @objc attribute on class",
+          "expected": "Class marked with @objc",
+          "observed": "@objc public class ISHInstrumentationOpenTelemetry: NSObject"
+        },
+        {
+          "action": "Verify @objc on methods",
+          "expected": "Methods marked with @objc",
+          "observed": "All methods (setup, activate, recordEvent, beginInterval, endInterval) marked with @objc"
+        }
+      ],
+      "evidence": {
+        "filePath": "app/Instrumentation/ISHInstrumentationOpenTelemetry.swift",
+        "objcAttribute": "Present on class and all methods",
+        "implementation": "Stub implementation ready for real OTel integration"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-TASK2-006",
+      "title": "ISHInstrumentationMetricKit.swift exists with MetricKit import",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Check file exists at app/Instrumentation/ISHInstrumentationMetricKit.swift",
+          "expected": "File exists",
+          "observed": "File exists"
+        },
+        {
+          "action": "Verify MetricKit import",
+          "expected": "import MetricKit present",
+          "observed": "import MetricKit present"
+        },
+        {
+          "action": "Verify MXMetricManagerSubscriber implementation",
+          "expected": "Private subscriber class conforming to MXMetricManagerSubscriber",
+          "observed": "ISHMetricKitSubscriber class implements didReceive for metrics and diagnostics"
+        },
+        {
+          "action": "Verify @objc on methods",
+          "expected": "Methods marked with @objc",
+          "observed": "All public methods marked with @objc"
+        }
+      ],
+      "evidence": {
+        "filePath": "app/Instrumentation/ISHInstrumentationMetricKit.swift",
+        "metricKitImport": "Present",
+        "subscriber": "ISHMetricKitSubscriber implements MXMetricManagerSubscriber",
+        "availabilityChecks": "Uses @available(iOS 14.0, *)"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-TASK2-007",
+      "title": "ISHInstrumentationEvents.h and ISHRuntimeFlags.h exist with correct content",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Check ISHInstrumentationEvents.h exists",
+          "expected": "File exists with semantic event names",
+          "observed": "File exists at app/Instrumentation/ISHInstrumentationEvents.h"
+        },
+        {
+          "action": "Verify semantic event names use dotted namespace format",
+          "expected": "Names like app.bootstrap.ready, session.started, etc.",
+          "observed": "All names use dotted format: app.*, session.*, task.*, exec.*, emulator.*, tcti.*, etc."
+        },
+        {
+          "action": "Check ISHRuntimeFlags.h exists",
+          "expected": "File exists with ISH_TASK_ZERO_DISABLE_EMULATION",
+          "observed": "File exists at app/Instrumentation/ISHRuntimeFlags.h"
+        },
+        {
+          "action": "Verify ISH_TASK_ZERO_DISABLE_EMULATION is set to 1",
+          "expected": "#define ISH_TASK_ZERO_DISABLE_EMULATION 1",
+          "observed": "Correctly defined as 1"
+        }
+      ],
+      "evidence": {
+        "eventsFile": "app/Instrumentation/ISHInstrumentationEvents.h",
+        "semanticNames": "Uses dotted namespace format (app.*, session.*, task.*, exec.*, emulator.*, tcti.*)",
+        "flagsFile": "app/Instrumentation/ISHRuntimeFlags.h",
+        "taskZeroFlag": "ISH_TASK_ZERO_DISABLE_EMULATION set to 1"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 7 assertions: 7 passed. All ISHInstrumentation framework files exist with correct structure and content. Files verified: ISHInstrumentation.h (9 enum cases, 6 class methods), ISHInstrumentationBridge.h (8 origin values, 6 C functions), ISHInstrumentation.m (complete implementation), ISHInstrumentationSinkApple.h/m (os_log and signpost), ISHInstrumentationOpenTelemetry.swift (@objc attribute), ISHInstrumentationMetricKit.swift (MetricKit import), ISHInstrumentationEvents.h (dotted semantic names), ISHRuntimeFlags.h (ISH_TASK_ZERO_DISABLE_EMULATION 1). All naming conventions correct (no obs_* prefixes)."
+}
