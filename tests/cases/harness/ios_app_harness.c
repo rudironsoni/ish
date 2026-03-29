@@ -696,7 +696,51 @@ static int test_appsim_003(const char *artifact_dir, char *log_buf, size_t log_s
             pclose(ring_fp);
         }
 
-        printf("    Run A state: bootstrap_proof=%s, marker=%s, ring=%s\n",
+        /* Check for bootstrap crash reduction markers */
+        char check_pre_trace_cmd[MAX_PATH * 4];
+        snprintf(check_pre_trace_cmd, sizeof(check_pre_trace_cmd),
+                 "xcrun simctl spawn '%s' ls -la "
+                 "/var/mobile/Containers/Data/Application/*/Library/Caches/BOOTSTRAP_PRE_TRACE "
+                 "2>&1 | head -5",
+                 simulator_id);
+
+        FILE *pre_trace_fp = popen(check_pre_trace_cmd, "r");
+        int pre_trace_exists = 0;
+        if (pre_trace_fp) {
+            char pre_trace_output[MAX_LINE];
+            while (fgets(pre_trace_output, sizeof(pre_trace_output), pre_trace_fp)) {
+                if (strstr(pre_trace_output, "BOOTSTRAP_PRE_TRACE")) {
+                    pre_trace_exists = 1;
+                    break;
+                }
+            }
+            pclose(pre_trace_fp);
+        }
+
+        char check_post_trace_cmd[MAX_PATH * 4];
+        snprintf(check_post_trace_cmd, sizeof(check_post_trace_cmd),
+                 "xcrun simctl spawn '%s' ls -la "
+                 "/var/mobile/Containers/Data/Application/*/Library/Caches/BOOTSTRAP_POST_TRACE "
+                 "2>&1 | head -5",
+                 simulator_id);
+
+        FILE *post_trace_fp = popen(check_post_trace_cmd, "r");
+        int post_trace_exists = 0;
+        if (post_trace_fp) {
+            char post_trace_output[MAX_LINE];
+            while (fgets(post_trace_output, sizeof(post_trace_output), post_trace_fp)) {
+                if (strstr(post_trace_output, "BOOTSTRAP_POST_TRACE")) {
+                    post_trace_exists = 1;
+                    break;
+                }
+            }
+            pclose(post_trace_fp);
+        }
+
+        printf("    Run A state: pre_trace=%s, post_trace=%s, bootstrap_proof=%s, marker=%s, "
+               "ring=%s\n",
+               pre_trace_exists ? "EXISTS" : "NOT FOUND",
+               post_trace_exists ? "EXISTS" : "NOT FOUND",
                bootstrap_proof_exists ? "EXISTS" : "NOT FOUND",
                marker_exists ? "EXISTS" : "NOT FOUND", ring_exists ? "EXISTS" : "NOT FOUND");
 
