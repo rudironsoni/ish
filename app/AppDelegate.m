@@ -24,6 +24,8 @@
 #import "TerminalViewController.h"
 #import "UserPreferences.h"
 #import "UIApplication+OpenURL.h"
+#import "Instrumentation/ISHRuntimeFlags.h"
+#import "Instrumentation/ISHInstrumentation.h"
 #include "kernel/init.h"
 #include "kernel/calls.h"
 #include "fs/dyndev.h"
@@ -79,47 +81,33 @@ static NSString *const kSkipStartupMessage = @"Skip Startup Message";
 @implementation AppDelegate
 
 - (int)boot {
-    // Stage 1 already completed in willFinishLaunchingWithOptions
-    // Backend attached, recovery checked, run marker set
+    // Task Zero: Check if guest startup should be bypassed
+    if (ISH_TASK_ZERO_DISABLE_EMULATION == 1) {
+        // Record deferred event for session bootstrap
+        [ISHInstrumentation recordEvent:ISHInstrumentationEventSessionStarted];
+        return 0;  // Success - guest startup bypassed
+    }
+
     trace_emit(TRACE_EVENT_APP_TRACE_BOOTSTRAP_STARTED, 0);
-    
-    NSString *bootLogPath = [NSTemporaryDirectory() stringByAppendingPathComponent:@"boot.log"];
-    NSString *msg = @"[Boot] Starting boot process\n";
-    [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
     trace_emit(TRACE_EVENT_APP_BOOT_STARTED, 0);
     
 #if !ISH_LINUX
     NSURL *root = [Roots.instance rootUrl:Roots.instance.defaultRoot];
-    msg = [NSString stringWithFormat:@"[Boot] Root URL: %@\n", root];
-    [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
 
     int err = mount_root(&fakefs, [root URLByAppendingPathComponent:@"data"].fileSystemRepresentation);
     if (err < 0) {
-        msg = [NSString stringWithFormat:@"[Boot] ERROR: mount_root failed: %d\n", err];
-        [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
         return err;
     }
-    msg = @"[Boot] Root filesystem mounted successfully\n";
-    [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
 
     fs_register(&iosfs);
     fs_register(&iosfs_unsafe);
 
-    // need to do this first so that we can have a valid current for the generic_mknod calls
-    msg = @"[Boot] Calling become_first_process...\n";
-    [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
     err = become_first_process();
     if (err < 0) {
-        msg = [NSString stringWithFormat:@"[Boot] ERROR: become_first_process failed: %d\n", err];
-        [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
         return err;
     }
-    msg = @"[Boot] First process created successfully\n";
-    [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
 
     FsInitialize();
-    msg = @"[Boot] FsInitialize done\n";
-    [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
 
     // create some device nodes
     // this will do nothing if they already exist
@@ -149,34 +137,22 @@ static NSString *const kSkipStartupMessage = @"Skip Startup Message";
     // Register clipboard device driver and create device node for it
     err = dyn_dev_register(&clipboard_dev, DEV_CHAR, DYN_DEV_MAJOR, DEV_CLIPBOARD_MINOR);
     if (err != 0) {
-        msg = [NSString stringWithFormat:@"[Boot] ERROR: dyn_dev_register(clipboard) failed: %d\n", err];
-        [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
         return err;
     }
-    msg = @"[Boot] Clipboard device registered\n";
-    [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
     
     generic_mknodat(AT_PWD, "/dev/clipboard", S_IFCHR|0666, dev_make(DYN_DEV_MAJOR, DEV_CLIPBOARD_MINOR));
     
     err = dyn_dev_register(&location_dev, DEV_CHAR, DYN_DEV_MAJOR, DEV_LOCATION_MINOR);
     if (err != 0) {
-        msg = [NSString stringWithFormat:@"[Boot] ERROR: dyn_dev_register(location) failed: %d\n", err];
-        [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
         return err;
     }
-    msg = @"[Boot] Location device registered\n";
-    [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
     
     generic_mknodat(AT_PWD, "/dev/location", S_IFCHR|0666, dev_make(DYN_DEV_MAJOR, DEV_LOCATION_MINOR));
 
     do_mount(&procfs, "proc", "/proc", "", 0);
     do_mount(&devptsfs, "devpts", "/dev/pts", "", 0);
-    msg = @"[Boot] proc and devpts mounted\n";
-    [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
 
     iosfs_init(); // let it mount any filesystems from user defaults
-    msg = @"[Boot] iosfs_init done\n";
-    [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
 
     [self configureDns];
     
@@ -191,173 +167,21 @@ static NSString *const kSkipStartupMessage = @"Skip Startup Message";
     set_console_device(TTY_CONSOLE_MAJOR, 1);
     err = create_stdio("/dev/console", TTY_CONSOLE_MAJOR, 1);
     if (err < 0) {
-        msg = [NSString stringWithFormat:@"[Boot] ERROR: create_stdio failed: %d\n", err];
-        [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
         return err;
     }
-    msg = @"[Boot] stdio created\n";
-    [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
     
     NSArray<NSString *> *command;
     command = UserPreferences.shared.bootCommand;
     
-    // Log the actual command being executed
-    NSString *cmdStr = @"[Boot] Boot command: ";
-    for (NSString *arg in command) {
-        cmdStr = [cmdStr stringByAppendingFormat:@"'%@' ", arg];
-    }
-    cmdStr = [cmdStr stringByAppendingString:@"\n"];
-    [cmdStr writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
-    
-    // Also NSLog it - this should definitely show up
-    NSLog(@"================================================");
-    NSLog(@"iSH BOOT: Starting execution");
-    NSLog(@"iSH BOOT: Command path: %@", command[0]);
-    NSLog(@"================================================");
-    
     char argv[4096];
     [Terminal convertCommand:command toArgs:argv limitSize:sizeof(argv)];
     const char *envp = "TERM=xterm-256color\0";
-    msg = @"[Boot] Calling do_execve...\n";
-    [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
-    
-    NSLog(@"[Boot] About to call do_execve with: %s", command[0].UTF8String);
-    NSLog(@"[Boot] Current working directory: %s", getcwd(NULL, 0));
-    NSLog(@"[Boot] File system root: %s", root.fileSystemRepresentation);
-    
-    // CRITICAL DEBUG: Log everything about the do_execve call
-    NSString *debugPath = @"/tmp/ish_exec_debug.log";
-    NSString *debugInfo = [NSString stringWithFormat:@"path=%s\nargc=%lu\nargv[0]=%s\nenvp=%s\n", 
-                           command[0].UTF8String, (unsigned long)command.count, argv, envp];
-    [debugInfo writeToFile:debugPath atomically:YES encoding:NSUTF8StringEncoding error:nil];
-    
-    // Also try to write to console
-    write(2, "[iSH] About to call do_execve\n", 31);
-    
-    // CRITICAL: Verify the file content before calling do_execve
-    // Construct the path in the emulated filesystem
-    NSURL *exeInRoot = [root URLByAppendingPathComponent:@"data/bin/busybox"];
-    
-    // Check file attributes
-    NSError *attrError = nil;
-    NSDictionary *attrs = [NSFileManager.defaultManager attributesOfItemAtPath:exeInRoot.path error:&attrError];
-    if (attrs) {
-        msg = [NSString stringWithFormat:@"[Boot] File size: %@ bytes\n", attrs[NSFileSize]];
-        [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
-        msg = [NSString stringWithFormat:@"[Boot] File permissions: %03lo\n", (unsigned long)[attrs[NSFilePosixPermissions] unsignedIntegerValue]];
-        [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
-    } else {
-        msg = [NSString stringWithFormat:@"[Boot] ERROR: Cannot get attributes: %@\n", attrError];
-        [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
-    }
-    
-    NSFileHandle *fileHandle = [NSFileHandle fileHandleForReadingAtPath:exeInRoot.path];
-    if (fileHandle) {
-        // Read ELF header (64 bytes for 64-bit ELF)
-        NSData *headerData = [fileHandle readDataOfLength:64];
-        [fileHandle closeFile];
-        if (headerData.length >= 4) {
-            const unsigned char *bytes = headerData.bytes;
-            msg = [NSString stringWithFormat:@"[Boot] Read %lu bytes from file\n", (unsigned long)headerData.length];
-            [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
-            
-            // Log first 16 bytes as hex for comparison with kernel
-            msg = @"[Boot] APP LEVEL - First 16 bytes hex: ";
-            for (int i = 0; i < 16 && i < headerData.length; i++) {
-                msg = [msg stringByAppendingFormat:@"%02x ", bytes[i]];
-            }
-            msg = [msg stringByAppendingString:@"\n"];
-            [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
-            
-            msg = [NSString stringWithFormat:@"[Boot] First 4 bytes: %02x %02x %02x %02x\n",
-                   bytes[0], bytes[1], bytes[2], bytes[3]];
-            [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
-            
-            // Parse ELF header
-            if (bytes[0] == 0x7f && bytes[1] == 'E' && bytes[2] == 'L' && bytes[3] == 'F') {
-                msg = @"[Boot] ELF magic: VALID\n";
-                [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
-                
-                // Check bitness (byte 4)
-                uint8_t bitness = bytes[4];
-                msg = [NSString stringWithFormat:@"[Boot] ELF bitness: %d (expected 2 for 64-bit)\n", bitness];
-                [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
-                
-                // Check endian (byte 5)
-                uint8_t endian = bytes[5];
-                msg = [NSString stringWithFormat:@"[Boot] ELF endian: %d (expected 1 for little-endian)\n", endian];
-                [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
-                
-                // Check machine type (bytes 18-19, little endian)
-                uint16_t machine = bytes[18] | (bytes[19] << 8);
-                msg = [NSString stringWithFormat:@"[Boot] ELF machine: %d (expected 183 for aarch64)\n", machine];
-                [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
-                
-                // Check type (bytes 16-17, little endian)
-                uint16_t type = bytes[16] | (bytes[17] << 8);
-                msg = [NSString stringWithFormat:@"[Boot] ELF type: %d (expected 2 for executable)\n", type];
-                [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
-                
-            } else {
-                msg = @"[Boot] WARNING: File does NOT have ELF magic!\n";
-                [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
-            }
-        } else {
-            msg = @"[Boot] ERROR: Could not read file\n";
-            [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
-        }
-    } else {
-        msg = [NSString stringWithFormat:@"[Boot] ERROR: Cannot open %@\n", exeInRoot.path];
-        [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
-    }
-    
-    // Test: Can we write to /tmp from the app?
-    NSString *testWritePath = @"/tmp/app_write_test.log";
-    [@"App can write to /tmp\n" writeToFile:testWritePath atomically:YES encoding:NSUTF8StringEncoding error:nil];
     
     err = do_execve(command[0].UTF8String, command.count, argv, envp);
     
-    write(2, "[iSH] do_execve returned\n", 26);
-    NSLog(@"[Boot] do_execve returned with err=%d", err);
-    
     if (err < 0) {
-        msg = [NSString stringWithFormat:@"[Boot] ERROR: do_execve failed: %d (ENOEXEC = exec format error)\n", err];
-        [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
-        msg = @"[Boot] ENOEXEC means: Not a valid ELF, not a script, not a text interpreter file\n";
-        [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
-        
-        // Check if kernel log file was created in the emulated filesystem
-        // The kernel writes to /ish_kernel_debug.log in the emulated filesystem
-        // which is at root/data/ish_kernel_debug.log on the host
-        NSURL *kernelLogUrl = [root URLByAppendingPathComponent:@"data/ish_kernel_debug.log"];
-        BOOL kernelLogExists = [NSFileManager.defaultManager fileExistsAtPath:kernelLogUrl.path];
-        msg = [NSString stringWithFormat:@"[Boot] Kernel log exists at %@: %@\n", kernelLogUrl.path, kernelLogExists ? @"YES" : @"NO"];
-        [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
-        
-        // Try to read kernel log if it exists
-        if (kernelLogExists) {
-            NSString *kernelLog = [NSString stringWithContentsOfFile:kernelLogUrl.path encoding:NSUTF8StringEncoding error:nil];
-            msg = [NSString stringWithFormat:@"[Boot] Kernel log contents:\n%@\n", kernelLog];
-            [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
-        }
-        
-        // Write error to multiple locations
-        NSString *errMsg = [NSString stringWithFormat:@"do_execve failed with error: %d\n", err];
-        [errMsg writeToFile:@"/tmp/ish_error.log" atomically:YES encoding:NSUTF8StringEncoding error:nil];
-        
         return err;
     }
-    msg = @"[Boot] do_execve succeeded, starting task...\n";
-    [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
-    
-    // CRITICAL: Do NOT call task_start here - the init process (pid=1) should
-    // NOT execute yet. We only set up the initial process context here.
-    // The actual execution will be started by TerminalViewController via startNewSession.
-    // task_start(current) would create a detached thread that immediately crashes
-    // because iOS will kill the app when the main thread exits.
-    NSLog(@"[Boot] Boot setup complete - init process ready but not started");
-    msg = @"[Boot] Boot setup complete - init process ready\n";
-    [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
 #endif // !ISH_LINUX - End of iOS-specific boot path
 
     // DISABLED: Linux path - we're using TCTI now
@@ -449,28 +273,6 @@ void SyncHostname(void) {
 }
 
 - (BOOL)application:(UIApplication *)application willFinishLaunchingWithOptions:(NSDictionary<UIApplicationLaunchOptionsKey,id> *)launchOptions {
-    // Stage 1: Backend attach - upgrade from NOP to full Unified iOS backend
-    // Stage 0 in main.m created minimal context, now attach heavy backends
-    NSString *cachesDir = [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES) firstObject];
-    const char *cachesPath = cachesDir.UTF8String;
-    const char *markerPath = [[[NSString stringWithUTF8String:cachesPath] stringByAppendingPathComponent:@"ish_run_marker"] UTF8String];
-    const char *ringPath = [[[NSString stringWithUTF8String:cachesPath] stringByAppendingPathComponent:@"ish_crash_trace.ring"] UTF8String];
-    
-    // Set global path for die() to use same location
-    extern const char *g_crash_ring_path;
-    g_crash_ring_path = ringPath;
-    
-    // NOTE: Environment-driven trace configuration has been retired (ISHInstrumentation migration).
-    // trace_config_from_env() is no longer called. The new framework uses compile-time flags.
-    // All startup trace initialization, recovery, and marker logic has been removed per Task 1.
-    // TODO: Replace with ISHInstrumentation bootstrap when Task 2 is complete.
-    (void)markerPath; (void)ringPath; // Suppress unused parameter warnings
-    
-    // Debug logging to file
-    NSString *logPath = [NSTemporaryDirectory() stringByAppendingPathComponent:@"app_boot.log"];
-    NSString *logMsg = @"[AppDelegate] willFinishLaunchingWithOptions called\n";
-    [logMsg writeToFile:logPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
-    
     NSUserDefaults *defaults = NSUserDefaults.standardUserDefaults;
     if ([defaults boolForKey:@"hail mary"]) {
         [defaults removeObjectForKey:kPreferenceBootCommandKey];
@@ -478,16 +280,10 @@ void SyncHostname(void) {
         [defaults setBool:NO forKey:@"hail mary"];
     }
     if ([NSUserDefaults.standardUserDefaults boolForKey:@"recovery"]) {
-        logMsg = @"[AppDelegate] Recovery mode, skipping boot\n";
-        [logMsg writeToFile:logPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
         return YES;
     }
 
-    logMsg = @"[AppDelegate] Starting boot sequence...\n";
-    [logMsg writeToFile:logPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
     bootError = [self boot];
-    logMsg = [NSString stringWithFormat:@"[AppDelegate] Boot returned: %d\n", bootError];
-    [logMsg writeToFile:logPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
 
 #if ISH_LINUX
     [NSNotificationCenter.defaultCenter addObserverForName:UIApplicationWillEnterForegroundNotification object:UIApplication.sharedApplication queue:nil usingBlock:^(NSNotification * _Nonnull note) {
