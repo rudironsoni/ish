@@ -201,6 +201,26 @@ static void stderr_emit(void *ctx, trace_record_t *record)
         break;
     }
 
+    case TRACE_EVENT_APP_TRACE_BOOTSTRAP_STARTED: {
+        fprintf(stderr, " (app trace bootstrap started)");
+        break;
+    }
+
+    case TRACE_EVENT_APP_BOOT_STARTED: {
+        fprintf(stderr, " (app boot started)");
+        break;
+    }
+
+    case TRACE_EVENT_APP_UI_SESSION_STARTED: {
+        fprintf(stderr, " (app UI session started)");
+        break;
+    }
+
+    case TRACE_EVENT_APP_LAUNCH_COMPLETED: {
+        fprintf(stderr, " (app launch completed)");
+        break;
+    }
+
     case TRACE_EVENT_TASK_THREAD_ENTRY: {
         uint64_t task_ptr;
         memcpy(&task_ptr, record->payload, 8);
@@ -728,6 +748,30 @@ static void os_log_emit(void *ctx, trace_record_t *record)
 
     case TRACE_EVENT_APP_TASK_START_RUNLOOP: {
         os_log(g_os_log, "[TRACE] %s seq=%llu (app entering runloop)", event_name,
+               (unsigned long long)record->header.seq);
+        break;
+    }
+
+    case TRACE_EVENT_APP_TRACE_BOOTSTRAP_STARTED: {
+        os_log(g_os_log, "[TRACE] %s seq=%llu (app trace bootstrap started)", event_name,
+               (unsigned long long)record->header.seq);
+        break;
+    }
+
+    case TRACE_EVENT_APP_BOOT_STARTED: {
+        os_log(g_os_log, "[TRACE] %s seq=%llu (app boot started)", event_name,
+               (unsigned long long)record->header.seq);
+        break;
+    }
+
+    case TRACE_EVENT_APP_UI_SESSION_STARTED: {
+        os_log(g_os_log, "[TRACE] %s seq=%llu (app UI session started)", event_name,
+               (unsigned long long)record->header.seq);
+        break;
+    }
+
+    case TRACE_EVENT_APP_LAUNCH_COMPLETED: {
+        os_log(g_os_log, "[TRACE] %s seq=%llu (app launch completed)", event_name,
                (unsigned long long)record->header.seq);
         break;
     }

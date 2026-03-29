@@ -34,6 +34,8 @@
 #undef ISH_LINUX
 #define ISH_LINUX 0
 
+#include "trace/trace.h"
+
 #if ISH_LINUX
 #import "LinuxInterop.h"
 #endif
@@ -77,9 +79,20 @@ static NSString *const kSkipStartupMessage = @"Skip Startup Message";
 @implementation AppDelegate
 
 - (int)boot {
+    // APP-FIRST: Initialize trace system at highest app boundary
+    // This ensures all observability (app, kernel, task, exec, TCTI) flows through unified trace
+    extern trace_ctx_t *g_trace_ctx;
+    if (!g_trace_ctx) {
+        trace_config_t trace_config;
+        trace_config_from_env(&trace_config);
+        trace_init(&trace_config);
+    }
+    trace_emit(TRACE_EVENT_APP_TRACE_BOOTSTRAP_STARTED, 0);
+    
     NSString *bootLogPath = [NSTemporaryDirectory() stringByAppendingPathComponent:@"boot.log"];
     NSString *msg = @"[Boot] Starting boot process\n";
     [msg writeToFile:bootLogPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+    trace_emit(TRACE_EVENT_APP_BOOT_STARTED, 0);
     
 #if !ISH_LINUX
     NSURL *root = [Roots.instance rootUrl:Roots.instance.defaultRoot];
