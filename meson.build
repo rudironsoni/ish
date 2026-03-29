@@ -30,6 +30,11 @@ if get_option('enable_perf_stats')
     add_project_arguments('-DENABLE_PERF_STATS=1', language: 'c')
 endif
 
+# Enable profiling infrastructure
+if get_option('enable_profiling')
+    add_project_arguments('-DENABLE_PROFILING=1', language: 'c')
+endif
+
 if get_option('no_crlf')
     add_project_arguments('-DNO_CRLF', language: 'c')
 endif
@@ -187,6 +192,9 @@ if get_option('kernel') == 'ish'
         'util/fifo.c',
         'util/fchdir.c',
 
+        # Profiling infrastructure (compile always, zero-cost when disabled)
+        'util/prof.c',
+
         'platform/' + host_machine.system() + '.c',
     ]
 
@@ -274,5 +282,79 @@ validate_generated = run_target('validate-generated',
     command: [find_program('tools/validate_generated.sh')]
 )
 
+# Profiling targets (require -Denable_profiling=true)
+if get_option('enable_profiling')
+    # Profile analysis tool
+    profile_tool = find_program('tools/ish-profile-tool.py', required: false)
+    
+    # Run target: profile-run - run ish with profiling enabled
+    profile_run = run_target('profile-run',
+        command: [find_program('scripts/profile-run.sh')],
+        depends: ish
+    )
+    
+    # Run target: profile-analyze - analyze profile output
+    if profile_tool.found()
+        run_target('profile-analyze',
+            command: [profile_tool, 'analyze', 'ish-profile.json']
+        )
+        
+        run_target('profile-flame',
+            command: [profile_tool, 'flamegraph', 'ish-profile.json']
+        )
+    endif
+endif
+
 # Case system (bootstrap - 6 cases)
 subdir('tests/cases')
+
+# === Development Run Targets ===
+
+# Lint targets
+run_target('lint-format',
+    command: [find_program('tools/lint-format.sh')]
+)
+
+run_target('lint-cppcheck',
+    command: [find_program('tools/lint-cppcheck.sh')]
+)
+
+run_target('lint-tidy',
+    command: [find_program('tools/lint-tidy.sh')]
+)
+
+run_target('lint',
+    command: [find_program('tools/lint-all.sh')]
+)
+
+# Format target
+run_target('format',
+    command: [find_program('tools/format-code.sh')]
+)
+
+# Utility targets
+run_target('info',
+    command: [find_program('tools/project-info.sh')]
+)
+
+run_target('loc',
+    command: [find_program('tools/count-loc.sh')]
+)
+
+run_target('todos',
+    command: [find_program('tools/find-todos.sh')]
+)
+
+# Dead code check
+run_target('dead-code',
+    command: [find_program('tools/dead-code-check.py'), '--exit-code', 'emu/', 'kernel/', 'fs/', 'tcti/', 'util/']
+)
+
+run_target('check-all',
+    command: [find_program('tools/check-all.sh')]
+)
+
+# Pre-commit
+run_target('pre-commit',
+    command: [find_program('pre-commit'), 'run', '--all-files']
+)
