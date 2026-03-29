@@ -1,0 +1,37 @@
+expected_artifacts:
+  sim_launch.json:
+    launch_success: true
+    device_id: "string"
+    bundle_id: "app.ish.iSH"
+    
+  boot_milestones.json:
+    milestones:
+      - name: "app_launched"
+        reached: true
+        timestamp: "ISO8601"
+      - name: "boot_setup_started"
+        reached: true
+        timestamp: "ISO8601"
+      - name: "first_elf_exec_entered"
+        reached: true
+        timestamp: "ISO8601"
+      - name: "first_elf_exec_returned"
+        reached: true
+        timestamp: "ISO8601"
+    highest_completed: "string"
+    
+  first_elf_return.json:
+    first_elf_exec_returned: true
+    milestone: "first_elf_exec_returned"
+    status: "reached"
+    
+  report.json:
+    case_id: "APP-002"
+    status: "REAL_PASS"
+    summary: "First ELF exec completed and returned successfully"
+
+success_criteria:
+  - "sim_launch.json contains launch_success: true"
+  - "boot_milestones.json contains first_elf_exec_returned milestone"
+  - "first_elf_return.json contains first_elf_exec_returned: true"
+  - "report.json contains status: REAL_PASS"
