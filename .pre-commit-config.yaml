@@ -54,6 +54,47 @@ repos:
         always_run: true
         verbose: true
 
+      - id: dead-code-check
+        name: dead-code-check
+        entry: python3 tools/dead-code-check.py --exit-code
+        language: system
+        files: '\.(c|h)$'
+        exclude: '^(deps/|build/|builddir/|tests/cases/|\.cache/)'
+        pass_filenames: false
+        stages: [pre-commit]
+        always_run: true
+        verbose: true
+
+      - id: clang-static-analyzer
+        name: clang-static-analyzer
+        entry: tools/static-analyze-changed.sh
+        language: system
+        files: '\.(c|h)$'
+        exclude: '^(deps/|build/|builddir/|tests/cases/|\.cache/)'
+        pass_filenames: true
+        stages: [pre-commit]
+        require_serial: true
+
+      - id: jscpd
+        name: jscpd-duplicate-detection
+        entry: npx jscpd --silent --threshold 30
+        language: node
+        additional_dependencies: ['jscpd']
+        files: '\.(c|h)$'
+        exclude: '^(deps/|build/|builddir/|tests/cases/|\.cache/|vdso/)'
+        pass_filenames: true
+        stages: [pre-commit]
+
+      - id: todo-tracker
+        name: todo-tracker
+        entry: tools/find-todos.sh
+        language: script
+        files: '\.(c|h)$'
+        exclude: '^(deps/|build/|builddir/|tests/cases/|\.cache/)'
+        pass_filenames: false
+        stages: [pre-commit]
+        always_run: true
+
   # Python linting (for generator scripts)
   - repo: https://github.com/psf/black
     rev: 23.12.1
