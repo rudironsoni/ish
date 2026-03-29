@@ -254,6 +254,8 @@
 		BBEF1995268066D1001225BD /* sprite64.png in Resources */ = {isa = PBXBuildFile; fileRef = BB0B880E2589662200208600 /* sprite64.png */; };
 		BBEF1996268066D1001225BD /* icon.png in Resources */ = {isa = PBXBuildFile; fileRef = BB1B9A4223A5E96900414052 /* icon.png */; };
 		BBF06F6C2CC4C134009F5DB5 /* fchdir.c in Sources */ = {isa = PBXBuildFile; fileRef = BB0DF6F22CC4B01000EFECAE /* fchdir.c */; };
+		BBEF192F26806364001225BD /* ISHInstrumentation.m in Sources */ = {isa = PBXBuildFile; fileRef = BBEF192E26806364001225BD /* ISHInstrumentation.m */; };
+		BBEF193226806364001225C0 /* ISHInstrumentationBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = BBEF193126806364001225BF /* ISHInstrumentationBridge.mm */; };
 		BBFB2C7E259026C200545EAB /* libish_emu.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BBFB2C5B2590257E00545EAB /* libish_emu.a */; };
 		BBFB2CEC2590296B00545EAB /* libish_emu.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BBFB2C5B2590257E00545EAB /* libish_emu.a */; };
 		BBFB55662158644C00DFE6DE /* libresolv.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = BBFB55652158644C00DFE6DE /* libresolv.tbd */; };
@@ -780,6 +782,10 @@
 		BBEEA9E9277DAB400069495B /* LinuxPTY.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = LinuxPTY.c; sourceTree = "<group>"; };
 		BBEF191E26806364001225BD /* libiSHApp.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libiSHApp.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		BBEF192C26806546001225BD /* AppLib.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = AppLib.xcconfig; sourceTree = "<group>"; };
+		BBEF192D26806364001225BC /* ISHInstrumentation.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = ISHInstrumentation.h; path = app/Instrumentation/ISHInstrumentation.h; sourceTree = "<group>"; };
+		BBEF192E26806364001225BD /* ISHInstrumentation.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = ISHInstrumentation.m; path = app/Instrumentation/ISHInstrumentation.m; sourceTree = "<group>"; };
+		BBEF193026806364001225BE /* ISHInstrumentationBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = ISHInstrumentationBridge.h; path = app/Instrumentation/ISHInstrumentationBridge.h; sourceTree = "<group>"; };
+		BBEF193126806364001225BF /* ISHInstrumentationBridge.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = ISHInstrumentationBridge.mm; path = app/Instrumentation/ISHInstrumentationBridge.mm; sourceTree = "<group>"; };
 		BBEF199C268066D1001225BD /* iSH.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iSH.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BBEF19BA26806D7E001225BD /* Linux.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Linux.xcconfig; sourceTree = "<group>"; };
 		BBFB2C5B2590257E00545EAB /* libish_emu.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libish_emu.a; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -2273,6 +2279,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BBEF192F26806364001225BD /* ISHInstrumentation.m in Sources */,
+				BBEF193226806364001225C0 /* ISHInstrumentationBridge.mm in Sources */,
 				BB28C79226896B1F00BDC834 /* AboutAppearanceViewController.m in Sources */,
 				BB28C79326896B1F00BDC834 /* AltIconViewController.m in Sources */,
 				491B31E62883BF22008EEFB0 /* ThemeViewController.m in Sources */,
