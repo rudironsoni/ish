@@ -696,53 +696,94 @@ static int test_appsim_003(const char *artifact_dir, char *log_buf, size_t log_s
             pclose(ring_fp);
         }
 
-        /* Check for bootstrap crash reduction markers */
-        char check_pre_trace_cmd[MAX_PATH * 4];
-        snprintf(check_pre_trace_cmd, sizeof(check_pre_trace_cmd),
-                 "xcrun simctl spawn '%s' ls -la "
-                 "/var/mobile/Containers/Data/Application/*/Library/Caches/BOOTSTRAP_PRE_TRACE "
-                 "2>&1 | head -5",
-                 simulator_id);
-
-        FILE *pre_trace_fp = popen(check_pre_trace_cmd, "r");
-        int pre_trace_exists = 0;
-        if (pre_trace_fp) {
-            char pre_trace_output[MAX_LINE];
-            while (fgets(pre_trace_output, sizeof(pre_trace_output), pre_trace_fp)) {
-                if (strstr(pre_trace_output, "BOOTSTRAP_PRE_TRACE")) {
-                    pre_trace_exists = 1;
+        /* Check for earliest bootstrap markers (raw C, before Foundation) */
+        char check_pre_auto_cmd[MAX_PATH * 4];
+        snprintf(
+            check_pre_auto_cmd, sizeof(check_pre_auto_cmd),
+            "xcrun simctl spawn '%s' ls -la "
+            "/var/mobile/Containers/Data/Application/*/Library/Caches/MAIN_PRE_AUTORELEASEPOOL "
+            "2>&1 | head -5",
+            simulator_id);
+        FILE *pre_auto_fp = popen(check_pre_auto_cmd, "r");
+        int pre_auto_exists = 0;
+        if (pre_auto_fp) {
+            char output[MAX_LINE];
+            while (fgets(output, sizeof(output), pre_auto_fp)) {
+                if (strstr(output, "MAIN_PRE_AUTORELEASEPOOL")) {
+                    pre_auto_exists = 1;
                     break;
                 }
             }
-            pclose(pre_trace_fp);
+            pclose(pre_auto_fp);
         }
 
-        char check_post_trace_cmd[MAX_PATH * 4];
-        snprintf(check_post_trace_cmd, sizeof(check_post_trace_cmd),
-                 "xcrun simctl spawn '%s' ls -la "
-                 "/var/mobile/Containers/Data/Application/*/Library/Caches/BOOTSTRAP_POST_TRACE "
-                 "2>&1 | head -5",
-                 simulator_id);
-
-        FILE *post_trace_fp = popen(check_post_trace_cmd, "r");
-        int post_trace_exists = 0;
-        if (post_trace_fp) {
-            char post_trace_output[MAX_LINE];
-            while (fgets(post_trace_output, sizeof(post_trace_output), post_trace_fp)) {
-                if (strstr(post_trace_output, "BOOTSTRAP_POST_TRACE")) {
-                    post_trace_exists = 1;
+        char check_post_stage0_cmd[MAX_PATH * 4];
+        snprintf(
+            check_post_stage0_cmd, sizeof(check_post_stage0_cmd),
+            "xcrun simctl spawn '%s' ls -la "
+            "/var/mobile/Containers/Data/Application/*/Library/Caches/MAIN_POST_MINIMAL_STAGE0 "
+            "2>&1 | head -5",
+            simulator_id);
+        FILE *post_stage0_fp = popen(check_post_stage0_cmd, "r");
+        int post_stage0_exists = 0;
+        if (post_stage0_fp) {
+            char output[MAX_LINE];
+            while (fgets(output, sizeof(output), post_stage0_fp)) {
+                if (strstr(output, "MAIN_POST_MINIMAL_STAGE0")) {
+                    post_stage0_exists = 1;
                     break;
                 }
             }
-            pclose(post_trace_fp);
+            pclose(post_stage0_fp);
         }
 
-        printf("    Run A state: pre_trace=%s, post_trace=%s, bootstrap_proof=%s, marker=%s, "
-               "ring=%s\n",
-               pre_trace_exists ? "EXISTS" : "NOT FOUND",
-               post_trace_exists ? "EXISTS" : "NOT FOUND",
-               bootstrap_proof_exists ? "EXISTS" : "NOT FOUND",
-               marker_exists ? "EXISTS" : "NOT FOUND", ring_exists ? "EXISTS" : "NOT FOUND");
+        /* Check for Stage 1 markers (backend attach) */
+        char check_stage1_pre_cmd[MAX_PATH * 4];
+        snprintf(
+            check_stage1_pre_cmd, sizeof(check_stage1_pre_cmd),
+            "xcrun simctl spawn '%s' ls -la "
+            "/var/mobile/Containers/Data/Application/*/Library/Caches/STAGE1_PRE_BACKEND_ATTACH "
+            "2>&1 | head -5",
+            simulator_id);
+        FILE *stage1_pre_fp = popen(check_stage1_pre_cmd, "r");
+        int stage1_pre_exists = 0;
+        if (stage1_pre_fp) {
+            char output[MAX_LINE];
+            while (fgets(output, sizeof(output), stage1_pre_fp)) {
+                if (strstr(output, "STAGE1_PRE_BACKEND_ATTACH")) {
+                    stage1_pre_exists = 1;
+                    break;
+                }
+            }
+            pclose(stage1_pre_fp);
+        }
+
+        char check_stage1_post_cmd[MAX_PATH * 4];
+        snprintf(
+            check_stage1_post_cmd, sizeof(check_stage1_post_cmd),
+            "xcrun simctl spawn '%s' ls -la "
+            "/var/mobile/Containers/Data/Application/*/Library/Caches/STAGE1_POST_BACKEND_ATTACH "
+            "2>&1 | head -5",
+            simulator_id);
+        FILE *stage1_post_fp = popen(check_stage1_post_cmd, "r");
+        int stage1_post_exists = 0;
+        if (stage1_post_fp) {
+            char output[MAX_LINE];
+            while (fgets(output, sizeof(output), stage1_post_fp)) {
+                if (strstr(output, "STAGE1_POST_BACKEND_ATTACH")) {
+                    stage1_post_exists = 1;
+                    break;
+                }
+            }
+            pclose(stage1_post_fp);
+        }
+
+        printf(
+            "    Run A state: pre_auto=%s, post_stage0=%s, stage1_pre=%s, stage1_post=%s, "
+            "bootstrap=%s\n",
+            pre_auto_exists ? "EXISTS" : "NOT FOUND", post_stage0_exists ? "EXISTS" : "NOT FOUND",
+            stage1_pre_exists ? "EXISTS" : "NOT FOUND", stage1_post_exists ? "EXISTS" : "NOT FOUND",
+            bootstrap_proof_exists ? "EXISTS" : "NOT FOUND");
 
         /* Run B: Relaunch without wiping to test recovery */
         printf("  Step 7: CRASH RECOVERY PROOF - Run B: Relaunching to test recovery...\n");
