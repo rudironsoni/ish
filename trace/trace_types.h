@@ -60,6 +60,11 @@ typedef enum {
     TRACE_EVENT_COMPLEX_DECODE_FAIL,      /* COMPLEX decode failure */
     TRACE_EVENT_COMPLEX_FETCH_FAIL,       /* COMPLEX fetch failure */
     
+    /* NULL current Crash Diagnostics (NEW) */
+    TRACE_EVENT_TASK_THREAD_BEFORE_SET,   /* Task thread before set */
+    TRACE_EVENT_TASK_THREAD_AFTER_SET,    /* Task thread after set */
+    TRACE_EVENT_TASK_RUN_CURRENT_ENTRY_CHECK, /* Task run_current entry check */
+    
     /* Task lifecycle events (level 1) */
     TRACE_EVENT_TASK_CREATE,              /* Task created */
     TRACE_EVENT_TASK_START,               /* Task started execution */

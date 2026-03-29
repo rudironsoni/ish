@@ -1,0 +1,24 @@
+{
+  "case_id": "APPSIM-CRASH-001",
+  "timestamp": "2026-03-29T07:46:00Z",
+  "simulator": {
+    "name": "iPhone 17 Pro",
+    "udid": "E6186E89-8784-473B-A4E4-66E42693F14E",
+    "platform": "iOS Simulator",
+    "state": "Booted"
+  },
+  "app": {
+    "bundle_id": "app.ish.iSH",
+    "scheme": "iSH",
+    "version": "2.0.0-alpha22",
+    "build": "806"
+  },
+  "launch_result": {
+    "build_success": true,
+    "install_success": true,
+    "launch_success": true,
+    "app_crashed": true,
+    "crash_time_seconds": 5
+  },
+  "log_session_id": "27768bf0-a83a-4bfa-bd29-1eb9b364c3d7"
+}

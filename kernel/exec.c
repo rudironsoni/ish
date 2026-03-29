@@ -344,38 +344,34 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     // released.
     ISH_LOG("Releasing old mm and creating new mm...");
     lock(&current->general_lock);
-    printk("[exec] Calling mm_release, current->mm=%p\n", current->mm);
+    printk("[exec] Preparing mm_release, current->mm=%p\n", current->mm);
     if (current->mm == NULL) {
         printk("[exec] ERROR: current->mm is NULL!\n");
         unlock(&current->general_lock);
         err = _EINVAL;
         goto out_free_interp;
     }
-    // FIX-001: Fix NULL current->mem vulnerability (exec window bug)
-    // Set current->mm and current->mem to NULL BEFORE calling mm_release()
-    // to prevent dangling pointers during the window between release and task_set_mm.
-    // This ensures that if mm_release frees the mm (refcount==0), current->mm
-    // won't be a dangling pointer, and if mm_new() fails, the error path
-    // won't leave stale pointers.
+    // FIX-001 (REVISED): Create new mm BEFORE releasing old mm
+    // This eliminates the window where current->mm/mem are NULL.
+    // If mm_new() fails, current->mm is still valid (pointing to old_mm).
+    // Only after mm_new() succeeds do we release old mm and update current.
     struct mm *old_mm = current->mm;
-    current->mm = NULL;
-    current->mem = NULL;
-    mm_release(old_mm);
-    // TRACE WINDOW: after mm_release, before task_set_mm
-    // current->mm and current->mem are now NULL (not dangling), so any
-    // access during this window will fail safely rather than use-after-free.
-    trace_emit(TRACE_EVENT_MM_RELEASE, 0);  // Event to mark window start
-    printk("[exec] mm_release done, current->mm/mem set to NULL, calling mm_new\n");
+    printk("[exec] Creating new mm first (old_mm=%p)\n", (void*)old_mm);
     struct mm *new_mm = mm_new();
     if (new_mm == NULL) {
         ISH_LOG_ERROR("ENOMEM: mm_new() failed");
+        printk("[exec] mm_new failed, keeping old_mm=%p\n", (void*)old_mm);
+        // current->mm is still valid (old_mm), no need to restore
         unlock(&current->general_lock);
         err = _ENOMEM;
         goto out_free_interp;
     }
+    printk("[exec] mm_new succeeded, new_mm=%p, now releasing old_mm and setting current->mm\n", (void*)new_mm);
+    // Now safe to release old mm and update current
+    mm_release(old_mm);
+    trace_emit(TRACE_EVENT_MM_RELEASE, 0);
     task_set_mm(current, new_mm);
-    // TRACE: task_set_mm completed, mm window closed
-    trace_emit(TRACE_EVENT_TASK_SET_MM, 0);  // Event to mark window end
+    trace_emit(TRACE_EVENT_TASK_SET_MM, 0);
     // DEFENSIVE: Verify current->mem was properly set by task_set_mm
     // This catches any header/include issues where task_set_mm might not work correctly
     if (current->mem == NULL) {

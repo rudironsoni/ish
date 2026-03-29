@@ -986,3 +986,76 @@ void trace_emit_task_set_mm(uint64_t task_ptr, uint64_t new_mm) {
     
     g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
 }
+
+/* ============================================
+ * NULL current Crash Diagnostics (NEW)
+ * ============================================ */
+
+/* Emit task_thread before set - payload: struct { uint64_t task_ptr; uint64_t current_before; } */
+void trace_emit_task_thread_before_set(uint64_t task_ptr, uint64_t current_before) {
+    if (!g_trace_ctx || !g_trace_ctx->backend_ops || !g_trace_ctx->backend_ops->emit) {
+        return;
+    }
+    
+    if (!trace_event_enabled(TRACE_EVENT_TASK_THREAD_BEFORE_SET, 0)) {
+        return;
+    }
+    
+    if (g_trace_ctx->config.max_events > 0 &&
+        g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
+        g_trace_ctx->enabled = false;
+        return;
+    }
+    
+    trace_record_t record;
+    memset(&record, 0, sizeof(record));
+    
+    record.header.seq = g_trace_ctx->emitted_count++;
+    record.header.event_id = TRACE_EVENT_TASK_THREAD_BEFORE_SET;
+    record.header.level = TRACE_LEVEL_SUMMARY;
+    record.header.cpu_id = 0;
+    record.header.pc = 0;
+    record.header.payload_size = 16;
+    
+    memcpy(record.payload + 0, &task_ptr, 8);
+    memcpy(record.payload + 8, &current_before, 8);
+    
+    g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
+}
+
+/* Emit task_thread after set - payload: struct { uint64_t task_ptr; uint64_t current_after; } */
+void trace_emit_task_thread_after_set(uint64_t task_ptr, uint64_t current_after) {
+    if (!g_trace_ctx || !g_trace_ctx->backend_ops || !g_trace_ctx->backend_ops->emit) {
+        return;
+    }
+    
+    if (!trace_event_enabled(TRACE_EVENT_TASK_THREAD_AFTER_SET, 0)) {
+        return;
+    }
+    
+    if (g_trace_ctx->config.max_events > 0 &&
+        g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
+        g_trace_ctx->enabled = false;
+        return;
+    }
+    
+    trace_record_t record;
+    memset(&record, 0, sizeof(record));
+    
+    record.header.seq = g_trace_ctx->emitted_count++;
+    record.header.event_id = TRACE_EVENT_TASK_THREAD_AFTER_SET;
+    record.header.level = TRACE_LEVEL_SUMMARY;
+    record.header.cpu_id = 0;
+    record.header.pc = 0;
+    record.header.payload_size = 16;
+    
+    memcpy(record.payload + 0, &task_ptr, 8);
+    memcpy(record.payload + 8, &current_after, 8);
+    
+    g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
+}
+
+/* Emit task_run_current entry check - payload: uint64_t current_ptr */
+void trace_emit_task_run_current_entry_check(uint64_t current_ptr) {
+    trace_emit_u64(TRACE_EVENT_TASK_RUN_CURRENT_ENTRY_CHECK, 0, current_ptr);
+}

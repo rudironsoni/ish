@@ -143,10 +143,11 @@ int trace_config_from_env(trace_config_t *config) {
     
     /* Initialize with defaults */
     memset(config, 0, sizeof(trace_config_t));
-    config->backend = TRACE_BACKEND_RING;  /* Default to ring buffer */
-    config->level = TRACE_LEVEL_OFF;       /* Default disabled */
+    config->backend = TRACE_BACKEND_STDERR;  /* Default to stderr for diagnostics */
+    config->level = TRACE_LEVEL_SUMMARY;   /* Default enabled at summary level */
     config->ring_size = 16384;             /* Default ring size */
     config->category_mask = 0xFF;          /* Enable all categories by default */
+    config->event_mask = ~0ULL;            /* Enable all events by default */
     
     /* ISH_TRACE_BACKEND */
     const char *backend = getenv("ISH_TRACE_BACKEND");

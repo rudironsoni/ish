@@ -1,0 +1,71 @@
+{
+  "case_id": "APPSIM-EXEC-VERIFY",
+  "status": "REAL FAIL",
+  "summary": "Exec path fix verification FAILED - app still crashes with 'current->mem is NULL'",
+  "timestamp": "2026-03-29T11:15:00Z",
+  "verification_result": {
+    "build_success": true,
+    "install_success": true,
+    "launch_success": true,
+    "app_alive": false,
+    "terminal_interface_shown": false,
+    "current_mem_null_error": true,
+    "boot_completed": false,
+    "shell_interactive": false
+  },
+  "logs_analysis": {
+    "total_log_lines": 118,
+    "key_events": [
+      {
+        "timestamp": "11:14:59.819",
+        "event": "First process created",
+        "current->mm": "0x103e2ca80",
+        "current->mem": "0x103e2ca88"
+      },
+      {
+        "timestamp": "11:14:59.826",
+        "event": "First exec (/bin/busybox) started",
+        "status": "SUCCESS"
+      },
+      {
+        "timestamp": "11:14:59.966",
+        "event": "Second exec (/bin/login) started",
+        "status": "ELF parsing SUCCESS"
+      },
+      {
+        "timestamp": "11:14:59.967",
+        "event": "New mm created for /bin/login",
+        "new_mm": "0x103e2d500"
+      },
+      {
+        "timestamp": "11:14:59.970",
+        "event": "Task thread started",
+        "current->mm": "0x0",
+        "current->mem": "0x0"
+      },
+      {
+        "timestamp": "11:14:59.970",
+        "event": "CRASH - current->mem is NULL",
+        "function": "task_run_current"
+      }
+    ]
+  },
+  "root_cause_analysis": {
+    "symptom": "current->mem is NULL when task_run_current is called",
+    "probable_cause": "Task thread entry does not properly inherit or set up mm/mem context after exec",
+    "affected_components": [
+      "kernel/task.c - task_run_current()",
+      "kernel/exec.c - elf_exec() post-exec task setup",
+      "kernel/task.c - task_thread_entry()"
+    ]
+  },
+  "artifacts": [
+    "sim_launch.json",
+    "boot_milestones.json",
+    "crash_signature.json",
+    "report.json"
+  ],
+  "retry_count": 0,
+  "relaunch_count": 0,
+  "test_duration_seconds": 45
+}

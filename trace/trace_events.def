@@ -90,6 +90,19 @@ TRACE_EVENT(COMPLEX_DECODE_FAIL, 2, TRACE_CAT_DECODE, 4)
 TRACE_EVENT(COMPLEX_FETCH_FAIL, 2, TRACE_CAT_FAULT, 4)
 
 /* ============================================
+ * NULL current Crash Diagnostics (NEW)
+ * ============================================ */
+
+/* Task thread before set - payload: struct { uint64_t task_ptr; uint64_t current_before; } */
+TRACE_EVENT(TASK_THREAD_BEFORE_SET, 1, TRACE_CAT_SYSCALL, 16)
+
+/* Task thread after set - payload: struct { uint64_t task_ptr; uint64_t current_after; } */
+TRACE_EVENT(TASK_THREAD_AFTER_SET, 1, TRACE_CAT_SYSCALL, 16)
+
+/* Task run_current entry check - payload: uint64_t current_ptr */
+TRACE_EVENT(TASK_RUN_CURRENT_ENTRY_CHECK, 1, TRACE_CAT_SYSCALL, 8)
+
+/* ============================================
  * Task Lifecycle Events
  * ============================================ */
 
