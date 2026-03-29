@@ -637,7 +637,7 @@ phase_02b:
     APPSIM-003:
       case_id: "APPSIM-003"
       phase: "02b-ios-simulator-harness"
-      current_status: REAL_PASS
+      current_status: REAL_FAIL
       gate_case: true
       scaffolded: true
       expected_artifacts:
@@ -659,9 +659,9 @@ phase_02b:
       review_skeptic_result: PASS
       phase_gate_result: PASS
       last_run_command: "meson test -C builddir 'ish:case_APPSIM-003'"
-      last_run_at: "2026-03-28T20:37:31Z"
+      last_run_at: "2026-03-28T20:39:45Z"
       block_reason: null
-      evidence_hash: "build_58s_launch_pid_14615"
+      evidence_hash: "build_59s_launch_pid_14615_alive_60s"
       artifact_dir: "tests/cases/02b-ios-simulator-harness/APPSIM-003-build-install-launch-smoke"
       app_specific_fields:
         simulator_tool: xcodebuildmcp
@@ -2962,12 +2962,12 @@ phase_11:
 # Evidence-bearing summary
 summary:
   total_stub: 26
-  total_real_pass: 102
-  total_real_fail: 0
+  total_real_pass: 101
+  total_real_fail: 1
   total_blocked: 0
   total_invalid: 0
   earliest_unsatisfied_phase: "02b-ios-simulator-harness"
-  earliest_unsatisfied_case: "APPSIM-001"
+  earliest_unsatisfied_case: "APPSIM-003"
   last_updated: "2026-03-28T12:00:00Z"
   evidence_completeness: "PARTIAL"  # FULL | PARTIAL | NONE
   verification_status: "PARTIAL_COMPLETE"
@@ -2975,7 +2975,7 @@ summary:
     Phase 00 (Trace): 6/6 REAL_PASS
     Phase 01 (Decode): 11/11 REAL_PASS
     Phase 02 (Generator): 8/8 REAL_PASS
-    Phase 02b (iOS Simulator Harness): 6/6 STUB - NEW APP HARNESS CAPABILITY
+    Phase 02b (iOS Simulator Harness): 1/6 REAL_FAIL (APPSIM-003), 5/6 STUB - APP HARNESS REPAIR NEEDED
     Phase 02c (iOS App Runtime-Entry): 5/5 STUB - NEW CRASH REDUCTION TARGETS
     Phase 03 (Semantic Execution): 0/11 STUB - SIMULATED EXECUTION ONLY
     Phase 04 (MMU/ABI): 11/11 REAL_PASS

@@ -93,6 +93,9 @@ void trace_emit_process_entry(uint64_t entry_pc, uint64_t sp, uint64_t at_entry,
 void trace_emit_task_create(uint32_t pid, uint32_t parent_pid);
 void trace_emit_task_start(uint32_t pid);
 
+/* Emit app-layer task lifecycle events. */
+void trace_emit_app_task_start_runloop(void);
+
 /* Emit mm lifecycle events. */
 void trace_emit_mm_new(uint64_t mm_ptr);
 void trace_emit_mm_copy(uint64_t src_mm, uint64_t new_mm);

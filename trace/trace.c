@@ -441,6 +441,12 @@ void trace_emit_task_start(uint32_t pid)
     trace_emit_u32(TRACE_EVENT_TASK_START, 0, pid);
 }
 
+/* Emit app task start runloop event */
+void trace_emit_app_task_start_runloop(void)
+{
+    trace_emit(TRACE_EVENT_APP_TASK_START_RUNLOOP, 0);
+}
+
 /* Emit block compile start */
 void trace_emit_block_compile_start(uint64_t pc)
 {
@@ -1274,6 +1280,8 @@ void trace_emit_task_handoff_parent_pre_create(uint64_t task_ptr, uint64_t mm, u
 {
     trace_emit_task_handoff_record(TRACE_EVENT_TASK_HANDOFF_PARENT_PRE_CREATE, task_ptr, mm, mem,
                                    pid, host_thread_id);
+    // SYNC FLUSH: Ensure trace survives crash in child thread
+    trace_flush();
 }
 
 /* Child: thread entry, before setting current */
@@ -1283,6 +1291,8 @@ void trace_emit_task_handoff_child_entry(uint64_t task_arg_ptr, uint64_t task_ar
 {
     trace_emit_task_handoff_record(TRACE_EVENT_TASK_HANDOFF_CHILD_ENTRY, task_arg_ptr, task_arg_mm,
                                    task_arg_mem, task_arg_pid, host_thread_id);
+    // SYNC FLUSH: Ensure trace survives crash during task handoff
+    trace_flush();
 }
 
 /* Child: after setting current, before task_run_current */
@@ -1292,6 +1302,8 @@ void trace_emit_task_handoff_child_post_current(uint64_t current_ptr, uint64_t c
 {
     trace_emit_task_handoff_record(TRACE_EVENT_TASK_HANDOFF_CHILD_POST_CURRENT, current_ptr,
                                    current_mm, current_mem, current_pid, host_thread_id);
+    // SYNC FLUSH: Ensure trace survives crash before task_run_current
+    trace_flush();
 }
 
 /* Child: entering task_run_current */
@@ -1301,6 +1313,8 @@ void trace_emit_task_handoff_child_pre_run(uint64_t current_ptr, uint64_t curren
 {
     trace_emit_task_handoff_record(TRACE_EVENT_TASK_HANDOFF_CHILD_PRE_RUN, current_ptr, current_mm,
                                    current_mem, current_pid, host_thread_id);
+    // SYNC FLUSH: Critical - this is the last trace before potential crash in task_run_current
+    trace_flush();
 }
 
 /* ============================================
@@ -1440,19 +1454,19 @@ void trace_emit_task_mem_snapshot(uint64_t task_ptr, uint8_t snapshot_id, uint64
     record.header.event_id = TRACE_EVENT_TASK_MEM_SNAPSHOT;
     record.header.level = TRACE_LEVEL_SUMMARY;
     record.header.pc = 0;
-    record.header.payload_size = 80;
+    record.header.payload_size = 88;
 
     memcpy(record.payload + 0, &task_ptr, 8);
     memcpy(record.payload + 8, &snapshot_id, 1);
-    memcpy(record.payload + 16, &canary_value, 8);
-    memcpy(record.payload + 24, &host_thread_id, 8);
-    memcpy(record.payload + 32, &pid_field, 4);
-    memcpy(record.payload + 40, &mm_field, 8);
-    memcpy(record.payload + 48, &mem_field, 8);
-    memcpy(record.payload + 56, &first_8, 8);
-    memcpy(record.payload + 64, &bytes_8_16, 8);
-    memcpy(record.payload + 72, &bytes_16_24, 8);
-    memcpy(record.payload + 80, &bytes_24_32, 8);
+    memcpy(record.payload + 9, &canary_value, 8);
+    memcpy(record.payload + 17, &host_thread_id, 8);
+    memcpy(record.payload + 25, &pid_field, 4);
+    memcpy(record.payload + 29, &mm_field, 8);
+    memcpy(record.payload + 37, &mem_field, 8);
+    memcpy(record.payload + 45, &first_8, 8);
+    memcpy(record.payload + 53, &bytes_8_16, 8);
+    memcpy(record.payload + 61, &bytes_16_24, 8);
+    memcpy(record.payload + 69, &bytes_24_32, 8);
 
     g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
 }

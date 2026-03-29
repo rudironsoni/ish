@@ -1,0 +1,36 @@
+{
+  "case_id": "APPSIM-003-build-install-launch-smoke",
+  "timestamp": "2026-03-29T16:50:00Z",
+  "actual_configuration": "Debug",
+  "configuration_verification": {
+    "session_defaults": "Debug",
+    "project_configurations": ["Debug", "Release"],
+    "artifacts_reconciled": true
+  },
+  "scheme_vs_target_comparison": {
+    "scheme_iSH_build": {
+      "command": "xcodebuild -project iSH.xcodeproj -scheme iSH -configuration Debug -sdk iphonesimulator build",
+      "result": "hangs_after_ibtool_version",
+      "hang_duration": "180+ seconds",
+      "cpu_pattern": "9.6% -> 0%",
+      "last_output": "ExecuteExternalTool ibtool --version --output-format xml1"
+    },
+    "target_iSH_build": {
+      "command": "xcodebuild -project iSH.xcodeproj -target iSH -configuration Debug -sdk iphonesimulator build",
+      "result": "hangs_after_ibtool_version",
+      "hang_duration": "180+ seconds",
+      "cpu_pattern": "9.6% -> 0%",
+      "last_output": "ExecuteExternalTool ibtool --version --output-format xml1"
+    }
+  },
+  "conclusion": {
+    "difference": "NO DIFFERENCE",
+    "both_modes": "exhibit identical hang behavior",
+    "classification": "NOT a scheme orchestration issue"
+  },
+  "target_dependency_graph": {
+    "scheme_build": "10 targets (includes implicit dependencies like libfakefs, libish_emu)",
+    "target_build": "8 targets (explicit dependencies only, no implicit link-binary dependencies)",
+    "note": "Both hang at same point, so the difference in target count is NOT the cause"
+  }
+}

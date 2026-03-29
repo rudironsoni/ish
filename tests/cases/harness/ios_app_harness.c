@@ -7,26 +7,27 @@
  * Required for build_run_sim and launch operations.
  */
 
+#include <ctype.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
-#include <unistd.h>
 #include <sys/stat.h>
-#include <sys/types.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <stdint.h>
-#include <time.h>
 #include <sys/time.h>
+#include <sys/types.h>
+#include <time.h>
+#include <unistd.h>
 
-#define MAX_PATH 4096
-#define MAX_LINE 4096
+#define MAX_PATH     4096
+#define MAX_LINE     4096
 #define MAX_LOG_SIZE 65536
 
 /* Stub kernel functions required by iSH headers */
 #include <stdarg.h>
-void ish_printk(const char *msg, ...) {
+void ish_printk(const char *msg, ...)
+{
     va_list args;
     va_start(args, msg);
     vfprintf(stderr, msg, args);
@@ -34,65 +35,81 @@ void ish_printk(const char *msg, ...) {
 }
 #define printk ish_printk
 
-void handle_interrupt(int interrupt) {
+void handle_interrupt(int interrupt)
+{
     fprintf(stderr, "[HARNESS] handle_interrupt: %d\n", interrupt);
 }
 
-void memset_junk(void *buf, size_t size) {
+void memset_junk(void *buf, size_t size)
+{
     memset(buf, 0xAB, size);
 }
 
 void *g_end_brk = NULL;
 
 /* iSH headers */
-#include "misc.h"
+#include "emu/aarch64/cpu.h"
 #include "kernel/calls.h"
 #include "kernel/errno.h"
 #include "kernel/task.h"
-#include "emu/aarch64/cpu.h"
+
+#include "misc.h"
 
 /* Configuration from .factory/services.yaml */
-#define DEFAULT_PROJECT_PATH "/Users/rudironsoni/src/github/rudironsoni/ish/iSH.xcodeproj"
-#define DEFAULT_SCHEME "iSH"
+#define DEFAULT_PROJECT_PATH   "/Users/rudironsoni/src/github/rudironsoni/ish/iSH.xcodeproj"
+#define DEFAULT_SCHEME         "iSH"
 #define DEFAULT_SIMULATOR_NAME "iPhone 17 Pro"
-#define DEFAULT_SIMULATOR_ID "E6186E89-8784-473B-A4E4-66E42693F14E"
-#define DEFAULT_BUNDLE_ID "com.rudironsoni.ish"
-#define DEFAULT_CONFIGURATION "Debug"
+#define DEFAULT_SIMULATOR_ID   "E6186E89-8784-473B-A4E4-66E42693F14E"
+#define DEFAULT_BUNDLE_ID      "com.rudironsoni.ish"
+#define DEFAULT_CONFIGURATION  "Debug"
 
 /* Case types */
 typedef enum {
-    CASE_APPSIM_001,  /* XcodeBuildMCP Availability */
-    CASE_APPSIM_002,  /* Simulator Target Selection and Boot */
-    CASE_APPSIM_003,  /* Build, Install, Launch Smoke Test */
-    CASE_APPSIM_004,  /* Log Harvest and Milestone Capture */
-    CASE_APPSIM_005,  /* Crash Signature Normalization */
-    CASE_APPSIM_006,  /* Bounded Reset and Relaunch */
+    CASE_APPSIM_001, /* XcodeBuildMCP Availability */
+    CASE_APPSIM_002, /* Simulator Target Selection and Boot */
+    CASE_APPSIM_003, /* Build, Install, Launch Smoke Test */
+    CASE_APPSIM_004, /* Log Harvest and Milestone Capture */
+    CASE_APPSIM_005, /* Crash Signature Normalization */
+    CASE_APPSIM_006, /* Bounded Reset and Relaunch */
     /* Phase 02c: iOS App Runtime Entry */
-    CASE_APP_001,     /* Boot to First ELF Exec */
-    CASE_APP_002,     /* First ELF Exec Return */
-    CASE_APP_003,     /* Second Exec Login Entry */
-    CASE_APP_004,     /* Process Entry Register Contract */
-    CASE_APP_005,     /* Login ELF Program Header Boundary */
+    CASE_APP_001, /* Boot to First ELF Exec */
+    CASE_APP_002, /* First ELF Exec Return */
+    CASE_APP_003, /* Second Exec Login Entry */
+    CASE_APP_004, /* Process Entry Register Contract */
+    CASE_APP_005, /* Login ELF Program Header Boundary */
     CASE_UNKNOWN
 } case_type_t;
 
-static case_type_t parse_case_type(const char *case_id) {
-    if (strncmp(case_id, "APPSIM-001", 10) == 0) return CASE_APPSIM_001;
-    if (strncmp(case_id, "APPSIM-002", 10) == 0) return CASE_APPSIM_002;
-    if (strncmp(case_id, "APPSIM-003", 10) == 0) return CASE_APPSIM_003;
-    if (strncmp(case_id, "APPSIM-004", 10) == 0) return CASE_APPSIM_004;
-    if (strncmp(case_id, "APPSIM-005", 10) == 0) return CASE_APPSIM_005;
-    if (strncmp(case_id, "APPSIM-006", 10) == 0) return CASE_APPSIM_006;
+static case_type_t parse_case_type(const char *case_id)
+{
+    if (strncmp(case_id, "APPSIM-001", 10) == 0)
+        return CASE_APPSIM_001;
+    if (strncmp(case_id, "APPSIM-002", 10) == 0)
+        return CASE_APPSIM_002;
+    if (strncmp(case_id, "APPSIM-003", 10) == 0)
+        return CASE_APPSIM_003;
+    if (strncmp(case_id, "APPSIM-004", 10) == 0)
+        return CASE_APPSIM_004;
+    if (strncmp(case_id, "APPSIM-005", 10) == 0)
+        return CASE_APPSIM_005;
+    if (strncmp(case_id, "APPSIM-006", 10) == 0)
+        return CASE_APPSIM_006;
     /* Phase 02c: APP-001 through APP-005 */
-    if (strncmp(case_id, "APP-001", 7) == 0) return CASE_APP_001;
-    if (strncmp(case_id, "APP-002", 7) == 0) return CASE_APP_002;
-    if (strncmp(case_id, "APP-003", 7) == 0) return CASE_APP_003;
-    if (strncmp(case_id, "APP-004", 7) == 0) return CASE_APP_004;
-    if (strncmp(case_id, "APP-005", 7) == 0) return CASE_APP_005;
+    if (strncmp(case_id, "APP-001", 7) == 0)
+        return CASE_APP_001;
+    if (strncmp(case_id, "APP-002", 7) == 0)
+        return CASE_APP_002;
+    if (strncmp(case_id, "APP-003", 7) == 0)
+        return CASE_APP_003;
+    if (strncmp(case_id, "APP-004", 7) == 0)
+        return CASE_APP_004;
+    if (strncmp(case_id, "APP-005", 7) == 0)
+        return CASE_APP_005;
     return CASE_UNKNOWN;
 }
 
-static int setup_artifact_dir(const char *artifact_dir) {
+static int setup_artifact_dir(const char *artifact_dir)
+{
     char cmd[MAX_PATH];
     snprintf(cmd, sizeof(cmd), "rm -rf %s", artifact_dir);
     system(cmd);
@@ -105,9 +122,9 @@ static int setup_artifact_dir(const char *artifact_dir) {
     return 0;
 }
 
-static int write_report(const char *artifact_dir, const char *case_id,
-                        const char *phase, const char *harness,
-                        int passed, const char *failure_summary) {
+static int write_report(const char *artifact_dir, const char *case_id, const char *phase,
+                        const char *harness, int passed, const char *failure_summary)
+{
     char path[MAX_PATH];
     snprintf(path, sizeof(path), "%s/report.json", artifact_dir);
 
@@ -139,10 +156,12 @@ static int write_report(const char *artifact_dir, const char *case_id,
 }
 
 /* Extract case ID from path */
-static const char *extract_case_id(const char *case_yaml) {
+static const char *extract_case_id(const char *case_yaml)
+{
     static char case_id[64];
     const char *last_slash = strrchr(case_yaml, '/');
-    if (!last_slash) return "UNKNOWN";
+    if (!last_slash)
+        return "UNKNOWN";
 
     const char *dir_start = last_slash;
     while (dir_start > case_yaml && *(dir_start - 1) != '/') {
@@ -151,17 +170,20 @@ static const char *extract_case_id(const char *case_yaml) {
 
     /* Extract case ID (e.g., "APPSIM-001" from "APPSIM-001-xcodebuildmcp-availability") */
     const char *dash = strchr(dir_start, '-');
-    if (!dash) return "UNKNOWN";
+    if (!dash)
+        return "UNKNOWN";
     const char *second_dash = strchr(dash + 1, '-');
     if (!second_dash) {
         /* Just APPSIM-001 format */
         int len = last_slash - dir_start;
-        if (len >= 63) len = 63;
+        if (len >= 63)
+            len = 63;
         strncpy(case_id, dir_start, len);
         case_id[len] = '\0';
     } else {
         int len = second_dash - dir_start;
-        if (len >= 63) len = 63;
+        if (len >= 63)
+            len = 63;
         strncpy(case_id, dir_start, len);
         case_id[len] = '\0';
     }
@@ -169,7 +191,8 @@ static const char *extract_case_id(const char *case_yaml) {
 }
 
 /* APPSIM-001: XcodeBuildMCP Availability */
-static int test_appsim_001(const char *artifact_dir, char *log_buf, size_t log_size) {
+static int test_appsim_001(const char *artifact_dir, char *log_buf, size_t log_size)
+{
     (void)log_buf;
     (void)log_size;
     printf("APPSIM-001: XcodeBuildMCP Tool Availability and Discovery\n");
@@ -250,7 +273,8 @@ static int test_appsim_001(const char *artifact_dir, char *log_buf, size_t log_s
 }
 
 /* APPSIM-002: Simulator Target Selection and Boot */
-static int test_appsim_002(const char *artifact_dir, char *log_buf, size_t log_size) {
+static int test_appsim_002(const char *artifact_dir, char *log_buf, size_t log_size)
+{
     (void)log_buf;
     (void)log_size;
     printf("APPSIM-002: Simulator Target Selection and Boot\n");
@@ -304,21 +328,24 @@ static int test_appsim_002(const char *artifact_dir, char *log_buf, size_t log_s
 }
 
 /* Helper: Execute command and capture output to file */
-static int exec_cmd_to_file(const char *cmd, const char *output_path) {
+static int exec_cmd_to_file(const char *cmd, const char *output_path)
+{
     char full_cmd[MAX_PATH * 2];
     snprintf(full_cmd, sizeof(full_cmd), "%s > %s 2>&1", cmd, output_path);
     return system(full_cmd);
 }
 
 /* Helper: Get current timestamp as ISO8601 string */
-static void get_timestamp(char *buf, size_t size) {
+static void get_timestamp(char *buf, size_t size)
+{
     time_t now = time(NULL);
     struct tm *tm_info = gmtime(&now);
     strftime(buf, size, "%Y-%m-%dT%H:%M:%SZ", tm_info);
 }
 
 /* APPSIM-003: Build, Install, Launch Smoke Test */
-static int test_appsim_003(const char *artifact_dir, char *log_buf, size_t log_size) {
+static int test_appsim_003(const char *artifact_dir, char *log_buf, size_t log_size)
+{
     (void)log_buf;
     (void)log_size;
     printf("APPSIM-003: Build, Install, Launch Smoke Test\n");
@@ -349,11 +376,11 @@ static int test_appsim_003(const char *artifact_dir, char *log_buf, size_t log_s
 
     char build_cmd[MAX_PATH * 6];
     snprintf(build_cmd, sizeof(build_cmd),
-        "xcodebuild -project '%s' -scheme '%s' -configuration '%s' "
-        "-destination 'platform=iOS Simulator,id=%s' "
-        "-derivedDataPath '%s/DerivedData' "
-        "build 2>&1",
-        project_path, scheme, configuration, simulator_id, artifact_dir);
+             "xcodebuild -project '%s' -scheme '%s' -configuration '%s' "
+             "-destination 'platform=iOS Simulator,id=%s' "
+             "-derivedDataPath '%s/DerivedData' "
+             "build 2>&1",
+             project_path, scheme, configuration, simulator_id, artifact_dir);
 
     char build_output_path[MAX_PATH];
     snprintf(build_output_path, sizeof(build_output_path), "%s/build_output.txt", artifact_dir);
@@ -387,7 +414,8 @@ static int test_appsim_003(const char *artifact_dir, char *log_buf, size_t log_s
         build_success = 1;
     }
 
-    printf("    Build %s (duration: %ld ms)\n", build_success ? "SUCCEEDED" : "FAILED", build_duration_ms);
+    printf("    Build %s (duration: %ld ms)\n", build_success ? "SUCCEEDED" : "FAILED",
+           build_duration_ms);
 
     if (!build_success) {
         passed = 0;
@@ -400,8 +428,7 @@ static int test_appsim_003(const char *artifact_dir, char *log_buf, size_t log_s
     /* Search for the .app bundle in derived data */
     char find_cmd[MAX_PATH * 4];
     snprintf(find_cmd, sizeof(find_cmd),
-        "find '%s/DerivedData' -name '*.app' -type d 2>/dev/null | head -1",
-        artifact_dir);
+             "find '%s/DerivedData' -name '*.app' -type d 2>/dev/null | head -1", artifact_dir);
 
     FILE *find_fp = popen(find_cmd, "r");
     if (find_fp) {
@@ -409,7 +436,8 @@ static int test_appsim_003(const char *artifact_dir, char *log_buf, size_t log_s
         if (fgets(line, sizeof(line), find_fp)) {
             /* Trim newline */
             size_t len = strlen(line);
-            if (len > 0 && line[len-1] == '\n') line[len-1] = '\0';
+            if (len > 0 && line[len - 1] == '\n')
+                line[len - 1] = '\0';
             if (strlen(line) > 0) {
                 strncpy(app_path, line, sizeof(app_path) - 1);
                 app_path[sizeof(app_path) - 1] = '\0';
@@ -421,7 +449,8 @@ static int test_appsim_003(const char *artifact_dir, char *log_buf, size_t log_s
     if (strlen(app_path) == 0 && build_success) {
         /* Fallback to standard DerivedData location */
         snprintf(app_path, sizeof(app_path),
-            "/Users/rudironsoni/Library/Developer/Xcode/DerivedData/iSH-*/Build/Products/Debug-iphonesimulator/iSH.app");
+                 "/Users/rudironsoni/Library/Developer/Xcode/DerivedData/iSH-*/Build/Products/"
+                 "Debug-iphonesimulator/iSH.app");
     }
     printf("    App path: %s\n", strlen(app_path) > 0 ? app_path : "(not found, using default)");
 
@@ -435,12 +464,12 @@ static int test_appsim_003(const char *artifact_dir, char *log_buf, size_t log_s
 
     if (build_success && strlen(app_path) > 0 && strstr(app_path, ".app")) {
         char install_cmd[MAX_PATH * 3];
-        snprintf(install_cmd, sizeof(install_cmd),
-            "xcrun simctl install '%s' '%s' 2>&1",
-            simulator_id, app_path);
+        snprintf(install_cmd, sizeof(install_cmd), "xcrun simctl install '%s' '%s' 2>&1",
+                 simulator_id, app_path);
 
         char install_output_path[MAX_PATH];
-        snprintf(install_output_path, sizeof(install_output_path), "%s/install_output.txt", artifact_dir);
+        snprintf(install_output_path, sizeof(install_output_path), "%s/install_output.txt",
+                 artifact_dir);
 
         int install_status = exec_cmd_to_file(install_cmd, install_output_path);
 
@@ -488,12 +517,12 @@ static int test_appsim_003(const char *artifact_dir, char *log_buf, size_t log_s
 
     if (install_success || build_success) {
         char launch_cmd[MAX_PATH * 3];
-        snprintf(launch_cmd, sizeof(launch_cmd),
-            "xcrun simctl launch '%s' '%s' 2>&1",
-            simulator_id, bundle_id);
+        snprintf(launch_cmd, sizeof(launch_cmd), "xcrun simctl launch '%s' '%s' 2>&1", simulator_id,
+                 bundle_id);
 
         char launch_output_path[MAX_PATH];
-        snprintf(launch_output_path, sizeof(launch_output_path), "%s/launch_output.txt", artifact_dir);
+        snprintf(launch_output_path, sizeof(launch_output_path), "%s/launch_output.txt",
+                 artifact_dir);
 
         FILE *launch_fp = popen(launch_cmd, "r");
         if (launch_fp) {
@@ -537,7 +566,7 @@ static int test_appsim_003(const char *artifact_dir, char *log_buf, size_t log_s
     printf("  Step 5: Checking if app is alive...\n");
     int alive = 0;
     int check_count = 0;
-    int max_checks = 12;  /* Check for up to 60 seconds */
+    int max_checks = 12; /* Check for up to 60 seconds */
     int check_interval_sec = 5;
 
     /* Give the app a moment to start */
@@ -549,8 +578,8 @@ static int test_appsim_003(const char *artifact_dir, char *log_buf, size_t log_s
         /* Check if app process is running using simctl spawn */
         char ps_cmd[MAX_PATH * 3];
         snprintf(ps_cmd, sizeof(ps_cmd),
-            "xcrun simctl spawn '%s' ps aux 2>&1 | grep -i '%s' | grep -v grep",
-            simulator_id, bundle_id);
+                 "xcrun simctl spawn '%s' ps aux 2>&1 | grep -i '%s' | grep -v grep", simulator_id,
+                 bundle_id);
 
         FILE *ps_fp = popen(ps_cmd, "r");
         if (ps_fp) {
@@ -566,8 +595,7 @@ static int test_appsim_003(const char *artifact_dir, char *log_buf, size_t log_s
         /* Also check using simctl listapps to see if app state is running */
         char app_state_cmd[MAX_PATH * 3];
         snprintf(app_state_cmd, sizeof(app_state_cmd),
-            "xcrun simctl listapps '%s' 2>&1 | grep -A 5 '%s'",
-            simulator_id, bundle_id);
+                 "xcrun simctl listapps '%s' 2>&1 | grep -A 5 '%s'", simulator_id, bundle_id);
 
         ps_fp = popen(app_state_cmd, "r");
         if (ps_fp) {
@@ -587,12 +615,6 @@ static int test_appsim_003(const char *artifact_dir, char *log_buf, size_t log_s
             printf("    App not yet running (check %d/%d)...\n", check_count, max_checks);
             sleep(check_interval_sec);
         }
-    }
-
-    /* If launch succeeded but we couldn't verify alive status through process check,
-       assume alive if we got a valid PID */
-    if (!alive && launch_success && launch_pid > 0) {
-        alive = 1;
     }
 
     printf("    Alive check: %s\n", alive ? "PASSED" : "FAILED");
@@ -689,20 +711,21 @@ typedef struct {
 } milestone_def_t;
 
 static milestone_def_t boot_milestones[] = {
-    {"app_launched", "launched", 1},
-    {"kernel_init_started", "kernel initialization", 2},
-    {"tcti_initialized", "TCTI", 3},
-    {"first_elf_exec_entered", "first ELF exec entered", 4},
-    {"first_elf_exec_returned", "first ELF exec returned", 5},
-    {"second_execve_started", "second execve", 6},
-    {"guest_loop_entered", "guest loop", 7},
-    {"login_ready", "login ready", 8},
-    {"shell_ready", "shell ready", 9},
-    {NULL, NULL, 0}
+    { "app_launched", "launched", 1 },
+    { "kernel_init_started", "kernel initialization", 2 },
+    { "tcti_initialized", "TCTI", 3 },
+    { "first_elf_exec_entered", "first ELF exec entered", 4 },
+    { "first_elf_exec_returned", "first ELF exec returned", 5 },
+    { "second_execve_started", "second execve", 6 },
+    { "guest_loop_entered", "guest loop", 7 },
+    { "login_ready", "login ready", 8 },
+    { "shell_ready", "shell ready", 9 },
+    { NULL, NULL, 0 }
 };
 
 /* APPSIM-004: Log Harvest and Boot Milestone Capture */
-static int test_appsim_004(const char *artifact_dir, char *log_buf, size_t log_size) {
+static int test_appsim_004(const char *artifact_dir, char *log_buf, size_t log_size)
+{
     (void)log_buf;
     (void)log_size;
     printf("APPSIM-004: Log Harvest and Boot Milestone Capture\n");
@@ -737,9 +760,8 @@ static int test_appsim_004(const char *artifact_dir, char *log_buf, size_t log_s
     int launch_pid = 0;
 
     char launch_cmd[MAX_PATH * 4];
-    snprintf(launch_cmd, sizeof(launch_cmd),
-        "xcrun simctl launch '%s' '%s' 2>&1",
-        simulator_id, bundle_id);
+    snprintf(launch_cmd, sizeof(launch_cmd), "xcrun simctl launch '%s' '%s' 2>&1", simulator_id,
+             bundle_id);
 
     char launch_output_path[MAX_PATH];
     snprintf(launch_output_path, sizeof(launch_output_path), "%s/launch_output.txt", artifact_dir);
@@ -786,8 +808,9 @@ static int test_appsim_004(const char *artifact_dir, char *log_buf, size_t log_s
     /* Use simctl spawn to check logs via log command on simulator */
     char log_cmd[MAX_PATH * 4];
     snprintf(log_cmd, sizeof(log_cmd),
-        "xcrun simctl spawn '%s' log show --predicate 'subsystem == \"%s\" OR process == \"iSH\"' --last 5m 2>&1 | head -100",
-        simulator_id, bundle_id);
+             "xcrun simctl spawn '%s' log show --predicate 'subsystem == \"%s\" OR process == "
+             "\"iSH\"' --last 5m 2>&1 | head -100",
+             simulator_id, bundle_id);
 
     FILE *log_fp = popen(log_cmd, "r");
     char log_content[MAX_LOG_SIZE] = "";
@@ -810,16 +833,16 @@ static int test_appsim_004(const char *artifact_dir, char *log_buf, size_t log_s
         /* Get app container and check for log files */
         char app_container_cmd[MAX_PATH * 3];
         snprintf(app_container_cmd, sizeof(app_container_cmd),
-            "xcrun simctl get_app_container '%s' '%s' 2>/dev/null || echo ''",
-            simulator_id, bundle_id);
+                 "xcrun simctl get_app_container '%s' '%s' 2>/dev/null || echo ''", simulator_id,
+                 bundle_id);
 
         FILE *container_fp = popen(app_container_cmd, "r");
         char app_container[MAX_PATH] = "";
         if (container_fp) {
             if (fgets(app_container, sizeof(app_container), container_fp)) {
                 size_t len = strlen(app_container);
-                if (len > 0 && app_container[len-1] == '\n') {
-                    app_container[len-1] = '\0';
+                if (len > 0 && app_container[len - 1] == '\n') {
+                    app_container[len - 1] = '\0';
                 }
             }
             pclose(container_fp);
@@ -828,8 +851,8 @@ static int test_appsim_004(const char *artifact_dir, char *log_buf, size_t log_s
         /* Also try to get device logs directly */
         char device_log_cmd[MAX_PATH * 4];
         snprintf(device_log_cmd, sizeof(device_log_cmd),
-            "xcrun simctl diagnose '%s' --logs --output '%s/diagnose' 2>/dev/null || true",
-            simulator_id, artifact_dir);
+                 "xcrun simctl diagnose '%s' --logs --output '%s/diagnose' 2>/dev/null || true",
+                 simulator_id, artifact_dir);
         system(device_log_cmd);
     }
 
@@ -875,7 +898,8 @@ static int test_appsim_004(const char *artifact_dir, char *log_buf, size_t log_s
         }
 
         for (int i = 0; i < milestone_count; i++) {
-            if (extracted[i].found) continue;
+            if (extracted[i].found)
+                continue;
 
             /* Create lowercase pattern */
             char pattern_lower[256];
@@ -921,8 +945,8 @@ static int test_appsim_004(const char *artifact_dir, char *log_buf, size_t log_s
         }
     }
 
-    printf("    Found %d milestones, highest: %s\n",
-           last_order > 0 ? last_order : 1, highest_completed);
+    printf("    Found %d milestones, highest: %s\n", last_order > 0 ? last_order : 1,
+           highest_completed);
 
     /* Step 5: Write artifacts */
     printf("  Step 5: Writing artifacts...\n");
@@ -967,9 +991,8 @@ static int test_appsim_004(const char *artifact_dir, char *log_buf, size_t log_s
         for (int i = 0; i < milestone_count; i++) {
             if (extracted[i].found) {
                 fprintf(fp, "[%s] %s (order=%d)\n",
-                       extracted[i].timestamp_ms >= 0 ? "FOUND" : "MARKER",
-                       extracted[i].name,
-                       extracted[i].order);
+                        extracted[i].timestamp_ms >= 0 ? "FOUND" : "MARKER", extracted[i].name,
+                        extracted[i].order);
             }
         }
 
@@ -987,11 +1010,10 @@ static int test_appsim_004(const char *artifact_dir, char *log_buf, size_t log_s
         int first = 1;
         for (int i = 0; i < milestone_count; i++) {
             if (extracted[i].found) {
-                if (!first) fprintf(fp, ",\n");
+                if (!first)
+                    fprintf(fp, ",\n");
                 fprintf(fp, "    {\"name\": \"%s\", \"order\": %d, \"timestamp_ms\": %d}",
-                       extracted[i].name,
-                       extracted[i].order,
-                       extracted[i].timestamp_ms);
+                        extracted[i].name, extracted[i].order, extracted[i].timestamp_ms);
                 first = 0;
             }
         }
@@ -1023,7 +1045,8 @@ static int test_appsim_004(const char *artifact_dir, char *log_buf, size_t log_s
 }
 
 /* Simple hash function for crash signature normalization */
-static uint32_t hash_string(const char *str) {
+static uint32_t hash_string(const char *str)
+{
     uint32_t hash = 5381;
     int c;
     while ((c = *str++)) {
@@ -1033,27 +1056,24 @@ static uint32_t hash_string(const char *str) {
 }
 
 /* Normalize PC address by masking out low bits (alignment) */
-static uint64_t normalize_pc(uint64_t pc) {
+static uint64_t normalize_pc(uint64_t pc)
+{
     /* Mask out bottom 12 bits (page offset) for normalization */
     return pc & ~0xFFFULL;
 }
 
 /* Generate deterministic hash from crash context */
-static void generate_crash_hash(char *hash_out, size_t hash_size,
-                                const char *crash_type,
-                                const char *exception_code,
-                                uint64_t faulting_pc,
-                                const char *milestone_context) {
+static void generate_crash_hash(char *hash_out, size_t hash_size, const char *crash_type,
+                                const char *exception_code, uint64_t faulting_pc,
+                                const char *milestone_context)
+{
     /* Normalize the PC */
     uint64_t norm_pc = normalize_pc(faulting_pc);
 
     /* Create a normalized string representation */
     char norm_str[1024];
-    snprintf(norm_str, sizeof(norm_str), "%s|%s|%016llx|%s",
-             crash_type,
-             exception_code,
-             (unsigned long long)norm_pc,
-             milestone_context);
+    snprintf(norm_str, sizeof(norm_str), "%s|%s|%016llx|%s", crash_type, exception_code,
+             (unsigned long long)norm_pc, milestone_context);
 
     /* Simple hash combination */
     uint32_t h1 = hash_string(crash_type);
@@ -1066,14 +1086,13 @@ static void generate_crash_hash(char *hash_out, size_t hash_size,
     uint32_t combined = h1 ^ (h2 << 1) ^ (h3 << 2) ^ (h4 << 3) ^ (h5 << 4);
 
     /* Generate hex hash string */
-    snprintf(hash_out, hash_size, "%08x%08x%08x%08x%08x%08x%08x%08x",
-             combined, h1, h2, h3, h4, h5,
-             (uint32_t)(norm_pc & 0xFFFF),
-             (uint32_t)(faulting_pc & 0xFFFF));
+    snprintf(hash_out, hash_size, "%08x%08x%08x%08x%08x%08x%08x%08x", combined, h1, h2, h3, h4, h5,
+             (uint32_t)(norm_pc & 0xFFFF), (uint32_t)(faulting_pc & 0xFFFF));
 }
 
 /* APPSIM-005: Crash Signature Normalization */
-static int test_appsim_005(const char *artifact_dir, char *log_buf, size_t log_size) {
+static int test_appsim_005(const char *artifact_dir, char *log_buf, size_t log_size)
+{
     (void)log_buf;
     (void)log_size;
     printf("APPSIM-005: Crash Signature Normalization\n");
@@ -1094,9 +1113,8 @@ static int test_appsim_005(const char *artifact_dir, char *log_buf, size_t log_s
     int launch_pid = 0;
 
     char launch_cmd[MAX_PATH * 4];
-    snprintf(launch_cmd, sizeof(launch_cmd),
-        "xcrun simctl launch '%s' '%s' 2>&1",
-        simulator_id, bundle_id);
+    snprintf(launch_cmd, sizeof(launch_cmd), "xcrun simctl launch '%s' '%s' 2>&1", simulator_id,
+             bundle_id);
 
     char launch_output_path[MAX_PATH];
     snprintf(launch_output_path, sizeof(launch_output_path), "%s/launch_output.txt", artifact_dir);
@@ -1137,8 +1155,9 @@ static int test_appsim_005(const char *artifact_dir, char *log_buf, size_t log_s
     /* Try to get logs from simulator */
     char log_cmd[MAX_PATH * 4];
     snprintf(log_cmd, sizeof(log_cmd),
-        "xcrun simctl spawn '%s' log show --predicate 'subsystem == \"%s\" OR process == \"iSH\"' --last 5m 2>&1 | head -100",
-        simulator_id, bundle_id);
+             "xcrun simctl spawn '%s' log show --predicate 'subsystem == \"%s\" OR process == "
+             "\"iSH\"' --last 5m 2>&1 | head -100",
+             simulator_id, bundle_id);
 
     FILE *log_fp = popen(log_cmd, "r");
     if (log_fp) {
@@ -1163,18 +1182,16 @@ static int test_appsim_005(const char *artifact_dir, char *log_buf, size_t log_s
         const char *exception_code;
     } crash_pattern_t;
 
-    crash_pattern_t crash_patterns[] = {
-        {"SIGSEGV", "memory_access", "EXC_BAD_ACCESS"},
-        {"SIGBUS", "bus_error", "EXC_BAD_ACCESS"},
-        {"SIGILL", "illegal_instruction", "EXC_BAD_INSTRUCTION"},
-        {"SIGABRT", "abort", "EXC_CRASH"},
-        {"Assertion failure", "assertion_failure", "EXC_CRASH"},
-        {"Fatal error", "fatal_error", "EXC_CRASH"},
-        {"EXC_", "exception", "EXC_EXCEPTION"},
-        {"terminating", "termination", "EXC_CRASH"},
-        {"trap", "trap", "EXC_BREAKPOINT"},
-        {NULL, NULL, NULL}
-    };
+    crash_pattern_t crash_patterns[] = { { "SIGSEGV", "memory_access", "EXC_BAD_ACCESS" },
+                                         { "SIGBUS", "bus_error", "EXC_BAD_ACCESS" },
+                                         { "SIGILL", "illegal_instruction", "EXC_BAD_INSTRUCTION" },
+                                         { "SIGABRT", "abort", "EXC_CRASH" },
+                                         { "Assertion failure", "assertion_failure", "EXC_CRASH" },
+                                         { "Fatal error", "fatal_error", "EXC_CRASH" },
+                                         { "EXC_", "exception", "EXC_EXCEPTION" },
+                                         { "terminating", "termination", "EXC_CRASH" },
+                                         { "trap", "trap", "EXC_BREAKPOINT" },
+                                         { NULL, NULL, NULL } };
 
     /* Look for milestones in log */
     typedef struct {
@@ -1183,18 +1200,16 @@ static int test_appsim_005(const char *artifact_dir, char *log_buf, size_t log_s
         int order;
     } milestone_def_t;
 
-    milestone_def_t milestones[] = {
-        {"app_launched", "launched", 1},
-        {"kernel_init_started", "kernel initialization", 2},
-        {"tcti_initialized", "TCTI", 3},
-        {"first_elf_exec_entered", "first ELF exec entered", 4},
-        {"first_elf_exec_returned", "first ELF exec returned", 5},
-        {"second_execve_started", "second execve", 6},
-        {"guest_loop_entered", "guest loop", 7},
-        {"login_ready", "login ready", 8},
-        {"shell_ready", "shell ready", 9},
-        {NULL, NULL, 0}
-    };
+    milestone_def_t milestones[] = { { "app_launched", "launched", 1 },
+                                     { "kernel_init_started", "kernel initialization", 2 },
+                                     { "tcti_initialized", "TCTI", 3 },
+                                     { "first_elf_exec_entered", "first ELF exec entered", 4 },
+                                     { "first_elf_exec_returned", "first ELF exec returned", 5 },
+                                     { "second_execve_started", "second execve", 6 },
+                                     { "guest_loop_entered", "guest loop", 7 },
+                                     { "login_ready", "login ready", 8 },
+                                     { "shell_ready", "shell ready", 9 },
+                                     { NULL, NULL, 0 } };
 
     /* Extract found milestones */
     typedef struct {
@@ -1232,7 +1247,8 @@ static int test_appsim_005(const char *artifact_dir, char *log_buf, size_t log_s
         }
 
         for (int i = 0; i < found_count; i++) {
-            if (found_milestones[i].found) continue;
+            if (found_milestones[i].found)
+                continue;
 
             /* Look for milestone pattern */
             for (int m = 0; milestones[m].name != NULL; m++) {
@@ -1277,7 +1293,7 @@ static int test_appsim_005(const char *artifact_dir, char *log_buf, size_t log_s
         if (!found_milestones[i].found && found_milestones[i].order > last_completed_order) {
             /* Check if this is the immediate next milestone */
             if (found_milestones[i].order == last_completed_order + 1 ||
-                (i > 0 && found_milestones[i-1].found)) {
+                (i > 0 && found_milestones[i - 1].found)) {
                 strncpy(first_failing, found_milestones[i].name, 63);
                 first_failing[63] = '\0';
                 break;
@@ -1312,8 +1328,7 @@ static int test_appsim_005(const char *artifact_dir, char *log_buf, size_t log_s
         if (strstr(log_content, crash_patterns[i].pattern)) {
             detected_crash_type = crash_patterns[i].crash_type;
             detected_exception = crash_patterns[i].exception_code;
-            printf("    Found crash indicator: %s (%s)\n",
-                   detected_crash_type, detected_exception);
+            printf("    Found crash indicator: %s (%s)\n", detected_crash_type, detected_exception);
             break;
         }
     }
@@ -1331,14 +1346,11 @@ static int test_appsim_005(const char *artifact_dir, char *log_buf, size_t log_s
 
     char normalized_hash[128];
     char milestone_ctx_str[256];
-    snprintf(milestone_ctx_str, sizeof(milestone_ctx_str), "%s|%s|%d",
-             highest_completed, first_failing, milestones_reached);
+    snprintf(milestone_ctx_str, sizeof(milestone_ctx_str), "%s|%s|%d", highest_completed,
+             first_failing, milestones_reached);
 
-    generate_crash_hash(normalized_hash, sizeof(normalized_hash),
-                        detected_crash_type,
-                        detected_exception,
-                        faulting_pc,
-                        milestone_ctx_str);
+    generate_crash_hash(normalized_hash, sizeof(normalized_hash), detected_crash_type,
+                        detected_exception, faulting_pc, milestone_ctx_str);
 
     printf("    Generated hash: %s\n", normalized_hash);
 
@@ -1392,14 +1404,16 @@ static int test_appsim_005(const char *artifact_dir, char *log_buf, size_t log_s
         int first = 1;
         for (int i = 0; i < found_count; i++) {
             if (found_milestones[i].found) {
-                if (!first) fprintf(fp, ",\n");
+                if (!first)
+                    fprintf(fp, ",\n");
                 fprintf(fp, "    {\"name\": \"%s\", \"order\": %d, \"completed\": true}",
-                       found_milestones[i].name, found_milestones[i].order);
+                        found_milestones[i].name, found_milestones[i].order);
                 first = 0;
             } else {
-                if (!first) fprintf(fp, ",\n");
+                if (!first)
+                    fprintf(fp, ",\n");
                 fprintf(fp, "    {\"name\": \"%s\", \"order\": %d, \"completed\": false}",
-                       found_milestones[i].name, found_milestones[i].order);
+                        found_milestones[i].name, found_milestones[i].order);
                 first = 0;
             }
         }
@@ -1416,19 +1430,22 @@ static int test_appsim_005(const char *artifact_dir, char *log_buf, size_t log_s
     int has_milestone_ctx = 0;
 
     snprintf(path, sizeof(path), "%s/crash_signature.json", artifact_dir);
-    if (access(path, F_OK) == 0) has_crash_sig = 1;
+    if (access(path, F_OK) == 0)
+        has_crash_sig = 1;
 
     snprintf(path, sizeof(path), "%s/normalized_hash.txt", artifact_dir);
-    if (access(path, F_OK) == 0) has_hash = 1;
+    if (access(path, F_OK) == 0)
+        has_hash = 1;
 
     snprintf(path, sizeof(path), "%s/milestone_context.json", artifact_dir);
-    if (access(path, F_OK) == 0) has_milestone_ctx = 1;
+    if (access(path, F_OK) == 0)
+        has_milestone_ctx = 1;
 
     if (!has_crash_sig || !has_hash || !has_milestone_ctx) {
         passed = 0;
         snprintf(failure_reason, sizeof(failure_reason),
-                 "Missing required artifacts: crash_sig=%d hash=%d milestone_ctx=%d",
-                 has_crash_sig, has_hash, has_milestone_ctx);
+                 "Missing required artifacts: crash_sig=%d hash=%d milestone_ctx=%d", has_crash_sig,
+                 has_hash, has_milestone_ctx);
     }
 
     printf("  Result: %s\n", passed ? "PASSED" : "FAILED");
@@ -1443,21 +1460,22 @@ typedef struct {
 } app_milestone_def_t;
 
 static app_milestone_def_t app_boot_milestones[] = {
-    {"app_launched", "launched", 1},
-    {"kernel_init_started", "kernel initialization", 2},
-    {"tcti_initialized", "TCTI", 3},
-    {"boot_setup_started", "boot setup", 4},
-    {"first_elf_exec_entered", "first ELF exec entered", 5},
-    {"first_elf_exec_returned", "first ELF exec returned", 6},
-    {"second_execve_started", "second execve", 7},
-    {"guest_loop_entered", "guest loop", 8},
-    {"login_ready", "login ready", 9},
-    {"shell_ready", "shell ready", 10},
-    {NULL, NULL, 0}
+    { "app_launched", "launched", 1 },
+    { "kernel_init_started", "kernel initialization", 2 },
+    { "tcti_initialized", "TCTI", 3 },
+    { "boot_setup_started", "boot setup", 4 },
+    { "first_elf_exec_entered", "first ELF exec entered", 5 },
+    { "first_elf_exec_returned", "first ELF exec returned", 6 },
+    { "second_execve_started", "second execve", 7 },
+    { "guest_loop_entered", "guest loop", 8 },
+    { "login_ready", "login ready", 9 },
+    { "shell_ready", "shell ready", 10 },
+    { NULL, NULL, 0 }
 };
 
 /* APP-001: Boot to First ELF Exec */
-static int test_app_001(const char *artifact_dir, char *log_buf, size_t log_size) {
+static int test_app_001(const char *artifact_dir, char *log_buf, size_t log_size)
+{
     (void)log_buf;
     (void)log_size;
     printf("APP-001: Boot to First ELF Exec\n");
@@ -1483,9 +1501,8 @@ static int test_app_001(const char *artifact_dir, char *log_buf, size_t log_size
     int launch_pid = 0;
 
     char launch_cmd[MAX_PATH * 4];
-    snprintf(launch_cmd, sizeof(launch_cmd),
-        "xcrun simctl launch '%s' '%s' 2>&1",
-        simulator_id, bundle_id);
+    snprintf(launch_cmd, sizeof(launch_cmd), "xcrun simctl launch '%s' '%s' 2>&1", simulator_id,
+             bundle_id);
 
     char launch_output_path[MAX_PATH];
     snprintf(launch_output_path, sizeof(launch_output_path), "%s/launch_output.txt", artifact_dir);
@@ -1531,8 +1548,9 @@ static int test_app_001(const char *artifact_dir, char *log_buf, size_t log_size
     /* Try to get logs from simulator */
     char log_cmd[MAX_PATH * 4];
     snprintf(log_cmd, sizeof(log_cmd),
-        "xcrun simctl spawn '%s' log show --predicate 'subsystem == \"%s\" OR process == \"iSH\"' --last 5m 2>&1 | head -100",
-        simulator_id, bundle_id);
+             "xcrun simctl spawn '%s' log show --predicate 'subsystem == \"%s\" OR process == "
+             "\"iSH\"' --last 5m 2>&1 | head -100",
+             simulator_id, bundle_id);
 
     FILE *log_fp = popen(log_cmd, "r");
     if (log_fp) {
@@ -1589,7 +1607,8 @@ static int test_app_001(const char *artifact_dir, char *log_buf, size_t log_size
         }
 
         for (int i = 0; i < milestone_count; i++) {
-            if (extracted[i].found) continue;
+            if (extracted[i].found)
+                continue;
 
             /* Find matching milestone definition */
             for (int m = 0; app_boot_milestones[m].name != NULL; m++) {
@@ -1656,11 +1675,10 @@ static int test_app_001(const char *artifact_dir, char *log_buf, size_t log_size
         int first = 1;
         for (int i = 0; i < milestone_count; i++) {
             if (extracted[i].found) {
-                if (!first) fprintf(fp, ",\n");
+                if (!first)
+                    fprintf(fp, ",\n");
                 fprintf(fp, "    {\"name\": \"%s\", \"order\": %d, \"timestamp_ms\": %d}",
-                       extracted[i].name,
-                       extracted[i].order,
-                       extracted[i].timestamp_ms);
+                        extracted[i].name, extracted[i].order, extracted[i].timestamp_ms);
                 first = 0;
             }
         }
@@ -1715,10 +1733,10 @@ static int test_app_001(const char *artifact_dir, char *log_buf, size_t log_size
         }
     }
 
-    printf("    Milestones - app_launched: %s, boot_setup_started: %s, first_elf_exec_entered: %s\n",
-           has_app_launched ? "yes" : "no",
-           has_boot_setup_started ? "yes" : "no",
-           has_first_elf_exec_entered ? "yes" : "no");
+    printf(
+        "    Milestones - app_launched: %s, boot_setup_started: %s, first_elf_exec_entered: %s\n",
+        has_app_launched ? "yes" : "no", has_boot_setup_started ? "yes" : "no",
+        has_first_elf_exec_entered ? "yes" : "no");
 
     /* APP-001 requires app_launched at minimum, and ideally first_elf_exec_entered */
     if (!has_app_launched) {
@@ -1726,7 +1744,8 @@ static int test_app_001(const char *artifact_dir, char *log_buf, size_t log_size
         snprintf(failure_reason, sizeof(failure_reason), "app_launched milestone not found");
     }
 
-    /* For APP-001, we consider success if app launched, even if first_elf_exec_entered is not in logs */
+    /* For APP-001, we consider success if app launched, even if first_elf_exec_entered is not in
+     * logs */
     /* This is because the log capture window may miss the exact moment */
     /* The key is that the app launched successfully */
 
@@ -1735,7 +1754,8 @@ static int test_app_001(const char *artifact_dir, char *log_buf, size_t log_size
 }
 
 /* APP-002: First ELF Exec Return */
-static int test_app_002(const char *artifact_dir, char *log_buf, size_t log_size) {
+static int test_app_002(const char *artifact_dir, char *log_buf, size_t log_size)
+{
     (void)log_buf;
     (void)log_size;
     printf("APP-002: First ELF Exec Return\n");
@@ -1761,9 +1781,8 @@ static int test_app_002(const char *artifact_dir, char *log_buf, size_t log_size
     int launch_pid = 0;
 
     char launch_cmd[MAX_PATH * 4];
-    snprintf(launch_cmd, sizeof(launch_cmd),
-        "xcrun simctl launch '%s' '%s' 2>&1",
-        simulator_id, bundle_id);
+    snprintf(launch_cmd, sizeof(launch_cmd), "xcrun simctl launch '%s' '%s' 2>&1", simulator_id,
+             bundle_id);
 
     char launch_output_path[MAX_PATH];
     snprintf(launch_output_path, sizeof(launch_output_path), "%s/launch_output.txt", artifact_dir);
@@ -1809,8 +1828,9 @@ static int test_app_002(const char *artifact_dir, char *log_buf, size_t log_size
     /* Try to get logs from simulator */
     char log_cmd[MAX_PATH * 4];
     snprintf(log_cmd, sizeof(log_cmd),
-        "xcrun simctl spawn '%s' log show --predicate 'subsystem == \"%s\" OR process == \"iSH\"' --last 5m 2>&1 | head -100",
-        simulator_id, bundle_id);
+             "xcrun simctl spawn '%s' log show --predicate 'subsystem == \"%s\" OR process == "
+             "\"iSH\"' --last 5m 2>&1 | head -100",
+             simulator_id, bundle_id);
 
     FILE *log_fp = popen(log_cmd, "r");
     if (log_fp) {
@@ -1867,7 +1887,8 @@ static int test_app_002(const char *artifact_dir, char *log_buf, size_t log_size
         }
 
         for (int i = 0; i < milestone_count; i++) {
-            if (extracted[i].found) continue;
+            if (extracted[i].found)
+                continue;
 
             /* Find matching milestone definition */
             for (int m = 0; app_boot_milestones[m].name != NULL; m++) {
@@ -1934,11 +1955,10 @@ static int test_app_002(const char *artifact_dir, char *log_buf, size_t log_size
         int first = 1;
         for (int i = 0; i < milestone_count; i++) {
             if (extracted[i].found) {
-                if (!first) fprintf(fp, ",\n");
+                if (!first)
+                    fprintf(fp, ",\n");
                 fprintf(fp, "    {\"name\": \"%s\", \"order\": %d, \"timestamp_ms\": %d}",
-                       extracted[i].name,
-                       extracted[i].order,
-                       extracted[i].timestamp_ms);
+                        extracted[i].name, extracted[i].order, extracted[i].timestamp_ms);
                 first = 0;
             }
         }
@@ -1976,7 +1996,8 @@ static int test_app_002(const char *artifact_dir, char *log_buf, size_t log_size
     /* Step 5: Verify success criteria */
     printf("  Step 5: Verifying success criteria...\n");
 
-    /* APP-002 success: app_launched, boot_setup_started, first_elf_exec_entered, first_elf_exec_returned */
+    /* APP-002 success: app_launched, boot_setup_started, first_elf_exec_entered,
+     * first_elf_exec_returned */
     int has_app_launched = 0;
     int has_first_elf_exec_entered = 0;
     int has_first_elf_exec_returned = 0;
@@ -1993,9 +2014,9 @@ static int test_app_002(const char *artifact_dir, char *log_buf, size_t log_size
         }
     }
 
-    printf("    Milestones - app_launched: %s, first_elf_exec_entered: %s, first_elf_exec_returned: %s\n",
-           has_app_launched ? "yes" : "no",
-           has_first_elf_exec_entered ? "yes" : "no",
+    printf("    Milestones - app_launched: %s, first_elf_exec_entered: %s, "
+           "first_elf_exec_returned: %s\n",
+           has_app_launched ? "yes" : "no", has_first_elf_exec_entered ? "yes" : "no",
            has_first_elf_exec_returned ? "yes" : "no");
 
     /* APP-002 requires app_launched at minimum */
@@ -2012,7 +2033,8 @@ static int test_app_002(const char *artifact_dir, char *log_buf, size_t log_size
 }
 
 /* APP-003: Second Exec Login Entry */
-static int test_app_003(const char *artifact_dir, char *log_buf, size_t log_size) {
+static int test_app_003(const char *artifact_dir, char *log_buf, size_t log_size)
+{
     (void)log_buf;
     (void)log_size;
     printf("APP-003: Second Exec Login Entry\n");
@@ -2038,9 +2060,8 @@ static int test_app_003(const char *artifact_dir, char *log_buf, size_t log_size
     int launch_pid = 0;
 
     char launch_cmd[MAX_PATH * 4];
-    snprintf(launch_cmd, sizeof(launch_cmd),
-        "xcrun simctl launch '%s' '%s' 2>&1",
-        simulator_id, bundle_id);
+    snprintf(launch_cmd, sizeof(launch_cmd), "xcrun simctl launch '%s' '%s' 2>&1", simulator_id,
+             bundle_id);
 
     char launch_output_path[MAX_PATH];
     snprintf(launch_output_path, sizeof(launch_output_path), "%s/launch_output.txt", artifact_dir);
@@ -2086,8 +2107,9 @@ static int test_app_003(const char *artifact_dir, char *log_buf, size_t log_size
     /* Try to get logs from simulator */
     char log_cmd[MAX_PATH * 4];
     snprintf(log_cmd, sizeof(log_cmd),
-        "xcrun simctl spawn '%s' log show --predicate 'subsystem == \"%s\" OR process == \"iSH\"' --last 5m 2>&1 | head -100",
-        simulator_id, bundle_id);
+             "xcrun simctl spawn '%s' log show --predicate 'subsystem == \"%s\" OR process == "
+             "\"iSH\"' --last 5m 2>&1 | head -100",
+             simulator_id, bundle_id);
 
     FILE *log_fp = popen(log_cmd, "r");
     if (log_fp) {
@@ -2144,7 +2166,8 @@ static int test_app_003(const char *artifact_dir, char *log_buf, size_t log_size
         }
 
         for (int i = 0; i < milestone_count; i++) {
-            if (extracted[i].found) continue;
+            if (extracted[i].found)
+                continue;
 
             /* Find matching milestone definition */
             for (int m = 0; app_boot_milestones[m].name != NULL; m++) {
@@ -2189,7 +2212,7 @@ static int test_app_003(const char *artifact_dir, char *log_buf, size_t log_size
         if (!extracted[i].found && extracted[i].order > last_completed_order) {
             /* Check if this is the immediate next milestone */
             if (extracted[i].order == last_completed_order + 1 ||
-                (i > 0 && extracted[i-1].found)) {
+                (i > 0 && extracted[i - 1].found)) {
                 strncpy(first_failing, extracted[i].name, 63);
                 first_failing[63] = '\0';
                 break;
@@ -2208,8 +2231,8 @@ static int test_app_003(const char *artifact_dir, char *log_buf, size_t log_size
         }
     }
 
-    printf("    Found %d milestones, highest: %s, first_failing: %s\n",
-           milestones_found, highest_completed, first_failing);
+    printf("    Found %d milestones, highest: %s, first_failing: %s\n", milestones_found,
+           highest_completed, first_failing);
 
     /* Step 4: Check for crash indicators */
     printf("  Step 4: Detecting crash signatures...\n");
@@ -2221,20 +2244,19 @@ static int test_app_003(const char *artifact_dir, char *log_buf, size_t log_size
         const char *exception_code;
     } crash_pattern_t;
 
-    crash_pattern_t crash_patterns[] = {
-        {"SIGSEGV", "memory_access", "EXC_BAD_ACCESS"},
-        {"SIGBUS", "bus_error", "EXC_BAD_ACCESS"},
-        {"SIGILL", "illegal_instruction", "EXC_BAD_INSTRUCTION"},
-        {"SIGABRT", "abort", "EXC_CRASH"},
-        {"Assertion failure", "assertion_failure", "EXC_CRASH"},
-        {"Fatal error", "fatal_error", "EXC_CRASH"},
-        {"EXC_", "exception", "EXC_EXCEPTION"},
-        {"terminating", "termination", "EXC_CRASH"},
-        {"trap", "trap", "EXC_BREAKPOINT"},
-        {"NULL current->mem", "null_mem_access", "EXC_BAD_ACCESS"},
-        {"task_run_current", "task_crash", "EXC_CRASH"},
-        {NULL, NULL, NULL}
-    };
+    crash_pattern_t crash_patterns[] = { { "SIGSEGV", "memory_access", "EXC_BAD_ACCESS" },
+                                         { "SIGBUS", "bus_error", "EXC_BAD_ACCESS" },
+                                         { "SIGILL", "illegal_instruction", "EXC_BAD_INSTRUCTION" },
+                                         { "SIGABRT", "abort", "EXC_CRASH" },
+                                         { "Assertion failure", "assertion_failure", "EXC_CRASH" },
+                                         { "Fatal error", "fatal_error", "EXC_CRASH" },
+                                         { "EXC_", "exception", "EXC_EXCEPTION" },
+                                         { "terminating", "termination", "EXC_CRASH" },
+                                         { "trap", "trap", "EXC_BREAKPOINT" },
+                                         { "NULL current->mem", "null_mem_access",
+                                           "EXC_BAD_ACCESS" },
+                                         { "task_run_current", "task_crash", "EXC_CRASH" },
+                                         { NULL, NULL, NULL } };
 
     const char *detected_crash_type = "none";
     const char *detected_exception = "none";
@@ -2246,8 +2268,7 @@ static int test_app_003(const char *artifact_dir, char *log_buf, size_t log_size
             detected_crash_type = crash_patterns[i].crash_type;
             detected_exception = crash_patterns[i].exception_code;
             crashed = 1;
-            printf("    Found crash indicator: %s (%s)\n",
-                   detected_crash_type, detected_exception);
+            printf("    Found crash indicator: %s (%s)\n", detected_crash_type, detected_exception);
             break;
         }
     }
@@ -2267,14 +2288,11 @@ static int test_app_003(const char *artifact_dir, char *log_buf, size_t log_size
 
     char normalized_hash[128];
     char milestone_ctx_str[256];
-    snprintf(milestone_ctx_str, sizeof(milestone_ctx_str), "%s|%s|%d",
-             highest_completed, first_failing, milestones_found);
+    snprintf(milestone_ctx_str, sizeof(milestone_ctx_str), "%s|%s|%d", highest_completed,
+             first_failing, milestones_found);
 
-    generate_crash_hash(normalized_hash, sizeof(normalized_hash),
-                        detected_crash_type,
-                        detected_exception,
-                        faulting_pc,
-                        milestone_ctx_str);
+    generate_crash_hash(normalized_hash, sizeof(normalized_hash), detected_crash_type,
+                        detected_exception, faulting_pc, milestone_ctx_str);
 
     printf("    Generated hash: %s\n", normalized_hash);
 
@@ -2306,11 +2324,10 @@ static int test_app_003(const char *artifact_dir, char *log_buf, size_t log_size
         int first = 1;
         for (int i = 0; i < milestone_count; i++) {
             if (extracted[i].found) {
-                if (!first) fprintf(fp, ",\n");
+                if (!first)
+                    fprintf(fp, ",\n");
                 fprintf(fp, "    {\"name\": \"%s\", \"order\": %d, \"timestamp_ms\": %d}",
-                       extracted[i].name,
-                       extracted[i].order,
-                       extracted[i].timestamp_ms);
+                        extracted[i].name, extracted[i].order, extracted[i].timestamp_ms);
                 first = 0;
             }
         }
@@ -2381,7 +2398,8 @@ static int test_app_003(const char *artifact_dir, char *log_buf, size_t log_size
     printf("  Step 7: Verifying success criteria...\n");
 
     /* APP-003 success: app_launched, boot_setup_started, first_elf_exec_entered,
-       first_elf_exec_returned, second_execve_started (optional - tracked but not required for pass) */
+       first_elf_exec_returned, second_execve_started (optional - tracked but not required for pass)
+     */
     int has_app_launched = 0;
     int has_first_elf_exec_entered = 0;
     int has_first_elf_exec_returned = 0;
@@ -2402,11 +2420,10 @@ static int test_app_003(const char *artifact_dir, char *log_buf, size_t log_size
         }
     }
 
-    printf("    Milestones - app_launched: %s, first_elf_exec_entered: %s, first_elf_exec_returned: %s, second_execve_started: %s\n",
-           has_app_launched ? "yes" : "no",
-           has_first_elf_exec_entered ? "yes" : "no",
-           has_first_elf_exec_returned ? "yes" : "no",
-           has_second_execve_started ? "yes" : "no");
+    printf("    Milestones - app_launched: %s, first_elf_exec_entered: %s, "
+           "first_elf_exec_returned: %s, second_execve_started: %s\n",
+           has_app_launched ? "yes" : "no", has_first_elf_exec_entered ? "yes" : "no",
+           has_first_elf_exec_returned ? "yes" : "no", has_second_execve_started ? "yes" : "no");
 
     /* APP-003 requires app_launched at minimum */
     if (!has_app_launched) {
@@ -2414,7 +2431,8 @@ static int test_app_003(const char *artifact_dir, char *log_buf, size_t log_size
         snprintf(failure_reason, sizeof(failure_reason), "app_launched milestone not found");
     }
 
-    /* For APP-003, we consider success if app launched successfully and we have crash signature data */
+    /* For APP-003, we consider success if app launched successfully and we have crash signature
+     * data */
     /* The second_execve_started milestone is tracked but the case may pass without it */
     /* This allows the case to be used for crash reduction analysis */
 
@@ -2423,7 +2441,8 @@ static int test_app_003(const char *artifact_dir, char *log_buf, size_t log_size
 }
 
 /* APP-004: Process Entry Register Contract */
-static int test_app_004(const char *artifact_dir, char *log_buf, size_t log_size) {
+static int test_app_004(const char *artifact_dir, char *log_buf, size_t log_size)
+{
     (void)log_buf;
     (void)log_size;
     printf("APP-004: Process Entry Register Contract\n");
@@ -2449,9 +2468,8 @@ static int test_app_004(const char *artifact_dir, char *log_buf, size_t log_size
     int launch_pid = 0;
 
     char launch_cmd[MAX_PATH * 4];
-    snprintf(launch_cmd, sizeof(launch_cmd),
-        "xcrun simctl launch '%s' '%s' 2>&1",
-        simulator_id, bundle_id);
+    snprintf(launch_cmd, sizeof(launch_cmd), "xcrun simctl launch '%s' '%s' 2>&1", simulator_id,
+             bundle_id);
 
     char launch_output_path[MAX_PATH];
     snprintf(launch_output_path, sizeof(launch_output_path), "%s/launch_output.txt", artifact_dir);
@@ -2497,8 +2515,9 @@ static int test_app_004(const char *artifact_dir, char *log_buf, size_t log_size
     /* Try to get logs from simulator */
     char log_cmd[MAX_PATH * 4];
     snprintf(log_cmd, sizeof(log_cmd),
-        "xcrun simctl spawn '%s' log show --predicate 'subsystem == \"%s\" OR process == \"iSH\"' --last 5m 2>&1 | head -100",
-        simulator_id, bundle_id);
+             "xcrun simctl spawn '%s' log show --predicate 'subsystem == \"%s\" OR process == "
+             "\"iSH\"' --last 5m 2>&1 | head -100",
+             simulator_id, bundle_id);
 
     FILE *log_fp = popen(log_cmd, "r");
     if (log_fp) {
@@ -2555,7 +2574,8 @@ static int test_app_004(const char *artifact_dir, char *log_buf, size_t log_size
         }
 
         for (int i = 0; i < milestone_count; i++) {
-            if (extracted[i].found) continue;
+            if (extracted[i].found)
+                continue;
 
             /* Find matching milestone definition */
             for (int m = 0; app_boot_milestones[m].name != NULL; m++) {
@@ -2598,19 +2618,16 @@ static int test_app_004(const char *artifact_dir, char *log_buf, size_t log_size
     printf("  Step 4: Extracting process entry register state...\n");
 
     /* Default values for Linux AArch64 ABI process entry */
-    uint64_t x0_argc = 3;  /* argc = 3 (program name + args) */
-    uint64_t x1_argv = 0x100000000ULL;  /* argv pointer */
-    uint64_t x2_envp = 0x100000100ULL;  /* envp pointer */
-    uint64_t x3_auxv = 0x100000200ULL;  /* auxv pointer */
-    uint64_t sp = 0x7fff00000000ULL;    /* stack pointer */
+    uint64_t x0_argc = 3;                  /* argc = 3 (program name + args) */
+    uint64_t x1_argv = 0x100000000ULL;     /* argv pointer */
+    uint64_t x2_envp = 0x100000100ULL;     /* envp pointer */
+    uint64_t x3_auxv = 0x100000200ULL;     /* auxv pointer */
+    uint64_t sp = 0x7fff00000000ULL;       /* stack pointer */
     uint64_t entry_point = 0x100000000ULL; /* entry point */
 
     /* Search for register state in logs */
     /* Look for patterns like "x0=", "x1=", etc. */
-    char *reg_patterns[] = {
-        "x0=", "x1=", "x2=", "x3=",
-        "sp=", "entry=", "argc=", "argv="
-    };
+    char *reg_patterns[] = { "x0=", "x1=", "x2=", "x3=", "sp=", "entry=", "argc=", "argv=" };
     int found_registers = 0;
 
     for (int i = 0; i < 8; i++) {
@@ -2627,9 +2644,7 @@ static int test_app_004(const char *artifact_dir, char *log_buf, size_t log_size
     }
 
     printf("    Register state: x0(argc)=%llu, x1(argv)=0x%llx, x2(envp)=0x%llx, x3(auxv)=0x%llx\n",
-           (unsigned long long)x0_argc,
-           (unsigned long long)x1_argv,
-           (unsigned long long)x2_envp,
+           (unsigned long long)x0_argc, (unsigned long long)x1_argv, (unsigned long long)x2_envp,
            (unsigned long long)x3_auxv);
 
     /* Step 5: Write artifacts */
@@ -2729,8 +2744,7 @@ static int test_app_004(const char *artifact_dir, char *log_buf, size_t log_size
     int has_auxv = 1;
 
     printf("    Artifacts - process_entry: %s, argc_argv_envp: %s, auxv: %s\n",
-           has_process_entry ? "yes" : "no",
-           has_argc_argv_envp ? "yes" : "no",
+           has_process_entry ? "yes" : "no", has_argc_argv_envp ? "yes" : "no",
            has_auxv ? "yes" : "no");
 
     /* APP-004 requires app_launched at minimum */
@@ -2753,7 +2767,8 @@ static int test_app_004(const char *artifact_dir, char *log_buf, size_t log_size
 }
 
 /* APP-005: Login ELF Program Header Boundary */
-static int test_app_005(const char *artifact_dir, char *log_buf, size_t log_size) {
+static int test_app_005(const char *artifact_dir, char *log_buf, size_t log_size)
+{
     (void)log_buf;
     (void)log_size;
     printf("APP-005: Login ELF Program Header Boundary\n");
@@ -2779,9 +2794,8 @@ static int test_app_005(const char *artifact_dir, char *log_buf, size_t log_size
     int launch_pid = 0;
 
     char launch_cmd[MAX_PATH * 4];
-    snprintf(launch_cmd, sizeof(launch_cmd),
-        "xcrun simctl launch '%s' '%s' 2>&1",
-        simulator_id, bundle_id);
+    snprintf(launch_cmd, sizeof(launch_cmd), "xcrun simctl launch '%s' '%s' 2>&1", simulator_id,
+             bundle_id);
 
     char launch_output_path[MAX_PATH];
     snprintf(launch_output_path, sizeof(launch_output_path), "%s/launch_output.txt", artifact_dir);
@@ -2827,8 +2841,9 @@ static int test_app_005(const char *artifact_dir, char *log_buf, size_t log_size
     /* Try to get logs from simulator */
     char log_cmd[MAX_PATH * 4];
     snprintf(log_cmd, sizeof(log_cmd),
-        "xcrun simctl spawn '%s' log show --predicate 'subsystem == \"%s\" OR process == \"iSH\"' --last 5m 2>&1 | head -100",
-        simulator_id, bundle_id);
+             "xcrun simctl spawn '%s' log show --predicate 'subsystem == \"%s\" OR process == "
+             "\"iSH\"' --last 5m 2>&1 | head -100",
+             simulator_id, bundle_id);
 
     FILE *log_fp = popen(log_cmd, "r");
     if (log_fp) {
@@ -2885,7 +2900,8 @@ static int test_app_005(const char *artifact_dir, char *log_buf, size_t log_size
         }
 
         for (int i = 0; i < milestone_count; i++) {
-            if (extracted[i].found) continue;
+            if (extracted[i].found)
+                continue;
 
             /* Find matching milestone definition */
             for (int m = 0; app_boot_milestones[m].name != NULL; m++) {
@@ -2957,16 +2973,16 @@ static int test_app_005(const char *artifact_dir, char *log_buf, size_t log_size
         uint64_t p_align;
     } elf64_phdr_t;
 
-    /* ELF constants */
-    #define ELFMAG0 0x7f
-    #define ELFMAG1 'E'
-    #define ELFMAG2 'L'
-    #define ELFMAG3 'F'
-    #define ELFCLASS64 2
-    #define ELFDATA2LSB 1
-    #define EM_AARCH64 183
-    #define ET_EXEC 2
-    #define PT_LOAD 1
+/* ELF constants */
+#define ELFMAG0     0x7f
+#define ELFMAG1     'E'
+#define ELFMAG2     'L'
+#define ELFMAG3     'F'
+#define ELFCLASS64  2
+#define ELFDATA2LSB 1
+#define EM_AARCH64  183
+#define ET_EXEC     2
+#define PT_LOAD     1
 
     /* Simulated ELF parsing for /bin/login */
     elf64_header_t elf_header;
@@ -2988,19 +3004,17 @@ static int test_app_005(const char *artifact_dir, char *log_buf, size_t log_size
     elf_header.e_phoff = 64;       /* Program headers follow ELF header */
     elf_header.e_shoff = 0;        /* Section headers (would be non-zero in real file) */
     elf_header.e_flags = 0;
-    elf_header.e_ehsize = 64;      /* ELF header size */
-    elf_header.e_phentsize = 56;   /* Program header entry size */
-    elf_header.e_phnum = 3;        /* Number of program headers */
-    elf_header.e_shentsize = 64;   /* Section header entry size */
-    elf_header.e_shnum = 0;        /* Number of section headers */
-    elf_header.e_shstrndx = 0;     /* Section name string table index */
+    elf_header.e_ehsize = 64;    /* ELF header size */
+    elf_header.e_phentsize = 56; /* Program header entry size */
+    elf_header.e_phnum = 3;      /* Number of program headers */
+    elf_header.e_shentsize = 64; /* Section header entry size */
+    elf_header.e_shnum = 0;      /* Number of section headers */
+    elf_header.e_shstrndx = 0;   /* Section name string table index */
 
     /* Validate ELF header */
     int elf_header_valid = 1;
-    if (elf_header.e_ident[0] != ELFMAG0 ||
-        elf_header.e_ident[1] != ELFMAG1 ||
-        elf_header.e_ident[2] != ELFMAG2 ||
-        elf_header.e_ident[3] != ELFMAG3) {
+    if (elf_header.e_ident[0] != ELFMAG0 || elf_header.e_ident[1] != ELFMAG1 ||
+        elf_header.e_ident[2] != ELFMAG2 || elf_header.e_ident[3] != ELFMAG3) {
         elf_header_valid = 0;
     }
     if (elf_header.e_ident[4] != ELFCLASS64) {
@@ -3037,7 +3051,7 @@ static int test_app_005(const char *artifact_dir, char *log_buf, size_t log_size
 
     /* Dynamic segment (for dynamic binaries) */
     memset(&program_headers[2], 0, sizeof(elf64_phdr_t));
-    program_headers[2].p_type = 2; /* PT_DYNAMIC */
+    program_headers[2].p_type = 2;  /* PT_DYNAMIC */
     program_headers[2].p_flags = 6; /* PF_W | PF_R */
     program_headers[2].p_offset = 0x15000;
     program_headers[2].p_vaddr = 0x415000;
@@ -3114,9 +3128,12 @@ static int test_app_005(const char *artifact_dir, char *log_buf, size_t log_size
         fprintf(fp, "  \"e_shnum\": %u,\n", elf_header.e_shnum);
         fprintf(fp, "  \"e_shstrndx\": %u,\n", elf_header.e_shstrndx);
         fprintf(fp, "  \"header_valid\": %s,\n", elf_header_valid ? "true" : "false");
-        fprintf(fp, "  \"is_aarch64\": %s,\n", elf_header.e_machine == EM_AARCH64 ? "true" : "false");
-        fprintf(fp, "  \"is_64bit\": %s,\n", elf_header.e_ident[4] == ELFCLASS64 ? "true" : "false");
-        fprintf(fp, "  \"is_little_endian\": %s,\n", elf_header.e_ident[5] == ELFDATA2LSB ? "true" : "false");
+        fprintf(fp, "  \"is_aarch64\": %s,\n",
+                elf_header.e_machine == EM_AARCH64 ? "true" : "false");
+        fprintf(fp, "  \"is_64bit\": %s,\n",
+                elf_header.e_ident[4] == ELFCLASS64 ? "true" : "false");
+        fprintf(fp, "  \"is_little_endian\": %s,\n",
+                elf_header.e_ident[5] == ELFDATA2LSB ? "true" : "false");
         fprintf(fp, "  \"timestamp\": \"%s\"\n", timestamp);
         fprintf(fp, "}\n");
         fclose(fp);
@@ -3135,28 +3152,36 @@ static int test_app_005(const char *artifact_dir, char *log_buf, size_t log_size
         fprintf(fp, "  \"program_headers\": [\n");
 
         for (int i = 0; i < elf_header.e_phnum; i++) {
-            if (i > 0) fprintf(fp, ",\n");
+            if (i > 0)
+                fprintf(fp, ",\n");
             fprintf(fp, "    {\n");
             fprintf(fp, "      \"index\": %d,\n", i);
             fprintf(fp, "      \"p_type\": %u,\n", program_headers[i].p_type);
             fprintf(fp, "      \"p_type_str\": \"%s\",\n",
-                    program_headers[i].p_type == PT_LOAD ? "PT_LOAD" :
-                    program_headers[i].p_type == 2 ? "PT_DYNAMIC" :
-                    program_headers[i].p_type == 3 ? "PT_INTERP" :
-                    program_headers[i].p_type == 4 ? "PT_NOTE" :
-                    program_headers[i].p_type == 6 ? "PT_PHDR" :
-                    program_headers[i].p_type == 7 ? "PT_TLS" : "PT_UNKNOWN");
+                    program_headers[i].p_type == PT_LOAD ? "PT_LOAD"
+                    : program_headers[i].p_type == 2     ? "PT_DYNAMIC"
+                    : program_headers[i].p_type == 3     ? "PT_INTERP"
+                    : program_headers[i].p_type == 4     ? "PT_NOTE"
+                    : program_headers[i].p_type == 6     ? "PT_PHDR"
+                    : program_headers[i].p_type == 7     ? "PT_TLS"
+                                                         : "PT_UNKNOWN");
             fprintf(fp, "      \"p_flags\": %u,\n", program_headers[i].p_flags);
             fprintf(fp, "      \"p_flags_str\": \"%s%s%s\",\n",
                     (program_headers[i].p_flags & 4) ? "R" : "",
                     (program_headers[i].p_flags & 2) ? "W" : "",
                     (program_headers[i].p_flags & 1) ? "X" : "");
-            fprintf(fp, "      \"p_offset\": \"0x%016llx\",\n", (unsigned long long)program_headers[i].p_offset);
-            fprintf(fp, "      \"p_vaddr\": \"0x%016llx\",\n", (unsigned long long)program_headers[i].p_vaddr);
-            fprintf(fp, "      \"p_paddr\": \"0x%016llx\",\n", (unsigned long long)program_headers[i].p_paddr);
-            fprintf(fp, "      \"p_filesz\": %llu,\n", (unsigned long long)program_headers[i].p_filesz);
-            fprintf(fp, "      \"p_memsz\": %llu,\n", (unsigned long long)program_headers[i].p_memsz);
-            fprintf(fp, "      \"p_align\": \"0x%llx\"\n", (unsigned long long)program_headers[i].p_align);
+            fprintf(fp, "      \"p_offset\": \"0x%016llx\",\n",
+                    (unsigned long long)program_headers[i].p_offset);
+            fprintf(fp, "      \"p_vaddr\": \"0x%016llx\",\n",
+                    (unsigned long long)program_headers[i].p_vaddr);
+            fprintf(fp, "      \"p_paddr\": \"0x%016llx\",\n",
+                    (unsigned long long)program_headers[i].p_paddr);
+            fprintf(fp, "      \"p_filesz\": %llu,\n",
+                    (unsigned long long)program_headers[i].p_filesz);
+            fprintf(fp, "      \"p_memsz\": %llu,\n",
+                    (unsigned long long)program_headers[i].p_memsz);
+            fprintf(fp, "      \"p_align\": \"0x%llx\"\n",
+                    (unsigned long long)program_headers[i].p_align);
             fprintf(fp, "    }");
         }
 
@@ -3176,8 +3201,7 @@ static int test_app_005(const char *artifact_dir, char *log_buf, size_t log_size
     int has_pt_load_segments = (pt_load_count >= 2);
 
     printf("    Artifacts - ELF header: %s, Program headers: %s, PT_LOAD count: %d\n",
-           has_elf_header ? "valid" : "invalid",
-           has_program_headers ? "valid" : "invalid",
+           has_elf_header ? "valid" : "invalid", has_program_headers ? "valid" : "invalid",
            pt_load_count);
 
     /* Check that required artifacts were created */
@@ -3185,10 +3209,12 @@ static int test_app_005(const char *artifact_dir, char *log_buf, size_t log_size
     int has_program_headers_file = 0;
 
     snprintf(path, sizeof(path), "%s/login_elf_header.json", artifact_dir);
-    if (access(path, F_OK) == 0) has_login_elf_header = 1;
+    if (access(path, F_OK) == 0)
+        has_login_elf_header = 1;
 
     snprintf(path, sizeof(path), "%s/program_headers.json", artifact_dir);
-    if (access(path, F_OK) == 0) has_program_headers_file = 1;
+    if (access(path, F_OK) == 0)
+        has_program_headers_file = 1;
 
     if (!has_login_elf_header || !has_program_headers_file) {
         passed = 0;
@@ -3217,7 +3243,8 @@ static int test_app_005(const char *artifact_dir, char *log_buf, size_t log_size
 }
 
 /* APPSIM-006: Bounded Reset and Relaunch */
-static int test_appsim_006(const char *artifact_dir, char *log_buf, size_t log_size) {
+static int test_appsim_006(const char *artifact_dir, char *log_buf, size_t log_size)
+{
     (void)log_buf;
     (void)log_size;
     printf("APPSIM-006: Bounded Reset and Relaunch\n");
@@ -3257,12 +3284,12 @@ static int test_appsim_006(const char *artifact_dir, char *log_buf, size_t log_s
 
     /* Try to launch the app */
     char launch_cmd[MAX_PATH * 4];
-    snprintf(launch_cmd, sizeof(launch_cmd),
-        "xcrun simctl launch '%s' '%s' 2>&1",
-        simulator_id, bundle_id);
+    snprintf(launch_cmd, sizeof(launch_cmd), "xcrun simctl launch '%s' '%s' 2>&1", simulator_id,
+             bundle_id);
 
     char launch_output_path[MAX_PATH];
-    snprintf(launch_output_path, sizeof(launch_output_path), "%s/launch_attempt_1.txt", artifact_dir);
+    snprintf(launch_output_path, sizeof(launch_output_path), "%s/launch_attempt_1.txt",
+             artifact_dir);
 
     FILE *fp = popen(launch_cmd, "r");
     if (fp) {
@@ -3319,9 +3346,7 @@ static int test_appsim_006(const char *artifact_dir, char *log_buf, size_t log_s
         gettimeofday(&reset_start, NULL);
 
         char erase_cmd[MAX_PATH * 3];
-        snprintf(erase_cmd, sizeof(erase_cmd),
-            "xcrun simctl erase '%s' 2>&1",
-            simulator_id);
+        snprintf(erase_cmd, sizeof(erase_cmd), "xcrun simctl erase '%s' 2>&1", simulator_id);
 
         char erase_output_path[MAX_PATH];
         snprintf(erase_output_path, sizeof(erase_output_path), "%s/erase_output.txt", artifact_dir);
@@ -3338,8 +3363,8 @@ static int test_appsim_006(const char *artifact_dir, char *log_buf, size_t log_s
         int reset_duration_ms = (reset_end.tv_sec - reset_start.tv_sec) * 1000 +
                                 (reset_end.tv_usec - reset_start.tv_usec) / 1000;
 
-        printf("    Erase %s (duration: %d ms)\n",
-               erase_success ? "SUCCEEDED" : "FAILED", reset_duration_ms);
+        printf("    Erase %s (duration: %d ms)\n", erase_success ? "SUCCEEDED" : "FAILED",
+               reset_duration_ms);
 
         /* Step 2b: Boot the simulator after erase */
         printf("  Step 3: Booting simulator after erase...\n");
@@ -3348,8 +3373,8 @@ static int test_appsim_006(const char *artifact_dir, char *log_buf, size_t log_s
 
         char boot_cmd[MAX_PATH * 3];
         snprintf(boot_cmd, sizeof(boot_cmd),
-            "xcrun simctl bootstatus '%s' -b 2>&1 || xcrun simctl boot '%s' 2>&1",
-            simulator_id, simulator_id);
+                 "xcrun simctl bootstatus '%s' -b 2>&1 || xcrun simctl boot '%s' 2>&1",
+                 simulator_id, simulator_id);
 
         char boot_output_path[MAX_PATH];
         snprintf(boot_output_path, sizeof(boot_output_path), "%s/boot_output.txt", artifact_dir);
@@ -3373,11 +3398,11 @@ static int test_appsim_006(const char *artifact_dir, char *log_buf, size_t log_s
         int relaunch_success = 0;
         int relaunch_pid = 0;
 
-        snprintf(launch_cmd, sizeof(launch_cmd),
-            "xcrun simctl launch '%s' '%s' 2>&1",
-            simulator_id, bundle_id);
+        snprintf(launch_cmd, sizeof(launch_cmd), "xcrun simctl launch '%s' '%s' 2>&1", simulator_id,
+                 bundle_id);
 
-        snprintf(launch_output_path, sizeof(launch_output_path), "%s/launch_attempt_2.txt", artifact_dir);
+        snprintf(launch_output_path, sizeof(launch_output_path), "%s/launch_attempt_2.txt",
+                 artifact_dir);
 
         fp = popen(launch_cmd, "r");
         if (fp) {
@@ -3408,8 +3433,8 @@ static int test_appsim_006(const char *artifact_dir, char *log_buf, size_t log_s
             sleep(2);
             char ps_cmd[MAX_PATH * 3];
             snprintf(ps_cmd, sizeof(ps_cmd),
-                "xcrun simctl spawn '%s' ps aux 2>&1 | grep -i '%s' | grep -v grep",
-                simulator_id, bundle_id);
+                     "xcrun simctl spawn '%s' ps aux 2>&1 | grep -i '%s' | grep -v grep",
+                     simulator_id, bundle_id);
 
             FILE *ps_fp = popen(ps_cmd, "r");
             if (ps_fp) {
@@ -3433,15 +3458,12 @@ static int test_appsim_006(const char *artifact_dir, char *log_buf, size_t log_s
                                    (relaunch_end.tv_usec - relaunch_start.tv_usec) / 1000;
 
         printf("    Relaunch %s (PID: %d, alive: %s, duration: %d ms)\n",
-               relaunch_success ? "SUCCEEDED" : "FAILED",
-               relaunch_pid,
-               relaunch_alive ? "yes" : "no",
-               relaunch_duration_ms);
+               relaunch_success ? "SUCCEEDED" : "FAILED", relaunch_pid,
+               relaunch_alive ? "yes" : "no", relaunch_duration_ms);
 
         /* Record retry attempt */
         attempts[attempt_count].attempt = 2;
-        strncpy(attempts[attempt_count].result,
-                relaunch_success ? "success" : "failed", 31);
+        strncpy(attempts[attempt_count].result, relaunch_success ? "success" : "failed", 31);
         attempts[attempt_count].result[31] = '\0';
         attempts[attempt_count].reset = 1; /* Reset was performed */
         attempts[attempt_count].duration_ms = relaunch_duration_ms;
@@ -3451,8 +3473,7 @@ static int test_appsim_006(const char *artifact_dir, char *log_buf, size_t log_s
         /* Verify relaunch succeeded */
         if (!relaunch_success || !relaunch_alive) {
             passed = 0;
-            snprintf(failure_reason, sizeof(failure_reason),
-                     "Relaunch failed after reset");
+            snprintf(failure_reason, sizeof(failure_reason), "Relaunch failed after reset");
         }
     } else {
         /* First attempt succeeded - still record a reset for demonstration */
@@ -3462,9 +3483,7 @@ static int test_appsim_006(const char *artifact_dir, char *log_buf, size_t log_s
         gettimeofday(&reset_start, NULL);
 
         char erase_cmd[MAX_PATH * 3];
-        snprintf(erase_cmd, sizeof(erase_cmd),
-            "xcrun simctl erase '%s' 2>&1",
-            simulator_id);
+        snprintf(erase_cmd, sizeof(erase_cmd), "xcrun simctl erase '%s' 2>&1", simulator_id);
 
         char erase_output_path[MAX_PATH];
         snprintf(erase_output_path, sizeof(erase_output_path), "%s/erase_output.txt", artifact_dir);
@@ -3475,7 +3494,7 @@ static int test_appsim_006(const char *artifact_dir, char *log_buf, size_t log_s
 
         gettimeofday(&reset_end, NULL);
         int reset_duration_ms = (reset_end.tv_sec - reset_start.tv_sec) * 1000 +
-                              (reset_end.tv_usec - reset_start.tv_usec) / 1000;
+                                (reset_end.tv_usec - reset_start.tv_usec) / 1000;
 
         printf("    Erase completed (duration: %d ms)\n", reset_duration_ms);
 
@@ -3483,8 +3502,8 @@ static int test_appsim_006(const char *artifact_dir, char *log_buf, size_t log_s
         printf("  Step 3: Booting simulator after erase...\n");
         char boot_cmd[MAX_PATH * 3];
         snprintf(boot_cmd, sizeof(boot_cmd),
-            "xcrun simctl bootstatus '%s' -b 2>&1 || xcrun simctl boot '%s' 2>&1",
-            simulator_id, simulator_id);
+                 "xcrun simctl bootstatus '%s' -b 2>&1 || xcrun simctl boot '%s' 2>&1",
+                 simulator_id, simulator_id);
 
         char boot_output_path[MAX_PATH];
         snprintf(boot_output_path, sizeof(boot_output_path), "%s/boot_output.txt", artifact_dir);
@@ -3497,7 +3516,7 @@ static int test_appsim_006(const char *artifact_dir, char *log_buf, size_t log_s
         struct timeval relaunch_start, relaunch_end;
         gettimeofday(&relaunch_start, NULL);
 
-        int relaunch_success = 1; /* Assume success for first-attempt-success case */
+        int relaunch_success = 1;      /* Assume success for first-attempt-success case */
         int relaunch_pid = launch_pid; /* Use same PID as relaunch */
         int relaunch_alive = 1;
 
@@ -3546,7 +3565,7 @@ static int test_appsim_006(const char *artifact_dir, char *log_buf, size_t log_s
         fprintf(fp, "{\n");
         fprintf(fp, "  \"success\": true,\n");
         fprintf(fp, "  \"launch_duration_ms\": %d,\n", 3000); /* Typical relaunch duration */
-        fprintf(fp, "  \"pid\": %d,\n", 12346); /* Simulated PID */
+        fprintf(fp, "  \"pid\": %d,\n", 12346);               /* Simulated PID */
         fprintf(fp, "  \"alive\": true\n");
         fprintf(fp, "}\n");
         fclose(fp);
@@ -3563,11 +3582,10 @@ static int test_appsim_006(const char *artifact_dir, char *log_buf, size_t log_s
         fprintf(fp, "  \"attempts\": [\n");
 
         for (int i = 0; i < attempt_count; i++) {
-            if (i > 0) fprintf(fp, ",\n");
+            if (i > 0)
+                fprintf(fp, ",\n");
             fprintf(fp, "    {\"attempt\": %d, \"result\": \"%s\", \"reset\": %s}",
-                   attempts[i].attempt,
-                   attempts[i].result,
-                   attempts[i].reset ? "true" : "false");
+                    attempts[i].attempt, attempts[i].result, attempts[i].reset ? "true" : "false");
         }
 
         fprintf(fp, "\n  ],\n");
@@ -3588,7 +3606,8 @@ static int test_appsim_006(const char *artifact_dir, char *log_buf, size_t log_s
     return passed ? 0 : -1;
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
     const char *case_yaml = NULL;
     const char *artifact_dir = NULL;
 
@@ -3621,67 +3640,77 @@ int main(int argc, char *argv[]) {
 
     /* Route to appropriate test */
     switch (case_type) {
-        case CASE_APPSIM_001:
-            result = test_appsim_001(artifact_dir, log_buf, sizeof(log_buf));
-            if (result != 0) failure_reason = "APPSIM-001 availability test failed";
-            break;
-        case CASE_APPSIM_002:
-            result = test_appsim_002(artifact_dir, log_buf, sizeof(log_buf));
-            if (result != 0) failure_reason = "APPSIM-002 boot test failed";
-            break;
-        case CASE_APPSIM_003:
-            result = test_appsim_003(artifact_dir, log_buf, sizeof(log_buf));
-            if (result != 0) failure_reason = "APPSIM-003 build/install/launch test failed";
-            break;
-        case CASE_APPSIM_004:
-            result = test_appsim_004(artifact_dir, log_buf, sizeof(log_buf));
-            if (result != 0) failure_reason = "APPSIM-004 log harvest test failed";
-            break;
-        case CASE_APPSIM_005:
-            result = test_appsim_005(artifact_dir, log_buf, sizeof(log_buf));
-            if (result != 0) failure_reason = "APPSIM-005 crash signature test failed";
-            break;
-        case CASE_APPSIM_006:
-            result = test_appsim_006(artifact_dir, log_buf, sizeof(log_buf));
-            if (result != 0) failure_reason = "APPSIM-006 reset/relaunch test failed";
-            break;
-        case CASE_APP_001:
-            result = test_app_001(artifact_dir, log_buf, sizeof(log_buf));
-            if (result != 0) failure_reason = "APP-001 boot to first ELF exec test failed";
-            break;
-        case CASE_APP_002:
-            result = test_app_002(artifact_dir, log_buf, sizeof(log_buf));
-            if (result != 0) failure_reason = "APP-002 first ELF exec return test failed";
-            break;
-        case CASE_APP_003:
-            result = test_app_003(artifact_dir, log_buf, sizeof(log_buf));
-            if (result != 0) failure_reason = "APP-003 second exec login entry test failed";
-            break;
-        case CASE_APP_004:
-            result = test_app_004(artifact_dir, log_buf, sizeof(log_buf));
-            if (result != 0) failure_reason = "APP-004 process entry register contract test failed";
-            break;
-        case CASE_APP_005:
-            result = test_app_005(artifact_dir, log_buf, sizeof(log_buf));
-            if (result != 0) failure_reason = "APP-005 login ELF program header boundary test failed";
-            break;
-        case CASE_UNKNOWN:
-        default:
-            printf("STATUS: STUB - Test not implemented for %s\n", case_id);
-            failure_reason = "STUB: Test not implemented";
-            result = -1;
-            break;
+    case CASE_APPSIM_001:
+        result = test_appsim_001(artifact_dir, log_buf, sizeof(log_buf));
+        if (result != 0)
+            failure_reason = "APPSIM-001 availability test failed";
+        break;
+    case CASE_APPSIM_002:
+        result = test_appsim_002(artifact_dir, log_buf, sizeof(log_buf));
+        if (result != 0)
+            failure_reason = "APPSIM-002 boot test failed";
+        break;
+    case CASE_APPSIM_003:
+        result = test_appsim_003(artifact_dir, log_buf, sizeof(log_buf));
+        if (result != 0)
+            failure_reason = "APPSIM-003 build/install/launch test failed";
+        break;
+    case CASE_APPSIM_004:
+        result = test_appsim_004(artifact_dir, log_buf, sizeof(log_buf));
+        if (result != 0)
+            failure_reason = "APPSIM-004 log harvest test failed";
+        break;
+    case CASE_APPSIM_005:
+        result = test_appsim_005(artifact_dir, log_buf, sizeof(log_buf));
+        if (result != 0)
+            failure_reason = "APPSIM-005 crash signature test failed";
+        break;
+    case CASE_APPSIM_006:
+        result = test_appsim_006(artifact_dir, log_buf, sizeof(log_buf));
+        if (result != 0)
+            failure_reason = "APPSIM-006 reset/relaunch test failed";
+        break;
+    case CASE_APP_001:
+        result = test_app_001(artifact_dir, log_buf, sizeof(log_buf));
+        if (result != 0)
+            failure_reason = "APP-001 boot to first ELF exec test failed";
+        break;
+    case CASE_APP_002:
+        result = test_app_002(artifact_dir, log_buf, sizeof(log_buf));
+        if (result != 0)
+            failure_reason = "APP-002 first ELF exec return test failed";
+        break;
+    case CASE_APP_003:
+        result = test_app_003(artifact_dir, log_buf, sizeof(log_buf));
+        if (result != 0)
+            failure_reason = "APP-003 second exec login entry test failed";
+        break;
+    case CASE_APP_004:
+        result = test_app_004(artifact_dir, log_buf, sizeof(log_buf));
+        if (result != 0)
+            failure_reason = "APP-004 process entry register contract test failed";
+        break;
+    case CASE_APP_005:
+        result = test_app_005(artifact_dir, log_buf, sizeof(log_buf));
+        if (result != 0)
+            failure_reason = "APP-005 login ELF program header boundary test failed";
+        break;
+    case CASE_UNKNOWN:
+    default:
+        printf("STATUS: STUB - Test not implemented for %s\n", case_id);
+        failure_reason = "STUB: Test not implemented";
+        result = -1;
+        break;
     }
 
     /* Write report - determine phase based on case type */
     const char *phase_name = "02b-ios-simulator-harness";
-    if (case_type == CASE_APP_001 || case_type == CASE_APP_002 ||
-        case_type == CASE_APP_003 || case_type == CASE_APP_004 ||
-        case_type == CASE_APP_005) {
+    if (case_type == CASE_APP_001 || case_type == CASE_APP_002 || case_type == CASE_APP_003 ||
+        case_type == CASE_APP_004 || case_type == CASE_APP_005) {
         phase_name = "02c-ios-app-runtime-entry";
     }
-    if (write_report(artifact_dir, case_id, phase_name, "ios_app_harness",
-                     result == 0, failure_reason) != 0) {
+    if (write_report(artifact_dir, case_id, phase_name, "ios_app_harness", result == 0,
+                     failure_reason) != 0) {
         return 1;
     }
 

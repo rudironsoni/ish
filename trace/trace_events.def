@@ -113,6 +113,13 @@ TRACE_EVENT(TASK_CREATE, 1, TRACE_CAT_SYSCALL, 8)
 TRACE_EVENT(TASK_START, 1, TRACE_CAT_SYSCALL, 4)
 
 /* ============================================
+ * App-layer Task Lifecycle Events
+ * ============================================ */
+
+/* App entered task runloop to keep alive - no payload */
+TRACE_EVENT(APP_TASK_START_RUNLOOP, 1, TRACE_CAT_SYSCALL, 0)
+
+/* ============================================
  * Task Thread Diagnostics (for crash debugging)
  * ============================================ */
 
