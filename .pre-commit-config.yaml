@@ -36,12 +36,23 @@ repos:
 
       - id: cppcheck
         name: cppcheck
-        entry: cppcheck --error-exitcode=1 --quiet --enable=warning,performance,portability --suppress=missingIncludeSystem --inline-suppr
+        entry: cppcheck --error-exitcode=1 --quiet --enable=all --suppress=missingIncludeSystem --suppress=unusedFunction --inline-suppr
         language: system
         files: '\.c$'
         exclude: '^(deps/|build/|builddir/|tests/cases/|\.cache/)'
         pass_filenames: true
         stages: [pre-commit]
+
+      - id: cppcheck-unused-functions
+        name: cppcheck-unused-functions
+        entry: cppcheck --error-exitcode=1 --quiet --enable=all --suppress=missingIncludeSystem --inline-suppr --suppress=unmatchedSuppression --suppress=*:tests/ --suppress=*:deps/
+        language: system
+        files: '\.c$'
+        exclude: '^(deps/|build/|builddir/|tests/cases/|\.cache/|tests/)'
+        pass_filenames: false
+        stages: [pre-commit]
+        always_run: true
+        verbose: true
 
   # Python linting (for generator scripts)
   - repo: https://github.com/psf/black

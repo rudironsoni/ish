@@ -74,6 +74,50 @@ Available channels:
 - `verbose`: Debug logs that don't fit into another category.
 - Grep for `DEFAULT_CHANNEL` to see if more log channels have been added since this list was updated.
 
+## Profiling
+
+iSH includes profiling infrastructure for performance analysis. This helps identify bottlenecks in the TCTI emulator, track translation block compilation, and analyze TLB performance.
+
+### Building with Profiling
+
+```bash
+meson setup builddir -Denable_profiling=true
+ninja -C builddir
+```
+
+### Running with Profiling
+
+```bash
+# Run and capture profile
+ISH_PROFILE_OUTPUT=profile.json ./builddir/ish -f alpine /bin/sh
+
+# Or use the provided script
+./scripts/profile-run.sh -f alpine /bin/sh
+```
+
+### Analyzing Profiles
+
+```bash
+# Analyze profile output
+python3 tools/ish-profile-tool.py analyze profile.json
+
+# Generate flame graph data
+python3 tools/ish-profile-tool.py flamegraph profile.json > flame.txt
+
+# Compare two profiles
+python3 tools/ish-profile-tool.py compare baseline.json current.json
+```
+
+### Profile Events
+
+The profiler captures events including:
+- Translation block compilation and execution
+- TLB misses and cache performance
+- Memory allocations
+- System calls
+
+See `docs/profiling.md` for detailed documentation.
+
 # A note on the TCTI execution engine
 
 iSH uses a Threaded Code Translation and Interpretation (TCTI) engine for AArch64 guest emulation. The engine generates an array of pointers to functions called gadgets, and each gadget ends with a tailcall to the next function; like the threaded code technique used by some Forth interpreters. This branch is AArch64 guest only - there is no x86 or i386 support.
