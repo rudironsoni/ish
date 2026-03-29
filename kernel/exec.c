@@ -849,6 +849,11 @@ static int shebang_exec(struct fd *fd, const char *file, struct exec_args argv,
 
 int __do_execve(const char *file, struct exec_args argv, struct exec_args envp)
 {
+    // TRACE[1]: __do_execve_entry
+    trace_emit_exec_path_boundary((uint64_t)current, current ? current->pid : 0,
+                                  (uint64_t)(current ? current->mm : NULL),
+                                  (uint64_t)(current ? current->mem : NULL),
+                                  EXEC_PATH_DO_EXECVE_ENTRY_RET, 0);
     struct fd *fd = generic_open(file, O_RDONLY, 0);
     if (IS_ERR(fd)) {
         return PTR_ERR(fd);
@@ -871,7 +876,17 @@ int __do_execve(const char *file, struct exec_args argv, struct exec_args envp)
     ssize_t debug_read = fd->ops->read(fd, debug_buf, 16);
     fd->ops->lseek(fd, 0, LSEEK_SET);
 
+    // TRACE[3]: before_format_exec
+    trace_emit_exec_path_boundary((uint64_t)current, current ? current->pid : 0,
+                                  (uint64_t)(current ? current->mm : NULL),
+                                  (uint64_t)(current ? current->mem : NULL),
+                                  EXEC_PATH_BEFORE_FORMAT_EXEC, 0);
     err = format_exec(fd, file, argv, envp);
+    // TRACE[4]: after_format_exec
+    trace_emit_exec_path_boundary((uint64_t)current, current ? current->pid : 0,
+                                  (uint64_t)(current ? current->mm : NULL),
+                                  (uint64_t)(current ? current->mem : NULL),
+                                  EXEC_PATH_AFTER_FORMAT_EXEC, err);
 
     if (err == _ENOEXEC) {
         err = shebang_exec(fd, file, argv, envp);
@@ -941,6 +956,11 @@ int __do_execve(const char *file, struct exec_args argv, struct exec_args envp)
 
 int do_execve(const char *file, size_t argc, const char *argv_p, const char *envp_p)
 {
+    // TRACE[0]: do_execve_entry
+    trace_emit_exec_path_boundary((uint64_t)current, current ? current->pid : 0,
+                                  (uint64_t)(current ? current->mm : NULL),
+                                  (uint64_t)(current ? current->mem : NULL),
+                                  EXEC_PATH_DO_EXECVE_ENTRY, 0);
     struct exec_args argv = { .count = argc, .args = argv_p };
     struct exec_args envp = { .args = envp_p };
     while (*envp_p != '\0') {
