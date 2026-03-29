@@ -26,6 +26,11 @@ static int write_marker_raw(const char *base_path, const char *name, const char 
     if (n < 0 || n >= (int)sizeof(path)) {
         return -1;
     }
+    
+    // Ensure directory exists
+    int mkdir_result = mkdir(base_path, 0755);
+    (void)mkdir_result; // May fail if exists, that's ok
+    
     int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0) {
         return -1;
