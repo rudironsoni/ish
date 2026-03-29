@@ -90,52 +90,141 @@ struct task *task_create_(struct task *parent)
         return NULL;
     trace_emit_task_create(pid->id, parent ? parent->pid : 0);
 
-    // TRACK WRITE: Zero initialization
-    uint64_t host_tid = (uint64_t)pthread_self();
-    trace_emit_task_field_write((uint64_t)task, TASK_FIELD_PID, 1, task->pid, 0, host_tid);
-    trace_emit_task_field_write((uint64_t)task, TASK_FIELD_MM, 1, (uint64_t)task->mm, 0, host_tid);
-    trace_emit_task_field_write((uint64_t)task, TASK_FIELD_MEM, 1, (uint64_t)task->mem, 0,
-                                host_tid);
+    // STEP 1: Zero-initialize the entire task structure
+    memset(task, 0, sizeof(struct task));
 
-    *task = (struct task){};
-    if (parent != NULL)
-        *task = *parent;
+    // STEP 2: Explicitly inherit only safe inheritable fields from parent
+    if (parent != NULL) {
+        // Credentials - safe to inherit
+        task->uid = parent->uid;
+        task->gid = parent->gid;
+        task->euid = parent->euid;
+        task->egid = parent->egid;
+        task->suid = parent->suid;
+        task->sgid = parent->sgid;
 
-    // TRACK WRITE: pid assignment
-    trace_emit_task_field_write((uint64_t)task, TASK_FIELD_PID, 2, task->pid, pid->id, host_tid);
+        // Group membership - safe to inherit
+        task->ngroups = parent->ngroups;
+        if (task->ngroups > 0) {
+            memcpy(task->groups, parent->groups, sizeof(uid_t_) * task->ngroups);
+        }
+
+        // Command name - safe to inherit
+        strncpy(task->comm, parent->comm, sizeof(task->comm) - 1);
+        task->comm[sizeof(task->comm) - 1] = '\0';
+
+        // File descriptor table - shared reference
+        task->files = parent->files;
+
+        // Filesystem info - shared reference
+        task->fs = parent->fs;
+
+        // Signal handling - shared reference
+        task->sighand = parent->sighand;
+
+        // Signal masks - safe to inherit
+        task->blocked = parent->blocked;
+        task->saved_mask = parent->saved_mask;
+        task->has_saved_mask = parent->has_saved_mask;
+
+        // Exit signal - safe to inherit
+        task->exit_signal = parent->exit_signal;
+
+        // Vfork info - inherited for vfork semantics
+        task->vfork = parent->vfork;
+
+        // Thread group - inherited
+        task->group = parent->group;
+
+        // VDSO trampoline - inherited
+        task->vdso_sigtramp = parent->vdso_sigtramp;
+    }
+
+    // STEP 3: Freshly initialize all runtime-owned fields
+
+    // CPU state - zero-initialized above, will be set by caller
+    // MM and mem - MUST be NULL initially, caller must use task_set_mm()
+    task->mm = NULL;
+    task->mem = NULL;
+
+    // Thread and threadid - will be set by task_start()
+    task->thread = 0;
+    task->threadid = 0;
+
+    // PID assignment
     task->pid = pid->id;
     pid->task = task;
 
+    // TGID - same as pid for new threads, inherited from parent for threads in group
+    if (parent != NULL && parent->group != NULL) {
+        task->tgid = parent->tgid;
+    } else {
+        task->tgid = task->pid;
+    }
+
+    // List links - fresh initialization
+    list_init(&task->group_links);
     list_init(&task->children);
     list_init(&task->siblings);
+
+    // Parent/child relationships
     if (parent != NULL) {
         task->parent = parent;
         list_add(&parent->children, &task->siblings);
     }
 
+    // Signal state - fresh initialization
     task->pending = 0;
     list_init(&task->queue);
     task->clear_tid = 0;
     task->robust_list = 0;
     task->did_exec = false;
+
+    // Locks - fresh initialization
     lock_init(&task->general_lock);
+    lock_init(&task->waiting_cond_lock);
+    lock_init(&task->ptrace.lock);
 
-    task->sockrestart = (struct task_sockrestart){};
-    list_init(&task->sockrestart.listen);
+    // Condition variables - fresh initialization
+    cond_init(&task->pause);
+    cond_init(&task->ptrace.cond);
 
+    // Waiting state - fresh initialization
     task->waiting_cond = NULL;
     task->waiting_lock = NULL;
-    lock_init(&task->waiting_cond_lock);
-    cond_init(&task->pause);
+    task->waiting = 0;
 
-    lock_init(&task->ptrace.lock);
-    cond_init(&task->ptrace.cond);
+    // Ptrace state - fresh initialization (except inherited traced flag if desired)
+    task->ptrace.traced = parent ? parent->ptrace.traced : false;
+    task->ptrace.stopped = false;
+    task->ptrace.signal = 0;
+    memset(&task->ptrace.info, 0, sizeof(task->ptrace.info));
+    task->ptrace.trap_event = 0;
+
+    // Exit state - fresh initialization
+    task->exit_code = 0;
+    task->zombie = false;
+    task->exiting = false;
+
+    // Socket restart state - fresh initialization
+    task->sockrestart = (struct task_sockrestart){};
+    list_init(&task->sockrestart.listen);
 
     // CRITICAL: Memory barrier ensures all task initialization is complete
     // and visible before the lock is released. Without this, the child thread
     // may see partially initialized memory (pid=0, mm=NULL, etc).
     __sync_synchronize();
     unlock(&pids_lock);
+
+    // STEP 4: Validate child state before returning
+    if (task->pid == 0) {
+        die("task_create_: pid is 0 after initialization");
+    }
+    if (parent != NULL) {
+        // For child tasks, mm must be set by caller via task_set_mm()
+        // We don't check mm here because it should be NULL initially
+        // and set explicitly by the caller (fork.c, init.c, etc.)
+    }
 
     // Diagnostic: trace immediately after returning with pid
     trace_emit_task_create_return(task->pid, (uint64_t)task);
@@ -235,13 +324,18 @@ static void *task_thread(void *task)
     uint64_t canary_at_post_current = task_canary_read((uint64_t)current);
     trace_emit_task_mem_snapshot((uint64_t)current, 2, canary_at_post_current, host_thread_id);
 
-    // DEFENSIVE: Verify current->mem is valid before calling task_run_current()
-    // This catches the corruption that happens during parent->child handoff
-    // Similar to the fix in exec.c after task_set_mm()
+    // State validation: these should pass if task_create_ and task_set_mm were correct
+    if (current->pid == 0) {
+        die("task_thread: current->pid is 0");
+    }
+    if (current->mm == NULL) {
+        die("task_thread: current->mm is NULL");
+    }
     if (current->mem == NULL) {
-        // Force set current->mem to the correct value
-        current->mem = &current->mm->mem;
-        trace_emit(TRACE_EVENT_TASK_FIELD_WRITE, 0);
+        die("task_thread: current->mem is NULL - parent did not call task_set_mm()");
+    }
+    if (current->cpu.mmu != &current->mem->mmu) {
+        die("task_thread: cpu.mmu does not match current->mem->mmu");
     }
 
     trace_emit_task_thread_current_set(current->pid, (uint64_t)current->mm, (uint64_t)current->mem);
@@ -259,17 +353,24 @@ __attribute__((constructor)) static void create_attr()
 
 void task_start(struct task *task)
 {
+    // STEP 3: Validate child state before starting thread
+    if (task->pid == 0) {
+        die("task_start: task->pid is 0");
+    }
+    if (task->mm == NULL) {
+        die("task_start: task->mm is NULL - caller must use task_set_mm()");
+    }
+    if (task->mem == NULL) {
+        die("task_start: task->mem is NULL - caller must use task_set_mm()");
+    }
+    if (task->cpu.mmu != &task->mem->mmu) {
+        die("task_start: cpu.mmu does not match task->mem->mmu");
+    }
+
     __sync_synchronize();
 
-    // REUSE: Ensure trace system is initialized (app layer owns bootstrap)
-    // Lower layers MUST NOT own trace initialization - only ensure availability
-    extern trace_ctx_t *g_trace_ctx;
-    if (!g_trace_ctx) {
-        // App layer should have initialized this. Lazy fallback only.
-        trace_config_t trace_config;
-        trace_config_from_env(&trace_config);
-        trace_init(&trace_config);
-    }
+    // Trace system is initialized by app layer (app-first bootstrap)
+    // Lower layers MUST NOT own trace initialization - only emit events
 
     // PROOF TRACE #2: Parent immediately BEFORE pthread_create
     uint64_t host_thread_id = (uint64_t)pthread_self();

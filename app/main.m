@@ -16,6 +16,11 @@
 #include <unistd.h>
 
 int main(int argc, char * argv[]) {
+    // ULTRA-EARLY: Write diagnostic before anything else
+    NSString *tmpDir = NSTemporaryDirectory();
+    NSString *diagPath = [tmpDir stringByAppendingPathComponent:@"main_entry.diag"];
+    [@"main: ENTRY\n" writeToFile:diagPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+    
     // Use iOS Caches directory for stable persistence across launches
     NSString *cachesDir = [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES) firstObject];
     const char *markerPath = [[cachesDir stringByAppendingPathComponent:@"ish_run_marker"] UTF8String];
@@ -25,15 +30,22 @@ int main(int argc, char * argv[]) {
     extern const char *g_crash_ring_path;
     g_crash_ring_path = ringPath;
     
-    // NEXT-LAUNCH RECOVERY: Check for previous crash before bootstrap
+    [@"main: before trace_init\n" writeToFile:diagPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+    
+    // APP-FIRST: Bootstrap trace system at earliest app boundary
+    // MUST initialize BEFORE any trace calls (including trace_recover_previous_run)
+    trace_config_t trace_config;
+    trace_config_from_env(&trace_config);
+    trace_init(&trace_config);
+    
+    [@"main: after trace_init\n" writeToFile:diagPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+    
+    // NEXT-LAUNCH RECOVERY: Check for previous crash after trace init
     // Marker existing means previous run started but didn't complete cleanly (crash)
     extern int trace_recover_previous_run(const char *marker_path, const char *ring_path);
     int recovered = trace_recover_previous_run(markerPath, ringPath);
     
-    // APP-FIRST: Bootstrap trace system at earliest app boundary
-    trace_config_t trace_config;
-    trace_config_from_env(&trace_config);
-    trace_init(&trace_config);
+    [@"main: after trace_recover\n" writeToFile:diagPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
     
     // BOOTSTRAP PROOF: Synchronously write proof that main() was reached
     // This is distinct from the run marker - it proves bootstrap executed
@@ -48,10 +60,14 @@ int main(int argc, char * argv[]) {
         fclose(proofFp);
     }
     
+    [@"main: after bootstrap_proof\n" writeToFile:diagPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
+    
     // RUN STATE MARKER: Mark this run as started (for crash detection)
     // If we crash, this marker persists and next launch will detect it
     extern int trace_mark_run_started(const char *path);
     trace_mark_run_started(markerPath);
+    
+    [@"main: after run_marker\n" writeToFile:diagPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
     
     // If we recovered from previous crash, log it
     if (recovered) {
@@ -64,6 +80,8 @@ int main(int argc, char * argv[]) {
     // SYNC FLUSH: Ensure trace events are committed before continuing
     extern void trace_flush(void);
     trace_flush();
+    
+    [@"main: before UIApplicationMain\n" writeToFile:diagPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
     
     NSSetUncaughtExceptionHandler(iSHExceptionHandler);
     @autoreleasepool {
