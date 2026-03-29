@@ -1094,6 +1094,11 @@ void trace_emit_exec_mm_boundary(uint64_t current_ptr, uint32_t pid, uint64_t mm
     memcpy(record.payload + 49, &err, 4);
 
     g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
+
+    // CRITICAL: Synchronous flush for exec-path events to survive crashes
+    if (g_trace_ctx->backend_ops->flush) {
+        g_trace_ctx->backend_ops->flush(g_trace_ctx->backend_ctx);
+    }
 }
 
 /* Exec path entry/exit - payload: struct {
@@ -1139,6 +1144,11 @@ void trace_emit_exec_path_boundary(uint64_t current_ptr, uint32_t pid, uint64_t 
     memcpy(record.payload + 33, &err, 4);
 
     g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
+
+    // CRITICAL: Synchronous flush for exec-path events to survive crashes
+    if (g_trace_ctx->backend_ops->flush) {
+        g_trace_ctx->backend_ops->flush(g_trace_ctx->backend_ctx);
+    }
 }
 
 /* ============================================
