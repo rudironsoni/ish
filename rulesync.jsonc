@@ -2,9 +2,15 @@
   "$schema": "https://github.com/dyoshikawa/rulesync/releases/latest/download/config-schema.json",
   "targets": [
     "copilot",
-    "cursor",
+    "copilotcli",
     "claudecode",
-    "codexcli"
+    "codexcli",
+    "opencode",
+    "antigravity",
+    "factorydroid",
+    "geminicli",
+    "zed",
+    "agentsmd"    
   ],
   "features": [
     "rules",
@@ -19,7 +25,7 @@
     "."
   ],
   "delete": true,
-  "verbose": false,
+  "verbose": true,
   "silent": false,
   "global": false,
   "simulateCommands": false,

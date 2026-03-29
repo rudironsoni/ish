@@ -237,6 +237,31 @@ static void stderr_emit(void *ctx, trace_record_t *record) {
             fprintf(stderr, " pid=%u parent_pid=%u", pid, parent_pid);
             break;
         }
+
+        case TRACE_EVENT_TASK_THREAD_BEFORE_SET: {
+            uint64_t task_ptr, current_before;
+            memcpy(&task_ptr, record->payload, 8);
+            memcpy(&current_before, record->payload + 8, 8);
+            fprintf(stderr, " task=0x%llx current_before=0x%llx",
+                    (unsigned long long)task_ptr, (unsigned long long)current_before);
+            break;
+        }
+
+        case TRACE_EVENT_TASK_THREAD_AFTER_SET: {
+            uint64_t task_ptr, current_after;
+            memcpy(&task_ptr, record->payload, 8);
+            memcpy(&current_after, record->payload + 8, 8);
+            fprintf(stderr, " task=0x%llx current_after=0x%llx",
+                    (unsigned long long)task_ptr, (unsigned long long)current_after);
+            break;
+        }
+
+        case TRACE_EVENT_TASK_RUN_CURRENT_ENTRY_CHECK: {
+            uint64_t current_ptr;
+            memcpy(&current_ptr, record->payload, 8);
+            fprintf(stderr, " current=0x%llx", (unsigned long long)current_ptr);
+            break;
+        }
             
         default:
             break;

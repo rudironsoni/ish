@@ -105,6 +105,11 @@ void trace_emit_task_thread_current_set(uint32_t pid, uint64_t mm, uint64_t mem)
 void trace_emit_task_run_current_entry(uint64_t current_ptr, uint32_t pid);
 void trace_emit_task_run_current_mem_check(uint64_t mm, uint64_t mem);
 
+/* NULL current Crash Diagnostics (NEW) */
+void trace_emit_task_thread_before_set(uint64_t task_ptr, uint64_t current_before);
+void trace_emit_task_thread_after_set(uint64_t task_ptr, uint64_t current_after);
+void trace_emit_task_run_current_entry_check(uint64_t current_ptr);
+
 /* Additional task diagnostic events. */
 void trace_emit_task_create_return(uint32_t pid, uint64_t task_ptr);
 void trace_emit_construct_task_done(uint32_t pid, uint64_t task_ptr, uint64_t mm, uint64_t mem);

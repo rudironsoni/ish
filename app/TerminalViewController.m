@@ -197,6 +197,13 @@
     if (err < 0)
         return err;
     self.sessionPid = current->pid;
+    
+    // CRITICAL: Memory barrier to ensure all stores from do_execve() are visible
+    // before task_start() creates the child thread. do_execve() modifies
+    // current->mm and current->mem via mm_release/task_set_mm window.
+    // Without this barrier, the child thread may see NULL current->mem.
+    __sync_synchronize();
+    
     task_start(current);
 
     // CRITICAL: Keep the main thread alive with a runloop

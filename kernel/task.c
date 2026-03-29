@@ -111,15 +111,22 @@ void task_destroy(struct task *task) {
 }
 
 void task_run_current() {
+    // DIAGNOSTIC: Trace entry check - show current value being checked
+    trace_emit_task_run_current_entry_check((uint64_t)current);
+    
+    printk("task_run_current: ENTRY (current=%p)\n", (void*)current);
     trace_emit_task_run_current_entry((uint64_t)current, current ? current->pid : 0);
     trace_emit_task_run_current_mem_check((uint64_t)(current ? current->mm : 0),
                                           (uint64_t)(current ? current->mem : 0));
 
     // Defensive: check that current and current->mem are valid before proceeding
     if (!current) {
+        printk("task_run_current: FATAL - current is NULL!\n");
         die("task_run_current: NULL current");
     }
+    printk("task_run_current: current=%p, current->pid=%d\n", (void*)current, current->pid);
     if (!current->mem) {
+        printk("task_run_current: FATAL - current->mem is NULL!\n");
         die("task_run_current: NULL current->mem");
     }
 
@@ -157,7 +164,15 @@ static void *task_thread(void *task) {
     // Pass task pointer via __thread current to ensure proper visibility
     // The task pointer was fully initialized before task_start was called
     trace_emit_task_thread_entry((uint64_t)task);
+    
+    // DIAGNOSTIC: Trace BEFORE setting current - show task pointer and current value before
+    trace_emit_task_thread_before_set((uint64_t)task, (uint64_t)current);
+    
     current = task;
+    
+    // DIAGNOSTIC: Trace AFTER setting current - show task pointer and current value after
+    trace_emit_task_thread_after_set((uint64_t)task, (uint64_t)current);
+    
     // CRITICAL: Memory barrier ensures all task initialization stores from
     // the parent thread are visible before we read task fields. Without this,
     // the child may see zeroed/corrupted values (pid=0, mm=NULL, etc).

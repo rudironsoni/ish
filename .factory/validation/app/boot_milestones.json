@@ -1,0 +1,68 @@
+{
+  "case_id": "APPSIM-EXEC-VERIFY",
+  "milestones": [
+    {
+      "milestone": "app_launched",
+      "timestamp": "2026-03-29T11:14:59.814Z",
+      "status": "completed",
+      "log_line": "[Roots] File Provider not available"
+    },
+    {
+      "milestone": "boot_setup_started",
+      "timestamp": "2026-03-29T11:14:59.819Z",
+      "status": "completed",
+      "log_line": "become_first_process: ENTRY"
+    },
+    {
+      "milestone": "first_elf_exec_entered",
+      "timestamp": "2026-03-29T11:14:59.826Z",
+      "status": "completed",
+      "log_line": "[Boot] About to call do_execve with: /bin/busybox"
+    },
+    {
+      "milestone": "first_elf_exec_returned",
+      "timestamp": "2026-03-29T11:14:59.832Z",
+      "status": "completed",
+      "log_line": "[Boot] do_execve returned with err=0"
+    },
+    {
+      "milestone": "second_execve_started",
+      "timestamp": "2026-03-29T11:14:59.966Z",
+      "status": "completed",
+      "log_line": "[iSH] EXEC: file=/bin/login argc=3"
+    },
+    {
+      "milestone": "bin_login_elf_header_parsed",
+      "timestamp": "2026-03-29T11:14:59.967Z",
+      "status": "completed",
+      "log_line": "[exec] read_header SUCCEEDED"
+    },
+    {
+      "milestone": "bin_login_program_headers_read",
+      "timestamp": "2026-03-29T11:14:59.967Z",
+      "status": "completed",
+      "log_line": "[exec] read_prg_headers SUCCEEDED, phent_count=9"
+    },
+    {
+      "milestone": "guest_loop_entered",
+      "timestamp": "2026-03-29T11:14:59.970Z",
+      "status": "reached",
+      "log_line": "[TRACE] seq=2 event=TASK_THREAD_ENTRY"
+    },
+    {
+      "milestone": "login_ready",
+      "timestamp": null,
+      "status": "failed",
+      "log_line": null
+    },
+    {
+      "milestone": "shell_ready",
+      "timestamp": null,
+      "status": "failed",
+      "log_line": null
+    }
+  ],
+  "highest_completed_milestone": "bin_login_program_headers_read",
+  "first_failing_milestone": "guest_loop_entered",
+  "failure_reason": "current->mem is NULL in task_run_current"
+}

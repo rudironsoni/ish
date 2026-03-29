@@ -18,13 +18,15 @@
       ],
       "env": {}
     },
-    "context7": {
+    "deepwiki": {
+      "type": "http",
+      "url": "https://mcp.deepwiki.com/mcp",
+      "env": {}
+    },
+    "rulesync": {
       "type": "stdio",
-      "command": "npx",
-      "args": [
-        "-y",
-        "@upstash/context7-mcp"
-      ],
+      "command": "pnpm",
+      "args": ["dev", "mcp"],
       "env": {}
     }
   }

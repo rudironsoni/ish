@@ -1,0 +1,15 @@
+{
+  "case_id": "APPSIM-EXEC-VERIFY",
+  "timestamp": "2026-03-29T11:14:59Z",
+  "build_success": true,
+  "install_success": true,
+  "launch_success": true,
+  "app_alive": false,
+  "crash_detected": true,
+  "crash_signature": "current->mem is NULL",
+  "crash_location": "task_run_current",
+  "bundle_id": "com.rudironsoni.ish",
+  "simulator_id": "E6186E89-8784-473B-A4E4-66E42693F14E",
+  "simulator_name": "iPhone 17 Pro",
+  "app_path": "/Volumes/1TB/Xcode/DerivedData/iSH-ciacrmfdlohhbvbwpsxyiwwigqwb/Build/Products/Release-iphonesimulator/iSH.app"
+}

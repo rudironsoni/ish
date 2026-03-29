@@ -105,19 +105,29 @@ static struct task *construct_task(struct task *parent) {
 }
 
 int become_first_process() {
+    printk("become_first_process: ENTRY\n");
+
     // now seems like a nice time
     establish_signal_handlers();
+    printk("become_first_process: signal handlers established\n");
 
     // AArch64 block cache is lazily initialized per-MMU in a64_cpu_run()
     // No early global init required
 
+    printk("become_first_process: calling construct_task...\n");
     struct task *task = construct_task(NULL);
+    printk("become_first_process: construct_task returned task=%p\n", (void*)task);
+
     if (IS_ERR(task)) {
         printk("ERROR: become_first_process: construct_task failed with %d\n", PTR_ERR(task));
         return PTR_ERR(task);
     }
 
+    printk("become_first_process: setting current = task (task->pid=%d, task->mm=%p, task->mem=%p)\n",
+           task->pid, (void*)task->mm, (void*)task->mem);
     current = task;
+    printk("become_first_process: current set successfully, current=%p\n", (void*)current);
+    printk("become_first_process: RETURN 0\n");
     return 0;
 }
 
@@ -137,10 +147,16 @@ int become_new_init_child() {
     list_init(&task->queue);
     // TODO: think about whether it would be a good idea to inherit fs_info
 
+    // CRITICAL: Memory barrier BEFORE setting current
+    // Ensures all task initialization from construct_task() is visible
+    // before the child thread can read current->mm, current->mem, etc.
+    __sync_synchronize();
+
     current = task;
 
-    // Memory barrier to ensure all task initialization is visible
-    // before any potential task_start() call
+    // CRITICAL: Memory barrier AFTER setting current
+    // Ensures the write to current is visible before any potential
+    // task_start() call that spawns a child thread
     __sync_synchronize();
     
     // Diagnostic: trace task state just before returning

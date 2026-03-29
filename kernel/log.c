@@ -170,6 +170,11 @@ void die(const char *msg, ...) {
     va_start(args, msg);
     char buf[4096];
     vsprintf(buf, msg, args);
+    
+    /* Dump trace ring before dying */
+    extern void trace_dump_ring_stderr(void);
+    trace_dump_ring_stderr();
+    
     die_handler(buf);
     abort();
     va_end(args);

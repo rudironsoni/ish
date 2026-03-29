@@ -1,0 +1,121 @@
+{
+  "case_id": "APPSIM-CRASH-001",
+  "title": "iSH App Crash Investigation Report",
+  "timestamp": "2026-03-29T07:46:00Z",
+  "status": "REAL FAIL",
+  "classification": "Critical Boot Failure - NULL Task Pointer",
+  "executive_summary": "The iSH app crashes immediately after launch on iOS Simulator. The root cause is a NULL 'current' task pointer when task_run_current() is called during the boot process. The crash is triggered by a defensive check in task.c that calls die() when current is NULL.",
+  "technical_findings": {
+    "exact_error": "task_run_current: NULL current",
+    "error_location": "kernel/task.c:119",
+    "crash_type": "EXC_BREAKPOINT / SIGTRAP",
+    "crash_thread": "login-0",
+    "exception_codes": "0x0000000000000001, 0x0000000102efc4d0"
+  },
+  "stack_trace": {
+    "faulting_thread": 9,
+    "thread_name": "login-0",
+    "frames": [
+      {
+        "index": 0,
+        "image": "iSH",
+        "symbol": "__ish_exception_exfiltrate_THREAD__",
+        "file": "ExceptionExfiltrator.m",
+        "line": 246,
+        "is_crash_frame": true
+      },
+      {
+        "index": 1,
+        "image": "iSH",
+        "symbol": "iSHExceptionHandler",
+        "file": "ExceptionExfiltrator.m",
+        "line": 289
+      },
+      {
+        "index": 2,
+        "image": "iSH",
+        "symbol": "ios_handle_die",
+        "file": "AppDelegate.m",
+        "line": 66
+      },
+      {
+        "index": 3,
+        "image": "iSH",
+        "symbol": "die",
+        "file": "log.c",
+        "line": 173
+      },
+      {
+        "index": 4,
+        "image": "iSH",
+        "symbol": "task_run_current",
+        "file": "task.c",
+        "line": 119,
+        "note": "NULL current check triggered"
+      }
+    ]
+  },
+  "boot_log_analysis": {
+    "last_messages": [
+      "[Boot] Starting boot process",
+      "[Boot] Root URL: file:///...",
+      "[Boot] Root filesystem mounted successfully",
+      "[Roots] Initializing Roots...",
+      "[Roots] Found 1 existing roots",
+      "[Roots] No existing roots, importing default from root.tar.gz"
+    ],
+    "boot_log_path": "/Users/rudironsoni/Library/Developer/CoreSimulator/Devices/E6186E89-8784-473B-A4E4-66E42693F14E/data/Containers/Data/Application/[UUID]/tmp/boot.log",
+    "log_capture_error": "getpwuid_r did not find a match for uid 501"
+  },
+  "diagnostic_files": {
+    "crash_reports": [
+      "/Users/rudironsoni/Library/Logs/DiagnosticReports/iSH-2026-03-28-214049.ips",
+      "/Users/rudironsoni/Library/Logs/DiagnosticReports/iSH-2026-03-28-220716.ips"
+    ],
+    "incident_ids": [
+      "11B59812-2E1D-40D5-AAAB-180E01CE1795",
+      "EB8567C7-A904-4190-BB58-587E8AA505C4"
+    ]
+  },
+  "root_cause_analysis": {
+    "problem": "The 'current' task pointer is NULL when task_run_current() is called",
+    "theory": "The 'login-0' thread is spawned without setting the thread-local 'current' pointer via pthread_setspecific(). This suggests a race condition or initialization failure where the task struct is not properly associated with the pthread before execution begins.",
+    "code_flow": [
+      "App boots and initializes roots filesystem",
+      "TerminalViewController starts a new session (startNewSession)",
+      "startSession is called which creates a pthread for login-0",
+      "The pthread starts executing task_thread()",
+      "task_run_current() is called but 'current' is NULL",
+      "die() is invoked with 'task_run_current: NULL current'",
+      "ios_handle_die() captures the exception",
+      "iSHExceptionHandler() constructs backtrace",
+      "__ish_exception_exfiltrate_THREAD__() triggers EXC_BREAKPOINT"
+    ]
+  },
+  "recommendations": [
+    {
+      "priority": "Critical",
+      "item": "Investigate task_thread() initialization - ensure pthread_setspecific(__current_key, task) is called before task_run_current()",
+      "file": "kernel/task.c"
+    },
+    {
+      "priority": "High",
+      "item": "Add defensive logging before task_run_current() to capture task and thread state",
+      "file": "kernel/task.c"
+    },
+    {
+      "priority": "Medium",
+      "item": "Review task creation flow in TerminalViewController.m to ensure proper task struct initialization",
+      "file": "app/TerminalViewController.m"
+    }
+  ],
+  "artifacts": [
+    ".factory/validation/app/crash/sim_launch.json",
+    ".factory/validation/app/crash/boot_milestones.json",
+    ".factory/validation/app/crash/crash_signature.json",
+    ".factory/validation/app/crash/report.json"
+  ],
+  "retry_count": 0,
+  "relaunch_count": 0,
+  "verification_status": "REAL FAIL"
+}
