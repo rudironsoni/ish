@@ -206,14 +206,10 @@
     __sync_synchronize();
     
     task_start(current);
-
-    // CRITICAL: Keep the main thread alive with a runloop
-    // task_start creates a detached thread - if main thread exits, iOS kills the app
-    // We use a runloop to allow UI events while keeping the app alive
-    trace_emit_app_task_start_runloop();
-    while (1) {
-        [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.1]];
-    }
+    
+    // task_start creates a detached thread that runs the child process
+    // Return to allow normal UIKit runloop management
+    return 0;
 #else
     const char *argv_arr[command.count + 1];
     for (NSUInteger i = 0; i < command.count; i++)
