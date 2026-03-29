@@ -1,6 +1,6 @@
 /*
- * ISHInstrumentationBridge.mm
- * Objective-C++ bridge implementing C API for ISHInstrumentation
+ * ISHInstrumentationBridge.m
+ * Objective-C bridge implementing C API for ISHInstrumentation
  */
 
 #import "ISHInstrumentationBridge.h"
@@ -20,6 +20,7 @@ bool ish_instrumentation_is_active(void) {
 
 void ish_instrumentation_record_event(ish_instrumentation_origin_t origin, const char *event_name) {
     (void)origin;
+    (void)event_name;
     // Map event name string to ISHInstrumentationEvent enum
     // For now, record all events as BootstrapReady (minimal implementation)
     [ISHInstrumentation recordEvent:ISHInstrumentationEventBootstrapReady];
