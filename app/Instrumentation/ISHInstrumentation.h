@@ -14,6 +14,7 @@ typedef NS_ENUM(NSInteger, ISHInstrumentationEvent) {
     ISHInstrumentationEventSceneConnected,
     ISHInstrumentationEventSessionStarted,
     ISHInstrumentationEventSessionReady,
+    ISHInstrumentationEventSessionBootstrapDeferred,
     ISHInstrumentationEventRecoveryDetected,
     ISHInstrumentationEventShutdownClean
 };
