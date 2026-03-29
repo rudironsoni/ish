@@ -31,6 +31,8 @@ static inline const char *ISHInstrumentationEventName(ISHInstrumentationEvent ev
             return "session.started";
         case ISHInstrumentationEventSessionReady:
             return "session.ready";
+        case ISHInstrumentationEventSessionBootstrapDeferred:
+            return "session.bootstrap.deferred";
         case ISHInstrumentationEventRecoveryDetected:
             return "recovery.detected";
         case ISHInstrumentationEventShutdownClean:
