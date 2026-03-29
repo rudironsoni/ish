@@ -1,0 +1,23 @@
+{
+  "threshold": 30,
+  "reporters": ["console", "html", "json"],
+  "ignore": [
+    "**/deps/**",
+    "**/build/**",
+    "**/builddir/**",
+    "**/.cache/**",
+    "**/tests/cases/**",
+    "**/vdso/**",
+    "**/*.min.js",
+    "**/*.gen.c",
+    "**/tcti/aarch64/tcti-gadget-gen.py"
+  ],
+  "absolute": true,
+  "gitignore": true,
+  "blame": false,
+  "silent": false,
+  "formatsExts": {
+    "c": [".c", ".h"]
+  },
+  "output": "./jscpd-report"
+}

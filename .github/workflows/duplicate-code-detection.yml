@@ -1,0 +1,57 @@
+name: Duplicate Code Detection
+
+on:
+  push:
+    branches: [master, main, feat/*]
+    paths:
+      - '**.c'
+      - '**.h'
+      - '.jscpd.json'
+  pull_request:
+    branches: [master, main]
+    paths:
+      - '**.c'
+      - '**.h'
+      - '.jscpd.json'
+
+jobs:
+  jscpd:
+    name: Detect Duplicate Code
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install jscpd
+        run: npm install -g jscpd
+
+      - name: Run jscpd duplicate code detection
+        run: |
+          jscpd --reporters console,html,json --output ./jscpd-report \
+            --config .jscpd.json \
+            emu/ kernel/ fs/ tcti/ util/ || true
+
+      - name: Upload jscpd report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jscpd-duplicate-code-report
+          path: jscpd-report/
+
+      - name: Check for duplicates above threshold
+        run: |
+          # Fail if more than 50 duplication instances found (realistic threshold)
+          if [ -f jscpd-report/jscpd-report.json ]; then
+            DUPLICATES=$(cat jscpd-report/jscpd-report.json | python3 -c "import sys, json; data=json.load(sys.stdin); print(data.get('statistics', {}).get('total', {}).get('clones', 0))")
+            echo "Found $DUPLICATES duplicate code instances"
+            if [ "$DUPLICATES" -gt 50 ]; then
+              echo "Error: Too many duplicate code instances ($DUPLICATES > 50)"
+              exit 1
+            fi
+          fi

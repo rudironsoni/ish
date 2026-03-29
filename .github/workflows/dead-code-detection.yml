@@ -1,0 +1,51 @@
+name: Dead Code Detection
+
+on:
+  push:
+    branches: [master, main, feat/*]
+    paths:
+      - '**.c'
+      - '**.h'
+      - 'tools/dead-code-check.py'
+  pull_request:
+    branches: [master, main]
+    paths:
+      - '**.c'
+      - '**.h'
+      - 'tools/dead-code-check.py'
+
+jobs:
+  dead-code-check:
+    name: Check for Dead Code
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cppcheck
+
+      - name: Run dead code detection
+        run: |
+          python3 tools/dead-code-check.py --json --exit-code emu/ kernel/ fs/ tcti/ util/ > dead-code-report.json || true
+          cat dead-code-report.json
+
+      - name: Upload dead code report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dead-code-report
+          path: dead-code-report.json
+
+      - name: Check for unused functions (strict)
+        run: |
+          # Run cppcheck with stricter unused function detection
+          cppcheck --enable=unusedFunction --error-exitcode=1 \
+            --suppress=missingIncludeSystem \
+            --suppress=unmatchedSuppression \
+            -I. -Itrace \
+            emu/ kernel/ fs/ tcti/ util/ \
+            --exclude=tests/ --exclude=deps/ || echo "Note: Unused function warnings exist"

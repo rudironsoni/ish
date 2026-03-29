@@ -1,0 +1,89 @@
+name: Static Analysis
+
+on:
+  push:
+    branches: [master, main, feat/*]
+    paths:
+      - '**.c'
+      - '**.h'
+      - 'meson.build'
+      - 'meson_options.txt'
+  pull_request:
+    branches: [master, main]
+    paths:
+      - '**.c'
+      - '**.h'
+      - 'meson.build'
+      - 'meson_options.txt'
+
+jobs:
+  clang-static-analyzer:
+    name: Clang Static Analyzer
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-tools meson ninja-build libsqlite3-dev
+
+      - name: Setup Meson build with scan-build
+        run: |
+          meson setup build-analyzer --buildtype=debug
+
+      - name: Run Clang Static Analyzer
+        run: |
+          scan-build --status-bugs -o analysis-results meson compile -C build-analyzer 2>&1 | tee analyzer-report.txt
+
+      - name: Upload analysis results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: clang-static-analysis
+          path: |
+            analysis-results/
+            analyzer-report.txt
+
+      - name: Check for analyzer bugs
+        run: |
+          if grep -q "found.*bugs" analyzer-report.txt; then
+            echo "Clang Static Analyzer found bugs"
+            cat analyzer-report.txt
+            exit 1
+          fi
+
+  cppcheck-analysis:
+    name: Cppcheck Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cppcheck
+
+      - name: Run Cppcheck with strict checks
+        run: |
+          cppcheck --error-exitcode=1 \
+            --enable=all \
+            --suppress=missingIncludeSystem \
+            --suppress=unmatchedSuppression \
+            --inline-suppr \
+            -I. -Itrace \
+            --std=c11 \
+            --platform=unix64 \
+            emu/ kernel/ fs/ tcti/ util/ \
+            2>&1 | tee cppcheck-report.txt
+
+      - name: Upload Cppcheck results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cppcheck-analysis
+          path: cppcheck-report.txt

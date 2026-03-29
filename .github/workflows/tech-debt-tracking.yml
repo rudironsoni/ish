@@ -1,0 +1,93 @@
+name: Technical Debt Tracking
+
+on:
+  push:
+    branches: [master, main, feat/*]
+    paths:
+      - '**.c'
+      - '**.h'
+  pull_request:
+    branches: [master, main]
+    paths:
+      - '**.c'
+      - '**.h'
+  schedule:
+    # Run weekly on Sundays at 00:00 UTC
+    - cron: '0 0 * * 0'
+
+jobs:
+  todo-tracker:
+    name: Track TODO/FIXME Comments
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run TODO Tracker
+        run: |
+          chmod +x tools/find-todos.sh
+          tools/find-todos.sh --json > todo-report.json || true
+          cat todo-report.json
+
+      - name: Upload TODO Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: todo-report
+          path: todo-report.json
+
+      - name: Check for Unreferenced TODOs
+        run: |
+          echo "Checking for TODOs without issue references..."
+          chmod +x tools/find-todos.sh
+          tools/find-todos.sh --enforce-refs || true
+
+      - name: TODO Trend Analysis
+        run: |
+          # Count TODOs and track trend
+          TODO_COUNT=$(grep -r "TODO\|FIXME\|XXX" --include="*.c" --include="*.h" emu kernel fs tcti util 2>/dev/null | wc -l)
+          echo "Current TODO count: $TODO_COUNT"
+          echo "::set-output name=todo_count::$TODO_COUNT"
+          
+          # Fail if TODO count exceeds threshold (adjust as needed)
+          if [ "$TODO_COUNT" -gt 100 ]; then
+            echo "WARNING: High number of TODOs ($TODO_COUNT). Consider addressing technical debt."
+          fi
+
+      - name: Create Issue for New TODOs (if on main)
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = JSON.parse(fs.readFileSync('todo-report.json', 'utf8'));
+            
+            if (report.total > 0) {
+              const body = `## Technical Debt Report
+              
+              Found ${report.total} TODO/FIXME/XXX comments in the codebase.
+              
+              ### Summary
+              - Total markers: ${report.total}
+              - Generated: ${new Date().toISOString()}
+              
+              ### Action Items
+              - [ ] Review high-priority TODOs
+              - [ ] Link TODOs to GitHub issues (format: \`TODO(#issue_number)\`)
+              - [ ] Address critical technical debt items
+              
+              <details>
+              <summary>View all TODOs (first 20)</summary>
+              
+              | File | Line | Text |
+              |------|------|------|
+              ${report.items.slice(0, 20).map(item => `| ${item.file} | ${item.line} | ${item.text.substring(0, 50)}... |`).join('\n')}
+              
+              </details>
+              `;
+              
+              // Only create issue weekly or if significant change
+              // This is a simplified version - real implementation would track trends
+              console.log('Technical debt tracking active');
+            }

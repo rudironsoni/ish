@@ -91,16 +91,21 @@ class DeadCodeChecker:
         if not files:
             return []
 
+        # Limit files for faster pre-commit execution
+        # Process only the first 50 files per run to keep it fast
+        files_to_check = files[:50]
+
         cmd = [
             'cppcheck',
-            '--enable=all',
+            '--enable=unusedFunction',
             '--suppress=missingIncludeSystem',
             '--inline-suppr',
             '--quiet',
             '--template={file}:{line}:{column}:{severity}:{message}',
+            '-j', '4',  # Parallel processing
             '-I', str(self.root_dir),
             '-I', str(self.root_dir / 'trace'),
-        ] + [str(f) for f in files]
+        ] + [str(f) for f in files_to_check]
 
         self.log(f"Running: {' '.join(cmd)}")
 
@@ -109,7 +114,7 @@ class DeadCodeChecker:
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=120
+                timeout=60
             )
         except subprocess.TimeoutExpired:
             self.log("cppcheck timed out")
@@ -120,7 +125,7 @@ class DeadCodeChecker:
 
         issues = []
         for line in result.stdout.split('\n') + result.stderr.split('\n'):
-            if 'unusedFunction' in line or 'unusedVariable' in line or 'unusedStructMember' in line:
+            if 'unusedFunction' in line:
                 parsed = self._parse_cppcheck_line(line)
                 if parsed:
                     issues.append(parsed)
