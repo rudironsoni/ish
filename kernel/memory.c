@@ -1,26 +1,28 @@
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/mman.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/mman.h>
+#include <unistd.h>
 
 #define DEFAULT_CHANNEL memory
-#include "debug.h"
-#include "kernel/errno.h"
-#include "kernel/signal.h"
-#include "kernel/memory.h"
 #include "emu/aarch64/block-cache.h"
-#include "kernel/vdso.h"
-#include "kernel/task.h"
 #include "fs/fd.h"
+#include "kernel/errno.h"
+#include "kernel/memory.h"
+#include "kernel/signal.h"
+#include "kernel/task.h"
+#include "kernel/vdso.h"
+
+#include "debug.h"
 
 // increment the change count
 static void mem_changed(struct mem *mem);
 static struct mmu_ops mem_mmu_ops;
 
-void mem_init(struct mem *mem) {
+void mem_init(struct mem *mem)
+{
     mem->pgdir = calloc(MEM_PGDIR_SIZE, sizeof(struct pt_entry *));
     mem->pgdir_used = 0;
     mem->mmu.ops = &mem_mmu_ops;
@@ -28,7 +30,8 @@ void mem_init(struct mem *mem) {
     wrlock_init(&mem->lock);
 }
 
-void mem_destroy(struct mem *mem) {
+void mem_destroy(struct mem *mem)
+{
     printk("[mem] mem_destroy: ENTRY, mem=%p\n", mem);
     if (mem == NULL) {
         printk("[mem] ERROR: mem is NULL!\n");
@@ -54,10 +57,11 @@ void mem_destroy(struct mem *mem) {
     printk("[mem] mem_destroy complete\n");
 }
 
-#define PGDIR_TOP(page) ((page) >> 10)
+#define PGDIR_TOP(page)    ((page) >> 10)
 #define PGDIR_BOTTOM(page) ((page) & (MEM_PGDIR_SIZE - 1))
 
-static struct pt_entry *mem_pt_new(struct mem *mem, page_t page) {
+static struct pt_entry *mem_pt_new(struct mem *mem, page_t page)
+{
     struct pt_entry *pgdir = mem->pgdir[PGDIR_TOP(page)];
     if (pgdir == NULL) {
         pgdir = mem->pgdir[PGDIR_TOP(page)] = calloc(MEM_PGDIR_SIZE, sizeof(struct pt_entry));
@@ -66,7 +70,8 @@ static struct pt_entry *mem_pt_new(struct mem *mem, page_t page) {
     return &pgdir[PGDIR_BOTTOM(page)];
 }
 
-struct pt_entry *mem_pt(struct mem *mem, page_t page) {
+struct pt_entry *mem_pt(struct mem *mem, page_t page)
+{
     struct pt_entry *pgdir = mem->pgdir[PGDIR_TOP(page)];
     if (pgdir == NULL)
         return NULL;
@@ -76,13 +81,15 @@ struct pt_entry *mem_pt(struct mem *mem, page_t page) {
     return entry;
 }
 
-static void mem_pt_del(struct mem *mem, page_t page) {
+static void mem_pt_del(struct mem *mem, page_t page)
+{
     struct pt_entry *entry = mem_pt(mem, page);
     if (entry != NULL)
         entry->data = NULL;
 }
 
-void mem_next_page(struct mem *mem, page_t *page) {
+void mem_next_page(struct mem *mem, page_t *page)
+{
     (*page)++;
     if (*page >= MEM_PAGES)
         return;
@@ -90,7 +97,8 @@ void mem_next_page(struct mem *mem, page_t *page) {
         *page = (*page - PGDIR_BOTTOM(*page)) + MEM_PGDIR_SIZE;
 }
 
-page_t pt_find_hole(struct mem *mem, pages_t size) {
+page_t pt_find_hole(struct mem *mem, pages_t size)
+{
     page_t hole_end = 0; // this can never be used before initializing but gcc doesn't realize
     bool in_hole = false;
     for (page_t page = 0xf7ffd; page > 0x40000; page--) {
@@ -107,7 +115,8 @@ page_t pt_find_hole(struct mem *mem, pages_t size) {
     return BAD_PAGE;
 }
 
-bool pt_is_hole(struct mem *mem, page_t start, pages_t pages) {
+bool pt_is_hole(struct mem *mem, page_t start, pages_t pages)
+{
     for (page_t page = start; page < start + pages; page++) {
         if (mem_pt(mem, page) != NULL)
             return false;
@@ -115,19 +124,20 @@ bool pt_is_hole(struct mem *mem, page_t start, pages_t pages) {
     return true;
 }
 
-int pt_map(struct mem *mem, page_t start, pages_t pages, void *memory, size_t offset, unsigned flags) {
+int pt_map(struct mem *mem, page_t start, pages_t pages, void *memory, size_t offset,
+           unsigned flags)
+{
     if (memory == MAP_FAILED)
         return errno_map();
 
     // If this fails, the munmap in pt_unmap would probably fail.
-    assert((uintptr_t) memory % real_page_size == 0 || memory == vdso_data);
+    assert((uintptr_t)memory % real_page_size == 0 || memory == vdso_data);
 
     struct data *data = malloc(sizeof(struct data));
     if (data == NULL) {
-        printk("[exec] ENOMEM: failed to allocate data struct in pt_map\n");
         return _ENOMEM;
     }
-    *data = (struct data) {
+    *data = (struct data){
         .data = memory,
         .size = pages * PAGE_SIZE + offset,
 
@@ -149,21 +159,23 @@ int pt_map(struct mem *mem, page_t start, pages_t pages, void *memory, size_t of
     return 0;
 }
 
-int pt_unmap(struct mem *mem, page_t start, pages_t pages) {
+int pt_unmap(struct mem *mem, page_t start, pages_t pages)
+{
     for (page_t page = start; page < start + pages; page++)
         if (mem_pt(mem, page) == NULL)
             return -1;
     return pt_unmap_always(mem, start, pages);
 }
 
-int pt_unmap_always(struct mem *mem, page_t start, pages_t pages) {
+int pt_unmap_always(struct mem *mem, page_t start, pages_t pages)
+{
     // Invalidate all TCTI blocks when memory changes
     // Per-MMU cache invalidation via current task
     struct task *task = current;
     if (task && task->cpu.mmu && task->cpu.mmu->block_cache) {
         a64_cache_invalidate_all(task->cpu.mmu->block_cache);
     }
-    
+
     for (page_t page = start; page < start + pages; mem_next_page(mem, &page)) {
         struct pt_entry *pt = mem_pt(mem, page);
         if (pt == NULL)
@@ -187,14 +199,17 @@ int pt_unmap_always(struct mem *mem, page_t start, pages_t pages) {
     return 0;
 }
 
-int pt_map_nothing(struct mem *mem, page_t start, pages_t pages, unsigned flags) {
-    if (pages == 0) return 0;
-    void *memory = mmap(NULL, pages * PAGE_SIZE,
-            PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+int pt_map_nothing(struct mem *mem, page_t start, pages_t pages, unsigned flags)
+{
+    if (pages == 0)
+        return 0;
+    void *memory =
+        mmap(NULL, pages * PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
     return pt_map(mem, start, pages, memory, 0, flags | P_ANONYMOUS);
 }
 
-int pt_set_flags(struct mem *mem, page_t start, pages_t pages, int flags) {
+int pt_set_flags(struct mem *mem, page_t start, pages_t pages, int flags)
+{
     for (page_t page = start; page < start + pages; page++)
         if (mem_pt(mem, page) == NULL)
             return _ENOMEM;
@@ -203,12 +218,13 @@ int pt_set_flags(struct mem *mem, page_t start, pages_t pages, int flags) {
         int old_flags = entry->flags;
         entry->flags = flags;
         // check if protection is increasing
-        if ((flags & ~old_flags) & (P_READ|P_WRITE)) {
-            void *data = (char *) entry->data->data + entry->offset;
+        if ((flags & ~old_flags) & (P_READ | P_WRITE)) {
+            void *data = (char *)entry->data->data + entry->offset;
             // force to be page aligned
-            data = (void *) ((uintptr_t) data & ~(real_page_size - 1));
+            data = (void *)((uintptr_t)data & ~(real_page_size - 1));
             int prot = PROT_READ;
-            if (flags & P_WRITE) prot |= PROT_WRITE;
+            if (flags & P_WRITE)
+                prot |= PROT_WRITE;
             if (mprotect(data, real_page_size, prot) < 0)
                 return errno_map();
         }
@@ -217,7 +233,8 @@ int pt_set_flags(struct mem *mem, page_t start, pages_t pages, int flags) {
     return 0;
 }
 
-int pt_copy_on_write(struct mem *src, struct mem *dst, page_t start, page_t pages) {
+int pt_copy_on_write(struct mem *src, struct mem *dst, page_t start, page_t pages)
+{
     for (page_t page = start; page < start + pages; mem_next_page(src, &page)) {
         struct pt_entry *entry = mem_pt(src, page);
         if (entry == NULL)
@@ -237,14 +254,16 @@ int pt_copy_on_write(struct mem *src, struct mem *dst, page_t start, page_t page
     return 0;
 }
 
-static void mem_changed(struct mem *mem) {
+static void mem_changed(struct mem *mem)
+{
     // PR 5: Use atomic increment for thread safety on 64-bit counter
     __atomic_fetch_add(&mem->mmu.changes, 1, __ATOMIC_SEQ_CST);
 }
 
 // This version will return NULL instead of making necessary pagetable changes.
 // Used by the emulator to avoid deadlocks.
-static void *mem_ptr_nofault(struct mem *mem, addr_t addr, int type) {
+static void *mem_ptr_nofault(struct mem *mem, addr_t addr, int type)
+{
     struct pt_entry *entry = mem_pt(mem, PAGE(addr));
     if (entry == NULL)
         return NULL;
@@ -253,7 +272,8 @@ static void *mem_ptr_nofault(struct mem *mem, addr_t addr, int type) {
     return entry->data->data + entry->offset + PGOFFSET(addr);
 }
 
-void *mem_ptr(struct mem *mem, addr_t addr, int type) {
+void *mem_ptr(struct mem *mem, addr_t addr, int type)
+{
     void *old_ptr = mem_ptr_nofault(mem, addr, type); // just for an assert
 
     page_t page = PAGE(addr);
@@ -305,15 +325,15 @@ void *mem_ptr(struct mem *mem, addr_t addr, int type) {
         }
         // if page is cow, ~~milk~~ copy it
         if (entry->flags & P_COW) {
-            void *data = (char *) entry->data->data + entry->offset;
-            void *copy = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE,
-                    MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+            void *data = (char *)entry->data->data + entry->offset;
+            void *copy =
+                mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
 
             // copy/paste from above
             read_wrunlock(&mem->lock);
             write_wrlock(&mem->lock);
             memcpy(copy, data, PAGE_SIZE);
-            pt_map(mem, page, 1, copy, 0, entry->flags &~ P_COW);
+            pt_map(mem, page, 1, copy, 0, entry->flags & ~P_COW);
             write_wrunlock(&mem->lock);
             read_wrlock(&mem->lock);
         }
@@ -324,7 +344,8 @@ void *mem_ptr(struct mem *mem, addr_t addr, int type) {
     return ptr;
 }
 
-static void *mem_mmu_translate(struct mmu *mmu, addr_t addr, int type) {
+static void *mem_mmu_translate(struct mmu *mmu, addr_t addr, int type)
+{
     return mem_ptr_nofault(container_of(mmu, struct mem, mmu), addr, type);
 }
 
@@ -332,7 +353,8 @@ static struct mmu_ops mem_mmu_ops = {
     .translate = mem_mmu_translate,
 };
 
-int mem_segv_reason(struct mem *mem, addr_t addr) {
+int mem_segv_reason(struct mem *mem, addr_t addr)
+{
     struct pt_entry *pt = mem_pt(mem, PAGE(addr));
     if (pt == NULL)
         return SEGV_MAPERR_;
@@ -340,11 +362,13 @@ int mem_segv_reason(struct mem *mem, addr_t addr) {
 }
 
 size_t real_page_size;
-__attribute__((constructor)) static void get_real_page_size() {
+__attribute__((constructor)) static void get_real_page_size()
+{
     real_page_size = sysconf(_SC_PAGESIZE);
 }
 
-void mem_coredump(struct mem *mem, const char *file) {
+void mem_coredump(struct mem *mem, const char *file)
+{
     int fd = open(file, O_CREAT | O_RDWR | O_TRUNC, 0666);
     if (fd < 0) {
         perror("open");
