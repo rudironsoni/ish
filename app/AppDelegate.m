@@ -79,44 +79,8 @@ static NSString *const kSkipStartupMessage = @"Skip Startup Message";
 @implementation AppDelegate
 
 - (int)boot {
-    // STAGE 1: Backend attach - upgrade from NOP to full Unified iOS backend
-    // Stage 0 in main.m created minimal context, now attach heavy backends
-    NSString *cachesDir = [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES) firstObject];
-    const char *cachesPath = cachesDir.UTF8String;
-    
-    char stage1PrePath[1024];
-    char stage1PostPath[1024];
-    snprintf(stage1PrePath, sizeof(stage1PrePath), "%s/STAGE1_PRE_BACKEND_ATTACH", cachesPath);
-    snprintf(stage1PostPath, sizeof(stage1PostPath), "%s/STAGE1_POST_BACKEND_ATTACH", cachesPath);
-    
-    // Write Stage 1 PRE marker
-    int fd_pre = open(stage1PrePath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-    if (fd_pre >= 0) {
-        write(fd_pre, "STAGE1_PRE\n", 11);
-        fsync(fd_pre);
-        close(fd_pre);
-    }
-    
-    // Reconfigure trace to use Unified iOS backend
-    extern trace_ctx_t *g_trace_ctx;
-    if (g_trace_ctx) {
-        // Shutdown NOP backend from Stage 0
-        extern void trace_shutdown(void);
-        trace_shutdown();
-    }
-    // Initialize with full Unified iOS backend (os_log + ring)
-    trace_config_t trace_config;
-    trace_config_from_env(&trace_config);
-    trace_init(&trace_config);
-    
-    // Write Stage 1 POST marker
-    int fd_post = open(stage1PostPath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-    if (fd_post >= 0) {
-        write(fd_post, "STAGE1_POST\n", 12);
-        fsync(fd_post);
-        close(fd_post);
-    }
-    
+    // Stage 1 already completed in willFinishLaunchingWithOptions
+    // Backend attached, recovery checked, run marker set
     trace_emit(TRACE_EVENT_APP_TRACE_BOOTSTRAP_STARTED, 0);
     
     NSString *bootLogPath = [NSTemporaryDirectory() stringByAppendingPathComponent:@"boot.log"];
@@ -485,6 +449,38 @@ void SyncHostname(void) {
 }
 
 - (BOOL)application:(UIApplication *)application willFinishLaunchingWithOptions:(NSDictionary<UIApplicationLaunchOptionsKey,id> *)launchOptions {
+    // Stage 1: Backend attach - upgrade from NOP to full Unified iOS backend
+    // Stage 0 in main.m created minimal context, now attach heavy backends
+    NSString *cachesDir = [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES) firstObject];
+    const char *cachesPath = cachesDir.UTF8String;
+    const char *markerPath = [[[NSString stringWithUTF8String:cachesPath] stringByAppendingPathComponent:@"ish_run_marker"] UTF8String];
+    const char *ringPath = [[[NSString stringWithUTF8String:cachesPath] stringByAppendingPathComponent:@"ish_crash_trace.ring"] UTF8String];
+    
+    // Set global path for die() to use same location
+    extern const char *g_crash_ring_path;
+    g_crash_ring_path = ringPath;
+    
+    // Reconfigure trace to use Unified iOS backend
+    extern trace_ctx_t *g_trace_ctx;
+    if (g_trace_ctx) {
+        extern void trace_shutdown(void);
+        trace_shutdown();
+    }
+    trace_config_t trace_config;
+    trace_config_from_env(&trace_config);
+    trace_init(&trace_config);
+    
+    // Recovery check
+    extern int trace_recover_previous_run(const char *marker_path, const char *ring_path);
+    int recovered = trace_recover_previous_run(markerPath, ringPath);
+    if (recovered) {
+        NSLog(@"[iSH] Recovered from previous crash - ring available at: %s", ringPath);
+    }
+    
+    // Run marker
+    extern int trace_mark_run_started(const char *path);
+    trace_mark_run_started(markerPath);
+    
     // Debug logging to file
     NSString *logPath = [NSTemporaryDirectory() stringByAppendingPathComponent:@"app_boot.log"];
     NSString *logMsg = @"[AppDelegate] willFinishLaunchingWithOptions called\n";
