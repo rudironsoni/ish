@@ -86,38 +86,57 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
     struct a64_block *block;
     bool explicit_pc_on_exit = false;
 
+    printk("[A64_COMPILE_BLOCK] START: PC=0x%016llx cpu=%p tlb=%p\n", pc, cpu, tlb);
+
     // Trace: Block compilation start
     trace_emit_block_compile_start(pc);
-    
+
     // Create sidecar if tracing is active at level >= BLOCK
     trace_block_sidecar_t *sidecar = NULL;
     if (trace_sidecar_enabled()) {
         sidecar = trace_sidecar_create(pc, pc);
     }
 
-    a64_gen_init(&gen_state, buffer, A64_MAX_GADGETS_PER_BLOCK);
+    int ret = a64_gen_init(&gen_state, buffer, A64_MAX_GADGETS_PER_BLOCK);
+    if (ret != A64_GEN_OK) {
+        printk("[A64_COMPILE_BLOCK] ERROR: a64_gen_init failed: %d\n", ret);
+        return NULL;
+    }
     a64_gen_reset(&gen_state, pc);
+    printk("[A64_COMPILE_BLOCK] Generator initialized, starting at PC=0x%016llx\n", pc);
 
     // Translate instructions until block end
     int max_insns = 50;  // Reasonable limit
     int insns_decoded = 0;
     for (int i = 0; i < max_insns; i++) {
         uint32_t insn;
+        printk("[A64_COMPILE_BLOCK] Fetching instruction at PC=0x%016llx\n", gen_state.guest_pc);
         int ret = a64_fetch_insn(cpu, tlb, gen_state.guest_pc, &insn);
         if (ret < 0) {
             // Page fault during fetch
+            printk("[A64_COMPILE_BLOCK] Fetch failed at PC=0x%016llx: ret=%d\n",
+                   gen_state.guest_pc, ret);
             break;
         }
+        printk("[A64_COMPILE_BLOCK] Fetched: insn=0x%08x at PC=0x%016llx\n", insn, gen_state.guest_pc);
 
         // Decode to get instruction info
         a64_instr_t decoded_info;
         int decode_ret = a64_decode(insn, &decoded_info);
-        
+        if (decode_ret < 0) {
+            printk("[A64_COMPILE_BLOCK] Decode failed for insn=0x%08x: ret=%d\n", insn, decode_ret);
+        } else {
+            printk("[A64_COMPILE_BLOCK] Decoded: cat=%d subtype=%d\n", decoded_info.cat, decoded_info.subtype);
+        }
+
         // Generate TCTI instruction - load/store and bitfield now have inline TCTI support
         ret = a64_gen_instruction(&gen_state, insn, gen_state.guest_pc);
+        printk("[A64_COMPILE_BLOCK] a64_gen_instruction returned: %d\n", ret);
 
         if (ret < 0) {
             // Decode error - block ends here
+            printk("[A64_COMPILE_BLOCK] Generation error at PC=0x%016llx: ret=%d\n",
+                   gen_state.guest_pc, ret);
             break;
         }
 
@@ -132,34 +151,48 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
 
         if (ret == 1) {
             // Block should end (branch/syscall)
+            printk("[A64_COMPILE_BLOCK] Block end signaled at PC=0x%016llx\n", gen_state.guest_pc);
             break;
         }
     }
+    printk("[A64_COMPILE_BLOCK] Translation complete: insns_decoded=%d\n", insns_decoded);
 
     // Check if we decoded any instructions
     if (insns_decoded == 0) {
         // No instructions could be decoded - this is a fatal error in 100% TCTI mode
         uint32_t failing_insn = 0;
         a64_fetch_insn(cpu, tlb, pc, &failing_insn);
+        printk("[A64_COMPILE_BLOCK] FAILED: No instructions decoded at PC=0x%016llx, insn=0x%08x\n",
+               pc, failing_insn);
         trace_emit_u32(TRACE_EVENT_UNSUPPORTED_INSTRUCTION, pc, failing_insn);
         return NULL;
     }
 
     // Finalize the block
+    printk("[A64_COMPILE_BLOCK] Finalizing block with %zu gadgets...\n", gen_state.num_gadgets);
     if (a64_gen_finalize(&gen_state) != A64_GEN_OK) {
+        printk("[A64_COMPILE_BLOCK] FAILED: a64_gen_finalize failed\n");
         return NULL;
     }
 
     // Allocate block
     block = malloc(sizeof(*block));
-    if (!block) return NULL;
+    if (!block) {
+        printk("[A64_COMPILE_BLOCK] FAILED: malloc failed for block struct\n");
+        return NULL;
+    }
+    printk("[A64_COMPILE_BLOCK] Block struct allocated at %p\n", block);
 
     // Allocate gadget array
     block->gadgets = malloc(gen_state.num_gadgets * sizeof(void *));
     if (!block->gadgets) {
+        printk("[A64_COMPILE_BLOCK] FAILED: malloc failed for gadget array (%zu gadgets)\n",
+               gen_state.num_gadgets);
         free(block);
         return NULL;
     }
+    printk("[A64_COMPILE_BLOCK] Gadget array allocated at %p (%zu gadgets)\n",
+           block->gadgets, gen_state.num_gadgets);
 
     // Copy gadgets
     memcpy(block->gadgets, buffer, gen_state.num_gadgets * sizeof(void *));
@@ -201,14 +234,44 @@ int a64_execute_block(struct cpu_state *cpu, struct a64_block *block) {
         uint64_t regs[6] = {cpu->x[0], cpu->x[1], cpu->x[2], cpu->x[3], cpu->x[4], cpu->x[5]};
         trace_emit_register_snapshot(block->start_pc, regs, 0x3F);
     }
-    
+
     trace_emit_block_entry(block->start_pc, (uint32_t)block->num_gadgets);
-    
+
+    printk("[A64_EXECUTE_BLOCK] About to call tcti_entry_block:\n");
+    printk("[A64_EXECUTE_BLOCK]   block->gadgets=%p\n", (void*)block->gadgets);
+    printk("[A64_EXECUTE_BLOCK]   block->num_gadgets=%zu\n", block->num_gadgets);
+    printk("[A64_EXECUTE_BLOCK]   cpu=%p\n", (void*)cpu);
+    printk("[A64_EXECUTE_BLOCK]   cpu->pc=0x%016llx\n", cpu->pc);
+    printk("[A64_EXECUTE_BLOCK]   First gadget=%p\n",
+           block->gadgets ? (void*)block->gadgets[0] : NULL);
+
+    // Validate pointers before calling
+    if (!block->gadgets) {
+        printk("[A64_EXECUTE_BLOCK] ERROR: block->gadgets is NULL!\n");
+        cpu->tcti_exit_reason = TCTI_EXIT_FAULT;
+        return TCTI_EXIT_FAULT;
+    }
+    if (!cpu) {
+        printk("[A64_EXECUTE_BLOCK] ERROR: cpu is NULL!\n");
+        return TCTI_EXIT_FAULT;
+    }
+
+    // Verify first gadget is not NULL
+    if (block->num_gadgets > 0 && !block->gadgets[0]) {
+        printk("[A64_EXECUTE_BLOCK] ERROR: First gadget is NULL!\n");
+        cpu->tcti_exit_reason = TCTI_EXIT_FAULT;
+        return TCTI_EXIT_FAULT;
+    }
+
+    printk("[A64_EXECUTE_BLOCK] Calling tcti_entry_block now...\n");
+
     tcti_entry_block(block->gadgets, cpu);
     int exit_reason = cpu->tcti_exit_reason;
-    
+
+    printk("[A64_EXECUTE_BLOCK] Returned from tcti_entry_block, exit_reason=%d\n", exit_reason);
+
     trace_emit_block_exit(block->start_pc, exit_reason, cpu->pc);
-    
+
     return exit_reason;
 }
 
@@ -273,9 +336,16 @@ static uint64_t a64_apply_shift(uint64_t value, int shift_type, int amount, bool
  * This is the main entry point from the kernel
  */
 void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
+    printk("[A64_CPU_RUN] ENTER: cpu=%p tlb=%p mmu=%p\n", cpu, tlb, cpu ? cpu->mmu : NULL);
+
     if (!cpu || !tlb || !cpu->mmu) {
+        printk("[A64_CPU_RUN] EARLY RETURN: missing required pointer (cpu=%p tlb=%p mmu=%p)\n",
+               cpu, tlb, cpu ? cpu->mmu : NULL);
         return;
     }
+
+    printk("[A64_CPU_RUN] Initial PC=0x%016llx SP=0x%016llx x0=0x%016llx\n",
+           cpu->pc, cpu->sp, cpu->x[0]);
 
     // Initialize tracing from environment
     trace_config_t trace_config;
@@ -287,47 +357,64 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
     cpu->tlb = tlb;  // Store TLB pointer in cpu_state for inline TLB access
 
     // Get or create persistent execution context for this CPU
+    printk("[A64_CPU_RUN] Getting fiber_exec_ctx...\n");
     struct fiber_exec_ctx *ctx = fiber_exec_ctx_get(cpu);
     if (!ctx) {
+        printk("[A64_CPU_RUN] ERROR: fiber_exec_ctx_get returned NULL!\n");
         trace_emit(TRACE_EVENT_FAULT, cpu->pc);
         handle_interrupt(INT_GPF);
         trace_shutdown();
         return;
     }
-    
+    printk("[A64_CPU_RUN] Got fiber_exec_ctx: %p\n", ctx);
+
     // Reset frame state for new execution run
     fiber_exec_ctx_reset(ctx, cpu);
 
     // Initialize per-MMU block cache if needed
+    printk("[A64_CPU_RUN] Checking block_cache: mmu->block_cache=%p\n",
+           cpu->mmu->block_cache);
     if (!cpu->mmu->block_cache) {
+        printk("[A64_CPU_RUN] Allocating block_cache...\n");
         cpu->mmu->block_cache = malloc(sizeof(struct a64_block_cache));
         if (cpu->mmu->block_cache) {
+            printk("[A64_CPU_RUN] Initializing block_cache at %p\n", cpu->mmu->block_cache);
             a64_cache_init(cpu->mmu->block_cache);
+        } else {
+            printk("[A64_CPU_RUN] ERROR: malloc failed for block_cache!\n");
         }
     }
 
     // Set up TLB for this CPU
+    printk("[A64_CPU_RUN] Calling tlb_refresh...\n");
     tlb_refresh(tlb, cpu->mmu);
+    printk("[A64_CPU_RUN] Entering main execution loop...\n");
 
     while (1) {
         // Reacquire context if it was marked inactive (e.g., after interrupt return)
         if (!ctx->active) {
+            printk("[A64_CPU_RUN] Context inactive, reacquiring...\n");
             ctx = fiber_exec_ctx_get(cpu);
             if (!ctx) {
+                printk("[A64_CPU_RUN] ERROR: Failed to reacquire context!\n");
                 trace_emit(TRACE_EVENT_FAULT, cpu->pc);
                 handle_interrupt(INT_GPF);
                 break;
             }
         }
-        
+
         uint64_t pc = cpu->pc;
-        
+        printk("[A64_CPU_RUN] LOOP: PC=0x%016llx\n", pc);
+
         // L0 cache lookup (fast path via fiber_exec_ctx)
         size_t l0_idx = ((pc ^ (pc >> 12)) & FIBER_EXEC_CTX_CACHE_MASK);
         struct a64_block *block = ctx->l0_cache[l0_idx];
-        
+        printk("[A64_CPU_RUN] L0 cache lookup: idx=%zu block=%p\n", l0_idx, block);
+
         // Validate L0 cache hit (check PC matches)
         if (block && block->start_pc == pc) {
+            printk("[A64_CPU_RUN] L0 HIT: block=%p start_pc=0x%016llx\n",
+                   block, block->start_pc);
             fiber_stat_inc(ctx, STAT_TB_L0_HITS);
         } else {
             // L0 miss - fall back to MMU cache (L1)
@@ -335,26 +422,32 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
             if (cpu->mmu->block_cache) {
                 block = a64_cache_lookup(cpu->mmu->block_cache, pc);
                 if (block) {
+                    printk("[A64_CPU_RUN] L1 HIT: block=%p start_pc=0x%016llx\n",
+                           block, block->start_pc);
                     fiber_stat_inc(ctx, STAT_TB_L1_HITS);
                 }
             }
-            
+
             if (!block) {
                 // Compile new block
+                printk("[A64_CPU_RUN] CACHE MISS: Compiling block at PC=0x%016llx...\n", pc);
                 block = a64_compile_block(cpu, pc, tlb);
                 if (!block) {
+                    printk("[A64_CPU_RUN] ERROR: a64_compile_block returned NULL for PC=0x%016llx!\n", pc);
                     trace_emit(TRACE_EVENT_FAULT, pc);
                     handle_interrupt(INT_GPF);
                     continue;
                 }
+                printk("[A64_CPU_RUN] Block compiled: block=%p start=0x%016llx end=0x%016llx gadgets=%zu\n",
+                       block, block->start_pc, block->end_pc, block->num_gadgets);
                 fiber_stat_inc(ctx, STAT_TB_COMPILES);
-                
+
                 // Insert into MMU cache (L1)
                 if (cpu->mmu->block_cache) {
                     a64_cache_insert(cpu->mmu->block_cache, block);
                 }
             }
-            
+
             // Populate L0 cache for next access
             ctx->l0_cache[l0_idx] = block;
         }
@@ -362,26 +455,34 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
         // Execute the block via TCTI
         // NOTE: Execution runs directly on cpu_state (authoritative state owner)
         // ctx->frame.cpu is RESERVED for future fiber work, not used today
+        printk("[A64_CPU_RUN] Executing block: block=%p num_gadgets=%zu\n",
+               block, block->num_gadgets);
         int exit_reason = a64_execute_block(cpu, block);
+        printk("[A64_CPU_RUN] Block executed: exit_reason=%d (NORMAL=0,SYSCALL=1,SIGNAL=2,FAULT=3,COMPLEX=4)\n",
+               exit_reason);
         
         // Check exit reason and handle
         if (exit_reason == TCTI_EXIT_SYSCALL) {
+            printk("[A64_CPU_RUN] EXIT: SYSCALL at PC=0x%016llx\n", cpu->pc);
             if (!block->explicit_pc_on_exit)
                 cpu->pc = block->end_pc;
             // Mark context inactive before handing control to kernel
             fiber_exec_ctx_put(ctx);
             handle_interrupt(INT_SYSCALL);
         } else if (exit_reason == TCTI_EXIT_FAULT) {
+            printk("[A64_CPU_RUN] EXIT: FAULT at PC=0x%016llx fault_addr=0x%016llx is_write=%d\n",
+                   cpu->pc, cpu->fault_addr, cpu->fault_was_write);
             // Trace fault event
             trace_emit_fault(cpu->pc, cpu->fault_addr, cpu->fault_was_write, 0);
-            
+
             // Dump sidecar and ring if configured
             trace_dump_on_fault(cpu->pc, cpu->fault_addr, cpu->fault_was_write);
-            
+
             // Mark context inactive before handling fault
             fiber_exec_ctx_put(ctx);
             handle_interrupt(INT_GPF);
         } else if (exit_reason == TCTI_EXIT_SIGNAL) {
+            printk("[A64_CPU_RUN] EXIT: SIGNAL at PC=0x%016llx\n", cpu->pc);
             if (!block->explicit_pc_on_exit)
                 cpu->pc = block->end_pc;
             // Mark context inactive before handling signal
@@ -448,15 +549,18 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb) {
                 handle_interrupt(INT_GPF);
             }
         } else {
+            printk("[A64_CPU_RUN] EXIT: NORMAL (fallthrough) next_PC=0x%016llx\n", block->end_pc);
             // Fallthrough blocks advance to end_pc. Control-transfer blocks preserve
             // the guest PC written by their terminal gadget.
             if (!block->explicit_pc_on_exit)
                 cpu->pc = block->end_pc;
         }
-        
+
         // Normal exit - PC already advanced, continue to next block
+        printk("[A64_CPU_RUN] Continuing to next block...\n");
     }
-    
+
+    printk("[A64_CPU_RUN] EXITING LOOP (should not reach here in normal execution)\n");
     trace_shutdown();
 }
 

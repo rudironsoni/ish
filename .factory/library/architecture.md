@@ -1,112 +1,105 @@
-# Architecture: iOS App Testing Harness
+# Architecture: iSH NULL current->mem Crash
 
 ## System Overview
 
-The iOS app testing harness enables automated testing of the iSH iOS app through XcodeBuildMCP integration. It validates:
-1. **Harness Capability** - XcodeBuildMCP availability, simulator control, build/install/launch
-2. **Runtime Entry** - Boot milestone tracking from app launch through shell ready
-3. **Stability** - Relaunch consistency and iOS lifecycle handling
+iSH is an x86 emulator for iOS that runs a Linux-like environment. The crash occurs in the AArch64 emulator backend when the task system fails to properly initialize the memory management pointer.
 
 ## Components
 
-### XcodeBuildMCP Integration
-- **Purpose**: Drive iOS simulator operations (build, install, launch, logs)
-- **Configuration**: iSH.xcodeproj, iSH scheme, iPhone 17 Pro simulator
-- **Key Operations**: session_show_defaults, discover_projs, list_schemes, list_sims, build_run_sim, launch_app_logs_sim, erase_sims
+### Task System (kernel/task.c, kernel/task.h)
+- `struct task` - Process/task structure containing mm, mem, cpu state
+- `task_create_(parent)` - Creates new task, copies from parent if not NULL
+- `task_set_mm(task, mm)` - Atomically sets task->mm, task->mem, task->cpu.mmu
+- `task_run_current()` - Validates current->mem before entering emulator
+- `task_thread()` - Thread entry point with memory barrier
 
-### Boot Milestone Auditor
-- **Purpose**: Extract ordered boot milestones from simulator logs
-- **Milestones**: app_launched → boot_setup_started → first_elf_exec_entered → first_elf_exec_returned → second_execve_started → bin_login_elf_header_parsed → bin_login_program_headers_read → guest_loop_entered → login_ready → shell_ready
-- **Output**: boot_milestones.json with milestone ordering and timestamps
+### Memory Management (kernel/mmap.c, kernel/mmap.h)
+- `struct mm` - Memory management structure
+- `struct mem` - Memory state with MMU
+- `mm_new()` - Creates new mm with initialized mem
+- `mm_copy(mm)` - Copies mm for fork
+- `mm_retain/mm_release` - Reference counting
 
-### Crash Classifier
-- **Purpose**: Normalize crash signatures for consistent classification
-- **Algorithm**: sha256 of exception_type, signal, crashing_thread_backtrace_hash
-- **Context**: Captures highest_completed and first_failing milestones
-- **Output**: crash_signature.json, normalized_hash.txt, milestone_context.json
+### Exec Path (kernel/exec.c)
+- `elf_exec()` - Loads and executes ELF binary
+- Contains mm_release/task_set_mm window
 
-### Self-Healing Runner
-- **Purpose**: Bounded retry/reset discipline for crash scenarios
-- **Policy**: Max 1 retry, reset simulator on retry, same signature stops
-- **Output**: reset_result.json, relaunch_result.json, retry_log.json
+### Init Path (kernel/init.c)
+- `become_first_process()` - Creates first task
+- `construct_task()` - Helper for task creation
+- Fully synchronous, no threading
+
+### Fork Path (kernel/fork.c)
+- `sys_clone()` - Creates new process/thread
+- `copy_task()` - Copies task state
+- Uses memory barriers for synchronization
 
 ## Data Flow
 
+### Init Flow (Main Thread)
 ```
-Case Execution:
-  1. Read case.yaml (discovery flow, artifacts, success criteria)
-  2. Execute XcodeBuildMCP operations per case type
-  3. Capture simulator logs
-  4. Extract boot milestones (if applicable)
-  5. Classify crashes (if applicable)
-  6. Produce required artifacts
-  7. Verify against expected.yaml
-  8. Update status.yaml
-```
-
-## Case Types
-
-### APPSIM (Harness Capability)
-- APPSIM-001: XcodeBuildMCP discovery
-- APPSIM-002: Simulator boot
-- APPSIM-003: Build/install/launch smoke test
-- APPSIM-004: Log harvest and milestone capture
-- APPSIM-005: Crash signature normalization
-- APPSIM-006: Bounded reset/relaunch
-
-### APP (Runtime Entry)
-- APP-001..005: Boot milestone progression to shell ready
-- APP-003 is "smallest lawful app case" for crash reduction
-
-### APP (Stability)
-- APP-006..010: Relaunch stability and iOS lifecycle
-
-## Phase Dependencies
-
-```
-02b (APPSIM-001..006) → 02c (APP-001..005) → 10 (APP-006..010)
+main()
+  └── become_first_process()
+        └── construct_task(NULL)
+              ├── task_create_(NULL)   // Zero-initialized task
+              ├── mm_new()             // Creates mm with mem
+              ├── task_set_mm()        // Sets task->mm, task->mem
+              └── return task
+        └── current = task
+task_run_current()  // current->mem guaranteed valid
 ```
 
-Each phase gates the next. All gate cases in a phase must be REAL PASS before proceeding.
+### Fork Flow (Parent Thread -> Child Thread)
+```
+sys_clone()
+  ├── task_create_(current)  // Copies current (with mm/mem)
+  ├── copy_task(task, flags) // Sets new mm or retains parent's
+  │     └── task_set_mm()    // Sets task->mm, task->mem
+  └── task_start(task)       // Creates pthread
+        └── task_thread(task)// Child thread starts
+              ├── __sync_synchronize()
+              ├── current = task
+              └── task_run_current() // current->mem guaranteed valid
+```
 
-## Artifact Schema
+### Exec Flow (Current Thread)
+```
+elf_exec()
+  ├── lock(&current->general_lock)
+  ├── mm_release(current->mm)   // OLD mm freed
+  ├── new_mm = mm_new()         // NEW mm allocated
+  ├── task_set_mm(current, new_mm) // Sets current->mm, current->mem
+  └── unlock(&current->general_lock)
+```
 
-### sim_launch.json
-```json
-{
-  "case_id": "APPSIM-003",
-  "launch_timestamp": "2026-03-28T12:00:00Z",
-  "simulator_id": "E6186E89-8784-473B-A4E4-66E42693F14E",
-  "bundle_id": "com.rudironsoni.ish",
-  "success": true
+## Crash Location
+
+The crash occurs in `task_run_current()` at task.c:119:
+```c
+void task_run_current() {
+    if (!current) {
+        die("task_run_current: NULL current");
+    }
+    if (!current->mem) {  // LINE 119 - CRASH HERE
+        die("task_run_current: NULL current->mem");
+    }
+    // ...
 }
 ```
 
-### boot_milestones.json
-```json
-{
-  "milestones": [
-    {"name": "app_launched", "timestamp": "2026-03-28T12:00:01Z"},
-    {"name": "boot_setup_started", "timestamp": "2026-03-28T12:00:02Z"}
-  ],
-  "highest_completed": "boot_setup_started",
-  "first_failing": null
-}
-```
+## Root Cause Hypotheses
 
-### crash_signature.json
-```json
-{
-  "algorithm": "sha256",
-  "fields": ["exception_type", "signal", "crashing_thread_backtrace_hash"],
-  "hash": "abc123...",
-  "raw_signature": { ... }
-}
-```
+### 1. Exec Window Bug (Most Likely)
+In `exec.c`, `mm_release()` frees the old mm before `task_set_mm()` sets the new mm. If an error or signal occurs between these two calls, `current->mem` points to freed memory.
 
-## Key Invariants
+### 2. Use-After-Free
+The mm is released while still referenced elsewhere, causing the mem pointer to become invalid.
 
-1. **Milestone Order**: Boot milestones must appear in defined order
-2. **Crash Consistency**: Same crash scenario produces same normalized hash
-3. **Retry Budget**: Max 1 retry per case, same signature stops
-4. **Artifact Completeness**: All required artifacts must be produced for REAL PASS
+### 3. Memory Corruption
+Buffer overflow or other corruption zeroes out the task->mem field.
+
+### 4. Current Initialization Bug
+The thread-local `current` variable is not properly set in some edge case.
+
+### Ruled Out: Race Condition
+Code review confirmed proper synchronization. The init path is single-threaded. The fork path uses memory barriers correctly.
