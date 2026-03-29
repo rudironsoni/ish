@@ -160,7 +160,8 @@ int trace_config_from_env(trace_config_t *config)
     /* Initialize with defaults */
     memset(config, 0, sizeof(trace_config_t));
 #if defined(__APPLE__) && (TARGET_OS_IOS || TARGET_OS_SIMULATOR)
-    config->backend = TRACE_BACKEND_OS_LOG; /* Default to os_log on iOS */
+    config->backend =
+        TRACE_BACKEND_UNIFIED_IOS; /* Default to unified iOS backend (os_log + ring) */
 #else
     config->backend = TRACE_BACKEND_STDERR; /* Default to stderr elsewhere */
 #endif
@@ -180,6 +181,8 @@ int trace_config_from_env(trace_config_t *config)
             config->backend = TRACE_BACKEND_STDERR;
         } else if (strcmp(backend, "oslog") == 0 || strcmp(backend, "os_log") == 0) {
             config->backend = TRACE_BACKEND_OS_LOG;
+        } else if (strcmp(backend, "unified_ios") == 0 || strcmp(backend, "unified") == 0) {
+            config->backend = TRACE_BACKEND_UNIFIED_IOS;
         }
     }
 
