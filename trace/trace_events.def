@@ -119,6 +119,18 @@ TRACE_EVENT(TASK_START, 1, TRACE_CAT_SYSCALL, 4)
 /* App entered task runloop to keep alive - no payload */
 TRACE_EVENT(APP_TASK_START_RUNLOOP, 1, TRACE_CAT_SYSCALL, 0)
 
+/* App trace bootstrap started - no payload */
+TRACE_EVENT(APP_TRACE_BOOTSTRAP_STARTED, 1, TRACE_CAT_SYSCALL, 0)
+
+/* App boot started - no payload */
+TRACE_EVENT(APP_BOOT_STARTED, 1, TRACE_CAT_SYSCALL, 0)
+
+/* App UI session started - no payload */
+TRACE_EVENT(APP_UI_SESSION_STARTED, 1, TRACE_CAT_SYSCALL, 0)
+
+/* App launch completed - no payload */
+TRACE_EVENT(APP_LAUNCH_COMPLETED, 1, TRACE_CAT_SYSCALL, 0)
+
 /* ============================================
  * Task Thread Diagnostics (for crash debugging)
  * ============================================ */

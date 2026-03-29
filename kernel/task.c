@@ -261,9 +261,11 @@ void task_start(struct task *task)
 {
     __sync_synchronize();
 
-    // Initialize trace system if not already done
+    // REUSE: Ensure trace system is initialized (app layer owns bootstrap)
+    // Lower layers MUST NOT own trace initialization - only ensure availability
     extern trace_ctx_t *g_trace_ctx;
     if (!g_trace_ctx) {
+        // App layer should have initialized this. Lazy fallback only.
         trace_config_t trace_config;
         trace_config_from_env(&trace_config);
         trace_init(&trace_config);

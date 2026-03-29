@@ -71,7 +71,11 @@ typedef enum {
     TRACE_EVENT_TASK_START,  /* Task started execution */
 
     /* App-layer task lifecycle events (level 1) */
-    TRACE_EVENT_APP_TASK_START_RUNLOOP, /* App entered task runloop to keep alive */
+    TRACE_EVENT_APP_TASK_START_RUNLOOP,      /* App entered task runloop to keep alive */
+    TRACE_EVENT_APP_TRACE_BOOTSTRAP_STARTED, /* App trace bootstrap started */
+    TRACE_EVENT_APP_BOOT_STARTED,            /* App boot started */
+    TRACE_EVENT_APP_UI_SESSION_STARTED,      /* App UI session started */
+    TRACE_EVENT_APP_LAUNCH_COMPLETED,        /* App launch completed */
 
     /* Task thread diagnostics (level 1) */
     TRACE_EVENT_TASK_THREAD_ENTRY,          /* Task thread entry */
