@@ -60,12 +60,12 @@ bool trace_event_enabled(trace_event_id_t event, uint64_t pc)
     return true;
 }
 
-/* Initialize tracing */
+/* Initialize tracing - ONCE-ONLY semantics for app-first architecture */
 int trace_init(trace_config_t *config)
 {
+    /* Once-only: if already initialized, return success and reuse context */
     if (g_trace_ctx) {
-        /* Already initialized - shutdown first */
-        trace_shutdown();
+        return 0;
     }
 
     g_trace_ctx = calloc(1, sizeof(trace_ctx_t));
