@@ -15,6 +15,8 @@
 #import "CurrentRoot.h"
 #import "NSObject+SaneKVO.h"
 #import "LinuxInterop.h"
+#import "Instrumentation/ISHRuntimeFlags.h"
+#import "Instrumentation/ISHInstrumentation.h"
 #include "kernel/init.h"
 #include "kernel/task.h"
 #include "kernel/calls.h"
@@ -171,6 +173,14 @@
 }
 
 - (int)startSession {
+    // Task Zero: Check if guest execution should be bypassed
+    if (ISH_TASK_ZERO_DISABLE_EMULATION == 1) {
+        // Record deferred event for session
+        [ISHInstrumentation recordEvent:ISHInstrumentationEventSessionStarted];
+        // UI loads normally, no guest execution
+        return 0;
+    }
+
     NSArray<NSString *> *command = UserPreferences.shared.launchCommand;
 
 #if !ISH_LINUX
@@ -198,15 +208,15 @@
     if (err < 0)
         return err;
     self.sessionPid = current->pid;
-    
+
     // CRITICAL: Memory barrier to ensure all stores from do_execve() are visible
     // before task_start() creates the child thread. do_execve() modifies
     // current->mm and current->mem via mm_release/task_set_mm window.
     // Without this barrier, the child thread may see NULL current->mem.
     __sync_synchronize();
-    
+
     task_start(current);
-    
+
     // task_start creates a detached thread that runs the child process
     // Return to allow normal UIKit runloop management
     return 0;
