@@ -29,12 +29,12 @@
 #include "fs/dyndev.h"
 #include "fs/devices.h"
 #include "fs/path.h"
+#include "trace/trace.h"
+#include <fcntl.h>
 
 // Force non-Linux path for testing
 #undef ISH_LINUX
 #define ISH_LINUX 0
-
-#include "trace/trace.h"
 
 #if ISH_LINUX
 #import "LinuxInterop.h"
@@ -79,14 +79,44 @@ static NSString *const kSkipStartupMessage = @"Skip Startup Message";
 @implementation AppDelegate
 
 - (int)boot {
-    // APP-FIRST: Initialize trace system at highest app boundary
-    // This ensures all observability (app, kernel, task, exec, TCTI) flows through unified trace
-    extern trace_ctx_t *g_trace_ctx;
-    if (!g_trace_ctx) {
-        trace_config_t trace_config;
-        trace_config_from_env(&trace_config);
-        trace_init(&trace_config);
+    // STAGE 1: Backend attach - upgrade from NOP to full Unified iOS backend
+    // Stage 0 in main.m created minimal context, now attach heavy backends
+    NSString *cachesDir = [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES) firstObject];
+    const char *cachesPath = cachesDir.UTF8String;
+    
+    char stage1PrePath[1024];
+    char stage1PostPath[1024];
+    snprintf(stage1PrePath, sizeof(stage1PrePath), "%s/STAGE1_PRE_BACKEND_ATTACH", cachesPath);
+    snprintf(stage1PostPath, sizeof(stage1PostPath), "%s/STAGE1_POST_BACKEND_ATTACH", cachesPath);
+    
+    // Write Stage 1 PRE marker
+    int fd_pre = open(stage1PrePath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd_pre >= 0) {
+        write(fd_pre, "STAGE1_PRE\n", 11);
+        fsync(fd_pre);
+        close(fd_pre);
     }
+    
+    // Reconfigure trace to use Unified iOS backend
+    extern trace_ctx_t *g_trace_ctx;
+    if (g_trace_ctx) {
+        // Shutdown NOP backend from Stage 0
+        extern void trace_shutdown(void);
+        trace_shutdown();
+    }
+    // Initialize with full Unified iOS backend (os_log + ring)
+    trace_config_t trace_config;
+    trace_config_from_env(&trace_config);
+    trace_init(&trace_config);
+    
+    // Write Stage 1 POST marker
+    int fd_post = open(stage1PostPath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd_post >= 0) {
+        write(fd_post, "STAGE1_POST\n", 12);
+        fsync(fd_post);
+        close(fd_post);
+    }
+    
     trace_emit(TRACE_EVENT_APP_TRACE_BOOTSTRAP_STARTED, 0);
     
     NSString *bootLogPath = [NSTemporaryDirectory() stringByAppendingPathComponent:@"boot.log"];
