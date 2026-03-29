@@ -1,0 +1,79 @@
+expected_artifacts:
+  sim_launch.json:
+    launch_success: true
+    device_id: "string"
+    bundle_id: "app.ish.iSH"
+
+  login_elf_header.json:
+    binary_path: "/bin/login"
+    elf_magic: "\\x7fELF"
+    elf_class: "ELFCLASS64"
+    elf_data: "ELFDATA2LSB"
+    e_machine: 183
+    e_machine_str: "EM_AARCH64"
+    e_type: 2
+    e_type_str: "ET_EXEC"
+    e_entry: "hex_address"
+    e_phoff: "number"
+    e_shoff: "number"
+    e_flags: 0
+    e_ehsize: 64
+    e_phentsize: 56
+    e_phnum: "number"
+    e_shentsize: 64
+    e_shnum: "number"
+    e_shstrndx: "number"
+    header_valid: true
+    is_aarch64: true
+    is_64bit: true
+    is_little_endian: true
+
+  program_headers.json:
+    binary_path: "/bin/login"
+    phdr_count: "number"
+    phdr_valid: true
+    pt_load_count: "number"
+    program_headers:
+      - index: 0
+        p_type: 1
+        p_type_str: "PT_LOAD"
+        p_flags: "number"
+        p_flags_str: "string"
+        p_offset: "hex_address"
+        p_vaddr: "hex_address"
+        p_paddr: "hex_address"
+        p_filesz: "number"
+        p_memsz: "number"
+        p_align: "hex_address"
+    timestamp: "string"
+
+  report.json:
+    case_id: "APP-005"
+    status: "REAL_PASS"
+    summary: "Login ELF program headers validated for /bin/login"
+
+success_criteria:
+  - "sim_launch.json contains launch_success: true"
+  - "login_elf_header.json contains header_valid: true"
+  - "login_elf_header.json contains is_aarch64: true"
+  - "program_headers.json contains phdr_valid: true"
+  - "program_headers.json contains at least 2 PT_LOAD segments"
+  - "report.json contains status: REAL_PASS"
+
+# ELF Header validation requirements:
+# - Magic: 0x7f, 'E', 'L', 'F'
+# - Class: ELFCLASS64 (2)
+# - Data encoding: ELFDATA2LSB (1) - little endian
+# - Machine: EM_AARCH64 (183)
+# - Type: ET_EXEC (2) for static binaries
+# - Entry point: valid address
+# - Program header offset: valid offset
+# - Program header entry size: 56 bytes
+# - Number of program headers: at least 2 (text + data)
+
+# Program Header validation requirements:
+# - PT_LOAD segments must be present (at least 2)
+# - PT_LOAD segment alignment must be valid
+# - PT_LOAD file size <= memory size
+# - PT_LOAD virtual address aligned to page boundary
+# - Flags indicate read/execute for text, read/write for data

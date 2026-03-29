@@ -258,6 +258,15 @@ test('case:APP-004', ios_app_harness,
      timeout: 300,
      is_parallel: false)
 
+# APP-005: Login ELF Program Header Boundary
+# Validates ELF parsing for /bin/login (headers, PT_LOAD segments)
+test('case:APP-005', ios_app_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '02c-ios-app-runtime-entry/APP-005-login-elf-program-header-boundary/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/APP-005'],
+     suite: ['cases', 'phase-02c-ios-app-runtime-entry', 'gate'],
+     timeout: 300,
+     is_parallel: false)
+
 # EXEC-011: Real TCTI gadget execution
 test('case:EXEC-011', semantic_micro_harness,
   args: ['--case-yaml', meson.current_source_dir() / '03-semantic-exec/EXEC-011-str-execution/case.yaml',
