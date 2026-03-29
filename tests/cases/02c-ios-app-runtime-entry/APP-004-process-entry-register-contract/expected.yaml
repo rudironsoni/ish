@@ -1,0 +1,64 @@
+expected_artifacts:
+  sim_launch.json:
+    launch_success: true
+    device_id: "string"
+    bundle_id: "app.ish.iSH"
+    
+  process_entry.json:
+    process_entry_valid: true
+    entry_point: "hex_address"
+    stack_pointer: "hex_address"
+    argc: "number"
+    argv_addr: "hex_address"
+    envp_addr: "hex_address"
+    auxv_addr: "hex_address"
+    
+  argc_argv_envp.json:
+    argc: "number"
+    argv:
+      - "/bin/init"
+      - "-f"
+      - "root"
+    envp_count: "number"
+    envp:
+      - "PATH=/bin"
+      - "HOME=/root"
+    stack_layout_valid: true
+    
+  auxv.json:
+    AT_ENTRY: "hex_address"
+    AT_PHDR: "hex_address"
+    AT_PHENT: "number"
+    AT_PHNUM: "number"
+    AT_PAGESZ: 16384
+    AT_BASE: "hex_address"
+    AT_FLAGS: 0
+    AT_UID: 0
+    AT_EUID: 0
+    AT_GID: 0
+    AT_EGID: 0
+    AT_HWCAP: "hex_address"
+    AT_HWCAP2: "hex_address"
+    AT_RANDOM: "hex_address"
+    AT_EXECFN: "/bin/init"
+    auxv_valid: true
+    
+  report.json:
+    case_id: "APP-004"
+    status: "REAL_PASS"
+    summary: "Process entry register contract validated per Linux AArch64 ABI"
+
+success_criteria:
+  - "sim_launch.json contains launch_success: true"
+  - "process_entry.json contains process_entry_valid: true"
+  - "argc_argv_envp.json contains argc and argv arrays"
+  - "auxv.json contains required auxv entries per Linux AArch64 ABI"
+  - "report.json contains status: REAL_PASS"
+
+# Linux AArch64 ABI Process Entry Requirements:
+# - x0 = argc
+# - x1 = argv (pointer to array of strings)
+# - x2 = envp (pointer to array of strings)
+# - x3 = auxv (pointer to auxiliary vector)
+# - sp points to argc on stack (for stack-based access)
+# - Entry point (x30) set to program entry
