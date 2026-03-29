@@ -249,6 +249,15 @@ test('case:APP-003', ios_app_harness,
      timeout: 300,
      is_parallel: false)
 
+# APP-004: Process Entry Register Contract
+# Validates Linux AArch64 ABI process entry (argc, argv, envp, auxv, stack layout)
+test('case:APP-004', ios_app_harness,
+     args: ['--case-yaml', meson.current_source_dir() / '02c-ios-app-runtime-entry/APP-004-process-entry-register-contract/case.yaml',
+            '--artifact-dir', artifact_base / 'artifacts/APP-004'],
+     suite: ['cases', 'phase-02c-ios-app-runtime-entry'],
+     timeout: 300,
+     is_parallel: false)
+
 # EXEC-011: Real TCTI gadget execution
 test('case:EXEC-011', semantic_micro_harness,
   args: ['--case-yaml', meson.current_source_dir() / '03-semantic-exec/EXEC-011-str-execution/case.yaml',
