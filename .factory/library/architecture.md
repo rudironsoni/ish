@@ -103,3 +103,96 @@ The thread-local `current` variable is not properly set in some edge case.
 
 ### Ruled Out: Race Condition
 Code review confirmed proper synchronization. The init path is single-threaded. The fork path uses memory barriers correctly.
+
+---
+
+# Architecture: ISHInstrumentation Framework
+
+## Overview
+
+The ISHInstrumentation framework is an app-owned observability system that replaces the legacy trace subsystem. It provides semantic event recording and interval timing for the iSH app.
+
+## Design Principles
+
+1. **App-Owned**: The app layer owns bootstrap, activation, backend selection, recovery, persistence, and export
+2. **Lower Layers Emit Only**: Kernel and emulator layers emit semantic events only
+3. **Minimal Main**: main.m is minimal - just bootstrap + UIApplicationMain
+4. **Task Zero Support**: Can disable Linux/emulator startup for app shell testing
+
+## Components
+
+### Objective-C Facade (ISHInstrumentation.h/m)
+- **ISHInstrumentation**: Singleton class providing the public API
+- **Event Enum**: BootstrapReady, LaunchBegan, LaunchReady, SceneConnected, SessionStarted, SessionReady, RecoveryDetected, ShutdownClean
+- **Methods**: bootstrap, activate, isActive, recordEvent, beginInterval, endInterval
+
+### C Bridge (ISHInstrumentationBridge.h/mm)
+- **Origin Enum**: App, UI, Session, Kernel, Task, Exec, Emulator, TCTI
+- **C Functions**: ish_instrumentation_* functions that bridge to Objective-C
+- **Purpose**: Allows C code in kernel/emu to emit events
+
+### Sinks
+- **ISHInstrumentationSinkApple**: os_log and signpost integration
+- **ISHInstrumentationOpenTelemetry**: OpenTelemetry bridge (stub initially)
+- **ISHInstrumentationMetricKit**: MetricKit integration for diagnostics
+
+### Semantic Events (ISHInstrumentationEvents.h)
+- **App Events**: app.bootstrap.ready, app.launch.began, app.launch.ready, app.scene.connected
+- **Session Events**: session.started, session.ready, session.bootstrap.deferred
+- **Kernel Events**: task.created, task.started, exec.began, exec.mm.updated
+- **Emulator Events**: emulator.started, tcti.dispatch.began
+- **Boundary Events**: fatal.boundary, recovery.detected
+
+### Compile-Time Flags (ISHRuntimeFlags.h)
+- **ISH_TASK_ZERO_DISABLE_EMULATION**: When 1, disables Linux/emulator startup for app shell testing
+
+## Data Flow
+
+### Bootstrap Flow
+```
+main()
+  └── [ISHInstrumentation bootstrap]
+        └── ish_instrumentation_bootstrap()
+              └── Create singleton, initialize sinks (NOP mode)
+        └── return
+  └── UIApplicationMain
+        └── AppDelegate
+              └── willFinishLaunchingWithOptions
+                    └── [ISHInstrumentation activate]
+                          └── ish_instrumentation_activate()
+                                └── Switch sinks from NOP to active (os_log, MetricKit)
+                    └── if (!ISH_TASK_ZERO_DISABLE_EMULATION)
+                          └── Start Linux/emulator
+                    └── else
+                          └── Record session.bootstrap.deferred
+```
+
+### Event Emission Flow
+```
+Kernel Code
+  └── ish_instrumentation_record_event(origin, name, attrs)
+        └── ISHInstrumentationBridge.mm
+              └── [ISHInstrumentation recordEvent:event]
+                    └── Forwards to active sinks
+                          ├── ISHInstrumentationSinkApple (os_log)
+                          └── ISHInstrumentationOpenTelemetry (stub)
+```
+
+## Migration from Legacy Trace
+
+### Old API (being removed)
+- trace_init(), trace_shutdown()
+- trace_emit_*(...) - event-specific functions
+- trace_config_from_env()
+- Startup markers, recovery logic, ring persistence
+
+### New API (ISHInstrumentation)
+- ish_instrumentation_bootstrap(), ish_instrumentation_activate()
+- ish_instrumentation_record_event() - generic semantic event
+- ish_instrumentation_begin_interval(), ish_instrumentation_end_interval()
+- App-owned configuration, no env-driven policy
+
+### Trace Shim (transition)
+- trace.h reduced to minimal semantic API
+- trace.c forwards to ish_instrumentation_* functions
+- Eventually trace layer may be removed entirely

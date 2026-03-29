@@ -460,26 +460,11 @@ void SyncHostname(void) {
     extern const char *g_crash_ring_path;
     g_crash_ring_path = ringPath;
     
-    // Reconfigure trace to use Unified iOS backend
-    extern trace_ctx_t *g_trace_ctx;
-    if (g_trace_ctx) {
-        extern void trace_shutdown(void);
-        trace_shutdown();
-    }
-    trace_config_t trace_config;
-    trace_config_from_env(&trace_config);
-    trace_init(&trace_config);
-    
-    // Recovery check
-    extern int trace_recover_previous_run(const char *marker_path, const char *ring_path);
-    int recovered = trace_recover_previous_run(markerPath, ringPath);
-    if (recovered) {
-        NSLog(@"[iSH] Recovered from previous crash - ring available at: %s", ringPath);
-    }
-    
-    // Run marker
-    extern int trace_mark_run_started(const char *path);
-    trace_mark_run_started(markerPath);
+    // NOTE: Environment-driven trace configuration has been retired (ISHInstrumentation migration).
+    // trace_config_from_env() is no longer called. The new framework uses compile-time flags.
+    // All startup trace initialization, recovery, and marker logic has been removed per Task 1.
+    // TODO: Replace with ISHInstrumentation bootstrap when Task 2 is complete.
+    (void)markerPath; (void)ringPath; // Suppress unused parameter warnings
     
     // Debug logging to file
     NSString *logPath = [NSTemporaryDirectory() stringByAppendingPathComponent:@"app_boot.log"];

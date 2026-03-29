@@ -1,9 +1,9 @@
 commands:
-  install: meson setup builddir
-  build: meson compile -C builddir
-  test: meson test -C builddir
-  typecheck: echo "C code - no typecheck"
-  lint: echo "C code - lint via compiler warnings"
+  install: echo "iOS project - no install needed"
+  build: xcodebuild -project iSH.xcodeproj -scheme iSH -sdk iphonesimulator -configuration Debug build
+  test: xcodebuild -project iSH.xcodeproj -scheme iSH -sdk iphonesimulator -configuration Debug test
+  typecheck: echo "Objective-C/Swift - typecheck via xcodebuild"
+  lint: echo "C/Objective-C code - lint via compiler warnings"
 
 services:
   ios-simulator:
