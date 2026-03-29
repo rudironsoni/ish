@@ -1,0 +1,55 @@
+{
+  "milestone": "runtime-entry",
+  "round": 1,
+  "status": "pass",
+  "validatorsRun": {
+    "test": { "passed": true, "command": "meson test -C builddir", "exitCode": 0, "observation": "124/124 tests passed, including all 5 APP-001 through APP-005 tests in phase-02c-ios-app-runtime-entry" },
+    "typecheck": { "passed": true, "command": "echo 'C code - no typecheck'", "exitCode": 0, "observation": "C code project, no typecheck required" },
+    "lint": { "passed": true, "command": "echo 'C code - lint via compiler warnings'", "exitCode": 0, "observation": "C code project, lint via compiler warnings" }
+  },
+  "reviewsSummary": {
+    "total": 5,
+    "passed": 5,
+    "failed": 0,
+    "failedFeatures": []
+  },
+  "blockingIssues": [],
+  "appliedUpdates": [
+    {
+      "target": "library",
+      "description": "Documented the app_boot_milestones shared pattern for milestone extraction across APP test cases",
+      "sourceFeature": "APP-001, APP-002, APP-003"
+    },
+    {
+      "target": "library",
+      "description": "Documented the 7-step test function pattern used in APP test implementations",
+      "sourceFeature": "APP-003"
+    },
+    {
+      "target": "library",
+      "description": "Documented the expected.yaml type annotation pattern for artifact validation",
+      "sourceFeature": "APP-004, APP-005"
+    },
+    {
+      "target": "library",
+      "description": "Documented the milestone-first crash reduction approach for APP-003",
+      "sourceFeature": "APP-003"
+    }
+  ],
+  "suggestedGuidanceUpdates": [
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Add guidance about standardizing bundle_id in expected.yaml files - APP-002 shows placeholder 'app.ish.iSH' vs actual 'com.rudironsoni.ish'",
+      "evidence": "APP-002 expected.yaml line 5 uses placeholder bundle_id that doesn't match actual test bundle ID",
+      "isSystemic": true
+    },
+    {
+      "target": "test-worker skill",
+      "suggestion": "Document the trade-off between direct xcrun simctl usage and XcodeBuildMCP tools - harness uses direct shell commands while services.yaml defines XcodeBuildMCP abstractions",
+      "evidence": "APP-003 observation: harness uses popen('xcrun simctl ...') directly rather than XcodeBuildMCP tools, yet both approaches work",
+      "isSystemic": true
+    }
+  ],
+  "rejectedObservations": [],
+  "previousRound": null
+}
