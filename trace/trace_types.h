@@ -70,6 +70,9 @@ typedef enum {
     TRACE_EVENT_TASK_CREATE, /* Task created */
     TRACE_EVENT_TASK_START,  /* Task started execution */
 
+    /* App-layer task lifecycle events (level 1) */
+    TRACE_EVENT_APP_TASK_START_RUNLOOP, /* App entered task runloop to keep alive */
+
     /* Task thread diagnostics (level 1) */
     TRACE_EVENT_TASK_THREAD_ENTRY,          /* Task thread entry */
     TRACE_EVENT_TASK_THREAD_CURRENT_SET,    /* Task thread current set */
@@ -166,7 +169,7 @@ typedef struct __attribute__((packed)) trace_record_header {
 } trace_record_header_t;
 
 /* Maximum payload size for fixed buffer */
-#define TRACE_MAX_PAYLOAD 48
+#define TRACE_MAX_PAYLOAD 96
 
 /* Complete record structure */
 typedef struct trace_record {

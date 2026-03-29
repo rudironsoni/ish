@@ -21,6 +21,7 @@
 #include "fs/devices.h"
 #include "emu/aarch64/cpu.h"
 #include "emu/tlb.h"
+#include "trace/trace.h"
 
 @interface TerminalViewController () <UIGestureRecognizerDelegate>
 
@@ -209,7 +210,7 @@
     // CRITICAL: Keep the main thread alive with a runloop
     // task_start creates a detached thread - if main thread exits, iOS kills the app
     // We use a runloop to allow UI events while keeping the app alive
-    NSLog(@"[TerminalViewController] task_start called - entering runloop to keep app alive");
+    trace_emit_app_task_start_runloop();
     while (1) {
         [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.1]];
     }

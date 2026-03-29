@@ -154,10 +154,8 @@ void task_destroy(struct task *task)
 
 void task_run_current()
 {
-    // DIAGNOSTIC: Trace entry check - show current value being checked
+    // TRACE-ONLY: Entry trace with current pointer
     trace_emit_task_run_current_entry_check((uint64_t)current);
-
-    printk("task_run_current: ENTRY (current=%p)\n", (void *)current);
     trace_emit_task_run_current_entry((uint64_t)current, current ? current->pid : 0);
     trace_emit_task_run_current_mem_check((uint64_t)(current ? current->mm : 0),
                                           (uint64_t)(current ? current->mem : 0));
@@ -170,12 +168,9 @@ void task_run_current()
 
     // Defensive: check that current and current->mem are valid before proceeding
     if (!current) {
-        printk("task_run_current: FATAL - current is NULL!\n");
         die("task_run_current: NULL current");
     }
-    printk("task_run_current: current=%p, current->pid=%d\n", (void *)current, current->pid);
     if (!current->mem) {
-        printk("task_run_current: FATAL - current->mem is NULL!\n");
         die("task_run_current: NULL current->mem");
     }
 
@@ -184,25 +179,17 @@ void task_run_current()
     // CRITICAL: Validate CPU state before entering a64_cpu_run
     // These checks prevent crashes from invalid entry point calculations (e.g., PIE binaries)
     if (!cpu->mmu) {
-        printk("task_run_current: FATAL - cpu->mmu is NULL (pid=%d, comm=%s)\n", current->pid,
-               current->comm);
         die("task_run_current: NULL cpu->mmu - entry point calculation may have failed");
     }
     if (cpu->pc == 0) {
-        printk("task_run_current: FATAL - cpu->pc is 0 (NULL entry point) (pid=%d, comm=%s)\n",
-               current->pid, current->comm);
         die("task_run_current: cpu->pc is 0 - ELF entry point not set correctly");
     }
     if (cpu->pc == 0x100000000ULL) {
-        printk("task_run_current: FATAL - cpu->pc is 0x100000000 (4GB boundary, invalid) (pid=%d, "
-               "comm=%s)\n",
-               current->pid, current->comm);
         die("task_run_current: cpu->pc is at 4GB boundary - PIE bias calculation failed");
     }
 
-    // Log successful validation for debugging
-    printk("task_run_current: cpu->mmu=%p, cpu->pc=0x%llx (pid=%d, comm=%s)\n", (void *)cpu->mmu,
-           (unsigned long long)cpu->pc, current->pid, current->comm);
+    // TRACE-ONLY: CPU state validation passed
+    trace_emit_pstate_snapshot((uint64_t)cpu->pc, cpu->pstate, (cpu->pstate >> 28) & 0xF);
 
     struct tlb tlb = {};
     tlb_refresh(&tlb, &current->mem->mmu);
@@ -247,6 +234,15 @@ static void *task_thread(void *task)
     // MEMORY SNAPSHOT: Child after current = task
     uint64_t canary_at_post_current = task_canary_read((uint64_t)current);
     trace_emit_task_mem_snapshot((uint64_t)current, 2, canary_at_post_current, host_thread_id);
+
+    // DEFENSIVE: Verify current->mem is valid before calling task_run_current()
+    // This catches the corruption that happens during parent->child handoff
+    // Similar to the fix in exec.c after task_set_mm()
+    if (current->mem == NULL) {
+        // Force set current->mem to the correct value
+        current->mem = &current->mm->mem;
+        trace_emit(TRACE_EVENT_TASK_FIELD_WRITE, 0);
+    }
 
     trace_emit_task_thread_current_set(current->pid, (uint64_t)current->mm, (uint64_t)current->mem);
     update_thread_name();

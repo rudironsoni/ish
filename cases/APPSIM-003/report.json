@@ -1,0 +1,43 @@
+{
+  "case_id": "APPSIM-003-build-install-launch-smoke",
+  "sub_boundary": "build-smoke",
+  "status": "BLOCKED",
+  "timestamp": "2026-03-29T16:50:00Z",
+  "actual_configuration": "Debug",
+  "configuration_reconciled": true,
+  "scheme_vs_target_investigation": {
+    "finding": "BOTH MODES HANG AT IDENTICAL POINT",
+    "scheme_build": "hangs after ibtool version check",
+    "target_build": "hangs after ibtool version check",
+    "conclusion": "NOT a scheme orchestration issue - the hang occurs in both modes"
+  },
+  "build_boundary": {
+    "last_known_good": "ExecuteExternalTool ibtool --version --output-format xml1",
+    "first_known_bad": "Resources build phase (storyboards and xcassets processing)",
+    "cpu_pattern": "Drops to 0% after ibtool version check",
+    "classification": "resources_build_phase_hang"
+  },
+  "root_cause_hypothesis": {
+    "primary": "ibtool/actool hang during storyboard/xcassets compilation",
+    "evidence": [
+      "ibtool --version completes (tool is found and works)",
+      "Next phase would be Resources build phase",
+      "Resources include: Terminal.storyboard, LaunchScreen.storyboard, About.storyboard, Roots.storyboard, Assets.xcassets",
+      "CPU drops to 0% indicating wait/deadlock, not slow processing"
+    ],
+    "suspected_tools": ["ibtool (Interface Builder)", "actool (Asset Catalog Compiler)"]
+  },
+  "successful_individual_builds": [
+    "Meson - Meson setup script",
+    "Ninja - Ninja build (no-op, cached)",
+    "libish - Static library compilation",
+    "libfakefs - Static library compilation"
+  ],
+  "differentiating_factor": {
+    "successful_targets": "Libraries with no Resources build phase (no storyboards/xcassets)",
+    "failing_targets": "iSH app target with Resources build phase (storyboards + xcassets)"
+  },
+  "reproducibility": "Consistent - reproduced 6 times",
+  "next_lawful_step": "Isolate resources build phase: test ibtool on individual storyboards",
+  "appsim_003_blocked": true
+}

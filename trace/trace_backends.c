@@ -196,6 +196,11 @@ static void stderr_emit(void *ctx, trace_record_t *record)
         break;
     }
 
+    case TRACE_EVENT_APP_TASK_START_RUNLOOP: {
+        fprintf(stderr, " (app entering runloop)");
+        break;
+    }
+
     case TRACE_EVENT_TASK_THREAD_ENTRY: {
         uint64_t task_ptr;
         memcpy(&task_ptr, record->payload, 8);
@@ -718,6 +723,12 @@ static void os_log_emit(void *ctx, trace_record_t *record)
         memcpy(&pid, record->payload, 4);
         os_log(g_os_log, "[TRACE] %s seq=%llu pid=%u", event_name,
                (unsigned long long)record->header.seq, pid);
+        break;
+    }
+
+    case TRACE_EVENT_APP_TASK_START_RUNLOOP: {
+        os_log(g_os_log, "[TRACE] %s seq=%llu (app entering runloop)", event_name,
+               (unsigned long long)record->header.seq);
         break;
     }
 

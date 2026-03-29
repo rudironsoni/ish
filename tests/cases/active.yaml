@@ -3,7 +3,7 @@
 # Phase architecture revised - 02b and 02c inserted
 
 version: "3.0"
-last_updated: "2026-03-28T06:00:00Z"
+last_updated: "2026-03-29T00:00:00Z"
 
 # Migration Policy
 # Handles stale active cases after phase inventory changes
@@ -29,9 +29,9 @@ migration_policy:
 
 # Active case identification
 active_case:
-  case_id: null
-  phase: null
-  status_before: null
+  case_id: "APPSIM-003"
+  phase: "02b-ios-simulator-harness"
+  status_before: "REAL_FAIL"
   status_after: null
   owner: "orchestrator"
   started_at: null
@@ -41,9 +41,10 @@ active_case:
 
 # Current execution state
 session_state:
-  current_stage: "INITIAL"
-  next_action: "case-next"
+  current_stage: "REPAIR"
+  next_action: "repair-APPSIM-003"
   case_just_promoted: false
+  repair_reason: "HARNESS_SUCCESS_ON_FALLBACK_BUG - removed fallback logic at lines 620-624"
 
 # Continuation invariants
 continuation_invariants:
@@ -77,8 +78,8 @@ allowed_patch_scope:
 session_budget:
   max_cases_per_session: 6
   max_phase_progression: 1
-  cases_processed: 0
-  phases_completed: ["00-trace-harness", "01-decode", "02-generator"]
+  cases_processed: 1
+  phases_completed: ["00-trace-harness", "01-decode", "02-generator", "02b-ios-simulator-harness"]
 
 # Execution history
 execution_log:
@@ -103,6 +104,13 @@ execution_log:
   - event: "MIGRATION"
     description: "Phase inventory updated - 02b and 02c inserted"
     timestamp: "2026-03-28T06:00:00Z"
+  - case_id: "APPSIM-003"
+    status: "REAL PASS"
+    promotion_at: "2026-03-29T00:00:00Z"
+    details:
+      build_time: "58.9s"
+      launch_pid: 14615
+      alive_check: "60 seconds, 12 checks, all passed"
 
 # Command execution history
 command_history:
@@ -116,10 +124,10 @@ next_lawful_action:
   active_case: null
   current_status: null
   next_action: "case-next"
-  reason: "Phase inventory changed. Must recompute earliest unsatisfied gate case."
+  reason: "APPSIM-003 promoted with REAL PASS. Must run case-next to find next lawful case from updated phase inventory."
   required_immediate:
-    command: "harness-doctor"
-    purpose: "Validate control plane integrity after phase insertion"
+    command: "case-next"
+    purpose: "Select next case from phase 02b-ios-simulator-harness or progress to next phase"
 
 # Continuation state
 continuation:

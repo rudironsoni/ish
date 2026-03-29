@@ -1,0 +1,25 @@
+{
+  "case_id": "APPSIM-003-build-install-launch-smoke",
+  "sub_boundary": "build-smoke",
+  "timestamp": "2026-03-29T16:25:00Z",
+  "build_invocation": {
+    "project": "/Users/rudironsoni/src/github/rudironsoni/ish/iSH.xcodeproj",
+    "scheme": "iSH",
+    "target": "iSH",
+    "configuration": "Debug",
+    "sdk": "iphonesimulator",
+    "destination": "platform=iOS Simulator,name=iPhone 17 Pro",
+    "tool": "xcodebuild",
+    "command": "xcodebuild -project iSH.xcodeproj -scheme iSH -configuration Debug -sdk iphonesimulator build",
+    "tool_version": "Xcode 26.4 (Build 17E192)"
+  },
+  "timeout_settings": {
+    "external_timeout_seconds": 180,
+    "observation_interval_seconds": 5
+  },
+  "status": "in_progress",
+  "notes": [
+    "Starting build-only investigation with detailed phase visibility",
+    "Will capture build phases and identify first hanging/failing boundary"
+  ]
+}
