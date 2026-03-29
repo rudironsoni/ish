@@ -13,37 +13,60 @@
 #include "trace/trace.h"
 #include <fcntl.h>
 #include <stdio.h>
-#include <time.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
 
-// Get Caches path using raw C API - works before autoreleasepool
-static int get_caches_path(char *buf, size_t buflen) {
-    // Use NSTemporaryDirectory which works without autoreleasepool in main()
-    // but wrap in autoreleasepool to be safe
-    @autoreleasepool {
-        NSString *cachesDir = [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES) firstObject];
-        if (!cachesDir) return -1;
-        const char *path = cachesDir.UTF8String;
-        if (!path) return -1;
-        size_t len = strlen(path);
-        if (len >= buflen) return -1;
-        memcpy(buf, path, len + 1);
-        return 0;
+// Raw C helper: write marker file, no Foundation, no trace
+static void write_marker_raw(const char *name, const char *content) {
+    const char *home = getenv("HOME");
+    if (!home) {
+        home = "/tmp";
     }
+    char path[1024];
+    int n = snprintf(path, sizeof(path), "%s/Library/Caches/%s", home, name);
+    if (n < 0 || n >= (int)sizeof(path)) {
+        return;
+    }
+    int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd < 0) {
+        return;
+    }
+    size_t len = strlen(content);
+    write(fd, content, len);
+    fsync(fd);
+    close(fd);
 }
 
 int main(int argc, char * argv[]) {
-    // Use autoreleasepool for ALL Foundation operations
+    // ============================================================
+    // EARLIEST POSSIBLE MARKER: Before ANY Foundation/Objective-C
+    // ============================================================
+    write_marker_raw("MAIN_PRE_AUTORELEASEPOOL", "REACHED\n");
+    
+    // ============================================================
+    // STAGE 0: Minimal trace bootstrap (NOP backend only)
+    // ============================================================
+    trace_config_t trace_config;
+    memset(&trace_config, 0, sizeof(trace_config));
+    trace_config.backend = TRACE_BACKEND_NOP;
+    trace_config.level = TRACE_LEVEL_SUMMARY;
+    trace_config.ring_size = 256;
+    trace_config.category_mask = 0xFF;
+    trace_config.event_mask = ~0ULL;
+    trace_init(&trace_config);
+    
+    // Marker after minimal Stage 0 bootstrap
+    write_marker_raw("MAIN_POST_MINIMAL_STAGE0", "REACHED\n");
+    
+    // ============================================================
+    // NOW safe to use Foundation
+    // ============================================================
     @autoreleasepool {
-        // Get caches directory
-        char cachesPath[1024];
-        if (get_caches_path(cachesPath, sizeof(cachesPath)) < 0) {
-            // Fallback: use tmpdir
-            const char *tmpdir = getenv("TMPDIR");
-            if (!tmpdir) tmpdir = "/tmp";
-            snprintf(cachesPath, sizeof(cachesPath), "%s", tmpdir);
-        }
+        // Get caches directory via Foundation for later use
+        NSString *cachesDir = [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES) firstObject];
+        const char *cachesPath = cachesDir.UTF8String;
         
         const char *markerPath = [[[NSString stringWithUTF8String:cachesPath] stringByAppendingPathComponent:@"ish_run_marker"] UTF8String];
         const char *ringPath = [[[NSString stringWithUTF8String:cachesPath] stringByAppendingPathComponent:@"ish_crash_trace.ring"] UTF8String];
@@ -52,45 +75,11 @@ int main(int argc, char * argv[]) {
         extern const char *g_crash_ring_path;
         g_crash_ring_path = ringPath;
         
-        // BOOTSTRAP CRASH REDUCTION: Write durable markers around trace_init
-        // These use raw C file operations only, no trace system
-        char preTracePath[1024];
-        char postTracePath[1024];
-        snprintf(preTracePath, sizeof(preTracePath), "%s/BOOTSTRAP_PRE_TRACE", cachesPath);
-        snprintf(postTracePath, sizeof(postTracePath), "%s/BOOTSTRAP_POST_TRACE", cachesPath);
-        
-        // Write PRE marker before trace_init
-        int fd_pre = open(preTracePath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-        if (fd_pre >= 0) {
-            write(fd_pre, "PRE_TRACE\n", 10);
-            fsync(fd_pre);
-            close(fd_pre);
-        }
-        
-        // STAGE 0: Minimal trace bootstrap - NOP backend only
-        // Heavy backend bring-up moved to Stage 1 in AppDelegate
-        trace_config_t trace_config;
-        memset(&trace_config, 0, sizeof(trace_config));
-        trace_config.backend = TRACE_BACKEND_NOP;  // Minimal, no I/O
-        trace_config.level = TRACE_LEVEL_SUMMARY;
-        trace_config.ring_size = 256;
-        trace_config.category_mask = 0xFF;
-        trace_config.event_mask = ~0ULL;
-        trace_init(&trace_config);
-        
-        // Write POST marker after trace_init
-        int fd_post = open(postTracePath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-        if (fd_post >= 0) {
-            write(fd_post, "POST_TRACE\n", 11);
-            fsync(fd_post);
-            close(fd_post);
-        }
-        
-        // NEXT-LAUNCH RECOVERY: Check for previous crash after trace init
+        // Recovery check (after trace init, uses trace_emit internally)
         extern int trace_recover_previous_run(const char *marker_path, const char *ring_path);
         int recovered = trace_recover_previous_run(markerPath, ringPath);
         
-        // BOOTSTRAP PROOF: Synchronously write proof that main() was reached
+        // Bootstrap proof
         char bootstrapProofPath[1024];
         snprintf(bootstrapProofPath, sizeof(bootstrapProofPath), "%s/ish_bootstrap_proof", cachesPath);
         FILE *proofFp = fopen(bootstrapProofPath, "w");
@@ -102,7 +91,7 @@ int main(int argc, char * argv[]) {
             fclose(proofFp);
         }
         
-        // RUN STATE MARKER: Mark this run as started
+        // Run marker
         extern int trace_mark_run_started(const char *path);
         trace_mark_run_started(markerPath);
         
