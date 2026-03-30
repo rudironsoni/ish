@@ -37,6 +37,12 @@ static inline const char *ISHInstrumentationEventName(ISHInstrumentationEvent ev
             return "recovery.detected";
         case ISHInstrumentationEventShutdownClean:
             return "shutdown.clean";
+        case ISHInstrumentationEventSessionBootstrapReady:
+            return "session.bootstrap.ready";
+        case ISHInstrumentationEventSessionExecReady:
+            return "session.exec.ready";
+        case ISHInstrumentationEventGuestThreadStart:
+            return "guest.thread.start";
         default:
             return "unknown";
     }

@@ -81,13 +81,6 @@ static NSString *const kSkipStartupMessage = @"Skip Startup Message";
 @implementation AppDelegate
 
 - (int)boot {
-    // Task Zero: Check if guest startup should be bypassed
-    if (ISH_TASK_ZERO_DISABLE_EMULATION == 1) {
-        // Record deferred event for session bootstrap
-        [ISHInstrumentation recordEvent:ISHInstrumentationEventSessionStarted];
-        return 0;  // Success - guest startup bypassed
-    }
-
     trace_emit(TRACE_EVENT_APP_TRACE_BOOTSTRAP_STARTED, 0);
     trace_emit(TRACE_EVENT_APP_BOOT_STARTED, 0);
     
@@ -102,9 +95,18 @@ static NSString *const kSkipStartupMessage = @"Skip Startup Message";
     fs_register(&iosfs);
     fs_register(&iosfs_unsafe);
 
+    // CONTRACT: PID 1 must always be created before any session can start
+    // This is required for both shell-only mode (UI testing) and full-guest mode
     err = become_first_process();
     if (err < 0) {
         return err;
+    }
+
+    // Shell-only mode: Establish base runtime state but skip guest execution
+    if (ISH_RUNTIME_MODE == ISH_RUNTIME_MODE_SHELL_ONLY) {
+        FsInitialize();
+        [ISHInstrumentation recordEvent:ISHInstrumentationEventSessionBootstrapDeferred];
+        return 0;  // Success - guest execution bypassed, but PID 1 exists
     }
 
     FsInitialize();

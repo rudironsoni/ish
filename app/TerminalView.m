@@ -104,6 +104,12 @@ static NSString *const HANDLERS[] = {@"syncFocus", @"focus", @"newScrollHeight",
     }
 
     _terminal = terminal;
+
+    // Handle nil terminal (shell-only mode) - skip all terminal setup
+    if (_terminal == nil) {
+        return;
+    }
+
     [_terminal addObserver:self forKeyPath:@"loaded" options:NSKeyValueObservingOptionInitial context:nil];
     if (_terminal.loaded)
         [self installTerminalView];
@@ -137,6 +143,10 @@ static NSString *const HANDLERS[] = {@"syncFocus", @"focus", @"newScrollHeight",
 }
 
 - (void)uninstallTerminalView {
+    // In shell-only mode, terminal may be nil - nothing to uninstall
+    if (_terminal == nil)
+        return;
+
     // remove old terminal
     UIView *superview = _terminal.webView.superview;
     if (superview != self.scrollbarView) {
@@ -156,7 +166,8 @@ static NSString *const HANDLERS[] = {@"syncFocus", @"focus", @"newScrollHeight",
 
 - (void)_updateStyle {
     NSAssert(NSThread.isMainThread, @"This method needs to be called on the main thread");
-    if (!self.terminal.loaded)
+    // In shell-only mode, terminal is nil - skip style update
+    if (self.terminal == nil || !self.terminal.loaded)
         return;
     UserPreferences *prefs = [UserPreferences shared];
     if (_overrideFontSize == prefs.fontSize.doubleValue)
@@ -202,6 +213,9 @@ static NSString *const HANDLERS[] = {@"syncFocus", @"focus", @"newScrollHeight",
 
 - (void)setTerminalFocused:(BOOL)terminalFocused {
     _terminalFocused = terminalFocused;
+    // In shell-only mode, terminal is nil - skip webView JS calls
+    if (self.terminal == nil)
+        return;
     NSString *script = terminalFocused ? @"exports.setFocused(true)" : @"exports.setFocused(false)";
     [self.terminal.webView evaluateJavaScript:script completionHandler:nil];
 }
@@ -268,6 +282,9 @@ static NSString *const HANDLERS[] = {@"syncFocus", @"focus", @"newScrollHeight",
 }
 
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView {
+    // In shell-only mode, terminal is nil - skip webView JS calls
+    if (self.terminal == nil)
+        return;
     [self.terminal.webView evaluateJavaScript:[NSString stringWithFormat:@"exports.newScrollTop(%f)", scrollView.contentOffset.y] completionHandler:nil];
 }
 
@@ -292,6 +309,10 @@ static NSString *const HANDLERS[] = {@"syncFocus", @"focus", @"newScrollHeight",
 // implementing these makes a keyboard pop up when this view is first responder
 
 - (void)insertText:(NSString *)text {
+    // In shell-only mode, terminal is nil - no input to send
+    if (self.terminal == nil)
+        return;
+
     self.markedText = nil;
 
     if (self.controlKey.highlighted)
@@ -309,6 +330,10 @@ static NSString *const HANDLERS[] = {@"syncFocus", @"focus", @"newScrollHeight",
 }
 
 - (void)insertControlChar:(char)ch {
+    // In shell-only mode, terminal is nil - no input to send
+    if (self.terminal == nil)
+        return;
+
     if (strchr(controlKeys, ch) != NULL) {
         if (ch == ' ') ch = '\0';
         if (ch == '2') ch = '@';
@@ -373,16 +398,25 @@ static NSString *const HANDLERS[] = {@"syncFocus", @"focus", @"newScrollHeight",
 }
 
 - (void)copy:(id)sender {
+    // In shell-only mode, terminal is nil - skip copy
+    if (self.terminal == nil)
+        return;
     [self.terminal.webView evaluateJavaScript:@"exports.copy()" completionHandler:nil];
 }
 
 - (void)clearScrollback:(UIKeyCommand *)command {
+    // In shell-only mode, terminal is nil - skip clear scrollback
+    if (self.terminal == nil)
+        return;
     [self.terminal.webView evaluateJavaScript:@"exports.clearScrollback()" completionHandler:nil];
 }
 
 #pragma mark Floating cursor
 
 - (void)updateFloatingCursorSensitivity {
+    // In shell-only mode, terminal is nil - skip floating cursor sensitivity update
+    if (self.terminal == nil)
+        return;
     [self.terminal.webView evaluateJavaScript:@"exports.getCharacterSize()" completionHandler:^(NSArray *charSizeRaw, NSError *error) {
         if (error != nil) {
             NSLog(@"error getting character size: %@", error);
@@ -408,6 +442,9 @@ static NSString *const HANDLERS[] = {@"syncFocus", @"focus", @"newScrollHeight",
 }
 
 - (void)updateFloatingCursorAtPoint:(CGPoint)point {
+    // In shell-only mode, terminal is nil - skip floating cursor update
+    if (self.terminal == nil)
+        return;
     struct rowcol newPos = [self rowcolFromPoint:point];
     int rowDiff = newPos.row - self.floatingCursor.row;
     int colDiff = newPos.col - self.floatingCursor.col;
@@ -451,6 +488,10 @@ static NSString *const HANDLERS[] = {@"syncFocus", @"focus", @"newScrollHeight",
 #pragma mark Hardware Keyboard
 
 - (void)handleKeyCommand:(UIKeyCommand *)command {
+    // In shell-only mode, terminal is nil - no key commands to process
+    if (self.terminal == nil)
+        return;
+
     NSString *key = command.input;
     if (command.modifierFlags == 0) {
         if ([key isEqualToString:@"`"] && UserPreferences.shared.backtickMapEscape)

@@ -152,9 +152,13 @@ int become_first_process()
 
 int become_new_init_child()
 {
+    // CONTRACT: PID 1 must exist before any session can be started
     struct task *init = pid_get_task(1);
-    if (init == NULL)
-        return -1;
+    if (init == NULL) {
+        // Use trace instrumentation to record contract violation
+        trace_emit(TRACE_EVENT_INIT_CHILD_NO_INIT_TASK, 0);
+        return -1; // EPERM equivalent
+    }
 
     struct task *task = construct_task(init);
     if (IS_ERR(task))

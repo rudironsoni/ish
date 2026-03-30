@@ -8,20 +8,16 @@
 #ifndef ISHRuntimeFlags_h
 #define ISHRuntimeFlags_h
 
-// Task Zero: When set to 1, disables Linux/emulator startup
-// so the app shell can boot and be tested independently.
-// This is the single source of truth for guest startup bypass.
-#define ISH_TASK_ZERO_DISABLE_EMULATION 1
+// Single runtime mode - no contradictory flags
+// This replaces the previous boolean flag model (DISABLE_EMULATION, ALLOW_SESSION_BOOTSTRAP, FULL_RUNTIME)
+typedef enum {
+    ISH_RUNTIME_MODE_SHELL_ONLY = 0,         // No session infrastructure
+    ISH_RUNTIME_MODE_SESSION_BOOTSTRAP = 1,  // Init child + stdio, no exec/start
+    ISH_RUNTIME_MODE_SESSION_EXEC = 2,       // + do_execve, no task_start
+    ISH_RUNTIME_MODE_FULL_GUEST = 3          // Full guest execution
+} ish_runtime_mode_t;
 
-// Task Zero Session Bootstrap: When set to 1, allows session bootstrap
-// (become_new_init_child, PTY creation, create_stdio, do_execve)
-// but STILL BLOCKS task_start(current). This is the smallest safe boundary
-// immediately before guest runtime.
-#define ISH_TASK_ZERO_ALLOW_SESSION_BOOTSTRAP 1
-
-// Task Zero Full Runtime: When set to 1, allows full guest execution including
-// task_start(current). This completes the runtime reintroduction - the emulator
-// will actually execute guest code. When 0, task_start is blocked for UI testing.
-#define ISH_TASK_ZERO_FULL_RUNTIME 1
+// Compile-time mode selection - change this to switch modes
+#define ISH_RUNTIME_MODE ISH_RUNTIME_MODE_FULL_GUEST
 
 #endif /* ISHRuntimeFlags_h */

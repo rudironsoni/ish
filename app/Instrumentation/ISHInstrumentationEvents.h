@@ -40,6 +40,12 @@
 /** Session bootstrap deferred - Task Zero mode, guest startup skipped */
 #define ISH_EVENT_SESSION_BOOTSTRAP_DEFERRED "session.bootstrap.deferred"
 
+/** Session bootstrap ready - init child + stdio initialized, exec deferred */
+#define ISH_EVENT_SESSION_BOOTSTRAP_READY "session.bootstrap.ready"
+
+/** Session exec ready - init child + stdio + exec, task_start deferred */
+#define ISH_EVENT_SESSION_EXEC_READY "session.exec.ready"
+
 /*
  * Task events - task.* namespace
  * These events track task creation and execution.
@@ -50,6 +56,9 @@
 
 /** Task started - task began execution */
 #define ISH_EVENT_TASK_STARTED              "task.started"
+
+/** Guest thread started - guest thread began execution */
+#define ISH_EVENT_GUEST_THREAD_START        "guest.thread.start"
 
 /*
  * Execution events - exec.* namespace
