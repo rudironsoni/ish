@@ -8,6 +8,7 @@
  */
 
 #include "trace/trace.h"
+#include "trace/trace_internal.h"
 #include "trace/trace_types.h"
 
 #include <stdbool.h>
