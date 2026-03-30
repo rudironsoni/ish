@@ -40,9 +40,10 @@ public class ISHInstrumentationOpenTelemetry: NSObject {
     /**
      * Record a semantic event to OpenTelemetry.
      * Currently a no-op stub.
+     * Takes an Int32 which maps to the ISHInstrumentationEvent enum.
      */
     @objc
-    public static func recordEvent(_ event: ISHInstrumentationEvent) {
+    public static func recordEvent(_ event: Int32) {
         // TODO: Record event to OTel when integrating real OpenTelemetry
         // Stub for initial compiling pass
     }
