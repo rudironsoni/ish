@@ -69,9 +69,14 @@ typedef enum {
     TASK_PROOF_BEFORE_PTHREAD,
     TASK_PROOF_AFTER_PTHREAD,
     TASK_PROOF_THREAD_ENTRY,
+    TASK_PROOF_BEFORE_CURRENT_SET,
     TASK_PROOF_AFTER_CURRENT_SET,
     TASK_PROOF_RUN_CURRENT_ENTER,
-    TASK_PROOF_BEFORE_GUEST_CPU
+    TASK_PROOF_BEFORE_GUEST_CPU,
+    // Paired diagnostic proof points for narrowing failure boundary
+    TASK_PROOF_AFTER_THREAD_ENTRY,
+    TASK_PROOF_BEFORE_TASK_RUN_CURRENT,
+    TASK_PROOF_TASK_RUN_CURRENT_ENTRY
 } task_proof_point_t;
 
 /* ============================================

@@ -39,36 +39,20 @@ static NSString *kDefaultRoot = @"Default Root";
 
 - (instancetype)init {
     if (self = [super init]) {
-        // Debug logging to file
-        NSString *logPath = [NSTemporaryDirectory() stringByAppendingPathComponent:@"ish_debug.log"];
-        NSString *logMsg = @"[Roots] Initializing Roots...\n";
-        [logMsg writeToFile:logPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
-        
         NSError *error = nil;
         NSArray<NSString *> *rootNames = [NSFileManager.defaultManager contentsOfDirectoryAtPath:RootsDir().path error:&error];
         NSAssert(error == nil, @"couldn't list roots: %@", error);
         self.roots = [rootNames mutableCopy];
         
-        logMsg = [NSString stringWithFormat:@"[Roots] Found %lu existing roots\n", (unsigned long)self.roots.count];
-        [logMsg writeToFile:logPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
-        
         if (!self.roots.count) {
             // import default root
-            logMsg = @"[Roots] No existing roots, importing default from root.tar.gz\n";
-            [logMsg writeToFile:logPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
-            
             NSError *error;
             NSURL *archiveURL = [NSBundle.mainBundle URLForResource:@"root" withExtension:@"tar.gz"];
-            logMsg = [NSString stringWithFormat:@"[Roots] Archive URL: %@\n", archiveURL];
-            [logMsg writeToFile:logPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
             
             if (![self importRootFromArchive:archiveURL
                                         name:@"default"
                                        error:&error
                             progressReporter:nil]) {
-                logMsg = [NSString stringWithFormat:@"[Roots] ERROR: Failed to import: %@\n", error];
-                [logMsg writeToFile:logPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
-                NSLog(@"[Roots] CRITICAL ERROR: Failed to import default root: %@", error);
                 // Show alert to user
                 dispatch_async(dispatch_get_main_queue(), ^{
                     UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Root Filesystem Error"
@@ -80,8 +64,6 @@ static NSString *kDefaultRoot = @"Default Root";
                 });
                 return nil;
             }
-            logMsg = @"[Roots] Successfully imported default root\n";
-            [logMsg writeToFile:logPath atomically:NO encoding:NSUTF8StringEncoding error:nil];
             _wantsVersionFile = YES;
         }
         [self observe:@[@"roots"] options:0 owner:self usingBlock:^(typeof(self) self) {

@@ -72,7 +72,6 @@
         if (bootError == _EINVAL)
             subtitle = [subtitle stringByAppendingString:@"\n(try reinstalling the app, see release notes for details)"];
         [self showMessage:message subtitle:subtitle];
-        NSLog(@"boot failed with code %d", bootError);
     }
 #endif
 
@@ -357,7 +356,6 @@
         // On iPhone, destroying scenes will fail, but the error doesn't actually go to the error handler, which is really stupid. Apple doesn't fix bugs, so I'm forced to just add a check here.
         if (UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad && self.sceneSession != nil) {
             [UIApplication.sharedApplication requestSceneSessionDestruction:self.sceneSession options:nil errorHandler:^(NSError *error) {
-                NSLog(@"scene destruction error %@", error);
                 self.sceneSession = nil;
                 [self processExited:notif];
             }];
@@ -454,7 +452,6 @@
         return;
     CGRect intersection = CGRectIntersection(keyboardFrame, self.view.bounds);
     keyboardFrame = intersection;
-    NSLog(@"%@ %@", notification.name, @(keyboardFrame));
     self.hasExternalKeyboard = keyboardFrame.size.height < 100;
     CGFloat pad = CGRectGetMaxY(self.view.bounds) - CGRectGetMinY(keyboardFrame);
     // The keyboard appears to be undocked. This means it can either be split or
@@ -464,7 +461,6 @@
     if (pad != keyboardFrame.size.height && keyboardFrame.size.width != UIScreen.mainScreen.bounds.size.width) {
         pad = MAX(self.view.safeAreaInsets.bottom, self.termView.inputAccessoryView.frame.size.height);
     }
-    // NSLog(@"pad %f", pad);
     self.bottomConstraint.constant = pad;
 
     BOOL initialLayout = self.termView.needsUpdateConstraints;

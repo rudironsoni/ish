@@ -58,6 +58,13 @@ static inline const char *ISHInstrumentationEventName(ISHInstrumentationEvent ev
             return "task.proof.run_current_enter";
         case ISHInstrumentationEventTaskProofBeforeGuestCpu:
             return "task.proof.before_guest_cpu";
+        // Paired diagnostic proof points
+        case ISHInstrumentationEventTaskProofAfterThreadEntry:
+            return "task.proof.after_thread_entry";
+        case ISHInstrumentationEventTaskProofBeforeTaskRunCurrent:
+            return "task.proof.before_task_run_current";
+        case ISHInstrumentationEventTaskProofTaskRunCurrentEntry:
+            return "task.proof.task_run_current_entry";
         default:
             return "unknown";
     }
@@ -80,7 +87,6 @@ static inline const char *ISHInstrumentationEventName(ISHInstrumentationEvent ev
 + (void)recordEvent:(ISHInstrumentationEvent)event {
     const char *eventName = ISHInstrumentationEventName(event);
 
-    NSLog(@"[ISHInstrumentation] Event: %s", eventName);
     os_log(g_ish_log, "Event: %{public}s", eventName);
 
 #if defined(__IPHONE_12_0) || defined(__MAC_10_14)
