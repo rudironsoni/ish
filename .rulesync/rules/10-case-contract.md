@@ -1,79 +1,53 @@
 # 10-case-contract
 
-A valid case is a deterministic contract.
-
-## Required files
-
-Every non-trivial case MUST include:
-- `case.yaml`
-- `expected.yaml`
-- `authority.yaml`
-
-Every fixture-based case MUST also include:
-- `fixtures/manifest.yaml`
-
-Optional files:
-- `README`
-- `notes`
+Every case MUST declare an explicit execution contract.
 
 ## Required case fields
 
-At minimum, the case contract MUST define:
-- Exact case ID
-- Exact phase
-- Exact harness name
-- Exact Meson test identity
-- Prerequisites
-- Success criteria
-- Required artifacts
-- Allowed patch scope
-- Instrumentation requirements when instrumentation matters
-- Informational-only flag if applicable
+Each case contract MUST define:
+- `case_id`
+- `phase`
+- `kind`
+- `gate`
+- `meson_target` or explicit execution target
+- `expected_artifacts`
+- `verifier_expectations`
+- `app_shell_mode`
+- `instrumentation_stage_required`
 
-## App case additional fields
+## App shell modes
 
-App cases (APPSIM-*, APP-*) MUST also define:
-- `app_shell_mode`: `task_zero` or `full_guest`
-- `instrumentation_stage_required`: `bootstrap`, `activate`, or `runtime`
-- `instrumentation_events_expected`: List of expected event names
-- `guest_startup`: `enabled` or `disabled`
+Allowed values:
+- `task_zero`
+- `full_guest`
 
-### Task Zero mode
+### `task_zero`
+`task_zero` means:
+- guest startup is disabled
+- app shell MUST boot
+- terminal UI MUST be reachable
+- app MUST survive smoke interval
+- Linux/emulator startup MUST NOT occur
 
-When `app_shell_mode: task_zero`:
-- Guest execution is disabled
-- App shell must stabilize
-- Terminal UI must be reachable
-- Instrumentation must be active
-- No guest runtime events expected
+### `full_guest`
+`full_guest` means:
+- guest startup is enabled
+- runtime boundary reduction MUST be exact
+- failure reports MUST include last known good point, first known bad point, and exact failing edge
 
-### Full guest mode
+## Instrumentation stage required
 
-When `app_shell_mode: full_guest`:
-- Guest execution is enabled
-- Runtime boundary reintroduction proceeds one boundary at a time
-- Each boundary must report:
-  - Last known good point
-  - First known bad point
-  - Exact failing edge
+Allowed values:
+- `bootstrap`
+- `activate`
+- `runtime`
 
-## Consistency requirements
+A case MUST NOT require a later instrumentation stage than has actually been reached.
 
-The following MUST agree:
-- Folder prefix
-- `case.yaml:id`
-- Harness identity
-- Meson test name
-- Deterministic artifact directory naming
+## Required execution truth
 
-If these drift, the case is `INVALID`.
-
-## Forbidden patterns
-
-- Normative expectations only inside harness code
-- Placeholder truth in place of explicit fields
-- Artifact presence checks with no schema or semantic comparison
-- Implicit fixtures with no manifest or provenance
-- Product code owning instrumentation policy
-- Constructor markers for instrumentation bootstrap
-- Startup proof files for trace initialization
+A case MUST always answer:
+- what is enabled
+- what is disabled
+- what is under test
+- what exact status is justified
