@@ -14,12 +14,29 @@
 #include "trace/trace.h"
 #include "trace/trace_types.h"
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-/* Include the C bridge header */
-#include "app/Instrumentation/ISHInstrumentationBridge.h"
+/* ============================================
+ * Bridge Forwarding Types (must match ISHInstrumentationBridge.h)
+ * ============================================ */
+
+typedef enum {
+    ISH_INSTRUMENTATION_ORIGIN_APP = 0,
+    ISH_INSTRUMENTATION_ORIGIN_UI,
+    ISH_INSTRUMENTATION_ORIGIN_SESSION,
+    ISH_INSTRUMENTATION_ORIGIN_KERNEL,
+    ISH_INSTRUMENTATION_ORIGIN_TASK,
+    ISH_INSTRUMENTATION_ORIGIN_EXEC,
+    ISH_INSTRUMENTATION_ORIGIN_EMULATOR,
+    ISH_INSTRUMENTATION_ORIGIN_TCTI
+} ish_instrumentation_origin_t;
+
+/* Weak stubs - will be overridden by real implementation when linked */
+__attribute__((weak)) bool ish_instrumentation_is_active(void) { return false; }
+__attribute__((weak)) void ish_instrumentation_record_event(ish_instrumentation_origin_t origin, const char *event_name) { (void)origin; (void)event_name; }
 
 /* ============================================
  * Thin Forwarding Backend
