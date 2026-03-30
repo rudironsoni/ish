@@ -1,6 +1,11 @@
 /*
  * trace.h
- * Public API for the iSH tracing subsystem.
+ * Minimal semantic API for the iSH tracing subsystem.
+ *
+ * This header provides a minimal semantic surface that forwards to the
+ * ISHInstrumentation framework. Legacy event-specific APIs are preserved
+ * for kernel compatibility (these call sites cannot be modified) but are
+ * deprecated in favor of the new semantic API.
  */
 
 #ifndef TRACE_H
@@ -17,110 +22,101 @@ extern "C" {
 #endif
 
 /* ============================================
- * Initialization and Lifecycle
- * ============================================ */
+ * Minimal Semantic API (NEW)
+ * ============================================
+ *
+ * These functions provide the new public interface to the tracing subsystem.
+ * They forward to the ISHInstrumentation framework via the C bridge.
+ */
 
-/* Initialize tracing from configuration. Returns 0 on success. */
-int trace_init(trace_config_t *config);
+/*
+ * Bootstrap the tracing system.
+ * Called once during app startup before any events are recorded.
+ */
+void trace_bootstrap(void);
 
-/* Shutdown tracing and cleanup resources. */
-void trace_shutdown(void);
+/*
+ * Activate tracing after bootstrap is complete.
+ * Tracing will be enabled after this call returns.
+ */
+void trace_activate(void);
 
-/* Get global trace context (may be NULL if not initialized). */
-trace_ctx_t *trace_get_global(void);
+/*
+ * Check if tracing is currently active.
+ * Returns true if bootstrap and activation have completed.
+ */
+bool trace_is_active(void);
 
-/* Check if tracing is enabled and active. */
-static inline bool trace_is_enabled(void)
-{
-    extern trace_ctx_t *g_trace_ctx;
-    return g_trace_ctx && g_trace_ctx->enabled;
-}
+/*
+ * Record a semantic event.
+ *
+ * @param origin    The component that originated the event (from ISHInstrumentationBridge.h)
+ * @param event_name The semantic event name (dotted notation, e.g., "task.created")
+ */
+void trace_record_event(int origin, const char *event_name);
 
-/* Get current trace level. */
-trace_level_t trace_get_level(void);
+/*
+ * Begin a timed interval.
+ *
+ * @param origin        The component that originated the interval
+ * @param interval_name The semantic interval name (dotted notation)
+ * @param attrs         Optional array of key-value attribute pairs (may be NULL)
+ * @param attr_count    Number of attributes in attrs array
+ * @return              An interval ID that must be passed to trace_end_interval
+ */
+uint64_t trace_begin_interval(int origin, const char *interval_name,
+                               const void *attrs, uint32_t attr_count);
+
+/*
+ * End a timed interval.
+ *
+ * @param interval_id   The ID returned by trace_begin_interval
+ * @param attrs         Optional additional attributes to record at end (may be NULL)
+ * @param attr_count    Number of attributes in attrs array
+ */
+void trace_end_interval(uint64_t interval_id, const void *attrs, uint32_t attr_count);
 
 /* ============================================
- * Configuration
- * ============================================ */
+ * Legacy Event Emission API (DEPRECATED)
+ * ============================================
+ *
+ * These functions are preserved for kernel compatibility.
+ * They are called from kernel/task.c, kernel/exec.c, kernel/mmap.c
+ * which cannot be modified per the mission constraints.
+ * New code should use the semantic API above.
+ */
 
-/* Parse configuration from environment variables. */
-int trace_config_from_env(trace_config_t *config);
-
-/* Set trace level at runtime. */
-void trace_config_set_level(trace_level_t level);
-
-/* Set PC range filter. Use start=0, end=0 to disable. */
-void trace_config_set_pc_range(uint64_t start, uint64_t end);
-
-/* Enable a specific event by ID. */
-void trace_config_enable_event(trace_event_id_t event);
-
-/* Disable a specific event by ID. */
-void trace_config_disable_event(trace_event_id_t event);
-
-/* Enable events by category bitmask. */
-void trace_config_enable_category(trace_category_t category);
-
-/* Check if an event should be emitted (level, filter, etc). */
-bool trace_event_enabled(trace_event_id_t event, uint64_t pc);
-
-/* ============================================
- * Core Event Emission (Hot Path)
- * ============================================ */
-
-/* Emit a simple event with no payload. */
+/* Core event emission */
 void trace_emit(trace_event_id_t event, uint64_t pc);
-
-/* Emit event with 8-byte payload. */
 void trace_emit_u64(trace_event_id_t event, uint64_t pc, uint64_t val);
-
-/* Emit event with 4-byte payload. */
 void trace_emit_u32(trace_event_id_t event, uint64_t pc, uint32_t val);
 
-/* Emit fault event with full details. */
+/* Fault events */
 void trace_emit_fault(uint64_t pc, uint64_t fault_addr, int is_write, int reason);
 
-/* Emit syscall enter with arguments. */
+/* Syscall events */
 void trace_emit_syscall_enter(uint64_t pc, uint64_t num, uint64_t x0, uint64_t x1, uint64_t x2);
-
-/* Emit syscall return with result. */
 void trace_emit_syscall_return(uint64_t pc, uint64_t retval);
 
-/* Emit process entry snapshot. */
+/* Process and task events */
 void trace_emit_process_entry(uint64_t entry_pc, uint64_t sp, uint64_t at_entry, uint64_t at_base);
-
-/* Emit task lifecycle events. */
 void trace_emit_task_create(uint32_t pid, uint32_t parent_pid);
 void trace_emit_task_start(uint32_t pid);
-
-/* Emit app-layer task lifecycle events. */
 void trace_emit_app_task_start_runloop(void);
 
-/* Emit mm lifecycle events. */
-void trace_emit_mm_new(uint64_t mm_ptr);
-void trace_emit_mm_copy(uint64_t src_mm, uint64_t new_mm);
-void trace_emit_mm_retain(uint64_t mm_ptr, uint32_t new_refcount);
-void trace_emit_mm_release(uint64_t mm_ptr, uint32_t old_refcount);
-void trace_emit_mm_release_freed(uint64_t mm_ptr);
-void trace_emit_task_set_mm(uint64_t task_ptr, uint64_t new_mm);
-
-/* Emit task thread diagnostic events. */
+/* Task diagnostic events */
 void trace_emit_task_thread_entry(uint64_t task_ptr);
 void trace_emit_task_thread_current_set(uint32_t pid, uint64_t mm, uint64_t mem);
 void trace_emit_task_run_current_entry(uint64_t current_ptr, uint32_t pid);
 void trace_emit_task_run_current_mem_check(uint64_t mm, uint64_t mem);
-
-/* NULL current Crash Diagnostics (NEW) */
 void trace_emit_task_thread_before_set(uint64_t task_ptr, uint64_t current_before);
 void trace_emit_task_thread_after_set(uint64_t task_ptr, uint64_t current_after);
 void trace_emit_task_run_current_entry_check(uint64_t current_ptr);
-
-/* Additional task diagnostic events. */
 void trace_emit_task_create_return(uint32_t pid, uint64_t task_ptr);
 void trace_emit_construct_task_done(uint32_t pid, uint64_t task_ptr, uint64_t mm, uint64_t mem);
 void trace_emit_task_start_pointer(uint64_t task_ptr);
 
-/* Task Handoff Proof Events (for crash debugging) */
+/* Task handoff proof events */
 void trace_emit_task_handoff_parent_pre_create(uint64_t task_ptr, uint64_t mm, uint64_t mem,
                                                uint32_t pid, uint64_t host_thread_id);
 void trace_emit_task_handoff_child_entry(uint64_t task_arg_ptr, uint64_t task_arg_mm,
@@ -133,14 +129,14 @@ void trace_emit_task_handoff_child_pre_run(uint64_t current_ptr, uint64_t curren
                                            uint64_t current_mem, uint32_t current_pid,
                                            uint64_t host_thread_id);
 
-/* Task Initialization Proof Events (parent-side) */
+/* Task initialization proof events */
 void trace_emit_task_init_after_pid_write(uint64_t task_ptr, uint32_t pid, uint64_t host_thread_id);
 void trace_emit_task_init_after_mm_write(uint64_t task_ptr, uint64_t mm, uint64_t host_thread_id);
 void trace_emit_task_init_after_mem_write(uint64_t task_ptr, uint64_t mem, uint64_t host_thread_id);
 void trace_emit_task_init_pre_pthread_create(uint64_t task_ptr, uint64_t mm, uint64_t mem,
                                              uint32_t pid, uint64_t host_thread_id);
 
-/* Task Field Write Tracking (detect clobber/reset) */
+/* Task field write tracking */
 #define TASK_FIELD_PID 0
 #define TASK_FIELD_MM  1
 #define TASK_FIELD_MEM 2
@@ -148,11 +144,11 @@ void trace_emit_task_init_pre_pthread_create(uint64_t task_ptr, uint64_t mm, uin
 void trace_emit_task_field_write(uint64_t task_ptr, uint8_t field_id, uint8_t site_id,
                                  uint64_t old_val, uint64_t new_val, uint64_t host_thread_id);
 
-/* Task Checkpoint for finding zero transition */
+/* Task checkpoint */
 void trace_emit_task_checkpoint(uint64_t task_ptr, uint32_t checkpoint_id, uint32_t pid,
                                 uint64_t mm, uint64_t mem, uint64_t host_thread_id);
 
-/* Exec Path Investigation Events (NULL pointer crash) */
+/* Exec path investigation events */
 #define EXEC_MM_OP_BEFORE_MM_RELEASE  0
 #define EXEC_MM_OP_AFTER_MM_RELEASE   1
 #define EXEC_MM_OP_BEFORE_TASK_SET_MM 2
@@ -172,7 +168,7 @@ void trace_emit_exec_mm_boundary(uint64_t current_ptr, uint32_t pid, uint64_t mm
 void trace_emit_exec_path_boundary(uint64_t current_ptr, uint32_t pid, uint64_t mm, uint64_t mem,
                                    uint8_t point, int err);
 
-/* Memory Snapshot and Bulk Write Detection */
+/* Memory snapshot and bulk write detection */
 #define TASK_SNAP_PARENT_PRE_CREATE  0
 #define TASK_SNAP_CHILD_ENTRY        1
 #define TASK_SNAP_CHILD_POST_CURRENT 2
@@ -188,86 +184,94 @@ void trace_emit_task_mem_snapshot(uint64_t task_ptr, uint8_t snapshot_id, uint64
 void trace_emit_task_bulk_write(uint64_t target_ptr, uint64_t source_ptr, uint32_t size,
                                 uint8_t operation, uint64_t host_thread_id);
 
-/* Task Canary Events */
+/* Task canary events */
 void trace_emit_task_canary(uint64_t task_ptr, uint64_t canary_value, uint8_t operation,
                             uint64_t host_thread_id);
 
-/* Emit block compilation events. */
+/* Block events */
 void trace_emit_block_compile_start(uint64_t pc);
 void trace_emit_block_compile_end(uint64_t pc, uint64_t end_pc, uint32_t insn_count);
-
-/* Emit block execution events. */
 void trace_emit_block_entry(uint64_t pc, uint32_t gadget_count);
 void trace_emit_block_exit(uint64_t pc, int exit_reason, uint64_t next_pc);
 void trace_emit_block_cache_hit(uint64_t pc, int cache_level);
 void trace_emit_block_cache_miss(uint64_t pc);
 
-/* Emit register snapshot (selected registers). */
+/* Register and PSTATE snapshots */
 void trace_emit_register_snapshot(uint64_t pc, const uint64_t *regs, uint32_t reg_mask);
-
-/* Emit PSTATE snapshot. */
 void trace_emit_pstate_snapshot(uint64_t pc, uint64_t pstate, uint64_t nzcv);
 
-/* Emit emulation limitation events. */
+/* Emulation limitation events */
 void trace_emit_unhandled_mrs(uint64_t pc, uint32_t sysreg);
 void trace_emit_unhandled_msr(uint64_t pc, uint32_t sysreg);
 
-/* Emit COMPLEX exit error events. */
+/* COMPLEX exit error events */
 void trace_emit_complex_unknown(uint64_t pc, int cat, int subtype);
 void trace_emit_complex_decode_fail(uint64_t pc, uint32_t insn);
 void trace_emit_complex_fetch_fail(uint64_t pc, int reason);
 
+/* MM lifecycle events */
+void trace_emit_mm_new(uint64_t mm_ptr);
+void trace_emit_mm_copy(uint64_t src_mm, uint64_t new_mm);
+void trace_emit_mm_retain(uint64_t mm_ptr, uint32_t new_refcount);
+void trace_emit_mm_release(uint64_t mm_ptr, uint32_t old_refcount);
+void trace_emit_mm_release_freed(uint64_t mm_ptr);
+void trace_emit_task_set_mm(uint64_t task_ptr, uint64_t new_mm);
+
 /* ============================================
- * Block Sidecar Management
+ * Configuration and Lifecycle (Legacy)
  * ============================================ */
 
-/* Create a sidecar for a block. Returns NULL if tracing not active. */
-trace_block_sidecar_t *trace_sidecar_create(uint64_t start_pc, uint64_t end_pc);
+int trace_init(trace_config_t *config);
+void trace_shutdown(void);
+trace_ctx_t *trace_get_global(void);
+trace_level_t trace_get_level(void);
+void trace_config_set_level(trace_level_t level);
+void trace_config_set_pc_range(uint64_t start, uint64_t end);
+void trace_config_enable_event(trace_event_id_t event);
+void trace_config_disable_event(trace_event_id_t event);
+void trace_config_enable_category(trace_category_t category);
+bool trace_event_enabled(trace_event_id_t event, uint64_t pc);
 
-/* Add instruction to sidecar. */
+/* Parse configuration from environment variables (DEPRECATED - returns safe defaults) */
+int trace_config_from_env(trace_config_t *config);
+
+/* ============================================
+ * Output and Utility (Legacy)
+ * ============================================ */
+
+void trace_flush(void);
+int trace_dump_ring(const char *path);
+void trace_dump_ring_stderr(void);
+void trace_dump_on_fault(uint64_t fault_pc, uint64_t fault_addr, int is_write);
+const char *trace_event_name(trace_event_id_t event);
+const trace_event_desc_t *trace_event_desc(trace_event_id_t event);
+
+/* ============================================
+ * Crash Recovery (Legacy)
+ * ============================================ */
+
+int trace_persist_ring(const char *path);
+int trace_recover_previous_run(const char *marker_path, const char *ring_path);
+int trace_mark_run_started(const char *path);
+int trace_mark_run_completed(const char *path);
+
+/* ============================================
+ * Sidecar Management (Legacy)
+ * ============================================ */
+
+trace_block_sidecar_t *trace_sidecar_create(uint64_t start_pc, uint64_t end_pc);
 void trace_sidecar_add_insn(trace_block_sidecar_t *sidecar, uint64_t pc, uint32_t raw_insn,
                             const char *mnemonic);
-
-/* Set instruction register info. */
 void trace_sidecar_set_regs(trace_block_sidecar_t *sidecar, int insn_idx, const uint8_t *dst_regs,
                             int num_dsts, const uint8_t *src_regs, int num_srcs);
-
-/* Set gadget count for sidecar. */
 void trace_sidecar_set_gadget_count(trace_block_sidecar_t *sidecar, uint32_t count);
-
-/* Dump sidecar to file. */
 void trace_sidecar_dump(trace_block_sidecar_t *sidecar, FILE *fp);
-
-/* Check if sidecar should be created for current trace level. */
 bool trace_sidecar_enabled(void);
 
 /* ============================================
- * Dump and Output
+ * Convenience Macros (Legacy)
  * ============================================ */
 
-/* Dump ring buffer to file. Returns 0 on success. */
-int trace_dump_ring(const char *path);
-
-/* Dump ring buffer to stderr. */
-void trace_dump_ring_stderr(void);
-
-/* Dump on fault - automatically called when dump_on_fault is enabled. */
-void trace_dump_on_fault(uint64_t fault_pc, uint64_t fault_addr, int is_write);
-
-/* Get event name string. */
-const char *trace_event_name(trace_event_id_t event);
-
-/* Get event description. */
-const trace_event_desc_t *trace_event_desc(trace_event_id_t event);
-
-/* Flush any buffered output. */
-void trace_flush(void);
-
-/* ============================================
- * Convenience Macros
- * ============================================ */
-
-/* Main trace macro - emits event if enabled at current level */
 #define TRACE_EVENT_EMIT(event_enum, pc_val)                                                       \
     do {                                                                                           \
         if (trace_event_enabled(event_enum, pc_val)) {                                             \
@@ -276,33 +280,11 @@ void trace_flush(void);
     } while (0)
 
 /* ============================================
- * Backend Operations (Internal)
+ * Backend Operations (Legacy)
  * ============================================ */
 
-/* Get backend operations table. */
 const trace_backend_ops_t *trace_backend_get_ops(trace_backend_t backend);
-
-/* Get ring backend operations (defined in trace_ring.c). */
 const trace_backend_ops_t *trace_ring_backend_get_ops(void);
-
-/* ============================================
- * Crash-Resilient Persistence API
- * ============================================ */
-
-/* Persist ring buffer to file for next-launch recovery */
-int trace_persist_ring(const char *path);
-
-/* Check for previous run crash and recover ring if present */
-int trace_recover_previous_run(const char *marker_path, const char *ring_path);
-
-/* Mark run as started (set crash detection marker) */
-int trace_mark_run_started(const char *path);
-
-/* Mark run as completed cleanly (clear crash detection marker) */
-int trace_mark_run_completed(const char *path);
-
-/* Dump ring buffer to stderr (human-readable, for die()) */
-void trace_dump_ring_stderr(void);
 
 #ifdef __cplusplus
 }
