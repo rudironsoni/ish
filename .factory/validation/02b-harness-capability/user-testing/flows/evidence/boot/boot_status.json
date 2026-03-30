@@ -1,8 +1,0 @@
-{
-  "status": "booted",
-  "simulatorId": "E6186E89-8784-473B-A4E4-66E42693F14E",
-  "simulatorName": "iPhone 17 Pro",
-  "bootMethod": "already_booted",
-  "timestamp": "2026-03-28T23:50:00Z",
-  "message": "Simulator was already in booted state"
-}
