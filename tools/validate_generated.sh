@@ -20,7 +20,7 @@ if [ ! -f "$BUILD_DIR/gadgets_tcti.h" ] || [ ! -f "$BUILD_DIR/gadgets_tcti_impl.
 fi
 
 # Extract generator hash from generated files
-GENERATED_HASH=$(grep "Generator Hash:" "$BUILD_DIR/gadgets_tcti.h" | head -1 | sed 's/.*Generator Hash: \([a-f0-9]*\).*/\1/')
+GENERATED_HASH=$(grep -i "generator hash:" "$BUILD_DIR/gadgets_tcti.h" | head -1 | sed 's/.*[Gg]enerator [Hh]ash: \([a-f0-9]*\).*/\1/')
 
 echo "Generated file hash: $GENERATED_HASH"
 
