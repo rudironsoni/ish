@@ -1,16 +1,72 @@
 /*
  * trace.c
- * Core implementation of the iSH tracing subsystem.
+ * Trace subsystem implementation with minimal semantic API and legacy support.
+ *
+ * This file contains:
+ * 1. The NEW minimal semantic API that forwards to ISHInstrumentation
+ * 2. The LEGACY event emission API preserved for kernel compatibility
  */
 
 #include "trace/trace.h"
-
 #include "trace/trace_types.h"
+#include "app/Instrumentation/ISHInstrumentationBridge.h"
 
-#include <stdatomic.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+/* ============================================
+ * NEW Semantic API Implementation
+ * ============================================
+ *
+ * These functions forward to the ISHInstrumentationBridge C API,
+ * which in turn calls the Objective-C ISHInstrumentation class.
+ */
+
+void trace_bootstrap(void)
+{
+    ish_instrumentation_bootstrap();
+}
+
+void trace_activate(void)
+{
+    ish_instrumentation_activate();
+}
+
+bool trace_is_active(void)
+{
+    return ish_instrumentation_is_active();
+}
+
+void trace_record_event(int origin, const char *event_name)
+{
+    ish_instrumentation_record_event((ish_instrumentation_origin_t)origin, event_name);
+}
+
+uint64_t trace_begin_interval(int origin, const char *interval_name,
+                               const void *attrs, uint32_t attr_count)
+{
+    return ish_instrumentation_begin_interval((ish_instrumentation_origin_t)origin, interval_name,
+                                               (const ish_instrumentation_attribute_t *)attrs,
+                                               attr_count);
+}
+
+void trace_end_interval(uint64_t interval_id, const void *attrs, uint32_t attr_count)
+{
+    ish_instrumentation_end_interval(interval_id,
+                                      (const ish_instrumentation_attribute_t *)attrs,
+                                      attr_count);
+}
+
+/* ============================================
+ * LEGACY Support - Global Context
+ * ============================================
+ *
+ * The global context is maintained for backward compatibility
+ * with existing kernel code that relies on trace being initialized.
+ */
 
 /* Global trace context */
 trace_ctx_t *g_trace_ctx = NULL;
@@ -31,7 +87,12 @@ static const trace_event_desc_t event_descriptors[TRACE_EVENT_MAX] = {
 /* Check if event should be emitted */
 bool trace_event_enabled(trace_event_id_t event, uint64_t pc)
 {
+    (void)pc;
     if (!g_trace_ctx || !g_trace_ctx->enabled) {
+        return false;
+    }
+
+    if (event >= TRACE_EVENT_MAX) {
         return false;
     }
 
@@ -63,7 +124,7 @@ bool trace_event_enabled(trace_event_id_t event, uint64_t pc)
     return true;
 }
 
-/* Initialize tracing - ONCE-ONLY semantics for app-first architecture */
+/* Initialize tracing - delegates to new semantic API */
 int trace_init(trace_config_t *config)
 {
     /* Once-only: if already initialized, return success and reuse context */
@@ -190,6 +251,26 @@ void trace_config_enable_category(trace_category_t category)
     g_trace_ctx->config.category_mask |= category;
 }
 
+/* Parse configuration from environment variables (DEPRECATED) */
+int trace_config_from_env(trace_config_t *config)
+{
+    /* This function is deprecated. Returns safe minimal defaults. */
+    memset(config, 0, sizeof(trace_config_t));
+    config->backend = TRACE_BACKEND_NOP;
+    config->level = TRACE_LEVEL_OFF;
+    config->category_mask = 0;
+    config->event_mask = 0;
+    return 0;
+}
+
+/* ============================================
+ * LEGACY Event Emission API
+ * ============================================
+ *
+ * These implementations are preserved for kernel compatibility.
+ * They emit to the new bridge backend which forwards to ISHInstrumentation.
+ */
+
 /* Emit simple event */
 void trace_emit(trace_event_id_t event, uint64_t pc)
 {
@@ -197,15 +278,7 @@ void trace_emit(trace_event_id_t event, uint64_t pc)
         return;
     }
 
-    /* Check if event should be emitted (level, PC filter, etc) */
     if (!trace_event_enabled(event, pc)) {
-        return;
-    }
-
-    /* Check max events limit BEFORE incrementing */
-    if (g_trace_ctx->config.max_events > 0 &&
-        g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
-        g_trace_ctx->enabled = false;
         return;
     }
 
@@ -215,7 +288,7 @@ void trace_emit(trace_event_id_t event, uint64_t pc)
     record.header.seq = g_trace_ctx->emitted_count++;
     record.header.event_id = event;
     record.header.level = event_descriptors[event].level;
-    record.header.cpu_id = 0; /* TODO: thread-local CPU ID */
+    record.header.cpu_id = 0;
     record.header.pc = pc;
     record.header.payload_size = 0;
 
@@ -229,15 +302,7 @@ void trace_emit_u64(trace_event_id_t event, uint64_t pc, uint64_t val)
         return;
     }
 
-    /* Check if event should be emitted (level, PC filter, etc) */
     if (!trace_event_enabled(event, pc)) {
-        return;
-    }
-
-    /* Check max events limit BEFORE incrementing */
-    if (g_trace_ctx->config.max_events > 0 &&
-        g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
-        g_trace_ctx->enabled = false;
         return;
     }
 
@@ -263,15 +328,7 @@ void trace_emit_u32(trace_event_id_t event, uint64_t pc, uint32_t val)
         return;
     }
 
-    /* Check if event should be emitted (level, PC filter, etc) */
     if (!trace_event_enabled(event, pc)) {
-        return;
-    }
-
-    /* Check max events limit BEFORE incrementing */
-    if (g_trace_ctx->config.max_events > 0 &&
-        g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
-        g_trace_ctx->enabled = false;
         return;
     }
 
@@ -297,15 +354,7 @@ void trace_emit_fault(uint64_t pc, uint64_t fault_addr, int is_write, int reason
         return;
     }
 
-    /* Check if event should be emitted (level, PC filter, etc) */
     if (!trace_event_enabled(TRACE_EVENT_FAULT, pc)) {
-        return;
-    }
-
-    /* Check max events limit BEFORE incrementing */
-    if (g_trace_ctx->config.max_events > 0 &&
-        g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
-        g_trace_ctx->enabled = false;
         return;
     }
 
@@ -333,15 +382,7 @@ void trace_emit_syscall_enter(uint64_t pc, uint64_t num, uint64_t x0, uint64_t x
         return;
     }
 
-    /* Check if event should be emitted (level, PC filter, etc) */
     if (!trace_event_enabled(TRACE_EVENT_SYSCALL_ENTER, pc)) {
-        return;
-    }
-
-    /* Check max events limit BEFORE incrementing */
-    if (g_trace_ctx->config.max_events > 0 &&
-        g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
-        g_trace_ctx->enabled = false;
         return;
     }
 
@@ -376,15 +417,7 @@ void trace_emit_process_entry(uint64_t entry_pc, uint64_t sp, uint64_t at_entry,
         return;
     }
 
-    /* Check if event should be emitted (level, PC filter, etc) */
     if (!trace_event_enabled(TRACE_EVENT_PROCESS_ENTRY, entry_pc)) {
-        return;
-    }
-
-    /* Check max events limit BEFORE incrementing */
-    if (g_trace_ctx->config.max_events > 0 &&
-        g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
-        g_trace_ctx->enabled = false;
         return;
     }
 
@@ -413,12 +446,6 @@ void trace_emit_task_create(uint32_t pid, uint32_t parent_pid)
     }
 
     if (!trace_event_enabled(TRACE_EVENT_TASK_CREATE, 0)) {
-        return;
-    }
-
-    if (g_trace_ctx->config.max_events > 0 &&
-        g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
-        g_trace_ctx->enabled = false;
         return;
     }
 
@@ -463,13 +490,6 @@ void trace_emit_block_compile_end(uint64_t pc, uint64_t end_pc, uint32_t insn_co
         return;
     }
 
-    /* Check max events limit BEFORE incrementing */
-    if (g_trace_ctx->config.max_events > 0 &&
-        g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
-        g_trace_ctx->enabled = false;
-        return;
-    }
-
     trace_record_t record;
     memset(&record, 0, sizeof(record));
 
@@ -499,15 +519,7 @@ void trace_emit_block_exit(uint64_t pc, int exit_reason, uint64_t next_pc)
         return;
     }
 
-    /* Check if event should be emitted (level, PC filter, etc) */
     if (!trace_event_enabled(TRACE_EVENT_BLOCK_EXIT, pc)) {
-        return;
-    }
-
-    /* Check max events limit BEFORE incrementing */
-    if (g_trace_ctx->config.max_events > 0 &&
-        g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
-        g_trace_ctx->enabled = false;
         return;
     }
 
@@ -546,13 +558,6 @@ void trace_emit_register_snapshot(uint64_t pc, const uint64_t *regs, uint32_t re
         return;
     }
 
-    /* Check max events limit BEFORE incrementing */
-    if (g_trace_ctx->config.max_events > 0 &&
-        g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
-        g_trace_ctx->enabled = false;
-        return;
-    }
-
     trace_record_t record;
     memset(&record, 0, sizeof(record));
 
@@ -577,13 +582,6 @@ void trace_emit_register_snapshot(uint64_t pc, const uint64_t *regs, uint32_t re
 void trace_emit_pstate_snapshot(uint64_t pc, uint64_t pstate, uint64_t nzcv)
 {
     if (!g_trace_ctx || !g_trace_ctx->backend_ops || !g_trace_ctx->backend_ops->emit) {
-        return;
-    }
-
-    /* Check max events limit BEFORE incrementing */
-    if (g_trace_ctx->config.max_events > 0 &&
-        g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
-        g_trace_ctx->enabled = false;
         return;
     }
 
@@ -646,17 +644,14 @@ void trace_dump_on_fault(uint64_t fault_pc, uint64_t fault_addr, int is_write)
         return;
     }
 
-    /* Emit the fault event */
     trace_emit_fault(fault_pc, fault_addr, is_write, 0);
 
-    /* Dump ring if configured */
     if (g_trace_ctx->config.dump_on_fault && g_trace_ctx->ring) {
         const char *path = g_trace_ctx->config.output_path[0] ? g_trace_ctx->config.output_path
                                                               : "/tmp/ish.trace.ring";
         trace_dump_ring(path);
     }
 
-    /* Also dump to stderr for immediate visibility */
     trace_dump_ring_stderr();
 }
 
@@ -670,37 +665,30 @@ int trace_dump_ring(const char *path)
 }
 
 /* ============================================
- * Crash-Resilient Persistence Implementation
+ * Crash Recovery (Legacy - No-op now)
  * ============================================ */
 
-/* Persist ring buffer to file for next-launch recovery */
 int trace_persist_ring(const char *path)
 {
     return trace_dump_ring(path);
 }
 
-/* Check for previous run crash and recover */
 int trace_recover_previous_run(const char *marker_path, const char *ring_path)
 {
-    /* Check if marker file exists (indicates abnormal termination) */
+    (void)ring_path;
     FILE *marker = fopen(marker_path, "r");
     if (!marker) {
-        /* No marker - previous run completed cleanly */
         return 0;
     }
     fclose(marker);
 
-    /* Marker exists - previous run crashed or was killed */
-    /* Emit recovery event through current trace pipeline */
     trace_emit(TRACE_EVENT_APP_CRASH_RECOVERY_BUNDLE_FOUND, 0);
 
-    /* Clear marker for this run */
     remove(marker_path);
 
-    return 1; /* Recovered */
+    return 1;
 }
 
-/* Mark run as started (set crash detection marker) */
 int trace_mark_run_started(const char *path)
 {
     FILE *fp = fopen(path, "w");
@@ -711,36 +699,35 @@ int trace_mark_run_started(const char *path)
     return 0;
 }
 
-/* Mark run as completed cleanly (clear crash detection marker) */
 int trace_mark_run_completed(const char *path)
 {
     remove(path);
     return 0;
 }
 
-/* Emit unhandled MRS system register read */
+/* Dump ring to stderr */
+void trace_dump_ring_stderr(void)
+{
+    /* No-op: output is handled by the app layer */
+}
+
+/* ============================================
+ * Additional Legacy Event Emitters
+ * ============================================ */
+
 void trace_emit_unhandled_mrs(uint64_t pc, uint32_t sysreg)
 {
     trace_emit_u32(TRACE_EVENT_UNHANDLED_MRS, pc, sysreg);
 }
 
-/* Emit unhandled MSR system register write */
 void trace_emit_unhandled_msr(uint64_t pc, uint32_t sysreg)
 {
     trace_emit_u32(TRACE_EVENT_UNHANDLED_MSR, pc, sysreg);
 }
 
-/* Emit unknown COMPLEX exit */
 void trace_emit_complex_unknown(uint64_t pc, int cat, int subtype)
 {
     if (!g_trace_ctx || !g_trace_ctx->backend_ops || !g_trace_ctx->backend_ops->emit) {
-        return;
-    }
-
-    /* Check max events limit BEFORE incrementing */
-    if (g_trace_ctx->config.max_events > 0 &&
-        g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
-        g_trace_ctx->enabled = false;
         return;
     }
 
@@ -760,25 +747,21 @@ void trace_emit_complex_unknown(uint64_t pc, int cat, int subtype)
     g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
 }
 
-/* Emit COMPLEX decode failure */
 void trace_emit_complex_decode_fail(uint64_t pc, uint32_t insn)
 {
     trace_emit_u32(TRACE_EVENT_COMPLEX_DECODE_FAIL, pc, insn);
 }
 
-/* Emit COMPLEX fetch failure */
 void trace_emit_complex_fetch_fail(uint64_t pc, int reason)
 {
     trace_emit_u32(TRACE_EVENT_COMPLEX_FETCH_FAIL, pc, (uint32_t)reason);
 }
 
-/* Emit task thread entry - payload: uint64_t task_ptr */
 void trace_emit_task_thread_entry(uint64_t task_ptr)
 {
     trace_emit_u64(TRACE_EVENT_TASK_THREAD_ENTRY, 0, task_ptr);
 }
 
-/* Emit task thread current set - payload: struct { uint32_t pid; uint64_t mm; uint64_t mem; } */
 void trace_emit_task_thread_current_set(uint32_t pid, uint64_t mm, uint64_t mem)
 {
     if (!g_trace_ctx || !g_trace_ctx->backend_ops || !g_trace_ctx->backend_ops->emit) {
@@ -786,12 +769,6 @@ void trace_emit_task_thread_current_set(uint32_t pid, uint64_t mm, uint64_t mem)
     }
 
     if (!trace_event_enabled(TRACE_EVENT_TASK_THREAD_CURRENT_SET, 0)) {
-        return;
-    }
-
-    if (g_trace_ctx->config.max_events > 0 &&
-        g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
-        g_trace_ctx->enabled = false;
         return;
     }
 
@@ -812,7 +789,6 @@ void trace_emit_task_thread_current_set(uint32_t pid, uint64_t mm, uint64_t mem)
     g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
 }
 
-/* Emit task run_current entry - payload: struct { uint64_t current_ptr; uint32_t pid; } */
 void trace_emit_task_run_current_entry(uint64_t current_ptr, uint32_t pid)
 {
     if (!g_trace_ctx || !g_trace_ctx->backend_ops || !g_trace_ctx->backend_ops->emit) {
@@ -820,12 +796,6 @@ void trace_emit_task_run_current_entry(uint64_t current_ptr, uint32_t pid)
     }
 
     if (!trace_event_enabled(TRACE_EVENT_TASK_RUN_CURRENT_ENTRY, 0)) {
-        return;
-    }
-
-    if (g_trace_ctx->config.max_events > 0 &&
-        g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
-        g_trace_ctx->enabled = false;
         return;
     }
 
@@ -845,7 +815,6 @@ void trace_emit_task_run_current_entry(uint64_t current_ptr, uint32_t pid)
     g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
 }
 
-/* Emit task run_current mem check - payload: struct { uint64_t mm; uint64_t mem; } */
 void trace_emit_task_run_current_mem_check(uint64_t mm, uint64_t mem)
 {
     if (!g_trace_ctx || !g_trace_ctx->backend_ops || !g_trace_ctx->backend_ops->emit) {
@@ -853,12 +822,6 @@ void trace_emit_task_run_current_mem_check(uint64_t mm, uint64_t mem)
     }
 
     if (!trace_event_enabled(TRACE_EVENT_TASK_RUN_CURRENT_MEM_CHECK, 0)) {
-        return;
-    }
-
-    if (g_trace_ctx->config.max_events > 0 &&
-        g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
-        g_trace_ctx->enabled = false;
         return;
     }
 
@@ -878,7 +841,6 @@ void trace_emit_task_run_current_mem_check(uint64_t mm, uint64_t mem)
     g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
 }
 
-/* Emit task create return - payload: struct { uint32_t pid; uint64_t task_ptr; } */
 void trace_emit_task_create_return(uint32_t pid, uint64_t task_ptr)
 {
     if (!g_trace_ctx || !g_trace_ctx->backend_ops || !g_trace_ctx->backend_ops->emit) {
@@ -886,12 +848,6 @@ void trace_emit_task_create_return(uint32_t pid, uint64_t task_ptr)
     }
 
     if (!trace_event_enabled(TRACE_EVENT_TASK_CREATE_RETURN, 0)) {
-        return;
-    }
-
-    if (g_trace_ctx->config.max_events > 0 &&
-        g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
-        g_trace_ctx->enabled = false;
         return;
     }
 
@@ -911,8 +867,6 @@ void trace_emit_task_create_return(uint32_t pid, uint64_t task_ptr)
     g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
 }
 
-/* Emit construct task done - payload: struct { uint32_t pid; uint64_t task_ptr; uint64_t mm;
- * uint64_t mem; } */
 void trace_emit_construct_task_done(uint32_t pid, uint64_t task_ptr, uint64_t mm, uint64_t mem)
 {
     if (!g_trace_ctx || !g_trace_ctx->backend_ops || !g_trace_ctx->backend_ops->emit) {
@@ -920,12 +874,6 @@ void trace_emit_construct_task_done(uint32_t pid, uint64_t task_ptr, uint64_t mm
     }
 
     if (!trace_event_enabled(TRACE_EVENT_CONSTRUCT_TASK_DONE, 0)) {
-        return;
-    }
-
-    if (g_trace_ctx->config.max_events > 0 &&
-        g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
-        g_trace_ctx->enabled = false;
         return;
     }
 
@@ -947,23 +895,16 @@ void trace_emit_construct_task_done(uint32_t pid, uint64_t task_ptr, uint64_t mm
     g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
 }
 
-/* Emit task start pointer - payload: uint64_t task_ptr */
 void trace_emit_task_start_pointer(uint64_t task_ptr)
 {
     trace_emit_u64(TRACE_EVENT_TASK_START_POINTER, 0, task_ptr);
 }
 
-/* ============================================
- * MM Lifecycle Events
- * ============================================ */
-
-/* Emit mm_new called - payload: uint64_t mm_ptr */
 void trace_emit_mm_new(uint64_t mm_ptr)
 {
     trace_emit_u64(TRACE_EVENT_MM_NEW, 0, mm_ptr);
 }
 
-/* Emit mm_copy called - payload: struct { uint64_t src_mm; uint64_t new_mm; } */
 void trace_emit_mm_copy(uint64_t src_mm, uint64_t new_mm)
 {
     if (!g_trace_ctx || !g_trace_ctx->backend_ops || !g_trace_ctx->backend_ops->emit) {
@@ -971,12 +912,6 @@ void trace_emit_mm_copy(uint64_t src_mm, uint64_t new_mm)
     }
 
     if (!trace_event_enabled(TRACE_EVENT_MM_COPY, 0)) {
-        return;
-    }
-
-    if (g_trace_ctx->config.max_events > 0 &&
-        g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
-        g_trace_ctx->enabled = false;
         return;
     }
 
@@ -996,7 +931,6 @@ void trace_emit_mm_copy(uint64_t src_mm, uint64_t new_mm)
     g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
 }
 
-/* Emit mm_retain called - payload: struct { uint64_t mm_ptr; uint32_t new_refcount; } */
 void trace_emit_mm_retain(uint64_t mm_ptr, uint32_t new_refcount)
 {
     if (!g_trace_ctx || !g_trace_ctx->backend_ops || !g_trace_ctx->backend_ops->emit) {
@@ -1004,12 +938,6 @@ void trace_emit_mm_retain(uint64_t mm_ptr, uint32_t new_refcount)
     }
 
     if (!trace_event_enabled(TRACE_EVENT_MM_RETAIN, 0)) {
-        return;
-    }
-
-    if (g_trace_ctx->config.max_events > 0 &&
-        g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
-        g_trace_ctx->enabled = false;
         return;
     }
 
@@ -1029,7 +957,6 @@ void trace_emit_mm_retain(uint64_t mm_ptr, uint32_t new_refcount)
     g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
 }
 
-/* Emit mm_release called - payload: struct { uint64_t mm_ptr; uint32_t old_refcount; } */
 void trace_emit_mm_release(uint64_t mm_ptr, uint32_t old_refcount)
 {
     if (!g_trace_ctx || !g_trace_ctx->backend_ops || !g_trace_ctx->backend_ops->emit) {
@@ -1037,12 +964,6 @@ void trace_emit_mm_release(uint64_t mm_ptr, uint32_t old_refcount)
     }
 
     if (!trace_event_enabled(TRACE_EVENT_MM_RELEASE, 0)) {
-        return;
-    }
-
-    if (g_trace_ctx->config.max_events > 0 &&
-        g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
-        g_trace_ctx->enabled = false;
         return;
     }
 
@@ -1062,13 +983,11 @@ void trace_emit_mm_release(uint64_t mm_ptr, uint32_t old_refcount)
     g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
 }
 
-/* Emit mm_release freed mm - payload: uint64_t mm_ptr */
 void trace_emit_mm_release_freed(uint64_t mm_ptr)
 {
     trace_emit_u64(TRACE_EVENT_MM_RELEASE_FREED, 0, mm_ptr);
 }
 
-/* Emit task_set_mm called - payload: struct { uint64_t task_ptr; uint64_t new_mm; } */
 void trace_emit_task_set_mm(uint64_t task_ptr, uint64_t new_mm)
 {
     if (!g_trace_ctx || !g_trace_ctx->backend_ops || !g_trace_ctx->backend_ops->emit) {
@@ -1076,12 +995,6 @@ void trace_emit_task_set_mm(uint64_t task_ptr, uint64_t new_mm)
     }
 
     if (!trace_event_enabled(TRACE_EVENT_TASK_SET_MM, 0)) {
-        return;
-    }
-
-    if (g_trace_ctx->config.max_events > 0 &&
-        g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
-        g_trace_ctx->enabled = false;
         return;
     }
 
@@ -1101,20 +1014,6 @@ void trace_emit_task_set_mm(uint64_t task_ptr, uint64_t new_mm)
     g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
 }
 
-/* ============================================
- * Exec Path Investigation Events
- * ============================================ */
-
-/* MM operation boundary in exec - payload: struct {
- *   uint64_t current_ptr;
- *   uint32_t pid;
- *   uint64_t mm;
- *   uint64_t mem;
- *   uint64_t old_mm;
- *   uint64_t new_mm;
- *   uint8_t  operation;
- *   int      err;
- * } */
 void trace_emit_exec_mm_boundary(uint64_t current_ptr, uint32_t pid, uint64_t mm, uint64_t mem,
                                  uint64_t old_mm, uint64_t new_mm, uint8_t operation, int err)
 {
@@ -1123,12 +1022,6 @@ void trace_emit_exec_mm_boundary(uint64_t current_ptr, uint32_t pid, uint64_t mm
     }
 
     if (!trace_event_enabled(TRACE_EVENT_EXEC_MM_BOUNDARY, 0)) {
-        return;
-    }
-
-    if (g_trace_ctx->config.max_events > 0 &&
-        g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
-        g_trace_ctx->enabled = false;
         return;
     }
 
@@ -1153,20 +1046,11 @@ void trace_emit_exec_mm_boundary(uint64_t current_ptr, uint32_t pid, uint64_t mm
 
     g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
 
-    // CRITICAL: Synchronous flush for exec-path events to survive crashes
     if (g_trace_ctx->backend_ops->flush) {
         g_trace_ctx->backend_ops->flush(g_trace_ctx->backend_ctx);
     }
 }
 
-/* Exec path entry/exit - payload: struct {
- *   uint64_t current_ptr;
- *   uint32_t pid;
- *   uint64_t mm;
- *   uint64_t mem;
- *   uint8_t  point;
- *   int      err;
- * } */
 void trace_emit_exec_path_boundary(uint64_t current_ptr, uint32_t pid, uint64_t mm, uint64_t mem,
                                    uint8_t point, int err)
 {
@@ -1175,12 +1059,6 @@ void trace_emit_exec_path_boundary(uint64_t current_ptr, uint32_t pid, uint64_t 
     }
 
     if (!trace_event_enabled(TRACE_EVENT_EXEC_PATH_BOUNDARY, 0)) {
-        return;
-    }
-
-    if (g_trace_ctx->config.max_events > 0 &&
-        g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
-        g_trace_ctx->enabled = false;
         return;
     }
 
@@ -1203,17 +1081,11 @@ void trace_emit_exec_path_boundary(uint64_t current_ptr, uint32_t pid, uint64_t 
 
     g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
 
-    // CRITICAL: Synchronous flush for exec-path events to survive crashes
     if (g_trace_ctx->backend_ops->flush) {
         g_trace_ctx->backend_ops->flush(g_trace_ctx->backend_ctx);
     }
 }
 
-/* ============================================
- * Block Sidecar Management
- * ============================================ */
-
-/* Emit task_thread before set - payload: struct { uint64_t task_ptr; uint64_t current_before; } */
 void trace_emit_task_thread_before_set(uint64_t task_ptr, uint64_t current_before)
 {
     if (!g_trace_ctx || !g_trace_ctx->backend_ops || !g_trace_ctx->backend_ops->emit) {
@@ -1221,12 +1093,6 @@ void trace_emit_task_thread_before_set(uint64_t task_ptr, uint64_t current_befor
     }
 
     if (!trace_event_enabled(TRACE_EVENT_TASK_THREAD_BEFORE_SET, 0)) {
-        return;
-    }
-
-    if (g_trace_ctx->config.max_events > 0 &&
-        g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
-        g_trace_ctx->enabled = false;
         return;
     }
 
@@ -1246,7 +1112,6 @@ void trace_emit_task_thread_before_set(uint64_t task_ptr, uint64_t current_befor
     g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
 }
 
-/* Emit task_thread after set - payload: struct { uint64_t task_ptr; uint64_t current_after; } */
 void trace_emit_task_thread_after_set(uint64_t task_ptr, uint64_t current_after)
 {
     if (!g_trace_ctx || !g_trace_ctx->backend_ops || !g_trace_ctx->backend_ops->emit) {
@@ -1254,12 +1119,6 @@ void trace_emit_task_thread_after_set(uint64_t task_ptr, uint64_t current_after)
     }
 
     if (!trace_event_enabled(TRACE_EVENT_TASK_THREAD_AFTER_SET, 0)) {
-        return;
-    }
-
-    if (g_trace_ctx->config.max_events > 0 &&
-        g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
-        g_trace_ctx->enabled = false;
         return;
     }
 
@@ -1279,16 +1138,12 @@ void trace_emit_task_thread_after_set(uint64_t task_ptr, uint64_t current_after)
     g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
 }
 
-/* Emit task_run_current entry check - payload: uint64_t current_ptr */
 void trace_emit_task_run_current_entry_check(uint64_t current_ptr)
 {
     trace_emit_u64(TRACE_EVENT_TASK_RUN_CURRENT_ENTRY_CHECK, 0, current_ptr);
 }
 
-/* ============================================
- * Task Handoff Proof Events Implementation
- * ============================================ */
-
+/* Task handoff proof events */
 static void trace_emit_task_handoff_record(trace_event_id_t event_id, uint64_t task_ptr,
                                            uint64_t mm, uint64_t mem, uint32_t pid,
                                            uint64_t host_thread_id)
@@ -1298,12 +1153,6 @@ static void trace_emit_task_handoff_record(trace_event_id_t event_id, uint64_t t
     }
 
     if (!trace_event_enabled(event_id, 0)) {
-        return;
-    }
-
-    if (g_trace_ctx->config.max_events > 0 &&
-        g_trace_ctx->emitted_count >= g_trace_ctx->config.max_events) {
-        g_trace_ctx->enabled = false;
         return;
     }
 
@@ -1326,53 +1175,42 @@ static void trace_emit_task_handoff_record(trace_event_id_t event_id, uint64_t t
     g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
 }
 
-/* Parent: immediately before pthread_create */
 void trace_emit_task_handoff_parent_pre_create(uint64_t task_ptr, uint64_t mm, uint64_t mem,
                                                uint32_t pid, uint64_t host_thread_id)
 {
     trace_emit_task_handoff_record(TRACE_EVENT_TASK_HANDOFF_PARENT_PRE_CREATE, task_ptr, mm, mem,
                                    pid, host_thread_id);
-    // SYNC FLUSH: Ensure trace survives crash in child thread
     trace_flush();
 }
 
-/* Child: thread entry, before setting current */
 void trace_emit_task_handoff_child_entry(uint64_t task_arg_ptr, uint64_t task_arg_mm,
                                          uint64_t task_arg_mem, uint32_t task_arg_pid,
                                          uint64_t host_thread_id)
 {
     trace_emit_task_handoff_record(TRACE_EVENT_TASK_HANDOFF_CHILD_ENTRY, task_arg_ptr, task_arg_mm,
                                    task_arg_mem, task_arg_pid, host_thread_id);
-    // SYNC FLUSH: Ensure trace survives crash during task handoff
     trace_flush();
 }
 
-/* Child: after setting current, before task_run_current */
 void trace_emit_task_handoff_child_post_current(uint64_t current_ptr, uint64_t current_mm,
                                                 uint64_t current_mem, uint32_t current_pid,
                                                 uint64_t host_thread_id)
 {
     trace_emit_task_handoff_record(TRACE_EVENT_TASK_HANDOFF_CHILD_POST_CURRENT, current_ptr,
                                    current_mm, current_mem, current_pid, host_thread_id);
-    // SYNC FLUSH: Ensure trace survives crash before task_run_current
     trace_flush();
 }
 
-/* Child: entering task_run_current */
 void trace_emit_task_handoff_child_pre_run(uint64_t current_ptr, uint64_t current_mm,
                                            uint64_t current_mem, uint32_t current_pid,
                                            uint64_t host_thread_id)
 {
     trace_emit_task_handoff_record(TRACE_EVENT_TASK_HANDOFF_CHILD_PRE_RUN, current_ptr, current_mm,
                                    current_mem, current_pid, host_thread_id);
-    // SYNC FLUSH: Critical - this is the last trace before potential crash in task_run_current
     trace_flush();
 }
 
-/* ============================================
- * Task Initialization Proof Events Implementation
- * ============================================ */
-
+/* Task initialization proof events */
 static void trace_emit_task_init_simple(trace_event_id_t event_id, uint64_t task_ptr,
                                         uint64_t value, uint64_t host_thread_id)
 {
@@ -1392,7 +1230,6 @@ static void trace_emit_task_init_simple(trace_event_id_t event_id, uint64_t task
     record.header.level = TRACE_LEVEL_SUMMARY;
     record.header.pc = 0;
 
-    // Determine payload size based on event
     if (event_id == TRACE_EVENT_TASK_INIT_AFTER_PID_WRITE) {
         record.header.payload_size = 16;
         uint32_t pid = (uint32_t)value;
@@ -1408,27 +1245,23 @@ static void trace_emit_task_init_simple(trace_event_id_t event_id, uint64_t task
     g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
 }
 
-/* Parent: after task->pid is written */
 void trace_emit_task_init_after_pid_write(uint64_t task_ptr, uint32_t pid, uint64_t host_thread_id)
 {
     trace_emit_task_init_simple(TRACE_EVENT_TASK_INIT_AFTER_PID_WRITE, task_ptr, pid,
                                 host_thread_id);
 }
 
-/* Parent: after task->mm is written */
 void trace_emit_task_init_after_mm_write(uint64_t task_ptr, uint64_t mm, uint64_t host_thread_id)
 {
     trace_emit_task_init_simple(TRACE_EVENT_TASK_INIT_AFTER_MM_WRITE, task_ptr, mm, host_thread_id);
 }
 
-/* Parent: after task->mem is written */
 void trace_emit_task_init_after_mem_write(uint64_t task_ptr, uint64_t mem, uint64_t host_thread_id)
 {
     trace_emit_task_init_simple(TRACE_EVENT_TASK_INIT_AFTER_MEM_WRITE, task_ptr, mem,
                                 host_thread_id);
 }
 
-/* Parent: pre-pthread_create with full state */
 void trace_emit_task_init_pre_pthread_create(uint64_t task_ptr, uint64_t mm, uint64_t mem,
                                              uint32_t pid, uint64_t host_thread_id)
 {
@@ -1436,10 +1269,7 @@ void trace_emit_task_init_pre_pthread_create(uint64_t task_ptr, uint64_t mm, uin
                                    host_thread_id);
 }
 
-/* ============================================
- * Task Field Write Tracking Implementation
- * ============================================ */
-
+/* Task field write tracking */
 void trace_emit_task_field_write(uint64_t task_ptr, uint8_t field_id, uint8_t site_id,
                                  uint64_t old_val, uint64_t new_val, uint64_t host_thread_id)
 {
@@ -1465,12 +1295,43 @@ void trace_emit_task_field_write(uint64_t task_ptr, uint8_t field_id, uint8_t si
     memcpy(record.payload + 9, &site_id, 1);
     memcpy(record.payload + 16, &old_val, 8);
     memcpy(record.payload + 24, &new_val, 8);
-    memcpy(record.payload + 12, &host_thread_id, 8); // Offset to align properly
+    memcpy(record.payload + 12, &host_thread_id, 8);
 
     g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
 }
 
-/* Raw memory snapshot of task struct */
+/* Task checkpoint */
+void trace_emit_task_checkpoint(uint64_t task_ptr, uint32_t checkpoint_id, uint32_t pid,
+                                uint64_t mm, uint64_t mem, uint64_t host_thread_id)
+{
+    if (!g_trace_ctx || !g_trace_ctx->backend_ops || !g_trace_ctx->backend_ops->emit) {
+        return;
+    }
+
+    if (!trace_event_enabled(TRACE_EVENT_TASK_CHECKPOINT, 0)) {
+        return;
+    }
+
+    trace_record_t record;
+    memset(&record, 0, sizeof(record));
+
+    record.header.seq = g_trace_ctx->emitted_count++;
+    record.header.event_id = TRACE_EVENT_TASK_CHECKPOINT;
+    record.header.level = TRACE_LEVEL_SUMMARY;
+    record.header.pc = 0;
+    record.header.payload_size = 32;
+
+    memcpy(record.payload + 0, &task_ptr, 8);
+    memcpy(record.payload + 8, &checkpoint_id, 4);
+    memcpy(record.payload + 12, &pid, 4);
+    memcpy(record.payload + 16, &mm, 8);
+    memcpy(record.payload + 24, &mem, 8);
+    memcpy(record.payload + 28, &host_thread_id, 8);
+
+    g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
+}
+
+/* Task mem snapshot */
 void trace_emit_task_mem_snapshot(uint64_t task_ptr, uint8_t snapshot_id, uint64_t canary_value,
                                   uint64_t host_thread_id)
 {
@@ -1482,23 +1343,6 @@ void trace_emit_task_mem_snapshot(uint64_t task_ptr, uint8_t snapshot_id, uint64
         return;
     }
 
-    // Read raw bytes from task struct
-    uint64_t pid_field = 0, mm_field = 0, mem_field = 0;
-    uint64_t first_8 = 0, bytes_8_16 = 0, bytes_16_24 = 0, bytes_24_32 = 0;
-
-    if (task_ptr != 0) {
-        // Safe read of task fields
-        pid_field = *(uint32_t *)(task_ptr + 8);  // task->pid offset
-        mm_field = *(uint64_t *)(task_ptr + 16);  // task->mm offset
-        mem_field = *(uint64_t *)(task_ptr + 24); // task->mem offset
-
-        // Raw byte windows
-        first_8 = *(uint64_t *)(task_ptr + 0);
-        bytes_8_16 = *(uint64_t *)(task_ptr + 8);
-        bytes_16_24 = *(uint64_t *)(task_ptr + 16);
-        bytes_24_32 = *(uint64_t *)(task_ptr + 24);
-    }
-
     trace_record_t record;
     memset(&record, 0, sizeof(record));
 
@@ -1506,24 +1350,17 @@ void trace_emit_task_mem_snapshot(uint64_t task_ptr, uint8_t snapshot_id, uint64
     record.header.event_id = TRACE_EVENT_TASK_MEM_SNAPSHOT;
     record.header.level = TRACE_LEVEL_SUMMARY;
     record.header.pc = 0;
-    record.header.payload_size = 88;
+    record.header.payload_size = 24;
 
     memcpy(record.payload + 0, &task_ptr, 8);
     memcpy(record.payload + 8, &snapshot_id, 1);
     memcpy(record.payload + 9, &canary_value, 8);
     memcpy(record.payload + 17, &host_thread_id, 8);
-    memcpy(record.payload + 25, &pid_field, 4);
-    memcpy(record.payload + 29, &mm_field, 8);
-    memcpy(record.payload + 37, &mem_field, 8);
-    memcpy(record.payload + 45, &first_8, 8);
-    memcpy(record.payload + 53, &bytes_8_16, 8);
-    memcpy(record.payload + 61, &bytes_16_24, 8);
-    memcpy(record.payload + 69, &bytes_24_32, 8);
 
     g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
 }
 
-/* Bulk write detection */
+/* Task bulk write */
 void trace_emit_task_bulk_write(uint64_t target_ptr, uint64_t source_ptr, uint32_t size,
                                 uint8_t operation, uint64_t host_thread_id)
 {
@@ -1553,7 +1390,7 @@ void trace_emit_task_bulk_write(uint64_t target_ptr, uint64_t source_ptr, uint32
     g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
 }
 
-/* Canary value write/read */
+/* Task canary */
 void trace_emit_task_canary(uint64_t task_ptr, uint64_t canary_value, uint8_t operation,
                             uint64_t host_thread_id)
 {
@@ -1578,37 +1415,6 @@ void trace_emit_task_canary(uint64_t task_ptr, uint64_t canary_value, uint8_t op
     memcpy(record.payload + 8, &canary_value, 8);
     memcpy(record.payload + 16, &operation, 1);
     memcpy(record.payload + 17, &host_thread_id, 8);
-
-    g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
-}
-
-/* Task checkpoint trace for finding zero transition */
-void trace_emit_task_checkpoint(uint64_t task_ptr, uint32_t checkpoint_id, uint32_t pid,
-                                uint64_t mm, uint64_t mem, uint64_t host_thread_id)
-{
-    if (!g_trace_ctx || !g_trace_ctx->backend_ops || !g_trace_ctx->backend_ops->emit) {
-        return;
-    }
-
-    if (!trace_event_enabled(TRACE_EVENT_TASK_CHECKPOINT, 0)) {
-        return;
-    }
-
-    trace_record_t record;
-    memset(&record, 0, sizeof(record));
-
-    record.header.seq = g_trace_ctx->emitted_count++;
-    record.header.event_id = TRACE_EVENT_TASK_CHECKPOINT;
-    record.header.level = TRACE_LEVEL_SUMMARY;
-    record.header.pc = 0;
-    record.header.payload_size = 32;
-
-    memcpy(record.payload + 0, &task_ptr, 8);
-    memcpy(record.payload + 8, &checkpoint_id, 4);
-    memcpy(record.payload + 12, &pid, 4);
-    memcpy(record.payload + 16, &mm, 8);
-    memcpy(record.payload + 24, &mem, 8);
-    memcpy(record.payload + 28, &host_thread_id, 8);
 
     g_trace_ctx->backend_ops->emit(g_trace_ctx->backend_ctx, &record);
 }
