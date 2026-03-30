@@ -24,6 +24,10 @@
   "baseDirs": [
     "."
   ],
+  "sources": [
+    { "source": "dyoshikawa/rulesync" },
+    { "source": "anthropics/skills", "skills": ["skill-creator"] }
+  ],
   "delete": true,
   "verbose": true,
   "silent": false,

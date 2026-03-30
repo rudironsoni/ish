@@ -20,7 +20,15 @@
     },
     "deepwiki": {
       "type": "http",
+      "transport": "http",
       "url": "https://mcp.deepwiki.com/mcp",
+      "httpUrl": "https://mcp.deepwiki.com/mcp",
+      "env": {}
+    },
+    "XcodeBuildMCP": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@rudironsoni/xcodebuildmcp@latest"],
       "env": {}
     },
     "rulesync": {
