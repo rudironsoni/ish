@@ -207,11 +207,11 @@
     // Without this barrier, the child thread may see NULL current->mem.
     __sync_synchronize();
 
-    // Task Zero: When ISH_TASK_ZERO_ALLOW_SESSION_BOOTSTRAP is 1, we allow
-    // session bootstrap (become_new_init_child, PTY creation, create_stdio,
-    // do_execve) but STILL BLOCK task_start(current). This is the smallest
-    // safe boundary immediately before guest runtime.
-    if (ISH_TASK_ZERO_ALLOW_SESSION_BOOTSTRAP == 1) {
+    // Task Zero: When ISH_TASK_ZERO_FULL_RUNTIME is 0, we block task_start(current)
+    // to allow UI testing without guest execution. When ISH_TASK_ZERO_FULL_RUNTIME is 1,
+    // we allow full runtime execution including task_start(current).
+    // This completes the runtime reintroduction - the emulator will actually execute guest code.
+    if (ISH_TASK_ZERO_FULL_RUNTIME == 0) {
         // Record deferred event - session bootstrap completed but guest not started
         [ISHInstrumentation recordEvent:ISHInstrumentationEventSessionStarted];
         // Return success without starting the guest task
