@@ -1,6 +1,6 @@
 {
   "milestone": "task3-trace-shim",
-  "round": 4,
+  "round": 5,
   "status": "fail",
   "assertionsSummary": {
     "total": 2,
@@ -12,7 +12,7 @@
   "failedAssertions": [
     {
       "id": "VAL-TASK3-001",
-      "reason": "trace.h still contains extensive legacy API surface (~83 function declarations) beyond the 6 minimal semantic functions required by contract. The file includes legacy sections: 'Legacy Event Emission API', 'Configuration and Lifecycle', 'Output and Utility', 'Crash Recovery', and 'Sidecar Management'. The fix feature 'task-n3-trace-header-split' remains pending and has not been completed. Contract requires trace.h to 'only expose' bootstrap, activate, isActive, recordEvent, beginInterval, endInterval."
+      "reason": "trace.h still contains extensive legacy API surface (83 total function declarations) beyond the 6 minimal semantic functions required by contract. The fix feature 'task-n3-trace-header-split' remains pending and has not been completed. Contract requires trace.h to 'only expose' bootstrap, activate, isActive, recordEvent, beginInterval, endInterval."
     }
   ],
   "blockedAssertions": [],
@@ -22,16 +22,17 @@
     "method": "code_review",
     "filesReviewed": ["trace/trace.h", "trace/trace.c"],
     "toolUsed": "manual_file_analysis",
-    "reviewDate": "2026-03-30T04:00:00Z"
+    "reviewDate": "2026-03-30T04:30:00Z"
   },
   "findings": {
     "VAL-TASK3-001": {
       "file": "trace/trace.h",
       "status": "fail",
-      "summary": "File exposes minimal semantic API (6 functions) but also retains extensive legacy API (~77 additional declarations)",
+      "summary": "File exposes minimal semantic API (6 functions) but also retains extensive legacy API (77 additional declarations)",
       "minimalApiPresent": true,
       "minimalApiFunctions": ["trace_bootstrap", "trace_activate", "trace_is_active", "trace_record_event", "trace_begin_interval", "trace_end_interval"],
       "legacyApiPresent": true,
+      "totalFunctionCount": 83,
       "legacyFunctionCount": 77,
       "legacySections": [
         "Legacy Event Emission API",
