@@ -224,6 +224,7 @@ void trace_emit_task_set_mm(uint64_t task_ptr, uint64_t new_mm);
 int trace_init(trace_config_t *config);
 void trace_shutdown(void);
 trace_ctx_t *trace_get_global(void);
+bool trace_is_enabled(void);
 trace_level_t trace_get_level(void);
 void trace_config_set_level(trace_level_t level);
 void trace_config_set_pc_range(uint64_t start, uint64_t end);

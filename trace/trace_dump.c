@@ -5,10 +5,17 @@
 
 #include "trace/trace.h"
 #include "trace/trace_types.h"
-#include "emu/aarch64/block-cache.h"
+
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+
+/* Forward declaration for block structure - used by trace_sidecar_dump_block */
+struct a64_block {
+    uint64_t start_pc;
+    void *trace_sidecar;
+    /* Other fields omitted - only what we need for trace_sidecar_dump_block */
+};
 
 /* Create sidecar for a block */
 trace_block_sidecar_t* trace_sidecar_create(uint64_t start_pc, uint64_t end_pc) {
