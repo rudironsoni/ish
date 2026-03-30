@@ -256,6 +256,9 @@
 		BBF06F6C2CC4C134009F5DB5 /* fchdir.c in Sources */ = {isa = PBXBuildFile; fileRef = BB0DF6F22CC4B01000EFECAE /* fchdir.c */; };
 		BBEF192F26806364001225BD /* ISHInstrumentation.m in Sources */ = {isa = PBXBuildFile; fileRef = BBEF192E26806364001225BD /* ISHInstrumentation.m */; };
 		BBEF193226806364001225C0 /* ISHInstrumentationBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = BBEF193126806364001225BF /* ISHInstrumentationBridge.mm */; };
+		BBEF193326806364001225C1 /* ISHInstrumentationSinkApple.m in Sources */ = {isa = PBXBuildFile; fileRef = BBEF193526806364001225C3 /* ISHInstrumentationSinkApple.m */; };
+		BBEF193426806364001225C2 /* ISHInstrumentationMetricKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBEF193626806364001225C4 /* ISHInstrumentationMetricKit.swift */; };
+		BBEF193726806364001225C5 /* ISHInstrumentationOpenTelemetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBEF193826806364001225C6 /* ISHInstrumentationOpenTelemetry.swift */; };
 		BBFB2C7E259026C200545EAB /* libish_emu.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BBFB2C5B2590257E00545EAB /* libish_emu.a */; };
 		BBFB2CEC2590296B00545EAB /* libish_emu.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BBFB2C5B2590257E00545EAB /* libish_emu.a */; };
 		BBFB55662158644C00DFE6DE /* libresolv.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = BBFB55652158644C00DFE6DE /* libresolv.tbd */; };
@@ -786,6 +789,12 @@
 		BBEF192E26806364001225BD /* ISHInstrumentation.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = ISHInstrumentation.m; path = app/Instrumentation/ISHInstrumentation.m; sourceTree = "<group>"; };
 		BBEF193026806364001225BE /* ISHInstrumentationBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = ISHInstrumentationBridge.h; path = app/Instrumentation/ISHInstrumentationBridge.h; sourceTree = "<group>"; };
 		BBEF193126806364001225BF /* ISHInstrumentationBridge.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = ISHInstrumentationBridge.mm; path = app/Instrumentation/ISHInstrumentationBridge.mm; sourceTree = "<group>"; };
+		BBEF193526806364001225C3 /* ISHInstrumentationSinkApple.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = ISHInstrumentationSinkApple.m; path = app/Instrumentation/ISHInstrumentationSinkApple.m; sourceTree = "<group>"; };
+		BBEF193A26806364001225C8 /* ISHInstrumentationSinkApple.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = ISHInstrumentationSinkApple.h; path = app/Instrumentation/ISHInstrumentationSinkApple.h; sourceTree = "<group>"; };
+		BBEF193626806364001225C4 /* ISHInstrumentationMetricKit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ISHInstrumentationMetricKit.swift; path = app/Instrumentation/ISHInstrumentationMetricKit.swift; sourceTree = "<group>"; };
+		BBEF193826806364001225C6 /* ISHInstrumentationOpenTelemetry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ISHInstrumentationOpenTelemetry.swift; path = app/Instrumentation/ISHInstrumentationOpenTelemetry.swift; sourceTree = "<group>"; };
+		BBEF193926806364001225C7 /* ISHInstrumentationEvents.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = ISHInstrumentationEvents.h; path = app/Instrumentation/ISHInstrumentationEvents.h; sourceTree = "<group>"; };
+		BBEF193B26806364001225C9 /* ISHRuntimeFlags.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = ISHRuntimeFlags.h; path = app/Instrumentation/ISHRuntimeFlags.h; sourceTree = "<group>"; };
 		BBEF199C268066D1001225BD /* iSH.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iSH.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BBEF19BA26806D7E001225BD /* Linux.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Linux.xcconfig; sourceTree = "<group>"; };
 		BBFB2C5B2590257E00545EAB /* libish_emu.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libish_emu.a; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -2281,6 +2290,9 @@
 			files = (
 				BBEF192F26806364001225BD /* ISHInstrumentation.m in Sources */,
 				BBEF193226806364001225C0 /* ISHInstrumentationBridge.mm in Sources */,
+				BBEF193326806364001225C1 /* ISHInstrumentationSinkApple.m in Sources */,
+				BBEF193426806364001225C2 /* ISHInstrumentationMetricKit.swift in Sources */,
+				BBEF193726806364001225C5 /* ISHInstrumentationOpenTelemetry.swift in Sources */,
 				BB28C79226896B1F00BDC834 /* AboutAppearanceViewController.m in Sources */,
 				BB28C79326896B1F00BDC834 /* AltIconViewController.m in Sources */,
 				491B31E62883BF22008EEFB0 /* ThemeViewController.m in Sources */,
@@ -2733,9 +2745,11 @@
 					"$(inherited)",
 					"ARCH_AARCH64=1",
 				);
+				LIBRARY_SEARCH_PATHS = "$(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)";
 				ONLY_ACTIVE_ARCH = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = com.rudironsoni.ish;
 				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = "Debug";
@@ -2752,9 +2766,11 @@
 					"$(inherited)",
 					"ARCH_AARCH64=1",
 				);
+				LIBRARY_SEARCH_PATHS = "$(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)";
 				ONLY_ACTIVE_ARCH = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = com.rudironsoni.ish;
 				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
@@ -3122,6 +3138,7 @@
 				ARM64_NAMES = arm64;
 				ONLY_ACTIVE_ARCH = NO;
 				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = "Debug";
@@ -3134,6 +3151,7 @@
 				ARM64_NAMES = arm64;
 				ONLY_ACTIVE_ARCH = NO;
 				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
@@ -3144,8 +3162,10 @@
 			buildSettings = {
 				ARCHS = arm64;
 				ARM64_NAMES = arm64;
+				LIBRARY_SEARCH_PATHS = "$(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)";
 				ONLY_ACTIVE_ARCH = NO;
 				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = "Debug";
@@ -3158,6 +3178,7 @@
 				ARM64_NAMES = arm64;
 				ONLY_ACTIVE_ARCH = NO;
 				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
