@@ -1,0 +1,34 @@
+{
+  "milestone": "task4-task-zero",
+  "round": 1,
+  "status": "pass",
+  "assertionsSummary": {
+    "total": 3,
+    "passed": 3,
+    "failed": 0,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-TASK4-001",
+    "VAL-TASK4-002",
+    "VAL-TASK4-003"
+  ],
+  "failedAssertions": [],
+  "blockedAssertions": [],
+  "appliedUpdates": [],
+  "validationDetails": {
+    "VAL-TASK4-001": {
+      "description": "Task Zero flag in AppDelegate - ISH_TASK_ZERO_ALLOW_SESSION_BOOTSTRAP allows session bootstrap while blocking task_start",
+      "evidence": "ISHRuntimeFlags.h defines ISH_TASK_ZERO_ALLOW_SESSION_BOOTSTRAP 1. TerminalViewController.m startSession checks this flag after do_execve and before task_start(current), returning 0 without starting guest when flag is set."
+    },
+    "VAL-TASK4-002": {
+      "description": "Removed debug junk - AppDelegate returns success cleanly",
+      "evidence": "AppDelegate.m boot() checks ISH_TASK_ZERO_DISABLE_EMULATION at entry and returns 0 immediately when set. No file-based boot logs, /tmp write tests, giant NSLog probes, or ELF forensics present in boot path. Records session.bootstrap.deferred event via ISHInstrumentation."
+    },
+    "VAL-TASK4-003": {
+      "description": "Terminal UI loads - allows session bootstrap without guest execution",
+      "evidence": "TerminalViewController.m startSession allows become_new_init_child, PTY creation, create_stdio, and do_execve, but blocks task_start when ISH_TASK_ZERO_ALLOW_SESSION_BOOTSTRAP is 1. UI loads and app remains alive without guest execution."
+    }
+  },
+  "previousRound": null
+}

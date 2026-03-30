@@ -1,0 +1,26 @@
+{
+  "flowId": "task4-validation",
+  "assertions": ["VAL-TASK4-001", "VAL-TASK4-002", "VAL-TASK4-003"],
+  "tool": "code-review",
+  "status": "pass",
+  "results": [
+    {
+      "assertionId": "VAL-TASK4-001",
+      "status": "pass",
+      "evidence": "ISHRuntimeFlags.h defines ISH_TASK_ZERO_ALLOW_SESSION_BOOTSTRAP 1. TerminalViewController.m startSession implements the boundary check after do_execve() and before task_start(current), returning 0 when flag is set to prevent guest execution while allowing session bootstrap."
+    },
+    {
+      "assertionId": "VAL-TASK4-002",
+      "status": "pass",
+      "evidence": "AppDelegate.m boot() checks ISH_TASK_ZERO_DISABLE_EMULATION at method entry. When flag is 1, records ISHInstrumentationEventSessionStarted event and returns 0 immediately. No bootLogPath file operations, no /tmp write tests, no excessive NSLog probes, no ELF forensics code present."
+    },
+    {
+      "assertionId": "VAL-TASK4-003",
+      "status": "pass",
+      "evidence": "TerminalViewController.m allows session bootstrap (become_new_init_child, PTY creation, create_stdio, do_execve) but blocks task_start when ISH_TASK_ZERO_ALLOW_SESSION_BOOTSTRAP is 1. Records event via ISHInstrumentation and returns 0. UI loads without guest execution, app remains alive."
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "toolsUsed": ["code-review"]
+}
