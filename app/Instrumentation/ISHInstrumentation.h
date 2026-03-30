@@ -25,9 +25,14 @@ typedef NS_ENUM(NSInteger, ISHInstrumentationEvent) {
     ISHInstrumentationEventTaskProofBeforePthread,
     ISHInstrumentationEventTaskProofAfterPthread,
     ISHInstrumentationEventTaskProofThreadEntry,
+    ISHInstrumentationEventTaskProofBeforeCurrentSet,
     ISHInstrumentationEventTaskProofAfterCurrentSet,
     ISHInstrumentationEventTaskProofRunCurrentEnter,
-    ISHInstrumentationEventTaskProofBeforeGuestCpu
+    ISHInstrumentationEventTaskProofBeforeGuestCpu,
+    // Paired diagnostic proof points for narrowing failure boundary
+    ISHInstrumentationEventTaskProofAfterThreadEntry,
+    ISHInstrumentationEventTaskProofBeforeTaskRunCurrent,
+    ISHInstrumentationEventTaskProofTaskRunCurrentEntry
 };
 
 @interface ISHInstrumentation : NSObject

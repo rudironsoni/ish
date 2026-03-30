@@ -243,6 +243,9 @@ void task_destroy(struct task *task)
 
 void task_run_current()
 {
+    // DIAGNOSTIC: First executable line inside task_run_current
+    trace_emit_task_proof_point(TASK_PROOF_TASK_RUN_CURRENT_ENTRY, current ? current->pid : 0);
+
     // PROOF POINT #6: task_run_current() entry
     trace_emit_task_proof_point(TASK_PROOF_RUN_CURRENT_ENTER, current ? current->pid : 0);
 
@@ -301,6 +304,9 @@ static void *task_thread(void *task)
     struct task *task_arg_early = (struct task *)task;
     trace_emit_task_proof_point(TASK_PROOF_THREAD_ENTRY, task_arg_early ? task_arg_early->pid : 0);
 
+    // DIAGNOSTIC: Paired proof point immediately after TASK_THREAD_ENTRY
+    trace_emit_task_proof_point(TASK_PROOF_AFTER_THREAD_ENTRY, task_arg_early ? task_arg_early->pid : 0);
+
     // PROOF TRACE #3: Child thread entry, BEFORE setting current
     // Read directly from task argument (not via current)
     struct task *task_arg = (struct task *)task;
@@ -316,6 +322,16 @@ static void *task_thread(void *task)
     // Original diagnostic traces
     trace_emit_task_thread_entry((uint64_t)task);
     trace_emit_task_thread_before_set((uint64_t)task, (uint64_t)current);
+
+    // PROOF POINT: Before current = task assignment - captures child-side values
+    struct task *task_arg_for_proof = (struct task *)task;
+    trace_emit_task_proof_point(TASK_PROOF_BEFORE_CURRENT_SET,
+                                task_arg_for_proof ? task_arg_for_proof->pid : 0);
+    trace_emit_task_handoff_parent_pre_create(
+        (uint64_t)task_arg_for_proof,
+        task_arg_for_proof ? (uint64_t)task_arg_for_proof->mm : 0xDEAD,
+        task_arg_for_proof ? (uint64_t)task_arg_for_proof->mem : 0xDEAD,
+        task_arg_for_proof ? task_arg_for_proof->pid : 0xDEAD, host_thread_id);
 
     current = task;
 
@@ -336,6 +352,9 @@ static void *task_thread(void *task)
     // MEMORY SNAPSHOT: Child after current = task
     uint64_t canary_at_post_current = task_canary_read((uint64_t)current);
     trace_emit_task_mem_snapshot((uint64_t)current, 2, canary_at_post_current, host_thread_id);
+
+    // DIAGNOSTIC: Proof point immediately before calling task_run_current
+    trace_emit_task_proof_point(TASK_PROOF_BEFORE_TASK_RUN_CURRENT, current ? current->pid : 0);
 
     // State validation: these should pass if task_create_ and task_set_mm were correct
     if (current->pid == 0) {

@@ -13,7 +13,6 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -21,45 +20,14 @@
  * Bridge Forwarding (delegates to app layer)
  * ============================================
  *
- * When building for iOS app, these functions are provided by
- * ISHInstrumentationBridge.mm. For unit test builds, weak stubs
- * are used. The weak attribute allows the real implementation to
- * override these stubs at link time.
+ * These functions are provided by ISHInstrumentationBridge.mm
+ * when building for iOS. The trace_types.h header provides the
+ * origin enum and attribute struct definitions.
  */
 
-typedef enum {
-    ISH_INSTRUMENTATION_ORIGIN_APP = 0,
-    ISH_INSTRUMENTATION_ORIGIN_UI,
-    ISH_INSTRUMENTATION_ORIGIN_SESSION,
-    ISH_INSTRUMENTATION_ORIGIN_KERNEL,
-    ISH_INSTRUMENTATION_ORIGIN_TASK,
-    ISH_INSTRUMENTATION_ORIGIN_EXEC,
-    ISH_INSTRUMENTATION_ORIGIN_EMULATOR,
-    ISH_INSTRUMENTATION_ORIGIN_TCTI
-} ish_instrumentation_origin_t;
-
-typedef struct {
-    const char *key;
-    const char *value;
-} ish_instrumentation_attribute_t;
+#include "app/Instrumentation/ISHInstrumentationBridge.h"
 
 static int instrumentation_active = 0;
-
-/* Weak stubs - will be overridden by real implementation when linked */
-__attribute__((weak)) void ish_instrumentation_bootstrap(void) { }
-__attribute__((weak)) void ish_instrumentation_activate(void) { instrumentation_active = 1; }
-__attribute__((weak)) bool ish_instrumentation_is_active(void) { return instrumentation_active; }
-__attribute__((weak)) void ish_instrumentation_record_event(ish_instrumentation_origin_t origin, const char *event_name) { (void)origin; (void)event_name; }
-__attribute__((weak)) uint64_t ish_instrumentation_begin_interval(ish_instrumentation_origin_t origin, const char *interval_name,
-                                             const ish_instrumentation_attribute_t *attrs, uint32_t attr_count)
-{
-    (void)origin; (void)interval_name; (void)attrs; (void)attr_count;
-    return 0;
-}
-__attribute__((weak)) void ish_instrumentation_end_interval(uint64_t interval_id, const ish_instrumentation_attribute_t *attrs, uint32_t attr_count)
-{
-    (void)interval_id; (void)attrs; (void)attr_count;
-}
 
 /* ============================================
  * Semantic API - forwards to ISHInstrumentation
@@ -601,12 +569,7 @@ void trace_emit_task_run_current_entry_check(uint64_t current_ptr)
  * ============================================ */
 void trace_emit_task_proof_point(task_proof_point_t point, uint32_t pid)
 {
-    /* TEMPORARY: Direct fprintf to stderr to verify execution - bypasses all bridge logic */
-    fprintf(stderr, "[PROOF POINT] point=%d pid=%u\n", point, pid);
-    fflush(stderr);
-
-    /* Use existing ISHInstrumentation bridge - crash-survivable, minimal state */
-    /* Convert proof point to semantic event for ISHInstrumentation */
+    /* Route through ISHInstrumentation bridge only - single observability path */
     switch (point) {
         case TASK_PROOF_START_ENTER:
             ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
@@ -624,6 +587,10 @@ void trace_emit_task_proof_point(task_proof_point_t point, uint32_t pid)
             ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
                                               "task_proof_thread_entry");
             break;
+        case TASK_PROOF_BEFORE_CURRENT_SET:
+            ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
+                                              "task_proof_before_current_set");
+            break;
         case TASK_PROOF_AFTER_CURRENT_SET:
             ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
                                               "task_proof_after_current_set");
@@ -635,6 +602,19 @@ void trace_emit_task_proof_point(task_proof_point_t point, uint32_t pid)
         case TASK_PROOF_BEFORE_GUEST_CPU:
             ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
                                               "task_proof_before_guest_cpu");
+            break;
+        // Paired diagnostic proof points for narrowing failure boundary
+        case TASK_PROOF_AFTER_THREAD_ENTRY:
+            ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
+                                              "task_proof_after_thread_entry");
+            break;
+        case TASK_PROOF_BEFORE_TASK_RUN_CURRENT:
+            ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
+                                              "task_proof_before_task_run_current");
+            break;
+        case TASK_PROOF_TASK_RUN_CURRENT_ENTRY:
+            ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
+                                              "task_proof_task_run_current_entry");
             break;
     }
     (void)pid;
