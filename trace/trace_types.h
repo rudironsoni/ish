@@ -158,6 +158,9 @@ typedef enum {
     TRACE_EVENT_EXEC_MM_BOUNDARY,
     TRACE_EVENT_EXEC_PATH_BOUNDARY,
 
+    /* Contract violation events */
+    TRACE_EVENT_INIT_CHILD_NO_INIT_TASK,
+
     TRACE_EVENT_MAX
 } trace_event_id_t;
 

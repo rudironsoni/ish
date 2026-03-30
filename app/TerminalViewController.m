@@ -176,6 +176,100 @@
     NSArray<NSString *> *command = UserPreferences.shared.launchCommand;
 
 #if !ISH_LINUX
+    // Shell-only mode: Skip ALL session infrastructure
+    // No PTY, no Terminal, no become_new_init_child, no stdio setup
+    // Just record the event and return success
+    if (ISH_RUNTIME_MODE == ISH_RUNTIME_MODE_SHELL_ONLY) {
+        [ISHInstrumentation recordEvent:ISHInstrumentationEventSessionBootstrapDeferred];
+        // Mark session as deferred/inactive - no guest running, no terminal
+        self.sessionPid = -1;
+        // Terminal remains nil - UI shows empty terminal view
+        self.sessionTerminal = nil;
+        // Return success without creating any session infrastructure
+        return 0;
+    }
+
+    // Session bootstrap mode: Init child + PTY + stdio, but NO exec/start
+    // Creates session infrastructure without guest execution
+    if (ISH_RUNTIME_MODE == ISH_RUNTIME_MODE_SESSION_BOOTSTRAP) {
+        // Step 1: Become init child
+        int err = become_new_init_child();
+        if (err < 0)
+            return err;
+
+        // Step 2: Create PTY
+        struct tty *tty;
+        self.sessionTerminal = nil;
+        Terminal *terminal = [Terminal createPseudoTerminal:&tty];
+        if (terminal == nil) {
+            NSAssert(IS_ERR(tty), @"tty should be error");
+            return (int) PTR_ERR(tty);
+        }
+        self.sessionTerminal = terminal;
+
+        // Step 3: Setup stdio
+        NSString *stdioFile = [NSString stringWithFormat:@"/dev/pts/%d", tty->num];
+        err = create_stdio(stdioFile.fileSystemRepresentation, TTY_PSEUDO_SLAVE_MAJOR, tty->num);
+        if (err < 0)
+            return err;
+        tty_release(tty);
+
+        // Step 4: Skip do_execve() - guest execution deferred
+        // Step 5: Skip task_start() - guest execution deferred
+
+        // Mark session as bootstrap done, exec deferred
+        self.sessionPid = -2;
+
+        // Record semantic event
+        [ISHInstrumentation recordEvent:ISHInstrumentationEventSessionBootstrapReady];
+
+        return 0;
+    }
+
+    // Session exec mode: Init child + PTY + stdio + do_execve, but NO task_start
+    // Loads shell binary without starting guest execution
+    if (ISH_RUNTIME_MODE == ISH_RUNTIME_MODE_SESSION_EXEC) {
+        // Step 1: Become init child
+        int err = become_new_init_child();
+        if (err < 0)
+            return err;
+
+        // Step 2: Create PTY
+        struct tty *tty;
+        self.sessionTerminal = nil;
+        Terminal *terminal = [Terminal createPseudoTerminal:&tty];
+        if (terminal == nil) {
+            NSAssert(IS_ERR(tty), @"tty should be error");
+            return (int) PTR_ERR(tty);
+        }
+        self.sessionTerminal = terminal;
+
+        // Step 3: Setup stdio
+        NSString *stdioFile = [NSString stringWithFormat:@"/dev/pts/%d", tty->num];
+        err = create_stdio(stdioFile.fileSystemRepresentation, TTY_PSEUDO_SLAVE_MAJOR, tty->num);
+        if (err < 0)
+            return err;
+        tty_release(tty);
+
+        // Step 4: Call do_execve() - load shell binary
+        char argv[4096];
+        [Terminal convertCommand:command toArgs:argv limitSize:sizeof(argv)];
+        const char *envp = "TERM=xterm-256color\0";
+        err = do_execve(command[0].UTF8String, command.count, argv, envp);
+        if (err < 0)
+            return err;
+
+        // Step 5: Skip task_start() - guest execution deferred
+        // Exec succeeded, record PID but no task running
+        self.sessionPid = current->pid;
+
+        // Record semantic event
+        [ISHInstrumentation recordEvent:ISHInstrumentationEventSessionExecReady];
+
+        return 0;
+    }
+
+    // Full-guest mode: Normal session creation with PTY and Terminal
     int err = become_new_init_child();
     if (err < 0)
         return err;
@@ -207,16 +301,8 @@
     // Without this barrier, the child thread may see NULL current->mem.
     __sync_synchronize();
 
-    // Task Zero: When ISH_TASK_ZERO_FULL_RUNTIME is 0, we block task_start(current)
-    // to allow UI testing without guest execution. When ISH_TASK_ZERO_FULL_RUNTIME is 1,
-    // we allow full runtime execution including task_start(current).
-    // This completes the runtime reintroduction - the emulator will actually execute guest code.
-    if (ISH_TASK_ZERO_FULL_RUNTIME == 0) {
-        // Record deferred event - session bootstrap completed but guest not started
-        [ISHInstrumentation recordEvent:ISHInstrumentationEventSessionStarted];
-        // Return success without starting the guest task
-        return 0;
-    }
+    // Record semantic event before starting guest thread
+    [ISHInstrumentation recordEvent:ISHInstrumentationEventGuestThreadStart];
 
     task_start(current);
 
@@ -258,6 +344,10 @@
 #if !ISH_LINUX
 - (void)processExited:(NSNotification *)notif {
     int pid = [notif.userInfo[@"pid"] intValue];
+    // In shell-only mode, sessionPid is -1 (no live session)
+    // Skip all exit handling because there's no guest to exit
+    if (self.sessionPid < 0)
+        return;
     if (pid != self.sessionPid)
         return;
 
