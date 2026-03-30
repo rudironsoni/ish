@@ -70,6 +70,9 @@ void trace_emit_task_create_return(uint32_t pid, uint64_t task_ptr);
 void trace_emit_construct_task_done(uint32_t pid, uint64_t task_ptr, uint64_t mm, uint64_t mem);
 void trace_emit_task_start_pointer(uint64_t task_ptr);
 
+/* Task proof points for narrowing task_start() failure */
+void trace_emit_task_proof_point(task_proof_point_t point, uint32_t pid);
+
 /* Task handoff proof events */
 void trace_emit_task_handoff_parent_pre_create(uint64_t task_ptr, uint64_t mm, uint64_t mem,
                                                uint32_t pid, uint64_t host_thread_id);

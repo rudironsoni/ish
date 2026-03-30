@@ -19,7 +19,15 @@ typedef NS_ENUM(NSInteger, ISHInstrumentationEvent) {
     ISHInstrumentationEventSessionExecReady,
     ISHInstrumentationEventGuestThreadStart,
     ISHInstrumentationEventRecoveryDetected,
-    ISHInstrumentationEventShutdownClean
+    ISHInstrumentationEventShutdownClean,
+    // Proof point events
+    ISHInstrumentationEventTaskProofStartEnter,
+    ISHInstrumentationEventTaskProofBeforePthread,
+    ISHInstrumentationEventTaskProofAfterPthread,
+    ISHInstrumentationEventTaskProofThreadEntry,
+    ISHInstrumentationEventTaskProofAfterCurrentSet,
+    ISHInstrumentationEventTaskProofRunCurrentEnter,
+    ISHInstrumentationEventTaskProofBeforeGuestCpu
 };
 
 @interface ISHInstrumentation : NSObject

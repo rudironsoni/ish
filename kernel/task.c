@@ -243,6 +243,9 @@ void task_destroy(struct task *task)
 
 void task_run_current()
 {
+    // PROOF POINT #6: task_run_current() entry
+    trace_emit_task_proof_point(TASK_PROOF_RUN_CURRENT_ENTER, current ? current->pid : 0);
+
     // TRACE-ONLY: Entry trace with current pointer
     trace_emit_task_run_current_entry_check((uint64_t)current);
     trace_emit_task_run_current_entry((uint64_t)current, current ? current->pid : 0);
@@ -280,6 +283,9 @@ void task_run_current()
     // TRACE-ONLY: CPU state validation passed
     trace_emit_pstate_snapshot((uint64_t)cpu->pc, cpu->pstate, (cpu->pstate >> 28) & 0xF);
 
+    // PROOF POINT #7: Before entering guest CPU execution
+    trace_emit_task_proof_point(TASK_PROOF_BEFORE_GUEST_CPU, current ? current->pid : 0);
+
     struct tlb tlb = {};
     tlb_refresh(&tlb, &current->mem->mmu);
     a64_cpu_run(cpu, &tlb);
@@ -290,6 +296,10 @@ static void *task_thread(void *task)
 {
     // Get host thread ID for correlation
     uint64_t host_thread_id = (uint64_t)pthread_self();
+
+    // PROOF POINT #4: task_thread() entry - first line
+    struct task *task_arg_early = (struct task *)task;
+    trace_emit_task_proof_point(TASK_PROOF_THREAD_ENTRY, task_arg_early ? task_arg_early->pid : 0);
 
     // PROOF TRACE #3: Child thread entry, BEFORE setting current
     // Read directly from task argument (not via current)
@@ -308,6 +318,9 @@ static void *task_thread(void *task)
     trace_emit_task_thread_before_set((uint64_t)task, (uint64_t)current);
 
     current = task;
+
+    // PROOF POINT #5: After current = task
+    trace_emit_task_proof_point(TASK_PROOF_AFTER_CURRENT_SET, current ? current->pid : 0);
 
     trace_emit_task_thread_after_set((uint64_t)task, (uint64_t)current);
 
@@ -353,6 +366,9 @@ __attribute__((constructor)) static void create_attr()
 
 void task_start(struct task *task)
 {
+    // PROOF POINT #1: task_start() entry
+    trace_emit_task_proof_point(TASK_PROOF_START_ENTER, task ? task->pid : 0);
+
     // STEP 3: Validate child state before starting thread
     if (task->pid == 0) {
         die("task_start: task->pid is 0");
@@ -390,8 +406,15 @@ void task_start(struct task *task)
     // Diagnostic: trace the pointer value and dereferenced pid
     trace_emit_task_start_pointer((uint64_t)task);
     trace_emit_task_start(task ? task->pid : 999999); // 999999 indicates null task
+
+    // PROOF POINT #2: Right before pthread_create
+    trace_emit_task_proof_point(TASK_PROOF_BEFORE_PTHREAD, task ? task->pid : 0);
+
     if (pthread_create(&task->thread, &task_thread_attr, task_thread, task) < 0)
         die("could not create thread");
+
+    // PROOF POINT #3: Right after pthread_create returns
+    trace_emit_task_proof_point(TASK_PROOF_AFTER_PTHREAD, task ? task->pid : 0);
 }
 
 int_t sys_sched_yield()

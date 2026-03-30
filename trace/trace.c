@@ -597,6 +597,50 @@ void trace_emit_task_run_current_entry_check(uint64_t current_ptr)
 }
 
 /* ============================================
+ * Task Proof Points for narrowing task_start() failure
+ * ============================================ */
+void trace_emit_task_proof_point(task_proof_point_t point, uint32_t pid)
+{
+    /* TEMPORARY: Direct fprintf to stderr to verify execution - bypasses all bridge logic */
+    fprintf(stderr, "[PROOF POINT] point=%d pid=%u\n", point, pid);
+    fflush(stderr);
+
+    /* Use existing ISHInstrumentation bridge - crash-survivable, minimal state */
+    /* Convert proof point to semantic event for ISHInstrumentation */
+    switch (point) {
+        case TASK_PROOF_START_ENTER:
+            ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
+                                              "task_proof_start_enter");
+            break;
+        case TASK_PROOF_BEFORE_PTHREAD:
+            ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
+                                              "task_proof_before_pthread");
+            break;
+        case TASK_PROOF_AFTER_PTHREAD:
+            ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
+                                              "task_proof_after_pthread");
+            break;
+        case TASK_PROOF_THREAD_ENTRY:
+            ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
+                                              "task_proof_thread_entry");
+            break;
+        case TASK_PROOF_AFTER_CURRENT_SET:
+            ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
+                                              "task_proof_after_current_set");
+            break;
+        case TASK_PROOF_RUN_CURRENT_ENTER:
+            ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
+                                              "task_proof_run_current_enter");
+            break;
+        case TASK_PROOF_BEFORE_GUEST_CPU:
+            ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
+                                              "task_proof_before_guest_cpu");
+            break;
+    }
+    (void)pid;
+}
+
+/* ============================================
  * Output and Utility - STUBBED
  * ============================================ */
 
