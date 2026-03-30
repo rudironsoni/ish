@@ -8,9 +8,9 @@ This command implements the mandatory outer-loop that processes cases automatica
 
 ## Critical Rule: Selection is NOT Terminal
 
-**The loop must NOT stop when selecting a new active case.**
+**The loop MUST NOT stop when selecting a new active case.**
 
-After promotion, the loop must:
+After promotion, the loop MUST:
 1. Select the next lawful case
 2. IMMEDIATELY dispatch into its required stage
 3. Continue until an explicit stop condition is met
@@ -39,10 +39,10 @@ The loop runs continuously within the current phase until:
 
 **App case patterns:** `APPSIM-*`, `APP-*`
 
-For app cases, `phase-drive` MUST dispatch through mandatory subagents and skills:
+For app cases, `phase-drive` MUST dispatch through mandatory subagents and skills with instrumentation awareness:
 
 ### Startup Stage (before first iteration)
-- `harness-doctor` - verify control plane
+- `harness-doctor` - verify control plane and instrumentation readiness
 - `orchestrator` - overall coordination
 - `phase-gate` - phase validation
 - `ios-app-driver` - XcodeBuildMCP capability audit (app cases only)
@@ -51,21 +51,25 @@ For app cases, `phase-drive` MUST dispatch through mandatory subagents and skill
 - `orchestrator` - case selection
 - `phase-gate` - phase boundary validation
 - Skip legacy cases (IOS-001, IOS-002, IOS-003: excluded from selection)
+- Detect Task Zero cases (`app_shell_mode: task_zero`)
+- Detect instrumentation stage requirements
 
 ### Preflight Stage (case-preflight)
 For app cases:
 - `simulator-launch-audit` skill
 - `app-case-lifecycle` skill
 - `meson-wire-check` skill
+- `instrumentation-stage-audit` skill (verify required stage reachable)
 - Validation only (no state mutation)
-- Stateless: verify defaults resolvable, simulator targetable
+- Stateless: verify defaults resolvable, simulator targetable, instrumentation stage achievable
 
 ### Implementation/Work Stage (case-work, case-run)
 For app cases:
 - `ios-app-driver` subagent - XcodeBuildMCP operations
 - `self-healing-runner` subagent - bounded retry discipline
-- `boot-milestone-auditor` subagent - milestone extraction
+- `boot-milestone-auditor` subagent - milestone extraction with instrumentation awareness
 - `crash-classifier` subagent - signature normalization
+- `instrumentation-verifier` subagent - verify instrumentation events
 
 **Primary operation:** `build_run_sim` (for smoke tests)
 **Relaunch operation:** `launch_app_logs_sim` (when build known-good)
@@ -77,11 +81,48 @@ For app cases:
 - `review-skeptic` - adversarial review
 - `simulator-artifact-verifier` subagent - artifact validation
 - `exec-entry-truth` subagent - process entry validation (where relevant)
+- `instrumentation-verifier` subagent - verify instrumentation events match expected
 
 ### Promotion Stage (case-promote)
 - `orchestrator` - coordination
 - `phase-gate` - phase progression validation
 - `active-case-lifecycle` skill
+- Update instrumentation stage tracking in session state
+
+## App Instrumentation Lifecycle States
+
+The control plane MUST track these app-specific states:
+
+### Task Zero (app-shell stabilization)
+- `app_shell_mode: task_zero`
+- Guest startup: disabled
+- Instrumentation: bootstrap complete
+- Goal: Stabilize app shell without guest execution
+
+### Instrumentation Bootstrap
+- `instrumentation_stage: bootstrap`
+- `main.m` has called `ish_instrumentation_bootstrap()`
+- Minimal initialization complete
+
+### Instrumentation Activation
+- `instrumentation_stage: activate`
+- `AppDelegate` has called `[ISHInstrumentation activate]`
+- All sinks configured and active
+- Event recording enabled
+
+### Runtime Reintroduction
+- `app_shell_mode: full_guest`
+- Guest execution enabled
+- Runtime boundary reduction proceeds one boundary at a time
+- Each boundary MUST report:
+  - Last known good point
+  - First known bad point
+  - Exact failing edge
+
+### Observability Freeze
+- Trigger: Active blocker becomes runtime/kernel
+- Effect: Broad observability work stops
+- Allowed: Narrow semantic event additions required for proof only
 
 ## Behavior
 
@@ -93,10 +134,10 @@ phase-drive:
   
   LOOP until terminal_stop:
     1. Check continuation invariants from active.yaml:
-       - can_continue: must be true
-       - terminal_stop: must be false
-       - budget_remaining: must be > 0
-       - stop_reason: must be null
+       - can_continue: MUST be true
+       - terminal_stop: MUST be false
+       - budget_remaining: MUST be > 0
+       - stop_reason: MUST be null
     
     2. If any invariant violated → EXIT with explicit stop_reason
     
@@ -108,6 +149,8 @@ phase-drive:
          - Run case-next to select active case
          - Skip legacy/deprecated cases (exclude_from_selection: true)
          - Detect app cases (APPSIM-*, APP-*) for specialized dispatch
+         - Detect Task Zero cases for specialized handling
+         - Detect instrumentation stage requirements
          - Update active.yaml with new case
          - Set next_action based on case state:
            ├─ STUB with no substrate → next_action = SCAFFOLD
@@ -117,6 +160,7 @@ phase-drive:
            └─ INVALID → EXIT with stop_reason = "INVALID"
          
          - If entering new phase → EMIT phase boundary report
+         - If Task Zero case → EMIT Task Zero mode report
        
        IF next_action = "SCAFFOLD":
          - Scaffold case directory and contract files
@@ -144,6 +188,7 @@ phase-drive:
        IF next_action = "VERIFY":
          - Run case-verify
          - For app cases: invoke boot-milestone-auditor, crash-classifier
+         - For app cases with instrumentation: invoke instrumentation-verifier
          - Produce evidence-backed classification
          - Set next_action = PROMOTE
          - DO NOT EXIT - continue immediately
@@ -153,6 +198,8 @@ phase-drive:
          - Update status.yaml (ONLY case-promote may mutate status)
          - Increment session_case_count
          - Update execution_log
+         - Update instrumentation stage tracking
+         - If Task Zero case promoted → note Task Zero complete
          - If gate case and status = REAL FAIL → terminal_stop
          - If all gate cases in current phase = REAL PASS → terminal_stop (phase complete)
          - Set next_action = SELECT (marks case_just_promoted)
@@ -169,12 +216,12 @@ Before each iteration, `phase-drive` MUST verify:
 
 ```yaml
 continuation_invariants:
-  can_continue: true       # Must be true to continue
-  terminal_stop: false     # Must be false to continue
-  budget_remaining: 4      # Must be > 0
-  stop_reason: null        # Must be null
-  auto_continue: true      # Must be true
-  next_action: "IMPLEMENT" # Must be actionable (not "STOP")
+  can_continue: true       # MUST be true to continue
+  terminal_stop: false     # MUST be false to continue
+  budget_remaining: 4      # MUST be > 0
+  stop_reason: null        # MUST be null
+  auto_continue: true      # MUST be true
+  next_action: "IMPLEMENT" # MUST be actionable (not "STOP")
 ```
 
 **Invariant:** If `can_continue = true` and `terminal_stop = false`, the session MAY NOT end.
@@ -204,14 +251,26 @@ The loop MUST NOT exit when:
 - Verify just classified the case
 - A case was just promoted (select next immediately)
 - First crash occurred (retry allowed)
+- Task Zero mode was just activated
+
+## App Case Specific Terminal Conditions
+
+Additional terminal conditions for app cases:
+- **Task Zero stabilization failed** - App shell crashes before guest startup
+- **Instrumentation bootstrap failed** - `ish_instrumentation_bootstrap()` fails
+- **Instrumentation activation failed** - `[ISHInstrumentation activate]` fails
+- **Runtime boundary reduction exhausted** - All boundaries identified, exact failing edge found
 
 ## Reporting Policy
 
 **Human-facing reports (emitted only at):**
 - Phase boundaries: "Phase 02b complete: 6/6 gate cases REAL PASS"
+- Task Zero transitions: "Task Zero complete: app shell stabilized"
+- Instrumentation stage transitions: "Instrumentation activated: all sinks configured"
 - Terminal stop: "Stopped: Gate case APPSIM-003 REAL FAIL"
 - Invalid stop: "Stopped: Invalid control behavior detected"
 - Gate-case REAL FAIL: Immediate report with crash signature and failing milestone
+- Runtime boundary: "Runtime boundary N: last_good=X, first_bad=Y, exact_edge=Z"
 
 **Machine-readable state (updated after every transition):**
 - `tests/cases/status.yaml`
@@ -222,6 +281,7 @@ The loop MUST NOT exit when:
 - Scaffolding success
 - Preflight success
 - Successful promotion (unless phase boundary)
+- Instrumentation event recording (unless required for proof)
 
 ## Session State Machine
 
@@ -237,15 +297,32 @@ session_state:
     budget_remaining: 4
     stop_reason: null
   
-  # These must be updated after every transition
+  # These MUST be updated after every transition
   continued_last_transition: true  # Did we actually continue?
   last_transition: "PROMOTE → SELECT"
   
   # App-specific tracking
   app_session_state:
     current_app_stage: null
+    app_shell_mode: "task_zero"  # or "full_guest"
+    instrumentation_stage: null  # "bootstrap", "activate", "runtime"
+    task_zero_complete: false
     retry_count: 0
     relaunch_count: 0
+    
+  # Instrumentation tracking
+  instrumentation_state:
+    bootstrapped: false
+    activated: false
+    events_recorded: []
+    last_event_timestamp: null
+    
+  # Runtime boundary tracking
+  runtime_boundary_state:
+    current_boundary: null
+    last_known_good: null
+    first_known_bad: null
+    exact_failing_edge: null
 ```
 
 ## Output Format
@@ -267,24 +344,45 @@ phase_drive_result:
     gate_cases_failed: 0
     status: "IN_PROGRESS"
   
+  # App-specific progress
+  app_progress:
+    task_zero_complete: true
+    instrumentation_stage: "activate"
+    app_shell_stable: true
+    guest_startup: "disabled"  # or "enabled"
+    runtime_boundaries:
+      - boundary: 1
+        status: "REAL PASS"
+        last_known_good: "guest_init_entered"
+        first_known_bad: null
+      - boundary: 2
+        status: "IN_PROGRESS"
+        last_known_good: "elf_exec_entered"
+        first_known_bad: "elf_exec_returned"
+  
   execution_log:
     - case_id: "APPSIM-001"
       status: "REAL PASS"
       promotion_at: "2026-03-27T00:10:00Z"
       continued_to: "APPSIM-002"
+      instrumentation_events: ["app_launched", "instrumentation_bootstrapped"]
     - case_id: "APPSIM-002"
       status: "REAL PASS"
       promotion_at: "2026-03-27T00:20:00Z"
       continued_to: "APPSIM-003"
+      instrumentation_events: ["instrumentation_activated"]
     - case_id: "APPSIM-003"
       status: "REAL PASS"
       promotion_at: "2026-03-27T00:30:00Z"
       continued_to: "APPSIM-004"
+      instrumentation_events: []
   
   final_state:
     current_stage: "IMPLEMENT"
     active_case: "APPSIM-004"
     next_action: "RUN"
+    app_shell_mode: "task_zero"
+    instrumentation_stage: "activate"
   
   continuation_invariants:
     can_continue: true
@@ -319,6 +417,7 @@ Then the session MUST be classified as **invalid control behavior**.
 - `self-healing-runner` - bounded retry discipline (app cases)
 - `simulator-artifact-verifier` - app artifact validation (app cases)
 - `exec-entry-truth` - process entry validation (app cases, where relevant)
+- `instrumentation-verifier` - instrumentation event validation (app cases)
 
 ## Required Skills
 
@@ -330,6 +429,8 @@ Then the session MUST be classified as **invalid control behavior**.
 - `app-case-lifecycle` (app cases)
 - `boot-log-milestone-audit` (app cases)
 - `crash-signature-normalizer` (app cases)
+- `instrumentation-stage-audit` (app cases)
+- `runtime-boundary-reduction` (app cases with guest execution)
 
 ## Constraints
 
@@ -343,3 +444,7 @@ Then the session MUST be classified as **invalid control behavior**.
 - MUST scope autonomous execution to current-phase only by default
 - MUST detect app cases and dispatch through mandatory subagents/skills
 - MUST hardcode retry policy (one retry, same signature stops)
+- MUST track Task Zero as first-class state
+- MUST track instrumentation stage transitions
+- MUST freeze broad observability once runtime becomes active blocker
+- MUST require exact boundary reduction for runtime issues

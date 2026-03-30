@@ -48,6 +48,25 @@ This is the FIRST REQUIRED COMMAND for all non-trivial work. No other commands m
    - App artifact schemas present in schema.yaml
    - Phase 02b and 02c cases exist in status.yaml
 
+8. **Verify instrumentation architecture readiness:**
+   - `ISHInstrumentation` framework reference defined
+   - C bridge API references present (`ish_instrumentation_*`)
+   - Objective-C façade references present (`[ISHInstrumentation *]`)
+   - No stale trace ownership assumptions
+   - No direct NSLog/os_log in product code for investigation
+   - Instrumentation lifecycle ownership defined (app owns, lower layers emit only)
+   - Task Zero mode defined as first-class state
+
+9. **Verify Task Zero readiness:**
+   - Task Zero cases defined (app_shell_mode: task_zero)
+   - Task Zero gate criteria documented
+   - App shell stabilization criteria defined
+
+10. **Verify observability freeze rule:**
+    - Observability freeze trigger defined
+    - Freeze conditions documented
+    - Narrow exception criteria defined
+
 ## Fail-Closed Conditions
 
 This command MUST refuse and exit with error if:
@@ -63,6 +82,39 @@ This command MUST refuse and exit with error if:
 - Broken placeholders exist
 - Hardcoded control-plane path regressions exist
 - Meson-only policy contradictions detected
+- Stale trace ownership assumptions present
+- Instrumentation ownership model not defined
+- Task Zero mode not defined
+- Observability freeze rule not defined
+- Product code assumed to own instrumentation bootstrap
+
+## Stale Assumptions Check
+
+This command MUST verify NO stale assumptions exist:
+- Trace system does NOT own instrumentation policy
+- Trace backends do NOT own bootstrap
+- Product code does NOT call NSLog/os_log for investigation
+- Constructor markers are NOT used for instrumentation
+- Startup proof files are NOT required
+- Ring recovery is NOT the expected startup behavior
+
+## Instrumentation Architecture Verification
+
+MUST verify these are defined:
+- `ISHInstrumentation` framework
+- C bridge: `ish_instrumentation_bootstrap`, `ish_instrumentation_activate`, `ish_instrumentation_is_active`
+- C bridge events: `ish_instrumentation_record_event`, `ish_instrumentation_begin_interval`, `ish_instrumentation_end_interval`
+- Objective-C façade: `[ISHInstrumentation bootstrap]`, `[ISHInstrumentation activate]`, `[ISHInstrumentation recordEvent:]`
+- Ownership: app owns lifecycle, lower layers emit semantic events only
+
+## Task Zero Verification
+
+MUST verify Task Zero is defined as:
+- Guest startup disabled
+- App shell stabilized
+- Terminal UI reachable without guest execution
+- Runtime reintroduction blocked until shell is stable
+- Instrumentation bootstrap complete
 
 ## Output Format
 
@@ -81,6 +133,16 @@ harness_health:
     required_skills_mapped: true
     patch_scope_enforcement: true
     retry_budgets_defined: true
+    # Instrumentation checks
+    instrumentation_architecture_defined: true
+    instrumentation_ownership_model_defined: true
+    task_zero_mode_defined: true
+    observability_freeze_defined: true
+    no_stale_trace_assumptions: true
+    # Stale assumption checks
+    trace_ownership_stale: false
+    product_code_instrumentation_bootstrap: false
+    direct_nslog_in_product_code: false
   failures: []
   next_command: "case-next"
 ```
@@ -99,11 +161,13 @@ This command MUST be run FIRST before:
 
 - `orchestrator` — for overall coordination
 - `phase-gate` — for phase validation
+- `instrumentation-verifier` — for instrumentation architecture validation
 
 ## Required Skills
 
 - `harness-health-audit`
 - `phase-gate-audit`
+- `instrumentation-stage-audit`
 
 ## Constraints
 
@@ -112,3 +176,5 @@ This command MUST be run FIRST before:
 - Does NOT select active case
 - Blocks ALL downstream commands on failure
 - Must report exact failure reason
+- MUST fail closed on stale trace ownership assumptions
+- MUST verify instrumentation architecture is defined

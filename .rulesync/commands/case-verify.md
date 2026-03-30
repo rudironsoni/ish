@@ -1,6 +1,6 @@
 # case-verify
 
-Produce evidence-backed classification for the active case. Run verifier, anti-slop, and review-skeptic.
+Produce evidence-backed classification for the active case. Run verifier, anti-slop, review-skeptic, and instrumentation-verifier.
 
 ## Purpose
 
@@ -30,20 +30,44 @@ Produce exact evidence-backed classification. This is the ONLY lawful way to det
    - Detect fake success patterns
    - Check for placeholder behavior
    - Verify no success-on-fallback
+   - Verify instrumentation ownership
+   - Verify Task Zero compliance
 
 4. **Run review-skeptic:**
    - Challenge optimistic narratives
    - Verify evidence matches claims
    - Confirm no overclaiming
 
-5. **Run phase-gate (if relevant):**
+5. **Run instrumentation-verifier (for app cases):**
+   - Verify instrumentation stage reached
+   - Verify events recorded via C bridge
+   - Verify app owns lifecycle
+   - Verify no direct os_log/NSLog in product code
+   - Verify Task Zero complete (if task_zero mode)
+
+6. **Run boot-milestone-auditor (for app cases):**
+   - Extract boot milestones
+   - Verify milestone ordering
+   - Verify Task Zero milestones (if task_zero mode)
+   - Verify runtime boundaries (if full_guest mode)
+
+7. **Run crash-classifier (for app cases if crash):**
+   - Normalize crash signature
+   - Identify last completed milestone
+   - Identify first failing milestone
+   - Report exact failing edge
+
+8. **Run phase-gate (if relevant):**
    - Check if phase can progress
    - Verify all gate cases in phase
 
-6. **Produce classification:**
+9. **Produce classification:**
    - Determine exact status: REAL PASS | REAL FAIL | STUB | BLOCKED | INVALID
    - Generate mismatch summary
    - Produce evidence result
+   - Report instrumentation verification (app cases)
+   - Report Task Zero status (app cases)
+   - Report runtime boundary status (app cases)
 
 ## Fail-Closed Conditions
 
@@ -54,27 +78,58 @@ This command MUST refuse and report ILLEGAL if:
 - Verifier cannot determine status
 - Implementation code tries to force status
 - Anti-slop detects fake success
+- **Instrumentation events not via C bridge (app cases)**
+- **Task Zero not complete but full_guest case attempted (app cases)**
+- **Instrumentation stage not reached (app cases)**
+- **Product code owns instrumentation (app cases)**
 
 ## Output Format
 
 ```yaml
 verification_result:
-  case_id: "TRACE-002"
-  phase: "00-trace-harness"
+  case_id: "APPSIM-003"
+  phase: "02b-ios-simulator-harness"
   final_status: "REAL PASS"  # REAL PASS | REAL FAIL | STUB | BLOCKED | INVALID
+  
   artifacts_produced:
-    - "trace.ring"
-    - "trace.json"
+    - "sim_launch.json"
+    - "boot_milestones.json"
     - "report.json"
+    - "instrumentation_events.json"
+  
+  # App case specific
+  app_shell_mode: "task_zero"  # or "full_guest"
+  instrumentation_stage_reached: "activate"
+  task_zero_complete: true
+  
+  instrumentation_verification:
+    stage_reached: "activate"
+    events_verified: true
+    ownership_correct: true
+    no_direct_nslog: true
+    compliant: true
+  
+  runtime_boundary:
+    boundary_id: "guest_init_first_syscall"
+    last_known_good: "guest_init_entered"
+    first_known_bad: null
+    exact_failing_edge: null
+    compliant: true
+  
   verifier_result: "PASS"
   anti_slop_result: "PASS"
   review_skeptic_result: "PASS"
+  instrumentation_verifier_result: "PASS"
   phase_gate_result: "PASS"
+  
   mismatch_summary: null  # or detailed mismatch report
   evidence_result:
     artifacts_match_expected: true
     harness_executed: true
     no_placeholder_behavior: true
+    instrumentation_compliant: true
+    task_zero_complete: true
+  
   recommended_next_action: "PROMOTE"  # PROMOTE | REPAIR | BLOCKED
   retry_budget_recommendation: "CONTINUE"  # CONTINUE | EXHAUSTED
 ```
@@ -96,11 +151,16 @@ This command runs BEFORE:
 - `verifier` — for evidence comparison
 - `anti-slop` — for fake success detection
 - `review-skeptic` — for adversarial review
+- `instrumentation-verifier` — for app cases
+- `boot-milestone-auditor` — for app cases
+- `crash-classifier` — for app cases (if crash)
 
 ## Required Skills
 
 - `phase-gate-audit`
 - `anti-slop-review`
+- `instrumentation-stage-audit` — for app cases
+- `runtime-boundary-reduction` — for app cases with guest execution
 
 ## Constraints
 
@@ -108,4 +168,7 @@ This command runs BEFORE:
 - Does NOT modify files
 - Does NOT mark status directly
 - Returns exact classification only
+- Verifies instrumentation for app cases
+- Verifies Task Zero for app cases
+- Verifies runtime boundaries for full_guest cases
 - Must pass before promotion allowed
