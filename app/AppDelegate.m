@@ -285,6 +285,9 @@ void SyncHostname(void) {
         return YES;
     }
 
+    // Activate instrumentation before boot to capture all kernel events
+    [ISHInstrumentation activate];
+
     bootError = [self boot];
 
 #if ISH_LINUX

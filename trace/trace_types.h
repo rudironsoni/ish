@@ -62,6 +62,19 @@ typedef enum {
 } trace_backend_t;
 
 /* ============================================
+ * Task proof points for narrowing task_start() failure
+ * ============================================ */
+typedef enum {
+    TASK_PROOF_START_ENTER = 1,
+    TASK_PROOF_BEFORE_PTHREAD,
+    TASK_PROOF_AFTER_PTHREAD,
+    TASK_PROOF_THREAD_ENTRY,
+    TASK_PROOF_AFTER_CURRENT_SET,
+    TASK_PROOF_RUN_CURRENT_ENTER,
+    TASK_PROOF_BEFORE_GUEST_CPU
+} task_proof_point_t;
+
+/* ============================================
  * Event IDs - core taxonomy for phase 1
  * ============================================ */
 typedef enum {

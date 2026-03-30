@@ -20,10 +20,33 @@ bool ish_instrumentation_is_active(void) {
 
 void ish_instrumentation_record_event(ish_instrumentation_origin_t origin, const char *event_name) {
     (void)origin;
-    (void)event_name;
-    // Map event name string to ISHInstrumentationEvent enum
-    // For now, record all events as BootstrapReady (minimal implementation)
-    [ISHInstrumentation recordEvent:ISHInstrumentationEventBootstrapReady];
+
+    ISHInstrumentationEvent event = ISHInstrumentationEventBootstrapReady; // default
+
+    if (strcmp(event_name, "task_proof_start_enter") == 0) {
+        event = ISHInstrumentationEventTaskProofStartEnter;
+    } else if (strcmp(event_name, "task_proof_before_pthread") == 0) {
+        event = ISHInstrumentationEventTaskProofBeforePthread;
+    } else if (strcmp(event_name, "task_proof_after_pthread") == 0) {
+        event = ISHInstrumentationEventTaskProofAfterPthread;
+    } else if (strcmp(event_name, "task_proof_thread_entry") == 0) {
+        event = ISHInstrumentationEventTaskProofThreadEntry;
+    } else if (strcmp(event_name, "task_proof_after_current_set") == 0) {
+        event = ISHInstrumentationEventTaskProofAfterCurrentSet;
+    } else if (strcmp(event_name, "task_proof_run_current_enter") == 0) {
+        event = ISHInstrumentationEventTaskProofRunCurrentEnter;
+    } else if (strcmp(event_name, "task_proof_before_guest_cpu") == 0) {
+        event = ISHInstrumentationEventTaskProofBeforeGuestCpu;
+    } else if (strcmp(event_name, "session.bootstrap.ready") == 0) {
+        event = ISHInstrumentationEventSessionBootstrapReady;
+    } else if (strcmp(event_name, "session.exec.ready") == 0) {
+        event = ISHInstrumentationEventSessionExecReady;
+    } else if (strcmp(event_name, "guest.thread.start") == 0) {
+        event = ISHInstrumentationEventGuestThreadStart;
+    }
+    // Add other event mappings as needed
+
+    [ISHInstrumentation recordEvent:event];
 }
 
 uint64_t ish_instrumentation_begin_interval(ish_instrumentation_origin_t origin, const char *interval_name,

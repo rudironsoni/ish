@@ -43,6 +43,21 @@ static inline const char *ISHInstrumentationEventName(ISHInstrumentationEvent ev
             return "session.exec.ready";
         case ISHInstrumentationEventGuestThreadStart:
             return "guest.thread.start";
+        // Proof point events
+        case ISHInstrumentationEventTaskProofStartEnter:
+            return "task.proof.start_enter";
+        case ISHInstrumentationEventTaskProofBeforePthread:
+            return "task.proof.before_pthread";
+        case ISHInstrumentationEventTaskProofAfterPthread:
+            return "task.proof.after_pthread";
+        case ISHInstrumentationEventTaskProofThreadEntry:
+            return "task.proof.thread_entry";
+        case ISHInstrumentationEventTaskProofAfterCurrentSet:
+            return "task.proof.after_current_set";
+        case ISHInstrumentationEventTaskProofRunCurrentEnter:
+            return "task.proof.run_current_enter";
+        case ISHInstrumentationEventTaskProofBeforeGuestCpu:
+            return "task.proof.before_guest_cpu";
         default:
             return "unknown";
     }
@@ -65,6 +80,7 @@ static inline const char *ISHInstrumentationEventName(ISHInstrumentationEvent ev
 + (void)recordEvent:(ISHInstrumentationEvent)event {
     const char *eventName = ISHInstrumentationEventName(event);
 
+    NSLog(@"[ISHInstrumentation] Event: %s", eventName);
     os_log(g_ish_log, "Event: %{public}s", eventName);
 
 #if defined(__IPHONE_12_0) || defined(__MAC_10_14)
