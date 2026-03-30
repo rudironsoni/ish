@@ -95,6 +95,12 @@ struct task {
     lock_t waiting_cond_lock;
 };
 
+static_assert(sizeof(struct task) == 1888, "task size changed");
+static_assert(offsetof(struct task, cpu) == 0, "task.cpu offset changed");
+static_assert(offsetof(struct task, mm) == 1056, "task.mm offset changed");
+static_assert(offsetof(struct task, mem) == 1064, "task.mem offset changed");
+static_assert(offsetof(struct task, pid) == 1112, "task.pid offset changed");
+
 // current will always give the process that is currently executing
 // if I have to stop using __thread, current will become a macro
 extern __thread struct task *current;
