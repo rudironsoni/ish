@@ -1,7 +1,7 @@
 ---
 root: true
 targets: ["*"]
-description: "Repository-wide non-negotiable rules for agent-first harness engineering"
+description: "Repository-wide non-negotiable rules for iSH control-plane work"
 globs: ["**/*"]
 ---
 
@@ -17,10 +17,14 @@ These are repository-wide non-negotiable rules.
 4. No direct edits to generated outputs.
 5. No phase skipping.
 6. No success-on-fallback behavior.
-7. No case without explicit Meson wiring.
-8. No vague completion claim without verifier and anti-slop review.
+7. No case without explicit build wiring.
+8. No vague completion claim without evidence review.
 9. No later-phase progression while earlier gate cases are not `REAL PASS`.
-10. No broad runtime debugging when a smaller failing case can be authored or repaired first.
+10. No broad debugging while a smaller failing boundary can be reduced first.
+11. No app bootstrap ownership outside app-owned `ISHInstrumentation`.
+12. No direct investigation logging in product code.
+13. No guest-runtime reintroduction before Task Zero is `REAL PASS`.
+14. No broad observability work once runtime/kernel is the active blocker.
 
 ## Required status vocabulary
 
@@ -31,123 +35,42 @@ Use only:
 - `BLOCKED`
 - `INVALID`
 
-Do not invent softer synonyms.
-
 ## Repository posture
 
 - Prefer smaller units.
 - Prefer explicit contracts.
 - Prefer deterministic fixtures.
 - Prefer repo-local truth.
-- Prefer real execution paths over simulated proof.
+- Prefer exact failing edges over broad narratives.
 
-## Instrumentation ownership model
+## Instrumentation ownership
 
-**CRITICAL:** Product code MUST emit semantic instrumentation events only. The app-owned `ISHInstrumentation` framework owns lifecycle and sinks.
+The canonical instrumentation system is `ISHInstrumentation`.
 
-### Architecture
+### Ownership model
 
-```
-Product code (kernel/*, app/*, emu/*, tcti/*)
-    ↓
-Emit semantic events via C bridge API (ish_instrumentation_*)
-    ↓
-ISHInstrumentation framework (app-owned)
-    ↓
-Route to configured sinks:
-    - Apple local logging / os_log
-    - Signposts
-    - OpenTelemetry Swift spans/export
-    - MetricKit subscriber integration
-```
+- `main.m` MUST own minimal instrumentation bootstrap only.
+- `AppDelegate` MUST own instrumentation activation.
+- Lower layers MUST emit semantic events only.
+- Lower layers MUST NOT own bootstrap, backend selection, recovery, persistence, or export policy.
 
-### Forbidden patterns
+### Product code isolation
 
-- Product code MUST NOT own instrumentation bootstrap policy
-- Product code MUST NOT own backend selection
-- Product code MUST NOT own recovery or persistence logic
-- NO direct printk/ISH_LOG/NSLog/os_log for investigation in product code
-- NO backend-specific formatting in product code
-- NO mixed observability (product code + direct logging)
-- NO constructor markers for instrumentation bootstrap
-- NO startup proof files for trace initialization
-- NO path probes for ring recovery
-- NO trace bootstrap experiments in product code
+- `kernel/*`, `app/*`, `emu/*`, and `tcti/*` MUST emit semantic instrumentation events only.
+- Product code MUST NOT use direct `printk`, `NSLog`, `os_log`, or ad hoc logging for investigation.
+- Product code MUST NOT own instrumentation bootstrap policy.
+- Product code MUST NOT use constructor markers, proof files, startup path probes, or recovery files for investigation.
 
-### Required producer path
+### Allowed producer path
 
-Product code emits semantic events through the C bridge:
+Product code
+→ semantic instrumentation API
+→ app-owned instrumentation bridge
+→ sink fanout
+→ Apple logging / signposts / OpenTelemetry / MetricKit
 
-```c
-// C bridge functions (lower layers use these)
-ish_instrumentation_record_event(const char* name);
-ish_instrumentation_record_event_with_attrs(const char* name, const char* attrs);
-ish_instrumentation_begin_interval(const char* name, const char* attrs);
-ish_instrumentation_end_interval(const char* name, const char* attrs);
-```
+## Control-plane MCPs
 
-The C bridge routes to the Objective-C façade:
-
-```objc
-// Objective-C façade (app-owned, AppDelegate controls)
-[ISHInstrumentation recordEvent:@"event_name"];
-[ISHInstrumentation recordEvent:@"event_name" attributes:@{@"key": @"value"}];
-[ISHInstrumentation beginInterval:@"interval_name" attributes:@{@"key": @"value"}];
-[ISHInstrumentation endInterval:@"interval_name" attributes:@{@"key": @"value"}];
-```
-
-### Lifecycle ownership
-
-- `main.m` owns minimal bootstrap only (`ish_instrumentation_bootstrap()`)
-- `AppDelegate` owns activation (`[ISHInstrumentation activate]`)
-- Lower layers emit semantic events only
-- Lower layers MUST NOT own instrumentation policy
-
-### Violation cleanup required
-
-Any investigation-specific direct logging added to product code MUST be:
-1. Replaced with semantic instrumentation event emissions via C bridge
-2. Removed from product code entirely
-
-Backend-specific output (os_log, NSLog, OpenTelemetry) MUST live ONLY in the app-owned `ISHInstrumentation` sinks.
-
-## App shell stabilization (Task Zero)
-
-**Task Zero** is a first-class control-plane state representing:
-- Guest startup disabled
-- App shell stabilized
-- Terminal UI reachable without guest execution
-- Runtime reintroduction blocked until shell is stable
-
-### Task Zero gate requirements
-
-Before any guest runtime reintroduction:
-1. App MUST bootstrap instrumentation (`ish_instrumentation_bootstrap`)
-2. AppDelegate MUST activate instrumentation (`[ISHInstrumentation activate]`)
-3. App shell MUST be stable (no crashes in app code)
-4. Terminal UI MUST be reachable
-5. Instrumentation MUST be recording events
-
-### Runtime reintroduction discipline
-
-Linux/emulator reintroduction happens one exact boundary at a time:
-- Each boundary MUST have a defined case
-- Each case MUST report:
-  - Last known good point
-  - First known bad point
-  - Exact failing edge
-- NO broad "kernel issue" narratives allowed
-- Runtime reductions MUST be precise
-
-## Observability freeze rule
-
-Once app-shell stabilization and observability migration are complete:
-- When the active blocker becomes runtime/kernel
-- Broad observability work MUST freeze
-- Only narrow semantic event additions required for proof MAY continue
-
-The control plane MUST:
-1. Detect when the blocker shifts to runtime/kernel
-2. Freeze broad instrumentation changes
-3. Require exact boundary reduction for runtime issues
-4. Reject vague "add more logging" requests once freeze is active
+The control plane MUST treat only these as first-class MCPs:
+- `XcodeBuildMCP`
+- `GitHub`
