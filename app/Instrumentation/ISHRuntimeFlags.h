@@ -13,4 +13,10 @@
 // This is the single source of truth for guest startup bypass.
 #define ISH_TASK_ZERO_DISABLE_EMULATION 1
 
+// Task Zero Session Bootstrap: When set to 1, allows session bootstrap
+// (become_new_init_child, PTY creation, create_stdio, do_execve)
+// but STILL BLOCKS task_start(current). This is the smallest safe boundary
+// immediately before guest runtime.
+#define ISH_TASK_ZERO_ALLOW_SESSION_BOOTSTRAP 1
+
 #endif /* ISHRuntimeFlags_h */

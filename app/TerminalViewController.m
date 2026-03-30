@@ -173,14 +173,6 @@
 }
 
 - (int)startSession {
-    // Task Zero: Check if guest execution should be bypassed
-    if (ISH_TASK_ZERO_DISABLE_EMULATION == 1) {
-        // Record deferred event for session
-        [ISHInstrumentation recordEvent:ISHInstrumentationEventSessionStarted];
-        // UI loads normally, no guest execution
-        return 0;
-    }
-
     NSArray<NSString *> *command = UserPreferences.shared.launchCommand;
 
 #if !ISH_LINUX
@@ -214,6 +206,17 @@
     // current->mm and current->mem via mm_release/task_set_mm window.
     // Without this barrier, the child thread may see NULL current->mem.
     __sync_synchronize();
+
+    // Task Zero: When ISH_TASK_ZERO_ALLOW_SESSION_BOOTSTRAP is 1, we allow
+    // session bootstrap (become_new_init_child, PTY creation, create_stdio,
+    // do_execve) but STILL BLOCK task_start(current). This is the smallest
+    // safe boundary immediately before guest runtime.
+    if (ISH_TASK_ZERO_ALLOW_SESSION_BOOTSTRAP == 1) {
+        // Record deferred event - session bootstrap completed but guest not started
+        [ISHInstrumentation recordEvent:ISHInstrumentationEventSessionStarted];
+        // Return success without starting the guest task
+        return 0;
+    }
 
     task_start(current);
 
