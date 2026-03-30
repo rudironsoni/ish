@@ -1,0 +1,36 @@
+{
+  "featureId": "task-n4-boundary-session-bootstrap",
+  "reviewedAt": "2026-03-30T06:00:00.000Z",
+  "commitId": "e245565b",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The implementation correctly reintroduces a runtime boundary for session bootstrap. The ISH_TASK_ZERO_ALLOW_SESSION_BOOTSTRAP flag is properly defined in ISHRuntimeFlags.h and TerminalViewController.m correctly allows session bootstrap functions (become_new_init_child, PTY creation, create_stdio, do_execve) while STILL BLOCKING task_start(current). This creates the smallest safe boundary immediately before guest runtime as specified.",
+    "issues": []
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "The worker correctly used the ISHRuntimeFlags.h pattern established in previous features. The flag naming convention ISH_TASK_ZERO_ALLOW_* is consistent and clear.",
+      "evidence": "ISHRuntimeFlags.h:20 - #define ISH_TASK_ZERO_ALLOW_SESSION_BOOTSTRAP 1"
+    },
+    {
+      "area": "conventions",
+      "observation": "The boundary implementation correctly uses a compile-time flag check before the critical task_start(current) call, with a clear comment explaining the purpose. This follows the pattern established in the codebase.",
+      "evidence": "TerminalViewController.m:210-217 - Clear comment block explaining the boundary, followed by flag check and early return before task_start(current)"
+    },
+    {
+      "area": "skills",
+      "observation": "The worker followed the ios-refactor-worker skill procedure correctly: read source files, made targeted changes, verified build, ran smoke test. The skillFeedback.followedProcedure is true with no deviations.",
+      "evidence": "Handoff shows skillFeedback.followedProcedure: true, deviations: []"
+    },
+    {
+      "area": "services",
+      "observation": "The worker used XcodeBuildMCP commands for building, launching, and smoke testing the app. These are already documented in the services skill.",
+      "evidence": "Transcript shows usage of XcodeBuildMCP___session_set_defaults, XcodeBuildMCP___build_run_sim, XcodeBuildMCP___screenshot, etc."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "This feature successfully implements the session bootstrap boundary as specified. The ISH_TASK_ZERO_ALLOW_SESSION_BOOTSTRAP flag is correctly added to ISHRuntimeFlags.h, and TerminalViewController.m properly allows session bootstrap (become_new_init_child, PTY creation, create_stdio, do_execve) while blocking task_start(current). The implementation fulfills all three validation contract requirements (VAL-TASK4-001, VAL-TASK4-002, VAL-TASK4-003): Task Zero flag is checked in AppDelegate, debug junk is removed from boot path, and Terminal UI loads without guest execution. The smoke test passed (app stayed alive for 30 seconds). Status: PASS with no blocking issues."
+}
