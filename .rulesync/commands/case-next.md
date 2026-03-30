@@ -30,14 +30,28 @@ This command is the ONLY lawful way to select an active case. It reads the machi
    - If status is BLOCKED: move to blocking prerequisite
    - If status is INVALID: requires contract repair first
 
-5. Create/update `tests/cases/active.yaml`:
+5. Detect Task Zero cases:
+   - Check `app_shell_mode` field
+   - If `task_zero`: Task Zero mode (guest disabled, app shell stabilization)
+   - If `full_guest`: Full guest mode (runtime reintroduction)
+   - Task Zero cases MUST be satisfied before full_guest cases
+
+6. Detect instrumentation stage requirements:
+   - Check `instrumentation_stage_required` field
+   - `bootstrap`: Requires `ish_instrumentation_bootstrap()` to succeed
+   - `activate`: Requires `[ISHInstrumentation activate]` to succeed
+   - `runtime`: Requires runtime event emission via C bridge
+
+7. Create/update `tests/cases/active.yaml`:
    - Set case_id, phase, status_before
    - Set retry_budget_remaining (default: 3)
    - Set allowed_patch_scope
    - Set required_subagents and required_skills
    - Set stop_conditions
+   - Set app_shell_mode if app case
+   - Set instrumentation_stage_required if app case
 
-6. Return next-lawful-action output
+8. Return next-lawful-action output
 
 ## Output Format
 
@@ -48,6 +62,11 @@ next_lawful_action:
   current_status: "STUB"
   next_action: "SCAFFOLD"  # SCAFFOLD | IMPLEMENT | REPAIR | VERIFY | PROMOTE | BLOCKED
   reason: "Case directory does not exist; must scaffold first"
+  
+  # App case specific
+  app_shell_mode: "task_zero"  # or "full_guest"
+  instrumentation_stage_required: "bootstrap"  # or "activate" or "runtime"
+  guest_startup: "disabled"  # or "enabled"
   
   required_commands:
     immediate: "case-preflight"
@@ -62,11 +81,13 @@ next_lawful_action:
     - "orchestrator"
     - "harness-author"
     - "trace-observer"
+    - "instrumentation-verifier"  # for app cases with instrumentation
   
   required_skills:
     - "active-case-lifecycle"
     - "phase-gate-audit"
     - "anti-slop-review"
+    - "instrumentation-stage-audit"  # for app cases
   
   allowed_patch_scope:
     level: "case-only"
@@ -77,6 +98,7 @@ next_lawful_action:
     - "Case produces artifacts matching expected.yaml"
     - "Verifier confirms REAL PASS"
     - "Anti-slop review passes"
+    - "Instrumentation stage reached (for app cases)"
   
   retry_budget:
     remaining: 3
@@ -85,6 +107,49 @@ next_lawful_action:
   active_lock:
     created: true
     path: "tests/cases/active.yaml"
+```
+
+## Task Zero Detection
+
+For app cases, detect Task Zero mode:
+
+```yaml
+task_zero_detection:
+  if_app_shell_mode_is: "task_zero"
+  then:
+    guest_startup: "disabled"
+    goal: "Stabilize app shell without guest execution"
+    required_stage: "instrumentation_activate"
+    blocked_until: "AppDelegate activates instrumentation"
+  if_app_shell_mode_is: "full_guest"
+  then:
+    guest_startup: "enabled"
+    goal: "Reintroduce guest runtime one boundary at a time"
+    requires: "Task Zero cases are REAL PASS"
+```
+
+## Instrumentation Stage Detection
+
+For app cases, detect required instrumentation stage:
+
+```yaml
+instrumentation_stage_detection:
+  stage_bootstrap:
+    required: "ish_instrumentation_bootstrap() succeeds"
+    owner: "main.m"
+    events_expected: ["instrumentation_bootstrapped"]
+  
+  stage_activate:
+    required: "[ISHInstrumentation activate] succeeds"
+    owner: "AppDelegate"
+    events_expected: ["instrumentation_activated"]
+    requires: "Stage bootstrap complete"
+  
+  stage_runtime:
+    required: "Runtime emits events via C bridge"
+    owner: "kernel/emu/tcti"
+    events_expected: ["guest_init", "syscall_enter", "syscall_exit"]
+    requires: "Stage activate complete"
 ```
 
 ## Fail-Closed Conditions
@@ -97,6 +162,9 @@ This command MUST refuse and exit with error if:
 - No unsatisfied gate cases exist (all 108 cases are REAL PASS)
 - Multiple cases appear equally eligible (algorithm ambiguity)
 - Required fields are missing from status entries
+- Task Zero cases not defined but app cases present
+- Instrumentation stage requirements missing from app cases
+- Task Zero not satisfied but full_guest cases requested
 
 ## Required Sequence
 
@@ -116,16 +184,21 @@ This command runs AFTER:
 - Never returns multiple cases
 - Never returns a case from a later phase when earlier phases have unsatisfied gates
 - Never returns a BLOCKED case without identifying the blocking prerequisite
+- Never returns a full_guest case when Task Zero cases are not REAL PASS
 - Creates/updates active.yaml
 - Does NOT create scaffolding
 - Does NOT run the case
+- MUST detect Task Zero as first-class state
+- MUST detect instrumentation stage requirements
 
 ## Required Subagents
 
 - orchestrator
 - phase-gate
+- instrumentation-verifier (for app cases)
 
 ## Required Skills
 
 - active-case-lifecycle
 - phase-gate-audit
+- instrumentation-stage-audit (for app cases)
