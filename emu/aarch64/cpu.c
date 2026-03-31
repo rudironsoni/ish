@@ -534,6 +534,9 @@ static void trace_pc_mapping_info(const char *name, uint64_t pc)
     char fd_buf[32];
     char is_interp_buf[8];
     char is_exe_buf[8];
+    char map_start_buf[32];
+    char map_end_buf[32];
+    char file_offset_buf[32];
 
     snprintf(pc_buf, sizeof(pc_buf), "0x%llx", (unsigned long long)pc);
     snprintf(is_interp_buf, sizeof(is_interp_buf), "unknown");
@@ -541,6 +544,9 @@ static void trace_pc_mapping_info(const char *name, uint64_t pc)
     name_buf[0] = '\0';
     fd_buf[0] = '\0';
     flags_buf[0] = '\0';
+    map_start_buf[0] = '\0';
+    map_end_buf[0] = '\0';
+    file_offset_buf[0] = '\0';
 
     // Look up page table entry for this PC
     page_t page = PAGE(pc);
@@ -549,6 +555,41 @@ static void trace_pc_mapping_info(const char *name, uint64_t pc)
     if (entry && entry->data) {
         snprintf(page_buf, sizeof(page_buf), "0x%lx", (unsigned long)page << PAGE_BITS);
         snprintf(flags_buf, sizeof(flags_buf), "0x%x", entry->flags);
+
+        // Scan backward to find mapping start (while data and flags match)
+        page_t map_start_page = page;
+        struct data *ref_data = entry->data;
+        unsigned ref_flags = entry->flags;
+
+        // Scan backward
+        for (page_t pg = page; pg > 0; pg--) {
+            struct pt_entry *e = mem_pt(current->mem, pg - 1);
+            if (!e || e->data != ref_data || e->flags != ref_flags) {
+                break;
+            }
+            map_start_page = pg - 1;
+        }
+
+        // Scan forward to find mapping end (while data and flags match)
+        page_t map_end_page = page;
+        // Scan forward up to reasonable limit
+        for (page_t pg = page; pg < page + 10000 && pg < 0xFFFFFFFF; pg++) {
+            struct pt_entry *e = mem_pt(current->mem, pg + 1);
+            if (!e || e->data != ref_data || e->flags != ref_flags) {
+                break;
+            }
+            map_end_page = pg + 1;
+        }
+
+        snprintf(map_start_buf, sizeof(map_start_buf), "0x%lx",
+                 (unsigned long)map_start_page << PAGE_BITS);
+        snprintf(map_end_buf, sizeof(map_end_buf), "0x%lx",
+                 ((unsigned long)(map_end_page + 1) << PAGE_BITS) - 1);
+
+        // Calculate file offset for this PC
+        size_t page_offset_in_mapping = (page - map_start_page) * PAGE_SIZE;
+        addr_t file_offset = entry->data->file_offset + page_offset_in_mapping + PGOFFSET(pc);
+        snprintf(file_offset_buf, sizeof(file_offset_buf), "0x%lx", (unsigned long)file_offset);
 
         if (entry->data->name) {
             strncpy(name_buf, entry->data->name, sizeof(name_buf) - 1);
@@ -579,12 +620,18 @@ static void trace_pc_mapping_info(const char *name, uint64_t pc)
         snprintf(fd_buf, sizeof(fd_buf), "none");
         snprintf(is_interp_buf, sizeof(is_interp_buf), "no");
         snprintf(is_exe_buf, sizeof(is_exe_buf), "no");
+        snprintf(map_start_buf, sizeof(map_start_buf), "unmapped");
+        snprintf(map_end_buf, sizeof(map_end_buf), "unmapped");
+        snprintf(file_offset_buf, sizeof(file_offset_buf), "none");
     }
     read_wrunlock(&current->mem->lock);
 
     trace_attribute_t attrs[] = {
         { "pc", pc_buf },
         { "page", page_buf },
+        { "map_start", map_start_buf },
+        { "map_end", map_end_buf },
+        { "file_offset", file_offset_buf },
         { "flags", flags_buf },
         { "name", name_buf },
         { "fd", fd_buf },
