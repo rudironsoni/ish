@@ -35,10 +35,6 @@
 #include "trace/trace.h"
 #include <fcntl.h>
 
-// Force non-Linux path for testing
-#undef ISH_LINUX
-#define ISH_LINUX 0
-
 @interface AppDelegate ()
 
 @property BOOL exiting;
@@ -46,7 +42,6 @@
 
 @end
 
-#if !ISH_LINUX
 static void ios_handle_exit(struct task *task, int code) {
     // we are interested in init and in children of init
     // this is called with pids_lock as an implementation side effect, please do not cite as an example of good API design
@@ -76,7 +71,6 @@ static NSString *const kSkipStartupMessage = @"Skip Startup Message";
     trace_emit(TRACE_EVENT_APP_TRACE_BOOTSTRAP_STARTED, 0);
     trace_emit(TRACE_EVENT_APP_BOOT_STARTED, 0);
     
-#if !ISH_LINUX
     NSURL *root = [Roots.instance rootUrl:Roots.instance.defaultRoot];
 
     int err = mount_root(&fakefs, [root URLByAppendingPathComponent:@"data"].fileSystemRepresentation);
@@ -176,16 +170,6 @@ static NSString *const kSkipStartupMessage = @"Skip Startup Message";
     if (err < 0) {
         return err;
     }
-
-    // DISABLED: Linux path - we're using TCTI now
-    /*
-#else
-    // On first launch, this will trigger the import of the default root. Make sure to do this before entering the kernel, because it needs to run something on the main thread, and that would deadlock.
-    [Roots instance];
-    NSArray<NSString *> *args = @[];
-    actuate_kernel([args componentsJoinedByString:@" "].UTF8String);
-#endif
-    */
     
     return 0;
 }
@@ -293,7 +277,6 @@ void NetworkReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkReach
     if (hostnameOverride) {
         uname_hostname_override = strdup(hostnameOverride.UTF8String);
     }
-#endif
     
     [UserPreferences.shared observe:@[@"shouldDisableDimming"] options:NSKeyValueObservingOptionInitial
                               owner:self usingBlock:^(typeof(self) self) {
