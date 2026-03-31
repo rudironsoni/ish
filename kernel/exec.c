@@ -506,6 +506,26 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
         }
         entry = interp_base + interp_header.entry_point;
 
+        // Trace interpreter mapping for APPSIM-004 diagnosis
+        if (trace_get_level() >= TRACE_LEVEL_SUMMARY) {
+            char interp_name_buf[128];
+            char interp_base_buf[32];
+            char interp_entry_buf[32];
+
+            strncpy(interp_name_buf, interp_name, sizeof(interp_name_buf) - 1);
+            interp_name_buf[sizeof(interp_name_buf) - 1] = '\0';
+            snprintf(interp_base_buf, sizeof(interp_base_buf), "0x%lx", (unsigned long)interp_base);
+            snprintf(interp_entry_buf, sizeof(interp_entry_buf), "0x%lx", (unsigned long)entry);
+
+            trace_attribute_t interp_attrs[] = {
+                { "name", interp_name_buf },
+                { "base", interp_base_buf },
+                { "entry", interp_entry_buf },
+            };
+            trace_begin_interval(TRACE_ORIGIN_KERNEL, "task.proof.elf_interp.mapped", interp_attrs,
+                                 sizeof(interp_attrs) / sizeof(interp_attrs[0]));
+        }
+
         // For dynamically linked executables, x1 must point to loader's _DYNAMIC
         dynamic_addr = 0;
         addr_t interp_dyn_fileoffset = 0;
