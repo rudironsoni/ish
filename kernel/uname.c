@@ -1,18 +1,15 @@
-#include <sys/utsname.h>
-#include <string.h>
 #include "kernel/calls.h"
 #include "platform/platform.h"
 
-#if __APPLE__
+#include <string.h>
 #include <sys/sysctl.h>
-#elif __linux__
-#include <sys/sysinfo.h>
-#endif
+#include <sys/utsname.h>
 
 const char *uname_version = "SUPER AWESOME";
 const char *uname_hostname_override = NULL;
 
-void do_uname(struct uname *uts) {
+void do_uname(struct uname *uts)
+{
     struct utsname real_uname;
     uname(&real_uname);
     const char *hostname = real_uname.nodename;
@@ -28,7 +25,8 @@ void do_uname(struct uname *uts) {
     strcpy(uts->domain, "(none)");
 }
 
-dword_t sys_uname(addr_t uts_addr) {
+dword_t sys_uname(addr_t uts_addr)
+{
     struct uname uts;
     do_uname(&uts);
     if (user_put(uts_addr, uts))
@@ -36,38 +34,26 @@ dword_t sys_uname(addr_t uts_addr) {
     return 0;
 }
 
-dword_t sys_sethostname(addr_t UNUSED(hostname_addr), dword_t UNUSED(hostname_len)) {
+dword_t sys_sethostname(addr_t UNUSED(hostname_addr), dword_t UNUSED(hostname_len))
+{
     return _EPERM;
 }
 
-#if __APPLE__
-static uint64_t get_total_ram() {
+static uint64_t get_total_ram()
+{
     uint64_t total_ram;
-    sysctl((int []) {CTL_DEBUG, HW_PHYSMEM}, 2, &total_ram, NULL, NULL, 0);
+    sysctl((int[]){ CTL_DEBUG, HW_PHYSMEM }, 2, &total_ram, NULL, NULL, 0);
     return total_ram;
 }
-static void sysinfo_specific(struct sys_info *info) {
+static void sysinfo_specific(struct sys_info *info)
+{
     info->totalram = get_total_ram();
     // TODO: everything else
 }
-#elif __linux__
-static void sysinfo_specific(struct sys_info *info) {
-    struct sysinfo host_info;
-    sysinfo(&host_info);
-    info->totalram = host_info.totalram;
-    info->freeram = host_info.freeram;
-    info->sharedram = host_info.sharedram;
-    info->totalswap = host_info.totalswap;
-    info->freeswap = host_info.freeswap;
-    info->procs = host_info.procs;
-    info->totalhigh = host_info.totalhigh;
-    info->freehigh = host_info.freehigh;
-    info->mem_unit = host_info.mem_unit;
-}
-#endif
 
-dword_t sys_sysinfo(addr_t info_addr) {
-    struct sys_info info = {0};
+dword_t sys_sysinfo(addr_t info_addr)
+{
+    struct sys_info info = { 0 };
     struct uptime_info uptime = get_uptime();
     info.uptime = uptime.uptime_ticks;
     info.loads[0] = uptime.load_1m;
