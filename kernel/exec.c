@@ -236,6 +236,31 @@ static int load_entry(struct prg_header ph, addr_t bias, struct fd *fd)
 {
     int err;
 
+    // Diagnostic: Prove load_entry reachability for APPSIM-004
+    if (trace_get_level() >= TRACE_LEVEL_SUMMARY) {
+        char ph_type_buf[32];
+        char ph_vaddr_buf[32];
+        char ph_offset_buf[32];
+        char bias_buf[32];
+        char fd_buf[32];
+
+        snprintf(ph_type_buf, sizeof(ph_type_buf), "%lu", (unsigned long)ph.type);
+        snprintf(ph_vaddr_buf, sizeof(ph_vaddr_buf), "0x%lx", (unsigned long)ph.vaddr);
+        snprintf(ph_offset_buf, sizeof(ph_offset_buf), "0x%lx", (unsigned long)ph.offset);
+        snprintf(bias_buf, sizeof(bias_buf), "0x%lx", (unsigned long)bias);
+        snprintf(fd_buf, sizeof(fd_buf), "%p", (void *)fd);
+
+        trace_attribute_t entry_attrs[] = {
+            { "ph_type", ph_type_buf },
+            { "ph_vaddr", ph_vaddr_buf },
+            { "ph_offset", ph_offset_buf },
+            { "bias", bias_buf },
+            { "fd", fd_buf },
+        };
+        trace_begin_interval(TRACE_ORIGIN_KERNEL, "task.proof.exec.load_entry.reached", entry_attrs,
+                             sizeof(entry_attrs) / sizeof(entry_attrs[0]));
+    }
+
     addr_t addr = ph.vaddr + bias;
     addr_t offset = ph.offset;
     addr_t memsize = ph.memsize;
