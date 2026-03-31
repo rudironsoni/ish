@@ -136,6 +136,15 @@ static inline const char *ISHInstrumentationEventName(ISHInstrumentationEvent ev
 
     os_log(g_ish_log, "Event: %{public}s", eventName);
 
+    // Write to file for direct evidence capture (proof points must be visible)
+    dispatch_async(g_ish_trace_queue, ^{
+        if (g_ish_trace_file) {
+            NSString *line = [NSString stringWithFormat:@"[EVENT] %s\n", eventName];
+            [g_ish_trace_file writeData:[line dataUsingEncoding:NSUTF8StringEncoding]];
+            [g_ish_trace_file synchronizeFile];
+        }
+    });
+
 #if defined(__IPHONE_12_0) || defined(__MAC_10_14)
     if (@available(iOS 12.0, macOS 10.14, *)) {
         os_signpost_event_emit(g_ish_signpost_log,
