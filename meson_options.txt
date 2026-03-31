@@ -2,7 +2,7 @@ option('log', type: 'string', value: '')
 option('nolog', type: 'string', value: '')
 option('log_handler', type: 'string', value: 'dprintf')
 
-option('kernel', type: 'combo', choices: ['ish', 'linux'], value: 'ish')
+option('kernel', type: 'combo', choices: ['ish'], value: 'ish')
 option('kconfig', type: 'array', value: [])
 
 option('vdso_c_args', type: 'string', value: '')

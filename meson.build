@@ -116,9 +116,8 @@ libfakefs = library('fakefs',
 
 subdir('deps')
 
-if get_option('kernel') == 'ish'
-    # TCTI is the only supported execution engine for AArch64
-    src = [
+# TCTI is the only supported execution engine for AArch64
+src = [
         'kernel/init.c',
         'kernel/errno.c',
 
@@ -205,34 +204,8 @@ if get_option('kernel') == 'ish'
         dependencies: dependencies,
         include_directories: includes)
 
-    if not meson.is_cross_build()
-        executable('ish', ['main.c'], dependencies: ish)
-    endif
-
-elif get_option('kernel') == 'linux'
-    # TCTI-only mode for AArch64 - no legacy engine support
-    kernel_src = [
-        'linux/main.c',
-        'linux/fakefs.c',
-    ]
-    user_src = []
-    emu_deps = []
-
-    # TCTI is the only execution engine
-    emu_deps += declare_dependency(link_with: libish_emu)
-
-    modules = static_library('linux_modules', kernel_src, dependencies: [linux_headers, sqlite3])
-    user_modules = static_library('linux_user', user_src, dependencies: [user_linux_headers] + emu_deps)
-    executable('ish',
-        build_linux,
-        link_with: [libfakefs],
-        dependencies: [
-            liblinux,
-            libm,
-            libdl,
-            threads,
-            declare_dependency(link_whole: [modules, user_modules]),
-        ] + emu_deps)
+if not meson.is_cross_build()
+    executable('ish', ['main.c'], dependencies: ish)
 endif
 
 subdir('tools')
@@ -244,38 +217,6 @@ foreach script : gdb_scripts
         command: ['ln', '-sf', '@INPUT@', '@OUTPUT@'],
         build_by_default: true)
 endforeach
-
-# Architecture-specific tests (aarch64 only)
-if not meson.is_cross_build()
-    # aarch64 decoder tests
-    decoder_test = executable('decoder_test',
-        ['tests/aarch64/decoder_test.c', 'emu/aarch64/decode.c'],
-        include_directories: includes)
-    test('decoder', decoder_test)
-
-    # Generator state tests
-    gen_test = executable('gen_test',
-        ['tests/aarch64/gen_test_simple.c'],
-        include_directories: includes)
-    test('generator', gen_test)
-
-    # Integration tests
-    integration_test = executable('integration_test',
-        ['tests/aarch64/integration_test_simple.c', 'tests/aarch64/gen_test_minimal.c', 'emu/aarch64/decode.c'],
-        include_directories: includes)
-    test('integration', integration_test)
-    
-    # Trace subsystem tests
-    trace_test = executable('trace_test',
-        ['tests/trace/test_trace_basic.c',
-         'trace/trace.c',
-         'trace/trace_backends.c',
-         'trace/trace_ring.c',
-         'trace/trace_dump.c',
-         'trace/trace_config.c'],
-        include_directories: includes)
-    test('trace_basic', trace_test)
-endif
 
 # Validate generated files are not in source tree
 validate_generated = run_target('validate-generated',
