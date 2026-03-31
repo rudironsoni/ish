@@ -513,6 +513,89 @@ static uint64_t a64_apply_shift(uint64_t value, int shift_type, int amount, bool
  * Stage 3A.6: Pre-syscall userspace initialization tracing
  * Tracks first userspace entry and execution progression
  */
+
+#include "kernel/memory.h"
+#include "kernel/mm.h"
+
+/*
+ * Look up memory mapping information for a given PC address
+ * Used to determine which mapping owns the stuck PC (interpreter vs main executable)
+ */
+static void trace_pc_mapping_info(const char *name, uint64_t pc)
+{
+    if (!current || !current->mem) {
+        return;
+    }
+
+    char pc_buf[32];
+    char page_buf[32];
+    char flags_buf[32];
+    char name_buf[128];
+    char fd_buf[32];
+    char is_interp_buf[8];
+    char is_exe_buf[8];
+
+    snprintf(pc_buf, sizeof(pc_buf), "0x%llx", (unsigned long long)pc);
+    snprintf(is_interp_buf, sizeof(is_interp_buf), "unknown");
+    snprintf(is_exe_buf, sizeof(is_exe_buf), "unknown");
+    name_buf[0] = '\0';
+    fd_buf[0] = '\0';
+    flags_buf[0] = '\0';
+
+    // Look up page table entry for this PC
+    page_t page = PAGE(pc);
+    read_wrlock(&current->mem->lock);
+    struct pt_entry *entry = mem_pt(current->mem, page);
+    if (entry && entry->data) {
+        snprintf(page_buf, sizeof(page_buf), "0x%lx", (unsigned long)page << PAGE_BITS);
+        snprintf(flags_buf, sizeof(flags_buf), "0x%x", entry->flags);
+
+        if (entry->data->name) {
+            strncpy(name_buf, entry->data->name, sizeof(name_buf) - 1);
+            name_buf[sizeof(name_buf) - 1] = '\0';
+
+            // Check if this is interpreter mapping
+            if (strstr(name_buf, "ld-musl") || strstr(name_buf, "ld-linux")) {
+                snprintf(is_interp_buf, sizeof(is_interp_buf), "yes");
+            } else {
+                snprintf(is_interp_buf, sizeof(is_interp_buf), "no");
+            }
+
+            // Check if this is the main executable
+            if (current->mm && current->mm->exefile && entry->data->fd == current->mm->exefile) {
+                snprintf(is_exe_buf, sizeof(is_exe_buf), "yes");
+            } else {
+                snprintf(is_exe_buf, sizeof(is_exe_buf), "no");
+            }
+        }
+
+        if (entry->data->fd) {
+            snprintf(fd_buf, sizeof(fd_buf), "%p", (void *)entry->data->fd);
+        }
+    } else {
+        snprintf(page_buf, sizeof(page_buf), "unmapped");
+        snprintf(flags_buf, sizeof(flags_buf), "none");
+        snprintf(name_buf, sizeof(name_buf), "[no mapping]");
+        snprintf(fd_buf, sizeof(fd_buf), "none");
+        snprintf(is_interp_buf, sizeof(is_interp_buf), "no");
+        snprintf(is_exe_buf, sizeof(is_exe_buf), "no");
+    }
+    read_wrunlock(&current->mem->lock);
+
+    trace_attribute_t attrs[] = {
+        { "pc", pc_buf },
+        { "page", page_buf },
+        { "flags", flags_buf },
+        { "name", name_buf },
+        { "fd", fd_buf },
+        { "is_interpreter", is_interp_buf },
+        { "is_executable", is_exe_buf },
+    };
+
+    (void)trace_begin_interval(TRACE_ORIGIN_EMULATOR, name, attrs,
+                               sizeof(attrs) / sizeof(attrs[0]));
+}
+
 static void trace_pre_syscall_checkpoint(const char *name, uint64_t pc, uint64_t block_start,
                                          uint64_t block_end, int loop_count, int block_count)
 {
@@ -722,6 +805,8 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb)
                 trace_pre_syscall_checkpoint("task.proof.user.first_block", cpu->pc,
                                              block->start_pc, block->end_pc, 0, 1);
                 first_user_entry = false;
+                // Capture mapping info for first userspace PC
+                trace_pc_mapping_info("task.proof.user.pc_mapping.entry", cpu->pc);
             }
         }
 
@@ -877,6 +962,8 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb)
             trace_pre_syscall_checkpoint("task.proof.user.pre_syscall.loop_suspected", cpu->pc,
                                          last_block_start_pc, block->start_pc,
                                          same_block_repeat_count, total_blocks_executed);
+            // Capture mapping info for stuck PC
+            trace_pc_mapping_info("task.proof.user.pc_mapping.stuck", cpu->pc);
         }
 
         // Normal exit - PC already advanced, continue to next block
@@ -1020,16 +1107,8 @@ int a64_execute_ldst(struct cpu_state *cpu, struct tlb *tlb, const a64_instr_t *
  */
 void a64_cpu_dump(struct cpu_state *cpu)
 {
-    printk("aarch64 CPU state:\n");
-    printk("  PC: 0x%016llx  SP: 0x%016llx\n", cpu->pc, cpu->sp);
-
-    for (int i = 0; i < 31; i += 4) {
-        printk("  x%-2d: 0x%016llx  x%-2d: 0x%016llx  x%-2d: 0x%016llx  x%-2d: 0x%016llx\n", i,
-               cpu->x[i], i + 1, cpu->x[i + 1], i + 2, cpu->x[i + 2], i + 3, cpu->x[i + 3]);
-    }
-
-    printk("  PSTATE: 0x%016llx (N=%d Z=%d C=%d V=%d)\n", cpu->pstate, cpu->n, cpu->z, cpu->c,
-           cpu->v);
+    // Dormant debug helper - no active printk per tracing rules
+    (void)cpu;
 }
 
 /*
@@ -1038,47 +1117,6 @@ void a64_cpu_dump(struct cpu_state *cpu)
  */
 void a64_cpu_dump_stats(struct cpu_state *cpu)
 {
-    printk("=== Phase 1B Memory Access Statistics ===\n");
-
-    printk("LDR:\n");
-    printk("  Fast-path hits: %llu\n", (unsigned long long)cpu->stat_ldr_fast_hits);
-    printk("  Total fallbacks: %llu\n", (unsigned long long)cpu->stat_ldr_fallback);
-    if (cpu->stat_ldr_fallback > 0) {
-        printk("  Fallback reasons:\n");
-        printk("    Non-hot registers: %llu\n", (unsigned long long)cpu->stat_ldr_fallback_nonhot);
-        printk("    Non-64-bit size: %llu\n", (unsigned long long)cpu->stat_ldr_fallback_size);
-        printk("    Non-offset mode: %llu\n", (unsigned long long)cpu->stat_ldr_fallback_idxmode);
-        printk("    Non-zero meta: %llu\n", (unsigned long long)cpu->stat_ldr_fallback_meta);
-        printk("    Unaligned access: %llu\n", (unsigned long long)cpu->stat_ldr_fallback_align);
-        printk("    Cross-page access: %llu\n", (unsigned long long)cpu->stat_ldr_fallback_crosspg);
-        printk("    TLB miss: %llu\n", (unsigned long long)cpu->stat_ldr_fallback_tlbmiss);
-        printk("    No TLB: %llu\n", (unsigned long long)cpu->stat_ldr_fallback_notlb);
-    }
-
-    printk("STR:\n");
-    printk("  Fast-path hits: %llu\n", (unsigned long long)cpu->stat_str_fast_hits);
-    printk("  Total fallbacks: %llu\n", (unsigned long long)cpu->stat_str_fallback);
-    if (cpu->stat_str_fallback > 0) {
-        printk("  Fallback reasons:\n");
-        printk("    Non-hot registers: %llu\n", (unsigned long long)cpu->stat_str_fallback_nonhot);
-        printk("    Non-64-bit size: %llu\n", (unsigned long long)cpu->stat_str_fallback_size);
-        printk("    Non-offset mode: %llu\n", (unsigned long long)cpu->stat_str_fallback_idxmode);
-        printk("    Non-zero meta: %llu\n", (unsigned long long)cpu->stat_str_fallback_meta);
-        printk("    Unaligned access: %llu\n", (unsigned long long)cpu->stat_str_fallback_align);
-        printk("    Cross-page access: %llu\n", (unsigned long long)cpu->stat_str_fallback_crosspg);
-        printk("    TLB miss: %llu\n", (unsigned long long)cpu->stat_str_fallback_tlbmiss);
-        printk("    No TLB: %llu\n", (unsigned long long)cpu->stat_str_fallback_notlb);
-    }
-
-    // Calculate totals
-    uint64_t ldr_total = cpu->stat_ldr_fast_hits + cpu->stat_ldr_fallback;
-    uint64_t str_total = cpu->stat_str_fast_hits + cpu->stat_str_fallback;
-
-    if (ldr_total > 0) {
-        printk("LDR hit rate: %.2f%%\n", 100.0 * cpu->stat_ldr_fast_hits / ldr_total);
-    }
-    if (str_total > 0) {
-        printk("STR hit rate: %.2f%%\n", 100.0 * cpu->stat_str_fast_hits / str_total);
-    }
-    printk("========================================\n");
+    // Dormant debug helper - no active printk per tracing rules
+    (void)cpu;
 }
