@@ -1,16 +1,22 @@
-#include <pthread.h>
-#include <signal.h>
-#include <string.h>
-#include "kernel/calls.h"
-#include "kernel/mm.h"
-#include "kernel/futex.h"
-#include "kernel/ptrace.h"
+#include "emu/aarch64/cpu.h"
+#include "emu/interrupt.h"
 #include "fs/fd.h"
 #include "fs/tty.h"
+#include "kernel/calls.h"
+#include "kernel/futex.h"
+#include "kernel/mm.h"
+#include "kernel/ptrace.h"
+#include "trace/trace.h"
+
+#include <pthread.h>
+#include <signal.h>
+#include <stdio.h>
+#include <string.h>
 
 static void halt_system(void);
 
-static bool exit_tgroup(struct task *task) {
+static bool exit_tgroup(struct task *task)
+{
     struct tgroup *group = task->group;
     list_remove(&task->group_links);
     bool group_dead = list_empty(&group->threads);
@@ -31,16 +37,18 @@ static bool exit_tgroup(struct task *task) {
 
 void (*exit_hook)(struct task *task, int code) = NULL;
 
-static struct task *find_new_parent(struct task *task) {
+static struct task *find_new_parent(struct task *task)
+{
     struct task *new_parent;
-    list_for_each_entry(&task->group->threads, new_parent, group_links) {
+    list_for_each_entry (&task->group->threads, new_parent, group_links) {
         if (!new_parent->exiting)
             return new_parent;
     }
     return pid_get_task(1);
 }
 
-noreturn void do_exit(int status) {
+noreturn void do_exit(int status)
+{
     // has to happen before mm_release
     addr_t clear_tid = current->clear_tid;
     if (clear_tid) {
@@ -74,7 +82,8 @@ noreturn void do_exit(int status) {
     sighand_release(current->sighand);
     current->sighand = NULL;
     struct sigqueue *sigqueue, *sigqueue_tmp;
-    list_for_each_entry_safe(&current->queue, sigqueue, sigqueue_tmp, queue) {
+    list_for_each_entry_safe(&current->queue, sigqueue, sigqueue_tmp, queue)
+    {
         list_remove(&sigqueue->queue);
         free(sigqueue);
     }
@@ -83,7 +92,8 @@ noreturn void do_exit(int status) {
     // reparent children
     struct task *new_parent = find_new_parent(current);
     struct task *child, *tmp;
-    list_for_each_entry_safe(&current->children, child, tmp, siblings) {
+    list_for_each_entry_safe(&current->children, child, tmp, siblings)
+    {
         child->parent = new_parent;
         list_remove(&child->siblings);
         list_add(&new_parent->children, &child->siblings);
@@ -122,7 +132,48 @@ noreturn void do_exit(int status) {
     pthread_exit(NULL);
 }
 
-noreturn void do_exit_group(int status) {
+static void trace_do_exit_group_checkpoint(const char *name, int status)
+{
+    struct cpu_state *cpu = current ? &current->cpu : NULL;
+    char task_buf[32];
+    char pid_buf[32];
+    char mm_buf[32];
+    char mem_buf[32];
+    char cpu_mmu_buf[32];
+    char status_buf[32];
+    char fault_addr_buf[32];
+    char fault_write_buf[32];
+    char pc_buf[32];
+
+    snprintf(task_buf, sizeof(task_buf), "%p", (void *)current);
+    snprintf(pid_buf, sizeof(pid_buf), "%u", (unsigned)(current ? current->pid : 0));
+    snprintf(mm_buf, sizeof(mm_buf), "%p", current ? (void *)current->mm : NULL);
+    snprintf(mem_buf, sizeof(mem_buf), "%p", current ? (void *)current->mem : NULL);
+    snprintf(cpu_mmu_buf, sizeof(cpu_mmu_buf), "%p", cpu ? (void *)cpu->mmu : NULL);
+    snprintf(status_buf, sizeof(status_buf), "%d", status);
+    snprintf(fault_addr_buf, sizeof(fault_addr_buf), "0x%llx",
+             cpu ? (unsigned long long)cpu->fault_addr : 0ULL);
+    snprintf(fault_write_buf, sizeof(fault_write_buf), "%d", cpu ? cpu->fault_was_write : 0);
+    snprintf(pc_buf, sizeof(pc_buf), "0x%llx", cpu ? (unsigned long long)cpu->pc : 0ULL);
+
+    trace_attribute_t attrs[] = {
+        { "task", task_buf },
+        { "pid", pid_buf },
+        { "mm", mm_buf },
+        { "mem", mem_buf },
+        { "cpu.mmu", cpu_mmu_buf },
+        { "status", status_buf },
+        { "fault_addr", fault_addr_buf },
+        { "fault_write", fault_write_buf },
+        { "guest_pc", pc_buf },
+    };
+
+    (void)trace_begin_interval(TRACE_ORIGIN_TASK, name, attrs, sizeof(attrs) / sizeof(attrs[0]));
+}
+
+noreturn void do_exit_group(int status)
+{
+    trace_do_exit_group_checkpoint("task.proof.do_exit_group.entry", status);
     struct tgroup *group = current->group;
     lock(&pids_lock);
     lock(&group->lock);
@@ -133,13 +184,17 @@ noreturn void do_exit_group(int status) {
         status = group->group_exit_code;
     }
 
+    trace_do_exit_group_checkpoint("task.proof.do_exit_group.before_kill_others", status);
+
     // kill everyone else in the group
     struct task *task;
-    list_for_each_entry(&group->threads, task, group_links) {
+    list_for_each_entry (&group->threads, task, group_links) {
         deliver_signal(task, SIGKILL_, SIGINFO_NIL);
         task->group->stopped = false;
         notify(&task->group->stopped_cond);
     }
+
+    trace_do_exit_group_checkpoint("task.proof.do_exit_group.before_do_exit", status);
 
     unlock(&group->lock);
     unlock(&pids_lock);
@@ -147,7 +202,8 @@ noreturn void do_exit_group(int status) {
 }
 
 // always called from init process
-static void halt_system(void) {
+static void halt_system(void)
+{
     for (int state = 0; state < 3; state++) {
         int tasks_found = 0;
         for (int i = 2; i < MAX_PID; i++) {
@@ -175,35 +231,40 @@ static void halt_system(void) {
     // unmount all filesystems
     lock(&mounts_lock);
     struct mount *mount, *tmp;
-    list_for_each_entry_safe(&mounts, mount, tmp, mounts) {
+    list_for_each_entry_safe(&mounts, mount, tmp, mounts)
+    {
         mount_remove(mount);
     }
     unlock(&mounts_lock);
 }
 
-dword_t sys_exit(dword_t status) {
+dword_t sys_exit(dword_t status)
+{
     STRACE("exit(%d)\n", status);
     do_exit(status << 8);
 }
 
-dword_t sys_exit_group(dword_t status) {
+dword_t sys_exit_group(dword_t status)
+{
     STRACE("exit_group(%d)\n", status);
     do_exit_group(status << 8);
 }
 
-#define WNOHANG_ (1 << 0)
-#define WUNTRACED_ (1 << 1)
-#define WEXITED_ (1 << 2)
+#define WNOHANG_    (1 << 0)
+#define WUNTRACED_  (1 << 1)
+#define WEXITED_    (1 << 2)
 #define WCONTINUED_ (1 << 3)
-#define WNOWAIT_ (1 << 24)
-#define __WALL_ (1 << 30)
+#define WNOWAIT_    (1 << 24)
+#define __WALL_     (1 << 30)
 
-#define P_ALL_ 0
-#define P_PID_ 1
+#define P_ALL_  0
+#define P_PID_  1
 #define P_PGID_ 2
 
 // returns false if the task cannot be reaped and true if the task was reaped
-static bool reap_if_zombie(struct task *task, struct siginfo_ *info_out, struct rusage_ *rusage_out, int options) {
+static bool reap_if_zombie(struct task *task, struct siginfo_ *info_out, struct rusage_ *rusage_out,
+                           int options)
+{
     if (!task->zombie)
         return false;
     lock(&task->group->lock);
@@ -238,7 +299,8 @@ static bool reap_if_zombie(struct task *task, struct siginfo_ *info_out, struct 
     return true;
 }
 
-static bool notify_if_stopped(struct task *task, struct siginfo_ *info_out) {
+static bool notify_if_stopped(struct task *task, struct siginfo_ *info_out)
+{
     lock(&task->group->lock);
     bool stopped = task->group->stopped;
     unlock(&task->group->lock);
@@ -250,7 +312,9 @@ static bool notify_if_stopped(struct task *task, struct siginfo_ *info_out) {
     return true;
 }
 
-static bool reap_if_needed(struct task *task, struct siginfo_ *info_out, struct rusage_ *rusage_out, int options) {
+static bool reap_if_needed(struct task *task, struct siginfo_ *info_out, struct rusage_ *rusage_out,
+                           int options)
+{
     assert(task_is_leader(task));
     if ((options & WUNTRACED_ && notify_if_stopped(task, info_out)) ||
         (options & WEXITED_ && reap_if_zombie(task, info_out, rusage_out, options))) {
@@ -262,7 +326,8 @@ static bool reap_if_needed(struct task *task, struct siginfo_ *info_out, struct 
         // I had this code here because it made something work, but it's now
         // making GDB think we support events (we don't). I can't remember what
         // it fixed but until then commenting it out for now.
-        info_out->child.status = /* task->ptrace.trap_event << 16 |*/ task->ptrace.signal << 8 | 0x7f;
+        info_out->child.status =
+            /* task->ptrace.trap_event << 16 |*/ task->ptrace.signal << 8 | 0x7f;
         task->ptrace.signal = 0;
         unlock(&task->ptrace.lock);
         return true;
@@ -271,10 +336,11 @@ static bool reap_if_needed(struct task *task, struct siginfo_ *info_out, struct 
     return false;
 }
 
-int do_wait(int idtype, pid_t_ id, struct siginfo_ *info, struct rusage_ *rusage, int options) {
+int do_wait(int idtype, pid_t_ id, struct siginfo_ *info, struct rusage_ *rusage, int options)
+{
     if (idtype != P_ALL_ && idtype != P_PID_ && idtype != P_PGID_)
         return _EINVAL;
-    if (options & ~(WNOHANG_|WUNTRACED_|WEXITED_|WCONTINUED_|WNOWAIT_|__WALL_))
+    if (options & ~(WNOHANG_ | WUNTRACED_ | WEXITED_ | WCONTINUED_ | WNOWAIT_ | __WALL_))
         return _EINVAL;
 
     lock(&pids_lock);
@@ -286,9 +352,9 @@ retry:
         // look for a zombie child
         bool no_children = true;
         struct task *parent;
-        list_for_each_entry(&current->group->threads, parent, group_links) {
+        list_for_each_entry (&current->group->threads, parent, group_links) {
             struct task *task;
-            list_for_each_entry(&current->children, task, siblings) {
+            list_for_each_entry (&current->children, task, siblings) {
                 if (!task_is_leader(task))
                     continue;
                 if (idtype == P_PGID_ && task->group->pgid != id)
@@ -345,7 +411,8 @@ error:
     return err;
 }
 
-dword_t sys_waitid(int_t idtype, pid_t_ id, addr_t info_addr, int_t options) {
+dword_t sys_waitid(int_t idtype, pid_t_ id, addr_t info_addr, int_t options)
+{
     STRACE("waitid(%d, %d, %#x, %#x)", idtype, id, info_addr, options);
     struct siginfo_ info = {};
     int_t res = do_wait(idtype, id, &info, NULL, options);
@@ -356,7 +423,8 @@ dword_t sys_waitid(int_t idtype, pid_t_ id, addr_t info_addr, int_t options) {
     return 0;
 }
 
-dword_t sys_wait4(pid_t_ id, addr_t status_addr, dword_t options, addr_t rusage_addr) {
+dword_t sys_wait4(pid_t_ id, addr_t status_addr, dword_t options, addr_t rusage_addr)
+{
     STRACE("wait4(%d, %#x, %#x, %#x)", id, status_addr, options, rusage_addr);
     if (options & WNOWAIT_)
         return _EINVAL;
@@ -374,7 +442,7 @@ dword_t sys_wait4(pid_t_ id, addr_t status_addr, dword_t options, addr_t rusage_
             id = -id;
     }
 
-    struct siginfo_ info = {.child.pid = 0xbaba};
+    struct siginfo_ info = { .child.pid = 0xbaba };
     struct rusage_ rusage;
     int_t res = do_wait(idtype, id, &info, &rusage, options | WEXITED_);
     if (res < 0 || (res == 0 && info.child.pid == 0))
@@ -386,6 +454,7 @@ dword_t sys_wait4(pid_t_ id, addr_t status_addr, dword_t options, addr_t rusage_
     return info.child.pid;
 }
 
-dword_t sys_waitpid(pid_t_ pid, addr_t status_addr, dword_t options) {
+dword_t sys_waitpid(pid_t_ pid, addr_t status_addr, dword_t options)
+{
     return sys_wait4(pid, status_addr, options, 0);
 }

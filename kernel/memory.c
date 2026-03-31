@@ -32,29 +32,18 @@ void mem_init(struct mem *mem)
 
 void mem_destroy(struct mem *mem)
 {
-    printk("[mem] mem_destroy: ENTRY, mem=%p\n", mem);
     if (mem == NULL) {
-        printk("[mem] ERROR: mem is NULL!\n");
         return;
     }
-    printk("[mem] About to write_wrlock, &mem->lock=%p\n", &mem->lock);
     write_wrlock(&mem->lock);
-    printk("[mem] write_wrlock done, pgdir=%p\n", mem->pgdir);
-    printk("[mem] About to pt_unmap_always\n");
     pt_unmap_always(mem, 0, MEM_PAGES);
-    printk("[mem] pt_unmap_always done\n");
-    printk("[mem] About to free pgdir entries\n");
     for (int i = 0; i < MEM_PGDIR_SIZE; i++) {
         if (mem->pgdir[i] != NULL)
             free(mem->pgdir[i]);
     }
-    printk("[mem] About to free pgdir\n");
     free(mem->pgdir);
-    printk("[mem] About to write_wrunlock\n");
     write_wrunlock(&mem->lock);
-    printk("[mem] About to wrlock_destroy\n");
     wrlock_destroy(&mem->lock);
-    printk("[mem] mem_destroy complete\n");
 }
 
 #define PGDIR_TOP(page)    ((page) >> 10)

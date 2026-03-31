@@ -8,6 +8,7 @@
  */
 
 #include "trace/trace.h"
+
 #include "trace/trace_internal.h"
 #include "trace/trace_types.h"
 
@@ -28,6 +29,34 @@
 #include "app/Instrumentation/ISHInstrumentationBridge.h"
 
 static int instrumentation_active = 0;
+__attribute__((weak)) bool ish_instrumentation_is_active(void)
+{
+    return instrumentation_active;
+}
+__attribute__((weak)) void ish_instrumentation_record_event(ish_instrumentation_origin_t origin,
+                                                            const char *event_name)
+{
+    (void)origin;
+    (void)event_name;
+}
+__attribute__((weak)) uint64_t ish_instrumentation_begin_interval(
+    ish_instrumentation_origin_t origin, const char *interval_name,
+    const ish_instrumentation_attribute_t *attrs, uint32_t attr_count)
+{
+    (void)origin;
+    (void)interval_name;
+    (void)attrs;
+    (void)attr_count;
+    return 0;
+}
+__attribute__((weak)) void
+ish_instrumentation_end_interval(uint64_t interval_id, const ish_instrumentation_attribute_t *attrs,
+                                 uint32_t attr_count)
+{
+    (void)interval_id;
+    (void)attrs;
+    (void)attr_count;
+}
 
 /* ============================================
  * Semantic API - forwards to ISHInstrumentation
@@ -53,19 +82,18 @@ void trace_record_event(int origin, const char *event_name)
     ish_instrumentation_record_event((ish_instrumentation_origin_t)origin, event_name);
 }
 
-uint64_t trace_begin_interval(int origin, const char *interval_name,
-                               const void *attrs, uint32_t attr_count)
+uint64_t trace_begin_interval(int origin, const char *interval_name, const void *attrs,
+                              uint32_t attr_count)
 {
     return ish_instrumentation_begin_interval((ish_instrumentation_origin_t)origin, interval_name,
-                                               (const ish_instrumentation_attribute_t *)attrs,
-                                               attr_count);
+                                              (const ish_instrumentation_attribute_t *)attrs,
+                                              attr_count);
 }
 
 void trace_end_interval(uint64_t interval_id, const void *attrs, uint32_t attr_count)
 {
-    ish_instrumentation_end_interval(interval_id,
-                                      (const ish_instrumentation_attribute_t *)attrs,
-                                      attr_count);
+    ish_instrumentation_end_interval(interval_id, (const ish_instrumentation_attribute_t *)attrs,
+                                     attr_count);
 }
 
 /* ============================================
@@ -237,9 +265,7 @@ void trace_emit_task_start(uint32_t pid)
     (void)pid;
 }
 
-void trace_emit_app_task_start_runloop(void)
-{
-}
+void trace_emit_app_task_start_runloop(void) {}
 
 void trace_emit_block_compile_start(uint64_t pc)
 {
@@ -571,51 +597,50 @@ void trace_emit_task_proof_point(task_proof_point_t point, uint32_t pid)
 {
     /* Route through ISHInstrumentation bridge only - single observability path */
     switch (point) {
-        case TASK_PROOF_START_ENTER:
-            ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
-                                              "task_proof_start_enter");
-            break;
-        case TASK_PROOF_BEFORE_PTHREAD:
-            ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
-                                              "task_proof_before_pthread");
-            break;
-        case TASK_PROOF_AFTER_PTHREAD:
-            ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
-                                              "task_proof_after_pthread");
-            break;
-        case TASK_PROOF_THREAD_ENTRY:
-            ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
-                                              "task_proof_thread_entry");
-            break;
-        case TASK_PROOF_BEFORE_CURRENT_SET:
-            ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
-                                              "task_proof_before_current_set");
-            break;
-        case TASK_PROOF_AFTER_CURRENT_SET:
-            ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
-                                              "task_proof_after_current_set");
-            break;
-        case TASK_PROOF_RUN_CURRENT_ENTER:
-            ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
-                                              "task_proof_run_current_enter");
-            break;
-        case TASK_PROOF_BEFORE_GUEST_CPU:
-            ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
-                                              "task_proof_before_guest_cpu");
-            break;
-        // Paired diagnostic proof points for narrowing failure boundary
-        case TASK_PROOF_AFTER_THREAD_ENTRY:
-            ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
-                                              "task_proof_after_thread_entry");
-            break;
-        case TASK_PROOF_BEFORE_TASK_RUN_CURRENT:
-            ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
-                                              "task_proof_before_task_run_current");
-            break;
-        case TASK_PROOF_TASK_RUN_CURRENT_ENTRY:
-            ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
-                                              "task_proof_task_run_current_entry");
-            break;
+    case TASK_PROOF_START_ENTER:
+        ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK, "task_proof_start_enter");
+        break;
+    case TASK_PROOF_BEFORE_PTHREAD:
+        ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
+                                         "task_proof_before_pthread");
+        break;
+    case TASK_PROOF_AFTER_PTHREAD:
+        ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
+                                         "task_proof_after_pthread");
+        break;
+    case TASK_PROOF_THREAD_ENTRY:
+        ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
+                                         "task_proof_thread_entry");
+        break;
+    case TASK_PROOF_BEFORE_CURRENT_SET:
+        ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
+                                         "task_proof_before_current_set");
+        break;
+    case TASK_PROOF_AFTER_CURRENT_SET:
+        ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
+                                         "task_proof_after_current_set");
+        break;
+    case TASK_PROOF_RUN_CURRENT_ENTER:
+        ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
+                                         "task_proof_run_current_enter");
+        break;
+    case TASK_PROOF_BEFORE_GUEST_CPU:
+        ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
+                                         "task_proof_before_guest_cpu");
+        break;
+    // Paired diagnostic proof points for narrowing failure boundary
+    case TASK_PROOF_AFTER_THREAD_ENTRY:
+        ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
+                                         "task_proof_after_thread_entry");
+        break;
+    case TASK_PROOF_BEFORE_TASK_RUN_CURRENT:
+        ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
+                                         "task_proof_before_task_run_current");
+        break;
+    case TASK_PROOF_TASK_RUN_CURRENT_ENTRY:
+        ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
+                                         "task_proof_task_run_current_entry");
+        break;
     }
     (void)pid;
 }
@@ -640,9 +665,7 @@ const trace_event_desc_t *trace_event_desc(trace_event_id_t event)
     return &event_descriptors[event];
 }
 
-void trace_flush(void)
-{
-}
+void trace_flush(void) {}
 
 /* ============================================
  * Crash Recovery - REMOVED (stubbed)
@@ -684,9 +707,7 @@ __attribute__((weak)) int trace_dump_ring(const char *path)
 }
 
 /* Weak stub for trace_dump_ring_stderr - trace_ring.c provides real implementation */
-__attribute__((weak)) void trace_dump_ring_stderr(void)
-{
-}
+__attribute__((weak)) void trace_dump_ring_stderr(void) {}
 
 /* Weak stub for trace_dump_on_fault - trace_dump.c provides real implementation */
 __attribute__((weak)) void trace_dump_on_fault(uint64_t fault_pc, uint64_t fault_addr, int is_write)

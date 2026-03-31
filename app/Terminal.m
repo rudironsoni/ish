@@ -8,6 +8,7 @@
 #import "Terminal.h"
 #import "DelayedUITask.h"
 #import "UserPreferences.h"
+#import "Instrumentation/ISHInstrumentation.h"
 #include "LinuxInterop.h"
 #include "fs/devices.h"
 #include "fs/tty.h"
@@ -177,6 +178,17 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
 }
 
 - (int)sendOutput:(const void *)buf length:(int)len {
+    // APPSIM-004 Stage 2: PTY byte detection
+    // Record byte count at terminal input boundary
+    [ISHInstrumentation recordEvent:ISHInstrumentationEventTerminalOutputQueued];
+    
+    // Trace byte count at PTY master read boundary (TerminalView reading from PTY)
+    NSDictionary *byteAttrs = @{
+        @"byte_count": @(len),
+        @"pending_before": @(_pendingData.length)
+    };
+    [ISHInstrumentation beginInterval:@"task.proof.pty.master.read" attributes:byteAttrs];
+    
 #if !ISH_LINUX
     lock(&_dataLock);
     if (!NSThread.isMainThread) {
@@ -186,6 +198,14 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
             wait_for_ignore_signals(&_dataConsumed, &_dataLock, NULL);
     }
     [_pendingData appendData:[NSData dataWithBytes:buf length:len]];
+    
+    // Trace byte count after queuing
+    NSDictionary *queuedAttrs = @{
+        @"byte_count": @(len),
+        @"pending_after": @(_pendingData.length)
+    };
+    [ISHInstrumentation endInterval:@"task.proof.pty.master.read" attributes:queuedAttrs];
+    
     [self.refreshTask schedule];
     unlock(&_dataLock);
 #else
@@ -195,6 +215,14 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
             len = room;
         if (len > 0) {
             [_pendingData appendData:[NSData dataWithBytes:buf length:len]];
+            
+            // Trace byte count after queuing
+            NSDictionary *queuedAttrs = @{
+                @"byte_count": @(len),
+                @"pending_after": @(_pendingData.length)
+            };
+            [ISHInstrumentation endInterval:@"task.proof.pty.master.read" attributes:queuedAttrs];
+            
             [_refreshTask schedule];
         }
     }
@@ -238,6 +266,9 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
 - (void)refresh {
     if (!self.loaded)
         return;
+    
+    // APPSIM-004 Stage 2: PTY byte detection
+    [ISHInstrumentation recordEvent:ISHInstrumentationEventTerminalRefreshTriggered];
 
 #if !ISH_LINUX
     lock(&_dataLock);
@@ -247,18 +278,21 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
         return;
     }
     NSData *data = _pendingData;
+    NSUInteger refreshByteCount = data.length;
     _pendingData = [[NSMutableData alloc] initWithCapacity:BUF_SIZE];
     _outputInProgress = YES;
     notify(&self->_dataConsumed);
     unlock(&_dataLock);
 #else
     NSData *data;
+    NSUInteger refreshByteCount = 0;
     @synchronized (self) {
         if (_outputInProgress) {
             [self.refreshTask schedule];
             return;
         }
         data = _pendingData;
+        refreshByteCount = data.length;
         _pendingData = [[NSMutableData alloc] initWithCapacity:BUF_SIZE];
         _outputInProgress = YES;
         if (self->_tty)
@@ -268,6 +302,16 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
     }
 #endif
 
+    // Trace byte count being sent to WebView
+    if (refreshByteCount > 0) {
+        NSDictionary *byteCountAttrs = @{
+            @"byte_count": @(refreshByteCount),
+            @"task": @"terminal_refresh",
+            @"destination": @"webview"
+        };
+        [ISHInstrumentation beginInterval:@"task.proof.pty.byte_count" attributes:byteCountAttrs];
+    }
+
     NSString *dataString = [[NSString alloc] initWithBytes:data.bytes length:data.length encoding:NSISOLatin1StringEncoding];
     // escape for javascript. only have to worry about the first 256 codepoints, because of the latin-1 encoding.
     dataString = [dataString stringByReplacingOccurrencesOfString:@"\\" withString:@"\\\\"];
@@ -276,6 +320,14 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
     dataString = [dataString stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""];
     NSString *jsToEvaluate = [NSString stringWithFormat:@"exports.write(\"%@\")", dataString];
     [self.webView evaluateJavaScript:jsToEvaluate completionHandler:^(id result, NSError *error) {
+        // Trace completion
+        if (refreshByteCount > 0) {
+            NSDictionary *completeAttrs = @{
+                @"byte_count": @(refreshByteCount),
+                @"error": error ? @YES : @NO
+            };
+            [ISHInstrumentation endInterval:@"task.proof.pty.byte_count" attributes:completeAttrs];
+        }
 #if !ISH_LINUX
         lock(&self->_dataLock);
         self->_outputInProgress = NO;

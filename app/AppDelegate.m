@@ -26,6 +26,7 @@
 #import "UIApplication+OpenURL.h"
 #import "Instrumentation/ISHRuntimeFlags.h"
 #import "Instrumentation/ISHInstrumentation.h"
+#import "Instrumentation/ISHInstrumentationBridge.h"
 #include "kernel/init.h"
 #include "kernel/calls.h"
 #include "fs/dyndev.h"
@@ -286,7 +287,7 @@ void SyncHostname(void) {
     }
 
     // Activate instrumentation before boot to capture all kernel events
-    [ISHInstrumentation activate];
+    ish_instrumentation_activate();
 
     bootError = [self boot];
 
