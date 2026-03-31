@@ -19,8 +19,8 @@ typedef enum {
 } ish_runtime_mode_t;
 
 // Compile-time mode selection - change this to switch modes
-// APPSIM-004 Stage 3A: SESSION_EXEC mode - exec runs but task_start is deferred
-// This allows capturing exec target and verifying PID alive before guest execution
-#define ISH_RUNTIME_MODE ISH_RUNTIME_MODE_SESSION_EXEC
+// APPSIM-004: FULL_GUEST mode for shell/login readiness validation
+// This enables complete guest execution including task_start() and CPU run loop
+#define ISH_RUNTIME_MODE ISH_RUNTIME_MODE_FULL_GUEST
 
 #endif /* ISHRuntimeFlags_h */
