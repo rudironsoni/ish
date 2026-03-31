@@ -19,12 +19,27 @@
       "enabled": true,
       "environment": {}
     },
-    "context7": {
+    "deepwiki": {
+      "type": "remote",
+      "url": "https://mcp.deepwiki.com/mcp",
+      "enabled": true
+    },
+    "XcodeBuildMCP": {
       "type": "local",
       "command": [
         "npx",
         "-y",
-        "@upstash/context7-mcp"
+        "@rudironsoni/xcodebuildmcp@latest"
+      ],
+      "enabled": true,
+      "environment": {}
+    },
+    "rulesync": {
+      "type": "local",
+      "command": [
+        "pnpm",
+        "dev",
+        "mcp"
       ],
       "enabled": true,
       "environment": {}

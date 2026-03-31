@@ -1,0 +1,37 @@
+id: EXEC-016
+phase: 03-semantic-exec
+title: MSR NZCV followed by MRS NZCV preserves flags
+class: semantic
+kind: semantic_micro
+harness: semantic_micro
+meson_test: case:EXEC-016
+
+prerequisites:
+  - EXEC-002
+
+expectation_authority:
+  semantic_source: arm-a64
+  primary_tool: llvm-mc
+
+success_criteria:
+  structural:
+    - harness exits 0
+  semantic:
+    - MSR NZCV sets flags to specified value
+    - MRS NZCV reads back same flags
+    - Roundtrip preserves exact NZCV state
+
+trace_defaults:
+  backend: ring
+  level: 2
+  events: block.entry,block.exit
+  regs: [nzcv]
+
+informational_only: false
+status: pending
+
+metadata:
+  scaffolded: true
+  notes: |
+    Critical for save/restore in TCTI exit blocks.
+    Flags must roundtrip correctly.

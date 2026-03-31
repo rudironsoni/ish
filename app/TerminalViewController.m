@@ -196,7 +196,6 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 - (void)viewDidLoad {
     [super viewDidLoad];
 
-#if !ISH_LINUX
     int bootError = [AppDelegate bootError];
     if (bootError < 0) {
         NSString *message = [NSString stringWithFormat:@"could not boot"];
@@ -205,7 +204,6 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
             subtitle = [subtitle stringByAppendingString:@"\n(try reinstalling the app, see release notes for details)"];
         [self showMessage:message subtitle:subtitle];
     }
-#endif
 
     self.terminal = self.terminal;
     [self.termView becomeFirstResponder];
@@ -267,17 +265,10 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 
 - (void)awakeFromNib {
     [super awakeFromNib];
-#if !ISH_LINUX
     [NSNotificationCenter.defaultCenter addObserver:self
                                            selector:@selector(processExited:)
                                                name:ProcessExitedNotification
                                              object:nil];
-#else
-    [NSNotificationCenter.defaultCenter addObserver:self
-                                           selector:@selector(kernelPanicked:)
-                                               name:KernelPanicNotification
-                                             object:nil];
-#endif
 }
 
 - (void)viewDidAppear:(BOOL)animated {
@@ -306,7 +297,6 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 - (int)startSession {
     NSArray<NSString *> *command = UserPreferences.shared.launchCommand;
 
-#if !ISH_LINUX
     // Shell-only mode: Skip ALL session infrastructure
     // No PTY, no Terminal, no become_new_init_child, no stdio setup
     // Just record the event and return success
@@ -522,11 +512,9 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
         return err;
     self.sessionTerminal = terminal;
     self.sessionPid = sessionPid;
-#endif
     return 0;
 }
 
-#if !ISH_LINUX
 - (void)processExited:(NSNotification *)notif {
     int pid = [notif.userInfo[@"pid"] intValue];
     // In shell-only mode, sessionPid is -1 (no live session)
@@ -551,15 +539,6 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
     current = NULL; // it's been freed
     [self startNewSession];
 }
-#endif
-
-#if ISH_LINUX
-- (void)kernelPanicked:(NSNotification *)notif {
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"panik" message:notif.userInfo[@"message"] preferredStyle:UIAlertControllerStyleAlert];
-    [alert addAction:[UIAlertAction actionWithTitle:@"k" style:UIAlertActionStyleDefault handler:nil]];
-    [self presentViewController:alert animated:YES completion:nil];
-}
-#endif
 
 - (void)showMessage:(NSString *)message subtitle:(NSString *)subtitle {
     dispatch_async(dispatch_get_main_queue(), ^{

@@ -1,0 +1,37 @@
+id: EXEC-017
+phase: 03-semantic-exec
+title: TBZ branches when bit is clear
+class: semantic
+kind: semantic_micro
+harness: semantic_micro
+meson_test: case:EXEC-017
+
+prerequisites:
+  - EXEC-001
+
+expectation_authority:
+  semantic_source: arm-a64
+  primary_tool: llvm-mc
+
+success_criteria:
+  structural:
+    - harness exits 0
+  semantic:
+    - TBZ with clear bit takes branch
+    - TBZ with set bit falls through
+    - PC correct in both cases
+
+trace_defaults:
+  backend: ring
+  level: 2
+  events: block.entry,block.exit
+  regs: [pc]
+
+informational_only: false
+status: pending
+
+metadata:
+  scaffolded: true
+  notes: |
+    TBZ tests bit and branches if zero.
+    Used in interpreter startup code.

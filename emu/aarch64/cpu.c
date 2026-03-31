@@ -670,6 +670,315 @@ static void trace_pre_syscall_checkpoint(const char *name, uint64_t pc, uint64_t
                                sizeof(attrs) / sizeof(attrs[0]));
 }
 
+static void trace_interpreter_edge_checkpoint(const char *name, struct cpu_state *cpu,
+                                              uint64_t block_start, uint64_t block_end,
+                                              int repeat_count)
+{
+    char pc_buf[32];
+    char block_start_buf[32];
+    char block_end_buf[32];
+    char repeat_count_buf[16];
+    char sp_buf[32];
+    char x0_buf[32];
+    char x1_buf[32];
+    char tpidr_buf[32];
+
+    snprintf(pc_buf, sizeof(pc_buf), "0x%llx", (unsigned long long)cpu->pc);
+    snprintf(block_start_buf, sizeof(block_start_buf), "0x%llx", (unsigned long long)block_start);
+    snprintf(block_end_buf, sizeof(block_end_buf), "0x%llx", (unsigned long long)block_end);
+    snprintf(repeat_count_buf, sizeof(repeat_count_buf), "%d", repeat_count);
+    snprintf(sp_buf, sizeof(sp_buf), "0x%llx", (unsigned long long)cpu->sp);
+    snprintf(x0_buf, sizeof(x0_buf), "0x%llx", (unsigned long long)cpu->x[0]);
+    snprintf(x1_buf, sizeof(x1_buf), "0x%llx", (unsigned long long)cpu->x[1]);
+    snprintf(tpidr_buf, sizeof(tpidr_buf), "0x%llx", (unsigned long long)cpu->tpidr_el0);
+
+    trace_attribute_t attrs[] = {
+        { "pc", pc_buf },
+        { "block_start", block_start_buf },
+        { "block_end", block_end_buf },
+        { "repeat_count", repeat_count_buf },
+        { "sp", sp_buf },
+        { "x0", x0_buf },
+        { "x1", x1_buf },
+        { "tpidr_el0", tpidr_buf },
+    };
+
+    (void)trace_begin_interval(TRACE_ORIGIN_EMULATOR, name, attrs,
+                               sizeof(attrs) / sizeof(attrs[0]));
+}
+
+static void trace_interpreter_store_edge_checkpoint(const char *name, struct cpu_state *cpu,
+                                                    int repeat_count)
+{
+    char pc_buf[32];
+    char x2_buf[32];
+    char computed_addr_buf[32];
+    char sp_buf[32];
+    char x0_buf[32];
+    char x1_buf[32];
+    char tpidr_buf[32];
+    char repeat_count_buf[16];
+
+    uint64_t computed_addr = cpu->x[2];
+
+    snprintf(pc_buf, sizeof(pc_buf), "0x%llx", (unsigned long long)cpu->pc);
+    snprintf(x2_buf, sizeof(x2_buf), "0x%llx", (unsigned long long)cpu->x[2]);
+    snprintf(computed_addr_buf, sizeof(computed_addr_buf), "0x%llx",
+             (unsigned long long)computed_addr);
+    snprintf(sp_buf, sizeof(sp_buf), "0x%llx", (unsigned long long)cpu->sp);
+    snprintf(x0_buf, sizeof(x0_buf), "0x%llx", (unsigned long long)cpu->x[0]);
+    snprintf(x1_buf, sizeof(x1_buf), "0x%llx", (unsigned long long)cpu->x[1]);
+    snprintf(tpidr_buf, sizeof(tpidr_buf), "0x%llx", (unsigned long long)cpu->tpidr_el0);
+    snprintf(repeat_count_buf, sizeof(repeat_count_buf), "%d", repeat_count);
+
+    trace_attribute_t attrs[] = {
+        { "pc", pc_buf },
+        { "x2", x2_buf },
+        { "computed_addr", computed_addr_buf },
+        { "sp", sp_buf },
+        { "x0", x0_buf },
+        { "x1", x1_buf },
+        { "tpidr_el0", tpidr_buf },
+        { "repeat_count", repeat_count_buf },
+    };
+
+    (void)trace_begin_interval(TRACE_ORIGIN_EMULATOR, name, attrs,
+                               sizeof(attrs) / sizeof(attrs[0]));
+}
+
+static uint64_t trace_cpu_reg_value(struct cpu_state *cpu, int reg)
+{
+    if (reg == 31)
+        return cpu->sp;
+    if (reg >= 0 && reg < 31)
+        return cpu->x[reg];
+    return 0;
+}
+
+static void trace_interpreter_loop_predicate_checkpoint(const char *name, struct cpu_state *cpu,
+                                                        struct tlb *tlb, uint64_t block_start,
+                                                        uint64_t block_end, int repeat_count)
+{
+    uint64_t compare_pc = 0;
+    uint64_t branch_pc = 0;
+    uint32_t compare_raw = 0;
+    uint32_t branch_raw = 0;
+    a64_instr_t compare_decoded = { 0 };
+    a64_instr_t branch_decoded = { 0 };
+    uint64_t branch_target = 0;
+    uint64_t compare_lhs = 0;
+    uint64_t compare_rhs = 0;
+    uint64_t bound_value = 0;
+    int branch_taken = 0;
+
+    for (uint64_t insn_pc = block_start; insn_pc < block_end; insn_pc += 4) {
+        uint32_t raw = 0;
+        a64_instr_t decoded = { 0 };
+        if (a64_fetch_insn(cpu, tlb, insn_pc, &raw) != 0 || a64_decode(raw, &decoded) != 0)
+            continue;
+        if (decoded.cat == A64_BRANCH) {
+            uint64_t target = insn_pc + decoded.imm;
+            if (target == block_start) {
+                branch_pc = insn_pc;
+                branch_raw = raw;
+                branch_decoded = decoded;
+                branch_target = target;
+                branch_taken = (cpu->pc == target);
+                break;
+            }
+        }
+    }
+
+    if (branch_pc != 0 && branch_pc >= 4) {
+        compare_pc = branch_pc - 4;
+        if (a64_fetch_insn(cpu, tlb, compare_pc, &compare_raw) == 0 &&
+            a64_decode(compare_raw, &compare_decoded) == 0) {
+            compare_lhs = trace_cpu_reg_value(cpu, compare_decoded.Rn);
+            if (compare_decoded.cat == A64_DP_IMM || compare_decoded.cat == A64_DP_IMM2) {
+                compare_rhs = (uint64_t)compare_decoded.imm;
+                bound_value = compare_rhs;
+            } else {
+                compare_rhs = trace_cpu_reg_value(cpu, compare_decoded.Rm);
+                bound_value = compare_rhs;
+            }
+        }
+    }
+
+    char pc_buf[32];
+    char x2_buf[32];
+    char compare_pc_buf[32];
+    char compare_raw_buf[32];
+    char branch_pc_buf[32];
+    char branch_raw_buf[32];
+    char compare_lhs_buf[32];
+    char compare_rhs_buf[32];
+    char bound_buf[32];
+    char branch_target_buf[32];
+    char branch_taken_buf[8];
+    char repeat_count_buf[16];
+
+    snprintf(pc_buf, sizeof(pc_buf), "0x%llx", (unsigned long long)cpu->pc);
+    snprintf(x2_buf, sizeof(x2_buf), "0x%llx", (unsigned long long)cpu->x[2]);
+    snprintf(compare_pc_buf, sizeof(compare_pc_buf), "0x%llx", (unsigned long long)compare_pc);
+    snprintf(compare_raw_buf, sizeof(compare_raw_buf), "0x%08x", compare_raw);
+    snprintf(branch_pc_buf, sizeof(branch_pc_buf), "0x%llx", (unsigned long long)branch_pc);
+    snprintf(branch_raw_buf, sizeof(branch_raw_buf), "0x%08x", branch_raw);
+    snprintf(compare_lhs_buf, sizeof(compare_lhs_buf), "0x%llx", (unsigned long long)compare_lhs);
+    snprintf(compare_rhs_buf, sizeof(compare_rhs_buf), "0x%llx", (unsigned long long)compare_rhs);
+    snprintf(bound_buf, sizeof(bound_buf), "0x%llx", (unsigned long long)bound_value);
+    snprintf(branch_target_buf, sizeof(branch_target_buf), "0x%llx",
+             (unsigned long long)branch_target);
+    snprintf(branch_taken_buf, sizeof(branch_taken_buf), "%d", branch_taken);
+    snprintf(repeat_count_buf, sizeof(repeat_count_buf), "%d", repeat_count);
+
+    trace_attribute_t attrs[] = {
+        { "pc", pc_buf },
+        { "x2", x2_buf },
+        { "compare_pc", compare_pc_buf },
+        { "compare_raw", compare_raw_buf },
+        { "branch_pc", branch_pc_buf },
+        { "branch_raw", branch_raw_buf },
+        { "compare_lhs", compare_lhs_buf },
+        { "compare_rhs", compare_rhs_buf },
+        { "bound_value", bound_buf },
+        { "branch_target", branch_target_buf },
+        { "branch_taken", branch_taken_buf },
+        { "repeat_count", repeat_count_buf },
+    };
+
+    (void)trace_begin_interval(TRACE_ORIGIN_EMULATOR, name, attrs,
+                               sizeof(attrs) / sizeof(attrs[0]));
+}
+
+struct tcti_asm_probe {
+    uint64_t pc_value;
+    uint64_t x29_value;
+    uint64_t host_x3;
+    uint64_t host_x6;
+    uint64_t nzcv_value;
+    uint8_t captured;
+};
+
+struct tcti_bcond_ne_probe {
+    uint64_t branch_site_pc;
+    uint64_t target_pc;
+    uint64_t fallthrough_pc;
+    uint64_t x15_loaded;
+    uint64_t x25_after_mrs;
+    uint64_t x14_after_and;
+    uint64_t x14_after_and_mirror;
+    uint64_t path_marker;
+    uint64_t path_pc;
+    uint64_t branch_path_result;
+    uint8_t captured;
+};
+
+extern struct tcti_asm_probe tcti_asm_probe;
+extern struct tcti_bcond_ne_probe tcti_bcond_ne_probe;
+
+static void trace_interpreter_cmp_entry_asm_checkpoint(const char *name, uint64_t block_start,
+                                                       uint64_t block_end, int repeat_count)
+{
+    char pc_buf[32];
+    char block_start_buf[32];
+    char block_end_buf[32];
+    char host_x3_buf[32];
+    char host_x6_buf[32];
+    char x29_buf[32];
+    char nzcv_buf[32];
+    char repeat_count_buf[16];
+
+    snprintf(pc_buf, sizeof(pc_buf), "0x%llx", (unsigned long long)tcti_asm_probe.pc_value);
+    snprintf(block_start_buf, sizeof(block_start_buf), "0x%llx", (unsigned long long)block_start);
+    snprintf(block_end_buf, sizeof(block_end_buf), "0x%llx", (unsigned long long)block_end);
+    snprintf(host_x3_buf, sizeof(host_x3_buf), "0x%llx",
+             (unsigned long long)tcti_asm_probe.host_x3);
+    snprintf(host_x6_buf, sizeof(host_x6_buf), "0x%llx",
+             (unsigned long long)tcti_asm_probe.host_x6);
+    snprintf(x29_buf, sizeof(x29_buf), "0x%llx", (unsigned long long)tcti_asm_probe.x29_value);
+    snprintf(nzcv_buf, sizeof(nzcv_buf), "0x%llx", (unsigned long long)tcti_asm_probe.nzcv_value);
+    snprintf(repeat_count_buf, sizeof(repeat_count_buf), "%d", repeat_count);
+
+    trace_attribute_t attrs[] = {
+        { "pc", pc_buf },
+        { "block_start", block_start_buf },
+        { "block_end", block_end_buf },
+        { "host_x3", host_x3_buf },
+        { "host_x6", host_x6_buf },
+        { "x29_value", x29_buf },
+        { "raw_nzcv", nzcv_buf },
+        { "repeat_count", repeat_count_buf },
+    };
+
+    (void)trace_begin_interval(TRACE_ORIGIN_EMULATOR, name, attrs,
+                               sizeof(attrs) / sizeof(attrs[0]));
+}
+
+static void trace_interpreter_nzcv_chain_checkpoint(const char *name, uint64_t block_start,
+                                                    uint64_t block_end, int repeat_count)
+{
+    char block_start_buf[32];
+    char block_end_buf[32];
+    char branch_site_buf[32];
+    char target_pc_buf[32];
+    char fallthrough_pc_buf[32];
+    char raw_nzcv_buf[32];
+    char x15_loaded_buf[32];
+    char x25_after_mrs_buf[32];
+    char x14_after_and_buf[32];
+    char x14_after_and_mirror_buf[32];
+    char path_marker_buf[32];
+    char path_pc_buf[32];
+    char branch_taken_buf[16];
+    char repeat_count_buf[16];
+
+    snprintf(block_start_buf, sizeof(block_start_buf), "0x%llx", (unsigned long long)block_start);
+    snprintf(block_end_buf, sizeof(block_end_buf), "0x%llx", (unsigned long long)block_end);
+    snprintf(branch_site_buf, sizeof(branch_site_buf), "0x%llx",
+             (unsigned long long)tcti_bcond_ne_probe.branch_site_pc);
+    snprintf(target_pc_buf, sizeof(target_pc_buf), "0x%llx",
+             (unsigned long long)tcti_bcond_ne_probe.target_pc);
+    snprintf(fallthrough_pc_buf, sizeof(fallthrough_pc_buf), "0x%llx",
+             (unsigned long long)tcti_bcond_ne_probe.fallthrough_pc);
+    snprintf(raw_nzcv_buf, sizeof(raw_nzcv_buf), "0x%llx",
+             (unsigned long long)tcti_asm_probe.nzcv_value);
+    snprintf(x15_loaded_buf, sizeof(x15_loaded_buf), "0x%llx",
+             (unsigned long long)tcti_bcond_ne_probe.x15_loaded);
+    snprintf(x25_after_mrs_buf, sizeof(x25_after_mrs_buf), "0x%llx",
+             (unsigned long long)tcti_bcond_ne_probe.x25_after_mrs);
+    snprintf(x14_after_and_buf, sizeof(x14_after_and_buf), "0x%llx",
+             (unsigned long long)tcti_bcond_ne_probe.x14_after_and);
+    snprintf(x14_after_and_mirror_buf, sizeof(x14_after_and_mirror_buf), "0x%llx",
+             (unsigned long long)tcti_bcond_ne_probe.x14_after_and_mirror);
+    snprintf(path_marker_buf, sizeof(path_marker_buf), "0x%llx",
+             (unsigned long long)tcti_bcond_ne_probe.path_marker);
+    snprintf(path_pc_buf, sizeof(path_pc_buf), "0x%llx",
+             (unsigned long long)tcti_bcond_ne_probe.path_pc);
+    snprintf(branch_taken_buf, sizeof(branch_taken_buf), "%llu",
+             (unsigned long long)tcti_bcond_ne_probe.branch_path_result);
+    snprintf(repeat_count_buf, sizeof(repeat_count_buf), "%d", repeat_count);
+
+    trace_attribute_t attrs[] = {
+        { "block_start", block_start_buf },
+        { "block_end", block_end_buf },
+        { "branch_site_pc", branch_site_buf },
+        { "target_pc", target_pc_buf },
+        { "fallthrough_pc", fallthrough_pc_buf },
+        { "raw_nzcv", raw_nzcv_buf },
+        { "x15_loaded", x15_loaded_buf },
+        { "x25_after_mrs", x25_after_mrs_buf },
+        { "x14_after_and", x14_after_and_buf },
+        { "x14_after_and_mirror", x14_after_and_mirror_buf },
+        { "path_marker", path_marker_buf },
+        { "path_pc", path_pc_buf },
+        { "branch_taken", branch_taken_buf },
+        { "repeat_count", repeat_count_buf },
+    };
+
+    (void)trace_begin_interval(TRACE_ORIGIN_EMULATOR, name, attrs,
+                               sizeof(attrs) / sizeof(attrs[0]));
+}
+
 /*
  * Run the CPU until interrupted
  * This is the main entry point from the kernel
@@ -730,6 +1039,7 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb)
     uint64_t last_block_start_pc = 0;
     int same_block_repeat_count = 0;
     int total_blocks_executed = 0;
+    bool interpreter_loop_active = false;
 
     // Stage 3A.6: Track first userspace PC entry
     if (trace_is_active()) {
@@ -876,6 +1186,42 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb)
         int exit_reason = a64_execute_block(cpu, block);
         trace_cpu_run_checkpoint("task.proof.a64_cpu_run.exit_reason_set", current, cpu,
                                  exit_reason);
+
+        if (trace_is_active() && cpu->pc >= 0xf7fa4604 && cpu->pc <= 0xf7fa4650) {
+            interpreter_loop_active = true;
+            trace_interpreter_edge_checkpoint("task.proof.interpreter.edge", cpu, block->start_pc,
+                                              block->end_pc, same_block_repeat_count);
+
+            if (cpu->pc == 0xf7fa4604 || cpu->pc == 0xf7fa4650) {
+                uint32_t raw_insn = 0;
+                a64_instr_t decoded;
+                if (a64_fetch_insn(cpu, cpu->tlb, cpu->pc, &raw_insn) == 0 &&
+                    a64_decode(raw_insn, &decoded) == 0) {
+                    const char *decode_name = cpu->pc == 0xf7fa4604
+                                                  ? "task.proof.interpreter.edge.decode.entry"
+                                                  : "task.proof.interpreter.edge.decode.repeat";
+                    trace_insn_decode_checkpoint(decode_name, cpu->pc, raw_insn, decoded.cat,
+                                                 decoded.subtype, decoded.Rn, decoded.Rm,
+                                                 decoded.imm);
+                    if (cpu->pc == 0xf7fa4650) {
+                        trace_interpreter_cmp_entry_asm_checkpoint(
+                            "task.proof.interpreter.cmp.entry.asm", block->start_pc, block->end_pc,
+                            same_block_repeat_count);
+                        trace_interpreter_nzcv_chain_checkpoint("task.proof.interpreter.nzcv.chain",
+                                                                block->start_pc, block->end_pc,
+                                                                same_block_repeat_count);
+                        trace_interpreter_store_edge_checkpoint("task.proof.interpreter.store.edge",
+                                                                cpu, same_block_repeat_count);
+                        trace_interpreter_loop_predicate_checkpoint(
+                            "task.proof.interpreter.loop.predicate", cpu, cpu->tlb, block->start_pc,
+                            block->end_pc, same_block_repeat_count);
+                    }
+                }
+            }
+        } else if (interpreter_loop_active && !(cpu->pc >= 0xf7f3b000 && cpu->pc <= 0xf7ffdf10)) {
+            interpreter_loop_active = false;
+        }
+
         if (first_execute) {
             trace_cpu_run_checkpoint("task.proof.a64_cpu_run.after_first_execute", current, cpu,
                                      exit_reason);
@@ -884,6 +1230,11 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb)
 
         // Check exit reason and handle
         if (exit_reason == TCTI_EXIT_SYSCALL) {
+            if (trace_is_active() && interpreter_loop_active) {
+                trace_interpreter_edge_checkpoint("task.proof.interpreter.syscall.before", cpu,
+                                                  block->start_pc, block->end_pc,
+                                                  same_block_repeat_count);
+            }
             trace_cpu_run_checkpoint("task.proof.a64_cpu_run.exit_syscall", current, cpu,
                                      exit_reason);
             if (!block->explicit_pc_on_exit)
@@ -897,6 +1248,11 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb)
                                      cpu, exit_reason);
             trace_cpu_run_checkpoint("task.proof.a64_cpu_run.after_handle_interrupt", current, cpu,
                                      exit_reason);
+            if (trace_is_active() && interpreter_loop_active) {
+                trace_interpreter_edge_checkpoint("task.proof.interpreter.syscall.after", cpu,
+                                                  block->start_pc, block->end_pc,
+                                                  same_block_repeat_count);
+            }
         } else if (exit_reason == TCTI_EXIT_FAULT) {
             trace_cpu_run_checkpoint("task.proof.a64_cpu_run.exit_fault", current, cpu,
                                      exit_reason);

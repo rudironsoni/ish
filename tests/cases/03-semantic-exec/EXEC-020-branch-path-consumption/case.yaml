@@ -1,0 +1,38 @@
+id: EXEC-020
+phase: 03-semantic-exec
+title: Branch path consumes correct next PC
+class: semantic
+kind: semantic_micro
+harness: semantic_micro
+meson_test: case:EXEC-020
+
+prerequisites:
+  - EXEC-014
+  - EXEC-015
+
+expectation_authority:
+  semantic_source: arm-a64
+  primary_tool: llvm-mc
+
+success_criteria:
+  structural:
+    - harness exits 0
+  semantic:
+    - Branch path selection correct
+    - Next PC matches branch decision
+    - Control flow follows instruction semantics
+
+trace_defaults:
+  backend: ring
+  level: 2
+  events: block.entry,block.exit
+  regs: [pc]
+
+informational_only: false
+status: pending
+
+metadata:
+  scaffolded: true
+  notes: |
+    Tests branch path consumption logic.
+    Verifies correct next PC after B.cond.

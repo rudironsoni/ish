@@ -1,0 +1,38 @@
+id: EXEC-015
+phase: 03-semantic-exec
+title: B.NE is taken when Z flag is clear
+class: semantic
+kind: semantic_micro
+harness: semantic_micro
+meson_test: case:EXEC-015
+
+prerequisites:
+  - EXEC-013
+  - EXEC-014
+
+expectation_authority:
+  semantic_source: arm-a64
+  primary_tool: llvm-mc
+
+success_criteria:
+  structural:
+    - harness exits 0
+  semantic:
+    - B.NE with Z=0 takes the branch
+    - PC jumps to target address
+    - Branch taken
+
+trace_defaults:
+  backend: ring
+  level: 2
+  events: block.entry,block.exit
+  regs: [pc, nzcv]
+
+informational_only: false
+status: pending
+
+metadata:
+  scaffolded: true
+  notes: |
+    B.NE must branch when Z=0 (not equal).
+    This continues the interpreter loop.

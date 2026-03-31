@@ -130,6 +130,19 @@ tcti_exit_block:
     // This prevents debug logic (cmp below) from clobbering guest flags
     mrs     x17, nzcv
     str     x17, [x29, #280]        // Save NZCV back to cpu->pstate
+
+    // Independent repeated-block probe outside gadget-local diagnostic sinks.
+    adrp    x18, _tcti_asm_probe@PAGE
+    add     x18, x18, _tcti_asm_probe@PAGEOFF
+    ldr     x17, [x29, #272]        // cpu->pc
+    str     x17, [x18, #0]
+    str     x29, [x18, #8]
+    str     x3,  [x18, #16]
+    str     x6,  [x18, #24]
+    mrs     x17, nzcv
+    str     x17, [x18, #32]
+    mov     w17, #1
+    strb    w17, [x18, #40]
     
     cmp     x0,  #16
     b.lo    1f
@@ -218,3 +231,15 @@ _tcti_store_sp:
 tcti_store_sp:
     str     x18, [x29, #264]
     ret
+
+.data
+.balign 8
+.global _tcti_asm_probe
+_tcti_asm_probe:
+    .quad 0
+    .quad 0
+    .quad 0
+    .quad 0
+    .quad 0
+    .byte 0
+    .balign 8

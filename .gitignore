@@ -42,7 +42,6 @@ tests/aarch64/e2e/results/
 .claude/
 .codex/
 .gemini/
-.opencode/
 .github/instructions/
 
 .serena/
@@ -128,6 +127,8 @@ rulesync.local.jsonc
 **/.opencode/skill/
 **/.opencode/plugins/
 **/.opencode/memories/
+**/.opencode/bun.lock
+**/.opencode/node_modules/
 **/QWEN.md
 **/.qwen/memories/
 **/replit.md

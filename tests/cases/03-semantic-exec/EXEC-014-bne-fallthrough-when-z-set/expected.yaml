@@ -1,0 +1,24 @@
+initial_state:
+  registers:
+    x2: 0x00000000F7FFAD68
+    x5: 0x00000000F7FFAD68
+  pc: 0x0000000000001000
+  nzcv: {n: 0, z: 1, c: 1, v: 0}
+
+code:
+  instruction_1:
+    name: b_ne
+    asm: "b.ne 0x1008"
+    encoding_hex_le: "01000054"
+    description: "B.NE to PC+8 - should fall through since Z=1"
+
+execution_sequence:
+  - step: 1
+    instruction: b_ne
+    description: "Branch if not equal, but Z=1 so fall through"
+    expected_pc: 0x0000000000001004
+    expected_branch_taken: false
+
+notes: |
+  With Z=1 (equal), B.NE must NOT branch.
+  PC should be next instruction (0x1004), not target (0x1008).

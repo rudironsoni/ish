@@ -1,0 +1,37 @@
+id: EXEC-018
+phase: 03-semantic-exec
+title: UBFX extracts bit 30 from register
+class: semantic
+kind: semantic_micro
+harness: semantic_micro
+meson_test: case:EXEC-018
+
+prerequisites:
+  - EXEC-001
+
+expectation_authority:
+  semantic_source: arm-a64
+  primary_tool: llvm-mc
+
+success_criteria:
+  structural:
+    - harness exits 0
+  semantic:
+    - UBFX extracts correct bit range
+    - Result is zero-extended
+    - PC advanced correctly
+
+trace_defaults:
+  backend: ring
+  level: 2
+  events: block.entry,block.exit
+  regs: [x0, x1]
+
+informational_only: false
+status: pending
+
+metadata:
+  scaffolded: true
+  notes: |
+    UBFX extracts a bitfield.
+    Tests bit 30 extraction used in interpreter.

@@ -124,15 +124,7 @@ bool remove_user_default_impl(const char *name) {
     return true;
 }
 
-// TODO: Move these to Linux
-#if ISH_LINUX
-char **(*get_all_defaults_keys)(void);
-char *(*get_friendly_name)(const char *name);
-char *(*get_underlying_name)(const char *name);
-bool (*get_user_default)(const char *name, char **buffer, size_t *size);
-bool (*set_user_default)(const char *name, char *buffer, size_t size);
-bool (*remove_user_default)(const char *name);
-#endif
+
 
 @implementation UserPreferences {
     NSUserDefaults *_defaults;
