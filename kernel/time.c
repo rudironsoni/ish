@@ -1,29 +1,34 @@
-#ifdef __linux__
-#define _GNU_SOURCE
-#include <sys/resource.h>
-#endif
-#include "debug.h"
-#include <time.h>
-#include <signal.h>
-#include <sys/time.h>
+#include "kernel/time.h"
+
+#include "fs/poll.h"
 #include "kernel/calls.h"
 #include "kernel/errno.h"
 #include "kernel/resource.h"
-#include "kernel/time.h"
-#include "fs/poll.h"
 
-static int clockid_to_real(uint_t clock, clockid_t *real) {
+#include "debug.h"
+
+#include <signal.h>
+#include <sys/time.h>
+#include <time.h>
+
+static int clockid_to_real(uint_t clock, clockid_t *real)
+{
     switch (clock) {
-        case CLOCK_REALTIME_:
-        case CLOCK_REALTIME_COARSE_:
-            *real = CLOCK_REALTIME; break;
-        case CLOCK_MONOTONIC_: *real = CLOCK_MONOTONIC; break;
-        default: return _EINVAL;
+    case CLOCK_REALTIME_:
+    case CLOCK_REALTIME_COARSE_:
+        *real = CLOCK_REALTIME;
+        break;
+    case CLOCK_MONOTONIC_:
+        *real = CLOCK_MONOTONIC;
+        break;
+    default:
+        return _EINVAL;
     }
     return 0;
 }
 
-static struct timer_spec timer_spec_to_real(struct itimerspec_ itspec) {
+static struct timer_spec timer_spec_to_real(struct itimerspec_ itspec)
+{
     struct timer_spec spec = {
         .value.tv_sec = itspec.value.sec,
         .value.tv_nsec = itspec.value.nsec,
@@ -33,7 +38,8 @@ static struct timer_spec timer_spec_to_real(struct itimerspec_ itspec) {
     return spec;
 };
 
-static struct itimerspec_ timer_spec_from_real(struct timer_spec spec) {
+static struct itimerspec_ timer_spec_from_real(struct timer_spec spec)
+{
     struct itimerspec_ itspec = {
         .value.sec = spec.value.tv_sec,
         .value.nsec = spec.value.tv_nsec,
@@ -43,7 +49,8 @@ static struct itimerspec_ timer_spec_from_real(struct timer_spec spec) {
     return itspec;
 };
 
-dword_t sys_time(addr_t time_out) {
+dword_t sys_time(addr_t time_out)
+{
     dword_t now = time(NULL);
     if (time_out != 0)
         if (user_put(time_out, now))
@@ -51,11 +58,13 @@ dword_t sys_time(addr_t time_out) {
     return now;
 }
 
-dword_t sys_stime(addr_t UNUSED(time)) {
+dword_t sys_stime(addr_t UNUSED(time))
+{
     return _EPERM;
 }
 
-dword_t sys_clock_gettime(dword_t clock, addr_t tp) {
+dword_t sys_clock_gettime(dword_t clock, addr_t tp)
+{
     STRACE("clock_gettime(%d, 0x%x)", clock, tp);
 
     struct timespec ts;
@@ -66,7 +75,8 @@ dword_t sys_clock_gettime(dword_t clock, addr_t tp) {
         ts.tv_nsec = rusage.utime.usec * 1000;
     } else {
         clockid_t clock_id;
-        if (clockid_to_real(clock, &clock_id)) return _EINVAL;
+        if (clockid_to_real(clock, &clock_id))
+            return _EINVAL;
         int err = clock_gettime(clock_id, &ts);
         if (err < 0)
             return errno_map();
@@ -80,10 +90,12 @@ dword_t sys_clock_gettime(dword_t clock, addr_t tp) {
     return 0;
 }
 
-dword_t sys_clock_getres(dword_t clock, addr_t res_addr) {
+dword_t sys_clock_getres(dword_t clock, addr_t res_addr)
+{
     STRACE("clock_getres(%d, %#x)", clock, res_addr);
     clockid_t clock_id;
-    if (clockid_to_real(clock, &clock_id)) return _EINVAL;
+    if (clockid_to_real(clock, &clock_id))
+        return _EINVAL;
 
     struct timespec res;
     int err = clock_getres(clock_id, &res);
@@ -97,25 +109,29 @@ dword_t sys_clock_getres(dword_t clock, addr_t res_addr) {
     return 0;
 }
 
-dword_t sys_clock_settime(dword_t UNUSED(clock), addr_t UNUSED(tp)) {
+dword_t sys_clock_settime(dword_t UNUSED(clock), addr_t UNUSED(tp))
+{
     return _EPERM;
 }
 
-static void itimer_notify(struct task *task) {
+static void itimer_notify(struct task *task)
+{
     struct siginfo_ info = {
         .code = SI_TIMER_,
     };
     send_signal(task, SIGALRM_, info);
 }
 
-static int itimer_set(struct tgroup *group, int which, struct timer_spec spec, struct timer_spec *old_spec) {
+static int itimer_set(struct tgroup *group, int which, struct timer_spec spec,
+                      struct timer_spec *old_spec)
+{
     if (which != ITIMER_REAL_) {
         FIXME("unimplemented setitimer %d", which);
         return _EINVAL;
     }
 
     if (!group->itimer) {
-        struct timer *timer = timer_new(CLOCK_REALTIME, (timer_callback_t) itimer_notify, current);
+        struct timer *timer = timer_new(CLOCK_REALTIME, (timer_callback_t)itimer_notify, current);
         if (IS_ERR(timer))
             return PTR_ERR(timer);
         group->itimer = timer;
@@ -124,11 +140,13 @@ static int itimer_set(struct tgroup *group, int which, struct timer_spec spec, s
     return timer_set(group->itimer, spec, old_spec);
 }
 
-int_t sys_setitimer(int_t which, addr_t new_val_addr, addr_t old_val_addr) {
+int_t sys_setitimer(int_t which, addr_t new_val_addr, addr_t old_val_addr)
+{
     struct itimerval_ val;
     if (user_get(new_val_addr, val))
         return _EFAULT;
-    STRACE("setitimer(%d, {%ds %dus, %ds %dus}, 0x%x)", which, val.value.sec, val.value.usec, val.interval.sec, val.interval.usec, old_val_addr);
+    STRACE("setitimer(%d, {%ds %dus, %ds %dus}, 0x%x)", which, val.value.sec, val.value.usec,
+           val.interval.sec, val.interval.usec, old_val_addr);
 
     struct timer_spec spec = {
         .interval.tv_sec = val.interval.sec,
@@ -158,7 +176,8 @@ int_t sys_setitimer(int_t which, addr_t new_val_addr, addr_t old_val_addr) {
     return 0;
 }
 
-uint_t sys_alarm(uint_t seconds) {
+uint_t sys_alarm(uint_t seconds)
+{
     STRACE("alarm(%d)", seconds);
     struct timer_spec spec = {
         .value.tv_sec = seconds,
@@ -181,7 +200,8 @@ uint_t sys_alarm(uint_t seconds) {
     return seconds;
 }
 
-dword_t sys_nanosleep(addr_t req_addr, addr_t rem_addr) {
+dword_t sys_nanosleep(addr_t req_addr, addr_t rem_addr)
+{
     struct timespec_ req_ts;
     if (user_get(req_addr, req_ts))
         return _EFAULT;
@@ -202,7 +222,8 @@ dword_t sys_nanosleep(addr_t req_addr, addr_t rem_addr) {
     return 0;
 }
 
-dword_t sys_times(addr_t tbuf) {
+dword_t sys_times(addr_t tbuf)
+{
     STRACE("times(0x%x)", tbuf);
     if (tbuf) {
         struct tms_ tmp;
@@ -217,7 +238,8 @@ dword_t sys_times(addr_t tbuf) {
     return 0;
 }
 
-dword_t sys_gettimeofday(addr_t tv, addr_t tz) {
+dword_t sys_gettimeofday(addr_t tv, addr_t tz)
+{
     STRACE("gettimeofday(0x%x, 0x%x)", tv, tz);
     struct timeval timeval;
     struct timezone timezone;
@@ -236,11 +258,13 @@ dword_t sys_gettimeofday(addr_t tv, addr_t tz) {
     return 0;
 }
 
-dword_t sys_settimeofday(addr_t UNUSED(tv), addr_t UNUSED(tz)) {
+dword_t sys_settimeofday(addr_t UNUSED(tv), addr_t UNUSED(tz))
+{
     return _EPERM;
 }
 
-static void posix_timer_callback(struct posix_timer *timer) {
+static void posix_timer_callback(struct posix_timer *timer)
+{
     if (timer->tgroup == NULL)
         return;
     struct siginfo_ info = {
@@ -251,17 +275,20 @@ static void posix_timer_callback(struct posix_timer *timer) {
     };
     lock(&pids_lock);
     struct task *thread = pid_get_task(timer->thread_pid);
-    // TODO: solve pid reuse. currently we have two ways of referring to a task: pid_t_ and struct task *. pids get reused. task struct pointers get freed on exit or reap. need a third option for cases like this, like a refcount layer.
+    // TODO: solve pid reuse. currently we have two ways of referring to a task: pid_t_ and struct
+    // task *. pids get reused. task struct pointers get freed on exit or reap. need a third option
+    // for cases like this, like a refcount layer.
     if (thread != NULL)
         send_signal(thread, timer->signal, info);
     unlock(&pids_lock);
 }
 
-#define SIGEV_SIGNAL_ 0
-#define SIGEV_NONE_ 1
+#define SIGEV_SIGNAL_    0
+#define SIGEV_NONE_      1
 #define SIGEV_THREAD_ID_ 4
 
-int_t sys_timer_create(dword_t clock, addr_t sigevent_addr, addr_t timer_addr) {
+int_t sys_timer_create(dword_t clock, addr_t sigevent_addr, addr_t timer_addr)
+{
     STRACE("timer_create(%d, %#x, %#x)", clock, sigevent_addr, timer_addr);
     clockid_t real_clockid;
     if (clockid_to_real(clock, &real_clockid))
@@ -269,7 +296,8 @@ int_t sys_timer_create(dword_t clock, addr_t sigevent_addr, addr_t timer_addr) {
     struct sigevent_ sigev;
     if (user_get(sigevent_addr, sigev))
         return _EFAULT;
-    if (sigev.method != SIGEV_SIGNAL_ && sigev.method != SIGEV_NONE_ && sigev.method != SIGEV_THREAD_ID_)
+    if (sigev.method != SIGEV_SIGNAL_ && sigev.method != SIGEV_NONE_ &&
+        sigev.method != SIGEV_THREAD_ID_)
         return _EINVAL;
 
     if (sigev.method == SIGEV_THREAD_ID_) {
@@ -297,7 +325,7 @@ int_t sys_timer_create(dword_t clock, addr_t sigevent_addr, addr_t timer_addr) {
 
     struct posix_timer *timer = &group->posix_timers[timer_id];
     timer->timer_id = timer_id;
-    timer->timer = timer_new(real_clockid, (timer_callback_t) posix_timer_callback, timer);
+    timer->timer = timer_new(real_clockid, (timer_callback_t)posix_timer_callback, timer);
     timer->signal = sigev.signo;
     timer->sig_value = sigev.value;
     timer->tgroup = NULL;
@@ -314,7 +342,8 @@ int_t sys_timer_create(dword_t clock, addr_t sigevent_addr, addr_t timer_addr) {
 
 #define TIMER_ABSTIME_ (1 << 0)
 
-int_t sys_timer_settime(dword_t timer_id, int_t flags, addr_t new_value_addr, addr_t old_value_addr) {
+int_t sys_timer_settime(dword_t timer_id, int_t flags, addr_t new_value_addr, addr_t old_value_addr)
+{
     STRACE("timer_settime(%d, %d, %#x, %#x)", timer_id, flags, new_value_addr, old_value_addr);
     struct itimerspec_ value;
     if (user_get(new_value_addr, value))
@@ -343,7 +372,8 @@ int_t sys_timer_settime(dword_t timer_id, int_t flags, addr_t new_value_addr, ad
     return 0;
 }
 
-int_t sys_timer_delete(dword_t timer_id) {
+int_t sys_timer_delete(dword_t timer_id)
+{
     STRACE("timer_delete(%d)\n", timer_id);
     lock(&current->group->lock);
     struct posix_timer *timer = &current->group->posix_timers[timer_id];
@@ -359,7 +389,8 @@ int_t sys_timer_delete(dword_t timer_id) {
 
 static struct fd_ops timerfd_ops;
 
-static void timerfd_callback(struct fd *fd) {
+static void timerfd_callback(struct fd *fd)
+{
     lock(&fd->lock);
     fd->timerfd.expirations++;
     notify(&fd->cond);
@@ -367,20 +398,23 @@ static void timerfd_callback(struct fd *fd) {
     poll_wakeup(fd, POLL_READ);
 }
 
-fd_t sys_timerfd_create(int_t clockid, int_t flags) {
+fd_t sys_timerfd_create(int_t clockid, int_t flags)
+{
     STRACE("timerfd_create(%d, %#x)", clockid, flags);
     clockid_t real_clockid;
-    if (clockid_to_real(clockid, &real_clockid)) return _EINVAL;
+    if (clockid_to_real(clockid, &real_clockid))
+        return _EINVAL;
 
     struct fd *fd = adhoc_fd_create(&timerfd_ops);
     if (fd == NULL)
         return _ENOMEM;
 
-    fd->timerfd.timer = timer_new(real_clockid, (timer_callback_t) timerfd_callback, fd);
+    fd->timerfd.timer = timer_new(real_clockid, (timer_callback_t)timerfd_callback, fd);
     return f_install(fd, flags);
 }
 
-int_t sys_timerfd_settime(fd_t f, int_t flags, addr_t new_value_addr, addr_t old_value_addr) {
+int_t sys_timerfd_settime(fd_t f, int_t flags, addr_t new_value_addr, addr_t old_value_addr)
+{
     STRACE("timerfd_settime(%d, %d, %#x, %#x)", f, flags, new_value_addr, old_value_addr);
     if (flags & ~(TIMER_ABSTIME_))
         return _EINVAL;
@@ -414,7 +448,8 @@ int_t sys_timerfd_settime(fd_t f, int_t flags, addr_t new_value_addr, addr_t old
     return 0;
 }
 
-static ssize_t timerfd_read(struct fd *fd, void *buf, size_t bufsize) {
+static ssize_t timerfd_read(struct fd *fd, void *buf, size_t bufsize)
+{
     if (bufsize < sizeof(uint64_t))
         return _EINVAL;
     lock(&fd->lock);
@@ -430,12 +465,13 @@ static ssize_t timerfd_read(struct fd *fd, void *buf, size_t bufsize) {
         }
     }
 
-    *(uint64_t *) buf = fd->timerfd.expirations;
+    *(uint64_t *)buf = fd->timerfd.expirations;
     fd->timerfd.expirations = 0;
     unlock(&fd->lock);
     return sizeof(uint64_t);
 }
-static int timerfd_poll(struct fd *fd) {
+static int timerfd_poll(struct fd *fd)
+{
     int res = 0;
     lock(&fd->lock);
     if (fd->timerfd.expirations != 0)
@@ -443,7 +479,8 @@ static int timerfd_poll(struct fd *fd) {
     unlock(&fd->lock);
     return res;
 }
-static int timerfd_close(struct fd *fd) {
+static int timerfd_close(struct fd *fd)
+{
     timer_free(fd->timerfd.timer);
     return 0;
 }

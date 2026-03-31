@@ -1,23 +1,26 @@
+#include "util/sync.h"
+
+#include "kernel/errno.h"
+#include "kernel/task.h"
+
+#include "debug.h"
+
 #include <errno.h>
 #include <limits.h>
-#include "kernel/task.h"
-#include "util/sync.h"
-#include "debug.h"
-#include "kernel/errno.h"
 
-void cond_init(cond_t *cond) {
+void cond_init(cond_t *cond)
+{
     pthread_condattr_t attr;
     pthread_condattr_init(&attr);
-#if __linux__
-    pthread_condattr_setclock(&attr, CLOCK_MONOTONIC);
-#endif
     pthread_cond_init(&cond->cond, &attr);
 }
-void cond_destroy(cond_t *cond) {
+void cond_destroy(cond_t *cond)
+{
     pthread_cond_destroy(&cond->cond);
 }
 
-static bool is_signal_pending(lock_t *lock) {
+static bool is_signal_pending(lock_t *lock)
+{
     if (!current)
         return false;
     if (lock != &current->sighand->lock)
@@ -28,7 +31,8 @@ static bool is_signal_pending(lock_t *lock) {
     return pending;
 }
 
-int wait_for(cond_t *cond, lock_t *lock, struct timespec *timeout) {
+int wait_for(cond_t *cond, lock_t *lock, struct timespec *timeout)
+{
     if (is_signal_pending(lock))
         return _EINTR;
     int err = wait_for_ignore_signals(cond, lock, timeout);
@@ -39,7 +43,8 @@ int wait_for(cond_t *cond, lock_t *lock, struct timespec *timeout) {
     return 0;
 }
 
-int wait_for_ignore_signals(cond_t *cond, lock_t *lock, struct timespec *timeout) {
+int wait_for_ignore_signals(cond_t *cond, lock_t *lock, struct timespec *timeout)
+{
     if (current) {
         lock(&current->waiting_cond_lock);
         current->waiting_cond = cond;
@@ -49,26 +54,12 @@ int wait_for_ignore_signals(cond_t *cond, lock_t *lock, struct timespec *timeout
     int rc = 0;
 #if LOCK_DEBUG
     struct lock_debug lock_tmp = lock->debug;
-    lock->debug = (struct lock_debug) { .initialized = lock->debug.initialized };
+    lock->debug = (struct lock_debug){ .initialized = lock->debug.initialized };
 #endif
     if (!timeout) {
         pthread_cond_wait(&cond->cond, &lock->m);
     } else {
-#if __linux__
-        struct timespec abs_timeout;
-        clock_gettime(CLOCK_MONOTONIC, &abs_timeout);
-        abs_timeout.tv_sec += timeout->tv_sec;
-        abs_timeout.tv_nsec += timeout->tv_nsec;
-        if (abs_timeout.tv_nsec > 1000000000) {
-            abs_timeout.tv_sec++;
-            abs_timeout.tv_nsec -= 1000000000;
-        }
-        rc = pthread_cond_timedwait(&cond->cond, &lock->m, &abs_timeout);
-#elif __APPLE__
         rc = pthread_cond_timedwait_relative_np(&cond->cond, &lock->m, timeout);
-#else
-#error Unimplemented pthread_cond_wait relative timeout.
-#endif
     }
 #if LOCK_DEBUG
     lock->debug = lock_tmp;
@@ -85,17 +76,20 @@ int wait_for_ignore_signals(cond_t *cond, lock_t *lock, struct timespec *timeout
     return 0;
 }
 
-void notify(cond_t *cond) {
+void notify(cond_t *cond)
+{
     pthread_cond_broadcast(&cond->cond);
 }
-void notify_once(cond_t *cond) {
+void notify_once(cond_t *cond)
+{
     pthread_cond_signal(&cond->cond);
 }
 
 __thread sigjmp_buf unwind_buf;
 __thread bool should_unwind = false;
 
-void sigusr1_handler() {
+void sigusr1_handler()
+{
     if (should_unwind) {
         should_unwind = false;
         siglongjmp(unwind_buf, 1);
@@ -128,4 +122,3 @@ void sigusr1_handler() {
         }
     }
 #endif
-
