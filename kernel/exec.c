@@ -471,6 +471,57 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
             goto beyond_hope;
         }
 
+        // Trace PT_LOAD mapping for APPSIM-004 diagnosis (main executable)
+        if (trace_get_level() >= TRACE_LEVEL_SUMMARY) {
+            char role_buf[32] = "main";
+            char path_buf[256];
+            char data_buf[32];
+            char fd_buf[32];
+            char map_start_buf[32];
+            char map_end_buf[32];
+            char file_offset_start_buf[32];
+            char ph_vaddr_buf[32];
+            char ph_offset_buf[32];
+            char ph_filesize_buf[32];
+            char ph_memsize_buf[32];
+            char flags_buf[32];
+
+            strncpy(path_buf, file, sizeof(path_buf) - 1);
+            path_buf[sizeof(path_buf) - 1] = '\0';
+            snprintf(data_buf, sizeof(data_buf), "%p",
+                     (void *)mem_pt(current->mem, PAGE(bias + ph[i].vaddr)));
+            snprintf(fd_buf, sizeof(fd_buf), "%p", (void *)fd);
+            snprintf(map_start_buf, sizeof(map_start_buf), "0x%lx",
+                     (unsigned long)(bias + ph[i].vaddr));
+            snprintf(map_end_buf, sizeof(map_end_buf), "0x%lx",
+                     (unsigned long)(bias + ph[i].vaddr + ph[i].memsize));
+            snprintf(file_offset_start_buf, sizeof(file_offset_start_buf), "0x%lx",
+                     (unsigned long)(ph[i].offset - PGOFFSET(ph[i].vaddr)));
+            snprintf(ph_vaddr_buf, sizeof(ph_vaddr_buf), "0x%lx", (unsigned long)ph[i].vaddr);
+            snprintf(ph_offset_buf, sizeof(ph_offset_buf), "0x%lx", (unsigned long)ph[i].offset);
+            snprintf(ph_filesize_buf, sizeof(ph_filesize_buf), "%lu",
+                     (unsigned long)ph[i].filesize);
+            snprintf(ph_memsize_buf, sizeof(ph_memsize_buf), "%lu", (unsigned long)ph[i].memsize);
+            snprintf(flags_buf, sizeof(flags_buf), "0x%x", ph[i].flags);
+
+            trace_attribute_t load_attrs[] = {
+                { "role", role_buf },
+                { "path", path_buf },
+                { "data", data_buf },
+                { "fd", fd_buf },
+                { "map_start", map_start_buf },
+                { "map_end", map_end_buf },
+                { "file_offset_start", file_offset_start_buf },
+                { "ph_vaddr", ph_vaddr_buf },
+                { "ph_offset", ph_offset_buf },
+                { "ph_filesize", ph_filesize_buf },
+                { "ph_memsize", ph_memsize_buf },
+                { "flags", flags_buf },
+            };
+            trace_begin_interval(TRACE_ORIGIN_KERNEL, "task.proof.exec.load.segment", load_attrs,
+                                 sizeof(load_attrs) / sizeof(load_attrs[0]));
+        }
+
         // load_addr is used to get a value for AX_PHDR et al
         if (!load_addr_set) {
             load_addr = bias + ph[i].vaddr - ph[i].offset;
@@ -503,6 +554,60 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
                 continue;
             if ((err = load_entry(interp_ph[i], interp_base, interp_fd)) < 0)
                 goto beyond_hope;
+
+            // Trace PT_LOAD mapping for APPSIM-004 diagnosis (interpreter)
+            if (trace_get_level() >= TRACE_LEVEL_SUMMARY) {
+                char role_buf[32] = "interpreter";
+                char path_buf[256];
+                char data_buf[32];
+                char fd_buf[32];
+                char map_start_buf[32];
+                char map_end_buf[32];
+                char file_offset_start_buf[32];
+                char ph_vaddr_buf[32];
+                char ph_offset_buf[32];
+                char ph_filesize_buf[32];
+                char ph_memsize_buf[32];
+                char flags_buf[32];
+
+                strncpy(path_buf, interp_name, sizeof(path_buf) - 1);
+                path_buf[sizeof(path_buf) - 1] = '\0';
+                snprintf(data_buf, sizeof(data_buf), "%p",
+                         (void *)mem_pt(current->mem, PAGE(interp_base + interp_ph[i].vaddr)));
+                snprintf(fd_buf, sizeof(fd_buf), "%p", (void *)interp_fd);
+                snprintf(map_start_buf, sizeof(map_start_buf), "0x%lx",
+                         (unsigned long)(interp_base + interp_ph[i].vaddr));
+                snprintf(map_end_buf, sizeof(map_end_buf), "0x%lx",
+                         (unsigned long)(interp_base + interp_ph[i].vaddr + interp_ph[i].memsize));
+                snprintf(file_offset_start_buf, sizeof(file_offset_start_buf), "0x%lx",
+                         (unsigned long)(interp_ph[i].offset - PGOFFSET(interp_ph[i].vaddr)));
+                snprintf(ph_vaddr_buf, sizeof(ph_vaddr_buf), "0x%lx",
+                         (unsigned long)interp_ph[i].vaddr);
+                snprintf(ph_offset_buf, sizeof(ph_offset_buf), "0x%lx",
+                         (unsigned long)interp_ph[i].offset);
+                snprintf(ph_filesize_buf, sizeof(ph_filesize_buf), "%lu",
+                         (unsigned long)interp_ph[i].filesize);
+                snprintf(ph_memsize_buf, sizeof(ph_memsize_buf), "%lu",
+                         (unsigned long)interp_ph[i].memsize);
+                snprintf(flags_buf, sizeof(flags_buf), "0x%x", interp_ph[i].flags);
+
+                trace_attribute_t load_attrs[] = {
+                    { "role", role_buf },
+                    { "path", path_buf },
+                    { "data", data_buf },
+                    { "fd", fd_buf },
+                    { "map_start", map_start_buf },
+                    { "map_end", map_end_buf },
+                    { "file_offset_start", file_offset_start_buf },
+                    { "ph_vaddr", ph_vaddr_buf },
+                    { "ph_offset", ph_offset_buf },
+                    { "ph_filesize", ph_filesize_buf },
+                    { "ph_memsize", ph_memsize_buf },
+                    { "flags", flags_buf },
+                };
+                trace_begin_interval(TRACE_ORIGIN_KERNEL, "task.proof.exec.load.segment",
+                                     load_attrs, sizeof(load_attrs) / sizeof(load_attrs[0]));
+            }
         }
         entry = interp_base + interp_header.entry_point;
 
@@ -524,6 +629,23 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
             };
             trace_begin_interval(TRACE_ORIGIN_KERNEL, "task.proof.elf_interp.mapped", interp_attrs,
                                  sizeof(interp_attrs) / sizeof(interp_attrs[0]));
+        }
+
+        // Name the interpreter mapping pages for APPSIM-004 diagnosis
+        // This allows pc_mapping lookup to identify interpreter vs. executable
+        for (int i = 0; i < interp_header.phent_count; i++) {
+            if (interp_ph[i].type != PT_LOAD)
+                continue;
+            addr_t seg_start = interp_base + interp_ph[i].vaddr;
+            addr_t seg_end = seg_start + interp_ph[i].memsize;
+            page_t start_page = PAGE(seg_start);
+            page_t end_page = PAGE(seg_end);
+            for (page_t pg = start_page; pg <= end_page; pg++) {
+                struct pt_entry *pt = mem_pt(current->mem, pg);
+                if (pt && pt->data && !pt->data->name) {
+                    pt->data->name = "[interpreter]";
+                }
+            }
         }
 
         // For dynamically linked executables, x1 must point to loader's _DYNAMIC
