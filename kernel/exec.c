@@ -31,12 +31,126 @@ struct exec_args {
     const char *args;
 };
 
+static void trace_exec_checkpoint(const char *name, int err)
+{
+    char pid_buf[32];
+    char task_buf[32];
+    char mm_buf[32];
+    char mem_buf[32];
+    char cpu_mmu_buf[32];
+    char expected_mem_mmu_buf[32];
+    char err_buf[32];
+
+    snprintf(pid_buf, sizeof(pid_buf), "%u", (unsigned)(current ? current->pid : 0));
+    snprintf(task_buf, sizeof(task_buf), "%p", (void *)current);
+    snprintf(mm_buf, sizeof(mm_buf), "%p", current ? (void *)current->mm : NULL);
+    snprintf(mem_buf, sizeof(mem_buf), "%p", current ? (void *)current->mem : NULL);
+    snprintf(cpu_mmu_buf, sizeof(cpu_mmu_buf), "%p", current ? (void *)current->cpu.mmu : NULL);
+    snprintf(expected_mem_mmu_buf, sizeof(expected_mem_mmu_buf), "%p",
+             current && current->mem ? (void *)&current->mem->mmu : NULL);
+    snprintf(err_buf, sizeof(err_buf), "%d", err);
+
+    trace_attribute_t attrs[] = {
+        { "pid", pid_buf },         { "task", task_buf },
+        { "mm", mm_buf },           { "mem", mem_buf },
+        { "cpu.mmu", cpu_mmu_buf }, { "expected.mem.mmu", expected_mem_mmu_buf },
+        { "err", err_buf },
+    };
+
+    (void)trace_begin_interval(TRACE_ORIGIN_EXEC, name, attrs, sizeof(attrs) / sizeof(attrs[0]));
+}
+
+static void trace_exec_layout_checkpoint(const char *name, struct task *task, int err)
+{
+    char task_buf[32];
+    char cpu_field_buf[32];
+    char pid_field_buf[32];
+    char mm_field_buf[32];
+    char mem_field_buf[32];
+    char pid_value_buf[32];
+    char mm_value_buf[32];
+    char mem_value_buf[32];
+    char cpu_mmu_value_buf[32];
+    char expected_mem_mmu_buf[32];
+    char sizeof_task_buf[32];
+    char sizeof_cpu_buf[32];
+    char off_cpu_buf[32];
+    char off_pid_buf[32];
+    char off_mm_buf[32];
+    char off_mem_buf[32];
+    char err_buf[32];
+
+    snprintf(task_buf, sizeof(task_buf), "%p", (void *)task);
+    snprintf(cpu_field_buf, sizeof(cpu_field_buf), "%p", task ? (void *)&task->cpu : NULL);
+    snprintf(pid_field_buf, sizeof(pid_field_buf), "%p", task ? (void *)&task->pid : NULL);
+    snprintf(mm_field_buf, sizeof(mm_field_buf), "%p", task ? (void *)&task->mm : NULL);
+    snprintf(mem_field_buf, sizeof(mem_field_buf), "%p", task ? (void *)&task->mem : NULL);
+    snprintf(pid_value_buf, sizeof(pid_value_buf), "%u", (unsigned)(task ? task->pid : 0));
+    snprintf(mm_value_buf, sizeof(mm_value_buf), "%p", task ? (void *)task->mm : NULL);
+    snprintf(mem_value_buf, sizeof(mem_value_buf), "%p", task ? (void *)task->mem : NULL);
+    snprintf(cpu_mmu_value_buf, sizeof(cpu_mmu_value_buf), "%p",
+             task ? (void *)task->cpu.mmu : NULL);
+    snprintf(expected_mem_mmu_buf, sizeof(expected_mem_mmu_buf), "%p",
+             task && task->mem ? (void *)&task->mem->mmu : NULL);
+    snprintf(sizeof_task_buf, sizeof(sizeof_task_buf), "%zu", sizeof(struct task));
+    snprintf(sizeof_cpu_buf, sizeof(sizeof_cpu_buf), "%zu", sizeof(struct cpu_state));
+    snprintf(off_cpu_buf, sizeof(off_cpu_buf), "%zu", __builtin_offsetof(struct task, cpu));
+    snprintf(off_pid_buf, sizeof(off_pid_buf), "%zu", __builtin_offsetof(struct task, pid));
+    snprintf(off_mm_buf, sizeof(off_mm_buf), "%zu", __builtin_offsetof(struct task, mm));
+    snprintf(off_mem_buf, sizeof(off_mem_buf), "%zu", __builtin_offsetof(struct task, mem));
+    snprintf(err_buf, sizeof(err_buf), "%d", err);
+
+    trace_attribute_t attrs[] = {
+        { "task", task_buf },
+        { "addr.cpu", cpu_field_buf },
+        { "addr.pid", pid_field_buf },
+        { "addr.mm", mm_field_buf },
+        { "addr.mem", mem_field_buf },
+        { "pid", pid_value_buf },
+        { "mm", mm_value_buf },
+        { "mem", mem_value_buf },
+        { "cpu.mmu", cpu_mmu_value_buf },
+        { "expected.mem.mmu", expected_mem_mmu_buf },
+        { "sizeof.task", sizeof_task_buf },
+        { "sizeof.cpu", sizeof_cpu_buf },
+        { "offsetof.cpu", off_cpu_buf },
+        { "offsetof.pid", off_pid_buf },
+        { "offsetof.mm", off_mm_buf },
+        { "offsetof.mem", off_mem_buf },
+        { "err", err_buf },
+    };
+
+    (void)trace_begin_interval(TRACE_ORIGIN_EXEC, name, attrs, sizeof(attrs) / sizeof(attrs[0]));
+}
+
 static inline addr_t align_stack(addr_t sp);
 static inline ssize_t user_strlen(addr_t p);
 static inline int user_memset(addr_t start, byte_t val, addr_t len);
 static inline addr_t copy_string(addr_t sp, const char *string);
 static inline addr_t args_copy(addr_t sp, struct exec_args args);
 static size_t args_size(struct exec_args args);
+
+static void trace_elf_header_checkpoint(const char *name, struct elf_header *header)
+{
+    char class_buf[8];
+    char machine_buf[8];
+    char entry_buf[24];
+    char type_buf[8];
+
+    snprintf(class_buf, sizeof(class_buf), "%u", header->bitness);
+    snprintf(machine_buf, sizeof(machine_buf), "%u", header->machine);
+    snprintf(entry_buf, sizeof(entry_buf), "0x%llx", (unsigned long long)header->entry_point);
+    snprintf(type_buf, sizeof(type_buf), "%u", header->type);
+
+    trace_attribute_t attrs[] = {
+        { "elf_class", class_buf },
+        { "elf_machine", machine_buf },
+        { "elf_entry", entry_buf },
+        { "elf_type", type_buf },
+    };
+
+    (void)trace_begin_interval(TRACE_ORIGIN_TASK, name, attrs, sizeof(attrs) / sizeof(attrs[0]));
+}
 
 static int read_header(struct fd *fd, struct elf_header *header)
 {
@@ -79,6 +193,9 @@ static int read_header(struct fd *fd, struct elf_header *header)
     if (header->machine != ELF_AARCH64) {
         return _ENOEXEC; // Error -8: Not aarch64
     }
+
+    // Emit ELF header facts via approved instrumentation
+    trace_elf_header_checkpoint("task.proof.elf_header.validated", header);
 
     return 0;
 }
@@ -202,6 +319,7 @@ static addr_t find_hole_for_elf(struct elf_header *header, struct prg_header *ph
 static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, struct exec_args envp)
 {
     int err = 0;
+    trace_exec_checkpoint("task.proof.do_execve.before_elf_exec", err);
 
     // Trace: Entry to elf_exec (POINT 4 - elf_exec_entry)
     trace_emit_exec_path_boundary((uint64_t)current, current->pid, (uint64_t)current->mm,
@@ -289,6 +407,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
         err = _ENOMEM;
         goto out_free_interp;
     }
+    trace_exec_checkpoint("task.proof.do_execve.before_mm_release", err);
     // Trace: Before mm_release (old_mm valid, new_mm ready)
     trace_emit_exec_mm_boundary((uint64_t)current, current->pid, (uint64_t)current->mm,
                                 (uint64_t)current->mem, (uint64_t)old_mm, (uint64_t)new_mm,
@@ -296,16 +415,20 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     // Now safe to release old mm and update current
     mm_release(old_mm);
     trace_emit(TRACE_EVENT_MM_RELEASE, 0);
+    trace_exec_checkpoint("task.proof.do_execve.after_mm_release", err);
     // Trace: After mm_release (old_mm released, new_mm not yet set)
     trace_emit_exec_mm_boundary((uint64_t)current, current->pid, (uint64_t)current->mm,
                                 (uint64_t)current->mem, (uint64_t)old_mm, (uint64_t)new_mm,
                                 EXEC_MM_OP_AFTER_MM_RELEASE, 0);
     // Trace: Before task_set_mm (critical transition point)
+    trace_exec_checkpoint("task.proof.do_execve.before_task_set_mm", err);
     trace_emit_exec_mm_boundary((uint64_t)current, current->pid, (uint64_t)current->mm,
                                 (uint64_t)current->mem, (uint64_t)old_mm, (uint64_t)new_mm,
                                 EXEC_MM_OP_BEFORE_TASK_SET_MM, 0);
     task_set_mm(current, new_mm);
     trace_emit(TRACE_EVENT_TASK_SET_MM, 0);
+    trace_exec_checkpoint("task.proof.do_execve.after_task_set_mm", err);
+    trace_exec_checkpoint("task.proof.elf_exec.after_task_set_mm", err);
     // Trace: After task_set_mm (new_mm should be set)
     trace_emit_exec_mm_boundary((uint64_t)current, current->pid, (uint64_t)current->mm,
                                 (uint64_t)current->mem, (uint64_t)old_mm, (uint64_t)new_mm,
@@ -324,6 +447,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     write_wrlock(&current->mem->lock);
 
     current->mm->exefile = fd_retain(fd);
+    trace_exec_checkpoint("task.proof.elf_exec.after_exefile_set", err);
 
     addr_t load_addr = 0; // used for AX_PHDR
     bool load_addr_set = false;
@@ -443,32 +567,49 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     // STACK TIME!
 
     // Map sufficient stack pages to accommodate initial stack setup.
-    // Stack grows downward from high addresses. We need space for:
-    // - argv/envp strings and pointers
-    // - auxv array (~320 bytes)
-    // - platform string, random bytes
-    // - alignment padding
-    // - musl loader runtime stack usage (can be significant)
-    // Total: ~1-2KB for args, but musl needs 20-40KB for initialization
-    // Use 16 pages (64KB) to be safe.
-    // Map pages 0xffff0-0xfffff (addresses 0xffff0000 - 0xffffffff).
-    // Initial SP will be at 0xffffffff (top of mapped region).
-    if ((err = pt_map_nothing(current->mem, 0xffff0, 16, P_WRITE | P_GROWSDOWN)) < 0)
+    // AArch64 startup layout - two-sided budget inside mapped stack region
+    // Derived from USER_TOP with explicit upward headroom and downward reserve
+#define USER_TOP          (((addr_t)MEM_PAGES) << PAGE_BITS) // 0x100000000
+#define STARTUP_HEADROOM  ((addr_t)16 * 1024 * 1024)         // 16 MB gap
+#define STACK_MAPPED_SIZE ((addr_t)4 * 1024 * 1024)          // 4 MB mapped stack
+#define TLS_TCB_SIZE      ((addr_t)256 * 1024)               // 256 KB
+#define GUARD_PAGES       4
+#define GUARD_SIZE        ((addr_t)GUARD_PAGES * PAGE_SIZE)
+
+// Two-sided budget inside mapped stack
+#define INITIAL_UPWARD_HEADROOM  ((addr_t)512 * 1024)      // 512 KB above SP
+#define INITIAL_DOWNWARD_RESERVE ((addr_t)2 * 1024 * 1024) // 2 MB below SP
+
+#define STACK_TOP  (USER_TOP - STARTUP_HEADROOM)
+#define STACK_BASE (STACK_TOP - STACK_MAPPED_SIZE)
+
+#define TCB_TOP  (STACK_BASE - GUARD_SIZE)
+#define TCB_BASE (TCB_TOP - TLS_TCB_SIZE)
+
+    // Verify two-sided budget fits inside mapped stack
+    _Static_assert(INITIAL_UPWARD_HEADROOM + INITIAL_DOWNWARD_RESERVE <= STACK_MAPPED_SIZE,
+                   "startup budget must fit inside mapped stack");
+
+    // Map stack pages from STACK_BASE to STACK_TOP
+    pages_t stack_base_page = PAGE(STACK_BASE);
+    pages_t stack_size_pages = PAGE_ROUND_UP(STACK_MAPPED_SIZE);
+    if ((err = pt_map_nothing(current->mem, stack_base_page, stack_size_pages,
+                              P_WRITE | P_GROWSDOWN)) < 0)
         goto beyond_hope;
 
-    // Map TCB (Thread Control Block) pages for TLS
-    // aarch64 musl expects x3 to point to TCB at startup
-    // TCB is placed just below the stack pages at 0xfffed-0xfffef
-    // These pages are at 0xfffed000-0xfffeffff
-    // We need 3 pages (12KB) for TCB + TLS data (musl can use offsets up to ~17KB)
-    if ((err = pt_map_nothing(current->mem, 0xfffed, 3, P_WRITE)) < 0)
+    // Map TCB/TLS pages below stack with guard gap
+    pages_t tcb_base_page = PAGE(TCB_BASE);
+    pages_t tcb_size_pages = PAGE_ROUND_UP(TLS_TCB_SIZE);
+    if ((err = pt_map_nothing(current->mem, tcb_base_page, tcb_size_pages, P_WRITE)) < 0)
         goto beyond_hope;
 
     // that was the last memory mapping
     write_wrunlock(&current->mem->lock);
-    // Start SP at 0xffffffff (top of mapped region, aligned to 16 bytes)
-    // Stack grows down into 0xfffff, 0xffffe, 0xffffd as data is pushed.
-    addr_t sp = 0xfffffff0ULL;
+
+    // Start SP with explicit upward headroom inside mapped stack
+    // argv/envp/auxv placed in downward reserve, X2 can walk in upward headroom
+    addr_t sp = align_stack(STACK_TOP - INITIAL_UPWARD_HEADROOM);
+
     const size_t stack_slot_size = sizeof(addr_t);
     // on 32-bit linux, there's 4 empty bytes at the very bottom of the stack.
     // on 64-bit linux, there's 8. make ptraceomatic happy. (a major theme in this file)
@@ -477,28 +618,50 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     err = _EFAULT;
     // first, copy stuff pointed to by argv/envp/auxv
     // filename, argc, argv
+    trace_exec_checkpoint("task.proof.elf_exec.before_copy_execfn", err);
     addr_t file_addr = sp = copy_string(sp, file);
-    if (sp == 0)
+    if (sp == 0) {
+        trace_exec_checkpoint("task.proof.elf_exec.copy_execfn_failed", err);
         goto beyond_hope;
+    }
+    trace_exec_checkpoint("task.proof.elf_exec.after_copy_execfn", err);
+
+    trace_exec_checkpoint("task.proof.elf_exec.before_copy_envp", err);
     addr_t envp_addr = sp = args_copy(sp, envp);
-    if (sp == 0)
+    if (sp == 0) {
+        trace_exec_checkpoint("task.proof.elf_exec.copy_envp_failed", err);
         goto beyond_hope;
+    }
+    trace_exec_checkpoint("task.proof.elf_exec.after_copy_envp", err);
     current->mm->argv_end = sp;
+
+    trace_exec_checkpoint("task.proof.elf_exec.before_copy_argv", err);
     addr_t argv_addr = sp = args_copy(sp, argv);
-    if (sp == 0)
+    if (sp == 0) {
+        trace_exec_checkpoint("task.proof.elf_exec.copy_argv_failed", err);
         goto beyond_hope;
+    }
+    trace_exec_checkpoint("task.proof.elf_exec.after_copy_argv", err);
     current->mm->argv_start = sp;
     sp = align_stack(sp);
 
+    trace_exec_checkpoint("task.proof.elf_exec.before_copy_platform", err);
     addr_t platform_addr = sp = copy_string(sp, "aarch64");
-    if (sp == 0)
+    if (sp == 0) {
+        trace_exec_checkpoint("task.proof.elf_exec.copy_platform_failed", err);
         goto beyond_hope;
+    }
+    trace_exec_checkpoint("task.proof.elf_exec.after_copy_platform", err);
     // 16 random bytes so no system call is needed to seed a userspace RNG
     char random[16] = {};
     get_random(random, sizeof(random)); // if this fails, eh, no one's really using it
     addr_t random_addr = sp -= sizeof(random);
-    if (user_put(sp, random))
+    trace_exec_checkpoint("task.proof.elf_exec.before_copy_random", err);
+    if (user_put(sp, random)) {
+        trace_exec_checkpoint("task.proof.elf_exec.copy_random_failed", err);
         goto beyond_hope;
+    }
+    trace_exec_checkpoint("task.proof.elf_exec.after_copy_random", err);
 
     // the way linux aligns the stack at this point is kinda funky
     // calculate how much space is needed for argv, envp, and auxv, subtract
@@ -535,8 +698,12 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     addr_t p = sp;
 
     // argc
-    if (user_put(p, argv.count))
+    trace_exec_checkpoint("task.proof.elf_exec.before_write_argc", err);
+    if (user_put(p, argv.count)) {
+        trace_exec_checkpoint("task.proof.elf_exec.write_argc_failed", err);
         return _EFAULT;
+    }
+    trace_exec_checkpoint("task.proof.elf_exec.after_write_argc", err);
     p += stack_slot_size;
 
     // argv
@@ -561,19 +728,32 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
 
     // copy auxv
     current->mm->auxv_start = p;
-    if (user_put(p, aux))
+    trace_exec_checkpoint("task.proof.elf_exec.before_write_auxv", err);
+    if (user_put(p, aux)) {
+        trace_exec_checkpoint("task.proof.elf_exec.write_auxv_failed", err);
         goto beyond_hope;
+    }
+    trace_exec_checkpoint("task.proof.elf_exec.after_write_auxv", err);
     p += sizeof(aux);
     current->mm->auxv_end = p;
 
     current->mm->stack_start = sp;
+    trace_exec_checkpoint("task.proof.elf_exec.after_stack_setup", err);
 
     // Initialize CPU state properly before setting up registers
     // This zeros all X registers, PSTATE, and other state to prevent garbage values
     // CRITICAL: Save and restore mmu pointer since a64_cpu_init zeros all fields
+    trace_exec_layout_checkpoint("task.proof.exec.layout_before_cpu_init", current, err);
+    trace_exec_checkpoint("task.proof.elf_exec.before_cpu_init_probe", err);
+    a64_cpu_init_probe(current, &current->cpu, err);
+    trace_exec_checkpoint("task.proof.elf_exec.after_cpu_init_probe", err);
+    trace_exec_layout_checkpoint("task.proof.exec.layout_after_cpu_init_probe", current, err);
+    trace_exec_checkpoint("task.proof.elf_exec.before_cpu_init", err);
     struct mmu *saved_mmu = current->cpu.mmu;
-    a64_cpu_init(&current->cpu);
+    a64_cpu_init(current, &current->cpu, err);
+    trace_exec_checkpoint("task.proof.elf_exec.after_cpu_init", err);
     current->cpu.mmu = saved_mmu;
+    trace_exec_checkpoint("task.proof.elf_exec.after_restore_cpu_mmu", err);
 
     current->cpu.sp = sp;
     current->cpu.pc = entry;
@@ -604,7 +784,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
 
     // Set up TCB (Thread Control Block) for TLS
     // TLS belongs in TPIDR_EL0, NOT in x3
-    addr_t tcb_base = 0xfffed000; // Start of mapped TCB pages (3 pages = 12KB)
+    addr_t tcb_base = TCB_BASE; // Start of mapped TCB pages (256 KB)
     a64_setup_tls_area(&current->cpu, tcb_base);
 
     // Correct AArch64 musl startup: pass stack pointer in x0
@@ -615,7 +795,10 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
 
     // aarch64 PSTATE (no eflags register)
     // current->cpu.eflags = 0;
+    trace_exec_checkpoint("task.proof.elf_exec.after_cpu_setup", err);
     err = 0;
+    trace_exec_checkpoint("task.proof.elf_exec.before_return", err);
+    trace_exec_checkpoint("task.proof.do_execve.after_elf_exec", err);
 out_free_interp:
     if (interp_name != NULL)
         free(interp_name);
@@ -629,7 +812,10 @@ out_free_ph:
 
 beyond_hope:
     // TODO force sigsegv
+    trace_exec_checkpoint("task.proof.elf_exec.error_branch_entered", err);
+    trace_exec_checkpoint("task.proof.elf_exec.before_cleanup_unlock", err);
     write_wrunlock(&current->mem->lock);
+    trace_exec_checkpoint("task.proof.elf_exec.after_cleanup_unlock", err);
     goto out_free_interp;
 }
 
@@ -690,7 +876,10 @@ static inline int user_memset(addr_t start, byte_t val, addr_t len)
 static int format_exec(struct fd *fd, const char *file, struct exec_args argv,
                        struct exec_args envp)
 {
+    trace_exec_checkpoint("task.proof.do_execve.before_format_exec", 0);
     int err = elf_exec(fd, file, argv, envp);
+    trace_exec_checkpoint("task.proof.elf_exec.after_return_to_caller", err);
+    trace_exec_checkpoint("task.proof.do_execve.after_format_exec", err);
     if (err != _ENOEXEC)
         return err;
     // other formats would go here
@@ -958,16 +1147,83 @@ int __do_execve(const char *file, struct exec_args argv, struct exec_args envp)
 int do_execve(const char *file, size_t argc, const char *argv_p, const char *envp_p)
 {
     // TRACE[0]: do_execve_entry
+    trace_exec_checkpoint("task.proof.do_execve.entry", 0);
     trace_emit_exec_path_boundary(
         (uint64_t)current, current ? current->pid : 0, (uint64_t)(current ? current->mm : NULL),
         (uint64_t)(current ? current->mem : NULL), EXEC_PATH_DO_EXECVE_ENTRY, 0);
+
+    // APPSIM-004 Stage 3A: Trace exec target path
+    trace_attribute_t exec_target_attrs[] = {
+        { "path", file },
+        { "pid", "unknown" }, // Will be updated below if current is valid
+    };
+    if (current != NULL) {
+        char pid_buf[32];
+        snprintf(pid_buf, sizeof(pid_buf), "%u", (unsigned)current->pid);
+        exec_target_attrs[1].value = pid_buf;
+    }
+    (void)trace_begin_interval(TRACE_ORIGIN_EXEC, "task.proof.guest.exec.target", exec_target_attrs,
+                               sizeof(exec_target_attrs) / sizeof(exec_target_attrs[0]));
+
+    // APPSIM-004 Stage 1: Check if this is /bin/login exec
+    int is_login = (strstr(file, "login") != NULL);
+    if (is_login) {
+        trace_exec_checkpoint("task.proof.login.exec.entry.kernel", 0);
+    }
+
     struct exec_args argv = { .count = argc, .args = argv_p };
     struct exec_args envp = { .args = envp_p };
     while (*envp_p != '\0') {
         envp_p += strlen(envp_p) + 1;
         envp.count++;
     }
-    return __do_execve(file, argv, envp);
+    int err = __do_execve(file, argv, envp);
+
+    // APPSIM-004 Stage 3A: Trace exec success/failure
+    char err_buf[32];
+    snprintf(err_buf, sizeof(err_buf), "%d", err);
+    trace_attribute_t exec_result_attrs[] = {
+        { "path", file },
+        { "return", err_buf },
+    };
+    if (err < 0) {
+        (void)trace_begin_interval(TRACE_ORIGIN_EXEC, "task.proof.guest.exec.failure",
+                                   exec_result_attrs,
+                                   sizeof(exec_result_attrs) / sizeof(exec_result_attrs[0]));
+    } else {
+        (void)trace_begin_interval(TRACE_ORIGIN_EXEC, "task.proof.guest.exec.success",
+                                   exec_result_attrs,
+                                   sizeof(exec_result_attrs) / sizeof(exec_result_attrs[0]));
+    }
+
+    // APPSIM-004 Stage 1: Trace exec result for /bin/login
+    if (is_login) {
+        if (err < 0) {
+            trace_exec_checkpoint("task.proof.login.exec.failure.kernel", err);
+        } else {
+            trace_exec_checkpoint("task.proof.login.exec.success.kernel", 0);
+            // Verify PID is still valid after successful exec
+            if (current != NULL && current->pid != 0) {
+                trace_exec_checkpoint("task.proof.login.pid.alive.kernel", current->pid);
+            }
+        }
+    }
+
+    // APPSIM-004 Stage 3A: Verify guest PID alive after exec
+    if (err == 0 && current != NULL && current->pid != 0) {
+        char alive_pid_buf[32];
+        snprintf(alive_pid_buf, sizeof(alive_pid_buf), "%u", (unsigned)current->pid);
+        trace_attribute_t pid_alive_attrs[] = {
+            { "pid", alive_pid_buf },
+            { "path", file },
+        };
+        (void)trace_begin_interval(TRACE_ORIGIN_EXEC, "task.proof.guest.pid.alive_after_exec",
+                                   pid_alive_attrs,
+                                   sizeof(pid_alive_attrs) / sizeof(pid_alive_attrs[0]));
+    }
+
+    trace_exec_checkpoint("task.proof.do_execve.before_return", err);
+    return err;
 }
 
 static ssize_t user_read_string_array(addr_t addr, char *buf, size_t max)

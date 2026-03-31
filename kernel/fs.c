@@ -1,30 +1,38 @@
-#include "debug.h"
-#include <string.h>
-#include <sys/stat.h>
+#include "kernel/fs.h"
+
+#include "fs/dev.h"
+#include "fs/fd.h"
+#include "fs/path.h"
 #include "kernel/calls.h"
 #include "kernel/errno.h"
 #include "kernel/task.h"
-#include "kernel/fs.h"
-#include "fs/fd.h"
-#include "fs/path.h"
-#include "fs/dev.h"
 
-static struct fd *at_fd(fd_t f) {
+#include "debug.h"
+
+#include <string.h>
+#include <sys/stat.h>
+
+static struct fd *at_fd(fd_t f)
+{
     if (f == AT_FDCWD_)
         return AT_PWD;
     return f_get(f);
 }
 
-static void apply_umask(mode_t_ *mode) {
+static void apply_umask(mode_t_ *mode)
+{
     struct fs_info *fs = current->fs;
     lock(&fs->lock);
     *mode &= ~fs->umask;
     unlock(&fs->lock);
 }
 
-int access_check(struct statbuf *stat, int check) {
-    if (superuser()) return 0;
-    if (check == 0) return 0;
+int access_check(struct statbuf *stat, int check)
+{
+    if (superuser())
+        return 0;
+    if (check == 0)
+        return 0;
     // Align check with the correct bits in mode
     if (current->euid == stat->uid) {
         check <<= 6;
@@ -39,10 +47,12 @@ int access_check(struct statbuf *stat, int check) {
 // TODO ENAMETOOLONG
 
 #define AT_EACCESS_ 0x200
-dword_t sys_access(addr_t path_addr, dword_t mode) {
+dword_t sys_access(addr_t path_addr, dword_t mode)
+{
     return sys_faccessat(AT_FDCWD_, path_addr, mode, 0);
 }
-dword_t sys_faccessat(fd_t at_f, addr_t path_addr, mode_t_ mode, dword_t flags) {
+dword_t sys_faccessat(fd_t at_f, addr_t path_addr, mode_t_ mode, dword_t flags)
+{
     char path[MAX_PATH];
     if (user_read_string(path_addr, path, sizeof(path)))
         return _EFAULT;
@@ -64,7 +74,8 @@ dword_t sys_faccessat(fd_t at_f, addr_t path_addr, mode_t_ mode, dword_t flags) 
     return err;
 }
 
-fd_t sys_openat(fd_t at_f, addr_t path_addr, dword_t flags, mode_t_ mode) {
+fd_t sys_openat(fd_t at_f, addr_t path_addr, dword_t flags, mode_t_ mode)
+{
     char path[MAX_PATH];
     if (user_read_string(path_addr, path, sizeof(path)))
         return _EFAULT;
@@ -82,11 +93,13 @@ fd_t sys_openat(fd_t at_f, addr_t path_addr, dword_t flags, mode_t_ mode) {
     return f_install(fd, flags);
 }
 
-fd_t sys_open(addr_t path_addr, dword_t flags, mode_t_ mode) {
+fd_t sys_open(addr_t path_addr, dword_t flags, mode_t_ mode)
+{
     return sys_openat(AT_FDCWD_, path_addr, flags, mode);
 }
 
-dword_t sys_readlinkat(fd_t at_f, addr_t path_addr, addr_t buf_addr, dword_t bufsize) {
+dword_t sys_readlinkat(fd_t at_f, addr_t path_addr, addr_t buf_addr, dword_t bufsize)
+{
     char path[MAX_PATH];
     if (user_read_string(path_addr, path, sizeof(path)))
         return _EFAULT;
@@ -104,11 +117,13 @@ dword_t sys_readlinkat(fd_t at_f, addr_t path_addr, addr_t buf_addr, dword_t buf
     return size;
 }
 
-dword_t sys_readlink(addr_t path_addr, addr_t buf_addr, dword_t bufsize) {
+dword_t sys_readlink(addr_t path_addr, addr_t buf_addr, dword_t bufsize)
+{
     return sys_readlinkat(AT_FDCWD_, path_addr, buf_addr, bufsize);
 }
 
-dword_t sys_linkat(fd_t src_at_f, addr_t src_addr, fd_t dst_at_f, addr_t dst_addr) {
+dword_t sys_linkat(fd_t src_at_f, addr_t src_addr, fd_t dst_at_f, addr_t dst_addr)
+{
     char src[MAX_PATH];
     if (user_read_string(src_addr, src, sizeof(src)))
         return _EFAULT;
@@ -125,12 +140,14 @@ dword_t sys_linkat(fd_t src_at_f, addr_t src_addr, fd_t dst_at_f, addr_t dst_add
     return generic_linkat(src_at, src, dst_at, dst);
 }
 
-dword_t sys_link(addr_t src_addr, addr_t dst_addr) {
+dword_t sys_link(addr_t src_addr, addr_t dst_addr)
+{
     return sys_linkat(AT_FDCWD_, src_addr, AT_FDCWD_, dst_addr);
 }
 
 #define AT_REMOVEDIR_ 0x200
-dword_t sys_unlinkat(fd_t at_f, addr_t path_addr, int_t flags) {
+dword_t sys_unlinkat(fd_t at_f, addr_t path_addr, int_t flags)
+{
     char path[MAX_PATH];
     if (user_read_string(path_addr, path, sizeof(path)))
         return _EFAULT;
@@ -144,11 +161,13 @@ dword_t sys_unlinkat(fd_t at_f, addr_t path_addr, int_t flags) {
         return generic_unlinkat(at, path);
 }
 
-dword_t sys_unlink(addr_t path_addr) {
+dword_t sys_unlink(addr_t path_addr)
+{
     return sys_unlinkat(AT_FDCWD_, path_addr, 0);
 }
 
-dword_t sys_renameat2(fd_t src_at_f, addr_t src_addr, fd_t dst_at_f, addr_t dst_addr, int_t flags) {
+dword_t sys_renameat2(fd_t src_at_f, addr_t src_addr, fd_t dst_at_f, addr_t dst_addr, int_t flags)
+{
     if (flags != 0)
         return _EINVAL;
     char src[MAX_PATH];
@@ -167,15 +186,18 @@ dword_t sys_renameat2(fd_t src_at_f, addr_t src_addr, fd_t dst_at_f, addr_t dst_
     return generic_renameat(src_at, src, dst_at, dst);
 }
 
-dword_t sys_renameat(fd_t src_at_f, addr_t src_addr, fd_t dst_at_f, addr_t dst_addr) {
+dword_t sys_renameat(fd_t src_at_f, addr_t src_addr, fd_t dst_at_f, addr_t dst_addr)
+{
     return sys_renameat2(src_at_f, src_addr, dst_at_f, dst_addr, 0);
 }
 
-dword_t sys_rename(addr_t src_addr, addr_t dst_addr) {
+dword_t sys_rename(addr_t src_addr, addr_t dst_addr)
+{
     return sys_renameat2(AT_FDCWD_, src_addr, AT_FDCWD_, dst_addr, 0);
 }
 
-dword_t sys_symlinkat(addr_t target_addr, fd_t at_f, addr_t link_addr) {
+dword_t sys_symlinkat(addr_t target_addr, fd_t at_f, addr_t link_addr)
+{
     char target[MAX_PATH];
     if (user_read_string(target_addr, target, sizeof(target)))
         return _EFAULT;
@@ -189,11 +211,13 @@ dword_t sys_symlinkat(addr_t target_addr, fd_t at_f, addr_t link_addr) {
     return generic_symlinkat(target, at, link);
 }
 
-dword_t sys_symlink(addr_t target_addr, addr_t link_addr) {
+dword_t sys_symlink(addr_t target_addr, addr_t link_addr)
+{
     return sys_symlinkat(target_addr, AT_FDCWD_, link_addr);
 }
 
-dword_t sys_mknodat(fd_t at_f, addr_t path_addr, mode_t_ mode, dev_t_ dev) {
+dword_t sys_mknodat(fd_t at_f, addr_t path_addr, mode_t_ mode, dev_t_ dev)
+{
     char path[MAX_PATH];
     if (user_read_string(path_addr, path, sizeof(path)))
         return _EFAULT;
@@ -205,11 +229,13 @@ dword_t sys_mknodat(fd_t at_f, addr_t path_addr, mode_t_ mode, dev_t_ dev) {
     return generic_mknodat(at, path, mode, dev);
 }
 
-dword_t sys_mknod(addr_t path_addr, mode_t_ mode, dev_t_ dev) {
+dword_t sys_mknod(addr_t path_addr, mode_t_ mode, dev_t_ dev)
+{
     return sys_mknodat(AT_FDCWD_, path_addr, mode, dev);
 }
 
-static ssize_t sys_read_buf(fd_t fd_no, void *buf, size_t size) {
+static ssize_t sys_read_buf(fd_t fd_no, void *buf, size_t size)
+{
     struct fd *fd = f_get(fd_no);
     if (fd == NULL)
         return _EBADF;
@@ -230,15 +256,33 @@ static ssize_t sys_read_buf(fd_t fd_no, void *buf, size_t size) {
 
     if (res >= 0) {
         size_t print_size = res;
-        if (print_size > 100) print_size = 100;
+        if (print_size > 100)
+            print_size = 100;
         STRACE(" \"%.*s\"", print_size, buf);
     }
     return res;
 }
 
-dword_t sys_read(fd_t fd_no, addr_t buf_addr, dword_t size) {
+dword_t sys_read(fd_t fd_no, addr_t buf_addr, dword_t size)
+{
     STRACE("read(%d, 0x%x, %d)", fd_no, buf_addr, size);
-    char *buf = (char *) malloc(size);
+
+    // APPSIM-004 Stage 3A: Guest read attempt tracing
+    char pid_buf[32];
+    char fd_buf[32];
+    char size_buf[32];
+    snprintf(pid_buf, sizeof(pid_buf), "%u", (unsigned)(current ? current->pid : 0));
+    snprintf(fd_buf, sizeof(fd_buf), "%d", fd_no);
+    snprintf(size_buf, sizeof(size_buf), "%u", (unsigned)size);
+    trace_attribute_t read_attrs[] = {
+        { "pid", pid_buf },
+        { "fd", fd_buf },
+        { "requested_bytes", size_buf },
+    };
+    (void)trace_begin_interval(TRACE_ORIGIN_KERNEL, "task.proof.guest.read.attempt", read_attrs,
+                               sizeof(read_attrs) / sizeof(read_attrs[0]));
+
+    char *buf = (char *)malloc(size);
     if (buf == NULL)
         return _ENOMEM;
     int_t res = sys_read_buf(fd_no, buf, size);
@@ -250,7 +294,8 @@ dword_t sys_read(fd_t fd_no, addr_t buf_addr, dword_t size) {
     return res;
 }
 
-static ssize_t sys_write_buf(fd_t fd_no, void *buf, size_t size) {
+static ssize_t sys_write_buf(fd_t fd_no, void *buf, size_t size)
+{
     struct fd *fd = f_get(fd_no);
     if (fd == NULL)
         return _EBADF;
@@ -269,7 +314,24 @@ static ssize_t sys_write_buf(fd_t fd_no, void *buf, size_t size) {
     return res;
 }
 
-dword_t sys_write(fd_t fd_no, addr_t buf_addr, dword_t size) {
+dword_t sys_write(fd_t fd_no, addr_t buf_addr, dword_t size)
+{
+    // APPSIM-004 Stage 3A: Guest write attempt tracing
+    // Use trace_begin_interval for the checkpoint (approved instrumentation)
+    char pid_buf[32];
+    char fd_buf[32];
+    char size_buf[32];
+    snprintf(pid_buf, sizeof(pid_buf), "%u", (unsigned)(current ? current->pid : 0));
+    snprintf(fd_buf, sizeof(fd_buf), "%d", fd_no);
+    snprintf(size_buf, sizeof(size_buf), "%u", (unsigned)size);
+    trace_attribute_t write_attrs[] = {
+        { "pid", pid_buf },
+        { "fd", fd_buf },
+        { "byte_count", size_buf },
+    };
+    (void)trace_begin_interval(TRACE_ORIGIN_KERNEL, "task.proof.guest.write.attempt", write_attrs,
+                               sizeof(write_attrs) / sizeof(write_attrs[0]));
+
     // FIXME this is a DOS vector, should ideally use vectorized I/O
     char *buf = malloc(size);
     if (buf == NULL)
@@ -279,11 +341,22 @@ dword_t sys_write(fd_t fd_no, addr_t buf_addr, dword_t size) {
         goto out;
 
     size_t print_size = size;
-    if (print_size > 100) print_size = 100;
+    if (print_size > 100)
+        print_size = 100;
     STRACE("write(%d, \"%.*s\", %d)", fd_no, print_size, buf, size);
 
     res = sys_write_buf(fd_no, buf, size);
 out:
+    // APPSIM-004 Stage 3A: Write return value
+    char return_buf[32];
+    snprintf(return_buf, sizeof(return_buf), "%d", res);
+    trace_attribute_t return_attrs[] = {
+        { "pid", pid_buf },
+        { "fd", fd_buf },
+        { "return", return_buf },
+    };
+    (void)trace_begin_interval(TRACE_ORIGIN_KERNEL, "task.proof.guest.write.return", return_attrs,
+                               sizeof(return_attrs) / sizeof(return_attrs[0]));
     free(buf);
     return res;
 }
@@ -295,7 +368,8 @@ out:
 // that yet because it's more work and the efficiency gain from that is dwarfed
 // by the inefficiency of the emulator.
 
-static struct iovec_ *read_iovec(addr_t iovec_addr, unsigned iovec_count) {
+static struct iovec_ *read_iovec(addr_t iovec_addr, unsigned iovec_count)
+{
     dword_t iovec_size = sizeof(struct iovec_) * iovec_count;
     struct iovec_ *iovec = malloc(iovec_size);
     if (iovec == NULL)
@@ -307,14 +381,16 @@ static struct iovec_ *read_iovec(addr_t iovec_addr, unsigned iovec_count) {
     return iovec;
 }
 
-static ssize_t iovec_size(struct iovec_ *iovec, unsigned iovec_count) {
+static ssize_t iovec_size(struct iovec_ *iovec, unsigned iovec_count)
+{
     size_t size = 0;
     for (unsigned i = 0; i < iovec_count; i++)
         size += iovec[i].len;
     return size;
 }
 
-dword_t sys_readv(fd_t fd_no, addr_t iovec_addr, dword_t iovec_count) {
+dword_t sys_readv(fd_t fd_no, addr_t iovec_addr, dword_t iovec_count)
+{
     STRACE("readv(%d, %#x, %d)", fd_no, iovec_addr, iovec_count);
     struct iovec_ *iovec = read_iovec(iovec_addr, iovec_count);
     if (IS_ERR(iovec))
@@ -332,7 +408,8 @@ dword_t sys_readv(fd_t fd_no, addr_t iovec_addr, dword_t iovec_count) {
     size_t offset = 0;
     for (unsigned i = 0; i < iovec_count; i++) {
         size_t print_size = iovec[i].len;
-        if (print_size > 100) print_size = 100;
+        if (print_size > 100)
+            print_size = 100;
         STRACE(" {\"%.*s\", %u}", print_size, buf + offset, iovec[i].len);
 
         if (user_write(iovec[i].base, buf + offset, iovec[i].len)) {
@@ -348,8 +425,25 @@ error:
     return res;
 }
 
-dword_t sys_writev(fd_t fd_no, addr_t iovec_addr, dword_t iovec_count) {
+dword_t sys_writev(fd_t fd_no, addr_t iovec_addr, dword_t iovec_count)
+{
     STRACE("writev(%d, %#x, %d)", fd_no, iovec_addr, iovec_count);
+
+    // APPSIM-004 Stage 3A: Guest writev attempt tracing
+    char pid_buf[32];
+    char fd_buf[32];
+    char count_buf[32];
+    snprintf(pid_buf, sizeof(pid_buf), "%u", (unsigned)(current ? current->pid : 0));
+    snprintf(fd_buf, sizeof(fd_buf), "%d", fd_no);
+    snprintf(count_buf, sizeof(count_buf), "%u", (unsigned)iovec_count);
+    trace_attribute_t writev_attrs[] = {
+        { "pid", pid_buf },
+        { "fd", fd_buf },
+        { "iovec_count", count_buf },
+    };
+    (void)trace_begin_interval(TRACE_ORIGIN_KERNEL, "task.proof.guest.writev.attempt", writev_attrs,
+                               sizeof(writev_attrs) / sizeof(writev_attrs[0]));
+
     struct iovec_ *iovec = read_iovec(iovec_addr, iovec_count);
     if (IS_ERR(iovec))
         return PTR_ERR(iovec);
@@ -369,7 +463,8 @@ dword_t sys_writev(fd_t fd_no, addr_t iovec_addr, dword_t iovec_count) {
         }
 
         size_t print_size = iovec[i].len;
-        if (print_size > 100) print_size = 100;
+        if (print_size > 100)
+            print_size = 100;
         STRACE(" {\"%.*s\", %u}", print_size, buf + offset, iovec[i].len);
         offset += iovec[i].len;
     }
@@ -381,14 +476,15 @@ error:
     return res;
 }
 
-dword_t sys__llseek(fd_t f, dword_t off_high, dword_t off_low, addr_t res_addr, dword_t whence) {
+dword_t sys__llseek(fd_t f, dword_t off_high, dword_t off_low, addr_t res_addr, dword_t whence)
+{
     struct fd *fd = f_get(f);
     if (fd == NULL)
         return _EBADF;
     if (!fd->ops->lseek)
         return _ESPIPE;
     lock(&fd->lock);
-    off_t_ off = ((qword_t) off_high << 32) | off_low;
+    off_t_ off = ((qword_t)off_high << 32) | off_low;
     STRACE("llseek(%d, %lu, %#x, %d)", f, off, res_addr, whence);
     off_t_ res = fd->ops->lseek(fd, off, whence);
     STRACE(" -> %lu", res);
@@ -400,7 +496,8 @@ dword_t sys__llseek(fd_t f, dword_t off_high, dword_t off_low, addr_t res_addr, 
     return 0;
 }
 
-dword_t sys_lseek(fd_t f, dword_t off, dword_t whence) {
+dword_t sys_lseek(fd_t f, dword_t off, dword_t whence)
+{
     struct fd *fd = f_get(f);
     if (fd == NULL)
         return _EBADF;
@@ -409,17 +506,18 @@ dword_t sys_lseek(fd_t f, dword_t off, dword_t whence) {
     lock(&fd->lock);
     off_t res = fd->ops->lseek(fd, off, whence);
     unlock(&fd->lock);
-    if ((dword_t) res != res)
+    if ((dword_t)res != res)
         return _EOVERFLOW;
     return res;
 }
 
-dword_t sys_pread(fd_t f, addr_t buf_addr, dword_t size, off_t_ off) {
+dword_t sys_pread(fd_t f, addr_t buf_addr, dword_t size, off_t_ off)
+{
     STRACE("pread(%d, 0x%x, %d, %d)", f, buf_addr, size, off);
     struct fd *fd = f_get(f);
     if (fd == NULL)
         return _EBADF;
-    char *buf = malloc(size+1);
+    char *buf = malloc(size + 1);
     if (buf == NULL)
         return _ENOMEM;
     lock(&fd->lock);
@@ -435,7 +533,8 @@ dword_t sys_pread(fd_t f, addr_t buf_addr, dword_t size, off_t_ off) {
         // This really shouldn't fail. The lseek man page lists these reasons:
         // EBADF, ESPIPE: can't happen because the last lseek wouldn't have succeeded.
         // EOVERFLOW: can't happen for LSEEK_SET.
-        // EINVAL: can't happen other than typoing LSEEK_SET, because we know saved_off is not negative.
+        // EINVAL: can't happen other than typoing LSEEK_SET, because we know saved_off is not
+        // negative.
         off_t_ lseek_res = fd->ops->lseek(fd, saved_off, LSEEK_SET);
         assert(lseek_res >= 0);
     }
@@ -451,12 +550,13 @@ out:
     return res;
 }
 
-dword_t sys_pwrite(fd_t f, addr_t buf_addr, dword_t size, off_t_ off) {
+dword_t sys_pwrite(fd_t f, addr_t buf_addr, dword_t size, off_t_ off)
+{
     STRACE("pwrite(%d, 0x%x, %d, %d)", f, buf_addr, size, off);
     struct fd *fd = f_get(f);
     if (fd == NULL)
         return _EBADF;
-    char *buf = malloc(size+1);
+    char *buf = malloc(size + 1);
     if (buf == NULL)
         return _ENOMEM;
     if (user_read(buf_addr, buf, size))
@@ -472,7 +572,8 @@ dword_t sys_pwrite(fd_t f, addr_t buf_addr, dword_t size, off_t_ off) {
             // This really shouldn't fail. The lseek man page lists these reasons:
             // EBADF, ESPIPE: can't happen because the last lseek wouldn't have succeeded.
             // EOVERFLOW: can't happen for LSEEK_SET.
-            // EINVAL: can't happen other than typoing LSEEK_SET, because we know saved_off is not negative.
+            // EINVAL: can't happen other than typoing LSEEK_SET, because we know saved_off is not
+            // negative.
             off_t_ lseek_res = fd->ops->lseek(fd, saved_off, LSEEK_SET);
             assert(lseek_res >= 0);
         }
@@ -482,14 +583,15 @@ dword_t sys_pwrite(fd_t f, addr_t buf_addr, dword_t size, off_t_ off) {
     return res;
 }
 
-static int fd_ioctl(struct fd *fd, dword_t cmd, dword_t arg) {
+static int fd_ioctl(struct fd *fd, dword_t cmd, dword_t arg)
+{
     ssize_t size = -1;
     if (fd->ops->ioctl_size)
         size = fd->ops->ioctl_size(cmd);
     if (size < 0)
         return _ENOTTY;
     if (size == 0)
-        return fd->ops->ioctl(fd, cmd, (void *) (long) arg);
+        return fd->ops->ioctl(fd, cmd, (void *)(long)arg);
 
     // praying that this won't break
     char buf[size];
@@ -503,7 +605,8 @@ static int fd_ioctl(struct fd *fd, dword_t cmd, dword_t arg) {
     return res;
 }
 
-static int set_nonblock(struct fd *fd, addr_t nb_addr) {
+static int set_nonblock(struct fd *fd, addr_t nb_addr)
+{
     dword_t nonblock;
     if (user_get(nb_addr, nonblock))
         return _EFAULT;
@@ -515,26 +618,44 @@ static int set_nonblock(struct fd *fd, addr_t nb_addr) {
     return fd_setflags(fd, flags);
 }
 
-dword_t sys_ioctl(fd_t f, dword_t cmd, dword_t arg) {
+dword_t sys_ioctl(fd_t f, dword_t cmd, dword_t arg)
+{
     STRACE("ioctl(%d, 0x%x, 0x%x)", f, cmd, arg);
+
+    // APPSIM-004 Stage 3A: Guest ioctl attempt tracing
+    char pid_buf[32];
+    char fd_buf[32];
+    char cmd_buf[32];
+    snprintf(pid_buf, sizeof(pid_buf), "%u", (unsigned)(current ? current->pid : 0));
+    snprintf(fd_buf, sizeof(fd_buf), "%d", f);
+    snprintf(cmd_buf, sizeof(cmd_buf), "0x%x", cmd);
+    trace_attribute_t ioctl_attrs[] = {
+        { "pid", pid_buf },
+        { "fd", fd_buf },
+        { "request", cmd_buf },
+    };
+    (void)trace_begin_interval(TRACE_ORIGIN_KERNEL, "task.proof.guest.ioctl.attempt", ioctl_attrs,
+                               sizeof(ioctl_attrs) / sizeof(ioctl_attrs[0]));
+
     struct fd *fd = f_get(f);
     if (fd == NULL)
         return _EBADF;
 
     switch (cmd) {
-        case FIONBIO_:
-            return set_nonblock(fd, arg);
-        case FIOCLEX_:
-            bit_set(f, current->files->cloexec);
-            return 0;
-        case FIONCLEX_:
-            bit_clear(f, current->files->cloexec);
-            return 0;
+    case FIONBIO_:
+        return set_nonblock(fd, arg);
+    case FIOCLEX_:
+        bit_set(f, current->files->cloexec);
+        return 0;
+    case FIONCLEX_:
+        bit_clear(f, current->files->cloexec);
+        return 0;
     }
     return fd_ioctl(fd, cmd, arg);
 }
 
-dword_t sys_getcwd(addr_t buf_addr, dword_t size) {
+dword_t sys_getcwd(addr_t buf_addr, dword_t size)
+{
     STRACE("getcwd(%#x, %#x)", buf_addr, size);
     lock(&current->fs->lock);
     struct fd *wd = current->fs->pwd;
@@ -559,7 +680,8 @@ dword_t sys_getcwd(addr_t buf_addr, dword_t size) {
     return res;
 }
 
-static struct fd *open_dir(const char *path) {
+static struct fd *open_dir(const char *path)
+{
     struct statbuf stat;
     int err = generic_statat(AT_PWD, path, &stat, true);
     if (err < 0)
@@ -570,14 +692,16 @@ static struct fd *open_dir(const char *path) {
     return generic_open(path, O_RDONLY_, 0);
 }
 
-void fs_chdir(struct fs_info *fs, struct fd *fd) {
+void fs_chdir(struct fs_info *fs, struct fd *fd)
+{
     lock(&fs->lock);
     fd_close(fs->pwd);
     fs->pwd = fd;
     unlock(&fs->lock);
 }
 
-dword_t sys_chdir(addr_t path_addr) {
+dword_t sys_chdir(addr_t path_addr)
+{
     char path[MAX_PATH];
     if (user_read_string(path_addr, path, sizeof(path)))
         return _EFAULT;
@@ -590,7 +714,8 @@ dword_t sys_chdir(addr_t path_addr) {
     return 0;
 }
 
-dword_t sys_fchdir(fd_t f) {
+dword_t sys_fchdir(fd_t f)
+{
     STRACE("fchdir(%d)", f);
     struct fd *dir = f_get(f);
     if (dir == NULL)
@@ -600,7 +725,8 @@ dword_t sys_fchdir(fd_t f) {
     return 0;
 }
 
-dword_t sys_chroot(addr_t path_addr) {
+dword_t sys_chroot(addr_t path_addr)
+{
     char path[MAX_PATH];
     if (user_read_string(path_addr, path, sizeof(path)))
         return _EFAULT;
@@ -616,17 +742,19 @@ dword_t sys_chroot(addr_t path_addr) {
     return 0;
 }
 
-dword_t sys_umask(dword_t mask) {
+dword_t sys_umask(dword_t mask)
+{
     STRACE("umask(0%o)", mask);
     struct fs_info *fs = current->fs;
     lock(&fs->lock);
     mode_t_ old_umask = fs->umask;
-    fs->umask = ((mode_t_) mask) & 0777;
+    fs->umask = ((mode_t_)mask) & 0777;
     unlock(&fs->lock);
     return old_umask;
 }
 
-static int mount_statfs(struct mount *mount, struct statfsbuf *stat) {
+static int mount_statfs(struct mount *mount, struct statfsbuf *stat)
+{
     int err = 0;
     if (mount->fs->statfs)
         err = mount->fs->statfs(mount, stat);
@@ -635,7 +763,8 @@ static int mount_statfs(struct mount *mount, struct statfsbuf *stat) {
     return err;
 }
 
-static int_t statfs_mount(struct mount *mount, addr_t buf_addr) {
+static int_t statfs_mount(struct mount *mount, addr_t buf_addr)
+{
     struct statfsbuf buf = {};
     int err = mount_statfs(mount, &buf);
     if (err < 0)
@@ -658,7 +787,8 @@ static int_t statfs_mount(struct mount *mount, addr_t buf_addr) {
     return 0;
 }
 
-static int_t statfs64_mount(struct mount *mount, addr_t buf_addr) {
+static int_t statfs64_mount(struct mount *mount, addr_t buf_addr)
+{
     struct statfsbuf buf = {};
     int err = mount_statfs(mount, &buf);
     if (err < 0)
@@ -681,7 +811,8 @@ static int_t statfs64_mount(struct mount *mount, addr_t buf_addr) {
     return 0;
 }
 
-dword_t sys_statfs(addr_t path_addr, addr_t buf_addr) {
+dword_t sys_statfs(addr_t path_addr, addr_t buf_addr)
+{
     char path_raw[MAX_PATH];
     if (user_read_string(path_addr, path_raw, sizeof(path_raw)))
         return _EFAULT;
@@ -696,7 +827,8 @@ dword_t sys_statfs(addr_t path_addr, addr_t buf_addr) {
     return err;
 }
 
-dword_t sys_statfs64(addr_t path_addr, dword_t buf_size, addr_t buf_addr) {
+dword_t sys_statfs64(addr_t path_addr, dword_t buf_size, addr_t buf_addr)
+{
     char path_raw[MAX_PATH];
     if (user_read_string(path_addr, path_raw, sizeof(path_raw)))
         return _EFAULT;
@@ -713,15 +845,18 @@ dword_t sys_statfs64(addr_t path_addr, dword_t buf_size, addr_t buf_addr) {
     return err;
 }
 
-dword_t sys_fstatfs(fd_t f, addr_t buf_addr) {
+dword_t sys_fstatfs(fd_t f, addr_t buf_addr)
+{
     return statfs_mount(f_get(f)->mount, buf_addr);
 }
 
-dword_t sys_fstatfs64(fd_t f, addr_t buf_addr) {
+dword_t sys_fstatfs64(fd_t f, addr_t buf_addr)
+{
     return statfs64_mount(f_get(f)->mount, buf_addr);
 }
 
-dword_t sys_flock(fd_t f, dword_t operation) {
+dword_t sys_flock(fd_t f, dword_t operation)
+{
     struct fd *fd = f_get(f);
     if (fd == NULL)
         return _EBADF;
@@ -732,13 +867,15 @@ dword_t sys_flock(fd_t f, dword_t operation) {
     return fd->mount->fs->flock(fd, operation);
 }
 
-static dword_t sys_utime_common(fd_t at_f, addr_t path_addr, struct timespec atime, struct timespec mtime, dword_t flags) {
+static dword_t sys_utime_common(fd_t at_f, addr_t path_addr, struct timespec atime,
+                                struct timespec mtime, dword_t flags)
+{
     char path[MAX_PATH];
     if (path_addr != 0)
         if (user_read_string(path_addr, path, sizeof(path)))
             return _EFAULT;
-    STRACE("utimensat(%d, %s, {{%d, %d}, {%d, %d}}, %d)", at_f, path,
-            atime.tv_sec, atime.tv_nsec, mtime.tv_sec, mtime.tv_nsec, flags);
+    STRACE("utimensat(%d, %s, {{%d, %d}, {%d, %d}}, %d)", at_f, path, atime.tv_sec, atime.tv_nsec,
+           mtime.tv_sec, mtime.tv_nsec, flags);
     struct fd *at = at_fd(at_f);
     if (at == NULL)
         return _EBADF;
@@ -747,7 +884,8 @@ static dword_t sys_utime_common(fd_t at_f, addr_t path_addr, struct timespec ati
     return generic_utime(at, path_addr != 0 ? path : ".", atime, mtime, follow_links);
 }
 
-dword_t sys_utimensat(fd_t at_f, addr_t path_addr, addr_t times_addr, dword_t flags) {
+dword_t sys_utimensat(fd_t at_f, addr_t path_addr, addr_t times_addr, dword_t flags)
+{
     struct timespec atime;
     struct timespec mtime;
     if (times_addr == 0) {
@@ -762,7 +900,8 @@ dword_t sys_utimensat(fd_t at_f, addr_t path_addr, addr_t times_addr, dword_t fl
     return sys_utime_common(at_f, path_addr, atime, mtime, flags);
 }
 
-dword_t sys_utimes(addr_t path_addr, addr_t times_addr) {
+dword_t sys_utimes(addr_t path_addr, addr_t times_addr)
+{
     struct timespec atime;
     struct timespec mtime;
     if (times_addr == 0) {
@@ -777,7 +916,8 @@ dword_t sys_utimes(addr_t path_addr, addr_t times_addr) {
     return sys_utime_common(AT_FDCWD_, path_addr, atime, mtime, 0);
 }
 
-dword_t sys_utime(addr_t path_addr, addr_t times_addr) {
+dword_t sys_utime(addr_t path_addr, addr_t times_addr)
+{
     struct timespec atime;
     struct timespec mtime;
     if (times_addr == 0) {
@@ -797,13 +937,15 @@ dword_t sys_utime(addr_t path_addr, addr_t times_addr) {
     return sys_utime_common(AT_FDCWD_, path_addr, atime, mtime, 0);
 }
 
-static int generic_fsetattr(struct fd *fd, struct attr attr) {
+static int generic_fsetattr(struct fd *fd, struct attr attr)
+{
     if (fd->mount->fs->fsetattr == NULL)
         return _EPERM;
     return fd->mount->fs->fsetattr(fd, attr);
 }
 
-dword_t sys_fchmod(fd_t f, dword_t mode) {
+dword_t sys_fchmod(fd_t f, dword_t mode)
+{
     STRACE("fchmod(%d, %o)", f, mode);
     struct fd *fd = f_get(f);
     if (fd == NULL)
@@ -812,7 +954,8 @@ dword_t sys_fchmod(fd_t f, dword_t mode) {
     return generic_fsetattr(fd, make_attr(mode, mode));
 }
 
-dword_t sys_fchmodat(fd_t at_f, addr_t path_addr, dword_t mode) {
+dword_t sys_fchmodat(fd_t at_f, addr_t path_addr, dword_t mode)
+{
     char path[MAX_PATH];
     if (user_read_string(path_addr, path, sizeof(path)))
         return _EFAULT;
@@ -824,22 +967,24 @@ dword_t sys_fchmodat(fd_t at_f, addr_t path_addr, dword_t mode) {
     return generic_setattrat(at, path, make_attr(mode, mode), true);
 }
 
-dword_t sys_chmod(addr_t path_addr, dword_t mode) {
+dword_t sys_chmod(addr_t path_addr, dword_t mode)
+{
     return sys_fchmodat(AT_FDCWD_, path_addr, mode);
 }
 
-dword_t sys_fchown32(fd_t f, uid_t_ owner, uid_t_ group) {
+dword_t sys_fchown32(fd_t f, uid_t_ owner, uid_t_ group)
+{
     STRACE("fchown(%d, %d, %d)", f, owner, group);
     struct fd *fd = f_get(f);
     if (fd == NULL)
         return _EBADF;
     int err;
-    if (owner != (uid_t) -1) {
+    if (owner != (uid_t)-1) {
         err = generic_fsetattr(fd, make_attr(uid, owner));
         if (err < 0)
             return err;
     }
-    if (group != (uid_t) -1) {
+    if (group != (uid_t)-1) {
         err = generic_fsetattr(fd, make_attr(gid, group));
         if (err < 0)
             return err;
@@ -847,7 +992,8 @@ dword_t sys_fchown32(fd_t f, uid_t_ owner, uid_t_ group) {
     return 0;
 }
 
-dword_t sys_fchownat(fd_t at_f, addr_t path_addr, dword_t owner, dword_t group, int flags) {
+dword_t sys_fchownat(fd_t at_f, addr_t path_addr, dword_t owner, dword_t group, int flags)
+{
     char path[MAX_PATH];
     if (user_read_string(path_addr, path, sizeof(path)))
         return _EFAULT;
@@ -857,12 +1003,12 @@ dword_t sys_fchownat(fd_t at_f, addr_t path_addr, dword_t owner, dword_t group, 
         return _EBADF;
     int err;
     bool follow_links = flags & AT_SYMLINK_NOFOLLOW_ ? false : true;
-    if (owner != (uid_t) -1) {
+    if (owner != (uid_t)-1) {
         err = generic_setattrat(at, path, make_attr(uid, owner), follow_links);
         if (err < 0)
             return err;
     }
-    if (group != (uid_t) -1) {
+    if (group != (uid_t)-1) {
         err = generic_setattrat(at, path, make_attr(gid, group), follow_links);
         if (err < 0)
             return err;
@@ -870,33 +1016,39 @@ dword_t sys_fchownat(fd_t at_f, addr_t path_addr, dword_t owner, dword_t group, 
     return 0;
 }
 
-dword_t sys_chown32(addr_t path_addr, uid_t_ owner, uid_t_ group) {
+dword_t sys_chown32(addr_t path_addr, uid_t_ owner, uid_t_ group)
+{
     return sys_fchownat(AT_FDCWD_, path_addr, owner, group, 0);
 }
 
-dword_t sys_lchown(addr_t path_addr, uid_t_ owner, uid_t_ group) {
+dword_t sys_lchown(addr_t path_addr, uid_t_ owner, uid_t_ group)
+{
     return sys_fchownat(AT_FDCWD_, path_addr, owner, group, AT_SYMLINK_NOFOLLOW_);
 }
 
-dword_t sys_truncate64(addr_t path_addr, dword_t size_low, dword_t size_high) {
-    off_t_ size = ((qword_t) size_high << 32) | size_low;
+dword_t sys_truncate64(addr_t path_addr, dword_t size_low, dword_t size_high)
+{
+    off_t_ size = ((qword_t)size_high << 32) | size_low;
     char path[MAX_PATH];
     if (user_read_string(path_addr, path, sizeof(path)))
         return _EFAULT;
     return generic_setattrat(NULL, path, make_attr(size, size), true);
 }
 
-dword_t sys_ftruncate64(fd_t f, dword_t size_low, dword_t size_high) {
-    off_t_ size = ((qword_t) size_high << 32) | size_low;
+dword_t sys_ftruncate64(fd_t f, dword_t size_low, dword_t size_high)
+{
+    off_t_ size = ((qword_t)size_high << 32) | size_low;
     struct fd *fd = f_get(f);
     if (fd == NULL)
         return _EBADF;
     return generic_fsetattr(fd, make_attr(size, size));
 }
 
-dword_t sys_fallocate(fd_t f, dword_t UNUSED(mode), dword_t offset_low, dword_t offset_high, dword_t len_low, dword_t len_high) {
-    off_t_ offset = ((qword_t) offset_high << 32) | offset_low;
-    off_t_ len = ((qword_t) len_high << 32) | len_low;
+dword_t sys_fallocate(fd_t f, dword_t UNUSED(mode), dword_t offset_low, dword_t offset_high,
+                      dword_t len_low, dword_t len_high)
+{
+    off_t_ offset = ((qword_t)offset_high << 32) | offset_low;
+    off_t_ len = ((qword_t)len_high << 32) | len_low;
     struct fd *fd = f_get(f);
     if (fd == NULL)
         return _EBADF;
@@ -904,12 +1056,13 @@ dword_t sys_fallocate(fd_t f, dword_t UNUSED(mode), dword_t offset_low, dword_t 
     int err = fd->mount->fs->fstat(fd, &statbuf);
     if (err < 0)
         return err;
-    if ((uint64_t) offset + (uint64_t) len > statbuf.size)
+    if ((uint64_t)offset + (uint64_t)len > statbuf.size)
         return generic_fsetattr(fd, make_attr(size, offset + len));
     return 0;
 }
 
-dword_t sys_mkdirat(fd_t at_f, addr_t path_addr, mode_t_ mode) {
+dword_t sys_mkdirat(fd_t at_f, addr_t path_addr, mode_t_ mode)
+{
     char path[MAX_PATH];
     if (user_read_string(path_addr, path, sizeof(path)))
         return _EFAULT;
@@ -922,11 +1075,13 @@ dword_t sys_mkdirat(fd_t at_f, addr_t path_addr, mode_t_ mode) {
     return generic_mkdirat(at, path, mode);
 }
 
-dword_t sys_mkdir(addr_t path_addr, mode_t_ mode) {
+dword_t sys_mkdir(addr_t path_addr, mode_t_ mode)
+{
     return sys_mkdirat(AT_FDCWD_, path_addr, mode);
 }
 
-dword_t sys_rmdir(addr_t path_addr) {
+dword_t sys_rmdir(addr_t path_addr)
+{
     char path[MAX_PATH];
     if (user_read_string(path_addr, path, sizeof(path)))
         return _EFAULT;
@@ -934,7 +1089,8 @@ dword_t sys_rmdir(addr_t path_addr) {
     return generic_rmdirat(AT_PWD, path);
 }
 
-dword_t sys_fsync(fd_t f) {
+dword_t sys_fsync(fd_t f)
+{
     struct fd *fd = f_get(f);
     if (fd == NULL)
         return _EBADF;
@@ -945,21 +1101,29 @@ dword_t sys_fsync(fd_t f) {
 }
 
 // a few stubs
-dword_t sys_sendfile(fd_t UNUSED(out_fd), fd_t UNUSED(in_fd), addr_t UNUSED(offset_addr), dword_t UNUSED(count)) {
+dword_t sys_sendfile(fd_t UNUSED(out_fd), fd_t UNUSED(in_fd), addr_t UNUSED(offset_addr),
+                     dword_t UNUSED(count))
+{
     return _EINVAL;
 }
-dword_t sys_sendfile64(fd_t UNUSED(out_fd), fd_t UNUSED(in_fd), addr_t UNUSED(offset_addr), dword_t UNUSED(count)) {
+dword_t sys_sendfile64(fd_t UNUSED(out_fd), fd_t UNUSED(in_fd), addr_t UNUSED(offset_addr),
+                       dword_t UNUSED(count))
+{
     return _EINVAL;
 }
-dword_t sys_splice(fd_t UNUSED(in_fd), addr_t UNUSED(in_off_addr), fd_t UNUSED(out_fd), addr_t UNUSED(out_off_addr), dword_t UNUSED(count), dword_t UNUSED(flags)) {
+dword_t sys_splice(fd_t UNUSED(in_fd), addr_t UNUSED(in_off_addr), fd_t UNUSED(out_fd),
+                   addr_t UNUSED(out_off_addr), dword_t UNUSED(count), dword_t UNUSED(flags))
+{
     return _EINVAL;
 }
 dword_t sys_copy_file_range(fd_t UNUSED(in_fd), addr_t UNUSED(in_off), fd_t UNUSED(out_fd),
-        addr_t UNUSED(out_off), dword_t UNUSED(len), uint_t UNUSED(flags)) {
+                            addr_t UNUSED(out_off), dword_t UNUSED(len), uint_t UNUSED(flags))
+{
     return _EPERM; // good enough for ruby
 }
 
 dword_t sys_xattr_stub(addr_t UNUSED(path_addr), addr_t UNUSED(name_addr),
-        addr_t UNUSED(value_addr), dword_t UNUSED(size), dword_t UNUSED(flags)) {
+                       addr_t UNUSED(value_addr), dword_t UNUSED(size), dword_t UNUSED(flags))
+{
     return _ENOTSUP;
 }

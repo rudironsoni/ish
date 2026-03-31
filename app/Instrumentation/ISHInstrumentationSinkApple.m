@@ -16,6 +16,10 @@
 static os_log_t g_ish_log = NULL;
 static os_log_t g_ish_signpost_log = NULL;
 
+// File-based trace output for direct evidence capture
+static NSFileHandle *g_ish_trace_file = NULL;
+static dispatch_queue_t g_ish_trace_queue = NULL;
+
 // Event name mapping
 static inline const char *ISHInstrumentationEventName(ISHInstrumentationEvent event) {
     switch (event) {
@@ -65,6 +69,30 @@ static inline const char *ISHInstrumentationEventName(ISHInstrumentationEvent ev
             return "task.proof.before_task_run_current";
         case ISHInstrumentationEventTaskProofTaskRunCurrentEntry:
             return "task.proof.task_run_current_entry";
+        // APPSIM-004 Stage 3A: Guest exec continuity and first output
+        case ISHInstrumentationEventGuestExecTarget:
+            return "task.proof.guest.exec.target";
+        case ISHInstrumentationEventGuestExecSuccess:
+            return "task.proof.guest.exec.success";
+        case ISHInstrumentationEventGuestPidAliveAfterExec:
+            return "task.proof.guest.pid.alive_after_exec";
+        case ISHInstrumentationEventGuestWriteAttempt:
+            return "task.proof.guest.write.attempt";
+        case ISHInstrumentationEventGuestIoctlAttempt:
+            return "task.proof.guest.ioctl.attempt";
+        case ISHInstrumentationEventGuestReadAttempt:
+            return "task.proof.guest.read.attempt";
+        // APPSIM-004 Stage 3B: stdio wiring proof
+        case ISHInstrumentationEventStdioFd0Target:
+            return "task.proof.stdio.fd0.target";
+        case ISHInstrumentationEventStdioFd1Target:
+            return "task.proof.stdio.fd1.target";
+        case ISHInstrumentationEventStdioFd2Target:
+            return "task.proof.stdio.fd2.target";
+        case ISHInstrumentationEventStdioPtySlaveBound:
+            return "task.proof.stdio.pty.slave.bound";
+        case ISHInstrumentationEventStdioTtySessionState:
+            return "task.proof.stdio.tty.session.state";
         default:
             return "unknown";
     }
@@ -74,9 +102,28 @@ static inline const char *ISHInstrumentationEventName(ISHInstrumentationEvent ev
 
 + (void)setup {
     // Create log handles with subsystem com.rudironsoni.ish
-    // No filesystem I/O, no path probing
     g_ish_log = os_log_create("com.rudironsoni.ish", "instrumentation");
     g_ish_signpost_log = os_log_create("com.rudironsoni.ish", "intervals");
+    
+    // Create serial queue for file operations
+    g_ish_trace_queue = dispatch_queue_create("com.rudironsoni.ish.trace", DISPATCH_QUEUE_SERIAL);
+    
+    // Setup file-based trace in tmp directory (writeable in simulator)
+    dispatch_async(g_ish_trace_queue, ^{
+        NSString *tmpDir = NSTemporaryDirectory();
+        NSString *tracePath = [tmpDir stringByAppendingPathComponent:@"ish_trace.txt"];
+        
+        // Create/truncate file
+        [[NSFileManager defaultManager] createFileAtPath:tracePath
+                                                contents:nil
+                                              attributes:nil];
+        g_ish_trace_file = [NSFileHandle fileHandleForWritingAtPath:tracePath];
+        
+        if (g_ish_trace_file) {
+            NSString *header = @"=== iSH Trace Log ===\n";
+            [g_ish_trace_file writeData:[header dataUsingEncoding:NSUTF8StringEncoding]];
+        }
+    });
 }
 
 + (void)activate {
@@ -101,6 +148,21 @@ static inline const char *ISHInstrumentationEventName(ISHInstrumentationEvent ev
 
 + (void)beginInterval:(NSString *)name attributes:(nullable NSDictionary *)attributes {
     os_log(g_ish_log, "Begin interval: %{public}@", name);
+    
+    // Write to file for direct evidence capture
+    dispatch_async(g_ish_trace_queue, ^{
+        if (g_ish_trace_file) {
+            NSMutableString *line = [NSMutableString stringWithFormat:@"[TRACE] %@", name];
+            if (attributes.count > 0) {
+                [attributes enumerateKeysAndObjectsUsingBlock:^(id key, id value, BOOL *stop) {
+                    [line appendFormat:@" | %@=%@", key, value];
+                }];
+            }
+            [line appendString:@"\n"];
+            [g_ish_trace_file writeData:[line dataUsingEncoding:NSUTF8StringEncoding]];
+            [g_ish_trace_file synchronizeFile];
+        }
+    });
 
 #if defined(__IPHONE_12_0) || defined(__MAC_10_14)
     if (@available(iOS 12.0, macOS 10.14, *)) {
@@ -109,7 +171,6 @@ static inline const char *ISHInstrumentationEventName(ISHInstrumentationEvent ev
                                    signpostID,
                                    "interval",
                                    "Begin: %{public}@", name);
-        // Note: In a full implementation, we'd store signpostID for endInterval matching
     }
 #endif
 

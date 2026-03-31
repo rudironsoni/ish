@@ -32,7 +32,31 @@ typedef NS_ENUM(NSInteger, ISHInstrumentationEvent) {
     // Paired diagnostic proof points for narrowing failure boundary
     ISHInstrumentationEventTaskProofAfterThreadEntry,
     ISHInstrumentationEventTaskProofBeforeTaskRunCurrent,
-    ISHInstrumentationEventTaskProofTaskRunCurrentEntry
+    ISHInstrumentationEventTaskProofTaskRunCurrentEntry,
+    // APPSIM-004 Stage 1: /bin/login exec verification
+    ISHInstrumentationEventLoginExecEntry,
+    ISHInstrumentationEventLoginExecSuccess,
+    ISHInstrumentationEventLoginExecFailure,
+    ISHInstrumentationEventLoginPidAlive,
+    // APPSIM-004 Stage 2: PTY byte detection
+    ISHInstrumentationEventPtyMasterWrite,
+    ISHInstrumentationEventPtySlaveWrite,
+    ISHInstrumentationEventPtyMasterRead,
+    ISHInstrumentationEventTerminalOutputQueued,
+    ISHInstrumentationEventTerminalRefreshTriggered,
+    // APPSIM-004 Stage 3A: Guest exec continuity and first output
+    ISHInstrumentationEventGuestExecTarget,
+    ISHInstrumentationEventGuestExecSuccess,
+    ISHInstrumentationEventGuestPidAliveAfterExec,
+    ISHInstrumentationEventGuestWriteAttempt,
+    ISHInstrumentationEventGuestIoctlAttempt,
+    ISHInstrumentationEventGuestReadAttempt,
+    // APPSIM-004 Stage 3B: stdio wiring proof
+    ISHInstrumentationEventStdioFd0Target,
+    ISHInstrumentationEventStdioFd1Target,
+    ISHInstrumentationEventStdioFd2Target,
+    ISHInstrumentationEventStdioPtySlaveBound,
+ ISHInstrumentationEventStdioTtySessionState
 };
 
 @interface ISHInstrumentation : NSObject

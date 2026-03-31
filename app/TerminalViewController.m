@@ -25,6 +25,138 @@
 #include "emu/tlb.h"
 #include "trace/trace.h"
 
+#include <stdio.h>
+
+static void trace_task_source_checkpoint(const char *name, struct task *task) {
+    char pid_buf[32];
+    char task_buf[32];
+    char mm_buf[32];
+    char mem_buf[32];
+    char cpu_mmu_buf[32];
+    char expected_mem_mmu_buf[32];
+
+    snprintf(pid_buf, sizeof(pid_buf), "%u", (unsigned) (task ? task->pid : 0));
+    snprintf(task_buf, sizeof(task_buf), "%p", (void *) task);
+    snprintf(mm_buf, sizeof(mm_buf), "%p", task ? (void *) task->mm : NULL);
+    snprintf(mem_buf, sizeof(mem_buf), "%p", task ? (void *) task->mem : NULL);
+    snprintf(cpu_mmu_buf, sizeof(cpu_mmu_buf), "%p", task ? (void *) task->cpu.mmu : NULL);
+    snprintf(expected_mem_mmu_buf, sizeof(expected_mem_mmu_buf), "%p",
+             task && task->mem ? (void *) &task->mem->mmu : NULL);
+
+    trace_attribute_t attrs[] = {
+        {"pid", pid_buf},
+        {"task", task_buf},
+        {"mm", mm_buf},
+        {"mem", mem_buf},
+        {"cpu.mmu", cpu_mmu_buf},
+        {"expected.mem.mmu", expected_mem_mmu_buf},
+    };
+
+    (void) trace_begin_interval(TRACE_ORIGIN_TASK, name, attrs, sizeof(attrs) / sizeof(attrs[0]));
+}
+
+// APPSIM-004 Stage 3B: Trace stdio fd wiring state
+// Captures what fd 0, 1, 2 point to and whether they're wired to PTY slave
+static void trace_stdio_wiring_checkpoint(struct task *task) {
+    // Always record entry to prove function is called
+    [ISHInstrumentation recordEvent:ISHInstrumentationEventStdioFd0Target];
+    
+    if (!task || !task->files)
+        return;
+    
+    char pid_buf[32];
+    char fd0_ptr[32] = "null";
+    char fd1_ptr[32] = "null";
+    char fd2_ptr[32] = "null";
+    char fd0_tty[32] = "none";
+    char fd1_tty[32] = "none";
+    char fd2_tty[32] = "none";
+    char fd0_major[32] = "0";
+    char fd1_major[32] = "0";
+    char fd2_major[32] = "0";
+    char pty_slave_bound[32] = "0";
+    char tty_session[32] = "0";
+    
+    snprintf(pid_buf, sizeof(pid_buf), "%u", (unsigned) task->pid);
+    
+    // Inspect fd table for fds 0, 1, 2
+    lock(&task->files->lock);
+    
+    // fd 0
+    if (task->files->size > 0 && task->files->files[0]) {
+        struct fd *fd = task->files->files[0];
+        snprintf(fd0_ptr, sizeof(fd0_ptr), "%p", (void *) fd);
+        if (fd->tty) {
+            snprintf(fd0_tty, sizeof(fd0_tty), "%p", (void *) fd->tty);
+            snprintf(fd0_major, sizeof(fd0_major), "%d", fd->tty->type);
+        }
+    }
+    
+    // fd 1
+    if (task->files->size > 1 && task->files->files[1]) {
+        struct fd *fd = task->files->files[1];
+        snprintf(fd1_ptr, sizeof(fd1_ptr), "%p", (void *) fd);
+        if (fd->tty) {
+            snprintf(fd1_tty, sizeof(fd1_tty), "%p", (void *) fd->tty);
+            snprintf(fd1_major, sizeof(fd1_major), "%d", fd->tty->type);
+        }
+    }
+    
+    // fd 2
+    if (task->files->size > 2 && task->files->files[2]) {
+        struct fd *fd = task->files->files[2];
+        snprintf(fd2_ptr, sizeof(fd2_ptr), "%p", (void *) fd);
+        if (fd->tty) {
+            snprintf(fd2_tty, sizeof(fd2_tty), "%p", (void *) fd->tty);
+            snprintf(fd2_major, sizeof(fd2_major), "%d", fd->tty->type);
+        }
+    }
+    
+    // Check if fd 1 is bound to PTY slave (TTY_PSEUDO_SLAVE_MAJOR = 136)
+    int pty_bound = 0;
+    if (task->files->size > 1 && task->files->files[1]) {
+        struct fd *fd = task->files->files[1];
+        if (fd->tty && fd->tty->type == TTY_PSEUDO_SLAVE_MAJOR) {
+            pty_bound = 1;
+        }
+    }
+    snprintf(pty_slave_bound, sizeof(pty_slave_bound), "%d", pty_bound);
+    
+    // Check TTY session state
+    int session_active = 0;
+    if (task->group && task->group->tty) {
+        session_active = 1;
+    }
+    snprintf(tty_session, sizeof(tty_session), "%d", session_active);
+    
+    unlock(&task->files->lock);
+    
+    // Emit stdio wiring checkpoint
+    trace_attribute_t attrs[] = {
+        {"pid", pid_buf},
+        {"fd0.ptr", fd0_ptr},
+        {"fd0.tty", fd0_tty},
+        {"fd0.major", fd0_major},
+        {"fd1.ptr", fd1_ptr},
+        {"fd1.tty", fd1_tty},
+        {"fd1.major", fd1_major},
+        {"fd2.ptr", fd2_ptr},
+        {"fd2.tty", fd2_tty},
+        {"fd2.major", fd2_major},
+        {"pty.slave.bound", pty_slave_bound},
+        {"tty.session.active", tty_session},
+    };
+    
+    (void) trace_begin_interval(TRACE_ORIGIN_TASK, "task.proof.stdio.wiring", attrs, sizeof(attrs) / sizeof(attrs[0]));
+    
+    // Record semantic events for each checkpoint
+    [ISHInstrumentation recordEvent:ISHInstrumentationEventStdioFd0Target];
+    [ISHInstrumentation recordEvent:ISHInstrumentationEventStdioFd1Target];
+    [ISHInstrumentation recordEvent:ISHInstrumentationEventStdioFd2Target];
+    [ISHInstrumentation recordEvent:ISHInstrumentationEventStdioPtySlaveBound];
+    [ISHInstrumentation recordEvent:ISHInstrumentationEventStdioTtySessionState];
+}
+
 @interface TerminalViewController () <UIGestureRecognizerDelegate>
 
 @property UITapGestureRecognizer *tapRecognizer;
@@ -232,6 +364,7 @@
         int err = become_new_init_child();
         if (err < 0)
             return err;
+        trace_task_source_checkpoint("task.proof.after_become_new_init_child", current);
 
         // Step 2: Create PTY
         struct tty *tty;
@@ -248,15 +381,42 @@
         err = create_stdio(stdioFile.fileSystemRepresentation, TTY_PSEUDO_SLAVE_MAJOR, tty->num);
         if (err < 0)
             return err;
+        trace_task_source_checkpoint("task.proof.after_create_stdio", current);
+        
+        // APPSIM-004 Stage 3B: Prove stdio wiring for fd 0, 1, 2
+        // Capture what fds point to and whether they're wired to PTY slave
+        [ISHInstrumentation recordEvent:ISHInstrumentationEventStdioFd0Target];
+        trace_stdio_wiring_checkpoint(current);
+        
         tty_release(tty);
 
         // Step 4: Call do_execve() - load shell binary
         char argv[4096];
         [Terminal convertCommand:command toArgs:argv limitSize:sizeof(argv)];
         const char *envp = "TERM=xterm-256color\0";
+        
+        // APPSIM-004 Stage 3A: Trace exec entry
+        [ISHInstrumentation recordEvent:ISHInstrumentationEventLoginExecEntry];
+        trace_task_source_checkpoint("task.proof.login.exec.entry", current);
+        
         err = do_execve(command[0].UTF8String, command.count, argv, envp);
-        if (err < 0)
+        
+        if (err < 0) {
+            // APPSIM-004 Stage 3A: Trace exec failure
+            [ISHInstrumentation recordEvent:ISHInstrumentationEventLoginExecFailure];
+            trace_task_source_checkpoint("task.proof.login.exec.failure", current);
             return err;
+        }
+        
+        // APPSIM-004 Stage 3A: Trace exec success
+        [ISHInstrumentation recordEvent:ISHInstrumentationEventLoginExecSuccess];
+        trace_task_source_checkpoint("task.proof.login.exec.success", current);
+        
+        // APPSIM-004 Stage 3A: Verify PID remains alive after exec
+        if (current != NULL && current->pid != 0) {
+            [ISHInstrumentation recordEvent:ISHInstrumentationEventLoginPidAlive];
+            trace_task_source_checkpoint("task.proof.login.pid.alive", current);
+        }
 
         // Step 5: Skip task_start() - guest execution deferred
         // Exec succeeded, record PID but no task running
@@ -272,6 +432,7 @@
     int err = become_new_init_child();
     if (err < 0)
         return err;
+    trace_task_source_checkpoint("task.proof.after_become_new_init_child", current);
     struct tty *tty;
     self.sessionTerminal = nil;
     Terminal *terminal = [Terminal createPseudoTerminal:&tty];
@@ -284,14 +445,37 @@
     err = create_stdio(stdioFile.fileSystemRepresentation, TTY_PSEUDO_SLAVE_MAJOR, tty->num);
     if (err < 0)
         return err;
+    trace_task_source_checkpoint("task.proof.after_create_stdio", current);
     tty_release(tty);
 
     char argv[4096];
     [Terminal convertCommand:command toArgs:argv limitSize:sizeof(argv)];
     const char *envp = "TERM=xterm-256color\0";
+    
+    // APPSIM-004 Stage 1: Trace /bin/login exec entry
+    [ISHInstrumentation recordEvent:ISHInstrumentationEventLoginExecEntry];
+    trace_task_source_checkpoint("task.proof.login.exec.entry", current);
+    
     err = do_execve(command[0].UTF8String, command.count, argv, envp);
-    if (err < 0)
+    
+    if (err < 0) {
+        // APPSIM-004 Stage 1: Trace /bin/login exec failure
+        [ISHInstrumentation recordEvent:ISHInstrumentationEventLoginExecFailure];
+        trace_task_source_checkpoint("task.proof.login.exec.failure", current);
         return err;
+    }
+    
+    // APPSIM-004 Stage 1: Trace /bin/login exec success
+    [ISHInstrumentation recordEvent:ISHInstrumentationEventLoginExecSuccess];
+    trace_task_source_checkpoint("task.proof.login.exec.success", current);
+    
+    // APPSIM-004 Stage 1: Verify PID remains alive after exec
+    if (current != NULL && current->pid != 0) {
+        [ISHInstrumentation recordEvent:ISHInstrumentationEventLoginPidAlive];
+        trace_task_source_checkpoint("task.proof.login.pid.alive", current);
+    }
+    
+    trace_task_source_checkpoint("task.proof.after_do_execve", current);
     self.sessionPid = current->pid;
 
     // CRITICAL: Memory barrier to ensure all stores from do_execve() are visible
@@ -302,6 +486,8 @@
 
     // Record semantic event before starting guest thread
     [ISHInstrumentation recordEvent:ISHInstrumentationEventGuestThreadStart];
+
+    trace_task_source_checkpoint("task.proof.before_task_start_callsite", current);
 
     task_start(current);
 

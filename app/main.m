@@ -8,10 +8,10 @@
 #import <UIKit/UIKit.h>
 #import "AppDelegate.h"
 #import "ExceptionExfiltrator.h"
-#import "ISHInstrumentation.h"
+#import "Instrumentation/ISHInstrumentationBridge.h"
 
 int main(int argc, char * argv[]) {
-    [ISHInstrumentation bootstrap];
+    ish_instrumentation_bootstrap();
     @autoreleasepool {
         NSSetUncaughtExceptionHandler(iSHExceptionHandler);
         return UIApplicationMain(argc, argv, nil, NSStringFromClass([AppDelegate class]));

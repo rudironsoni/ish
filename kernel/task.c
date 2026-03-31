@@ -8,6 +8,7 @@
 #include "trace/trace.h"
 
 #include <pthread.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -28,11 +29,98 @@ void task_canary_write(uint64_t task_ptr)
 
 uint64_t task_canary_read(uint64_t task_ptr)
 {
-    uint64_t expected = TASK_CANARY_MAGIC ^ task_ptr;
     uint64_t actual = task_canary_value;
     uint64_t host_tid = (uint64_t)pthread_self();
     trace_emit_task_canary(task_ptr, actual, 1, host_tid);
     return actual;
+}
+
+static void task_start_validation_checkpoint(const char *name, struct task *task)
+{
+    char pid_buf[32];
+    char task_buf[32];
+    char mm_buf[32];
+    char mem_buf[32];
+    char cpu_mmu_buf[32];
+    char expected_mem_mmu_buf[32];
+
+    snprintf(pid_buf, sizeof(pid_buf), "%u", (unsigned)(task ? task->pid : 0));
+    snprintf(task_buf, sizeof(task_buf), "%p", (void *)task);
+    snprintf(mm_buf, sizeof(mm_buf), "%p", task ? (void *)task->mm : NULL);
+    snprintf(mem_buf, sizeof(mem_buf), "%p", task ? (void *)task->mem : NULL);
+    snprintf(cpu_mmu_buf, sizeof(cpu_mmu_buf), "%p", task ? (void *)task->cpu.mmu : NULL);
+    snprintf(expected_mem_mmu_buf, sizeof(expected_mem_mmu_buf), "%p",
+             task && task->mem ? (void *)&task->mem->mmu : NULL);
+
+    trace_attribute_t attrs[] = {
+        { "pid", pid_buf },         { "task", task_buf },
+        { "mm", mm_buf },           { "mem", mem_buf },
+        { "cpu.mmu", cpu_mmu_buf }, { "expected.mem.mmu", expected_mem_mmu_buf },
+    };
+
+    (void)trace_begin_interval(TRACE_ORIGIN_TASK, name, attrs, sizeof(attrs) / sizeof(attrs[0]));
+}
+
+static void task_start_validation_checkpoint_with_pthread(const char *name, struct task *task,
+                                                          int pthread_ret)
+{
+    char pid_buf[32];
+    char task_buf[32];
+    char mm_buf[32];
+    char mem_buf[32];
+    char cpu_mmu_buf[32];
+    char expected_mem_mmu_buf[32];
+    char pthread_ret_buf[32];
+
+    snprintf(pid_buf, sizeof(pid_buf), "%u", (unsigned)(task ? task->pid : 0));
+    snprintf(task_buf, sizeof(task_buf), "%p", (void *)task);
+    snprintf(mm_buf, sizeof(mm_buf), "%p", task ? (void *)task->mm : NULL);
+    snprintf(mem_buf, sizeof(mem_buf), "%p", task ? (void *)task->mem : NULL);
+    snprintf(cpu_mmu_buf, sizeof(cpu_mmu_buf), "%p", task ? (void *)task->cpu.mmu : NULL);
+    snprintf(expected_mem_mmu_buf, sizeof(expected_mem_mmu_buf), "%p",
+             task && task->mem ? (void *)&task->mem->mmu : NULL);
+    snprintf(pthread_ret_buf, sizeof(pthread_ret_buf), "%d", pthread_ret);
+
+    trace_attribute_t attrs[] = {
+        { "pid", pid_buf },
+        { "task", task_buf },
+        { "mm", mm_buf },
+        { "mem", mem_buf },
+        { "cpu.mmu", cpu_mmu_buf },
+        { "expected.mem.mmu", expected_mem_mmu_buf },
+        { "pthread_ret", pthread_ret_buf },
+    };
+
+    (void)trace_begin_interval(TRACE_ORIGIN_TASK, name, attrs, sizeof(attrs) / sizeof(attrs[0]));
+}
+
+static void task_cpu_run_checkpoint(const char *name, struct task *task)
+{
+    char pid_buf[32];
+    char task_buf[32];
+    char mm_buf[32];
+    char mem_buf[32];
+    char cpu_mmu_buf[32];
+    char expected_mem_mmu_buf[32];
+    char pc_buf[32];
+
+    snprintf(pid_buf, sizeof(pid_buf), "%u", (unsigned)(task ? task->pid : 0));
+    snprintf(task_buf, sizeof(task_buf), "%p", (void *)task);
+    snprintf(mm_buf, sizeof(mm_buf), "%p", task ? (void *)task->mm : NULL);
+    snprintf(mem_buf, sizeof(mem_buf), "%p", task ? (void *)task->mem : NULL);
+    snprintf(cpu_mmu_buf, sizeof(cpu_mmu_buf), "%p", task ? (void *)task->cpu.mmu : NULL);
+    snprintf(expected_mem_mmu_buf, sizeof(expected_mem_mmu_buf), "%p",
+             task && task->mem ? (void *)&task->mem->mmu : NULL);
+    snprintf(pc_buf, sizeof(pc_buf), "0x%llx", task ? (unsigned long long)task->cpu.pc : 0ULL);
+
+    trace_attribute_t attrs[] = {
+        { "pid", pid_buf },         { "task", task_buf },
+        { "mm", mm_buf },           { "mem", mem_buf },
+        { "cpu.mmu", cpu_mmu_buf }, { "expected.mem.mmu", expected_mem_mmu_buf },
+        { "pc", pc_buf },
+    };
+
+    (void)trace_begin_interval(TRACE_ORIGIN_TASK, name, attrs, sizeof(attrs) / sizeof(attrs[0]));
 }
 
 static struct pid pids[MAX_PID + 1] = {};
@@ -245,6 +333,7 @@ void task_run_current()
 {
     // DIAGNOSTIC: First executable line inside task_run_current
     trace_emit_task_proof_point(TASK_PROOF_TASK_RUN_CURRENT_ENTRY, current ? current->pid : 0);
+    task_start_validation_checkpoint("task.proof.task_run_current.entry", current);
 
     // PROOF POINT #6: task_run_current() entry
     trace_emit_task_proof_point(TASK_PROOF_RUN_CURRENT_ENTER, current ? current->pid : 0);
@@ -288,10 +377,12 @@ void task_run_current()
 
     // PROOF POINT #7: Before entering guest CPU execution
     trace_emit_task_proof_point(TASK_PROOF_BEFORE_GUEST_CPU, current ? current->pid : 0);
+    task_cpu_run_checkpoint("task.proof.task_run_current.before_cpu_run", current);
 
     struct tlb tlb = {};
     tlb_refresh(&tlb, &current->mem->mmu);
     a64_cpu_run(cpu, &tlb);
+    task_cpu_run_checkpoint("task.proof.process_terminating", current);
     die("a64_cpu_run returned");
 }
 
@@ -303,9 +394,11 @@ static void *task_thread(void *task)
     // PROOF POINT #4: task_thread() entry - first line
     struct task *task_arg_early = (struct task *)task;
     trace_emit_task_proof_point(TASK_PROOF_THREAD_ENTRY, task_arg_early ? task_arg_early->pid : 0);
+    task_start_validation_checkpoint("task.proof.thread_entry", task_arg_early);
 
     // DIAGNOSTIC: Paired proof point immediately after TASK_THREAD_ENTRY
-    trace_emit_task_proof_point(TASK_PROOF_AFTER_THREAD_ENTRY, task_arg_early ? task_arg_early->pid : 0);
+    trace_emit_task_proof_point(TASK_PROOF_AFTER_THREAD_ENTRY,
+                                task_arg_early ? task_arg_early->pid : 0);
 
     // PROOF TRACE #3: Child thread entry, BEFORE setting current
     // Read directly from task argument (not via current)
@@ -337,6 +430,7 @@ static void *task_thread(void *task)
 
     // PROOF POINT #5: After current = task
     trace_emit_task_proof_point(TASK_PROOF_AFTER_CURRENT_SET, current ? current->pid : 0);
+    task_start_validation_checkpoint("task.proof.after_current_set", current);
 
     trace_emit_task_thread_after_set((uint64_t)task, (uint64_t)current);
 
@@ -355,6 +449,7 @@ static void *task_thread(void *task)
 
     // DIAGNOSTIC: Proof point immediately before calling task_run_current
     trace_emit_task_proof_point(TASK_PROOF_BEFORE_TASK_RUN_CURRENT, current ? current->pid : 0);
+    task_start_validation_checkpoint("task.proof.before_task_run_current", current);
 
     // State validation: these should pass if task_create_ and task_set_mm were correct
     if (current->pid == 0) {
@@ -387,20 +482,25 @@ void task_start(struct task *task)
 {
     // PROOF POINT #1: task_start() entry
     trace_emit_task_proof_point(TASK_PROOF_START_ENTER, task ? task->pid : 0);
+    task_start_validation_checkpoint("task.proof.start_enter", task);
 
     // STEP 3: Validate child state before starting thread
     if (task->pid == 0) {
         die("task_start: task->pid is 0");
     }
+    task_start_validation_checkpoint("task.proof.check_pid_ok", task);
     if (task->mm == NULL) {
         die("task_start: task->mm is NULL - caller must use task_set_mm()");
     }
+    task_start_validation_checkpoint("task.proof.check_mm_ok", task);
     if (task->mem == NULL) {
         die("task_start: task->mem is NULL - caller must use task_set_mm()");
     }
+    task_start_validation_checkpoint("task.proof.check_mem_ok", task);
     if (task->cpu.mmu != &task->mem->mmu) {
         die("task_start: cpu.mmu does not match task->mem->mmu");
     }
+    task_start_validation_checkpoint("task.proof.check_cpu_mmu_ok", task);
 
     __sync_synchronize();
 
@@ -428,12 +528,15 @@ void task_start(struct task *task)
 
     // PROOF POINT #2: Right before pthread_create
     trace_emit_task_proof_point(TASK_PROOF_BEFORE_PTHREAD, task ? task->pid : 0);
+    task_start_validation_checkpoint("task.proof.before_pthread", task);
 
-    if (pthread_create(&task->thread, &task_thread_attr, task_thread, task) < 0)
+    int pthread_err = pthread_create(&task->thread, &task_thread_attr, task_thread, task);
+    if (pthread_err < 0)
         die("could not create thread");
 
     // PROOF POINT #3: Right after pthread_create returns
     trace_emit_task_proof_point(TASK_PROOF_AFTER_PTHREAD, task ? task->pid : 0);
+    task_start_validation_checkpoint_with_pthread("task.proof.after_pthread", task, pthread_err);
 }
 
 int_t sys_sched_yield()
