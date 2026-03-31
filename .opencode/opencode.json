@@ -1,0 +1,17 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "lsp": {
+    "asm-lsp": {
+      "command": ["asm-lsp"],
+      "extensions": [".s", ".S", ".asm"],
+      "initialization": {
+        "assembler": "gas",
+        "instruction_set": "arm64"
+      }
+    },
+    "clangd": {
+      "command": ["/usr/bin/clangd", "--compile-commands-dir=build"],
+      "extensions": [".c", ".cpp", ".cc", ".cxx", ".h", ".hpp", ".S"]
+    }
+  }
+}
