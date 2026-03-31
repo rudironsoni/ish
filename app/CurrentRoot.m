@@ -9,14 +9,9 @@
 #include "kernel/calls.h"
 #include "fs/path.h"
 
-#ifdef ISH_LINUX
-#import "LinuxInterop.h"
-#endif
-
 int fs_ish_version;
 int fs_ish_apk_version;
 
-#if !ISH_LINUX
 static ssize_t read_file(const char *path, char *buf, size_t size) {
     struct fd *fd = generic_open(path, O_RDONLY_, 0);
     if (IS_ERR(fd))

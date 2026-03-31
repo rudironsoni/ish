@@ -1,0 +1,55 @@
+initial_state:
+  registers:
+    x2: 0x00000000F7FFAD68   # Stack pointer value (same as x5)
+    x5: 0x00000000F7FFAD68   # Same value for equality comparison
+    x0: 0x0000000000000000
+    x1: 0x0000000000000000
+  pc: 0x0000000000001000
+  sp: 0x00007FFF00000000
+  nzcv: {n: 0, z: 0, c: 0, v: 0}
+
+code:
+  instruction_1:
+    name: cmp_reg
+    asm: "cmp x2, x5"
+    # SUBS XZR, X2, X5 - register comparison
+    # sf=1, op=1, S=1, 1101011000, Rm=5, cond=0, Rn=2, Rd=31
+    encoding_hex_le: "3f000ceb"
+    description: "CMP X2, X5 - compare two equal values, must set Z=1"
+
+execution_sequence:
+  - step: 1
+    instruction: cmp_reg
+    description: "Compare X2 (0xF7FFAD68) with X5 (0xF7FFAD68)"
+    expected_registers:
+      x2: 0x00000000F7FFAD68   # Unchanged
+      x5: 0x00000000F7FFAD68   # Unchanged
+    expected_pc: 0x0000000000001004
+    expected_nzcv:
+      n: 0   # Result is zero (not negative)
+      z: 1   # Result IS zero (operands equal)
+      c: 1   # No borrow (x2 >= x5, and they are equal)
+      v: 0   # No overflow
+    expected_tcti_exit_reason: 0  # TCTI_EXIT_NORMAL
+
+semantic_effects:
+  - operation: compare
+    operands: [x2, x5]
+    result_flags:
+      n: 0
+      z: 1
+      c: 1
+      v: 0
+    description: "Compare equal values: result is zero, Z=1, C=1"
+
+success_criteria:
+  - registers unchanged except flags
+  - Z flag set to 1 (CRITICAL for B.NE fallthrough)
+  - nzcv flags correctly set
+  - pc advanced by 4
+
+notes: |
+  This is the exact failing pattern from ld-musl interpreter startup.
+  When X2 and X5 contain the same value (stack pointer comparison),
+  CMP must set Z=1 so subsequent B.NE falls through correctly.
+  If Z is wrong, the interpreter enters an infinite loop.

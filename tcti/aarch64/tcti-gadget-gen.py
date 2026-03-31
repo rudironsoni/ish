@@ -250,12 +250,29 @@ struct cmp_bcond_diag {{
     uint64_t bcond_fallthrough_pc;
     uint64_t nzcv_loaded;
     uint64_t nzcv_after_msr;
+    uint64_t ne_eval;
     uint64_t selected_pc;
     uint8_t  captured;
 }};
 
+struct cmp_entry_diag {{
+    uint64_t x29_value;
+    uint64_t host_x3;
+    uint64_t host_x6;
+    uint8_t captured;
+}};
+
+struct cmp_entry_probe_diag {{
+    uint64_t x29_value;
+    uint64_t host_x3;
+    uint64_t host_x6;
+    uint8_t captured;
+}};
+
 // External diagnostic buffer - defined in gadgets_tcti_impl.c
 extern struct cmp_bcond_diag g_cmp_bcond_diag;
+extern struct cmp_entry_diag g_cmp_entry_diag;
+extern struct cmp_entry_probe_diag g_cmp_entry_probe_diag;
 
 // Dump the CMP-to-B.NE diagnostic data (call after fault to see capture)
 extern void dump_cmp_bcond_diag(void);
@@ -309,6 +326,9 @@ struct cmp_bcond_diag g_cmp_bcond_diag = {{
     .magic = 0xC0FFEE01,
     .captured = 0
 }};
+
+struct cmp_entry_diag g_cmp_entry_diag = {{0}};
+struct cmp_entry_probe_diag g_cmp_entry_probe_diag = {{0}};
 
 // One-shot capture buffer for CMP x2,x5 diagnostic
 struct {{
@@ -669,27 +689,7 @@ def generate_cmp_reg_gadgets():
 
             func_name = f"gadget_cmp_reg_{rn}_{rm}"
 
-            # Test-only atomic capture for the failing pair (x2, x5)
-            if rn == 2 and rm == 5:
-                gadget = f"""// CMP x{rn}, x{rm} with atomic capture
-__attribute__((naked)) void {func_name}(void) {{
-    asm volatile(
-        "str x3, [%[cap], #0]\\n\\t"          // [0] x3 before subs
-        "str x6, [%[cap], #8]\\n\\t"          // [8] x6 before subs
-        "subs xzr, x3, x6\\n\\t"              // Compare
-        "mrs x17, nzcv\\n\\t"                 // Capture NZCV
-        "str x17, [%[cap], #16]\\n\\t"        // [16] NZCV after subs
-        "str x17, [x29, #280]\\n\\t"          // Save to cpu->pstate
-        "ldr x27, [x28], #8\\n\\t"            // Load next gadget
-        "br x27\\n\\t"
-        ::
-        [cap] "r" (&g_atomic_cmp_capture)
-        : "x17", "x27"
-    );
-}}"""
-            else:
-                # Generate clean CMP gadget for all other cases
-                gadget = f"""// CMP x{rn}, x{rm}
+            gadget = f"""// CMP x{rn}, x{rm}
 __attribute__((naked)) void {func_name}(void) {{
     asm volatile(
         "subs xzr, x{host_rn}, x{host_rm}\\n\\t"

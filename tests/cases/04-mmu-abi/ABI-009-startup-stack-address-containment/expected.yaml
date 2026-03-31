@@ -1,0 +1,55 @@
+stack_layout:
+  # From kernel/exec.c constants
+  user_top: 0x100000000
+  startup_headroom: 0x1000000  # 16 MB
+  stack_mapped_size: 0x200000  # 2 MB
+  initial_upward_headroom: 0x40000  # 256 KB
+  initial_downward_reserve: 0x100000  # 1 MB
+  
+  computed:
+    stack_top: 0x0FF000000  # USER_TOP - STARTUP_HEADROOM
+    stack_base: 0x0FEE00000  # STACK_TOP - STACK_MAPPED_SIZE
+    initial_sp: 0x0FEFC0000  # STACK_TOP - INITIAL_UPWARD_HEADROOM (aligned)
+
+containment_assertions:
+  # The failing guest address from store gadget crash
+  - name: failing_store_address_contained
+    address: 0xF7FFAD68
+    must_be_in_range: [0x0FEE00000, 0x0FF000000]
+    description: "Address 0xF7FFAD68 must be inside mapped stack region"
+    
+  - name: sp_upward_headroom
+    sp: 0x0FEFC0000
+    distance_to_top: 0x40000  # 256 KB
+    description: "SP must have 256KB headroom to STACK_TOP"
+    
+  - name: sp_downward_reserve
+    sp: 0x0FEFC0000
+    distance_to_base: 0x140000  # 1 MB + 256KB alignment
+    minimum: 0x100000  # 1 MB
+    description: "SP must have at least 1MB downward reserve"
+
+auxv_walk_assertions:
+  start_addr: 0x0FEFC0000  # Initial SP
+  max_upward_walk: 0x2000  # 8KB maximum search
+  must_be_mapped: true
+  description: "musl auxv walk must stay inside mapped stack"
+
+success_criteria:
+  - all_containment_assertions_pass
+  - failing_address_inside_stack_mapping
+  - sp_has_required_headroom_and_reserve
+
+notes: |
+  This is the deterministic replacement for the runtime crash hunt.
+  Instead of waiting for store gadget to crash at 0xF7FFAD68,
+  this test validates the layout constants before any guest execution.
+  
+  The current constants from memory 30-runtime-reduction:
+  - STACK_TOP = 0x0FF000000
+  - STACK_BASE = 0x0FEE00000  
+  - INITIAL_SP = 0x0FEFC0000
+  
+  The failing address 0xF7FFAD68 is ~134MB below STACK_BASE,
+  which means the constants are wrong OR the guest computed wrong SP.
+  This test catches that deterministically.

@@ -1,0 +1,58 @@
+id: ABI-009
+phase: 04-mmu-abi
+title: Startup stack address containment validates guest accesses
+class: abi
+kind: abi_fixture
+harness: abi_fixture
+meson_test: case:ABI-009
+
+prerequisites:
+  - ABI-001
+  - ABI-006
+  - ABI-007
+
+expectation_authority:
+  semantic_source: linux-aarch64-abi
+  primary_tool: runtime-fixture
+  secondary_tool: null
+  tertiary_tool: null
+
+success_criteria:
+  structural:
+    - harness exits 0
+    - report.json exists and valid
+  semantic:
+    - stack mapping defined by STACK_BASE and STACK_TOP
+    - initial SP placed with upward and downward budget
+    - failing guest address 0xf7ffad68 is within [STACK_BASE, STACK_TOP]
+    - all interpreter stack walk addresses are contained
+
+allowed_patch_scope:
+  - kernel/exec.c
+  - kernel/aarch64/*
+  - emu/aarch64/cpu.c
+  - tests/cases/04-mmu-abi/ABI-009-startup-stack-address-containment/*
+
+regression_target:
+  meson_test: case:ABI-009
+
+trace_defaults:
+  backend: ring
+  level: 2
+  events: fault,process.entry
+  pc_range: null
+  regs: [sp]
+  dump_on: fault
+
+informational_only: false
+status: pending
+is_gate_case: true
+
+metadata:
+  scaffolded: true
+  implementation_ready: true
+  notes: |
+    Deterministic replacement for runtime crash hunt.
+    Validates that the failing guest address from store gadget crash
+    (0xf7ffad68) is inside the mapped stack region.
+    This catches the root cause before runtime execution.

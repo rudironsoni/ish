@@ -797,22 +797,82 @@ tcti_gadget_t gadget_b = gadget_b_impl;
 
 GEN_BCOND(eq, eq);
 
+struct tcti_bcond_ne_probe {
+    uint64_t branch_site_pc;
+    uint64_t target_pc;
+    uint64_t fallthrough_pc;
+    uint64_t x15_loaded;
+    uint64_t x25_after_mrs;
+    uint64_t x14_after_and;
+    uint64_t x14_after_and_mirror;
+    uint64_t path_marker;
+    uint64_t path_pc;
+    uint64_t branch_path_result;
+    uint8_t captured;
+};
+
+struct tcti_bcond_ne_probe tcti_bcond_ne_probe = { 0 };
+
 // B.NE gadget
 __attribute__((naked)) void gadget_bcond_ne_impl(void)
 {
-    asm volatile("ldr x16, [x28], #8\n\t"   // Load target PC
-                 "ldr x17, [x28], #8\n\t"   // Load fallthrough PC
-                 "ldr x15, [x29, #280]\n\t" // Load NZCV from cpu->pstate
-                 "msr nzcv, x15\n\t"        // Restore NZCV
-                 "b.ne 1f\n\t"              // Branch if NOT equal
-                 "mov x16, x17\n\t"         // Use fallthrough PC (equal case)
-                 "1:\n\t"
-                 "str x16, [x29, %[pc_off]]\n\t" // Store to cpu->pc
-                 "mov x0, #0\n\t"
-                 "b _tcti_exit_block\n\t"
-                 :
-                 : [pc_off] "i"(PC_OFFSET)
-                 : "x15", "x16", "x17", "x26");
+    asm volatile(
+        "ldr x16, [x28], #8\n\t" // Load target PC
+        "ldr x17, [x28], #8\n\t" // Load fallthrough PC
+        "adrp x26, _tcti_bcond_ne_probe@PAGE\n\t"
+        "add x26, x26, _tcti_bcond_ne_probe@PAGEOFF\n\t"
+        "sub x27, x17, #4\n\t"
+        "str x27, [x26, %[branch_site_off]]\n\t"
+        "str x16, [x26, %[target_off]]\n\t"
+        "str x17, [x26, %[fallthrough_off]]\n\t"
+        "ldr x15, [x29, #280]\n\t" // Load NZCV from cpu->pstate
+        "str x15, [x26, %[x15_off]]\n\t"
+        "msr nzcv, x15\n\t" // Restore NZCV
+        "mrs x25, nzcv\n\t"
+        "str x25, [x26, %[x25_off]]\n\t"
+        "and x14, x25, #0x20000000\n\t"
+        "str x14, [x26, %[x14_and_off]]\n\t"
+        "str x14, [x26, %[x14_and_mirror_off]]\n\t"
+        "cbz x14, 1f\n\t" // Branch when equality bit is clear (NE)
+        "movz x27, #0x1111\n\t"
+        "movk x27, #0x1111, lsl #16\n\t"
+        "movk x27, #0x1111, lsl #32\n\t"
+        "movk x27, #0x1111, lsl #48\n\t"
+        "str x27, [x26, %[path_marker_off]]\n\t"
+        "str x17, [x26, %[path_pc_off]]\n\t"
+        "mov x27, #0\n\t"
+        "str x27, [x26, %[branch_result_off]]\n\t"
+        "mov x16, x17\n\t" // Use fallthrough PC (equal case)
+        "b 2f\n\t"
+        "1:\n\t"
+        "movz x27, #0x2222\n\t"
+        "movk x27, #0x2222, lsl #16\n\t"
+        "movk x27, #0x2222, lsl #32\n\t"
+        "movk x27, #0x2222, lsl #48\n\t"
+        "str x27, [x26, %[path_marker_off]]\n\t"
+        "str x16, [x26, %[path_pc_off]]\n\t"
+        "mov x27, #1\n\t"
+        "str x27, [x26, %[branch_result_off]]\n\t"
+        "2:\n\t"
+        "mov w25, #1\n\t"
+        "strb w25, [x26, %[captured_off]]\n\t"
+        "str x16, [x29, %[pc_off]]\n\t" // Store to cpu->pc
+        "mov x0, #0\n\t"
+        "b _tcti_exit_block\n\t"
+        :
+        : [pc_off] "i"(PC_OFFSET),
+          [branch_site_off] "i"(offsetof(struct tcti_bcond_ne_probe, branch_site_pc)),
+          [target_off] "i"(offsetof(struct tcti_bcond_ne_probe, target_pc)),
+          [fallthrough_off] "i"(offsetof(struct tcti_bcond_ne_probe, fallthrough_pc)),
+          [x15_off] "i"(offsetof(struct tcti_bcond_ne_probe, x15_loaded)),
+          [x25_off] "i"(offsetof(struct tcti_bcond_ne_probe, x25_after_mrs)),
+          [x14_and_off] "i"(offsetof(struct tcti_bcond_ne_probe, x14_after_and)),
+          [x14_and_mirror_off] "i"(offsetof(struct tcti_bcond_ne_probe, x14_after_and_mirror)),
+          [path_marker_off] "i"(offsetof(struct tcti_bcond_ne_probe, path_marker)),
+          [path_pc_off] "i"(offsetof(struct tcti_bcond_ne_probe, path_pc)),
+          [branch_result_off] "i"(offsetof(struct tcti_bcond_ne_probe, branch_path_result)),
+          [captured_off] "i"(offsetof(struct tcti_bcond_ne_probe, captured))
+        : "x14", "x15", "x16", "x17", "x25", "x26", "x27");
 }
 
 GEN_BCOND(cs, cs);

@@ -480,7 +480,39 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
 
     // map dat shit!
 
+    // Diagnostic: Prove header.phent_count BEFORE loop
+    trace_exec_checkpoint("task.proof.exec.ph_count.before_loop", header.phent_count);
+
     for (unsigned i = 0; i < header.phent_count; i++) {
+        // Diagnostic: Prove loop entry and ph[i].type BEFORE PT_LOAD filter
+        char idx_buf[16];
+        char type_buf[32];
+        char vaddr_buf[32];
+        char offset_buf[32];
+        char filesize_buf[32];
+        char memsize_buf[32];
+
+        snprintf(idx_buf, sizeof(idx_buf), "%u", i);
+        snprintf(type_buf, sizeof(type_buf), "%lu", (unsigned long)ph[i].type);
+        snprintf(vaddr_buf, sizeof(vaddr_buf), "0x%lx", (unsigned long)ph[i].vaddr);
+        snprintf(offset_buf, sizeof(offset_buf), "0x%lx", (unsigned long)ph[i].offset);
+        snprintf(filesize_buf, sizeof(filesize_buf), "%lu", (unsigned long)ph[i].filesize);
+        snprintf(memsize_buf, sizeof(memsize_buf), "%lu", (unsigned long)ph[i].memsize);
+
+        trace_attribute_t loop_attrs[] = {
+            { "index", idx_buf },
+            { "ph_type", type_buf },
+            { "ph_vaddr", vaddr_buf },
+            { "ph_offset", offset_buf },
+            { "ph_filesize", filesize_buf },
+            { "ph_memsize", memsize_buf },
+        };
+        trace_begin_interval(TRACE_ORIGIN_KERNEL, "task.proof.exec.ph_loop.entry", loop_attrs,
+                             sizeof(loop_attrs) / sizeof(loop_attrs[0]));
+
+        // Prove we reach the PT_LOAD filter
+        trace_exec_checkpoint("task.proof.exec.before_pt_load_filter", ph[i].type);
+
         if (ph[i].type != PT_LOAD)
             continue;
 
@@ -492,60 +524,63 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
                 bias = find_hole_for_elf(&header, ph);
         }
 
+        // Prove PT_LOAD block is entered
+        trace_exec_checkpoint("task.proof.exec.pt_load.block_entered", ph[i].type);
+
         if ((err = load_entry(ph[i], bias, fd)) < 0) {
             goto beyond_hope;
         }
 
+        // Prove load_entry() was reached for PT_LOAD segments
+        trace_exec_checkpoint("task.proof.exec.load_entry.reached", err);
+
         // Trace PT_LOAD mapping for APPSIM-004 diagnosis (main executable)
-        if (trace_get_level() >= TRACE_LEVEL_SUMMARY) {
-            char role_buf[32] = "main";
-            char path_buf[256];
-            char data_buf[32];
-            char fd_buf[32];
-            char map_start_buf[32];
-            char map_end_buf[32];
-            char file_offset_start_buf[32];
-            char ph_vaddr_buf[32];
-            char ph_offset_buf[32];
-            char ph_filesize_buf[32];
-            char ph_memsize_buf[32];
-            char flags_buf[32];
+        char role_buf[32] = "main";
+        char path_buf[256];
+        char data_buf[32];
+        char fd_buf[32];
+        char map_start_buf[32];
+        char map_end_buf[32];
+        char file_offset_start_buf[32];
+        char ph_vaddr_buf[32];
+        char ph_offset_buf[32];
+        char ph_filesize_buf[32];
+        char ph_memsize_buf[32];
+        char flags_buf[32];
 
-            strncpy(path_buf, file, sizeof(path_buf) - 1);
-            path_buf[sizeof(path_buf) - 1] = '\0';
-            snprintf(data_buf, sizeof(data_buf), "%p",
-                     (void *)mem_pt(current->mem, PAGE(bias + ph[i].vaddr)));
-            snprintf(fd_buf, sizeof(fd_buf), "%p", (void *)fd);
-            snprintf(map_start_buf, sizeof(map_start_buf), "0x%lx",
-                     (unsigned long)(bias + ph[i].vaddr));
-            snprintf(map_end_buf, sizeof(map_end_buf), "0x%lx",
-                     (unsigned long)(bias + ph[i].vaddr + ph[i].memsize));
-            snprintf(file_offset_start_buf, sizeof(file_offset_start_buf), "0x%lx",
-                     (unsigned long)(ph[i].offset - PGOFFSET(ph[i].vaddr)));
-            snprintf(ph_vaddr_buf, sizeof(ph_vaddr_buf), "0x%lx", (unsigned long)ph[i].vaddr);
-            snprintf(ph_offset_buf, sizeof(ph_offset_buf), "0x%lx", (unsigned long)ph[i].offset);
-            snprintf(ph_filesize_buf, sizeof(ph_filesize_buf), "%lu",
-                     (unsigned long)ph[i].filesize);
-            snprintf(ph_memsize_buf, sizeof(ph_memsize_buf), "%lu", (unsigned long)ph[i].memsize);
-            snprintf(flags_buf, sizeof(flags_buf), "0x%x", ph[i].flags);
+        strncpy(path_buf, file, sizeof(path_buf) - 1);
+        path_buf[sizeof(path_buf) - 1] = '\0';
+        snprintf(data_buf, sizeof(data_buf), "%p",
+                 (void *)mem_pt(current->mem, PAGE(bias + ph[i].vaddr)));
+        snprintf(fd_buf, sizeof(fd_buf), "%p", (void *)fd);
+        snprintf(map_start_buf, sizeof(map_start_buf), "0x%lx",
+                 (unsigned long)(bias + ph[i].vaddr));
+        snprintf(map_end_buf, sizeof(map_end_buf), "0x%lx",
+                 (unsigned long)(bias + ph[i].vaddr + ph[i].memsize));
+        snprintf(file_offset_start_buf, sizeof(file_offset_start_buf), "0x%lx",
+                 (unsigned long)(ph[i].offset - PGOFFSET(ph[i].vaddr)));
+        snprintf(ph_vaddr_buf, sizeof(ph_vaddr_buf), "0x%lx", (unsigned long)ph[i].vaddr);
+        snprintf(ph_offset_buf, sizeof(ph_offset_buf), "0x%lx", (unsigned long)ph[i].offset);
+        snprintf(ph_filesize_buf, sizeof(ph_filesize_buf), "%lu", (unsigned long)ph[i].filesize);
+        snprintf(ph_memsize_buf, sizeof(ph_memsize_buf), "%lu", (unsigned long)ph[i].memsize);
+        snprintf(flags_buf, sizeof(flags_buf), "0x%x", ph[i].flags);
 
-            trace_attribute_t load_attrs[] = {
-                { "role", role_buf },
-                { "path", path_buf },
-                { "data", data_buf },
-                { "fd", fd_buf },
-                { "map_start", map_start_buf },
-                { "map_end", map_end_buf },
-                { "file_offset_start", file_offset_start_buf },
-                { "ph_vaddr", ph_vaddr_buf },
-                { "ph_offset", ph_offset_buf },
-                { "ph_filesize", ph_filesize_buf },
-                { "ph_memsize", ph_memsize_buf },
-                { "flags", flags_buf },
-            };
-            trace_begin_interval(TRACE_ORIGIN_KERNEL, "task.proof.exec.load.segment", load_attrs,
-                                 sizeof(load_attrs) / sizeof(load_attrs[0]));
-        }
+        trace_attribute_t load_attrs[] = {
+            { "role", role_buf },
+            { "path", path_buf },
+            { "data", data_buf },
+            { "fd", fd_buf },
+            { "map_start", map_start_buf },
+            { "map_end", map_end_buf },
+            { "file_offset_start", file_offset_start_buf },
+            { "ph_vaddr", ph_vaddr_buf },
+            { "ph_offset", ph_offset_buf },
+            { "ph_filesize", ph_filesize_buf },
+            { "ph_memsize", ph_memsize_buf },
+            { "flags", flags_buf },
+        };
+        trace_begin_interval(TRACE_ORIGIN_KERNEL, "task.proof.exec.load.segment", load_attrs,
+                             sizeof(load_attrs) / sizeof(load_attrs[0]));
 
         // load_addr is used to get a value for AX_PHDR et al
         if (!load_addr_set) {
@@ -581,80 +616,76 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
                 goto beyond_hope;
 
             // Trace PT_LOAD mapping for APPSIM-004 diagnosis (interpreter)
-            if (trace_get_level() >= TRACE_LEVEL_SUMMARY) {
-                char role_buf[32] = "interpreter";
-                char path_buf[256];
-                char data_buf[32];
-                char fd_buf[32];
-                char map_start_buf[32];
-                char map_end_buf[32];
-                char file_offset_start_buf[32];
-                char ph_vaddr_buf[32];
-                char ph_offset_buf[32];
-                char ph_filesize_buf[32];
-                char ph_memsize_buf[32];
-                char flags_buf[32];
+            char role_buf[32] = "interpreter";
+            char path_buf[256];
+            char data_buf[32];
+            char fd_buf[32];
+            char map_start_buf[32];
+            char map_end_buf[32];
+            char file_offset_start_buf[32];
+            char ph_vaddr_buf[32];
+            char ph_offset_buf[32];
+            char ph_filesize_buf[32];
+            char ph_memsize_buf[32];
+            char flags_buf[32];
 
-                strncpy(path_buf, interp_name, sizeof(path_buf) - 1);
-                path_buf[sizeof(path_buf) - 1] = '\0';
-                snprintf(data_buf, sizeof(data_buf), "%p",
-                         (void *)mem_pt(current->mem, PAGE(interp_base + interp_ph[i].vaddr)));
-                snprintf(fd_buf, sizeof(fd_buf), "%p", (void *)interp_fd);
-                snprintf(map_start_buf, sizeof(map_start_buf), "0x%lx",
-                         (unsigned long)(interp_base + interp_ph[i].vaddr));
-                snprintf(map_end_buf, sizeof(map_end_buf), "0x%lx",
-                         (unsigned long)(interp_base + interp_ph[i].vaddr + interp_ph[i].memsize));
-                snprintf(file_offset_start_buf, sizeof(file_offset_start_buf), "0x%lx",
-                         (unsigned long)(interp_ph[i].offset - PGOFFSET(interp_ph[i].vaddr)));
-                snprintf(ph_vaddr_buf, sizeof(ph_vaddr_buf), "0x%lx",
-                         (unsigned long)interp_ph[i].vaddr);
-                snprintf(ph_offset_buf, sizeof(ph_offset_buf), "0x%lx",
-                         (unsigned long)interp_ph[i].offset);
-                snprintf(ph_filesize_buf, sizeof(ph_filesize_buf), "%lu",
-                         (unsigned long)interp_ph[i].filesize);
-                snprintf(ph_memsize_buf, sizeof(ph_memsize_buf), "%lu",
-                         (unsigned long)interp_ph[i].memsize);
-                snprintf(flags_buf, sizeof(flags_buf), "0x%x", interp_ph[i].flags);
+            strncpy(path_buf, interp_name, sizeof(path_buf) - 1);
+            path_buf[sizeof(path_buf) - 1] = '\0';
+            snprintf(data_buf, sizeof(data_buf), "%p",
+                     (void *)mem_pt(current->mem, PAGE(interp_base + interp_ph[i].vaddr)));
+            snprintf(fd_buf, sizeof(fd_buf), "%p", (void *)interp_fd);
+            snprintf(map_start_buf, sizeof(map_start_buf), "0x%lx",
+                     (unsigned long)(interp_base + interp_ph[i].vaddr));
+            snprintf(map_end_buf, sizeof(map_end_buf), "0x%lx",
+                     (unsigned long)(interp_base + interp_ph[i].vaddr + interp_ph[i].memsize));
+            snprintf(file_offset_start_buf, sizeof(file_offset_start_buf), "0x%lx",
+                     (unsigned long)(interp_ph[i].offset - PGOFFSET(interp_ph[i].vaddr)));
+            snprintf(ph_vaddr_buf, sizeof(ph_vaddr_buf), "0x%lx",
+                     (unsigned long)interp_ph[i].vaddr);
+            snprintf(ph_offset_buf, sizeof(ph_offset_buf), "0x%lx",
+                     (unsigned long)interp_ph[i].offset);
+            snprintf(ph_filesize_buf, sizeof(ph_filesize_buf), "%lu",
+                     (unsigned long)interp_ph[i].filesize);
+            snprintf(ph_memsize_buf, sizeof(ph_memsize_buf), "%lu",
+                     (unsigned long)interp_ph[i].memsize);
+            snprintf(flags_buf, sizeof(flags_buf), "0x%x", interp_ph[i].flags);
 
-                trace_attribute_t load_attrs[] = {
-                    { "role", role_buf },
-                    { "path", path_buf },
-                    { "data", data_buf },
-                    { "fd", fd_buf },
-                    { "map_start", map_start_buf },
-                    { "map_end", map_end_buf },
-                    { "file_offset_start", file_offset_start_buf },
-                    { "ph_vaddr", ph_vaddr_buf },
-                    { "ph_offset", ph_offset_buf },
-                    { "ph_filesize", ph_filesize_buf },
-                    { "ph_memsize", ph_memsize_buf },
-                    { "flags", flags_buf },
-                };
-                trace_begin_interval(TRACE_ORIGIN_KERNEL, "task.proof.exec.load.segment",
-                                     load_attrs, sizeof(load_attrs) / sizeof(load_attrs[0]));
-            }
+            trace_attribute_t load_attrs[] = {
+                { "role", role_buf },
+                { "path", path_buf },
+                { "data", data_buf },
+                { "fd", fd_buf },
+                { "map_start", map_start_buf },
+                { "map_end", map_end_buf },
+                { "file_offset_start", file_offset_start_buf },
+                { "ph_vaddr", ph_vaddr_buf },
+                { "ph_offset", ph_offset_buf },
+                { "ph_filesize", ph_filesize_buf },
+                { "ph_memsize", ph_memsize_buf },
+                { "flags", flags_buf },
+            };
+            trace_begin_interval(TRACE_ORIGIN_KERNEL, "task.proof.exec.load.segment", load_attrs,
+                                 sizeof(load_attrs) / sizeof(load_attrs[0]));
         }
         entry = interp_base + interp_header.entry_point;
 
         // Trace interpreter mapping for APPSIM-004 diagnosis
-        if (trace_get_level() >= TRACE_LEVEL_SUMMARY) {
-            char interp_name_buf[128];
-            char interp_base_buf[32];
-            char interp_entry_buf[32];
+        char interp_name_buf[128];
+        char interp_base_buf[32];
+        char interp_entry_buf[32];
 
-            strncpy(interp_name_buf, interp_name, sizeof(interp_name_buf) - 1);
-            interp_name_buf[sizeof(interp_name_buf) - 1] = '\0';
-            snprintf(interp_base_buf, sizeof(interp_base_buf), "0x%lx", (unsigned long)interp_base);
-            snprintf(interp_entry_buf, sizeof(interp_entry_buf), "0x%lx", (unsigned long)entry);
+        strncpy(interp_name_buf, interp_name, sizeof(interp_name_buf) - 1);
+        interp_name_buf[sizeof(interp_name_buf) - 1] = '\0';
+        snprintf(interp_base_buf, sizeof(interp_base_buf), "0x%lx", (unsigned long)interp_base);
+        snprintf(interp_entry_buf, sizeof(interp_entry_buf), "0x%lx", (unsigned long)entry);
 
-            trace_attribute_t interp_attrs[] = {
-                { "name", interp_name_buf },
-                { "base", interp_base_buf },
-                { "entry", interp_entry_buf },
-            };
-            trace_begin_interval(TRACE_ORIGIN_KERNEL, "task.proof.elf_interp.mapped", interp_attrs,
-                                 sizeof(interp_attrs) / sizeof(interp_attrs[0]));
-        }
+        trace_attribute_t interp_attrs[] = {
+            { "name", interp_name_buf },
+            { "base", interp_base_buf },
+            { "entry", interp_entry_buf },
+        };
+        trace_begin_interval(TRACE_ORIGIN_KERNEL, "task.proof.elf_interp.mapped", interp_attrs,
+                             sizeof(interp_attrs) / sizeof(interp_attrs[0]));
 
         // Name the interpreter mapping pages for APPSIM-004 diagnosis
         // This allows pc_mapping lookup to identify interpreter vs. executable
@@ -731,11 +762,11 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
         goto beyond_hope;
     mem_pt(current->mem, vvar_page)->data->name = "[vvar]";
 
-    // STACK TIME!
+// STACK TIME!
 
-    // Map sufficient stack pages to accommodate initial stack setup.
-    // AArch64 startup layout - two-sided budget inside mapped stack region
-    // Derived from USER_TOP with explicit upward headroom and downward reserve
+// Map sufficient stack pages to accommodate initial stack setup.
+// AArch64 startup layout - two-sided budget inside mapped stack region
+// Derived from USER_TOP with explicit upward headroom and downward reserve
 #define USER_TOP          (((addr_t)MEM_PAGES) << PAGE_BITS) // 0x100000000
 #define STARTUP_HEADROOM  ((addr_t)16 * 1024 * 1024)         // 16 MB gap
 #define STACK_MAPPED_SIZE ((addr_t)4 * 1024 * 1024)          // 4 MB mapped stack
