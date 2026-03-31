@@ -25,8 +25,8 @@ typedef enum {
     TRACE_ORIGIN_KERNEL,
     TRACE_ORIGIN_TASK,
     TRACE_ORIGIN_EXEC,
-    TRACE_ORIGIN_EMULATOR,
-    TRACE_ORIGIN_TCTI
+    TRACE_ORIGIN_EMULATOR = 6,
+    TRACE_ORIGIN_TCTI = 7
 } trace_origin_t;
 
 /* ============================================
