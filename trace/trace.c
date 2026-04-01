@@ -646,6 +646,98 @@ void trace_emit_task_proof_point(task_proof_point_t point, uint32_t pid)
 }
 
 /* ============================================
+ * TCTI Boundary Instrumentation - Spill-First Trace Events
+ * ============================================
+ *
+ * These functions capture exact runtime values at the TCTI boundary
+ * for forensic analysis of the spill-first execution model.
+ */
+
+void trace_emit_tcti_entry_x28_before(uint64_t x28_value)
+{
+    char x28_buf[24];
+    snprintf(x28_buf, sizeof(x28_buf), "0x%llx", (unsigned long long)x28_value);
+
+    ish_instrumentation_attribute_t attrs[] = {
+        { "x28_before", x28_buf },
+        { "event", "tcti.entry.x28.before" },
+    };
+    ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "tcti.entry.x28.before");
+}
+
+void trace_emit_tcti_entry_qword0(uint64_t qword0)
+{
+    char qword0_buf[24];
+    snprintf(qword0_buf, sizeof(qword0_buf), "0x%llx", (unsigned long long)qword0);
+
+    ish_instrumentation_attribute_t attrs[] = {
+        { "qword0", qword0_buf },
+        { "event", "tcti.entry.qword0" },
+    };
+    ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "tcti.entry.qword0");
+}
+
+void trace_emit_tcti_entry_x27_after(uint64_t x27_value)
+{
+    char x27_buf[24];
+    snprintf(x27_buf, sizeof(x27_buf), "0x%llx", (unsigned long long)x27_value);
+
+    ish_instrumentation_attribute_t attrs[] = {
+        { "x27_after", x27_buf },
+        { "event", "tcti.entry.x27.after" },
+    };
+    ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "tcti.entry.x27.after");
+}
+
+void trace_emit_tcti_entry_x28_after(uint64_t x28_value)
+{
+    char x28_buf[24];
+    snprintf(x28_buf, sizeof(x28_buf), "0x%llx", (unsigned long long)x28_value);
+
+    ish_instrumentation_attribute_t attrs[] = {
+        { "x28_after", x28_buf },
+        { "event", "tcti.entry.x28.after" },
+    };
+    ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "tcti.entry.x28.after");
+}
+
+void trace_emit_tcti_entry_qword1(uint64_t qword1)
+{
+    char qword1_buf[24];
+    snprintf(qword1_buf, sizeof(qword1_buf), "0x%llx", (unsigned long long)qword1);
+
+    ish_instrumentation_attribute_t attrs[] = {
+        { "qword1", qword1_buf },
+        { "event", "tcti.entry.qword1" },
+    };
+    ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "tcti.entry.qword1");
+}
+
+void trace_emit_gadget_entry_x28(uint64_t x28_value)
+{
+    char x28_buf[24];
+    snprintf(x28_buf, sizeof(x28_buf), "0x%llx", (unsigned long long)x28_value);
+
+    ish_instrumentation_attribute_t attrs[] = {
+        { "x28", x28_buf },
+        { "event", "gadget.entry.x28" },
+    };
+    ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "gadget.entry.x28");
+}
+
+void trace_emit_gadget_fault_addr(uint64_t fault_addr)
+{
+    char addr_buf[24];
+    snprintf(addr_buf, sizeof(addr_buf), "0x%llx", (unsigned long long)fault_addr);
+
+    ish_instrumentation_attribute_t attrs[] = {
+        { "fault_addr", addr_buf },
+        { "event", "gadget.fault_addr" },
+    };
+    ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "gadget.fault_addr");
+}
+
+/* ============================================
  * Output and Utility - STUBBED
  * ============================================ */
 

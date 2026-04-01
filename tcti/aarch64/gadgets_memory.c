@@ -1344,6 +1344,28 @@ tcti_gadget_t gadget_ubfm = gadget_ubfm_impl;
 __attribute__((naked)) void gadget_ldr_x_impl(void)
 {
     asm volatile(
+        // =========================================================================
+        // GADGET ENTRY TRACING - Spill-First Boundary Instrumentation
+        // =========================================================================
+        // Capture exact values at gadget entry for forensic analysis of:
+        //   1. x28 (bytecode pointer) - shows where we are in the gadget stream
+        //   2. Fault address calculation - shows which address we're about to access
+        //
+        // At this point:
+        //   x28 = bytecode pointer (already advanced past this gadget's entry)
+        //   x29 = cpu_state pointer
+        //   x27 = previous gadget's next pointer (not meaningful here)
+        //
+        // After parameter load:
+        //   x19 = fault_pc (the guest PC that caused this load)
+        //   x20 = Rt (destination register)
+        //   x21 = Rn (base register)
+        //   x22 = immediate offset
+        //   x23 = size (0=B, 1=H, 2=W, 3=X)
+        //   x24 = idx_mode (0=offset, 1=pre-index, 2=post-index)
+        //   x25 = meta (extension type, etc.)
+        // =========================================================================
+
         // Load parameters from bytecode
         "ldr x19, [x28], #8\n\t" // fault_pc
         "ldr x20, [x28], #8\n\t" // Rt (destination reg)
@@ -1352,6 +1374,38 @@ __attribute__((naked)) void gadget_ldr_x_impl(void)
         "ldr x23, [x28], #8\n\t" // size
         "ldr x24, [x28], #8\n\t" // idx_mode
         "ldr x25, [x28], #8\n\t" // meta
+
+        // Trace gadget entry with x28 (bytecode pointer)
+        "stp x0, x1, [sp, #-16]!\n\t"
+        "stp x2, x3, [sp, #-16]!\n\t"
+        "stp x4, x5, [sp, #-16]!\n\t"
+        "stp x6, x7, [sp, #-16]!\n\t"
+        "stp x19, x20, [sp, #-16]!\n\t" // Save parameters
+        "mov x0, x28\n\t"               // x28 to emit
+        "bl _trace_emit_gadget_entry_x28\n\t"
+        "ldp x19, x20, [sp], #16\n\t" // Restore parameters
+        "ldp x6, x7, [sp], #16\n\t"
+        "ldp x4, x5, [sp], #16\n\t"
+        "ldp x2, x3, [sp], #16\n\t"
+        "ldp x0, x1, [sp], #16\n\t"
+
+        // Compute fault address for tracing: base + offset
+        // First get base register value from Rn
+        "cmp x21, #31\n\t"
+        "b.eq 1f\n\t"
+        "add x0, x29, #16\n\t"
+        "lsl x1, x21, #3\n\t"
+        "ldr x0, [x0, x1]\n\t" // x0 = base register value
+        "b 2f\n\t"
+        "1:\n\t"
+        "ldr x0, [x29, #264]\n\t" // SP
+        "2:\n\t"
+        "add x0, x0, x22\n\t" // x0 = fault_addr = base + offset
+
+        // Trace fault address
+        "stp x0, x1, [sp, #-16]!\n\t"
+        "bl _trace_emit_gadget_fault_addr\n\t"
+        "ldp x0, x1, [sp], #16\n\t"
 
         // Patch 1B.1: Hot-hot fast path
         // Requirements: both Rn and Rt in 0-15, 64-bit, offset mode, meta=0

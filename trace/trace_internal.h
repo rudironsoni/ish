@@ -73,6 +73,15 @@ void trace_emit_task_start_pointer(uint64_t task_ptr);
 /* Task proof points for narrowing task_start() failure */
 void trace_emit_task_proof_point(task_proof_point_t point, uint32_t pid);
 
+/* TCTI Boundary Instrumentation - Spill-First Trace Events */
+void trace_emit_tcti_entry_x28_before(uint64_t x28_value);
+void trace_emit_tcti_entry_qword0(uint64_t qword0);
+void trace_emit_tcti_entry_x27_after(uint64_t x27_value);
+void trace_emit_tcti_entry_x28_after(uint64_t x28_value);
+void trace_emit_tcti_entry_qword1(uint64_t qword1);
+void trace_emit_gadget_entry_x28(uint64_t x28_value);
+void trace_emit_gadget_fault_addr(uint64_t fault_addr);
+
 /* Task handoff proof events */
 void trace_emit_task_handoff_parent_pre_create(uint64_t task_ptr, uint64_t mm, uint64_t mem,
                                                uint32_t pid, uint64_t host_thread_id);
