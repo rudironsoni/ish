@@ -203,7 +203,6 @@
 		BBAEE339249B58E80069EBB5 /* libbz2.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = BBAEE338249B58E80069EBB5 /* libbz2.tbd */; };
 		BBBCE7E321D2F02200CA00B3 /* About.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = BBBCE7E521D2F02200CA00B3 /* About.storyboard */; };
 		BBBD741426B7BE2E00321AC5 /* libfakefs.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BB21A16F2689041500BD19B4 /* libfakefs.a */; };
-		BBBDDF932CE0132F0071F1F3 /* libiSHLinuxUser.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BBBDDF8F2CE00F6B0071F1F3 /* libiSHLinuxUser.a */; };
 		BBBF7B5C2415CDBB00EC4C14 /* Settings.bundle in Resources */ = {isa = PBXBuildFile; fileRef = BBBF7B5B2415CDBB00EC4C14 /* Settings.bundle */; };
 		BBBF9CBD27C217B6002A30F7 /* PasteboardDeviceLinux.c in Sources */ = {isa = PBXBuildFile; fileRef = BBBF9CBB27C217A6002A30F7 /* PasteboardDeviceLinux.c */; };
 		BBBF9CBF27C44114002A30F7 /* iSHFileProvider.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = BB88F4902154760800A341FD /* iSHFileProvider.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -213,9 +212,6 @@
 		BBD23D5F258DA450003DCB40 /* Screenshots.m in Sources */ = {isa = PBXBuildFile; fileRef = BBD23D5E258DA450003DCB40 /* Screenshots.m */; };
 		BBD23D77258DA4BC003DCB40 /* SnapshotHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBD23D76258DA4BC003DCB40 /* SnapshotHelper.swift */; };
 		BBE64AC22A198FCC00589372 /* ExceptionExfiltrator.m in Sources */ = {isa = PBXBuildFile; fileRef = 49FF844A2A06249F00850B7A /* ExceptionExfiltrator.m */; };
-		BBECF3AD269132F400DEC937 /* LinuxInterop.c in Sources */ = {isa = PBXBuildFile; fileRef = BBECF39D2691313B00DEC937 /* LinuxInterop.c */; };
-		BBECF3AE2691330F00DEC937 /* libiSHLinux.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BBECF3A22691314C00DEC937 /* libiSHLinux.a */; };
-		BBECF3B9269136FB00DEC937 /* liblinux.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BBECF3B8269136E100DEC937 /* liblinux.a */; };
 		BBECF3BC26913F1600DEC937 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = BB792B541F96D90D00FFB7A4 /* AppDelegate.m */; };
 		BBEEA9E8277D25090069495B /* LinuxRoot.c in Sources */ = {isa = PBXBuildFile; fileRef = BBEEA9E7277D25090069495B /* LinuxRoot.c */; };
 		BBEEA9EA277DAB400069495B /* LinuxPTY.c in Sources */ = {isa = PBXBuildFile; fileRef = BBEEA9E9277DAB400069495B /* LinuxPTY.c */; };
@@ -355,26 +351,12 @@
 			remoteGlobalIDString = BB88F48F2154760800A341FD;
 			remoteInfo = iSHFiles;
 		};
-		BBBDDF822CE00F6A0071F1F3 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = BB792B461F96D8E000FFB7A4 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = BBECF3AF269136E100DEC937;
-			remoteInfo = liblinux;
-		};
 		BBECF3B1269136E100DEC937 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = BB792B461F96D8E000FFB7A4 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = BB13F7D0200ACCA2003D1C4D;
 			remoteInfo = Ninja;
-		};
-		BBECF3BD2691417C00DEC937 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = BB792B461F96D8E000FFB7A4 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = BBECF3AF269136E100DEC937;
-			remoteInfo = liblinux;
 		};
 		BBEF1928268063FD001225BD /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -695,8 +677,6 @@
 		BB23F58C231E1D1400585522 /* ScrollbarView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ScrollbarView.m; sourceTree = "<group>"; };
 		BB267FA423A48F1500ED7CAF /* AltIconViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AltIconViewController.h; sourceTree = "<group>"; };
 		BB267FA523A48F1500ED7CAF /* AltIconViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AltIconViewController.m; sourceTree = "<group>"; };
-		BB28C7522689522700BDC834 /* ProjectReleaseLinux.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = ProjectReleaseLinux.xcconfig; sourceTree = "<group>"; };
-		BB28C7532689522C00BDC834 /* ProjectDebugLinux.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = ProjectDebugLinux.xcconfig; sourceTree = "<group>"; };
 		BB28C755268956C900BDC834 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS15.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 		BB2B4DAB231D94C300CB578B /* hterm_all.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; name = hterm_all.js; path = ../../deps/libapps/hterm/dist/js/hterm_all.js; sourceTree = "<group>"; };
 		BB38597627BCEC70000A1082 /* circular.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = circular.png; sourceTree = "<group>"; };
@@ -761,8 +741,6 @@
 		BBAEE33A249BDADC0069EBB5 /* ProgressReportViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ProgressReportViewController.h; sourceTree = "<group>"; };
 		BBAEE33B249BDADC0069EBB5 /* ProgressReportViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ProgressReportViewController.m; sourceTree = "<group>"; };
 		BBBCE7E421D2F02200CA00B3 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/About.storyboard; sourceTree = "<group>"; };
-		BBBDDF8F2CE00F6B0071F1F3 /* libiSHLinuxUser.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libiSHLinuxUser.a; sourceTree = BUILT_PRODUCTS_DIR; };
-		BBBDDF902CE00F8D0071F1F3 /* StaticLibLinuxUser.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = StaticLibLinuxUser.xcconfig; sourceTree = "<group>"; };
 		BBBF7B5B2415CDBB00EC4C14 /* Settings.bundle */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.plug-in"; path = Settings.bundle; sourceTree = "<group>"; };
 		BBBF9CBB27C217A6002A30F7 /* PasteboardDeviceLinux.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = PasteboardDeviceLinux.c; sourceTree = "<group>"; };
 		BBBF9CC027C441C0002A30F7 /* fix_path.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = fix_path.h; sourceTree = "<group>"; };
@@ -778,13 +756,6 @@
 		BBD23D5E258DA450003DCB40 /* Screenshots.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Screenshots.m; sourceTree = "<group>"; };
 		BBD23D76258DA4BC003DCB40 /* SnapshotHelper.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = SnapshotHelper.swift; path = fastlane/SnapshotHelper.swift; sourceTree = SOURCE_ROOT; };
 		BBD23D95258DEF6B003DCB40 /* Screenshots.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = Screenshots.xctestplan; sourceTree = "<group>"; };
-		BBECF39B2691311D00DEC937 /* LinuxInterop.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LinuxInterop.h; sourceTree = "<group>"; };
-		BBECF39D2691313B00DEC937 /* LinuxInterop.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = LinuxInterop.c; sourceTree = "<group>"; };
-		BBECF3A22691314C00DEC937 /* libiSHLinux.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libiSHLinux.a; sourceTree = BUILT_PRODUCTS_DIR; };
-		BBECF3B8269136E100DEC937 /* liblinux.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = liblinux.a; sourceTree = BUILT_PRODUCTS_DIR; };
-		BBECF3BA2691379100DEC937 /* StaticLibLinux.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = StaticLibLinux.xcconfig; sourceTree = "<group>"; };
-		BBEEA9E7277D25090069495B /* LinuxRoot.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = LinuxRoot.c; sourceTree = "<group>"; };
-		BBEEA9E9277DAB400069495B /* LinuxPTY.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = LinuxPTY.c; sourceTree = "<group>"; };
 		BBEF191E26806364001225BD /* libiSHApp.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libiSHApp.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		BBEF192C26806546001225BD /* AppLib.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = AppLib.xcconfig; sourceTree = "<group>"; };
 		BBEF192D26806364001225BC /* ISHInstrumentation.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = ISHInstrumentation.h; path = app/Instrumentation/ISHInstrumentation.h; sourceTree = "<group>"; };
@@ -798,7 +769,6 @@
 		BBEF193926806364001225C7 /* ISHInstrumentationEvents.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = ISHInstrumentationEvents.h; path = app/Instrumentation/ISHInstrumentationEvents.h; sourceTree = "<group>"; };
 		BBEF193B26806364001225C9 /* ISHRuntimeFlags.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = ISHRuntimeFlags.h; path = app/Instrumentation/ISHRuntimeFlags.h; sourceTree = "<group>"; };
 		BBEF199C268066D1001225BD /* iSH.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iSH.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		BBEF19BA26806D7E001225BD /* Linux.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Linux.xcconfig; sourceTree = "<group>"; };
 		BBFB2C5B2590257E00545EAB /* libish_emu.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libish_emu.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		BBFB2CDA259028DC00545EAB /* StaticLib.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = StaticLib.xcconfig; sourceTree = "<group>"; };
 		BBFB55652158644C00DFE6DE /* libresolv.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libresolv.tbd; path = usr/lib/libresolv.tbd; sourceTree = SDKROOT; };
@@ -875,9 +845,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				BBECF3B9269136FB00DEC937 /* liblinux.a in Frameworks */,
-				BBECF3AE2691330F00DEC937 /* libiSHLinux.a in Frameworks */,
-				BBBDDF932CE0132F0071F1F3 /* libiSHLinuxUser.a in Frameworks */,
 				BBEF1970268066D1001225BD /* libiSHApp.a in Frameworks */,
 				BBBD741426B7BE2E00321AC5 /* libfakefs.a in Frameworks */,
 				BBEF1972268066D1001225BD /* libish_emu.a in Frameworks */,
@@ -1616,7 +1583,6 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = BB792B661F96D90D00FFB7A4 /* Build configuration list for PBXNativeTarget "iSH" */;
 			buildPhases = (
-				BBAA64A025032500A640001 /* Generate AArch64 TCTI Gadgets */,
 				BB21A17826890A5B00BD19B4 /* Sources */,
 				BB792B4D1F96D90D00FFB7A4 /* Frameworks */,
 				BBF1248B1FA7BF530088FB50 /* Download Root */,
@@ -1949,24 +1915,7 @@
 			shellPath = /bin/sh;
 			shellScript = "mkdir -p \"$CONFIGURATION_BUILD_DIR\"\nln -sf \"$MESON_BUILD_DIR/$PRODUCT_NAME.a\" \"$CONFIGURATION_BUILD_DIR\"\n";
 		};
-		BBAA64A025032500A640001 /* Generate AArch64 TCTI Gadgets */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-				"$(SRCROOT)/tcti/aarch64/tcti-gadget-gen.py",
-			);
-			name = "Generate AArch64 TCTI Gadgets";
-			outputPaths = (
-				"$(SRCROOT)/tcti/aarch64/gadgets_tcti.h",
-				"$(SRCROOT)/tcti/aarch64/gadgets_tcti_impl.c",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = "/bin/sh -e";
-			shellScript = "python3 \"$SRCROOT/tcti/aarch64/tcti-gadget-gen.py\" -o \"$SRCROOT/tcti/aarch64\" --generator-hash \"$SRCROOT/tcti/aarch64/tcti-gadget-gen.py\"\n";
-			showEnvVarsInLog = 0;
-		};
+
 		BB4A53AC1FAA49CA00A72ACE /* Compile JavaScript */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -2228,11 +2177,6 @@
 				BB28C7BB268975AE00BDC834 /* LocationDevice.m in Sources */,
 				BB28C7BA268975AA00BDC834 /* iOSFS.m in Sources */,
 				BB28C7BC268975B000BDC834 /* PasteboardDevice.m in Sources */,
-				3392EB56776EF9EC60D1B355 /* gadgets_arith.c in Sources */,
-				2BFC5D46939C6F49F640059E /* gadgets_math.c in Sources */,
-				ACC8A9E65A300C5B0516D575 /* gadgets_memory.c in Sources */,
-				E6DFC5039AC4E0345DC134C3 /* gen.c in Sources */,
-				950B8678E75E6A7FF8FF849E /* gadgets_tcti_impl.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2421,35 +2365,6 @@
 /* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
-		3FDD2F4135262C2D48764C97 /* ReleaseLinux */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ARCHS = arm64;
-				ARM64_NAMES = arm64;
-				CLANG_ENABLE_MODULES = YES;
-				DEVELOPMENT_TEAM = M8Z2UYG8G9;
-				HEADER_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(SRCROOT)",
-				);
-				INFOPLIST_FILE = app/UITests/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
-				);
-				ONLY_ACTIVE_ARCH = NO;
-				PRODUCT_BUNDLE_IDENTIFIER = "$(ROOT_BUNDLE_IDENTIFIER).UITests";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = iSH;
-				VALIDATE_PRODUCT = YES;
-			};
-			name = ReleaseLinux;
-		};
 		497F6CE8254E5E4C00C82F46 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BB0B86D52587009D00208600 /* iOS.xcconfig */;
@@ -2607,42 +2522,6 @@
 			};
 			name = "Debug";
 		};
-		BB21A16C2689041500BD19B4 /* DebugLinux */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = BBFB2CDA259028DC00545EAB /* StaticLib.xcconfig */;
-			buildSettings = {
-				ARCHS = arm64;
-				ARM64_NAMES = arm64;
-				ONLY_ACTIVE_ARCH = NO;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = DebugLinux;
-		};
-		BB21A16D2689041500BD19B4 /* Release */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = BBFB2CDA259028DC00545EAB /* StaticLib.xcconfig */;
-			buildSettings = {
-				ARCHS = arm64;
-				ARM64_NAMES = arm64;
-				ONLY_ACTIVE_ARCH = NO;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Release;
-		};
-		BB21A16E2689041500BD19B4 /* ReleaseLinux */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = BBFB2CDA259028DC00545EAB /* StaticLib.xcconfig */;
-			buildSettings = {
-				ARCHS = arm64;
-				ARM64_NAMES = arm64;
-				ONLY_ACTIVE_ARCH = NO;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = ReleaseLinux;
-		};
 		BB415923255EF9E300E0950C /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BB0B86D52587009D00208600 /* iOS.xcconfig */;
@@ -2770,179 +2649,6 @@
 			};
 			name = Release;
 		};
-		BB7F62052688EAB5003C0220 /* DebugLinux */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = BB28C7532689522C00BDC834 /* ProjectDebugLinux.xcconfig */;
-			buildSettings = {
-				CURRENT_PROJECT_VERSION = 806;
-			};
-			name = DebugLinux;
-		};
-		BB7F62062688EAB5003C0220 /* DebugLinux */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = BB0B86CD2586FD8800208600 /* App.xcconfig */;
-			buildSettings = {
-				ARCHS = arm64;
-				ARM64_NAMES = arm64;
-				DEVELOPMENT_TEAM = ZQ3L7M567L;
-				GCC_C_LANGUAGE_STANDARD = gnu11;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"$(inherited)",
-					"ARCH_AARCH64=1",
-				);
-				ONLY_ACTIVE_ARCH = NO;
-				PRODUCT_BUNDLE_IDENTIFIER = com.rudironsoni.ish;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = DebugLinux;
-		};
-		BB7F62072688EAB5003C0220 /* DebugLinux */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = BB0B86CD2586FD8800208600 /* App.xcconfig */;
-			buildSettings = {
-				ARCHS = arm64;
-				ARM64_NAMES = arm64;
-				ONLY_ACTIVE_ARCH = NO;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = DebugLinux;
-		};
-		BB7F62082688EAB5003C0220 /* DebugLinux */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = BBEF192C26806546001225BD /* AppLib.xcconfig */;
-			buildSettings = {
-				ARCHS = arm64;
-				ARM64_NAMES = arm64;
-				ONLY_ACTIVE_ARCH = NO;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = DebugLinux;
-		};
-		BB7F62092688EAB5003C0220 /* DebugLinux */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = BB0B86D52587009D00208600 /* iOS.xcconfig */;
-			buildSettings = {
-				ARCHS = arm64;
-				ARM64_NAMES = arm64;
-				CODE_SIGN_ENTITLEMENTS = app/FileProvider/iSHFileProvider.entitlements;
-				INFOPLIST_FILE = app/FileProvider/Info.plist;
-				ONLY_ACTIVE_ARCH = NO;
-				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER).FileProvider";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				SKIP_INSTALL = YES;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = DebugLinux;
-		};
-		BB7F620A2688EAB5003C0220 /* DebugLinux */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = BB0B86D52587009D00208600 /* iOS.xcconfig */;
-			buildSettings = {
-				ARCHS = arm64;
-				ARM64_NAMES = arm64;
-				CLANG_ENABLE_MODULES = YES;
-				INFOPLIST_FILE = app/UITests/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
-				);
-				ONLY_ACTIVE_ARCH = NO;
-				PRODUCT_BUNDLE_IDENTIFIER = "$(ROOT_BUNDLE_IDENTIFIER).UITests";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = iSH;
-			};
-			name = DebugLinux;
-		};
-		BB7F620B2688EAB5003C0220 /* DebugLinux */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ARCHS = arm64;
-				ARM64_NAMES = arm64;
-				ONLY_ACTIVE_ARCH = NO;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = DebugLinux;
-		};
-		BB7F620C2688EAB5003C0220 /* DebugLinux */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ARCHS = arm64;
-				ARM64_NAMES = arm64;
-				ONLY_ACTIVE_ARCH = NO;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = DebugLinux;
-		};
-		BB7F620D2688EAB5003C0220 /* DebugLinux */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = BBFB2CDA259028DC00545EAB /* StaticLib.xcconfig */;
-			buildSettings = {
-				ARCHS = arm64;
-				ARM64_NAMES = arm64;
-				ONLY_ACTIVE_ARCH = NO;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = DebugLinux;
-		};
-		BB7F620E2688EAB5003C0220 /* DebugLinux */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = BBFB2CDA259028DC00545EAB /* StaticLib.xcconfig */;
-			buildSettings = {
-				ARCHS = arm64;
-				ARM64_NAMES = arm64;
-				ONLY_ACTIVE_ARCH = NO;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = DebugLinux;
-		};
-		BB7F620F2688EAB5003C0220 /* DebugLinux */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ARCHS = arm64;
-				ARM64_NAMES = arm64;
-				ONLY_ACTIVE_ARCH = NO;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = DebugLinux;
-		};
-		BB7F62102688EAB5003C0220 /* DebugLinux */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = BB0B86D52587009D00208600 /* iOS.xcconfig */;
-			buildSettings = {
-				ARCHS = arm64;
-				ARM64_NAMES = arm64;
-				ONLY_ACTIVE_ARCH = NO;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = DebugLinux;
-		};
-		BB7F62112688EAB5003C0220 /* DebugLinux */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 493B378F290F5320000C41ED /* CLI.xcconfig */;
-			buildSettings = {
-				ARCHS = arm64;
-				ARM64_NAMES = arm64;
-				ONLY_ACTIVE_ARCH = NO;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = DebugLinux;
-		};
 		BB88F4A02154760800A341FD /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BB0B86D52587009D00208600 /* iOS.xcconfig */;
@@ -2990,19 +2696,6 @@
 			};
 			name = "Debug";
 		};
-		BBBDDF8C2CE00F6A0071F1F3 /* DebugLinux */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = BBBDDF902CE00F8D0071F1F3 /* StaticLibLinuxUser.xcconfig */;
-			buildSettings = {
-				ARCHS = arm64;
-				ARM64_NAMES = arm64;
-				ONLY_ACTIVE_ARCH = NO;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = DebugLinux;
-		};
 		BBBDDF8D2CE00F6A0071F1F3 /* Release */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BBBDDF902CE00F8D0071F1F3 /* StaticLibLinuxUser.xcconfig */;
@@ -3016,19 +2709,6 @@
 			};
 			name = Release;
 		};
-		BBBDDF8E2CE00F6A0071F1F3 /* ReleaseLinux */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = BBBDDF902CE00F8D0071F1F3 /* StaticLibLinuxUser.xcconfig */;
-			buildSettings = {
-				ARCHS = arm64;
-				ARM64_NAMES = arm64;
-				ONLY_ACTIVE_ARCH = NO;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = ReleaseLinux;
-		};
 		BBECF3A92691314C00DEC937 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BBECF3BA2691379100DEC937 /* StaticLibLinux.xcconfig */;
@@ -3040,18 +2720,6 @@
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = "Debug";
-		};
-		BBECF3AA2691314C00DEC937 /* DebugLinux */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = BBECF3BA2691379100DEC937 /* StaticLibLinux.xcconfig */;
-			buildSettings = {
-				ARCHS = arm64;
-				ARM64_NAMES = arm64;
-				ONLY_ACTIVE_ARCH = NO;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = DebugLinux;
 		};
 		BBECF3AB2691314C00DEC937 /* Release */ = {
 			isa = XCBuildConfiguration;
@@ -3065,18 +2733,6 @@
 			};
 			name = Release;
 		};
-		BBECF3AC2691314C00DEC937 /* ReleaseLinux */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = BBECF3BA2691379100DEC937 /* StaticLibLinux.xcconfig */;
-			buildSettings = {
-				ARCHS = arm64;
-				ARM64_NAMES = arm64;
-				ONLY_ACTIVE_ARCH = NO;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = ReleaseLinux;
-		};
 		BBECF3B4269136E100DEC937 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BBFB2CDA259028DC00545EAB /* StaticLib.xcconfig */;
@@ -3089,18 +2745,6 @@
 			};
 			name = "Debug";
 		};
-		BBECF3B5269136E100DEC937 /* DebugLinux */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = BBFB2CDA259028DC00545EAB /* StaticLib.xcconfig */;
-			buildSettings = {
-				ARCHS = arm64;
-				ARM64_NAMES = arm64;
-				ONLY_ACTIVE_ARCH = NO;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = DebugLinux;
-		};
 		BBECF3B6269136E100DEC937 /* Release */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BBFB2CDA259028DC00545EAB /* StaticLib.xcconfig */;
@@ -3112,18 +2756,6 @@
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
-		};
-		BBECF3B7269136E100DEC937 /* ReleaseLinux */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = BBFB2CDA259028DC00545EAB /* StaticLib.xcconfig */;
-			buildSettings = {
-				ARCHS = arm64;
-				ARM64_NAMES = arm64;
-				ONLY_ACTIVE_ARCH = NO;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = ReleaseLinux;
 		};
 		BBEF192426806364001225BD /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -3178,178 +2810,6 @@
 			};
 			name = Release;
 		};
-		BBEF19AB26806D1F001225BD /* ReleaseLinux */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = BB28C7522689522700BDC834 /* ProjectReleaseLinux.xcconfig */;
-			buildSettings = {
-				CURRENT_PROJECT_VERSION = 806;
-			};
-			name = ReleaseLinux;
-		};
-		BBEF19AC26806D1F001225BD /* ReleaseLinux */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = BB0B86CD2586FD8800208600 /* App.xcconfig */;
-			buildSettings = {
-				ARCHS = arm64;
-				ARM64_NAMES = arm64;
-				DEVELOPMENT_TEAM = ZQ3L7M567L;
-				GCC_C_LANGUAGE_STANDARD = gnu11;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"$(inherited)",
-					"ARCH_AARCH64=1",
-				);
-				ONLY_ACTIVE_ARCH = NO;
-				PRODUCT_BUNDLE_IDENTIFIER = com.rudironsoni.ish;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = ReleaseLinux;
-		};
-		BBEF19AD26806D1F001225BD /* ReleaseLinux */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = BB0B86CD2586FD8800208600 /* App.xcconfig */;
-			buildSettings = {
-				ARCHS = arm64;
-				ARM64_NAMES = arm64;
-				ONLY_ACTIVE_ARCH = NO;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = ReleaseLinux;
-		};
-		BBEF19AE26806D1F001225BD /* ReleaseLinux */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = BBEF192C26806546001225BD /* AppLib.xcconfig */;
-			buildSettings = {
-				ARCHS = arm64;
-				ARM64_NAMES = arm64;
-				ONLY_ACTIVE_ARCH = NO;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = ReleaseLinux;
-		};
-		BBEF19AF26806D1F001225BD /* ReleaseLinux */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = BB0B86D52587009D00208600 /* iOS.xcconfig */;
-			buildSettings = {
-				ARCHS = arm64;
-				ARM64_NAMES = arm64;
-				CODE_SIGN_ENTITLEMENTS = app/FileProvider/iSHFileProvider.entitlements;
-				INFOPLIST_FILE = app/FileProvider/Info.plist;
-				ONLY_ACTIVE_ARCH = NO;
-				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER).FileProvider";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				SKIP_INSTALL = YES;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = ReleaseLinux;
-		};
-		BBEF19B026806D1F001225BD /* ReleaseLinux */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = BB0B86D52587009D00208600 /* iOS.xcconfig */;
-			buildSettings = {
-				ARCHS = arm64;
-				ARM64_NAMES = arm64;
-				CLANG_ENABLE_MODULES = YES;
-				INFOPLIST_FILE = app/UITests/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
-				);
-				ONLY_ACTIVE_ARCH = NO;
-				PRODUCT_BUNDLE_IDENTIFIER = "$(ROOT_BUNDLE_IDENTIFIER).UITests";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = iSH;
-			};
-			name = ReleaseLinux;
-		};
-		BBEF19B126806D1F001225BD /* ReleaseLinux */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ARCHS = arm64;
-				ARM64_NAMES = arm64;
-				ONLY_ACTIVE_ARCH = NO;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = ReleaseLinux;
-		};
-		BBEF19B226806D1F001225BD /* ReleaseLinux */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ARCHS = arm64;
-				ARM64_NAMES = arm64;
-				ONLY_ACTIVE_ARCH = NO;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = ReleaseLinux;
-		};
-		BBEF19B326806D1F001225BD /* ReleaseLinux */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = BBFB2CDA259028DC00545EAB /* StaticLib.xcconfig */;
-			buildSettings = {
-				ARCHS = arm64;
-				ARM64_NAMES = arm64;
-				ONLY_ACTIVE_ARCH = NO;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = ReleaseLinux;
-		};
-		BBEF19B426806D1F001225BD /* ReleaseLinux */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = BBFB2CDA259028DC00545EAB /* StaticLib.xcconfig */;
-			buildSettings = {
-				ARCHS = arm64;
-				ARM64_NAMES = arm64;
-				ONLY_ACTIVE_ARCH = NO;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = ReleaseLinux;
-		};
-		BBEF19B526806D1F001225BD /* ReleaseLinux */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ARCHS = arm64;
-				ARM64_NAMES = arm64;
-				ONLY_ACTIVE_ARCH = NO;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = ReleaseLinux;
-		};
-		BBEF19B626806D1F001225BD /* ReleaseLinux */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = BB0B86D52587009D00208600 /* iOS.xcconfig */;
-			buildSettings = {
-				ARCHS = arm64;
-				ARM64_NAMES = arm64;
-				ONLY_ACTIVE_ARCH = NO;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = ReleaseLinux;
-		};
-		BBEF19B726806D1F001225BD /* ReleaseLinux */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 493B378F290F5320000C41ED /* CLI.xcconfig */;
-			buildSettings = {
-				ARCHS = arm64;
-				ARM64_NAMES = arm64;
-				ONLY_ACTIVE_ARCH = NO;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = ReleaseLinux;
-		};
 		BBFB2C592590257E00545EAB /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BBFB2CDA259028DC00545EAB /* StaticLib.xcconfig */;
@@ -3380,36 +2840,6 @@
 				PRODUCT_NAME = UnitTests;
 			};
 			name = "Debug";
-		};
-		E2BFC2D610444EEB9438ABA9 /* DebugLinux */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ARCHS = arm64;
-				ARM64_NAMES = arm64;
-				CLANG_ENABLE_MODULES = YES;
-				DEVELOPMENT_TEAM = M8Z2UYG8G9;
-				HEADER_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(SRCROOT)",
-				);
-				INFOPLIST_FILE = app/UITests/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
-				);
-				ONLY_ACTIVE_ARCH = NO;
-				PRODUCT_BUNDLE_IDENTIFIER = "$(ROOT_BUNDLE_IDENTIFIER).UITests";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = iSH;
-				VALIDATE_PRODUCT = YES;
-			};
-			name = DebugLinux;
 		};
 		E98FE87541829626A17AF213 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -3454,9 +2884,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				497F6CE8254E5E4C00C82F46 /* Debug */,
-				BB7F62102688EAB5003C0220 /* DebugLinux */,
 				497F6CE9254E5E4C00C82F46 /* Release */,
-				BBEF19B626806D1F001225BD /* ReleaseLinux */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -3465,9 +2893,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				497F6D4C254E605F00C82F46 /* Debug */,
-				BB7F62112688EAB5003C0220 /* DebugLinux */,
 				497F6D4D254E605F00C82F46 /* Release */,
-				BBEF19B726806D1F001225BD /* ReleaseLinux */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -3553,55 +2979,11 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		BBBDDF8A2CE00F6A0071F1F3 /* Build configuration list for PBXNativeTarget "libiSHLinuxUser" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				BBBDDF8B2CE00F6A0071F1F3 /* Debug */,
-				BBBDDF8C2CE00F6A0071F1F3 /* DebugLinux */,
-				BBBDDF8D2CE00F6A0071F1F3 /* Release */,
-				BBBDDF8E2CE00F6A0071F1F3 /* ReleaseLinux */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		BBECF3A82691314C00DEC937 /* Build configuration list for PBXNativeTarget "libiSHLinux" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				BBECF3A92691314C00DEC937 /* Debug */,
-				BBECF3AA2691314C00DEC937 /* DebugLinux */,
-				BBECF3AB2691314C00DEC937 /* Release */,
-				BBECF3AC2691314C00DEC937 /* ReleaseLinux */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		BBECF3B3269136E100DEC937 /* Build configuration list for PBXNativeTarget "liblinux" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				BBECF3B4269136E100DEC937 /* Debug */,
-				BBECF3B5269136E100DEC937 /* DebugLinux */,
-				BBECF3B6269136E100DEC937 /* Release */,
-				BBECF3B7269136E100DEC937 /* ReleaseLinux */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		BBEF192626806364001225BD /* Build configuration list for PBXNativeTarget "libiSHApp" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				BBEF192426806364001225BD /* Debug */,
 				BBEF192526806364001225BD /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		BBEF1999268066D1001225BD /* Build configuration list for PBXNativeTarget "iSH+Linux" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				BBEF199A268066D1001225BD /* Debug */,
-				BB7F62072688EAB5003C0220 /* DebugLinux */,
-				BBEF199B268066D1001225BD /* Release */,
-				BBEF19AD26806D1F001225BD /* ReleaseLinux */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
