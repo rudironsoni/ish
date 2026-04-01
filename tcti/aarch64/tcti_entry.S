@@ -35,6 +35,64 @@ tcti_entry_block:
     // x0 still contains gadgets, x1 still contains cpu_state
     mov     x28, x0                 // x28 = bytecode pointer (gadget stream)
     mov     x29, x1                 // x29 = cpu state
+    
+    // =========================================================================
+    // TCTI ENTRY BOUNDARY TRACING - Spill-First Instrumentation
+    // =========================================================================
+    // Capture exact values at TCTI entry for forensic analysis
+    // 
+    // Register state at this point:
+    //   x0 = gadgets (bytecode stream base)
+    //   x1 = cpu_state pointer
+    //   x28 = bytecode pointer (copy of x0)
+    //   x29 = cpu_state (copy of x1)
+    //   x27 = undefined (will be loaded from bytecode)
+    //
+    // Trace sequence:
+    //   1. TCTI_ENTRY_X28_BEFORE: x28 value before any loads
+    //   2. TCTI_ENTRY_QWORD0: [x28] - first qword of bytecode
+    //   3. Load x27 from [x28], advance x28
+    //   4. TCTI_ENTRY_X27_AFTER: x27 after first load
+    //   5. TCTI_ENTRY_X28_AFTER: x28 after first load (bytecode advanced)
+    //   6. TCTI_ENTRY_QWORD1: [x28] - second qword of bytecode
+    //
+    // Note: x27 = gadget to execute, x28 advanced by 8
+    // =========================================================================
+    
+    // Save registers for trace call (preserve x28, x29)
+    stp     x27, x28, [sp, #-16]!
+    
+    // Trace TCTI_ENTRY_X28_BEFORE
+    mov     x0, x28
+    bl      _trace_emit_tcti_entry_x28_before
+    
+    // Reload x28 (clobbered by call)
+    ldr     x28, [sp, #8]
+    
+    // Load qword0 from [x28] for tracing
+    ldr     x0, [x28]
+    bl      _trace_emit_tcti_entry_qword0
+    
+    // Load x27 from [x28], advance x28
+    // This is the first gadget pointer we're about to execute
+    ldr     x27, [x28], #8
+    
+    // Trace x27 after load
+    mov     x0, x27
+    bl      _trace_emit_tcti_entry_x27_after
+    
+    // Trace x28 after load (advanced by 8)
+    mov     x0, x28
+    bl      _trace_emit_tcti_entry_x28_after
+    
+    // Load and trace qword1 (current [x28])
+    ldr     x0, [x28]
+    bl      _trace_emit_tcti_entry_qword1
+    
+    // Restore x27, x28 from stack
+    ldp     x27, x28, [sp], #16
+    
+    // Restore NZCV after trace calls (may have clobbered flags)
     ldr     x0, [x29, #280]         // Restore saved NZCV/PSTATE flags
     msr     nzcv, x0
     
@@ -62,8 +120,7 @@ tcti_entry_block:
     ldr     x16, [x29, #136]        // Guest x15 -> host x16
     
     // Guest x15-x30 and SP stay in memory
-    // Jump to first gadget
-    ldr     x27, [x28], #8          // Load first gadget, advance bytecode
+    // Jump to first gadget (already loaded into x27 during tracing)
     br      x27                     // Execute first gadget
 
 // TCTI epilogue - each gadget ends with this
