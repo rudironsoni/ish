@@ -313,7 +313,16 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
 {
     // Generate unique instance ID for correlation
     uint64_t instance_id = ++g_ldst_instance_id;
+
+    // EMIT MEMORY TRANSLATION TRACE EVENTS (before translation)
+    // These trace the TCTI boundary: fault PC, Rn value, immediate, idx_mode
+    trace_emit_gadget_ldr_fault_pc(fault_pc);
+
     uint64_t base = tcti_read_base_reg_or_sp(cpu, (int)rn);
+    trace_emit_gadget_ldr_rn_value(base);
+    trace_emit_gadget_ldr_imm_value((uint64_t)imm);
+    trace_emit_gadget_ldr_idx_mode(idx_mode);
+
     uint64_t addr = base;
     uint64_t raw_offset = 0;
     uint64_t is_signed = meta & 0xff;
@@ -342,6 +351,9 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
             break;
         }
     }
+
+    // EMIT GUEST VIRTUAL ADDRESS (after computing effective address)
+    trace_emit_gadget_ldr_guest_vaddr(addr);
 
     // ARCHITECTURAL CHECKPOINT: Pre-access state for fault analysis
     // Captures base (pre-writeback) and addr (effective address for access)
@@ -407,6 +419,10 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
             cpu->fault_was_write = false;
             return TCTI_EXIT_FAULT;
         }
+
+        // EMIT HOST POINTER TRACE (after successful translation)
+        // Note: Actual host pointer is internal to TLB; using addr as correlation ID
+        trace_emit_gadget_ldr_host_ptr(addr);
 
         tcti_write_reg_or_zr(cpu, (int)rt, value, size == A64_SIZE_X);
 

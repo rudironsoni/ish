@@ -306,4 +306,32 @@ TRACE_EVENT(EXEC_MM_BOUNDARY, 1, TRACE_CAT_SYSCALL, 48)
  * } */
 TRACE_EVENT(EXEC_PATH_BOUNDARY, 1, TRACE_CAT_SYSCALL, 32)
 
+/* ============================================
+ * Memory Translation Boundary Events (NEW)
+ * ============================================ */
+
+/* Gadget LDR fault PC - payload: uint64_t fault_pc */
+TRACE_EVENT(GADGET_LDR_FAULT_PC, 2, TRACE_CAT_GADGET, 8)
+
+/* Gadget LDR Rn value - payload: uint64_t rn_value */
+TRACE_EVENT(GADGET_LDR_RN_VALUE, 2, TRACE_CAT_GADGET, 8)
+
+/* Gadget LDR immediate value - payload: uint64_t imm_value */
+TRACE_EVENT(GADGET_LDR_IMM_VALUE, 2, TRACE_CAT_GADGET, 8)
+
+/* Gadget LDR index mode - payload: uint64_t idx_mode */
+TRACE_EVENT(GADGET_LDR_IDX_MODE, 2, TRACE_CAT_GADGET, 8)
+
+/* Gadget LDR guest virtual address - payload: uint64_t guest_vaddr */
+TRACE_EVENT(GADGET_LDR_GUEST_VADDR, 2, TRACE_CAT_GADGET, 8)
+
+/* Gadget LDR host pointer - payload: uint64_t host_ptr */
+TRACE_EVENT(GADGET_LDR_HOST_PTR, 2, TRACE_CAT_GADGET, 8)
+
+/* Memory translation attempt - payload: struct { uint64_t guest_addr; uint64_t size; } */
+TRACE_EVENT(MEM_TRANSLATE_ATTEMPT, 2, TRACE_CAT_MEMORY, 16)
+
+/* Memory translation result - payload: struct { uint64_t host_ptr; int32_t success; } */
+TRACE_EVENT(MEM_TRANSLATE_RESULT, 2, TRACE_CAT_MEMORY, 16)
+
 #undef TRACE_EVENT

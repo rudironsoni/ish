@@ -14,6 +14,7 @@
 #include "kernel/signal.h"
 #include "kernel/task.h"
 #include "kernel/vdso.h"
+#include "trace/trace_internal.h"
 
 #include "debug.h"
 
@@ -253,12 +254,28 @@ static void mem_changed(struct mem *mem)
 // Used by the emulator to avoid deadlocks.
 static void *mem_ptr_nofault(struct mem *mem, addr_t addr, int type)
 {
+    // EMIT MEMORY TRANSLATION ATTEMPT (at entry)
+    uint64_t size = (type == MEM_WRITE) ? 1 : 0;
+    trace_emit_mem_translate_attempt(addr, size);
+
     struct pt_entry *entry = mem_pt(mem, PAGE(addr));
-    if (entry == NULL)
+    if (entry == NULL) {
+        // EMIT MEMORY TRANSLATION RESULT (failure path)
+        trace_emit_mem_translate_result(0, 0);
         return NULL;
-    if (type == MEM_WRITE && !P_WRITABLE(entry->flags))
+    }
+    if (type == MEM_WRITE && !P_WRITABLE(entry->flags)) {
+        // EMIT MEMORY TRANSLATION RESULT (failure path - permission denied)
+        trace_emit_mem_translate_result(0, 0);
         return NULL;
-    return entry->data->data + entry->offset + PGOFFSET(addr);
+    }
+
+    void *host_ptr = entry->data->data + entry->offset + PGOFFSET(addr);
+
+    // EMIT MEMORY TRANSLATION RESULT (success path)
+    trace_emit_mem_translate_result((uint64_t)host_ptr, 1);
+
+    return host_ptr;
 }
 
 void *mem_ptr(struct mem *mem, addr_t addr, int type)

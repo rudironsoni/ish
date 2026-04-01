@@ -27,9 +27,8 @@
     "XcodeBuildMCP": {
       "type": "local",
       "command": [
-        "npx",
-        "-y",
-        "@rudironsoni/xcodebuildmcp@latest"
+        "xcodebuildmcp",
+        "mcp"
       ],
       "enabled": true,
       "environment": {}
@@ -37,8 +36,7 @@
     "rulesync": {
       "type": "local",
       "command": [
-        "pnpm",
-        "dev",
+        "rulesync",
         "mcp"
       ],
       "enabled": true,
