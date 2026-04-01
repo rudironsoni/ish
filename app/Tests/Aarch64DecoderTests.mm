@@ -173,7 +173,7 @@ static uint32_t encode_mrs(int Rt, int sysreg) {
     XCTAssertEqual(a64_decode(insn, &instr), 0);
     XCTAssertEqual(instr.Rd, 3);
     XCTAssertEqual(instr.Rn, 4);
-    XCTAssertEqual(instr.imm, 0x1);
+    XCTAssertEqual(instr.imm, 0x1000); // imm 0x1 shifted left by 12 bits
 }
 
 - (void)testSUBImmediate {

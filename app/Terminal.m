@@ -131,7 +131,7 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
         // make sure this setting works if it's set before loading
         self.enableVoiceOverAnnounce = self.enableVoiceOverAnnounce;
     } else if ([message.name isEqualToString:@"log"]) {
-        NSLog(@"%@", message.body);
+        // Log messages from terminal are handled silently
     } else if ([message.name isEqualToString:@"sendInput"]) {
         NSData *data = [message.body dataUsingEncoding:NSUTF8StringEncoding];
         [self sendInput:data];
@@ -262,7 +262,7 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
         self->_outputInProgress = NO;
         unlock(&self->_dataLock);
         if (error != nil) {
-            NSLog(@"error sending bytes to the terminal: %@", error);
+            // Error handled silently - bytes could not be sent to terminal
             return;
         }
     }];
