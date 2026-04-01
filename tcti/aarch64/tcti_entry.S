@@ -109,8 +109,9 @@ tcti_entry_block:
     str     x0, [x18]
     bl      _trace_emit_tcti_entry_qword1
     
-    // Restore x27, x28 from stack
-    ldp     x27, x28, [sp], #16
+    // Restore x28 from stack (x27 contains the gadget pointer, don't restore it!)
+    ldr     x28, [sp, #8]
+    add     sp, sp, #16
     
     // Restore NZCV after trace calls (may have clobbered flags)
     ldr     x0, [x29, #280]         // Restore saved NZCV/PSTATE flags
