@@ -59,8 +59,8 @@ tcti_entry_block:
     // Note: x27 = gadget to execute, x28 advanced by 8
     // =========================================================================
     
-    // Save registers for trace call (preserve x28, x29)
-    stp     x27, x28, [sp, #-16]!
+    // Save x28 only for pre-load tracing (x27 is undefined here, don't save it)
+    str     x28, [sp, #-16]!
     
     // Trace TCTI_ENTRY_X28_BEFORE
     mov     x0, x28
@@ -70,21 +70,26 @@ tcti_entry_block:
     str     x28, [x18]
     bl      _trace_emit_tcti_entry_x28_before
     
-    // Reload x28 (clobbered by call)
-    ldr     x28, [sp, #8]
+    // Restore x28 after call
+    ldr     x28, [sp], #16
     
-    // Load qword0 from [x28] for tracing
+    // Trace qword0 from the current stream head
+    // Preserve x28 across this call too
+    str     x28, [sp, #-16]!
     ldr     x0, [x28]
     // Store to global variable for crash report visibility
     adrp    x18, _tcti_last_qword0@PAGE
     add     x18, x18, _tcti_last_qword0@PAGEOFF
     str     x0, [x18]
     bl      _trace_emit_tcti_entry_qword0
-    
-    // Load x27 from [x28], advance x28
-    // This is the first gadget pointer we're about to execute
+    ldr     x28, [sp], #16
+
+    // Load the real first gadget and advance the stream
     ldr     x27, [x28], #8
-    
+
+    // Save the real post-load dispatch state, not the undefined pre-load x27
+    stp     x27, x28, [sp, #-16]!
+
     // Trace x27 after load
     mov     x0, x27
     // Store to global variable for crash report visibility
@@ -92,26 +97,25 @@ tcti_entry_block:
     add     x18, x18, _tcti_last_x27_after@PAGEOFF
     str     x27, [x18]
     bl      _trace_emit_tcti_entry_x27_after
-    
-    // Trace x28 after load (advanced by 8)
+
+    // Trace x28 after load
     mov     x0, x28
     // Store to global variable for crash report visibility
     adrp    x18, _tcti_last_x28_after@PAGE
     add     x18, x18, _tcti_last_x28_after@PAGEOFF
     str     x28, [x18]
     bl      _trace_emit_tcti_entry_x28_after
-    
-    // Load and trace qword1 (current [x28])
+
+    // Trace qword1 at the advanced stream head
     ldr     x0, [x28]
     // Store to global variable for crash report visibility
     adrp    x18, _tcti_last_qword1@PAGE
     add     x18, x18, _tcti_last_qword1@PAGEOFF
     str     x0, [x18]
     bl      _trace_emit_tcti_entry_qword1
-    
-    // Restore x28 from stack (x27 contains the gadget pointer, don't restore it!)
-    ldr     x28, [sp, #8]
-    add     sp, sp, #16
+
+    // Restore the real post-load dispatch state
+    ldp     x27, x28, [sp], #16
     
     // Restore NZCV after trace calls (may have clobbered flags)
     ldr     x0, [x29, #280]         // Restore saved NZCV/PSTATE flags
