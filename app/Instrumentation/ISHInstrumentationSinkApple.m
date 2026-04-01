@@ -93,6 +93,14 @@ static inline const char *ISHInstrumentationEventName(ISHInstrumentationEvent ev
             return "task.proof.stdio.pty.slave.bound";
         case ISHInstrumentationEventStdioTtySessionState:
             return "task.proof.stdio.tty.session.state";
+        case ISHInstrumentationEventTerminalSendInputEnter:
+            return "terminal.send_input.enter";
+        case ISHInstrumentationEventTerminalBeforeTtyInput:
+            return "terminal.before_tty_input";
+        case ISHInstrumentationEventTtyInputEntry:
+            return "tty.input.entry";
+        case ISHInstrumentationEventTerminalAfterTtyInput:
+            return "terminal.after_tty_input";
         default:
             return "unknown";
     }

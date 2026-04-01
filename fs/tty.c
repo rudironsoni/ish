@@ -9,6 +9,9 @@
 
 #include <string.h>
 
+// Instrumentation bridge for kernel events
+#include "app/Instrumentation/ISHInstrumentationBridge.h"
+
 extern struct tty_driver pty_master;
 extern struct tty_driver pty_slave;
 
@@ -274,6 +277,8 @@ static bool tty_send_input_signal(struct tty *tty, char ch, sigset_t_ *queue)
 
 ssize_t tty_input(struct tty *tty, const char *input, size_t size, bool blocking)
 {
+    // Add at function entry
+    ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_KERNEL, "tty.input.entry");
     int err = 0;
     size_t done_size = 0;
     sigset_t_ queue = 0; // to prevent having to lock tty->lock and pids_lock at the same time

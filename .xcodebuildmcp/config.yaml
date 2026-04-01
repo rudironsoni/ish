@@ -22,7 +22,7 @@ launchJsonWaitMs: 15000
 debuggerBackend: lldb-cli
 sessionDefaults:
   projectPath: /Users/rudironsoni/src/github/rudironsoni/ish/iSH.xcodeproj
-  scheme: iSH-App
+  scheme: iSH-UISmoke
   configuration: Debug
   simulatorName: iPhone 17
   simulatorPlatform: iOS Simulator
