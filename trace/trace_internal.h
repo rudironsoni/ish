@@ -82,6 +82,16 @@ void trace_emit_tcti_entry_qword1(uint64_t qword1);
 void trace_emit_gadget_entry_x28(uint64_t x28_value);
 void trace_emit_gadget_fault_addr(uint64_t fault_addr);
 
+/* Memory Translation Boundary Trace Events */
+void trace_emit_gadget_ldr_fault_pc(uint64_t fault_pc);
+void trace_emit_gadget_ldr_rn_value(uint64_t rn_value);
+void trace_emit_gadget_ldr_imm_value(uint64_t imm_value);
+void trace_emit_gadget_ldr_idx_mode(uint64_t idx_mode);
+void trace_emit_gadget_ldr_guest_vaddr(uint64_t guest_vaddr);
+void trace_emit_gadget_ldr_host_ptr(uint64_t host_ptr);
+void trace_emit_mem_translate_attempt(uint64_t guest_addr, uint64_t size);
+void trace_emit_mem_translate_result(uint64_t host_ptr, int success);
+
 /* Task handoff proof events */
 void trace_emit_task_handoff_parent_pre_create(uint64_t task_ptr, uint64_t mm, uint64_t mem,
                                                uint32_t pid, uint64_t host_thread_id);

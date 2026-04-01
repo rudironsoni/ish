@@ -795,6 +795,124 @@ void trace_emit_gadget_fault_addr(uint64_t fault_addr)
 }
 
 /* ============================================
+ * Memory Translation Boundary Trace Events
+ * ============================================
+ *
+ * These functions capture the memory translation boundary between
+ * TCTI gadgets and the kernel memory subsystem for runtime proof.
+ */
+
+void trace_emit_gadget_ldr_fault_pc(uint64_t fault_pc)
+{
+    char buf[24];
+    snprintf(buf, sizeof(buf), "0x%llx", (unsigned long long)fault_pc);
+
+    ish_instrumentation_attribute_t attrs[] = {
+        { "fault_pc", buf },
+        { "event", "gadget.ldr.fault_pc" },
+    };
+    ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "gadget.ldr.fault_pc");
+    trace_tcti_to_ring(TRACE_EVENT_GADGET_LDR_FAULT_PC, fault_pc);
+}
+
+void trace_emit_gadget_ldr_rn_value(uint64_t rn_value)
+{
+    char buf[24];
+    snprintf(buf, sizeof(buf), "0x%llx", (unsigned long long)rn_value);
+
+    ish_instrumentation_attribute_t attrs[] = {
+        { "rn_value", buf },
+        { "event", "gadget.ldr.rn_value" },
+    };
+    ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "gadget.ldr.rn_value");
+    trace_tcti_to_ring(TRACE_EVENT_GADGET_LDR_RN_VALUE, rn_value);
+}
+
+void trace_emit_gadget_ldr_imm_value(uint64_t imm_value)
+{
+    char buf[24];
+    snprintf(buf, sizeof(buf), "0x%llx", (unsigned long long)imm_value);
+
+    ish_instrumentation_attribute_t attrs[] = {
+        { "imm", buf },
+        { "event", "gadget.ldr.imm_value" },
+    };
+    ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "gadget.ldr.imm_value");
+    trace_tcti_to_ring(TRACE_EVENT_GADGET_LDR_IMM_VALUE, imm_value);
+}
+
+void trace_emit_gadget_ldr_idx_mode(uint64_t idx_mode)
+{
+    char buf[24];
+    snprintf(buf, sizeof(buf), "0x%llx", (unsigned long long)idx_mode);
+
+    ish_instrumentation_attribute_t attrs[] = {
+        { "idx_mode", buf },
+        { "event", "gadget.ldr.idx_mode" },
+    };
+    ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "gadget.ldr.idx_mode");
+    trace_tcti_to_ring(TRACE_EVENT_GADGET_LDR_IDX_MODE, idx_mode);
+}
+
+void trace_emit_gadget_ldr_guest_vaddr(uint64_t guest_vaddr)
+{
+    char buf[24];
+    snprintf(buf, sizeof(buf), "0x%llx", (unsigned long long)guest_vaddr);
+
+    ish_instrumentation_attribute_t attrs[] = {
+        { "guest_vaddr", buf },
+        { "event", "gadget.ldr.guest_vaddr" },
+    };
+    ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "gadget.ldr.guest_vaddr");
+    trace_tcti_to_ring(TRACE_EVENT_GADGET_LDR_GUEST_VADDR, guest_vaddr);
+}
+
+void trace_emit_gadget_ldr_host_ptr(uint64_t host_ptr)
+{
+    char buf[24];
+    snprintf(buf, sizeof(buf), "0x%llx", (unsigned long long)host_ptr);
+
+    ish_instrumentation_attribute_t attrs[] = {
+        { "host_ptr", buf },
+        { "event", "gadget.ldr.host_ptr" },
+    };
+    ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "gadget.ldr.host_ptr");
+    trace_tcti_to_ring(TRACE_EVENT_GADGET_LDR_HOST_PTR, host_ptr);
+}
+
+void trace_emit_mem_translate_attempt(uint64_t guest_addr, uint64_t size)
+{
+    char addr_buf[24];
+    char size_buf[24];
+    snprintf(addr_buf, sizeof(addr_buf), "0x%llx", (unsigned long long)guest_addr);
+    snprintf(size_buf, sizeof(size_buf), "0x%llx", (unsigned long long)size);
+
+    ish_instrumentation_attribute_t attrs[] = {
+        { "guest_addr", addr_buf },
+        { "size", size_buf },
+        { "event", "mem.translate.attempt" },
+    };
+    ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_KERNEL, "mem.translate.attempt");
+    trace_tcti_to_ring(TRACE_EVENT_MEM_TRANSLATE_ATTEMPT, guest_addr);
+}
+
+void trace_emit_mem_translate_result(uint64_t host_ptr, int success)
+{
+    char ptr_buf[24];
+    char success_buf[8];
+    snprintf(ptr_buf, sizeof(ptr_buf), "0x%llx", (unsigned long long)host_ptr);
+    snprintf(success_buf, sizeof(success_buf), "%d", success);
+
+    ish_instrumentation_attribute_t attrs[] = {
+        { "host_ptr", ptr_buf },
+        { "success", success_buf },
+        { "event", "mem.translate.result" },
+    };
+    ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_KERNEL, "mem.translate.result");
+    trace_tcti_to_ring(TRACE_EVENT_MEM_TRANSLATE_RESULT, host_ptr);
+}
+
+/* ============================================
  * Output and Utility - STUBBED
  * ============================================ */
 
