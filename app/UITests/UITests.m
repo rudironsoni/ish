@@ -16,4 +16,11 @@
     self.continueAfterFailure = NO;
 }
 
+// Helper to access terminal text via accessibility value
+- (NSString *)terminalText {
+    XCUIApplication *app = [[XCUIApplication alloc] init];
+    XCUIElement *terminalVC = app.otherElements[@"TerminalViewController"];
+    return terminalVC.value;
+}
+
 @end

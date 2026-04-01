@@ -846,3 +846,18 @@ struct dev_ops tty_dev = {
     .fd.ioctl_size = tty_ioctl_size,
     .fd.ioctl = tty_ioctl,
 };
+
+// Test-only: Get terminal buffer content for UI smoke tests
+// This exposes the raw TTY buffer without modifying terminal state
+ssize_t tty_get_buffer_content(struct tty *tty, char *out_buf, size_t out_size)
+{
+    if (tty == NULL || out_buf == NULL || out_size == 0)
+        return 0;
+
+    lock(&tty->lock);
+    ssize_t to_copy = tty->bufsize < out_size ? tty->bufsize : out_size;
+    if (to_copy > 0)
+        memcpy(out_buf, tty->buf, to_copy);
+    unlock(&tty->lock);
+    return to_copy;
+}

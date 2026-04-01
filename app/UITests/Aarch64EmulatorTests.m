@@ -48,8 +48,8 @@
 
 // Helper: Get terminal text
 - (NSString *)terminalText {
-    XCUIElement *terminal = self.app.textViews.firstMatch;
-    return terminal.value;
+    XCUIElement *terminalVC = self.app.otherElements[@"TerminalViewController"];
+    return terminalVC.value;
 }
 
 // Test 1: Basic shell execution

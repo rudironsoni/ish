@@ -195,6 +195,9 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 
 - (void)viewDidLoad {
     [super viewDidLoad];
+    
+    // Set accessibility identifier for UI test queries
+    self.view.accessibilityIdentifier = @"TerminalViewController";
 
     int bootError = [AppDelegate bootError];
     if (bootError < 0) {
@@ -769,6 +772,23 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
     if (_terminal == _sessionTerminal)
         self.terminal = sessionTerminal;
     _sessionTerminal = sessionTerminal;
+}
+
+#pragma mark - Testing Support
+
+// Test-only accessor for exposing terminal text to UI tests
+- (NSString *)terminalScreenTextForTesting {
+    return [self.terminal screenTextForTesting];
+}
+
+// Override accessibilityValue to expose terminal text for UI test queries
+- (NSString *)accessibilityValue {
+    // Return terminal screen text if available, otherwise fall back to default
+    NSString *terminalText = [self.terminal screenTextForTesting];
+    if (terminalText.length > 0) {
+        return terminalText;
+    }
+    return [super accessibilityValue];
 }
 
 @end

@@ -17,6 +17,9 @@
 @property (readonly) NSUUID *sessionTerminalUUID; // 0 means invalid
 @property UISceneSession *sceneSession API_AVAILABLE(ios(13.0));
 
+// Test-only accessor for exposing terminal text to UI tests
+- (NSString *)terminalScreenTextForTesting;
+
 @end
 
 extern struct tty_driver ios_tty_driver;
