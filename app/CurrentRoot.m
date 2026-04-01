@@ -34,11 +34,6 @@ static ssize_t write_file(const char *path, const char *buf, size_t size) {
 static int remove_directory(const char *path) {
     return generic_rmdirat(AT_PWD, path);
 }
-#else
-#define read_file linux_read_file
-#define write_file linux_write_file
-#define remove_directory linux_remove_directory
-#endif
 
 void FsInitialize(void) {
     // /ish/version is the last ish version that opened this root. Used to migrate the filesystem.
