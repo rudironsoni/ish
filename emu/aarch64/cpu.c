@@ -20,6 +20,7 @@
 #include "trace/trace.h"
 
 #include <setjmp.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -45,6 +46,17 @@ extern struct emit_diag {
 
 // Execution state is now passed via parameters, not globals
 static jmp_buf exit_jmpbuf __attribute__((unused));
+
+// Fault containment state for guest execution
+static jmp_buf guest_fault_jmpbuf;
+static volatile int guest_fault_signal = 0;
+
+// Signal handler that converts host signal to controlled exit
+static void guest_fault_handler(int sig)
+{
+    guest_fault_signal = sig;
+    longjmp(guest_fault_jmpbuf, 1);
+}
 
 // Forward declarations
 struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct tlb *tlb);
@@ -442,7 +454,39 @@ int a64_execute_block(struct cpu_state *cpu, struct a64_block *block)
         return TCTI_EXIT_FAULT;
     }
 
-    tcti_entry_block(block->gadgets, cpu);
+    // Set up fault containment for guest execution
+    // Host signals (SIGSEGV, SIGBUS, etc.) during guest execution will be
+    // caught and converted to TCTI_EXIT_FAULT instead of killing the process
+    struct sigaction old_segv, old_bus, old_ill, old_fpe;
+    guest_fault_signal = 0;
+
+    // Install fault containment handlers
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = guest_fault_handler;
+    sigemptyset(&sa.sa_mask);
+
+    sigaction(SIGSEGV, &sa, &old_segv);
+    sigaction(SIGBUS, &sa, &old_bus);
+    sigaction(SIGILL, &sa, &old_ill);
+    sigaction(SIGFPE, &sa, &old_fpe);
+
+    if (setjmp(guest_fault_jmpbuf) == 0) {
+        // Normal execution path
+        tcti_entry_block(block->gadgets, cpu);
+    } else {
+        // Fault containment path - signal was caught
+        cpu->tcti_exit_reason = TCTI_EXIT_FAULT;
+        cpu->fault_addr = cpu->pc; // Best guess at fault location
+        cpu->fault_was_write = false;
+    }
+
+    // Restore original signal handlers
+    sigaction(SIGSEGV, &old_segv, NULL);
+    sigaction(SIGBUS, &old_bus, NULL);
+    sigaction(SIGILL, &old_ill, NULL);
+    sigaction(SIGFPE, &old_fpe, NULL);
+
     int exit_reason = cpu->tcti_exit_reason;
 
     trace_emit_block_exit(block->start_pc, exit_reason, cpu->pc);
