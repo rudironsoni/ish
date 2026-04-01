@@ -65,6 +65,11 @@ typedef NS_ENUM(NSInteger, ISHInstrumentationEvent) {
     ISHInstrumentationEventTctiEntryQword1,
     ISHInstrumentationEventGadgetEntryX28,
     ISHInstrumentationEventGadgetFaultAddr,
+    // Keyboard input path instrumentation (APPSIM-003)
+    ISHInstrumentationEventTerminalSendInputEnter,
+    ISHInstrumentationEventTerminalBeforeTtyInput,
+    ISHInstrumentationEventTtyInputEntry,
+    ISHInstrumentationEventTerminalAfterTtyInput,
 };
 
 @interface ISHInstrumentation : NSObject

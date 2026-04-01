@@ -197,9 +197,20 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
 
 
 - (void)sendInput:(NSData *)input {
+    [ISHInstrumentation recordEvent:ISHInstrumentationEventTerminalSendInputEnter];
     if (self.tty == NULL)
         return;
+    // Capture tty pointer, byte count, first byte
+    NSDictionary *inputAttrs = @{
+        @"tty_ptr": @((uintptr_t)self.tty),
+        @"byte_count": @(input.length),
+        @"first_byte": input.length > 0 ? @(((const unsigned char *)input.bytes)[0]) : @(0)
+    };
+    [ISHInstrumentation beginInterval:@"terminal.send_input.data" attributes:inputAttrs];
+    [ISHInstrumentation recordEvent:ISHInstrumentationEventTerminalBeforeTtyInput];
     tty_input(self.tty, input.bytes, input.length, 0);
+    [ISHInstrumentation recordEvent:ISHInstrumentationEventTerminalAfterTtyInput];
+    [ISHInstrumentation endInterval:@"terminal.send_input.data" attributes:inputAttrs];
     [self.webView evaluateJavaScript:@"exports.setUserGesture()" completionHandler:nil];
     [self.scrollToBottomTask schedule];
 }
