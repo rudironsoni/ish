@@ -122,7 +122,6 @@
 		BB10E5C9248DBAAC009C7A74 /* libarchive.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BB10E5C8248DBAA1009C7A74 /* libarchive.a */; };
 		BB10E5D0248DC21D009C7A74 /* Roots.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = BB10E5CF248DC21D009C7A74 /* Roots.storyboard */; };
 		BB123ACC26C9EFD900419CDA /* LinuxTTY.c in Sources */ = {isa = PBXBuildFile; fileRef = BB123ACB26C9EFD900419CDA /* LinuxTTY.c */; };
-		BB123ACE26C9F13500419CDA /* IOSCalls.m in Sources */ = {isa = PBXBuildFile; fileRef = BB123ACD26C9F13500419CDA /* IOSCalls.m */; };
 		BB13F7EA200ADCED003D1C4D /* libish.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BB13F7DC200AD81D003D1C4D /* libish.a */; };
 		BB21A1702689048200BD19B4 /* libfakefs.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BB21A16F2689041500BD19B4 /* libfakefs.a */; };
 		BB21A18426890C7E00BD19B4 /* libfakefs.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BB21A16F2689041500BD19B4 /* libfakefs.a */; };
@@ -188,6 +187,7 @@
 		BB3859A727BCEE6B000A1082 /* uninspired.png in Resources */ = {isa = PBXBuildFile; fileRef = BB0F552F239F8B360032A2A1 /* uninspired.png */; };
 		BB3859A827BCEE6C000A1082 /* is.png in Resources */ = {isa = PBXBuildFile; fileRef = BB38598327BCEC83000A1082 /* is.png */; };
 		BB41591F255EF9E300E0950C /* UITests.m in Sources */ = {isa = PBXBuildFile; fileRef = BB41591E255EF9E300E0950C /* UITests.m */; };
+		AA64EMU2183AEF31C4C5A06 /* Aarch64EmulatorTests.m in Sources */ = {isa = PBXBuildFile; fileRef = AA64EMU1F25FCA8CD532024 /* Aarch64EmulatorTests.m */; };
 		BB6DB261216435340047A611 /* libiconv.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = BB6DB260216435330047A611 /* libiconv.tbd */; };
 		BB77636726E486A7008DB44A /* fakefs.c in Sources */ = {isa = PBXBuildFile; fileRef = BB10E5C2248DBA7B009C7A74 /* fakefs.c */; };
 		BB792B5B1F96D90D00FFB7A4 /* Terminal.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = BB792B591F96D90D00FFB7A4 /* Terminal.storyboard */; };
@@ -265,6 +265,7 @@
 		E6DFC5039AC4E0345DC134C3 /* gen.c in Sources */ = {isa = PBXBuildFile; fileRef = 2D2CF752B3659604B4DDF280 /* gen.c */; };
 		ED1D1BF835048C160C9C1983 /* gen.h in Headers */ = {isa = PBXBuildFile; fileRef = 7FB5AED693B5FD4593514E8D /* gen.h */; };
 		F8BB622BFE904204D82F9FBA /* DecoderFunctionalTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 2DFF43D02D366B34F84A9B75 /* DecoderFunctionalTests.m */; };
+		AA64DEC1A1234567890ABC01 /* Aarch64DecoderTests.mm in Sources */ = {isa = PBXBuildFile; fileRef = AA64DEC0A1234567890ABC01 /* Aarch64DecoderTests.mm */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXBuildRule section */
@@ -454,6 +455,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		AA64DEC0A1234567890ABC01 /* Aarch64DecoderTests.mm */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.objcpp; name = Aarch64DecoderTests.mm; path = app/Tests/Aarch64DecoderTests.mm; sourceTree = "<group>"; };
 		0AF96406FBF792EEC5E503F4 /* GadgetTests.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = GadgetTests.m; path = tests/Unit/GadgetTests.m; sourceTree = "<group>"; };
 		0CAA9C26D0AB110E2C9355AA /* IntegrationTests.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = IntegrationTests.m; path = tests/Unit/IntegrationTests.m; sourceTree = "<group>"; };
 		0D0361B79E3F376F98BC30CB /* cpu.c */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.c; name = cpu.c; path = emu/aarch64/cpu.c; sourceTree = "<group>"; };
@@ -675,7 +677,6 @@
 		BB10E5D1248DCFEA009C7A74 /* RootsTableViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RootsTableViewController.h; sourceTree = "<group>"; };
 		BB10E5D2248DCFEA009C7A74 /* RootsTableViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = RootsTableViewController.m; sourceTree = "<group>"; };
 		BB123ACB26C9EFD900419CDA /* LinuxTTY.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = LinuxTTY.c; sourceTree = "<group>"; };
-		BB123ACD26C9F13500419CDA /* IOSCalls.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = IOSCalls.m; sourceTree = "<group>"; };
 		BB13F4DC21C5770000343E17 /* NSError+ISHErrno.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "NSError+ISHErrno.h"; sourceTree = "<group>"; };
 		BB13F4DD21C5770000343E17 /* NSError+ISHErrno.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "NSError+ISHErrno.m"; sourceTree = "<group>"; };
 		BB13F7C8200ACC24003D1C4D /* xcode-meson.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; name = "xcode-meson.sh"; path = "app/xcode-meson.sh"; sourceTree = "<group>"; };
@@ -706,6 +707,7 @@
 		BB38598327BCEC83000A1082 /* is.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = is.png; sourceTree = "<group>"; };
 		BB41591C255EF9E300E0950C /* iSHUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = iSHUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		BB41591E255EF9E300E0950C /* UITests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = UITests.m; sourceTree = "<group>"; };
+		AA64EMU1F25FCA8CD532024 /* Aarch64EmulatorTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Aarch64EmulatorTests.m; sourceTree = "<group>"; };
 		BB415920255EF9E300E0950C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		BB455E0F1FB37F6600AFB48B /* DelayedUITask.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DelayedUITask.h; sourceTree = "<group>"; };
 		BB455E101FB37F6600AFB48B /* DelayedUITask.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = DelayedUITask.m; sourceTree = "<group>"; };
@@ -1108,6 +1110,7 @@
 			isa = PBXGroup;
 			children = (
 				BB41591E255EF9E300E0950C /* UITests.m */,
+				AA64EMU1F25FCA8CD532024 /* Aarch64EmulatorTests.m */,
 				BBD23D5E258DA450003DCB40 /* Screenshots.m */,
 				BBD23D76258DA4BC003DCB40 /* SnapshotHelper.swift */,
 				BBD23D95258DEF6B003DCB40 /* Screenshots.xctestplan */,
@@ -1410,7 +1413,6 @@
 			isa = PBXGroup;
 			children = (
 				BBECF39B2691311D00DEC937 /* LinuxInterop.h */,
-				BB123ACD26C9F13500419CDA /* IOSCalls.m */,
 				BBECF39D2691313B00DEC937 /* LinuxInterop.c */,
 				BB123ACB26C9EFD900419CDA /* LinuxTTY.c */,
 				BBEEA9E9277DAB400069495B /* LinuxPTY.c */,
@@ -2206,15 +2208,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				5B510345C6AC82516B846D20 /* DecoderTests.m in Sources */,
-				AE29D99975381BAC0FD41B81 /* IntegrationTests.m in Sources */,
-				5A1117125D8001D7F5975D80 /* GadgetTests.m in Sources */,
-				4FF58528E3DC8FED27AEF0DC /* GeneratorTests.m in Sources */,
-				30BF149AF62C7BCB308A88C5 /* Helpers.m in Sources */,
-				97300CC5122D5B3B553295FC /* EmulatorTests.m in Sources */,
-				F8BB622BFE904204D82F9FBA /* DecoderFunctionalTests.m in Sources */,
+				AA64DEC1A1234567890ABC01 /* Aarch64DecoderTests.mm in Sources */,
 				4E4DF33E5B6592E94A6F7FCC /* decode.c in Sources */,
-				7332BDB9E4658FE39C162057 /* DebugDecoder.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2246,6 +2241,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				BB41591F255EF9E300E0950C /* UITests.m in Sources */,
+				AA64EMU2183AEF31C4C5A06 /* Aarch64EmulatorTests.m in Sources */,
 				BBD23D5F258DA450003DCB40 /* Screenshots.m in Sources */,
 				BBD23D77258DA4BC003DCB40 /* SnapshotHelper.swift in Sources */,
 			);
@@ -2300,7 +2296,6 @@
 				496C7AB227CC697E005D7613 /* Theme.m in Sources */,
 				BB28C79426896B1F00BDC834 /* AboutNavigationController.m in Sources */,
 				BB28C79526896B1F00BDC834 /* TerminalViewController.m in Sources */,
-				BB123ACE26C9F13500419CDA /* IOSCalls.m in Sources */,
 				BBC3863F276817AD00CC8C2E /* CurrentRoot.m in Sources */,
 				BB28C79626896B1F00BDC834 /* ProgressReportViewController.m in Sources */,
 				BB28C79726896B1F00BDC834 /* TerminalView.m in Sources */,

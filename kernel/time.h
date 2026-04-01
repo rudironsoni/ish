@@ -1,13 +1,17 @@
 #ifndef TIME_H
 #define TIME_H
+#include "fs/fd.h"
+
 #include "misc.h"
+
+#include <time.h>
 
 dword_t sys_time(addr_t time_out);
 dword_t sys_stime(addr_t time);
-#define CLOCK_REALTIME_ 0
-#define CLOCK_MONOTONIC_ 1
+#define CLOCK_REALTIME_           0
+#define CLOCK_MONOTONIC_          1
 #define CLOCK_PROCESS_CPUTIME_ID_ 2
-#define CLOCK_REALTIME_COARSE_ 5
+#define CLOCK_REALTIME_COARSE_    5
 dword_t sys_clock_gettime(dword_t clock, addr_t tp);
 dword_t sys_clock_settime(dword_t clock, addr_t tp);
 dword_t sys_clock_getres(dword_t clock, addr_t res_addr);
@@ -25,27 +29,30 @@ struct timezone_ {
     dword_t dsttime;
 };
 
-static inline clock_t_ clock_from_timeval(struct timeval_ timeval) {
+static inline clock_t_ clock_from_timeval(struct timeval_ timeval)
+{
     return timeval.sec * 100 + timeval.usec / 10000;
 }
 
-static inline struct timespec convert_timespec(struct timespec_ t) {
+static inline struct timespec convert_timespec(struct timespec_ t)
+{
     struct timespec ts;
     ts.tv_sec = t.sec;
     ts.tv_nsec = t.nsec;
     return ts;
 }
 
-static inline struct timespec convert_timeval(struct timeval_ t) {
+static inline struct timespec convert_timeval(struct timeval_ t)
+{
     struct timespec ts;
     ts.tv_sec = t.sec;
     ts.tv_nsec = t.usec * 1000;
     return ts;
 }
 
-#define ITIMER_REAL_ 0
+#define ITIMER_REAL_    0
 #define ITIMER_VIRTUAL_ 1
-#define ITIMER_PROF_ 2
+#define ITIMER_PROF_    2
 struct itimerval_ {
     struct timeval_ interval;
     struct timeval_ value;

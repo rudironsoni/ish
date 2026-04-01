@@ -1,10 +1,13 @@
 #define DEFAULT_CHANNEL debug
-#include "debug.h"
-#include <string.h>
-#include "kernel/calls.h"
-#include "fs/poll.h"
 #include "fs/tty.h"
+
 #include "fs/devices.h"
+#include "fs/poll.h"
+#include "kernel/calls.h"
+
+#include "debug.h"
+
+#include <string.h>
 
 extern struct tty_driver pty_master;
 extern struct tty_driver pty_slave;
@@ -18,7 +21,8 @@ struct tty_driver *tty_drivers[256] = {
 // lock this before locking a tty
 lock_t ttys_lock = LOCK_INITIALIZER;
 
-struct tty *tty_alloc(struct tty_driver *driver, int type, int num) {
+struct tty *tty_alloc(struct tty_driver *driver, int type, int num)
+{
     struct tty *tty = malloc(sizeof(struct tty));
     if (tty == NULL)
         return NULL;
@@ -52,11 +56,12 @@ struct tty *tty_alloc(struct tty_driver *driver, int type, int num) {
     return tty;
 }
 
-struct tty *tty_get(struct tty_driver *driver, int type, int num) {
+struct tty *tty_get(struct tty_driver *driver, int type, int num)
+{
     lock(&ttys_lock);
     struct tty *tty = driver->ttys[num];
     // pty_reserve_next stores 1 to avoid races on the same tty
-    if (tty == NULL || tty == (void *) 1 /* ew */) {
+    if (tty == NULL || tty == (void *)1 /* ew */) {
         tty = tty_alloc(driver, type, num);
         if (tty == NULL) {
             unlock(&ttys_lock);
@@ -80,26 +85,29 @@ struct tty *tty_get(struct tty_driver *driver, int type, int num) {
     return tty;
 }
 
-static struct tty *get_slave_side_tty(struct tty *tty) {
-  if (tty->type == TTY_PSEUDO_MASTER_MAJOR) {
-      return tty->pty.other;
-  } else {
-      return tty;
-  }
+static struct tty *get_slave_side_tty(struct tty *tty)
+{
+    if (tty->type == TTY_PSEUDO_MASTER_MAJOR) {
+        return tty->pty.other;
+    } else {
+        return tty;
+    }
 }
 
-static void tty_poll_wakeup(struct tty *tty, int events) {
+static void tty_poll_wakeup(struct tty *tty, int events)
+{
     unlock(&tty->lock);
     struct fd *fd;
     lock(&tty->fds_lock);
-    list_for_each_entry(&tty->fds, fd, tty_other_fds) {
+    list_for_each_entry (&tty->fds, fd, tty_other_fds) {
         poll_wakeup(fd, events);
     }
     unlock(&tty->fds_lock);
     lock(&tty->lock);
 }
 
-void tty_release(struct tty *tty) {
+void tty_release(struct tty *tty)
+{
     lock(&tty->lock);
     if (--tty->refcount == 0) {
         struct tty_driver *driver = tty->driver;
@@ -115,7 +123,8 @@ void tty_release(struct tty *tty) {
 }
 
 // must call with tty lock
-static void tty_set_controlling(struct tgroup *group, struct tty *tty) {
+static void tty_set_controlling(struct tgroup *group, struct tty *tty)
+{
     lock(&group->lock);
     if (group->tty == NULL) {
         tty->refcount++;
@@ -130,7 +139,8 @@ static void tty_set_controlling(struct tgroup *group, struct tty *tty) {
 int console_major = TTY_CONSOLE_MAJOR;
 int console_minor = 1;
 
-int tty_open(struct tty *tty, struct fd *fd) {
+int tty_open(struct tty *tty, struct fd *fd)
+{
     fd->tty = tty;
 
     lock(&tty->fds_lock);
@@ -152,7 +162,8 @@ int tty_open(struct tty *tty, struct fd *fd) {
     return 0;
 }
 
-static int tty_device_open(int major, int minor, struct fd *fd) {
+static int tty_device_open(int major, int minor, struct fd *fd)
+{
     struct tty *tty;
     if (major == TTY_ALTERNATE_MAJOR) {
         if (minor == DEV_TTY_MINOR) {
@@ -196,7 +207,8 @@ static int tty_device_open(int major, int minor, struct fd *fd) {
     return tty_open(tty, fd);
 }
 
-static int tty_close(struct fd *fd) {
+static int tty_close(struct fd *fd)
+{
     if (fd->tty != NULL) {
         struct tty *tty = fd->tty;
         lock(&tty->fds_lock);
@@ -211,12 +223,14 @@ static int tty_close(struct fd *fd) {
     return 0;
 }
 
-static void tty_input_wakeup(struct tty *tty) {
+static void tty_input_wakeup(struct tty *tty)
+{
     notify(&tty->produced);
     tty_poll_wakeup(tty, POLL_READ);
 }
 
-static int tty_push_char(struct tty *tty, char ch, bool flag, int blocking) {
+static int tty_push_char(struct tty *tty, char ch, bool flag, int blocking)
+{
     while (tty->bufsize >= sizeof(tty->buf)) {
         if (!blocking)
             return _EAGAIN;
@@ -228,11 +242,13 @@ static int tty_push_char(struct tty *tty, char ch, bool flag, int blocking) {
     return 0;
 }
 
-static void tty_echo(struct tty *tty, const char *data, size_t size) {
+static void tty_echo(struct tty *tty, const char *data, size_t size)
+{
     tty->driver->ops->write(tty, data, size, false);
 }
 
-static bool tty_send_input_signal(struct tty *tty, char ch, sigset_t_ *queue) {
+static bool tty_send_input_signal(struct tty *tty, char ch, sigset_t_ *queue)
+{
     if (!(tty->termios.lflags & ISIG_))
         return false;
     unsigned char *cc = tty->termios.cc;
@@ -256,7 +272,8 @@ static bool tty_send_input_signal(struct tty *tty, char ch, sigset_t_ *queue) {
     return true;
 }
 
-ssize_t tty_input(struct tty *tty, const char *input, size_t size, bool blocking) {
+ssize_t tty_input(struct tty *tty, const char *input, size_t size, bool blocking)
+{
     int err = 0;
     size_t done_size = 0;
     sigset_t_ queue = 0; // to prevent having to lock tty->lock and pids_lock at the same time
@@ -266,9 +283,8 @@ ssize_t tty_input(struct tty *tty, const char *input, size_t size, bool blocking
     dword_t iflags = tty->termios.iflags;
     unsigned char *cc = tty->termios.cc;
 
-#define SHOULD_ECHOCTL(ch) \
-    (lflags & ECHOCTL_ && \
-     ((0 <= ch && ch < ' ') || ch == '\x7f') && \
+#define SHOULD_ECHOCTL(ch)                                                                         \
+    (lflags & ECHOCTL_ && ((0 <= ch && ch < ' ') || ch == '\x7f') &&                               \
      !(ch == '\t' || ch == '\n' || ch == cc[VSTART_] || ch == cc[VSTOP_]))
 
     if (lflags & ICANON_) {
@@ -289,7 +305,8 @@ ssize_t tty_input(struct tty *tty, const char *input, size_t size, bool blocking
                 goto no_special;
             } else if (ch == cc[VERASE_] || ch == cc[VKILL_]) {
                 // FIXME ECHOE and ECHOK are supposed to enable these
-                // ECHOKE enables erasing the line instead of echoing the kill char and outputting a newline
+                // ECHOKE enables erasing the line instead of echoing the kill char and outputting a
+                // newline
                 echo = lflags & ECHOK_;
                 int count = tty->bufsize;
                 if (ch == cc[VERASE_] && tty->bufsize > 0) {
@@ -318,7 +335,7 @@ ssize_t tty_input(struct tty *tty, const char *input, size_t size, bool blocking
                 if (echo)
                     tty_echo(tty, "\r\n", 2);
 canon_wake:
-                err = tty_push_char(tty, ch, /*flag*/true, blocking);
+                err = tty_push_char(tty, ch, /*flag*/ true, blocking);
                 if (err < 0) {
                     done_size--;
                     break;
@@ -328,7 +345,7 @@ canon_wake:
             } else {
                 if (!tty_send_input_signal(tty, ch, &queue)) {
 no_special:
-                    err = tty_push_char(tty, ch, /*flag*/false, blocking);
+                    err = tty_push_char(tty, ch, /*flag*/ false, blocking);
                     if (err < 0) {
                         done_size--;
                         break;
@@ -385,7 +402,8 @@ no_special:
 }
 
 // expects bufsize <= tty->bufsize
-static void tty_read_into_buf(struct tty *tty, void *buf, size_t bufsize) {
+static void tty_read_into_buf(struct tty *tty, void *buf, size_t bufsize)
+{
     assert(bufsize <= tty->bufsize);
     memcpy(buf, tty->buf, bufsize);
     tty->bufsize -= bufsize;
@@ -394,14 +412,16 @@ static void tty_read_into_buf(struct tty *tty, void *buf, size_t bufsize) {
     notify(&tty->consumed);
 }
 
-static size_t tty_canon_size(struct tty *tty) {
+static size_t tty_canon_size(struct tty *tty)
+{
     bool *flag_ptr = memchr(tty->buf_flag, true, tty->bufsize);
     if (flag_ptr == NULL)
         return -1;
     return flag_ptr - tty->buf_flag + 1;
 }
 
-static bool pty_is_half_closed_master(struct tty *tty) {
+static bool pty_is_half_closed_master(struct tty *tty)
+{
     if (tty->driver != &pty_master)
         return false;
 
@@ -413,14 +433,16 @@ static bool pty_is_half_closed_master(struct tty *tty) {
     return half_closed;
 }
 
-static bool tty_is_current(struct tty *tty) {
+static bool tty_is_current(struct tty *tty)
+{
     lock(&current->group->lock);
     bool is_current = current->group->tty == tty;
     unlock(&current->group->lock);
     return is_current;
 }
 
-static int tty_signal_if_background(struct tty *tty, pid_t_ current_pgid, int sig) {
+static int tty_signal_if_background(struct tty *tty, pid_t_ current_pgid, int sig)
+{
     // you can apparently access a terminal that's not your controlling
     // terminal all you want
     if (!tty_is_current(tty))
@@ -435,7 +457,8 @@ static int tty_signal_if_background(struct tty *tty, pid_t_ current_pgid, int si
         return _EINTR;
 }
 
-static ssize_t tty_read(struct fd *fd, void *buf, size_t bufsize) {
+static ssize_t tty_read(struct fd *fd, void *buf, size_t bufsize)
+{
     // important because otherwise we'll block
     if (bufsize == 0)
         return 0;
@@ -475,7 +498,7 @@ static ssize_t tty_read(struct fd *fd, void *buf, size_t bufsize) {
     // wait loop(s)
     if (tty->termios.lflags & ICANON_) {
         size_t canon_size;
-        while ((canon_size = tty_canon_size(tty)) == (size_t) -1) {
+        while ((canon_size = tty_canon_size(tty)) == (size_t)-1) {
             err = _EIO;
             if (pty_is_half_closed_master(tty))
                 goto error;
@@ -487,7 +510,7 @@ static ssize_t tty_read(struct fd *fd, void *buf, size_t bufsize) {
                 goto error;
         }
         // null byte means eof was typed
-        if (tty->buf[canon_size-1] == '\0')
+        if (tty->buf[canon_size - 1] == '\0')
             canon_size--;
 
         if (bufsize > canon_size)
@@ -537,7 +560,8 @@ error:
     return err;
 }
 
-static ssize_t tty_write(struct fd *fd, const void *buf, size_t bufsize) {
+static ssize_t tty_write(struct fd *fd, const void *buf, size_t bufsize)
+{
     struct tty *tty = fd->tty;
     lock(&tty->lock);
     if (tty->hung_up || pty_is_half_closed_master(tty)) {
@@ -579,7 +603,8 @@ static ssize_t tty_write(struct fd *fd, const void *buf, size_t bufsize) {
     return bufsize;
 }
 
-static int tty_poll(struct fd *fd) {
+static int tty_poll(struct fd *fd)
+{
     struct tty *tty = fd->tty;
     lock(&tty->lock);
     int types = 0;
@@ -589,7 +614,7 @@ static int tty_poll(struct fd *fd) {
     } else if (pty_is_half_closed_master(tty)) {
         types |= POLL_READ | POLL_HUP;
     } else if (tty->termios.lflags & ICANON_) {
-        if (tty_canon_size(tty) != (size_t) -1)
+        if (tty_canon_size(tty) != (size_t)-1)
             types |= POLL_READ;
     } else {
         if (tty->bufsize > 0)
@@ -601,28 +626,38 @@ static int tty_poll(struct fd *fd) {
     return types;
 }
 
-static ssize_t tty_ioctl_size(int cmd) {
+static ssize_t tty_ioctl_size(int cmd)
+{
     switch (cmd) {
-        case TCGETS_: case TCSETS_: case TCSETSF_: case TCSETSW_:
-            return sizeof(struct termios_);
-        case TIOCGWINSZ_: case TIOCSWINSZ_:
-            return sizeof(struct winsize_);
-        case TIOCGPGRP_: case TIOCSPGRP_:
-        case TIOCSPTLCK_: case TIOCGPTN_:
-        case TIOCPKT_: case TIOCGPKT_:
-        case FIONREAD_:
-            return sizeof(dword_t);
-        case TCFLSH_: case TIOCSCTTY_:
-            return 0;
+    case TCGETS_:
+    case TCSETS_:
+    case TCSETSF_:
+    case TCSETSW_:
+        return sizeof(struct termios_);
+    case TIOCGWINSZ_:
+    case TIOCSWINSZ_:
+        return sizeof(struct winsize_);
+    case TIOCGPGRP_:
+    case TIOCSPGRP_:
+    case TIOCSPTLCK_:
+    case TIOCGPTN_:
+    case TIOCPKT_:
+    case TIOCGPKT_:
+    case FIONREAD_:
+        return sizeof(dword_t);
+    case TCFLSH_:
+    case TIOCSCTTY_:
+        return 0;
     }
     return -1;
 }
 
-static int tiocsctty(struct tty *tty, int force) {
+static int tiocsctty(struct tty *tty, int force)
+{
     int err = 0;
-    unlock(&tty->lock); //aaaaaaaa
-    // it's safe because literally nothing happens between that unlock and the last lock, and repulsive for the same reason
-    // locking is ***hard**
+    unlock(&tty->lock); // aaaaaaaa
+    // it's safe because literally nothing happens between that unlock and the last lock, and
+    // repulsive for the same reason locking is ***hard**
     lock(&pids_lock);
     lock(&tty->lock);
     // do nothing if this is already our controlling tty
@@ -639,7 +674,7 @@ static int tiocsctty(struct tty *tty, int force) {
             // steal it
             struct pid *pid = pid_get(tty->session);
             struct tgroup *tgroup;
-            list_for_each_entry(&pid->session, tgroup, session) {
+            list_for_each_entry (&pid->session, tgroup, session) {
                 lock(&tgroup->lock);
                 if (tgroup->tty == tty) {
                     tgroup->tty = NULL;
@@ -659,7 +694,8 @@ out:
     return err;
 }
 
-static int tiocgpgrp(struct tty *tty, pid_t_ *fg_group) {
+static int tiocgpgrp(struct tty *tty, pid_t_ *fg_group)
+{
     int err = 0;
     struct tty *slave = get_slave_side_tty(tty);
     if (slave != tty) {
@@ -681,7 +717,8 @@ error_no_ctrl_tty:
 
 // These ioctls are separated out because they have to operate on the slave
 // side of a pseudoterminal pair even if the master is specified
-static int tty_mode_ioctl(struct tty *in_tty, int cmd, void *arg) {
+static int tty_mode_ioctl(struct tty *in_tty, int cmd, void *arg)
+{
     int err = 0;
     struct tty *tty = in_tty;
     if (in_tty->driver == &pty_master) {
@@ -690,29 +727,29 @@ static int tty_mode_ioctl(struct tty *in_tty, int cmd, void *arg) {
     }
 
     switch (cmd) {
-        case TCGETS_:
-            *(struct termios_ *) arg = tty->termios;
-            break;
-        case TCSETSF_:
-            tty->bufsize = 0;
-            notify(&tty->consumed);
-            fallthrough;
-        case TCSETSW_:
-            // we have no output buffer currently
-        case TCSETS_:
-            tty->termios = *(struct termios_ *) arg;
-            break;
+    case TCGETS_:
+        *(struct termios_ *)arg = tty->termios;
+        break;
+    case TCSETSF_:
+        tty->bufsize = 0;
+        notify(&tty->consumed);
+        ish_fallthrough;
+    case TCSETSW_:
+        // we have no output buffer currently
+    case TCSETS_:
+        tty->termios = *(struct termios_ *)arg;
+        break;
 
-        case TIOCGWINSZ_:
-            *(struct winsize_ *) arg = tty->winsize;
-            break;
-        case TIOCSWINSZ_:
-            tty_set_winsize(tty, *(struct winsize_ *) arg);
-            break;
+    case TIOCGWINSZ_:
+        *(struct winsize_ *)arg = tty->winsize;
+        break;
+    case TIOCSWINSZ_:
+        tty_set_winsize(tty, *(struct winsize_ *)arg);
+        break;
 
-        default:
-            err = _ENOTTY;
-            break;
+    default:
+        err = _ENOTTY;
+        break;
     }
 
     if (in_tty->driver == &pty_master)
@@ -720,7 +757,8 @@ static int tty_mode_ioctl(struct tty *in_tty, int cmd, void *arg) {
     return err;
 }
 
-static int tty_ioctl(struct fd *fd, int cmd, void *arg) {
+static int tty_ioctl(struct fd *fd, int cmd, void *arg)
+{
     int err = 0;
     struct tty *tty = fd->tty;
     lock(&tty->lock);
@@ -732,67 +770,69 @@ static int tty_ioctl(struct fd *fd, int cmd, void *arg) {
     }
 
     switch (cmd) {
-        case TCFLSH_:
-            // only input flushing is currently useful
-            switch ((uintptr_t) arg) {
-                case TCIFLUSH_:
-                case TCIOFLUSH_:
-                    tty->bufsize = 0;
-                    notify(&tty->consumed);
-                    break;
-                case TCOFLUSH_:
-                    break;
-                default:
-                    err = _EINVAL;
-                    break;
-            };
+    case TCFLSH_:
+        // only input flushing is currently useful
+        switch ((uintptr_t)arg) {
+        case TCIFLUSH_:
+        case TCIOFLUSH_:
+            tty->bufsize = 0;
+            notify(&tty->consumed);
             break;
-
-        case TIOCSCTTY_:
-            err = tiocsctty(tty, (uintptr_t) arg);
+        case TCOFLUSH_:
             break;
-
-        case TIOCGPGRP_:
-            err = tiocgpgrp(tty, (pid_t_ *) arg);
-            break;
-
-        case TIOCSPGRP_:
-            // see "aaaaaaaa" comment above
-            unlock(&tty->lock);
-            lock(&pids_lock);
-            lock(&tty->lock);
-            pid_t_ sid = current->group->sid;
-            unlock(&pids_lock);
-            if (!tty_is_current(tty) || sid != tty->session) {
-                err = _ENOTTY;
-                break;
-            }
-            // TODO group must be in the right session
-            tty->fg_group = *(dword_t *) arg;
-            STRACE("tty group set to = %d\n", tty->fg_group);
-            break;
-
-        case FIONREAD_:
-            *(dword_t *) arg = tty->bufsize;
-            break;
-
         default:
-            err = tty_mode_ioctl(tty, cmd, arg);
-            if (err == _ENOTTY && tty->driver->ops->ioctl)
-                err = tty->driver->ops->ioctl(tty, cmd, arg);
+            err = _EINVAL;
+            break;
+        };
+        break;
+
+    case TIOCSCTTY_:
+        err = tiocsctty(tty, (uintptr_t)arg);
+        break;
+
+    case TIOCGPGRP_:
+        err = tiocgpgrp(tty, (pid_t_ *)arg);
+        break;
+
+    case TIOCSPGRP_:
+        // see "aaaaaaaa" comment above
+        unlock(&tty->lock);
+        lock(&pids_lock);
+        lock(&tty->lock);
+        pid_t_ sid = current->group->sid;
+        unlock(&pids_lock);
+        if (!tty_is_current(tty) || sid != tty->session) {
+            err = _ENOTTY;
+            break;
+        }
+        // TODO group must be in the right session
+        tty->fg_group = *(dword_t *)arg;
+        STRACE("tty group set to = %d\n", tty->fg_group);
+        break;
+
+    case FIONREAD_:
+        *(dword_t *)arg = tty->bufsize;
+        break;
+
+    default:
+        err = tty_mode_ioctl(tty, cmd, arg);
+        if (err == _ENOTTY && tty->driver->ops->ioctl)
+            err = tty->driver->ops->ioctl(tty, cmd, arg);
     }
 
     unlock(&tty->lock);
     return err;
 }
 
-void tty_set_winsize(struct tty *tty, struct winsize_ winsize) {
+void tty_set_winsize(struct tty *tty, struct winsize_ winsize)
+{
     tty->winsize = winsize;
     if (tty->fg_group != 0)
         send_group_signal(tty->fg_group, SIGWINCH_, SIGINFO_NIL);
 }
 
-void tty_hangup(struct tty *tty) {
+void tty_hangup(struct tty *tty)
+{
     tty->hung_up = true;
     tty_input_wakeup(tty);
 }
