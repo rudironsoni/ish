@@ -50,10 +50,15 @@ void a64_gen_reset(a64_gen_state_t *state, uint64_t pc)
 }
 
 // Helper: Emit single gadget
+// Helper: Emit single gadget
 static int emit_gadget(a64_gen_state_t *state, tcti_gadget_t gadget)
 {
     if (state->num_gadgets >= state->max_gadgets)
         return A64_GEN_TOO_MANY;
+
+    // GUARD: Reject NULL gadgets - they would cause a crash at runtime
+    if (!gadget)
+        return A64_GEN_UNSUPPORTED;
 
     state->gadgets[state->num_gadgets++] = gadget;
     return A64_GEN_OK;
