@@ -201,20 +201,9 @@ tcti_exit_block:
     mrs     x17, nzcv
     str     x17, [x29, #280]        // Save NZCV back to cpu->pstate
 
-    // Independent repeated-block probe outside gadget-local diagnostic sinks.
-    // GUARD: Check if _tcti_asm_probe is properly linked before writing
-    adrp    x18, _tcti_asm_probe@PAGE
-    add     x18, x18, _tcti_asm_probe@PAGEOFF
-    cbz     x18, 2f                 // Skip probe if symbol resolved to NULL
-    ldr     x17, [x29, #272]        // cpu->pc
-    str     x17, [x18, #0]
-    str     x29, [x18, #8]
-    str     x3,  [x18, #16]
-    str     x6,  [x18, #24]
-    mrs     x17, nzcv
-    str     x17, [x18, #32]
-    mov     w17, #1
-    strb    w17, [x18, #40]
+    // Probe store removed - instrumentation now handled by ISHInstrumentation
+    // GUARD: Null check retained for structural compatibility
+    cbz     x18, 2f
 2:
     
     cmp     x0,  #16
