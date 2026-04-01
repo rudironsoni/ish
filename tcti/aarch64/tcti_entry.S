@@ -208,8 +208,7 @@ tcti_exit_block:
     
     cmp     x0,  #16
     b.lo    1f
-    str     x28, [x29, #816]        // Debug: current bytecode stream pointer for bad exits
-    str     w27, [x29, #856]        // Debug: low 32 bits of x27 for bad exits
+    // Debug shadow-stores removed - instrumentation handled by ISHInstrumentation
 1:
     
     // Save guest x0-x15 from host x1-x16 back to memory
