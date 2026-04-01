@@ -128,7 +128,7 @@ bool trace_event_enabled(trace_event_id_t event, uint64_t pc)
     return false;
 }
 
-/* Legacy init - minimal, no heavy backend initialization */
+/* Legacy init - minimal, with ring buffer for pre-crash capture */
 int trace_init(trace_config_t *config)
 {
     (void)config;
@@ -136,6 +136,10 @@ int trace_init(trace_config_t *config)
     if (!g_trace_ctx) {
         g_trace_ctx = calloc(1, sizeof(trace_ctx_t));
     }
+
+    /* Enable pre-crash ring buffer capture - this is safe to call multiple times */
+    trace_ring_enable_precrash_capture();
+
     return 0;
 }
 
@@ -653,6 +657,38 @@ void trace_emit_task_proof_point(task_proof_point_t point, uint32_t pid)
  * for forensic analysis of the spill-first execution model.
  */
 
+/* Helper to write TCTI event to ring buffer - ALWAYS writes regardless of trace level or init state
+ */
+static void trace_tcti_to_ring(trace_event_id_t event, uint64_t value)
+{
+    /* Get the global ring buffer directly - works even before trace_init */
+    trace_ring_t *ring = trace_get_global_ring();
+    if (!ring || !ring->records)
+        return;
+
+    /* Calculate write position */
+    size_t idx = ring->head % ring->capacity;
+
+    /* Build record directly in ring buffer */
+    trace_record_t *record = &ring->records[idx];
+    memset(record, 0, sizeof(trace_record_t));
+
+    record->header.event_id = event;
+    record->header.level = TRACE_LEVEL_BOUNDARY;
+    record->header.pc = 0; /* Not applicable for TCTI entry */
+    record->header.payload_size = 8;
+    record->header.seq = ring->seq++;
+
+    memcpy(record->payload, &value, 8);
+
+    /* Update ring buffer state */
+    ring->head++;
+    if (ring->head >= ring->capacity) {
+        ring->wrapped = true;
+        ring->dropped++;
+    }
+}
+
 void trace_emit_tcti_entry_x28_before(uint64_t x28_value)
 {
     char x28_buf[24];
@@ -663,6 +699,9 @@ void trace_emit_tcti_entry_x28_before(uint64_t x28_value)
         { "event", "tcti.entry.x28.before" },
     };
     ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "tcti.entry.x28.before");
+
+    /* Also write to ring buffer for pre-crash capture */
+    trace_tcti_to_ring(TRACE_EVENT_TCTI_ENTRY_X28_BEFORE, x28_value);
 }
 
 void trace_emit_tcti_entry_qword0(uint64_t qword0)
@@ -675,6 +714,9 @@ void trace_emit_tcti_entry_qword0(uint64_t qword0)
         { "event", "tcti.entry.qword0" },
     };
     ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "tcti.entry.qword0");
+
+    /* Also write to ring buffer for pre-crash capture */
+    trace_tcti_to_ring(TRACE_EVENT_TCTI_ENTRY_QWORD0, qword0);
 }
 
 void trace_emit_tcti_entry_x27_after(uint64_t x27_value)
@@ -687,6 +729,9 @@ void trace_emit_tcti_entry_x27_after(uint64_t x27_value)
         { "event", "tcti.entry.x27.after" },
     };
     ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "tcti.entry.x27.after");
+
+    /* Also write to ring buffer for pre-crash capture */
+    trace_tcti_to_ring(TRACE_EVENT_TCTI_ENTRY_X27_AFTER, x27_value);
 }
 
 void trace_emit_tcti_entry_x28_after(uint64_t x28_value)
@@ -699,6 +744,9 @@ void trace_emit_tcti_entry_x28_after(uint64_t x28_value)
         { "event", "tcti.entry.x28.after" },
     };
     ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "tcti.entry.x28.after");
+
+    /* Also write to ring buffer for pre-crash capture */
+    trace_tcti_to_ring(TRACE_EVENT_TCTI_ENTRY_X28_AFTER, x28_value);
 }
 
 void trace_emit_tcti_entry_qword1(uint64_t qword1)
@@ -711,6 +759,9 @@ void trace_emit_tcti_entry_qword1(uint64_t qword1)
         { "event", "tcti.entry.qword1" },
     };
     ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "tcti.entry.qword1");
+
+    /* Also write to ring buffer for pre-crash capture */
+    trace_tcti_to_ring(TRACE_EVENT_TCTI_ENTRY_QWORD1, qword1);
 }
 
 void trace_emit_gadget_entry_x28(uint64_t x28_value)
@@ -723,6 +774,9 @@ void trace_emit_gadget_entry_x28(uint64_t x28_value)
         { "event", "gadget.entry.x28" },
     };
     ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "gadget.entry.x28");
+
+    /* Also write to ring buffer for pre-crash capture */
+    trace_tcti_to_ring(TRACE_EVENT_GADGET_ENTRY_X28, x28_value);
 }
 
 void trace_emit_gadget_fault_addr(uint64_t fault_addr)
@@ -735,6 +789,9 @@ void trace_emit_gadget_fault_addr(uint64_t fault_addr)
         { "event", "gadget.fault_addr" },
     };
     ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "gadget.fault_addr");
+
+    /* Also write to ring buffer for pre-crash capture */
+    trace_tcti_to_ring(TRACE_EVENT_GADGET_FAULT_ADDR, fault_addr);
 }
 
 /* ============================================

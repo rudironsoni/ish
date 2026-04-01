@@ -56,7 +56,15 @@ typedef NS_ENUM(NSInteger, ISHInstrumentationEvent) {
     ISHInstrumentationEventStdioFd1Target,
     ISHInstrumentationEventStdioFd2Target,
     ISHInstrumentationEventStdioPtySlaveBound,
- ISHInstrumentationEventStdioTtySessionState
+ ISHInstrumentationEventStdioTtySessionState,
+    // TCTI trace events
+    ISHInstrumentationEventTctiEntryX28Before,
+    ISHInstrumentationEventTctiEntryQword0,
+    ISHInstrumentationEventTctiEntryX27After,
+    ISHInstrumentationEventTctiEntryX28After,
+    ISHInstrumentationEventTctiEntryQword1,
+    ISHInstrumentationEventGadgetEntryX28,
+    ISHInstrumentationEventGadgetFaultAddr,
 };
 
 @interface ISHInstrumentation : NSObject

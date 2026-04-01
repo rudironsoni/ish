@@ -253,6 +253,19 @@ bool trace_sidecar_enabled(void);
 const trace_backend_ops_t *trace_backend_get_ops(trace_backend_t backend);
 const trace_backend_ops_t *trace_ring_backend_get_ops(void);
 
+/* ============================================
+ * Pre-Crash Capture API
+ * ============================================ */
+
+/* Enable pre-crash ring buffer capture with signal handlers */
+void trace_ring_enable_precrash_capture(void);
+
+/* Dump ring buffer to crash file on demand */
+void trace_ring_dump_on_crash(void);
+
+/* Get global ring buffer for crash dump */
+trace_ring_t *trace_get_global_ring(void);
+
 #ifdef __cplusplus
 }
 #endif

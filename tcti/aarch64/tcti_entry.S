@@ -64,6 +64,10 @@ tcti_entry_block:
     
     // Trace TCTI_ENTRY_X28_BEFORE
     mov     x0, x28
+    // Store to global variable for crash report visibility
+    adrp    x18, _tcti_last_x28_before@PAGE
+    add     x18, x18, _tcti_last_x28_before@PAGEOFF
+    str     x28, [x18]
     bl      _trace_emit_tcti_entry_x28_before
     
     // Reload x28 (clobbered by call)
@@ -71,6 +75,10 @@ tcti_entry_block:
     
     // Load qword0 from [x28] for tracing
     ldr     x0, [x28]
+    // Store to global variable for crash report visibility
+    adrp    x18, _tcti_last_qword0@PAGE
+    add     x18, x18, _tcti_last_qword0@PAGEOFF
+    str     x0, [x18]
     bl      _trace_emit_tcti_entry_qword0
     
     // Load x27 from [x28], advance x28
@@ -79,14 +87,26 @@ tcti_entry_block:
     
     // Trace x27 after load
     mov     x0, x27
+    // Store to global variable for crash report visibility
+    adrp    x18, _tcti_last_x27_after@PAGE
+    add     x18, x18, _tcti_last_x27_after@PAGEOFF
+    str     x27, [x18]
     bl      _trace_emit_tcti_entry_x27_after
     
     // Trace x28 after load (advanced by 8)
     mov     x0, x28
+    // Store to global variable for crash report visibility
+    adrp    x18, _tcti_last_x28_after@PAGE
+    add     x18, x18, _tcti_last_x28_after@PAGEOFF
+    str     x28, [x18]
     bl      _trace_emit_tcti_entry_x28_after
     
     // Load and trace qword1 (current [x28])
     ldr     x0, [x28]
+    // Store to global variable for crash report visibility
+    adrp    x18, _tcti_last_qword1@PAGE
+    add     x18, x18, _tcti_last_qword1@PAGEOFF
+    str     x0, [x18]
     bl      _trace_emit_tcti_entry_qword1
     
     // Restore x27, x28 from stack
@@ -291,6 +311,28 @@ tcti_store_sp:
 
 .data
 .balign 8
+
+/* Global variables for last TCTI values - visible in crash reports */
+.global _tcti_last_x28_before
+_tcti_last_x28_before:
+    .quad 0
+
+.global _tcti_last_x27_after
+_tcti_last_x27_after:
+    .quad 0
+
+.global _tcti_last_x28_after
+_tcti_last_x28_after:
+    .quad 0
+
+.global _tcti_last_qword0
+_tcti_last_qword0:
+    .quad 0
+
+.global _tcti_last_qword1
+_tcti_last_qword1:
+    .quad 0
+
 .global _tcti_asm_probe
 _tcti_asm_probe:
     .quad 0

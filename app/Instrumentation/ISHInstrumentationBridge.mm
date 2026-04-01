@@ -70,6 +70,20 @@ void ish_instrumentation_record_event(ish_instrumentation_origin_t origin, const
         event = ISHInstrumentationEventSessionExecReady;
     } else if (strcmp(event_name, "guest.thread.start") == 0) {
         event = ISHInstrumentationEventGuestThreadStart;
+    } else if (strcmp(event_name, "tcti.entry.x28.before") == 0) {
+        event = ISHInstrumentationEventTctiEntryX28Before;
+    } else if (strcmp(event_name, "tcti.entry.qword0") == 0) {
+        event = ISHInstrumentationEventTctiEntryQword0;
+    } else if (strcmp(event_name, "tcti.entry.x27.after") == 0) {
+        event = ISHInstrumentationEventTctiEntryX27After;
+    } else if (strcmp(event_name, "tcti.entry.x28.after") == 0) {
+        event = ISHInstrumentationEventTctiEntryX28After;
+    } else if (strcmp(event_name, "tcti.entry.qword1") == 0) {
+        event = ISHInstrumentationEventTctiEntryQword1;
+    } else if (strcmp(event_name, "gadget.entry.x28") == 0) {
+        event = ISHInstrumentationEventGadgetEntryX28;
+    } else if (strcmp(event_name, "gadget.fault_addr") == 0) {
+        event = ISHInstrumentationEventGadgetFaultAddr;
     }
     // Add other event mappings as needed
 
