@@ -49,7 +49,16 @@
 // Helper: Get terminal text
 - (NSString *)terminalText {
     XCUIElement *terminalVC = self.app.otherElements[@"TerminalViewController"];
-    return terminalVC.value;
+    
+    // Step A: Prove element exists before reading value
+    XCTAssertTrue(terminalVC.exists, @"TerminalViewController element must exist");
+    XCTAssertTrue([terminalVC waitForExistenceWithTimeout:5.0], @"TerminalViewController must be accessible within 5 seconds");
+    
+    // Step B: Only after existence proven, read value
+    NSString *value = terminalVC.value;
+    XCTAssertNotNil(value, @"TerminalViewController value must not be nil");
+    
+    return value;
 }
 
 // Test 1: Basic shell execution

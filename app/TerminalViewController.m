@@ -196,7 +196,8 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 - (void)viewDidLoad {
     [super viewDidLoad];
     
-    // Set accessibility identifier for UI test queries
+    // Ensure UI test surface is accessibility-exposed
+    self.view.isAccessibilityElement = YES;
     self.view.accessibilityIdentifier = @"TerminalViewController";
 
     int bootError = [AppDelegate bootError];
