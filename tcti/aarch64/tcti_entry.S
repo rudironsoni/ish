@@ -209,8 +209,10 @@ tcti_exit_block:
     str     x17, [x29, #280]        // Save NZCV back to cpu->pstate
 
     // Independent repeated-block probe outside gadget-local diagnostic sinks.
+    // GUARD: Check if _tcti_asm_probe is properly linked before writing
     adrp    x18, _tcti_asm_probe@PAGE
     add     x18, x18, _tcti_asm_probe@PAGEOFF
+    cbz     x18, 2f                 // Skip probe if symbol resolved to NULL
     ldr     x17, [x29, #272]        // cpu->pc
     str     x17, [x18, #0]
     str     x29, [x18, #8]
@@ -220,6 +222,7 @@ tcti_exit_block:
     str     x17, [x18, #32]
     mov     w17, #1
     strb    w17, [x18, #40]
+2:
     
     cmp     x0,  #16
     b.lo    1f
