@@ -64,10 +64,6 @@ tcti_entry_block:
     
     // Trace TCTI_ENTRY_X28_BEFORE
     mov     x0, x28
-    // Store to global variable for crash report visibility
-    adrp    x18, _tcti_last_x28_before@PAGE
-    add     x18, x18, _tcti_last_x28_before@PAGEOFF
-    str     x28, [x18]
     bl      _trace_emit_tcti_entry_x28_before
     
     // Restore x28 after call
@@ -77,10 +73,6 @@ tcti_entry_block:
     // Preserve x28 across this call too
     str     x28, [sp, #-16]!
     ldr     x0, [x28]
-    // Store to global variable for crash report visibility
-    adrp    x18, _tcti_last_qword0@PAGE
-    add     x18, x18, _tcti_last_qword0@PAGEOFF
-    str     x0, [x18]
     bl      _trace_emit_tcti_entry_qword0
     ldr     x28, [sp], #16
 
@@ -92,26 +84,14 @@ tcti_entry_block:
 
     // Trace x27 after load
     mov     x0, x27
-    // Store to global variable for crash report visibility
-    adrp    x18, _tcti_last_x27_after@PAGE
-    add     x18, x18, _tcti_last_x27_after@PAGEOFF
-    str     x27, [x18]
     bl      _trace_emit_tcti_entry_x27_after
 
     // Trace x28 after load
     mov     x0, x28
-    // Store to global variable for crash report visibility
-    adrp    x18, _tcti_last_x28_after@PAGE
-    add     x18, x18, _tcti_last_x28_after@PAGEOFF
-    str     x28, [x18]
     bl      _trace_emit_tcti_entry_x28_after
 
     // Trace qword1 at the advanced stream head
     ldr     x0, [x28]
-    // Store to global variable for crash report visibility
-    adrp    x18, _tcti_last_qword1@PAGE
-    add     x18, x18, _tcti_last_qword1@PAGEOFF
-    str     x0, [x18]
     bl      _trace_emit_tcti_entry_qword1
 
     // Restore the real post-load dispatch state
