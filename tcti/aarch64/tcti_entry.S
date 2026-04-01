@@ -140,8 +140,16 @@ tcti_entry_block:
     ldr     x16, [x29, #136]        // Guest x15 -> host x16
     
     // Guest x15-x30 and SP stay in memory
+
+    // Guard: Check if first gadget pointer is valid before jumping
+    cbz     x27, tcti_bad_gadget    // If x27 is NULL, exit gracefully
     // Jump to first gadget (already loaded into x27 during tracing)
     br      x27                     // Execute first gadget
+
+tcti_bad_gadget:
+    // Exit with error - invalid gadget pointer (NULL)
+    mov     x0, #-1                 // Exit code: invalid gadget
+    b       tcti_exit_block         // Go to exit
 
 // TCTI epilogue - each gadget ends with this
 .global _tcti_epilogue
