@@ -1,0 +1,2 @@
+#include "../Project.xcconfig"
+PRODUCT_BUNDLE_IDENTIFIER = $(ROOT_BUNDLE_IDENTIFIER)
