@@ -1,8 +1,8 @@
 #ifndef TTY_H
 #define TTY_H
 
-#include "kernel/fs.h"
 #include "fs/dev.h"
+#include "kernel/fs.h"
 
 struct winsize_ {
     word_t row;
@@ -21,62 +21,62 @@ struct termios_ {
     byte_t cc[19];
 };
 
-#define VINTR_ 0
-#define VQUIT_ 1
-#define VERASE_ 2
-#define VKILL_ 3
-#define VEOF_ 4
-#define VTIME_ 5
-#define VMIN_ 6
-#define VSWTC_ 7
-#define VSTART_ 8
-#define VSTOP_ 9
-#define VSUSP_ 10
-#define VEOL_ 11
+#define VINTR_    0
+#define VQUIT_    1
+#define VERASE_   2
+#define VKILL_    3
+#define VEOF_     4
+#define VTIME_    5
+#define VMIN_     6
+#define VSWTC_    7
+#define VSTART_   8
+#define VSTOP_    9
+#define VSUSP_    10
+#define VEOL_     11
 #define VREPRINT_ 12
 #define VDISCARD_ 13
-#define VWERASE_ 14
-#define VLNEXT_ 15
-#define VEOL2_ 16
+#define VWERASE_  14
+#define VLNEXT_   15
+#define VEOL2_    16
 
-#define ISIG_ (1 << 0)
-#define ICANON_ (1 << 1)
-#define ECHO_ (1 << 3)
-#define ECHOE_ (1 << 4)
-#define ECHOK_ (1 << 5)
-#define ECHOKE_ (1 << 6)
-#define NOFLSH_ (1 << 7)
+#define ISIG_    (1 << 0)
+#define ICANON_  (1 << 1)
+#define ECHO_    (1 << 3)
+#define ECHOE_   (1 << 4)
+#define ECHOK_   (1 << 5)
+#define ECHOKE_  (1 << 6)
+#define NOFLSH_  (1 << 7)
 #define ECHOCTL_ (1 << 9)
-#define IEXTEN_ (1 << 15)
+#define IEXTEN_  (1 << 15)
 
 #define INLCR_ (1 << 6)
 #define IGNCR_ (1 << 7)
 #define ICRNL_ (1 << 8)
-#define IXON_ (1 << 10)
+#define IXON_  (1 << 10)
 
-#define OPOST_ (1 << 0)
-#define ONLCR_ (1 << 2)
-#define OCRNL_ (1 << 3)
-#define ONOCR_ (1 << 4)
+#define OPOST_  (1 << 0)
+#define ONLCR_  (1 << 2)
+#define OCRNL_  (1 << 3)
+#define ONOCR_  (1 << 4)
 #define ONLRET_ (1 << 5)
 
-#define TCGETS_ 0x5401
-#define TCSETS_ 0x5402
-#define TCSETSW_ 0x5403
-#define TCSETSF_ 0x5404
-#define TCFLSH_ 0x540b
-#define TIOCSCTTY_ 0x540e
-#define TIOCGPGRP_ 0x540f
-#define TIOCSPGRP_ 0x5410
+#define TCGETS_     0x5401
+#define TCSETS_     0x5402
+#define TCSETSW_    0x5403
+#define TCSETSF_    0x5404
+#define TCFLSH_     0x540b
+#define TIOCSCTTY_  0x540e
+#define TIOCGPGRP_  0x540f
+#define TIOCSPGRP_  0x5410
 #define TIOCGWINSZ_ 0x5413
 #define TIOCSWINSZ_ 0x5414
-#define TIOCPKT_ 0x5420
-#define TIOCGPTN_ 0x80045430
+#define TIOCPKT_    0x5420
+#define TIOCGPTN_   0x80045430
 #define TIOCSPTLCK_ 0x40045431
-#define TIOCGPKT_ 0x80045438
+#define TIOCGPKT_   0x80045438
 
-#define TCIFLUSH_ 0
-#define TCOFLUSH_ 1
+#define TCIFLUSH_  0
+#define TCOFLUSH_  1
 #define TCIOFLUSH_ 2
 
 struct tty_driver {
@@ -86,9 +86,12 @@ struct tty_driver {
     unsigned limit;
 };
 
-#define DEFINE_TTY_DRIVER(name, driver_ops, _major, size) \
-    static struct tty *name##_ttys[size]; \
-    struct tty_driver name = {.ops = driver_ops, .major = _major, .ttys = name##_ttys, .limit = size}
+#define DEFINE_TTY_DRIVER(name, driver_ops, _major, size)                                          \
+    static struct tty *name##_ttys[size];                                                          \
+    struct tty_driver name = { .ops = driver_ops,                                                  \
+                               .major = _major,                                                    \
+                               .ttys = name##_ttys,                                                \
+                               .limit = size }
 
 struct tty_driver_ops {
     int (*init)(struct tty *tty);
@@ -152,6 +155,10 @@ struct tty {
 ssize_t tty_input(struct tty *tty, const char *input, size_t len, bool blocking);
 void tty_set_winsize(struct tty *tty, struct winsize_ winsize);
 void tty_hangup(struct tty *tty);
+
+// Test-only: Get terminal buffer content for UI smoke tests
+// This exposes the raw TTY buffer without modifying terminal state
+ssize_t tty_get_buffer_content(struct tty *tty, char *out_buf, size_t out_size);
 
 // public for the benefit of ptys
 struct tty *tty_get(struct tty_driver *driver, int type, int num);

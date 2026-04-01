@@ -29,6 +29,10 @@ struct tty;
 // Make this terminal no longer be the singleton terminal with its type and number. Will happen eventually if all references go away, but sometimes you want it to happen now.
 - (void)destroy;
 
+// Test-only: Get the raw TTY buffer content for smoke tests
+// Returns the current buffer content from the TTY layer without modifying state
+- (NSString *)screenTextForTesting;
+
 @property (readonly) WKWebView *webView;
 @property (nonatomic) BOOL enableVoiceOverAnnounce;
 // Use KVO on this

@@ -306,6 +306,21 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
     }
 }
 
+// Test-only: Get the raw TTY buffer content for smoke tests
+// Returns the current buffer content from the TTY layer without modifying state
+- (NSString *)screenTextForTesting {
+    tty_t tty = self.tty;
+    if (tty == NULL)
+        return @"";
+
+    char buffer[TTY_BUF_SIZE];
+    ssize_t len = tty_get_buffer_content(tty, buffer, sizeof(buffer));
+    if (len <= 0)
+        return @"";
+
+    return [[NSString alloc] initWithBytes:buffer length:len encoding:NSUTF8StringEncoding];
+}
+
 + (void)initialize {
     if (self == Terminal.class) {
         terminals = [NSMapTable strongToWeakObjectsMapTable];
