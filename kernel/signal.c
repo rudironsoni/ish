@@ -236,7 +236,7 @@ void receive_signals(void)
             case SIGSEGV_:
                 trace_receive_signals_checkpoint("task.proof.receive_signals.before_sigsegv_path",
                                                  sig, task->pending);
-                // fallthrough
+                [[fallthrough]];
             case SIGILL_:
             case SIGBUS_:
             case SIGFPE_:
@@ -374,4 +374,11 @@ dword_t sys_sigaltstack(addr_t ss, addr_t old_ss)
     (void)ss;
     (void)old_ss;
     return 0;
+}
+
+// sys_rt_sigpending - Examine pending signals
+int_t sys_rt_sigpending(addr_t set_addr)
+{
+    (void)set_addr;
+    return _ENOSYS;
 }

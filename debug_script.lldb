@@ -1,0 +1,24 @@
+# iSH Debug Script - Runtime Breakpoint Ladder
+# Target: iSH on iPhone 17 Simulator
+
+# Ignore signals
+process handle -n 0 -p 1 -s 0 SIGUSR1 SIGTTIN SIGPIPE
+
+# Runtime Breakpoint Ladder - Core Execution Flow
+breakpoint set --name task_thread
+breakpoint set --name task_run_current
+breakpoint set --name a64_cpu_run
+breakpoint set --name tcti_entry_block
+breakpoint set --name tcti_exit_block
+
+# Memory Operations
+breakpoint set --name mem_ptr_nofault
+
+# Interrupt Handling
+breakpoint set --name handle_interrupt
+
+# Enable breakpoint list
+breakpoint list
+
+# Continue and wait for hits
+continue

@@ -9,6 +9,6 @@ IPHONEOS_DEPLOYMENT_TARGET = 15.0
 VERSIONING_SYSTEM = apple-generic
 
 MESON_BUILD_DIR = $(CONFIGURATION_BUILD_DIR)/meson
-NINJA_TARGETS = libish.a libish_emu.a libfakefs.a
+NINJA_TARGETS = ish ish_emu fakefs
 
 SUPPORTED_PLATFORMS = iphonesimulator iphoneos

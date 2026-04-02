@@ -1667,8 +1667,8 @@ __attribute__((naked)) void gadget_ldr_x_impl(void)
           [ldr_fallback_crosspg_off] "i"(STAT_LDR_FALLBACK_CROSSPG_OFFSET),
           [ldr_fallback_tlbmiss_off] "i"(STAT_LDR_FALLBACK_TLBMISS_OFFSET),
           [ldr_fallback_notlb_off] "i"(STAT_LDR_FALLBACK_NOTLB_OFFSET)
-        : "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x18", "x19", "x20", "x21", "x22", "x23",
-          "x24", "x25", "x26", "x27", "memory");
+        : "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x19", "x20", "x21", "x22", "x23", "x24",
+          "x25", "x26", "x27", "memory");
 }
 
 tcti_gadget_t gadget_ldr_x = gadget_ldr_x_impl;
@@ -1941,8 +1941,8 @@ __attribute__((naked)) void gadget_str_x_impl(void)
           [str_fallback_crosspg_off] "i"(STAT_STR_FALLBACK_CROSSPG_OFFSET),
           [str_fallback_tlbmiss_off] "i"(STAT_STR_FALLBACK_TLBMISS_OFFSET),
           [str_fallback_notlb_off] "i"(STAT_STR_FALLBACK_NOTLB_OFFSET)
-        : "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x18", "x19", "x20", "x21", "x22", "x23",
-          "x24", "x25", "x26", "x27", "memory");
+        : "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x19", "x20", "x21", "x22", "x23", "x24",
+          "x25", "x26", "x27", "memory");
 }
 
 tcti_gadget_t gadget_str_x = gadget_str_x_impl;
