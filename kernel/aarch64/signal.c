@@ -3,15 +3,18 @@
  */
 
 #include "kernel/aarch64/signal.h"
+
 #include "emu/aarch64/cpu.h"
-#include "kernel/task.h"
 #include "kernel/calls.h"
+#include "kernel/task.h"
+
 #include <string.h>
 
 // From UTM's signal.c - Linux syscall number for rt_sigreturn on aarch64
 #define A64_NR_rt_sigreturn 139
 
-void a64_setup_sigcontext(struct a64_sigcontext *sc, struct cpu_state *cpu) {
+void a64_setup_sigcontext(struct a64_sigcontext *sc, struct cpu_state *cpu)
+{
     memset(sc, 0, sizeof(*sc));
 
     // Save fault address (for SIGSEGV)
@@ -31,8 +34,8 @@ void a64_setup_sigcontext(struct a64_sigcontext *sc, struct cpu_state *cpu) {
     sc->pstate = cpu->pstate;
 }
 
-void a64_setup_fpsimd_context(struct a64_fpsimd_context *fpsimd,
-                               struct cpu_state *cpu) {
+void a64_setup_fpsimd_context(struct a64_fpsimd_context *fpsimd, struct cpu_state *cpu)
+{
     memset(fpsimd, 0, sizeof(*fpsimd));
 
     fpsimd->head.magic = A64_FPSIMD_MAGIC;
@@ -45,12 +48,13 @@ void a64_setup_fpsimd_context(struct a64_fpsimd_context *fpsimd,
     // Each vreg is stored as low 64-bits, high 64-bits
     for (int i = 0; i < 32; i++) {
         __int128 v = cpu->vregs[i].q;
-        fpsimd->vregs[i * 2] = (uint64_t)v;           // Low bits
+        fpsimd->vregs[i * 2] = (uint64_t)v;             // Low bits
         fpsimd->vregs[i * 2 + 1] = (uint64_t)(v >> 64); // High bits
     }
 }
 
-void a64_restore_sigcontext(struct cpu_state *cpu, struct a64_sigcontext *sc) {
+void a64_restore_sigcontext(struct cpu_state *cpu, struct a64_sigcontext *sc)
+{
     // Restore general purpose registers
     for (int i = 0; i < 31; i++) {
         cpu->x[i] = sc->regs[i];
@@ -64,8 +68,8 @@ void a64_restore_sigcontext(struct cpu_state *cpu, struct a64_sigcontext *sc) {
     cpu->pstate = sc->pstate;
 }
 
-void a64_restore_fpsimd_context(struct cpu_state *cpu,
-                                 struct a64_fpsimd_context *fpsimd) {
+void a64_restore_fpsimd_context(struct cpu_state *cpu, struct a64_fpsimd_context *fpsimd)
+{
     cpu->fpsr = fpsimd->fpsr;
     cpu->fpcr = fpsimd->fpcr;
 
@@ -81,7 +85,8 @@ void a64_restore_fpsimd_context(struct cpu_state *cpu,
  * Calculate signal frame layout
  * Returns total size needed, including frame record
  */
-static size_t a64_calc_sigframe_size(void) {
+static size_t a64_calc_sigframe_size(void)
+{
     size_t size = sizeof(struct a64_rt_sigframe);
 
     // Ensure we have at least the 4K reserved space
@@ -100,8 +105,8 @@ static size_t a64_calc_sigframe_size(void) {
 /*
  * Get signal frame base address
  */
-static uint64_t a64_get_sigframe_base(struct task *task,
-                                       struct sigaction_ *action) {
+static uint64_t a64_get_sigframe_base(struct task *task, struct sigaction_ *action)
+{
     uint64_t sp;
 
     // Use alternate stack if set and SA_ONSTACK is set
@@ -126,7 +131,9 @@ static uint64_t a64_get_sigframe_base(struct task *task,
 }
 
 int a64_setup_rt_frame(struct task *task, int sig, struct siginfo_ *info,
-                       struct a64_rt_sigframe *frame) {
+                       struct a64_rt_sigframe *frame)
+{
+    (void)sig; // Signal number available if needed for frame setup
     struct cpu_state *cpu = &task->cpu;
     struct a64_sigcontext *sc = &frame->uc.uc_mcontext;
     struct a64_fpsimd_context *fpsimd;
@@ -147,8 +154,7 @@ int a64_setup_rt_frame(struct task *task, int sig, struct siginfo_ *info,
     a64_setup_fpsimd_context(fpsimd, cpu);
 
     // End marker after FPSIMD
-    end_ctx = (struct a64_context_header *)((char *)fpsimd +
-                                             sizeof(*fpsimd));
+    end_ctx = (struct a64_context_header *)((char *)fpsimd + sizeof(*fpsimd));
     end_ctx->magic = A64_END_MAGIC;
     end_ctx->size = 0;
 
@@ -161,7 +167,8 @@ int a64_setup_rt_frame(struct task *task, int sig, struct siginfo_ *info,
 /*
  * Setup signal delivery to a task
  */
-void a64_deliver_signal(struct task *task, int sig, struct siginfo_ *info) {
+void a64_deliver_signal(struct task *task, int sig, struct siginfo_ *info)
+{
     struct cpu_state *cpu = &task->cpu;
     struct sigaction_ *action = &task->sighand->action[sig];
     uint64_t frame_addr, fr_addr, return_addr;
@@ -186,9 +193,9 @@ void a64_deliver_signal(struct task *task, int sig, struct siginfo_ *info) {
     struct a64_frame_record fr_local;
 
     // Setup frame record for unwinding
-    fr_local.fp = cpu->x[29];  // Save current FP
-    fr_local.lr = cpu->x[30];  // Save current LR
-    
+    fr_local.fp = cpu->x[29]; // Save current FP
+    fr_local.lr = cpu->x[30]; // Save current LR
+
     // Write frame record to guest memory
     if (user_write_task(task, fr_addr, &fr_local, sizeof(fr_local))) {
         // Failed to write frame record - deliver SIGSEGV
@@ -205,16 +212,14 @@ void a64_deliver_signal(struct task *task, int sig, struct siginfo_ *info) {
     }
 
     // Modify CPU state for signal handler entry
-    cpu->x[0] = sig;                          // First arg: signo
-    cpu->x[1] = frame_addr +
-                 offsetof(struct a64_rt_sigframe, info);  // Second arg: siginfo
-    cpu->x[2] = frame_addr +
-                 offsetof(struct a64_rt_sigframe, uc);    // Third arg: ucontext
+    cpu->x[0] = sig;                                                 // First arg: signo
+    cpu->x[1] = frame_addr + offsetof(struct a64_rt_sigframe, info); // Second arg: siginfo
+    cpu->x[2] = frame_addr + offsetof(struct a64_rt_sigframe, uc);   // Third arg: ucontext
 
-    cpu->x[29] = fr_addr;                     // New frame pointer
-    cpu->x[30] = return_addr;                 // Return to sigtramp
-    cpu->sp = frame_addr;                     // New stack pointer
-    cpu->pc = (uint64_t)action->handler;      // Jump to handler
+    cpu->x[29] = fr_addr;                // New frame pointer
+    cpu->x[30] = return_addr;            // Return to sigtramp
+    cpu->sp = frame_addr;                // New stack pointer
+    cpu->pc = (uint64_t)action->handler; // Jump to handler
 
     // Signal mask handling
     if (!(action->flags & SA_NODEFER_)) {
@@ -229,7 +234,8 @@ void a64_deliver_signal(struct task *task, int sig, struct siginfo_ *info) {
  * Setup sigtramp code
  * This is placed in the vdso or a dedicated page
  */
-int a64_setup_sigtramp(uint64_t *tramp) {
+int a64_setup_sigtramp(uint64_t *tramp)
+{
     // mov x8, #139  (A64_NR_rt_sigreturn)
     // svc #0
     tramp[0] = A64_RT_SIGRETURN_CODE0;
@@ -241,7 +247,8 @@ int a64_setup_sigtramp(uint64_t *tramp) {
  * Handle sigreturn syscall
  * Restores CPU state from signal frame
  */
-int a64_handle_sigreturn(struct cpu_state *cpu) {
+int a64_handle_sigreturn(struct cpu_state *cpu)
+{
     uint64_t frame_addr = cpu->sp;
 
     // Frame must be 16-byte aligned
@@ -277,7 +284,8 @@ int a64_handle_sigreturn(struct cpu_state *cpu) {
 /*
  * Handle rt_sigreturn syscall entry point
  */
-dword_t sys_rt_sigreturn_aarch64(void) {
+dword_t sys_rt_sigreturn_aarch64(void)
+{
     struct task *task = current;
     struct cpu_state *cpu = &task->cpu;
 

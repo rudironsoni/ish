@@ -1,6 +1,8 @@
 // VDSO for AArch64 guest
 // Provides userspace implementations of time functions and signal return
 
+#include <stdint.h>
+
 typedef long time_t;
 typedef int clockid_t;
 
@@ -57,7 +59,8 @@ int __vdso_gettimeofday(void *timeval, void *timezone)
 
 int __vdso_clock_gettime(clockid_t clock, void *timespec)
 {
-    int result;
+    uint32_t result;
+    uint64_t clock64 = (uint64_t)(uint32_t)clock;
     // AArch64 syscall: clock_gettime
     __asm__ volatile("mov x8, #113\n\t" // __NR_clock_gettime
                      "mov x0, %1\n\t"   // clock
@@ -65,7 +68,7 @@ int __vdso_clock_gettime(clockid_t clock, void *timespec)
                      "svc #0\n\t"       // syscall
                      "mov %w0, w0\n\t"  // result
                      : "=r"(result)
-                     : "r"(clock), "r"(timespec)
+                     : "r"(clock64), "r"(timespec)
                      : "x0", "x1", "x8", "memory");
-    return result;
+    return (int)result;
 }

@@ -1,2 +1,2 @@
 #include "StaticLib.xcconfig"
-HEADER_SEARCH_PATHS = $(inherited) $(SRCROOT) $(SRCROOT)/app $(SRCROOT)/app/Instrumentation $(SRCROOT)/deps/libarchive/libarchive
+HEADER_SEARCH_PATHS = $(inherited) $(SRCROOT) $(SRCROOT)/app $(SRCROOT)/app/Instrumentation

@@ -12,8 +12,11 @@ readonly CLEAN_ENV=(
 )
 
 run_clean() {
-    env "${CLEAN_ENV[@]}" "$@"
+  env "${CLEAN_ENV[@]}" "$@"
 }
+
+# Ensure Homebrew bin is in PATH for finding ninja
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 
 resolve_binary() {
     local tool="$1"

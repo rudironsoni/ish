@@ -7,7 +7,9 @@
  */
 
 #include "kernel/aarch64/vdso.h"
+
 #include "kernel/aarch64/signal.h"
+
 #include <string.h>
 
 // Signal trampoline code for rt_sigreturn
@@ -16,8 +18,8 @@
 static const uint32_t vdso_sigtramp_code[] = {
     // mov x8, #139 (A64_NR_rt_sigreturn)
     // svc #0
-    0xd2801168,  // mov x8, #139 (0x8b = 139)
-    0xd4000001,  // svc #0
+    0xd2801168, // mov x8, #139 (0x8b = 139)
+    0xd4000001, // svc #0
 };
 
 // The vdso page layout
@@ -30,7 +32,8 @@ struct vdso_data {
 
 static struct vdso_data vdso_page;
 
-int a64_init_vdso(void) {
+int a64_init_vdso(void)
+{
     memset(&vdso_page, 0, sizeof(vdso_page));
 
     // Copy sigtramp code
@@ -39,13 +42,15 @@ int a64_init_vdso(void) {
     return 0;
 }
 
-uint64_t a64_get_vdso_sigtramp(void) {
+uint64_t a64_get_vdso_sigtramp(void)
+{
     // The sigtramp is at the beginning of the vdso page
     return A64_VDSO_BASE;
 }
 
 // Get the vdso page for mapping into processes
-const void *a64_get_vdso_page(size_t *size) {
+const void *a64_get_vdso_page(size_t *size)
+{
     if (size) {
         *size = sizeof(vdso_page);
     }
@@ -53,7 +58,9 @@ const void *a64_get_vdso_page(size_t *size) {
 }
 
 // Setup vdso in a new process's address space
-int a64_setup_vdso(struct mm *mm) {
+int a64_setup_vdso(struct mm *mm)
+{
+    (void)mm; // Placeholder - VDSO mapping not yet implemented
     // Map the vdso page at A64_VDSO_BASE
     // This would call the memory mapping functions
     // For now, this is a placeholder

@@ -7,6 +7,7 @@
 
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
+#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 #include <sys/stat.h>
 #include "SceneDelegate.h"
 #include "iOSFS.h"
@@ -56,7 +57,8 @@ const NSFileCoordinatorWritingOptions NSFileCoordinatorWritingForCreating = NSFi
         return _ENODEV;
 
     dispatch_async(dispatch_get_main_queue(), ^(void) {
-        UIDocumentPickerViewController *picker = [[UIDocumentPickerViewController alloc] initWithDocumentTypes:@[ @"public.folder" ] inMode:UIDocumentPickerModeOpen];
+        NSArray<UTType *> *contentTypes = @[[UTType typeWithIdentifier:@"public.folder"]];
+        UIDocumentPickerViewController *picker = [[UIDocumentPickerViewController alloc] initForOpeningContentTypes:contentTypes];
         picker.delegate = self;
         if (@available(iOS 13, *)) {
         } else {

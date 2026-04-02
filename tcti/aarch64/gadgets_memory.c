@@ -175,50 +175,6 @@ static const char *get_ldst_mnemonic(int is_load, int size, int is_signed)
     }
 }
 
-/*
- * Classify X2 source based on addressing mode and instruction type
- */
-static const char *classify_x2_source(int rn, uint64_t rn_value, int rm, int is_reg_offset,
-                                      int idx_mode, int is_load)
-{
-    /*
-     * Classification rules:
-     * - Stack: if rn == 31 (SP) or rn_value is in stack range
-     * - AUXV: if loading from initial stack with specific patterns
-     * - TLS/TCB: if rn points to thread-local storage
-     * - Derived arithmetic: if using register offset or pre/post index with calc
-     */
-
-    if (!is_load) {
-        return "store_to_memory"; // X2 is source, not destination
-    }
-
-    /* Check for stack-relative addressing */
-    if (rn == 31 || rn == 2 /* X2 as base - stack-relative */) {
-        return "stack";
-    }
-
-    /* Check for register offset (indicates derived/arthmetic) */
-    if (is_reg_offset && rm != 31) {
-        return "derived_arithmetic";
-    }
-
-    /* Pre-index or post-index with immediate suggests stack manipulation */
-    if (idx_mode == A64_PRE_INDEX || idx_mode == A64_POST_INDEX) {
-        if (rn == 31 || rn <= 5) { /* SP or low regs often used for stack */
-            return "stack";
-        }
-    }
-
-    /* Check for common patterns */
-    if (rn == 0) {
-        /* Loading from X0 (often argv pointer in startup) */
-        return "argv_envp";
-    }
-
-    return "memory_unknown";
-}
-
 static void tcti_write_base_reg_or_sp(struct cpu_state *cpu, int reg, uint64_t value, int is_64bit)
 {
     uint64_t masked = is_64bit ? value : (uint32_t)value;
@@ -324,7 +280,6 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
     trace_emit_gadget_ldr_idx_mode(idx_mode);
 
     uint64_t addr = base;
-    uint64_t raw_offset = 0;
     uint64_t is_signed = meta & 0xff;
     uint64_t is_reg_offset = (meta >> 8) & 0xff;
     int rm = (meta >> 16) & 0xff;
@@ -334,7 +289,6 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
 
     if (is_reg_offset) {
         uint64_t offset = tcti_extend_ldst_offset(cpu, rm, extend_type);
-        raw_offset = tcti_read_reg_or_zr(cpu, rm);
         addr = base + (offset << reg_shift);
     } else {
         switch (idx_mode) {
@@ -437,10 +391,6 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
 
             // Get mnemonic
             const char *mnemonic = get_ldst_mnemonic(1, (int)size, (int)is_signed);
-
-            // Classify source
-            const char *source_class =
-                classify_x2_source((int)rn, base, rm, (int)is_reg_offset, (int)idx_mode, 1);
 
             // Emit detailed provenance checkpoint
             trace_x2_provenance_checkpoint(fault_pc, raw_insn, old_x2, value, mnemonic, (int)rn, rm,

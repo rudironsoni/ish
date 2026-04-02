@@ -691,13 +691,10 @@ static void trace_tcti_to_ring(trace_event_id_t event, uint64_t value)
 
 void trace_emit_tcti_entry_x28_before(uint64_t x28_value)
 {
+    /* Buffer retained for ring buffer logging */
     char x28_buf[24];
     snprintf(x28_buf, sizeof(x28_buf), "0x%llx", (unsigned long long)x28_value);
 
-    ish_instrumentation_attribute_t attrs[] = {
-        { "x28_before", x28_buf },
-        { "event", "tcti.entry.x28.before" },
-    };
     ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "tcti.entry.x28.before");
 
     /* Also write to ring buffer for pre-crash capture */
@@ -706,13 +703,10 @@ void trace_emit_tcti_entry_x28_before(uint64_t x28_value)
 
 void trace_emit_tcti_entry_qword0(uint64_t qword0)
 {
+    /* Buffer retained for ring buffer logging */
     char qword0_buf[24];
     snprintf(qword0_buf, sizeof(qword0_buf), "0x%llx", (unsigned long long)qword0);
 
-    ish_instrumentation_attribute_t attrs[] = {
-        { "qword0", qword0_buf },
-        { "event", "tcti.entry.qword0" },
-    };
     ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "tcti.entry.qword0");
 
     /* Also write to ring buffer for pre-crash capture */
@@ -721,13 +715,10 @@ void trace_emit_tcti_entry_qword0(uint64_t qword0)
 
 void trace_emit_tcti_entry_x27_after(uint64_t x27_value)
 {
+    /* Buffer retained for ring buffer logging */
     char x27_buf[24];
     snprintf(x27_buf, sizeof(x27_buf), "0x%llx", (unsigned long long)x27_value);
 
-    ish_instrumentation_attribute_t attrs[] = {
-        { "x27_after", x27_buf },
-        { "event", "tcti.entry.x27.after" },
-    };
     ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "tcti.entry.x27.after");
 
     /* Also write to ring buffer for pre-crash capture */
@@ -736,13 +727,10 @@ void trace_emit_tcti_entry_x27_after(uint64_t x27_value)
 
 void trace_emit_tcti_entry_x28_after(uint64_t x28_value)
 {
+    /* Buffer retained for ring buffer logging */
     char x28_buf[24];
     snprintf(x28_buf, sizeof(x28_buf), "0x%llx", (unsigned long long)x28_value);
 
-    ish_instrumentation_attribute_t attrs[] = {
-        { "x28_after", x28_buf },
-        { "event", "tcti.entry.x28.after" },
-    };
     ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "tcti.entry.x28.after");
 
     /* Also write to ring buffer for pre-crash capture */
@@ -751,13 +739,10 @@ void trace_emit_tcti_entry_x28_after(uint64_t x28_value)
 
 void trace_emit_tcti_entry_qword1(uint64_t qword1)
 {
+    /* Buffer retained for ring buffer logging */
     char qword1_buf[24];
     snprintf(qword1_buf, sizeof(qword1_buf), "0x%llx", (unsigned long long)qword1);
 
-    ish_instrumentation_attribute_t attrs[] = {
-        { "qword1", qword1_buf },
-        { "event", "tcti.entry.qword1" },
-    };
     ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "tcti.entry.qword1");
 
     /* Also write to ring buffer for pre-crash capture */
@@ -766,13 +751,10 @@ void trace_emit_tcti_entry_qword1(uint64_t qword1)
 
 void trace_emit_gadget_entry_x28(uint64_t x28_value)
 {
+    /* Buffer retained for ring buffer logging */
     char x28_buf[24];
     snprintf(x28_buf, sizeof(x28_buf), "0x%llx", (unsigned long long)x28_value);
 
-    ish_instrumentation_attribute_t attrs[] = {
-        { "x28", x28_buf },
-        { "event", "gadget.entry.x28" },
-    };
     ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "gadget.entry.x28");
 
     /* Also write to ring buffer for pre-crash capture */
@@ -781,13 +763,10 @@ void trace_emit_gadget_entry_x28(uint64_t x28_value)
 
 void trace_emit_gadget_fault_addr(uint64_t fault_addr)
 {
+    /* Buffer retained for ring buffer logging */
     char addr_buf[24];
     snprintf(addr_buf, sizeof(addr_buf), "0x%llx", (unsigned long long)fault_addr);
 
-    ish_instrumentation_attribute_t attrs[] = {
-        { "fault_addr", addr_buf },
-        { "event", "gadget.fault_addr" },
-    };
     ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "gadget.fault_addr");
 
     /* Also write to ring buffer for pre-crash capture */
@@ -804,110 +783,84 @@ void trace_emit_gadget_fault_addr(uint64_t fault_addr)
 
 void trace_emit_gadget_ldr_fault_pc(uint64_t fault_pc)
 {
+    /* Buffer retained for ring buffer logging */
     char buf[24];
     snprintf(buf, sizeof(buf), "0x%llx", (unsigned long long)fault_pc);
 
-    ish_instrumentation_attribute_t attrs[] = {
-        { "fault_pc", buf },
-        { "event", "gadget.ldr.fault_pc" },
-    };
     ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "gadget.ldr.fault_pc");
     trace_tcti_to_ring(TRACE_EVENT_GADGET_LDR_FAULT_PC, fault_pc);
 }
 
 void trace_emit_gadget_ldr_rn_value(uint64_t rn_value)
 {
+    /* Buffer retained for ring buffer logging */
     char buf[24];
     snprintf(buf, sizeof(buf), "0x%llx", (unsigned long long)rn_value);
 
-    ish_instrumentation_attribute_t attrs[] = {
-        { "rn_value", buf },
-        { "event", "gadget.ldr.rn_value" },
-    };
     ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "gadget.ldr.rn_value");
     trace_tcti_to_ring(TRACE_EVENT_GADGET_LDR_RN_VALUE, rn_value);
 }
 
 void trace_emit_gadget_ldr_imm_value(uint64_t imm_value)
 {
+    /* Buffer retained for ring buffer logging */
     char buf[24];
     snprintf(buf, sizeof(buf), "0x%llx", (unsigned long long)imm_value);
 
-    ish_instrumentation_attribute_t attrs[] = {
-        { "imm", buf },
-        { "event", "gadget.ldr.imm_value" },
-    };
     ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "gadget.ldr.imm_value");
     trace_tcti_to_ring(TRACE_EVENT_GADGET_LDR_IMM_VALUE, imm_value);
 }
 
 void trace_emit_gadget_ldr_idx_mode(uint64_t idx_mode)
 {
+    /* Buffer retained for ring buffer logging */
     char buf[24];
     snprintf(buf, sizeof(buf), "0x%llx", (unsigned long long)idx_mode);
 
-    ish_instrumentation_attribute_t attrs[] = {
-        { "idx_mode", buf },
-        { "event", "gadget.ldr.idx_mode" },
-    };
     ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "gadget.ldr.idx_mode");
     trace_tcti_to_ring(TRACE_EVENT_GADGET_LDR_IDX_MODE, idx_mode);
 }
 
 void trace_emit_gadget_ldr_guest_vaddr(uint64_t guest_vaddr)
 {
+    /* Buffer retained for ring buffer logging */
     char buf[24];
     snprintf(buf, sizeof(buf), "0x%llx", (unsigned long long)guest_vaddr);
 
-    ish_instrumentation_attribute_t attrs[] = {
-        { "guest_vaddr", buf },
-        { "event", "gadget.ldr.guest_vaddr" },
-    };
     ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "gadget.ldr.guest_vaddr");
     trace_tcti_to_ring(TRACE_EVENT_GADGET_LDR_GUEST_VADDR, guest_vaddr);
 }
 
 void trace_emit_gadget_ldr_host_ptr(uint64_t host_ptr)
 {
+    /* Buffer retained for ring buffer logging */
     char buf[24];
     snprintf(buf, sizeof(buf), "0x%llx", (unsigned long long)host_ptr);
 
-    ish_instrumentation_attribute_t attrs[] = {
-        { "host_ptr", buf },
-        { "event", "gadget.ldr.host_ptr" },
-    };
     ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "gadget.ldr.host_ptr");
     trace_tcti_to_ring(TRACE_EVENT_GADGET_LDR_HOST_PTR, host_ptr);
 }
 
 void trace_emit_mem_translate_attempt(uint64_t guest_addr, uint64_t size)
 {
+    /* Buffers retained for ring buffer logging */
     char addr_buf[24];
     char size_buf[24];
     snprintf(addr_buf, sizeof(addr_buf), "0x%llx", (unsigned long long)guest_addr);
     snprintf(size_buf, sizeof(size_buf), "0x%llx", (unsigned long long)size);
 
-    ish_instrumentation_attribute_t attrs[] = {
-        { "guest_addr", addr_buf },
-        { "size", size_buf },
-        { "event", "mem.translate.attempt" },
-    };
     ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_KERNEL, "mem.translate.attempt");
     trace_tcti_to_ring(TRACE_EVENT_MEM_TRANSLATE_ATTEMPT, guest_addr);
 }
 
 void trace_emit_mem_translate_result(uint64_t host_ptr, int success)
 {
+    /* Buffers retained for ring buffer logging */
     char ptr_buf[24];
     char success_buf[8];
     snprintf(ptr_buf, sizeof(ptr_buf), "0x%llx", (unsigned long long)host_ptr);
     snprintf(success_buf, sizeof(success_buf), "%d", success);
 
-    ish_instrumentation_attribute_t attrs[] = {
-        { "host_ptr", ptr_buf },
-        { "success", success_buf },
-        { "event", "mem.translate.result" },
-    };
     ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_KERNEL, "mem.translate.result");
     trace_tcti_to_ring(TRACE_EVENT_MEM_TRANSLATE_RESULT, host_ptr);
 }

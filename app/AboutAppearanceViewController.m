@@ -262,13 +262,7 @@ enum {
 }
 
 - (void)selectFont:(id)sender {
-    if (@available(iOS 13, *)) {
-        [self.navigationController pushViewController:self.fontPicker animated:YES];
-        return;
-    }
-    
-    FontPickerViewController *fontPicker = [self.storyboard instantiateViewControllerWithIdentifier:@"FontPicker"];
-    [self.navigationController pushViewController:fontPicker animated:YES];
+    [self.navigationController pushViewController:self.fontPicker animated:YES];
 }
 
 - (void)fontPickerViewControllerDidPickFont:(UIFontPickerViewController *)viewController API_AVAILABLE(ios(13.0)) {

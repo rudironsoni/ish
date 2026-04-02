@@ -733,33 +733,33 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
         for (unsigned i = 1; i <= 7; i++) {
             [commands addObject:
              [UIKeyCommand keyCommandWithInput:[NSString stringWithFormat:@"%d", i]
-                                 modifierFlags:UIKeyModifierCommand|UIKeyModifierAlternate|UIKeyModifierShift
-                                        action:@selector(switchTerminal:)]];
+                                modifierFlags:UIKeyModifierCommand|UIKeyModifierAlternate|UIKeyModifierShift
+                                       action:@selector(switchTerminal:)]];
         }
-        [commands addObject:
-         [UIKeyCommand keyCommandWithInput:@"+"
-                             modifierFlags:UIKeyModifierCommand
-                                    action:@selector(increaseFontSize:)
-                      discoverabilityTitle:@"Increase Font Size"]];
+        UIKeyCommand *increaseFontCommand = [UIKeyCommand keyCommandWithInput:@"+"
+                                                               modifierFlags:UIKeyModifierCommand
+                                                                      action:@selector(increaseFontSize:)];
+        increaseFontCommand.title = @"Increase Font Size";
+        [commands addObject:increaseFontCommand];
         [commands addObject:
          [UIKeyCommand keyCommandWithInput:@"="
-                             modifierFlags:UIKeyModifierCommand
-                                    action:@selector(increaseFontSize:)]];
-        [commands addObject:
-         [UIKeyCommand keyCommandWithInput:@"-"
-                             modifierFlags:UIKeyModifierCommand
-                                    action:@selector(decreaseFontSize:)
-                      discoverabilityTitle:@"Decrease Font Size"]];
-        [commands addObject:
-         [UIKeyCommand keyCommandWithInput:@"0"
-                             modifierFlags:UIKeyModifierCommand
-                                    action:@selector(resetFontSize:)
-                      discoverabilityTitle:@"Reset Font Size"]];
-        [commands addObject:
-         [UIKeyCommand keyCommandWithInput:@","
-                             modifierFlags:UIKeyModifierCommand
-                                    action:@selector(showAbout:)
-                      discoverabilityTitle:@"Settings"]];
+                            modifierFlags:UIKeyModifierCommand
+                                   action:@selector(increaseFontSize:)]];
+        UIKeyCommand *decreaseFontCommand = [UIKeyCommand keyCommandWithInput:@"-"
+                                                               modifierFlags:UIKeyModifierCommand
+                                                                      action:@selector(decreaseFontSize:)];
+        decreaseFontCommand.title = @"Decrease Font Size";
+        [commands addObject:decreaseFontCommand];
+        UIKeyCommand *resetFontCommand = [UIKeyCommand keyCommandWithInput:@"0"
+                                                           modifierFlags:UIKeyModifierCommand
+                                                                  action:@selector(resetFontSize:)];
+        resetFontCommand.title = @"Reset Font Size";
+        [commands addObject:resetFontCommand];
+        UIKeyCommand *settingsCommand = [UIKeyCommand keyCommandWithInput:@","
+                                                          modifierFlags:UIKeyModifierCommand
+                                                                 action:@selector(showAbout:)];
+        settingsCommand.title = @"Settings";
+        [commands addObject:settingsCommand];
     }
     return commands;
 }

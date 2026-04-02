@@ -5,6 +5,7 @@
 //  Created by Theodore Dubois on 6/7/20.
 //
 
+#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 #import "Roots.h"
 #import "RootsTableViewController.h"
 #import "ProgressReportViewController.h"
@@ -62,9 +63,11 @@
 }
 
 - (IBAction)importFilesystem:(id)sender {
-    UIDocumentPickerViewController *picker = [[UIDocumentPickerViewController alloc]
-                                              initWithDocumentTypes:@[@"public.tar-archive", @"org.gnu.gnu-zip-archive"]
-                                              inMode:UIDocumentPickerModeImport];
+    NSArray<UTType *> *contentTypes = @[
+        [UTType typeWithIdentifier:@"public.tar-archive"],
+        [UTType typeWithIdentifier:@"org.gnu.gnu-zip-archive"]
+    ];
+    UIDocumentPickerViewController *picker = [[UIDocumentPickerViewController alloc] initForOpeningContentTypes:contentTypes];
     [self presentViewController:picker animated:YES completion:nil];
     if (@available(iOS 13, *)) {
         picker.shouldShowFileExtensions = YES;
@@ -210,10 +213,9 @@
                     return;
                 }
 
-                UIDocumentPickerViewController *picker = [[UIDocumentPickerViewController alloc]
-                                                          initWithURL:self.exportURL
-                                                          inMode:UIDocumentPickerModeExportToService];
-                picker.delegate = self;
+                        UIDocumentPickerViewController *picker = [[UIDocumentPickerViewController alloc]
+                                                                  initForExportingURLs:@[self.exportURL] asCopy:NO];
+                        picker.delegate = self;
                 if (@available(iOS 13, *)) {
                     picker.shouldShowFileExtensions = YES;
                 }

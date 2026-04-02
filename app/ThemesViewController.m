@@ -7,6 +7,7 @@
 
 #import "ThemesViewController.h"
 
+#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 #import "NSObject+SaneKVO.h"
 #import "Theme.h"
 #import "ThemeViewController.h"
@@ -277,7 +278,8 @@ enum {
 }
 
 - (void)importTheme {
-    UIDocumentPickerViewController *picker = [[UIDocumentPickerViewController alloc] initWithDocumentTypes:@[ @"public.json" ] inMode:UIDocumentPickerModeOpen];
+    NSArray<UTType *> *contentTypes = @[[UTType typeWithIdentifier:@"public.json"]];
+    UIDocumentPickerViewController *picker = [[UIDocumentPickerViewController alloc] initForOpeningContentTypes:contentTypes];
     picker.delegate = self;
     if (@available(iOS 13, *)) {
     } else {
