@@ -1,1 +1,1 @@
-NINJA_TARGETS = libish.a libish_emu.a libfakefs.a
+NINJA_TARGETS = ish ish_emu fakefs

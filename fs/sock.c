@@ -1,16 +1,19 @@
+#include "fs/sock.h"
+
+#include "fs/fd.h"
+#include "fs/inode.h"
+#include "fs/path.h"
+#include "fs/real.h"
+#include "kernel/calls.h"
+
+#include "debug.h"
+
 #include <fcntl.h>
 #include <netinet/tcp.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
-#include "kernel/calls.h"
-#include "fs/fd.h"
-#include "fs/inode.h"
-#include "fs/path.h"
-#include "fs/real.h"
-#include "fs/sock.h"
-#include "debug.h"
 
 #define SOCKET_TYPE_MASK 0xf
 
@@ -18,7 +21,8 @@ const struct fd_ops socket_fdops;
 
 static lock_t peer_lock = LOCK_INITIALIZER;
 
-static fd_t sock_fd_create(int sock_fd, int domain, int type, int protocol) {
+static fd_t sock_fd_create(int sock_fd, int domain, int type, int protocol)
+{
     struct fd *fd = adhoc_fd_create(&socket_fdops);
     if (fd == NULL)
         return _ENOMEM;
@@ -34,7 +38,8 @@ static fd_t sock_fd_create(int sock_fd, int domain, int type, int protocol) {
     return f_install(fd, type & ~SOCKET_TYPE_MASK);
 }
 
-int_t sys_socket(dword_t domain, dword_t type, dword_t protocol) {
+int_t sys_socket(dword_t domain, dword_t type, dword_t protocol)
+{
     STRACE("socket(%d, %d, %d)", domain, type, protocol);
     int real_domain = sock_family_to_real(domain);
     if (real_domain < 0)
@@ -66,19 +71,22 @@ int_t sys_socket(dword_t domain, dword_t type, dword_t protocol) {
     return f;
 }
 
-static void inode_release_if_exist(struct inode_data *inode) {
+static void inode_release_if_exist(struct inode_data *inode)
+{
     if (inode != NULL)
         inode_release(inode);
 }
 
-static struct fd *sock_getfd(fd_t sock_fd) {
+static struct fd *sock_getfd(fd_t sock_fd)
+{
     struct fd *sock = f_get(sock_fd);
     if (sock == NULL || sock->ops != &socket_fdops)
         return NULL;
     return sock;
 }
 
-static uint32_t unix_socket_next_id() {
+static uint32_t unix_socket_next_id()
+{
     static uint32_t next_id = 0;
     static lock_t next_id_lock = LOCK_INITIALIZER;
     lock(&next_id_lock);
@@ -87,7 +95,8 @@ static uint32_t unix_socket_next_id() {
     return id;
 }
 
-static int unix_socket_get(const char *path_raw, struct fd *bind_fd, uint32_t *socket_id) {
+static int unix_socket_get(const char *path_raw, struct fd *bind_fd, uint32_t *socket_id)
+{
     char path[MAX_PATH];
     int err = path_normalize(AT_PWD, path_raw, path, N_SYMLINK_FOLLOW);
     if (err < 0)
@@ -150,7 +159,8 @@ out:
 }
 
 // Dan Bernstein's simple and decently effective hash function
-static uint32_t str_hash(const char *str) {
+static uint32_t str_hash(const char *str)
+{
     uint32_t hash = 5381;
     for (int i = 0; str[i] != '\0'; i++) {
         hash = 33 * hash ^ str[i];
@@ -172,7 +182,8 @@ struct unix_abstract {
 static struct list abstract_hash[ABSTRACT_HASH_SIZE];
 static lock_t unix_abstract_lock = LOCK_INITIALIZER;
 
-static int unix_abstract_get(const char *name, struct fd *bind_fd, uint32_t *socket_id) {
+static int unix_abstract_get(const char *name, struct fd *bind_fd, uint32_t *socket_id)
+{
     uint32_t hash = str_hash(name);
     lock(&unix_abstract_lock);
     struct unix_abstract *sock_tmp;
@@ -180,7 +191,7 @@ static int unix_abstract_get(const char *name, struct fd *bind_fd, uint32_t *soc
     struct list *bucket = &abstract_hash[hash % ABSTRACT_HASH_SIZE];
     if (list_null(bucket))
         list_init(bucket);
-    list_for_each_entry(bucket, sock_tmp, links) {
+    list_for_each_entry (bucket, sock_tmp, links) {
         if (sock_tmp->hash == hash) {
             sock = sock_tmp;
             break;
@@ -212,7 +223,8 @@ static int unix_abstract_get(const char *name, struct fd *bind_fd, uint32_t *soc
     return 0;
 }
 
-static void unix_abstract_release(struct unix_abstract *name) {
+static void unix_abstract_release(struct unix_abstract *name)
+{
     lock(&unix_abstract_lock);
     if (--name->refcount == 0) {
         list_remove(&name->links);
@@ -223,7 +235,9 @@ static void unix_abstract_release(struct unix_abstract *name) {
 
 const char *sock_tmp_prefix = "/tmp/ishsock";
 
-static int sockaddr_read_bind(addr_t sockaddr_addr, void *sockaddr, uint_t *sockaddr_len, struct fd *bind_fd) {
+static int sockaddr_read_bind(addr_t sockaddr_addr, void *sockaddr, dword_t *sockaddr_len,
+                              struct fd *bind_fd)
+{
     // Make sure we can read things without overflowing buffers
     if (*sockaddr_len < 2)
         return _EINVAL;
@@ -237,83 +251,87 @@ static int sockaddr_read_bind(addr_t sockaddr_addr, void *sockaddr, uint_t *sock
     real_addr->sa_family = sock_family_to_real(fake_addr->family);
 
     switch (real_addr->sa_family) {
-        case PF_INET:
-            if (*sockaddr_len < sizeof(struct sockaddr_in))
-                return _EINVAL;
-            break;
-        case PF_INET6:
-            if (*sockaddr_len < sizeof(struct sockaddr_in6))
-                return _EINVAL;
-            break;
-
-        case PF_LOCAL: {
-            // First pull out the path, being careful to not overflow anything.
-            char path[SOCKADDR_DATA_MAX + 1];
-            size_t path_size = *sockaddr_len - offsetof(struct sockaddr_, data);
-            memcpy(path, fake_addr->data, path_size);
-            path[path_size] = '\0';
-
-            uint32_t socket_id;
-            int err;
-            if (path_size == 0) {
-                return _ENOENT;
-            } else if (path[0] != '\0') {
-                STRACE(" unix socket %s", path);
-                err = unix_socket_get(path, bind_fd, &socket_id);
-            } else {
-                STRACE(" unix abstract socket %s", path + 1);
-                err = unix_abstract_get(path + 1, bind_fd, &socket_id);
-            }
-            if (err < 0)
-                return err;
-            if (bind_fd != NULL) {
-                bind_fd->socket.unix_name_len = path_size;
-                memcpy(bind_fd->socket.unix_name, path, path_size);
-            }
-
-            struct sockaddr_un *real_addr_un = sockaddr;
-            size_t path_len = sprintf(real_addr_un->sun_path, "%s%d.%u", sock_tmp_prefix, getpid(), socket_id);
-            // The call to real bind will fail if the backing socket already
-            // exists from a previous run or something. We already checked that
-            // the fake file doesn't exist in unix_socket_get, so try a simple
-            // solution.
-            if (bind_fd != NULL)
-                unlink(real_addr_un->sun_path);
-            *sockaddr_len = offsetof(struct sockaddr_un, sun_path) + path_len;
-            break;
-        }
-        default:
+    case PF_INET:
+        if (*sockaddr_len < sizeof(struct sockaddr_in))
             return _EINVAL;
+        break;
+    case PF_INET6:
+        if (*sockaddr_len < sizeof(struct sockaddr_in6))
+            return _EINVAL;
+        break;
+
+    case PF_LOCAL: {
+        // First pull out the path, being careful to not overflow anything.
+        char path[SOCKADDR_DATA_MAX + 1];
+        size_t path_size = *sockaddr_len - offsetof(struct sockaddr_, data);
+        memcpy(path, fake_addr->data, path_size);
+        path[path_size] = '\0';
+
+        uint32_t socket_id;
+        int err;
+        if (path_size == 0) {
+            return _ENOENT;
+        } else if (path[0] != '\0') {
+            STRACE(" unix socket %s", path);
+            err = unix_socket_get(path, bind_fd, &socket_id);
+        } else {
+            STRACE(" unix abstract socket %s", path + 1);
+            err = unix_abstract_get(path + 1, bind_fd, &socket_id);
+        }
+        if (err < 0)
+            return err;
+        if (bind_fd != NULL) {
+            bind_fd->socket.unix_name_len = path_size;
+            memcpy(bind_fd->socket.unix_name, path, path_size);
+        }
+
+        struct sockaddr_un *real_addr_un = sockaddr;
+        size_t path_len =
+            sprintf(real_addr_un->sun_path, "%s%d.%u", sock_tmp_prefix, getpid(), socket_id);
+        // The call to real bind will fail if the backing socket already
+        // exists from a previous run or something. We already checked that
+        // the fake file doesn't exist in unix_socket_get, so try a simple
+        // solution.
+        if (bind_fd != NULL)
+            unlink(real_addr_un->sun_path);
+        *sockaddr_len = offsetof(struct sockaddr_un, sun_path) + path_len;
+        break;
+    }
+    default:
+        return _EINVAL;
     }
     return 0;
 }
 
-static int sockaddr_read(addr_t sockaddr_addr, void *sockaddr, uint_t *sockaddr_len) {
+static int sockaddr_read(addr_t sockaddr_addr, void *sockaddr, dword_t *sockaddr_len)
+{
     struct inode_data *inode = NULL;
     int err = sockaddr_read_bind(sockaddr_addr, sockaddr, sockaddr_len, NULL);
     inode_release_if_exist(inode);
     return err;
 }
 
-static int sockaddr_write(addr_t sockaddr_addr, void *sockaddr, uint_t buffer_len, uint_t *sockaddr_len) {
+static int sockaddr_write(addr_t sockaddr_addr, void *sockaddr, dword_t buffer_len,
+                          dword_t *sockaddr_len)
+{
     struct sockaddr *real_addr = sockaddr;
     struct sockaddr_ *fake_addr = sockaddr;
     fake_addr->family = sock_family_from_real(real_addr->sa_family);
     switch (fake_addr->family) {
-        case PF_LOCAL_: {
-            // Most callers of sockaddr_write use it to return a peer name, and
-            // since we don't know the peer name in this case, just return the
-            // default peer name, which is the null address.
-            static struct sockaddr_ unix_domain_null = {.family = PF_LOCAL_};
-            sockaddr = &unix_domain_null;
-            *sockaddr_len = sizeof(unix_domain_null);
-            break;
-        }
-        case PF_INET_:
-        case PF_INET6_:
-            break;
-        default:
-            return _EINVAL;
+    case PF_LOCAL_: {
+        // Most callers of sockaddr_write use it to return a peer name, and
+        // since we don't know the peer name in this case, just return the
+        // default peer name, which is the null address.
+        static struct sockaddr_ unix_domain_null = { .family = PF_LOCAL_ };
+        sockaddr = &unix_domain_null;
+        *sockaddr_len = sizeof(unix_domain_null);
+        break;
+    }
+    case PF_INET_:
+    case PF_INET6_:
+        break;
+    default:
+        return _EINVAL;
     }
 
     if (buffer_len > *sockaddr_len)
@@ -325,18 +343,20 @@ static int sockaddr_write(addr_t sockaddr_addr, void *sockaddr, uint_t buffer_le
     return 0;
 }
 
-int_t sys_bind(fd_t sock_fd, addr_t sockaddr_addr, uint_t sockaddr_len) {
+int_t sys_bind(fd_t sock_fd, addr_t sockaddr_addr, uint_t sockaddr_len)
+{
     STRACE("bind(%d, 0x%x, %d)", sock_fd, sockaddr_addr, sockaddr_len);
     struct fd *sock = sock_getfd(sock_fd);
     if (sock == NULL)
         return _EBADF;
     struct sockaddr_max_ sockaddr;
     struct inode_data *inode = NULL;
-    int err = sockaddr_read_bind(sockaddr_addr, &sockaddr, &sockaddr_len, sock);
+    dword_t sockaddr_len_dword = sockaddr_len;
+    int err = sockaddr_read_bind(sockaddr_addr, &sockaddr, &sockaddr_len_dword, sock);
     if (err < 0)
         return err;
 
-    err = bind(sock->real_fd, (void *) &sockaddr, sockaddr_len);
+    err = bind(sock->real_fd, (void *)&sockaddr, sockaddr_len_dword);
     if (err < 0) {
         inode_release_if_exist(sock->socket.unix_name_inode);
         if (sock->socket.unix_name_abstract != NULL)
@@ -347,23 +367,26 @@ int_t sys_bind(fd_t sock_fd, addr_t sockaddr_addr, uint_t sockaddr_len) {
     return 0;
 }
 
-static void fill_cred(struct ucred_ *cred) {
+static void fill_cred(struct ucred_ *cred)
+{
     cred->pid = current->pid;
     cred->uid = current->euid;
     cred->gid = current->egid;
 }
 
-int_t sys_connect(fd_t sock_fd, addr_t sockaddr_addr, uint_t sockaddr_len) {
+int_t sys_connect(fd_t sock_fd, addr_t sockaddr_addr, uint_t sockaddr_len)
+{
     STRACE("connect(%d, 0x%x, %d)", sock_fd, sockaddr_addr, sockaddr_len);
     struct fd *sock = sock_getfd(sock_fd);
     if (sock == NULL)
         return _EBADF;
     struct sockaddr_max_ sockaddr;
-    int err = sockaddr_read(sockaddr_addr, &sockaddr, &sockaddr_len);
+    dword_t sockaddr_len_dword = sockaddr_len;
+    int err = sockaddr_read(sockaddr_addr, &sockaddr, &sockaddr_len_dword);
     if (err < 0)
         return err;
 
-    err = connect(sock->real_fd, (void *) &sockaddr, sockaddr_len);
+    err = connect(sock->real_fd, (void *)&sockaddr, sockaddr_len);
     if (err < 0)
         return errno_map();
 
@@ -384,7 +407,8 @@ int_t sys_connect(fd_t sock_fd, addr_t sockaddr_addr, uint_t sockaddr_len) {
     return err;
 }
 
-int_t sys_listen(fd_t sock_fd, int_t backlog) {
+int_t sys_listen(fd_t sock_fd, int_t backlog)
+{
     STRACE("listen(%d, %d)", sock_fd, backlog);
     struct fd *sock = sock_getfd(sock_fd);
     if (sock == NULL)
@@ -396,7 +420,8 @@ int_t sys_listen(fd_t sock_fd, int_t backlog) {
     return err;
 }
 
-int_t sys_accept(fd_t sock_fd, addr_t sockaddr_addr, addr_t sockaddr_len_addr) {
+int_t sys_accept(fd_t sock_fd, addr_t sockaddr_addr, addr_t sockaddr_len_addr)
+{
     STRACE("accept(%d, 0x%x, 0x%x)", sock_fd, sockaddr_addr, sockaddr_len_addr);
     struct fd *sock = sock_getfd(sock_fd);
     if (sock == NULL)
@@ -412,9 +437,8 @@ int_t sys_accept(fd_t sock_fd, addr_t sockaddr_addr, addr_t sockaddr_len_addr) {
     do {
         sockrestart_begin_listen_wait(sock);
         errno = 0;
-        client = accept(sock->real_fd,
-                sockaddr_addr != 0 ? (void *) sockaddr : NULL,
-                sockaddr_addr != 0 ? &sockaddr_len : NULL);
+        client = accept(sock->real_fd, sockaddr_addr != 0 ? (void *)sockaddr : NULL,
+                        sockaddr_addr != 0 ? &sockaddr_len : NULL);
         sockrestart_end_listen_wait(sock);
     } while (sockrestart_should_restart_listen_wait() && errno == EINTR);
     if (client < 0)
@@ -428,8 +452,8 @@ int_t sys_accept(fd_t sock_fd, addr_t sockaddr_addr, addr_t sockaddr_len_addr) {
             return _EFAULT;
     }
 
-    fd_t client_f = sock_fd_create(client,
-            sock->socket.domain, sock->socket.type, sock->socket.protocol);
+    fd_t client_f =
+        sock_fd_create(client, sock->socket.domain, sock->socket.type, sock->socket.protocol);
     if (client_f < 0)
         close(client);
 
@@ -450,8 +474,9 @@ int_t sys_accept(fd_t sock_fd, addr_t sockaddr_addr, addr_t sockaddr_len_addr) {
     return client_f;
 }
 
-static void copy_unix_name(char *sockaddr, dword_t *sockaddr_len, struct fd *sock) {
-    struct sockaddr_ *fake_addr = (void *) sockaddr;
+static void copy_unix_name(char *sockaddr, dword_t *sockaddr_len, struct fd *sock)
+{
+    struct sockaddr_ *fake_addr = (void *)sockaddr;
     fake_addr->family = PF_LOCAL_;
 
     size_t data_len = *sockaddr_len - offsetof(struct sockaddr_, data);
@@ -463,7 +488,8 @@ static void copy_unix_name(char *sockaddr, dword_t *sockaddr_len, struct fd *soc
     *sockaddr_len = offsetof(struct sockaddr_, data) + name_len;
 }
 
-int_t sys_getsockname(fd_t sock_fd, addr_t sockaddr_addr, addr_t sockaddr_len_addr) {
+int_t sys_getsockname(fd_t sock_fd, addr_t sockaddr_addr, addr_t sockaddr_len_addr)
+{
     STRACE("getsockname(%d, 0x%x, 0x%x)", sock_fd, sockaddr_addr, sockaddr_len_addr);
     struct fd *sock = sock_getfd(sock_fd);
     if (sock == NULL)
@@ -483,7 +509,7 @@ int_t sys_getsockname(fd_t sock_fd, addr_t sockaddr_addr, addr_t sockaddr_len_ad
         return 0;
     }
 
-    int res = getsockname(sock->real_fd, (void *) sockaddr, &sockaddr_len);
+    int res = getsockname(sock->real_fd, (void *)sockaddr, &sockaddr_len);
     if (res < 0)
         return errno_map();
 
@@ -495,7 +521,8 @@ int_t sys_getsockname(fd_t sock_fd, addr_t sockaddr_addr, addr_t sockaddr_len_ad
     return res;
 }
 
-int_t sys_getpeername(fd_t sock_fd, addr_t sockaddr_addr, addr_t sockaddr_len_addr) {
+int_t sys_getpeername(fd_t sock_fd, addr_t sockaddr_addr, addr_t sockaddr_len_addr)
+{
     STRACE("getpeername(%d, 0x%x, 0x%x)", sock_fd, sockaddr_addr, sockaddr_len_addr);
     struct fd *sock = sock_getfd(sock_fd);
     if (sock == NULL)
@@ -508,7 +535,7 @@ int_t sys_getpeername(fd_t sock_fd, addr_t sockaddr_addr, addr_t sockaddr_len_ad
     // bind once the peer pointer is available
 
     char sockaddr[sockaddr_len];
-    int res = getpeername(sock->real_fd, (void *) sockaddr, &sockaddr_len);
+    int res = getpeername(sock->real_fd, (void *)sockaddr, &sockaddr_len);
     if (res < 0)
         return errno_map();
 
@@ -520,7 +547,8 @@ int_t sys_getpeername(fd_t sock_fd, addr_t sockaddr_addr, addr_t sockaddr_len_ad
     return res;
 }
 
-int_t sys_socketpair(dword_t domain, dword_t type, dword_t protocol, addr_t sockets_addr) {
+int_t sys_socketpair(dword_t domain, dword_t type, dword_t protocol, addr_t sockets_addr)
+{
     STRACE("socketpair(%d, %d, %d, 0x%x)", domain, type, protocol, sockets_addr);
     int real_domain = sock_family_to_real(domain);
     if (real_domain < 0)
@@ -569,7 +597,9 @@ close_sockets:
     return err;
 }
 
-int_t sys_sendto(fd_t sock_fd, addr_t buffer_addr, dword_t len, dword_t flags, addr_t sockaddr_addr, dword_t sockaddr_len) {
+int_t sys_sendto(fd_t sock_fd, addr_t buffer_addr, dword_t len, dword_t flags, addr_t sockaddr_addr,
+                 dword_t sockaddr_len)
+{
     struct fd *sock = sock_getfd(sock_fd);
     if (sock == NULL)
         return _EBADF;
@@ -577,7 +607,8 @@ int_t sys_sendto(fd_t sock_fd, addr_t buffer_addr, dword_t len, dword_t flags, a
     if (user_read(buffer_addr, buffer, len))
         return _EFAULT;
     buffer[len] = '\0';
-    STRACE("sendto(%d, \"%.100s\", %d, %d, 0x%x, %d)", sock_fd, buffer, len, flags, sockaddr_addr, sockaddr_len);
+    STRACE("sendto(%d, \"%.100s\", %d, %d, 0x%x, %d)", sock_fd, buffer, len, flags, sockaddr_addr,
+           sockaddr_len);
     int real_flags = sock_flags_to_real(flags);
     int err = _EINVAL;
     if (real_flags < 0)
@@ -590,7 +621,7 @@ int_t sys_sendto(fd_t sock_fd, addr_t buffer_addr, dword_t len, dword_t flags, a
     }
 
     ssize_t res = sendto(sock->real_fd, buffer, len, real_flags,
-            sockaddr_addr ? (void *) &sockaddr : NULL, sockaddr_len);
+                         sockaddr_addr ? (void *)&sockaddr : NULL, sockaddr_len);
     free(buffer);
     if (res < 0)
         return errno_map();
@@ -601,15 +632,18 @@ error:
     return err;
 }
 
-int_t sys_recvfrom(fd_t sock_fd, addr_t buffer_addr, dword_t len, dword_t flags, addr_t sockaddr_addr, addr_t sockaddr_len_addr) {
-    STRACE("recvfrom(%d, 0x%x, %d, %d, 0x%x, 0x%x)", sock_fd, buffer_addr, len, flags, sockaddr_addr, sockaddr_len_addr);
+int_t sys_recvfrom(fd_t sock_fd, addr_t buffer_addr, dword_t len, dword_t flags,
+                   addr_t sockaddr_addr, addr_t sockaddr_len_addr)
+{
+    STRACE("recvfrom(%d, 0x%x, %d, %d, 0x%x, 0x%x)", sock_fd, buffer_addr, len, flags,
+           sockaddr_addr, sockaddr_len_addr);
     struct fd *sock = sock_getfd(sock_fd);
     if (sock == NULL)
         return _EBADF;
     int real_flags = sock_flags_to_real(flags);
     if (real_flags < 0)
         return _EINVAL;
-    uint_t sockaddr_len = 0;
+    dword_t sockaddr_len = 0;
     if (sockaddr_len_addr != 0)
         if (user_get(sockaddr_len_addr, sockaddr_len))
             return _EFAULT;
@@ -617,8 +651,8 @@ int_t sys_recvfrom(fd_t sock_fd, addr_t buffer_addr, dword_t len, dword_t flags,
     char *buffer = malloc(len);
     char sockaddr[sockaddr_len];
     ssize_t res = recvfrom(sock->real_fd, buffer, len, real_flags,
-            sockaddr_addr != 0 ? (void *) sockaddr : NULL,
-            sockaddr_len_addr != 0 ? &sockaddr_len : NULL);
+                           sockaddr_addr != 0 ? (void *)sockaddr : NULL,
+                           sockaddr_len_addr != 0 ? &sockaddr_len : NULL);
     if (res < 0) {
         free(buffer);
         return errno_map();
@@ -640,15 +674,18 @@ int_t sys_recvfrom(fd_t sock_fd, addr_t buffer_addr, dword_t len, dword_t flags,
     return res;
 }
 
-int_t sys_send(fd_t sock_fd, addr_t buf, dword_t len, int_t flags) {
+int_t sys_send(fd_t sock_fd, addr_t buf, dword_t len, int_t flags)
+{
     return sys_sendto(sock_fd, buf, len, flags, 0, 0);
 }
 
-int_t sys_recv(fd_t sock_fd, addr_t buf, dword_t len, int_t flags) {
+int_t sys_recv(fd_t sock_fd, addr_t buf, dword_t len, int_t flags)
+{
     return sys_recvfrom(sock_fd, buf, len, flags, 0, 0);
 }
 
-int_t sys_shutdown(fd_t sock_fd, dword_t how) {
+int_t sys_shutdown(fd_t sock_fd, dword_t how)
+{
     STRACE("shutdown(%d, %d)", sock_fd, how);
     struct fd *sock = sock_getfd(sock_fd);
     if (sock == NULL)
@@ -661,7 +698,9 @@ int_t sys_shutdown(fd_t sock_fd, dword_t how) {
 
 #define DEFAULT_TCP_CONGESTION "cubic"
 
-int_t sys_setsockopt(fd_t sock_fd, dword_t level, dword_t option, addr_t value_addr, dword_t value_len) {
+int_t sys_setsockopt(fd_t sock_fd, dword_t level, dword_t option, addr_t value_addr,
+                     dword_t value_len)
+{
     STRACE("setsockopt(%d, %d, %d, 0x%x, %d)", sock_fd, level, option, value_addr, value_len);
     struct fd *sock = sock_getfd(sock_fd);
     if (sock == NULL)
@@ -703,7 +742,9 @@ int_t sys_setsockopt(fd_t sock_fd, dword_t level, dword_t option, addr_t value_a
     return 0;
 }
 
-int_t sys_getsockopt(fd_t sock_fd, dword_t level, dword_t option, addr_t value_addr, dword_t len_addr) {
+int_t sys_getsockopt(fd_t sock_fd, dword_t level, dword_t option, addr_t value_addr,
+                     dword_t len_addr)
+{
     STRACE("getsockopt(%d, %d, %d, %#x, %#x)", sock_fd, level, option, value_addr, len_addr);
     struct fd *sock = sock_getfd(sock_fd);
     if (sock == NULL)
@@ -715,8 +756,9 @@ int_t sys_getsockopt(fd_t sock_fd, dword_t level, dword_t option, addr_t value_a
     if (user_read(value_addr, value, value_len))
         return _EFAULT;
 
-    if (level == SOL_SOCKET_ && (option == SO_DOMAIN_ || option == SO_TYPE_ || option == SO_PROTOCOL_)) {
-        dword_t *value_p = (dword_t *) value;
+    if (level == SOL_SOCKET_ &&
+        (option == SO_DOMAIN_ || option == SO_TYPE_ || option == SO_PROTOCOL_)) {
+        dword_t *value_p = (dword_t *)value;
         if (value_len != sizeof(*value_p))
             return _EINVAL;
         if (option == SO_DOMAIN_)
@@ -726,7 +768,7 @@ int_t sys_getsockopt(fd_t sock_fd, dword_t level, dword_t option, addr_t value_a
         else if (option == SO_PROTOCOL_)
             *value_p = sock->socket.protocol;
     } else if (level == SOL_SOCKET_ && option == SO_PEERCRED_) {
-        struct ucred_ *cred = (struct ucred_ *) value;
+        struct ucred_ *cred = (struct ucred_ *)value;
         if (value_len != sizeof(*cred))
             return _EINVAL;
         lock(&peer_lock);
@@ -745,7 +787,7 @@ int_t sys_getsockopt(fd_t sock_fd, dword_t level, dword_t option, addr_t value_a
         int err = getsockopt(sock->real_fd, SOL_SOCKET, SO_ERROR, &real_error, &real_error_len);
         if (err < 0)
             return errno_map();
-        *(dword_t *) value = real_error == 0 ? 0 : -err_map(real_error);
+        *(dword_t *)value = real_error == 0 ? 0 : -err_map(real_error);
     } else if (level == IPPROTO_TCP && option == TCP_CONGESTION_) {
         value_len = strlen(DEFAULT_TCP_CONGESTION);
         memcpy(value, DEFAULT_TCP_CONGESTION, value_len);
@@ -756,24 +798,25 @@ int_t sys_getsockopt(fd_t sock_fd, dword_t level, dword_t option, addr_t value_a
         // different and has a different sockopt name.
         struct tcp_connection_info conn_info;
         socklen_t conn_info_size = sizeof(conn_info);
-        int err = getsockopt(sock->real_fd, IPPROTO_TCP, TCP_CONNECTION_INFO, &conn_info, &conn_info_size);
+        int err = getsockopt(sock->real_fd, IPPROTO_TCP, TCP_CONNECTION_INFO, &conn_info,
+                             &conn_info_size);
         if (err < 0)
             return errno_map();
 
         // The possible keys for this table are in netinet/tcp_fsm.h, but that
         // header isn't available on iOS, only macOS.
         static const uint8_t tcp_state_table[] = {
-            7, // TCPS_CLOSED
+            7,  // TCPS_CLOSED
             10, // TCPS_LISTEN
-            2, // TCPS_SYN_SENT
-            3, // TCPS_SYN_RECEIVED
-            1, // TCPS_ESTABLISHED
-            8, // TCPS_CLOSE_WAIT
-            4, // TCPS_FIN_WAIT_1
+            2,  // TCPS_SYN_SENT
+            3,  // TCPS_SYN_RECEIVED
+            1,  // TCPS_ESTABLISHED
+            8,  // TCPS_CLOSE_WAIT
+            4,  // TCPS_FIN_WAIT_1
             11, // TCPS_CLOSING
-            9, // TCPS_LAST_ACK
-            5, // TCPS_FIN_WAIT_2
-            6, // TCPS_TIME_WAIT
+            9,  // TCPS_LAST_ACK
+            5,  // TCPS_FIN_WAIT_2
+            6,  // TCPS_TIME_WAIT
         };
         struct tcp_info_ info = {
             .state = tcp_state_table[conn_info.tcpi_state],
@@ -816,13 +859,15 @@ int_t sys_getsockopt(fd_t sock_fd, dword_t level, dword_t option, addr_t value_a
     return 0;
 }
 
-static void scm_free(struct scm *scm) {
+static void scm_free(struct scm *scm)
+{
     for (unsigned i = 0; i < scm->num_fds; i++)
         fd_close(scm->fds[i]);
     free(scm);
 }
 
-int_t sys_sendmsg(fd_t sock_fd, addr_t msghdr_addr, int_t flags) {
+int_t sys_sendmsg(fd_t sock_fd, addr_t msghdr_addr, int_t flags)
+{
     int err;
     STRACE("sendmsg(%d, %#x, %d)", sock_fd, msghdr_addr, flags);
     struct fd *sock = sock_getfd(sock_fd);
@@ -854,7 +899,7 @@ int_t sys_sendmsg(fd_t sock_fd, addr_t msghdr_addr, int_t flags) {
     memset(msg_iov, 0, sizeof(msg_iov));
     msg.msg_iov = msg_iov;
     msg.msg_iovlen = sizeof(msg_iov) / sizeof(msg_iov[0]);
-    for (size_t i = 0; i < (size_t) msg.msg_iovlen; i++) {
+    for (size_t i = 0; i < (size_t)msg.msg_iovlen; i++) {
         msg_iov[i].iov_len = msg_iov_fake[i].len;
         msg_iov[i].iov_base = malloc(msg_iov_fake[i].len);
         err = _EFAULT;
@@ -880,12 +925,13 @@ int_t sys_sendmsg(fd_t sock_fd, addr_t msghdr_addr, int_t flags) {
 
     struct scm *scm = NULL;
     char real_msg_control[CMSG_SPACE(sizeof(int))]; // only used if actually sending an fd
-    if (sock->socket.domain == AF_LOCAL_ && msg_control != NULL && msg_fake.msg_controllen >= sizeof(struct cmsghdr_)) {
+    if (sock->socket.domain == AF_LOCAL_ && msg_control != NULL &&
+        msg_fake.msg_controllen >= sizeof(struct cmsghdr_)) {
         // figure out how many file descriptors we're sending
         uint8_t *mhdr_end = msg_control + msg_fake.msg_controllen;
         unsigned num_fds = 0;
         struct cmsghdr_ *cmsg;
-        for (cmsg = (void *) msg_control; cmsg != NULL; cmsg = CMSG_NXTHDR_(cmsg, mhdr_end)) {
+        for (cmsg = (void *)msg_control; cmsg != NULL; cmsg = CMSG_NXTHDR_(cmsg, mhdr_end)) {
             if (cmsg->level != SOL_SOCKET_)
                 continue;
             if (cmsg->type != SCM_RIGHTS_)
@@ -915,11 +961,12 @@ int_t sys_sendmsg(fd_t sock_fd, addr_t msghdr_addr, int_t flags) {
             list_init(&scm->queue);
             scm->num_fds = num_fds;
             unsigned fd_i = 0;
-            for (cmsg = (void *) msg_control; cmsg != NULL; cmsg = CMSG_NXTHDR_(cmsg, mhdr_end)) {
+            for (cmsg = (void *)msg_control; cmsg != NULL; cmsg = CMSG_NXTHDR_(cmsg, mhdr_end)) {
                 if (cmsg->level != SOL_SOCKET_)
                     continue;
-                fd_t *fds = (void *) cmsg->data;
-                for (unsigned i = 0; i < (cmsg->len - sizeof(struct cmsghdr_)) / sizeof(fd_t); i++) {
+                fd_t *fds = (void *)cmsg->data;
+                for (unsigned i = 0; i < (cmsg->len - sizeof(struct cmsghdr_)) / sizeof(fd_t);
+                     i++) {
                     STRACE(" sending fd %d", fds[i]);
                     scm->fds[fd_i++] = fd_retain(f_get(fds[i]));
                 }
@@ -966,12 +1013,13 @@ out_free_scm:
         scm_free(scm);
     }
 out_free_iov:
-    for (size_t i = 0; i < (size_t) msg.msg_iovlen; i++)
+    for (size_t i = 0; i < (size_t)msg.msg_iovlen; i++)
         free(msg_iov[i].iov_base);
     return err;
 }
 
-int_t sys_recvmsg(fd_t sock_fd, addr_t msghdr_addr, int_t flags) {
+int_t sys_recvmsg(fd_t sock_fd, addr_t msghdr_addr, int_t flags)
+{
     STRACE("recvmsg(%d, %#x, %d)", sock_fd, msghdr_addr, flags);
     struct fd *sock = sock_getfd(sock_fd);
     if (sock == NULL)
@@ -1013,7 +1061,7 @@ int_t sys_recvmsg(fd_t sock_fd, addr_t msghdr_addr, int_t flags) {
     struct iovec msg_iov[msg_fake.msg_iovlen];
     msg.msg_iov = msg_iov;
     msg.msg_iovlen = sizeof(msg_iov) / sizeof(msg_iov[0]);
-    for (size_t i = 0; i < (size_t) msg.msg_iovlen; i++) {
+    for (size_t i = 0; i < (size_t)msg.msg_iovlen; i++) {
         msg_iov[i].iov_len = msg_iov_fake[i].len;
         msg_iov[i].iov_base = malloc(msg_iov_fake[i].len);
     }
@@ -1029,7 +1077,7 @@ int_t sys_recvmsg(fd_t sock_fd, addr_t msghdr_addr, int_t flags) {
     size_t n = res;
     if (res < 0)
         n = 0;
-    for (size_t i = 0; i < (size_t) msg.msg_iovlen; i++) {
+    for (size_t i = 0; i < (size_t)msg.msg_iovlen; i++) {
         size_t chunk_size = msg_iov[i].iov_len;
         if (chunk_size > n)
             chunk_size = n;
@@ -1043,9 +1091,9 @@ int_t sys_recvmsg(fd_t sock_fd, addr_t msghdr_addr, int_t flags) {
     // msg_control (changed)
     msg_fake.msg_controllen = 0;
     struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
-    if (sock->socket.domain == AF_LOCAL_ && cmsg != NULL &&
-            cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SCM_RIGHTS) {
-        int dummy_fd = ((int *) CMSG_DATA(cmsg))[0];
+    if (sock->socket.domain == AF_LOCAL_ && cmsg != NULL && cmsg->cmsg_level == SOL_SOCKET &&
+        cmsg->cmsg_type == SCM_RIGHTS) {
+        int dummy_fd = ((int *)CMSG_DATA(cmsg))[0];
         close(dummy_fd);
 
         lock(&sock->lock);
@@ -1060,11 +1108,11 @@ int_t sys_recvmsg(fd_t sock_fd, addr_t msghdr_addr, int_t flags) {
         }
 
         uint8_t msg_control[sizeof(struct cmsghdr_) + scm->num_fds * sizeof(fd_t)];
-        struct cmsghdr_ *cmsg = (void *) msg_control;
+        struct cmsghdr_ *cmsg = (void *)msg_control;
         cmsg->len = sizeof(msg_control);
         cmsg->level = SOL_SOCKET_;
         cmsg->type = SCM_RIGHTS_;
-        fd_t *fds = (void *) cmsg->data;
+        fd_t *fds = (void *)cmsg->data;
         for (unsigned i = 0; i < scm->num_fds; i++) {
             fds[i] = f_install(scm->fds[i], 0);
             STRACE(" receiving fd %d", fds[i]);
@@ -1080,7 +1128,8 @@ int_t sys_recvmsg(fd_t sock_fd, addr_t msghdr_addr, int_t flags) {
 
     // msg_name (changed)
     if (msg.msg_name != 0) {
-        int err = sockaddr_write(msg_fake.msg_name, msg.msg_name, sizeof(msg_name), &msg.msg_namelen);
+        int err =
+            sockaddr_write(msg_fake.msg_name, msg.msg_name, sizeof(msg_name), &msg.msg_namelen);
         if (err < 0)
             return err;
     }
@@ -1099,7 +1148,36 @@ struct mmsghdr_ {
     uint_t len;
 };
 
-int_t sys_sendmmsg(fd_t sock_fd, addr_t msg_vec, uint_t vec_len, int_t flags) {
+// TODO: STUB - sys_accept4 needs proper implementation for AArch64 bring-up
+// This stub is intentionally verbose to prevent silent failures
+int_t sys_accept4(fd_t fd, addr_t addr, addr_t addrlen, int_t flags)
+{
+    (void)fd;
+    (void)addr;
+    (void)addrlen;
+    (void)flags;
+    FIXME("TODO: sys_accept4 NOT IMPLEMENTED - NEEDS PROPER AARCH64 SOCKET SUPPORT");
+    return _ENOSYS;
+}
+
+// TODO: STUB - sys_recvmmsg needs proper implementation for AArch64 bring-up
+// This stub is intentionally verbose to prevent silent failures
+int_t sys_recvmmsg(fd_t sock_fd, addr_t msgvec_addr, uint_t msgvec_len, int_t flags,
+                   addr_t timeout_addr)
+{
+    (void)sock_fd;
+    (void)msgvec_addr;
+    (void)msgvec_len;
+    (void)flags;
+    (void)timeout_addr;
+    FIXME("TODO: sys_recvmmsg NOT IMPLEMENTED - NEEDS PROPER AARCH64 SOCKET SUPPORT");
+    return _ENOSYS;
+}
+
+// END OF FILE - ALL STUBS DEFINED ABOVE
+
+int_t sys_sendmmsg(fd_t sock_fd, addr_t msg_vec, uint_t vec_len, int_t flags)
+{
     int num_sent = 0;
     for (unsigned i = 0; i < vec_len; i++) {
         addr_t msghdr = msg_vec + i * sizeof(struct mmsghdr_);
@@ -1127,7 +1205,8 @@ int_t sys_sendmmsg(fd_t sock_fd, addr_t msg_vec, uint_t vec_len, int_t flags) {
     return num_sent;
 }
 
-static void sock_translate_err(struct fd *fd, int *err) {
+static void sock_translate_err(struct fd *fd, int *err)
+{
     // on ios, when the device goes to sleep, all connected sockets are killed.
     // reads/writes return ENOTCONN, which I'm pretty sure is a violation of
     // posix. so instead, detect this and return ECONNRESET.
@@ -1140,19 +1219,22 @@ static void sock_translate_err(struct fd *fd, int *err) {
     }
 }
 
-static ssize_t sock_read(struct fd *fd, void *buf, size_t size) {
+static ssize_t sock_read(struct fd *fd, void *buf, size_t size)
+{
     int err = realfs_read(fd, buf, size);
     sock_translate_err(fd, &err);
     return err;
 }
 
-static ssize_t sock_write(struct fd *fd, const void *buf, size_t size) {
+static ssize_t sock_write(struct fd *fd, const void *buf, size_t size)
+{
     int err = realfs_write(fd, buf, size);
     sock_translate_err(fd, &err);
     return err;
 }
 
-static int sock_close(struct fd *fd) {
+static int sock_close(struct fd *fd)
+{
     sockrestart_end_listen(fd);
     // FIXME next 3 lines should go in a function like release_unix_names
     inode_release_if_exist(fd->socket.unix_name_inode);
@@ -1166,7 +1248,8 @@ static int sock_close(struct fd *fd) {
     if (fd->socket.domain == AF_LOCAL_) {
         lock(&fd->lock);
         struct scm *scm, *tmp;
-        list_for_each_entry_safe(&fd->socket.unix_scm, scm, tmp, queue) {
+        list_for_each_entry_safe(&fd->socket.unix_scm, scm, tmp, queue)
+        {
             list_remove(&scm->queue);
             scm_free(scm);
         }
@@ -1186,43 +1269,38 @@ const struct fd_ops socket_fdops = {
     .ioctl = realfs_ioctl,
 };
 
-#if defined(__GNUC__) && __GNUC__ >= 8
-#pragma GCC diagnostic ignored "-Wcast-function-type"
-#endif
-#if defined(__clang__)
-#pragma clang diagnostic ignored "-Wcast-function-type-mismatch"
-#pragma clang diagnostic ignored "-Wmissing-field-initializers"
-#endif
 static struct socket_call {
     syscall_t func;
     int args;
 } socket_calls[] = {
-    {NULL},
-    {(syscall_t) sys_socket, 3},
-    {(syscall_t) sys_bind, 3},
-    {(syscall_t) sys_connect, 3},
-    {(syscall_t) sys_listen, 2},
-    {(syscall_t) sys_accept, 3},
-    {(syscall_t) sys_getsockname, 3},
-    {(syscall_t) sys_getpeername, 3},
-    {(syscall_t) sys_socketpair, 4},
-    {(syscall_t) sys_send, 4}, // send
-    {(syscall_t) sys_recv, 4}, // recv
-    {(syscall_t) sys_sendto, 6},
-    {(syscall_t) sys_recvfrom, 6},
-    {(syscall_t) sys_shutdown, 2},
-    {(syscall_t) sys_setsockopt, 5},
-    {(syscall_t) sys_getsockopt, 5},
-    {(syscall_t) sys_sendmsg, 3},
-    {(syscall_t) sys_recvmsg, 3},
-    {NULL}, // accept4
-    {NULL}, // recvmmsg
-    {(syscall_t) sys_sendmmsg, 4},
+    { NULL },
+    { (syscall_t)sys_socket, 3 },
+    { (syscall_t)sys_bind, 3 },
+    { (syscall_t)sys_connect, 3 },
+    { (syscall_t)sys_listen, 2 },
+    { (syscall_t)sys_accept, 3 },
+    { (syscall_t)sys_getsockname, 3 },
+    { (syscall_t)sys_getpeername, 3 },
+    { (syscall_t)sys_socketpair, 4 },
+    { (syscall_t)sys_send, 4 },
+    { (syscall_t)sys_recv, 4 },
+    { (syscall_t)sys_sendto, 6 },
+    { (syscall_t)sys_recvfrom, 6 },
+    { (syscall_t)sys_shutdown, 2 },
+    { (syscall_t)sys_setsockopt, 5 },
+    { (syscall_t)sys_getsockopt, 5 },
+    { (syscall_t)sys_sendmsg, 3 },
+    { (syscall_t)sys_recvmsg, 3 },
+    { (syscall_t)sys_accept4, 4 },
+    { (syscall_t)sys_recvmmsg, 5 },
+    { (syscall_t)sys_sendmmsg, 4 },
 };
+;
 
-int_t sys_socketcall(dword_t call_num, addr_t args_addr) {
+int_t sys_socketcall(dword_t call_num, addr_t args_addr)
+{
     STRACE("%d ", call_num);
-    if (call_num < 1 || call_num >= sizeof(socket_calls)/sizeof(socket_calls[0]))
+    if (call_num < 1 || call_num >= sizeof(socket_calls) / sizeof(socket_calls[0]))
         return _EINVAL;
     struct socket_call call = socket_calls[call_num];
     if (call.func == NULL) {

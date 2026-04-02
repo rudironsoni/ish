@@ -7,8 +7,9 @@
 
 # Default install paths for Homebrew on Intel, Homebrew on Apple silicon, and MacPorts, respectively.
 clang = find_program('/usr/local/opt/llvm/bin/clang', '/opt/homebrew/opt/llvm/bin/clang', '/opt/local/bin/clang', 'clang')
+ld_lld = find_program('/usr/local/opt/llvm/bin/ld.lld', '/opt/homebrew/opt/llvm/bin/ld.lld', '/usr/local/bin/ld.lld', '/opt/homebrew/bin/ld.lld', '/opt/local/bin/ld.lld', 'ld.lld')
 check_cc = find_program('check-cc.sh')
-result = run_command(check_cc, clang, check: false)
+result = run_command(check_cc, clang, ld_lld, check: false)
 if result.returncode() != 0
     message('\n' + result.stdout() + result.stderr())
     if build_machine.system() == 'darwin'
@@ -18,7 +19,7 @@ if result.returncode() != 0
     endif
     error('Could not find usable VDSO compiler. ' + install_msg)
 endif
-vdso_compiler = [clang, '-target', 'aarch64-linux-gnu', '-fuse-ld=lld']
+vdso_compiler = [clang, '-target', 'aarch64-linux-gnu', '-fuse-ld=' + ld_lld.full_path()]
 
 vdso = custom_target('vdso', input: ['vdso.c', 'vdso.lds'], output: 'libvdso.so.elf',
     command: vdso_compiler + ['-o', '@OUTPUT@', '@INPUT0@',

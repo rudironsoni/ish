@@ -321,6 +321,12 @@ dword_t sys_write(fd_t fd_no, addr_t buf_addr, dword_t size)
     char pid_buf[32];
     char fd_buf[32];
     char size_buf[32];
+    char return_buf[32];
+    trace_attribute_t return_attrs[] = {
+        { "pid", pid_buf },
+        { "fd", fd_buf },
+        { "return", return_buf },
+    };
     snprintf(pid_buf, sizeof(pid_buf), "%u", (unsigned)(current ? current->pid : 0));
     snprintf(fd_buf, sizeof(fd_buf), "%d", fd_no);
     snprintf(size_buf, sizeof(size_buf), "%u", (unsigned)size);
@@ -348,13 +354,7 @@ dword_t sys_write(fd_t fd_no, addr_t buf_addr, dword_t size)
     res = sys_write_buf(fd_no, buf, size);
 out:
     // APPSIM-004 Stage 3A: Write return value
-    char return_buf[32];
     snprintf(return_buf, sizeof(return_buf), "%d", res);
-    trace_attribute_t return_attrs[] = {
-        { "pid", pid_buf },
-        { "fd", fd_buf },
-        { "return", return_buf },
-    };
     (void)trace_begin_interval(TRACE_ORIGIN_KERNEL, "task.proof.guest.write.return", return_attrs,
                                sizeof(return_attrs) / sizeof(return_attrs[0]));
     free(buf);

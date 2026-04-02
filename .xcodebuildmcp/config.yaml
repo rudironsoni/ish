@@ -19,13 +19,16 @@ uiDebuggerGuardMode: warn
 dapRequestTimeoutMs: 60000
 dapLogEvents: true
 launchJsonWaitMs: 15000
+axePath: /opt/homebrew/bin/axe
 debuggerBackend: lldb-cli
 sessionDefaults:
   projectPath: /Users/rudironsoni/src/github/rudironsoni/ish/iSH.xcodeproj
-  scheme: iSH-UISmoke
+  scheme: iSH-App
   configuration: Debug
   simulatorName: iPhone 17
-  simulatorPlatform: iOS Simulator
-  deviceId: 971A2EC4-3492-4F21-8D79-96E6863127B4
-  bundleId: app.ish.iSH
   simulatorId: 971A2EC4-3492-4F21-8D79-96E6863127B4
+  simulatorPlatform: iOS Simulator
+  useLatestOS: true
+  arch: arm64
+  platform: iOS
+  bundleId: com.rudironsoni.ish

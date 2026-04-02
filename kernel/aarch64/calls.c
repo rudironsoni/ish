@@ -275,7 +275,9 @@ const char *a64_syscall_name(int num)
         [A64_SYS_getgid] = "getgid",
     };
 
-    if (num < sizeof(syscall_names) / sizeof(syscall_names[0]) && syscall_names[num])
+    if (num < 0 || (size_t)num >= sizeof(syscall_names) / sizeof(syscall_names[0]))
+        return "unknown";
+    if (syscall_names[num])
         return syscall_names[num];
 
     return "unknown";
@@ -303,9 +305,6 @@ void handle_interrupt(int interrupt)
         break;
 
     case INT_GPF: {
-        addr_t fault_addr = cpu->fault_addr;
-        page_t fault_page = PAGE(fault_addr);
-
         // Trace fault decode via approved instrumentation only
         trace_handle_interrupt_checkpoint("task.proof.handle_interrupt.after_fault_decode",
                                           interrupt, 0);
