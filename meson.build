@@ -295,7 +295,10 @@ run_target('check-all',
     command: [find_program('tools/check-all.sh')]
 )
 
-# Pre-commit
-run_target('pre-commit',
-    command: [find_program('pre-commit'), 'run', '--all-files']
-)
+# Pre-commit (optional - only if installed)
+pre_commit = find_program('pre-commit', required: false)
+if pre_commit.found()
+    run_target('pre-commit',
+        command: [pre_commit, 'run', '--all-files']
+    )
+endif
