@@ -1,6 +1,50 @@
-#!/bin/sh
+#!/bin/bash
 
-# Try to figure out the user's PATH to pick up their installed utilities.
-export PATH="$PATH:$(sudo -u "$USER" -i printenv PATH)"
+set -euo pipefail
 
-ninja "$@"
+# Normalize Xcode environment to match a regular shell invocation of Meson.
+readonly CLEAN_ENV=(
+    -u PYTHONHOME
+    -u PYTHONPATH
+    -u PYTHONEXECUTABLE
+    -u __PYVENV_LAUNCHER__
+)
+
+run_clean() {
+    env "${CLEAN_ENV[@]}" "$@"
+}
+
+resolve_binary() {
+    local tool="$1"
+    local candidate
+    for candidate in "$(command -v "$tool" 2>/dev/null)" "/opt/homebrew/bin/$tool" "/usr/local/bin/$tool"; do
+        if [[ -n "$candidate" && -x "$candidate" ]]; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Resolve Meson CLI once.
+MESON_BIN=""
+if MESON_BIN=$(resolve_binary meson); then
+    :
+elif command -v python3 >/dev/null 2>&1 && run_clean python3 -c 'import mesonbuild' >/dev/null 2>&1; then
+    MESON_BIN="python3 -m mesonbuild"
+else
+    echo "error: Meson is required but was not found. Install 'meson' or the Python 'mesonbuild' package." >&2
+    exit 127
+fi
+
+run_meson() {
+    if [[ "$MESON_BIN" == *"python3"* ]]; then
+        run_clean $MESON_BIN "$@"
+    else
+        run_clean "$MESON_BIN" "$@"
+    fi
+}
+
+# Use meson compile (official Meson build command) instead of raw ninja.
+# This delegates build semantics to Meson while still using ninja under the hood.
+run_meson compile "$@"
