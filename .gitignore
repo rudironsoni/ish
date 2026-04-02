@@ -139,3 +139,7 @@ rulesync.local.jsonc
 **/.roo/subagents/
 **/.warp/
 **/WARP.md
+
+# Swift Package Manager build artifacts
+.build/
+Package.resolved

@@ -59,8 +59,15 @@ static NSString *kDefaultRoot = @"Default Root";
                                                                                    message:[NSString stringWithFormat:@"Failed to import Alpine rootfs: %@", error]
                                                                             preferredStyle:UIAlertControllerStyleAlert];
                     [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
-                    UIViewController *vc = UIApplication.sharedApplication.keyWindow.rootViewController;
-                    [vc presentViewController:alert animated:YES completion:nil];
+            UIViewController *vc = nil;
+            UIScene *activeScene = [[UIApplication sharedApplication] connectedScenes].anyObject;
+            if ([activeScene isKindOfClass:[UIWindowScene class]]) {
+                UIWindowScene *windowScene = (UIWindowScene *)activeScene;
+                vc = windowScene.windows.firstObject.rootViewController;
+            }
+            if (vc != nil) {
+                [vc presentViewController:alert animated:YES completion:nil];
+            }
                 });
                 return nil;
             }

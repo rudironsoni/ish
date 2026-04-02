@@ -23,23 +23,31 @@ extern syscall_t syscall_table[];
 
 // Number of arguments for each syscall (for proper argument marshalling)
 // This mirrors the x86 syscall_arg_count in kernel/calls.c
-static const uint8_t syscall_arg_count_a64[] = {
-    [0 ... A64_SYS_MAX] = 6, // Default: 6 args
-    // Override for specific syscalls
-    [A64_SYS_exit] = 1,
-    [A64_SYS_exit_group] = 1,
-    [A64_SYS_read] = 3,
-    [A64_SYS_write] = 3,
-    [A64_SYS_openat] = 4,
-    [A64_SYS_close] = 1,
-    [A64_SYS_brk] = 1,
-    [A64_SYS_getpid] = 0,
-    [A64_SYS_getppid] = 0,
-    [A64_SYS_getuid] = 0,
-    [A64_SYS_getgid] = 0,
-    [A64_SYS_geteuid] = 0,
-    [A64_SYS_getegid] = 0,
-};
+// Initialized at runtime to avoid initializer override warnings
+static uint8_t syscall_arg_count_a64[A64_SYS_MAX + 1];
+
+// Initialize syscall argument counts
+static void init_syscall_arg_counts(void)
+{
+    // Set default: all syscalls take 6 args
+    for (int i = 0; i <= A64_SYS_MAX; i++) {
+        syscall_arg_count_a64[i] = 6;
+    }
+    // Override specific syscalls
+    syscall_arg_count_a64[A64_SYS_exit] = 1;
+    syscall_arg_count_a64[A64_SYS_exit_group] = 1;
+    syscall_arg_count_a64[A64_SYS_read] = 3;
+    syscall_arg_count_a64[A64_SYS_write] = 3;
+    syscall_arg_count_a64[A64_SYS_openat] = 4;
+    syscall_arg_count_a64[A64_SYS_close] = 1;
+    syscall_arg_count_a64[A64_SYS_brk] = 1;
+    syscall_arg_count_a64[A64_SYS_getpid] = 0;
+    syscall_arg_count_a64[A64_SYS_getppid] = 0;
+    syscall_arg_count_a64[A64_SYS_getuid] = 0;
+    syscall_arg_count_a64[A64_SYS_getgid] = 0;
+    syscall_arg_count_a64[A64_SYS_geteuid] = 0;
+    syscall_arg_count_a64[A64_SYS_getegid] = 0;
+}
 
 static void trace_handle_interrupt_checkpoint(const char *name, int interrupt, int signal_code)
 {
@@ -234,6 +242,9 @@ void a64_handle_syscall(struct cpu_state *cpu)
  */
 void a64_syscall_init(void)
 {
+    // Initialize syscall argument counts
+    init_syscall_arg_counts();
+
     // Validate that all expected syscalls are mapped
     // This helps catch mismatches between syscall numbers and handlers
 

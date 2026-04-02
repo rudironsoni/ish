@@ -60,5 +60,6 @@ int trace_config_from_env(trace_config_t *config)
  */
 void trace_config_print(trace_config_t *config)
 {
+    (void)config;
     fprintf(stderr, "[TRACE] trace_config_print: RETIRED - use ISHInstrumentation instead\n");
 }

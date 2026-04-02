@@ -553,10 +553,11 @@ static const char *metaKeys = "abcdefghijklmnopqrstuvwxyz0123456789-=[]\\;',./";
     if (UserPreferences.shared.backtickMapEscape) {
         [self addKey:@"`" withModifiers:0];
     }
-    [_keyCommands addObject:[UIKeyCommand keyCommandWithInput:@"k"
-                                                modifierFlags:UIKeyModifierCommand|UIKeyModifierShift
-                                                       action:@selector(clearScrollback:)
-                                         discoverabilityTitle:@"Clear Scrollback"]];
+    UIKeyCommand *clearScrollbackCommand = [UIKeyCommand keyCommandWithInput:@"k"
+                                                               modifierFlags:UIKeyModifierCommand|UIKeyModifierShift
+                                                                      action:@selector(clearScrollback:)];
+    clearScrollbackCommand.title = @"Clear Scrollback";
+    [_keyCommands addObject:clearScrollbackCommand];
     return _keyCommands;
 }
 

@@ -35,7 +35,6 @@
 		AA64EMU2183AEF31C4C5A06 /* Aarch64EmulatorTests.m in Sources */ = {isa = PBXBuildFile; fileRef = AA64EMU1F25FCA8CD532024 /* Aarch64EmulatorTests.m */; };
 		B181B85F8AB4301BBB4A3089 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 12266591102F752F19F687CC /* Foundation.framework */; };
 		BB0F552E239F8A790032A2A1 /* Icons.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB0F552D239F8A790032A2A1 /* Icons.plist */; };
-		BB10E5C9248DBAAC009C7A74 /* libarchive.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BB10E5C8248DBAA1009C7A74 /* libarchive.a */; };
 		BB10E5D0248DC21D009C7A74 /* Roots.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = BB10E5CF248DC21D009C7A74 /* Roots.storyboard */; };
 		BB13F7EA200ADCED003D1C4D /* libish.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BB13F7DC200AD81D003D1C4D /* libish.a */; };
 		BB21A1702689048200BD19B4 /* libfakefs.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BB21A16F2689041500BD19B4 /* libfakefs.a */; };
@@ -125,6 +124,7 @@
 		BBFB2CEC2590296B00545EAB /* libish_emu.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BBFB2C5B2590257E00545EAB /* libish_emu.a */; };
 		BBFB55662158644C00DFE6DE /* libresolv.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = BBFB55652158644C00DFE6DE /* libresolv.tbd */; };
 		ED1D1BF835048C160C9C1983 /* gen.h in Headers */ = {isa = PBXBuildFile; fileRef = 7FB5AED693B5FD4593514E8D /* gen.h */; };
+A3D30AF68B6DF0316993ACA3 /* libarchive in Frameworks */ = {isa = PBXBuildFile; productRef = 9E49D2762BD1C86DFDF735F4 /* libarchive */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXBuildRule section */
@@ -144,20 +144,6 @@
 /* End PBXBuildRule section */
 
 /* Begin PBXContainerItemProxy section */
-		BB10E5C7248DBAA1009C7A74 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = BB10E0C1248DA5B0009C7A74 /* libarchive.xcodeproj */;
-			proxyType = 2;
-			remoteGlobalIDString = BB10E0D6248DA67B009C7A74;
-			remoteInfo = libarchive;
-		};
-		BB10E5CA248DBAB7009C7A74 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = BB10E0C1248DA5B0009C7A74 /* libarchive.xcodeproj */;
-			proxyType = 1;
-			remoteGlobalIDString = BB10E0D5248DA67B009C7A74;
-			remoteInfo = libarchive;
-		};
 		BB13F7D4200ACCA8003D1C4D /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = BB792B461F96D8E000FFB7A4 /* Project object */;
@@ -457,7 +443,7 @@
 		BB0FC5911F980A6B00803272 /* Terminal.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Terminal.m; sourceTree = "<group>"; };
 		BB101B362364CF57000A93BC /* FontPickerViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FontPickerViewController.h; sourceTree = "<group>"; };
 		BB101B372364CF57000A93BC /* FontPickerViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FontPickerViewController.m; sourceTree = "<group>"; };
-		BB10E0C1248DA5B0009C7A74 /* libarchive.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = libarchive.xcodeproj; path = ../deps/libarchive.xcodeproj; sourceTree = "<group>"; };
+
 		BB10E5C2248DBA7B009C7A74 /* fakefs.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = fakefs.c; path = tools/fakefs.c; sourceTree = SOURCE_ROOT; };
 		BB10E5CC248DBE66009C7A74 /* Roots.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Roots.h; sourceTree = "<group>"; };
 		BB10E5CD248DBE66009C7A74 /* Roots.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Roots.m; sourceTree = "<group>"; };
@@ -681,23 +667,23 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		BB792B4D1F96D90D00FFB7A4 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				BB28C7AE26896C1D00BDC834 /* libiSHApp.a in Frameworks */,
-				BB21A18426890C7E00BD19B4 /* libfakefs.a in Frameworks */,
-				BB13F7EA200ADCED003D1C4D /* libish.a in Frameworks */,
-				BBFB2CEC2590296B00545EAB /* libish_emu.a in Frameworks */,
-				BB10E5C9248DBAAC009C7A74 /* libarchive.a in Frameworks */,
-				BB235537235D49B300139E00 /* CoreLocation.framework in Frameworks */,
-				BBA8E2C1236FF5EA00515F76 /* SystemConfiguration.framework in Frameworks */,
-				BBAEE339249B58E80069EBB5 /* libbz2.tbd in Frameworks */,
-				BB6DB261216435340047A611 /* libiconv.tbd in Frameworks */,
-				BBFB55662158644C00DFE6DE /* libresolv.tbd in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
+BB792B4D1F96D90D00FFB7A4 /* Frameworks */ = {
+isa = PBXFrameworksBuildPhase;
+buildActionMask = 2147483647;
+files = (
+BB28C7AE26896C1D00BDC834 /* libiSHApp.a in Frameworks */,
+BB21A18426890C7E00BD19B4 /* libfakefs.a in Frameworks */,
+BB13F7EA200ADCED003D1C4D /* libish.a in Frameworks */,
+BBFB2CEC2590296B00545EAB /* libish_emu.a in Frameworks */,
+BB235537235D49B300139E00 /* CoreLocation.framework in Frameworks */,
+BBA8E2C1236FF5EA00515F76 /* SystemConfiguration.framework in Frameworks */,
+BBAEE339249B58E80069EBB5 /* libbz2.tbd in Frameworks */,
+BB6DB261216435340047A611 /* libiconv.tbd in Frameworks */,
+BBFB55662158644C00DFE6DE /* libresolv.tbd in Frameworks */,
+A3D30AF68B6DF0316993ACA3 /* libarchive in Frameworks */,
+);
+runOnlyForDeploymentPostprocessing = 0;
+};
 		BB88F48D2154760800A341FD /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -846,18 +832,9 @@
 				BB10E5D2248DCFEA009C7A74 /* RootsTableViewController.m */,
 				BBAEE33A249BDADC0069EBB5 /* ProgressReportViewController.h */,
 				BBAEE33B249BDADC0069EBB5 /* ProgressReportViewController.m */,
-				BB10E5C2248DBA7B009C7A74 /* fakefs.c */,
-				BB10E0C1248DA5B0009C7A74 /* libarchive.xcodeproj */,
+			BB10E5C2248DBA7B009C7A74 /* fakefs.c */,
 			);
 			name = Roots;
-			sourceTree = "<group>";
-		};
-		BB10E5C4248DBAA1009C7A74 /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				BB10E5C8248DBAA1009C7A74 /* libarchive.a */,
-			);
-			name = Products;
 			sourceTree = "<group>";
 		};
 		BB18B27F1F97F2590059FCD8 /* Scripts */ = {
@@ -1579,28 +1556,30 @@
 			productReference = BB41591C255EF9E300E0950C /* iSHUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
-		BB792B4F1F96D90D00FFB7A4 /* iSH */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = BB792B661F96D90D00FFB7A4 /* Build configuration list for PBXNativeTarget "iSH" */;
-			buildPhases = (
-				BB21A17826890A5B00BD19B4 /* Sources */,
-				BB792B4D1F96D90D00FFB7A4 /* Frameworks */,
-				BBF1248B1FA7BF530088FB50 /* Download Root */,
-				BB034E8C263643C10000A498 /* Generate APK Repositories File */,
-				BB4A53AC1FAA49CA00A72ACE /* Compile JavaScript */,
-				BB792B4E1F96D90D00FFB7A4 /* Resources */,
-				BB88F4A32154760800A341FD /* Embed Foundation Extensions */,
-				E06BE9C8778E12E73533A57A /* Headers */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				BB4A922824ED940C002F5A96 /* PBXTargetDependency */,
-				BBEF1929268063FD001225BD /* PBXTargetDependency */,
-				BB10E5CB248DBAB7009C7A74 /* PBXTargetDependency */,
-				BB13F7E7200AD874003D1C4D /* PBXTargetDependency */,
-				BB88F49E2154760800A341FD /* PBXTargetDependency */,
-			);
+BB792B4F1F96D90D00FFB7A4 /* iSH */ = {
+isa = PBXNativeTarget;
+buildConfigurationList = BB792B661F96D90D00FFB7A4 /* Build configuration list for PBXNativeTarget "iSH" */;
+buildPhases = (
+BB21A17826890A5B00BD19B4 /* Sources */,
+BB792B4D1F96D90D00FFB7A4 /* Frameworks */,
+BBF1248B1FA7BF530088FB50 /* Download Root */,
+BB034E8C263643C10000A498 /* Generate APK Repositories File */,
+BB4A53AC1FAA49CA00A72ACE /* Compile JavaScript */,
+BB792B4E1F96D90D00FFB7A4 /* Resources */,
+BB88F4A32154760800A341FD /* Embed Foundation Extensions */,
+E06BE9C8778E12E73533A57A /* Headers */,
+);
+buildRules = (
+);
+packageProductDependencies = (
+9E49D2762BD1C86DFDF735F4 /* libarchive */,
+);
+dependencies = (
+BB4A922824ED940C002F5A96 /* PBXTargetDependency */,
+BBEF1929268063FD001225BD /* PBXTargetDependency */,
+BB13F7E7200AD874003D1C4D /* PBXTargetDependency */,
+BB88F49E2154760800A341FD /* PBXTargetDependency */,
+);
 			name = iSH;
 			productName = iSH;
 			productReference = BB792B501F96D90D00FFB7A4 /* iSH.app */;
@@ -1722,17 +1701,16 @@
 				en,
 				Base,
 			);
-			mainGroup = BB792B451F96D8E000FFB7A4;
-			productRefGroup = BB792B511F96D90D00FFB7A4 /* Products */;
-			projectDirPath = "";
-			projectReferences = (
-				{
-					ProductGroup = BB10E5C4248DBAA1009C7A74 /* Products */;
-					ProjectRef = BB10E0C1248DA5B0009C7A74 /* libarchive.xcodeproj */;
-				},
-			);
-			projectRoot = "";
-			targets = (
+mainGroup = BB792B451F96D8E000FFB7A4;
+packageReferences = (
+241AF944F7EF2C6EE0726777 /* XCRemoteSwiftPackageReference "libarchive-for-swift" */,
+);
+productRefGroup = BB792B511F96D90D00FFB7A4 /* Products */;
+projectDirPath = "";
+projectReferences = (
+);
+projectRoot = "";
+targets = (
 				BB792B4F1F96D90D00FFB7A4 /* iSH */,
 				BBEF191D26806364001225BD /* libiSHApp */,
 				BB88F48F2154760800A341FD /* iSHFileProvider */,
@@ -1749,13 +1727,6 @@
 /* End PBXProject section */
 
 /* Begin PBXReferenceProxy section */
-		BB10E5C8248DBAA1009C7A74 /* libarchive.a */ = {
-			isa = PBXReferenceProxy;
-			fileType = archive.ar;
-			path = libarchive.a;
-			remoteRef = BB10E5C7248DBAA1009C7A74 /* PBXContainerItemProxy */;
-			sourceTree = BUILT_PRODUCTS_DIR;
-		};
 /* End PBXReferenceProxy section */
 
 /* Begin PBXResourcesBuildPhase section */
@@ -2064,11 +2035,6 @@
 			name = libiSHApp;
 			target = BBEF191D26806364001225BD /* libiSHApp */;
 			targetProxy = CFE894FEFF46CB2EDF2322D0 /* PBXContainerItemProxy */;
-		};
-		BB10E5CB248DBAB7009C7A74 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			name = libarchive;
-			targetProxy = BB10E5CA248DBAB7009C7A74 /* PBXContainerItemProxy */;
 		};
 		BB13F7D5200ACCA8003D1C4D /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -2648,6 +2614,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-	};
-	rootObject = BB792B461F96D8E000FFB7A4 /* Project object */;
+
+/* Begin XCRemoteSwiftPackageReference section */
+241AF944F7EF2C6EE0726777 /* XCRemoteSwiftPackageReference "libarchive-for-swift" */ = {
+isa = XCRemoteSwiftPackageReference;
+repositoryURL = "https://github.com/matteo-pacini/libarchive-for-swift";
+requirement = {
+kind = exactVersion;
+version = 1.0.0;
+};
+};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+9E49D2762BD1C86DFDF735F4 /* libarchive */ = {
+isa = XCSwiftPackageProductDependency;
+package = 241AF944F7EF2C6EE0726777 /* XCRemoteSwiftPackageReference "libarchive-for-swift" */;
+productName = libarchive;
+};
+/* End XCSwiftPackageProductDependency section */
+};
+rootObject = BB792B461F96D8E000FFB7A4 /* Project object */;
 }

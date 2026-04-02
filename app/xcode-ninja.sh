@@ -14,6 +14,9 @@ run_clean() {
     env "${CLEAN_ENV[@]}" "$@"
 }
 
+# Ensure Homebrew bin is in PATH for finding ninja
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+
 resolve_binary() {
     local tool="$1"
     local candidate
@@ -37,14 +40,24 @@ else
     exit 127
 fi
 
+# Resolve ninja binary path
+NINJA_BIN=""
+if ! NINJA_BIN=$(resolve_binary ninja); then
+    echo "error: ninja is required but was not found. Install ninja via Homebrew." >&2
+    exit 127
+fi
+
+# Export NINJA so Meson can find it
+export NINJA="$NINJA_BIN"
+
 run_meson() {
     if [[ "$MESON_BIN" == *"python3"* ]]; then
-        run_clean $MESON_BIN "$@"
+        run_clean $MESON_BIN compile "$@"
     else
-        run_clean "$MESON_BIN" "$@"
+        run_clean "$MESON_BIN" compile "$@"
     fi
 }
 
 # Use meson compile (official Meson build command) instead of raw ninja.
 # This delegates build semantics to Meson while still using ninja under the hood.
-run_meson compile "$@"
+run_meson "$@"
