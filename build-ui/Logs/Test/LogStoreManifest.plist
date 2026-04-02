@@ -6,65 +6,6 @@
 	<integer>12</integer>
 	<key>logs</key>
 	<dict>
-		<key>B9C06696-C651-438B-8EEB-FEA3FC7D2DD3</key>
-		<dict>
-			<key>auxiliaryLogUniqueIdentifier</key>
-			<string>23452EBF-C87F-4469-93D4-0F6A01345A36</string>
-			<key>auxiliaryObservable</key>
-			<dict>
-				<key>highLevelStatus</key>
-				<string>W</string>
-				<key>totalNumberOfAnalyzerIssues</key>
-				<integer>0</integer>
-				<key>totalNumberOfErrors</key>
-				<integer>0</integer>
-				<key>totalNumberOfTestFailures</key>
-				<integer>0</integer>
-				<key>totalNumberOfWarnings</key>
-				<integer>2</integer>
-			</dict>
-			<key>className</key>
-			<string>IDESchemeActionsInvocationRecord</string>
-			<key>documentTypeString</key>
-			<string>&lt;nil&gt;</string>
-			<key>domainType</key>
-			<string>com.apple.dt.unit.cocoaUnitTest</string>
-			<key>fileName</key>
-			<string>Test-iSH-UISmoke-2026.04.01_15-11-41-+0200.xcresult</string>
-			<key>hasAuxiliaryLog</key>
-			<true/>
-			<key>hasPrimaryLog</key>
-			<true/>
-			<key>primaryObservable</key>
-			<dict>
-				<key>highLevelStatus</key>
-				<string>W</string>
-				<key>totalNumberOfAnalyzerIssues</key>
-				<integer>0</integer>
-				<key>totalNumberOfErrors</key>
-				<integer>0</integer>
-				<key>totalNumberOfTestFailures</key>
-				<integer>0</integer>
-				<key>totalNumberOfWarnings</key>
-				<integer>2</integer>
-			</dict>
-			<key>schemeIdentifier-containerName</key>
-			<string>iSH project</string>
-			<key>schemeIdentifier-schemeName</key>
-			<string>iSH-UISmoke</string>
-			<key>schemeIdentifier-sharedScheme</key>
-			<integer>1</integer>
-			<key>signature</key>
-			<string>Test iSH-UISmoke</string>
-			<key>timeStartedRecording</key>
-			<real>796741901.59059</real>
-			<key>timeStoppedRecording</key>
-			<real>796741914.94557798</real>
-			<key>title</key>
-			<string>Test iSH-UISmoke</string>
-			<key>uniqueIdentifier</key>
-			<string>B9C06696-C651-438B-8EEB-FEA3FC7D2DD3</string>
-		</dict>
 		<key>FF0AAC0F-3858-486A-AFC6-B10ADF746E7D</key>
 		<dict>
 			<key>auxiliaryLogUniqueIdentifier</key>

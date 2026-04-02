@@ -110,7 +110,6 @@ tcti_entry_block:
     ldr     x1, [x29, #16]          // Guest x0 -> host x1
     ldr     x2, [x29, #24]          // Guest x1 -> host x2
     ldr     x3, [x29, #32]          // Guest x2 -> host x3
-    ldr     x4, [x29, #40]          // Guest x3 -> host x4
     ldr     x5, [x29, #48]          // Guest x4 -> host x5
     ldr     x6, [x29, #56]          // Guest x5 -> host x6
     ldr     x7, [x29, #64]          // Guest x6 -> host x7
@@ -215,7 +214,6 @@ tcti_exit_block:
     str     x1,  [x29, #16]         // Host x1 -> guest x0
     str     x2,  [x29, #24]         // Host x2 -> guest x1
     str     x3,  [x29, #32]         // Host x3 -> guest x2
-    str     x4,  [x29, #40]         // Host x4 -> guest x3
     str     x5,  [x29, #48]         // Host x5 -> guest x4
     str     x6,  [x29, #56]         // Host x6 -> guest x5
     str     x7,  [x29, #64]         // Host x7 -> guest x6
