@@ -1,1 +1,0 @@
-https://api.synthetic.new/openai/v1
