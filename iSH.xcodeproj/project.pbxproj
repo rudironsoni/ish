@@ -31,6 +31,8 @@
 		4E4DF33E5B6592E94A6F7FCC /* decode.c in Sources */ = {isa = PBXBuildFile; fileRef = 53C480AE9552263A7841B736 /* decode.c */; };
 		6D90E04CABC6CCEECDB4860C /* gadgets_tcti.h in Headers */ = {isa = PBXBuildFile; fileRef = 9E2B3DB1D00D9F5738164385 /* gadgets_tcti.h */; };
 		75EABAA9918B8D7DFDABA021 /* gadgets.h in Headers */ = {isa = PBXBuildFile; fileRef = 2FE599EED340E38DC05DAF8D /* gadgets.h */; };
+		A3D30AF68B6DF0316993ACA3 /* libarchive in Frameworks */ = {isa = PBXBuildFile; productRef = 9E49D2762BD1C86DFDF735F4 /* libarchive */; };
+		A3D30AF78B6DF0316993ACA3 /* libarchive in Frameworks */ = {isa = PBXBuildFile; productRef = 9E49D2762BD1C86DFDF735F4 /* libarchive */; };
 		AA64DEC1A1234567890ABC01 /* Aarch64DecoderTests.mm in Sources */ = {isa = PBXBuildFile; fileRef = AA64DEC0A1234567890ABC01 /* Aarch64DecoderTests.mm */; };
 		AA64EMU2183AEF31C4C5A06 /* Aarch64EmulatorTests.m in Sources */ = {isa = PBXBuildFile; fileRef = AA64EMU1F25FCA8CD532024 /* Aarch64EmulatorTests.m */; };
 		B181B85F8AB4301BBB4A3089 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 12266591102F752F19F687CC /* Foundation.framework */; };
@@ -124,7 +126,6 @@
 		BBFB2CEC2590296B00545EAB /* libish_emu.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BBFB2C5B2590257E00545EAB /* libish_emu.a */; };
 		BBFB55662158644C00DFE6DE /* libresolv.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = BBFB55652158644C00DFE6DE /* libresolv.tbd */; };
 		ED1D1BF835048C160C9C1983 /* gen.h in Headers */ = {isa = PBXBuildFile; fileRef = 7FB5AED693B5FD4593514E8D /* gen.h */; };
-A3D30AF68B6DF0316993ACA3 /* libarchive in Frameworks */ = {isa = PBXBuildFile; productRef = 9E49D2762BD1C86DFDF735F4 /* libarchive */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXBuildRule section */
@@ -139,6 +140,7 @@ A3D30AF68B6DF0316993ACA3 /* libarchive in Frameworks */ = {isa = PBXBuildFile; p
 				"$(DERIVED_FILE_DIR)/mach_excServer.h",
 				"$(DERIVED_FILE_DIR)/mach_excServer.c",
 			);
+			runOncePerArchitecture = 0;
 			script = "set -x\n\nunset IPHONEOS_DEPLOYMENT_TARGET\n\nsdk=\"$(dirname \"$SCRIPT_INPUT_FILE\")/../../../\"\ncd \"$DERIVED_FILE_DIR\"\nmig -sheader \"$DERIVED_FILE_DIR/mach_excServer.h\" -server \"$DERIVED_FILE_DIR/mach_excServer.c\" -Wno-incompatible-sysroot -isysroot \"$sdk\" \"$SCRIPT_INPUT_FILE\"\n";
 		};
 /* End PBXBuildRule section */
@@ -443,7 +445,6 @@ A3D30AF68B6DF0316993ACA3 /* libarchive in Frameworks */ = {isa = PBXBuildFile; p
 		BB0FC5911F980A6B00803272 /* Terminal.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Terminal.m; sourceTree = "<group>"; };
 		BB101B362364CF57000A93BC /* FontPickerViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FontPickerViewController.h; sourceTree = "<group>"; };
 		BB101B372364CF57000A93BC /* FontPickerViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FontPickerViewController.m; sourceTree = "<group>"; };
-
 		BB10E5C2248DBA7B009C7A74 /* fakefs.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = fakefs.c; path = tools/fakefs.c; sourceTree = SOURCE_ROOT; };
 		BB10E5CC248DBE66009C7A74 /* Roots.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Roots.h; sourceTree = "<group>"; };
 		BB10E5CD248DBE66009C7A74 /* Roots.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Roots.m; sourceTree = "<group>"; };
@@ -660,6 +661,14 @@ A3D30AF68B6DF0316993ACA3 /* libarchive in Frameworks */ = {isa = PBXBuildFile; p
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A4E426CA74549A267624C5E5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A3D30AF78B6DF0316993ACA3 /* libarchive in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		BB415919255EF9E300E0950C /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -667,23 +676,23 @@ A3D30AF68B6DF0316993ACA3 /* libarchive in Frameworks */ = {isa = PBXBuildFile; p
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-BB792B4D1F96D90D00FFB7A4 /* Frameworks */ = {
-isa = PBXFrameworksBuildPhase;
-buildActionMask = 2147483647;
-files = (
-BB28C7AE26896C1D00BDC834 /* libiSHApp.a in Frameworks */,
-BB21A18426890C7E00BD19B4 /* libfakefs.a in Frameworks */,
-BB13F7EA200ADCED003D1C4D /* libish.a in Frameworks */,
-BBFB2CEC2590296B00545EAB /* libish_emu.a in Frameworks */,
-BB235537235D49B300139E00 /* CoreLocation.framework in Frameworks */,
-BBA8E2C1236FF5EA00515F76 /* SystemConfiguration.framework in Frameworks */,
-BBAEE339249B58E80069EBB5 /* libbz2.tbd in Frameworks */,
-BB6DB261216435340047A611 /* libiconv.tbd in Frameworks */,
-BBFB55662158644C00DFE6DE /* libresolv.tbd in Frameworks */,
-A3D30AF68B6DF0316993ACA3 /* libarchive in Frameworks */,
-);
-runOnlyForDeploymentPostprocessing = 0;
-};
+		BB792B4D1F96D90D00FFB7A4 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BB28C7AE26896C1D00BDC834 /* libiSHApp.a in Frameworks */,
+				BB21A18426890C7E00BD19B4 /* libfakefs.a in Frameworks */,
+				BB13F7EA200ADCED003D1C4D /* libish.a in Frameworks */,
+				BBFB2CEC2590296B00545EAB /* libish_emu.a in Frameworks */,
+				BB235537235D49B300139E00 /* CoreLocation.framework in Frameworks */,
+				BBA8E2C1236FF5EA00515F76 /* SystemConfiguration.framework in Frameworks */,
+				BBAEE339249B58E80069EBB5 /* libbz2.tbd in Frameworks */,
+				BB6DB261216435340047A611 /* libiconv.tbd in Frameworks */,
+				BBFB55662158644C00DFE6DE /* libresolv.tbd in Frameworks */,
+				A3D30AF68B6DF0316993ACA3 /* libarchive in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		BB88F48D2154760800A341FD /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -832,7 +841,7 @@ runOnlyForDeploymentPostprocessing = 0;
 				BB10E5D2248DCFEA009C7A74 /* RootsTableViewController.m */,
 				BBAEE33A249BDADC0069EBB5 /* ProgressReportViewController.h */,
 				BBAEE33B249BDADC0069EBB5 /* ProgressReportViewController.m */,
-			BB10E5C2248DBA7B009C7A74 /* fakefs.c */,
+				BB10E5C2248DBA7B009C7A74 /* fakefs.c */,
 			);
 			name = Roots;
 			sourceTree = "<group>";
@@ -1556,31 +1565,31 @@ runOnlyForDeploymentPostprocessing = 0;
 			productReference = BB41591C255EF9E300E0950C /* iSHUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
-BB792B4F1F96D90D00FFB7A4 /* iSH */ = {
-isa = PBXNativeTarget;
-buildConfigurationList = BB792B661F96D90D00FFB7A4 /* Build configuration list for PBXNativeTarget "iSH" */;
-buildPhases = (
-BB21A17826890A5B00BD19B4 /* Sources */,
-BB792B4D1F96D90D00FFB7A4 /* Frameworks */,
-BBF1248B1FA7BF530088FB50 /* Download Root */,
-BB034E8C263643C10000A498 /* Generate APK Repositories File */,
-BB4A53AC1FAA49CA00A72ACE /* Compile JavaScript */,
-BB792B4E1F96D90D00FFB7A4 /* Resources */,
-BB88F4A32154760800A341FD /* Embed Foundation Extensions */,
-E06BE9C8778E12E73533A57A /* Headers */,
-);
-buildRules = (
-);
-packageProductDependencies = (
-9E49D2762BD1C86DFDF735F4 /* libarchive */,
-);
-dependencies = (
-BB4A922824ED940C002F5A96 /* PBXTargetDependency */,
-BBEF1929268063FD001225BD /* PBXTargetDependency */,
-BB13F7E7200AD874003D1C4D /* PBXTargetDependency */,
-BB88F49E2154760800A341FD /* PBXTargetDependency */,
-);
+		BB792B4F1F96D90D00FFB7A4 /* iSH */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BB792B661F96D90D00FFB7A4 /* Build configuration list for PBXNativeTarget "iSH" */;
+			buildPhases = (
+				BB21A17826890A5B00BD19B4 /* Sources */,
+				BB792B4D1F96D90D00FFB7A4 /* Frameworks */,
+				BBF1248B1FA7BF530088FB50 /* Download Root */,
+				BB034E8C263643C10000A498 /* Generate APK Repositories File */,
+				BB4A53AC1FAA49CA00A72ACE /* Compile JavaScript */,
+				BB792B4E1F96D90D00FFB7A4 /* Resources */,
+				BB88F4A32154760800A341FD /* Embed Foundation Extensions */,
+				E06BE9C8778E12E73533A57A /* Headers */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				BB4A922824ED940C002F5A96 /* PBXTargetDependency */,
+				BBEF1929268063FD001225BD /* PBXTargetDependency */,
+				BB13F7E7200AD874003D1C4D /* PBXTargetDependency */,
+				BB88F49E2154760800A341FD /* PBXTargetDependency */,
+			);
 			name = iSH;
+			packageProductDependencies = (
+				9E49D2762BD1C86DFDF735F4 /* libarchive */,
+			);
 			productName = iSH;
 			productReference = BB792B501F96D90D00FFB7A4 /* iSH.app */;
 			productType = "com.apple.product-type.application";
@@ -1607,6 +1616,7 @@ BB88F49E2154760800A341FD /* PBXTargetDependency */,
 			buildConfigurationList = BBEF192626806364001225BD /* Build configuration list for PBXNativeTarget "libiSHApp" */;
 			buildPhases = (
 				BBEF191A26806364001225BD /* Sources */,
+				A4E426CA74549A267624C5E5 /* Frameworks */,
 			);
 			buildRules = (
 				497A08BE29633FC100B323CF /* PBXBuildRule */,
@@ -1614,6 +1624,9 @@ BB88F49E2154760800A341FD /* PBXTargetDependency */,
 			dependencies = (
 			);
 			name = libiSHApp;
+			packageProductDependencies = (
+				9E49D2762BD1C86DFDF735F4 /* libarchive */,
+			);
 			productName = libiSH;
 			productReference = BBEF191E26806364001225BD /* libiSHApp.a */;
 			productType = "com.apple.product-type.library.static";
@@ -1641,8 +1654,9 @@ BB88F49E2154760800A341FD /* PBXTargetDependency */,
 		BB792B461F96D8E000FFB7A4 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
+				BuildIndependentTargetsInParallel = YES;
 				CLASSPREFIX = "";
-				LastUpgradeCheck = 1410;
+				LastUpgradeCheck = 2640;
 				TargetAttributes = {
 					489181476DFFBEDBB5881EA3 = {
 						CreatedOnToolsVersion = 14.0;
@@ -1701,33 +1715,28 @@ BB88F49E2154760800A341FD /* PBXTargetDependency */,
 				en,
 				Base,
 			);
-mainGroup = BB792B451F96D8E000FFB7A4;
-packageReferences = (
-241AF944F7EF2C6EE0726777 /* XCRemoteSwiftPackageReference "libarchive-for-swift" */,
-);
-productRefGroup = BB792B511F96D90D00FFB7A4 /* Products */;
-projectDirPath = "";
-projectReferences = (
-);
-projectRoot = "";
-targets = (
+			mainGroup = BB792B451F96D8E000FFB7A4;
+			packageReferences = (
+				241AF944F7EF2C6EE0726777 /* XCRemoteSwiftPackageReference "libarchive-for-swift" */,
+			);
+			productRefGroup = BB792B511F96D90D00FFB7A4 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
 				BB792B4F1F96D90D00FFB7A4 /* iSH */,
 				BBEF191D26806364001225BD /* libiSHApp */,
 				BB88F48F2154760800A341FD /* iSHFileProvider */,
 				BB41591B255EF9E300E0950C /* iSHUITests */,
 				BB13F7CA200ACC31003D1C4D /* Meson */,
 				BB13F7D0200ACCA2003D1C4D /* Ninja */,
-				BB13F7DB200AD81D003D1C4D /* libish */,
 				BB21A1662689041500BD19B4 /* libfakefs */,
+				BB13F7DB200AD81D003D1C4D /* libish */,
 				BBFB2C542590257E00545EAB /* libish_emu */,
 				BB4A922324ED9402002F5A96 /* iSH pre */,
 				489181476DFFBEDBB5881EA3 /* UnitTests */,
 			);
 		};
 /* End PBXProject section */
-
-/* Begin PBXReferenceProxy section */
-/* End PBXReferenceProxy section */
 
 /* Begin PBXResourcesBuildPhase section */
 		BB41591A255EF9E300E0950C /* Resources */ = {
@@ -2138,16 +2147,15 @@ targets = (
 		85BD6E6DE42DC34427C38D2D /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = arm64;
 				ARM64_NAMES = arm64;
 				CLANG_ENABLE_MODULES = YES;
-				DEVELOPMENT_TEAM = M8Z2UYG8G9;
+				DEVELOPMENT_TEAM = ZQ3L7M567L;
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(SRCROOT)",
 				);
 				INFOPLIST_FILE = app/UITests/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -2167,8 +2175,9 @@ targets = (
 		BB13F7CC200ACC31003D1C4D /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = arm64;
+				"ARCHS[sdk=iphonesimulator*]" = arm64;
 				ARM64_NAMES = arm64;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				ONLY_ACTIVE_ARCH = NO;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -2178,8 +2187,9 @@ targets = (
 		BB13F7CD200ACC31003D1C4D /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = arm64;
+				"ARCHS[sdk=iphonesimulator*]" = arm64;
 				ARM64_NAMES = arm64;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				ONLY_ACTIVE_ARCH = NO;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -2189,8 +2199,9 @@ targets = (
 		BB13F7D2200ACCA2003D1C4D /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = arm64;
+				"ARCHS[sdk=iphonesimulator*]" = arm64;
 				ARM64_NAMES = arm64;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				ONLY_ACTIVE_ARCH = NO;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -2200,8 +2211,9 @@ targets = (
 		BB13F7D3200ACCA2003D1C4D /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = arm64;
+				"ARCHS[sdk=iphonesimulator*]" = arm64;
 				ARM64_NAMES = arm64;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				ONLY_ACTIVE_ARCH = NO;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -2212,8 +2224,8 @@ targets = (
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BBFB2CDA259028DC00545EAB /* StaticLib.xcconfig */;
 			buildSettings = {
-				ARCHS = arm64;
 				ARM64_NAMES = arm64;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				ONLY_ACTIVE_ARCH = NO;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -2224,8 +2236,8 @@ targets = (
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BBFB2CDA259028DC00545EAB /* StaticLib.xcconfig */;
 			buildSettings = {
-				ARCHS = arm64;
 				ARM64_NAMES = arm64;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				ONLY_ACTIVE_ARCH = NO;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -2236,8 +2248,9 @@ targets = (
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BBFB2CDA259028DC00545EAB /* StaticLib.xcconfig */;
 			buildSettings = {
-				ARCHS = arm64;
 				ARM64_NAMES = arm64;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MACOSX_DEPLOYMENT_TARGET = 11.0;
 				ONLY_ACTIVE_ARCH = NO;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -2248,10 +2261,11 @@ targets = (
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BB0B86D52587009D00208600 /* iOS.xcconfig */;
 			buildSettings = {
-				ARCHS = arm64;
 				ARM64_NAMES = arm64;
 				CLANG_ENABLE_MODULES = YES;
+				DEVELOPMENT_TEAM = ZQ3L7M567L;
 				INFOPLIST_FILE = app/UITests/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -2272,10 +2286,11 @@ targets = (
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BB0B86D52587009D00208600 /* iOS.xcconfig */;
 			buildSettings = {
-				ARCHS = arm64;
 				ARM64_NAMES = arm64;
 				CLANG_ENABLE_MODULES = YES;
+				DEVELOPMENT_TEAM = ZQ3L7M567L;
 				INFOPLIST_FILE = app/UITests/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -2294,7 +2309,6 @@ targets = (
 		BB4A922524ED9402002F5A96 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = arm64;
 				ARM64_NAMES = arm64;
 				ONLY_ACTIVE_ARCH = NO;
 				SDKROOT = iphoneos;
@@ -2305,7 +2319,6 @@ targets = (
 		BB4A922624ED9402002F5A96 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = arm64;
 				ARM64_NAMES = arm64;
 				ONLY_ACTIVE_ARCH = NO;
 				SDKROOT = iphoneos;
@@ -2317,7 +2330,10 @@ targets = (
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BB0B85A42586F1CB00208600 /* ProjectDebug.xcconfig */;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CURRENT_PROJECT_VERSION = 806;
+				DEVELOPMENT_TEAM = M8Z2UYG8G9;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 			};
 			name = Debug;
 		};
@@ -2325,7 +2341,11 @@ targets = (
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BB0B85A52586F1E100208600 /* ProjectRelease.xcconfig */;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CURRENT_PROJECT_VERSION = 806;
+				DEVELOPMENT_TEAM = M8Z2UYG8G9;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
 			};
 			name = Release;
 		};
@@ -2333,7 +2353,6 @@ targets = (
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BB0B86CD2586FD8800208600 /* App.xcconfig */;
 			buildSettings = {
-				ARCHS = arm64;
 				ARM64_NAMES = arm64;
 				DEVELOPMENT_TEAM = ZQ3L7M567L;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -2342,6 +2361,7 @@ targets = (
 					"$(inherited)",
 					"ARCH_AARCH64=1",
 				);
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LIBRARY_SEARCH_PATHS = "$(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)";
 				ONLY_ACTIVE_ARCH = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = com.rudironsoni.ish;
@@ -2355,7 +2375,6 @@ targets = (
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BB0B86CD2586FD8800208600 /* App.xcconfig */;
 			buildSettings = {
-				ARCHS = arm64;
 				ARM64_NAMES = arm64;
 				DEVELOPMENT_TEAM = ZQ3L7M567L;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -2364,6 +2383,7 @@ targets = (
 					"$(inherited)",
 					"ARCH_AARCH64=1",
 				);
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LIBRARY_SEARCH_PATHS = "$(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)";
 				ONLY_ACTIVE_ARCH = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = com.rudironsoni.ish;
@@ -2377,10 +2397,11 @@ targets = (
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BB0B86D52587009D00208600 /* iOS.xcconfig */;
 			buildSettings = {
-				ARCHS = arm64;
 				ARM64_NAMES = arm64;
 				CODE_SIGN_ENTITLEMENTS = app/FileProvider/iSHFileProvider.entitlements;
+				DEVELOPMENT_TEAM = ZQ3L7M567L;
 				INFOPLIST_FILE = app/FileProvider/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				ONLY_ACTIVE_ARCH = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER).FileProvider";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -2394,10 +2415,11 @@ targets = (
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BB0B86D52587009D00208600 /* iOS.xcconfig */;
 			buildSettings = {
-				ARCHS = arm64;
 				ARM64_NAMES = arm64;
 				CODE_SIGN_ENTITLEMENTS = app/FileProvider/iSHFileProvider.entitlements;
+				DEVELOPMENT_TEAM = ZQ3L7M567L;
 				INFOPLIST_FILE = app/FileProvider/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				ONLY_ACTIVE_ARCH = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(PRODUCT_BUNDLE_IDENTIFIER).FileProvider";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -2411,9 +2433,10 @@ targets = (
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BBEF192C26806546001225BD /* AppLib.xcconfig */;
 			buildSettings = {
-				ARCHS = arm64;
 				ARM64_NAMES = arm64;
 				ENABLE_TESTING_SEARCH_PATHS = YES;
+				EXCLUDED_ARCHS = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				ONLY_ACTIVE_ARCH = NO;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;
@@ -2425,9 +2448,10 @@ targets = (
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BBEF192C26806546001225BD /* AppLib.xcconfig */;
 			buildSettings = {
-				ARCHS = arm64;
 				ARM64_NAMES = arm64;
 				ENABLE_TESTING_SEARCH_PATHS = YES;
+				EXCLUDED_ARCHS = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				ONLY_ACTIVE_ARCH = NO;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;
@@ -2439,8 +2463,8 @@ targets = (
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BBFB2CDA259028DC00545EAB /* StaticLib.xcconfig */;
 			buildSettings = {
-				ARCHS = arm64;
 				ARM64_NAMES = arm64;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				ONLY_ACTIVE_ARCH = NO;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -2451,8 +2475,8 @@ targets = (
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BBFB2CDA259028DC00545EAB /* StaticLib.xcconfig */;
 			buildSettings = {
-				ARCHS = arm64;
 				ARM64_NAMES = arm64;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				ONLY_ACTIVE_ARCH = NO;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -2464,6 +2488,8 @@ targets = (
 			buildSettings = {
 				COPY_PHASE_STRIP = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MACOSX_DEPLOYMENT_TARGET = 11.0;
 				PRODUCT_NAME = libish;
 			};
 			name = Release;
@@ -2478,16 +2504,15 @@ targets = (
 		E98FE87541829626A17AF213 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = arm64;
 				ARM64_NAMES = arm64;
 				CLANG_ENABLE_MODULES = YES;
-				DEVELOPMENT_TEAM = M8Z2UYG8G9;
+				DEVELOPMENT_TEAM = ZQ3L7M567L;
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(SRCROOT)",
 				);
 				INFOPLIST_FILE = tests/Unit/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -2616,23 +2641,23 @@ targets = (
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-241AF944F7EF2C6EE0726777 /* XCRemoteSwiftPackageReference "libarchive-for-swift" */ = {
-isa = XCRemoteSwiftPackageReference;
-repositoryURL = "https://github.com/matteo-pacini/libarchive-for-swift";
-requirement = {
-kind = exactVersion;
-version = 1.0.0;
-};
-};
+		241AF944F7EF2C6EE0726777 /* XCRemoteSwiftPackageReference "libarchive-for-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/matteo-pacini/libarchive-for-swift";
+			requirement = {
+				kind = exactVersion;
+				version = 1.0.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-9E49D2762BD1C86DFDF735F4 /* libarchive */ = {
-isa = XCSwiftPackageProductDependency;
-package = 241AF944F7EF2C6EE0726777 /* XCRemoteSwiftPackageReference "libarchive-for-swift" */;
-productName = libarchive;
-};
+		9E49D2762BD1C86DFDF735F4 /* libarchive */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 241AF944F7EF2C6EE0726777 /* XCRemoteSwiftPackageReference "libarchive-for-swift" */;
+			productName = libarchive;
+		};
 /* End XCSwiftPackageProductDependency section */
-};
-rootObject = BB792B461F96D8E000FFB7A4 /* Project object */;
+	};
+	rootObject = BB792B461F96D8E000FFB7A4 /* Project object */;
 }
