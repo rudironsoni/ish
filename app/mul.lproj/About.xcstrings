@@ -1,0 +1,762 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "1Co-nG-Sij.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Appearance\"; ObjectID = \"1Co-nG-Sij\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Appearance"
+          }
+        }
+      }
+    },
+    "4j6-te-7NU.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Font Size\"; ObjectID = \"4j6-te-7NU\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Font Size"
+          }
+        }
+      }
+    },
+    "5o9-8G-nwe.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Default\"; ObjectID = \"5o9-8G-nwe\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Default"
+          }
+        }
+      }
+    },
+    "5QX-R3-V8P.title" : {
+      "comment" : "Class = \"UINavigationItem\"; title = \"App Icon\"; ObjectID = \"5QX-R3-V8P\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "App Icon"
+          }
+        }
+      }
+    },
+    "5wC-O1-dx3.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Menlo\"; ObjectID = \"5wC-O1-dx3\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Menlo"
+          }
+        }
+      }
+    },
+    "6jC-28-tzS.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Theme\"; ObjectID = \"6jC-28-tzS\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Theme"
+          }
+        }
+      }
+    },
+    "6Qv-kp-ISr.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"App Icon\"; ObjectID = \"6Qv-kp-ISr\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "App Icon"
+          }
+        }
+      }
+    },
+    "7Wo-VW-69j.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Title\"; ObjectID = \"7Wo-VW-69j\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Title"
+          }
+        }
+      }
+    },
+    "9eV-Jd-Xng.title" : {
+      "comment" : "Class = \"UIViewController\"; title = \"Upgrade\"; ObjectID = \"9eV-Jd-Xng\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Upgrade"
+          }
+        }
+      }
+    },
+    "9gc-hC-CxN.segmentTitles[0]" : {
+      "comment" : "Class = \"UISegmentedControl\"; 9gc-hC-CxN.segmentTitles[0] = \"Block\"; ObjectID = \"9gc-hC-CxN\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Block"
+          }
+        }
+      }
+    },
+    "9gc-hC-CxN.segmentTitles[1]" : {
+      "comment" : "Class = \"UISegmentedControl\"; 9gc-hC-CxN.segmentTitles[1] = \"Beam\"; ObjectID = \"9gc-hC-CxN\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Beam"
+          }
+        }
+      }
+    },
+    "9gc-hC-CxN.segmentTitles[2]" : {
+      "comment" : "Class = \"UISegmentedControl\"; 9gc-hC-CxN.segmentTitles[2] = \"Underline\"; ObjectID = \"9gc-hC-CxN\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Underline"
+          }
+        }
+      }
+    },
+    "83j-2z-XRR.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Export container\"; ObjectID = \"83j-2z-XRR\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Export container"
+          }
+        }
+      }
+    },
+    "aLu-k6-NCW.segmentTitles[0]" : {
+      "comment" : "Class = \"UISegmentedControl\"; aLu-k6-NCW.segmentTitles[0] = \"Light\"; ObjectID = \"aLu-k6-NCW\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Light"
+          }
+        }
+      }
+    },
+    "aLu-k6-NCW.segmentTitles[1]" : {
+      "comment" : "Class = \"UISegmentedControl\"; aLu-k6-NCW.segmentTitles[1] = \"Dark\"; ObjectID = \"aLu-k6-NCW\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Dark"
+          }
+        }
+      }
+    },
+    "aZY-tt-Itk.title" : {
+      "comment" : "Class = \"UITableViewController\"; title = \"Font\"; ObjectID = \"aZY-tt-Itk\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Font"
+          }
+        }
+      }
+    },
+    "bKw-tV-nX1.text" : {
+      "comment" : "Class = \"UITextField\"; text = \"/bin/login -f root\"; ObjectID = \"bKw-tV-nX1\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "/bin/login -f root"
+          }
+        }
+      }
+    },
+    "bpe-0g-cWF.title" : {
+      "comment" : "Class = \"UINavigationItem\"; title = \"Settings\"; ObjectID = \"bpe-0g-cWF\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Settings"
+          }
+        }
+      }
+    },
+    "cfv-rk-mN1.title" : {
+      "comment" : "Class = \"UIViewController\"; title = \"App Icon\"; ObjectID = \"cfv-rk-mN1\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "App Icon"
+          }
+        }
+      }
+    },
+    "CXm-1h-hy1.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"None\"; ObjectID = \"CXm-1h-hy1\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "None"
+          }
+        }
+      }
+    },
+    "d0T-DL-SuP.footerTitle" : {
+      "comment" : "Class = \"UITableViewSection\"; footerTitle = \"Warning: Changing these can break everything! If that happens, there's a reset switch in the Settings app.\"; ObjectID = \"d0T-DL-SuP\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Warning: Changing these can break everything! If that happens, there's a reset switch in the Settings app."
+          }
+        }
+      }
+    },
+    "d0T-DL-SuP.headerTitle" : {
+      "comment" : "Class = \"UITableViewSection\"; headerTitle = \"Secret Advanced Debugging Options\"; ObjectID = \"d0T-DL-SuP\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Secret Advanced Debugging Options"
+          }
+        }
+      }
+    },
+    "dVs-7k-zeJ.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Filesystems\"; ObjectID = \"dVs-7k-zeJ\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Filesystems"
+          }
+        }
+      }
+    },
+    "dzn-ZK-t3V.title" : {
+      "comment" : "Class = \"UINavigationItem\"; title = \"Appearance\"; ObjectID = \"dzn-ZK-t3V\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Appearance"
+          }
+        }
+      }
+    },
+    "E9e-hb-zQw.normalTitle" : {
+      "comment" : "Class = \"UIButton\"; normalTitle = \"Submit your own icon!\"; ObjectID = \"E9e-hb-zQw\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Submit your own icon!"
+          }
+        }
+      }
+    },
+    "Fa7-Ao-v3L.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"12\"; ObjectID = \"Fa7-Ao-v3L\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "12"
+          }
+        }
+      }
+    },
+    "Fe5-tr-fWm.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"iSH on GitHub\"; ObjectID = \"Fe5-tr-fWm\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "iSH on GitHub"
+          }
+        }
+      }
+    },
+    "g6W-FX-yYa.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Send Feedback\"; ObjectID = \"g6W-FX-yYa\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Send Feedback"
+          }
+        }
+      }
+    },
+    "G8D-8d-aOp.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Launch cmd\"; ObjectID = \"G8D-8d-aOp\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Launch cmd"
+          }
+        }
+      }
+    },
+    "gDx-hv-hhV.text" : {
+      "comment" : "Class = \"UITextField\"; text = \"/bin/login -f root\"; ObjectID = \"gDx-hv-hhV\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "/bin/login -f root"
+          }
+        }
+      }
+    },
+    "gtJ-eb-DvQ.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Font\"; ObjectID = \"gtJ-eb-DvQ\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Font"
+          }
+        }
+      }
+    },
+    "HIV-IH-MNM.title" : {
+      "comment" : "Class = \"UINavigationItem\"; title = \"Themes\"; ObjectID = \"HIV-IH-MNM\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Themes"
+          }
+        }
+      }
+    },
+    "hLA-gT-NrL.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Font\"; ObjectID = \"hLA-gT-NrL\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Font"
+          }
+        }
+      }
+    },
+    "Iov-xn-a0L.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Keep Screen Turned On\"; ObjectID = \"Iov-xn-a0L\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Keep Screen Turned On"
+          }
+        }
+      }
+    },
+    "ItN-wa-djf.title" : {
+      "comment" : "Class = \"UITableViewController\"; title = \"Appearance\"; ObjectID = \"ItN-wa-djf\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Appearance"
+          }
+        }
+      }
+    },
+    "Ivg-bB-NKL.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Boot cmd\"; ObjectID = \"Ivg-bB-NKL\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Boot cmd"
+          }
+        }
+      }
+    },
+    "Kaj-9x-pfF.footerTitle" : {
+      "comment" : "Class = \"UITableViewSection\"; footerTitle = \"When extra keys are hidden, Settings can be opened with the ⌘, shortcut\"; ObjectID = \"Kaj-9x-pfF\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "When extra keys are hidden, Settings can be opened with the ⌘, shortcut"
+          }
+        }
+      }
+    },
+    "Kaj-9x-pfF.headerTitle" : {
+      "comment" : "Class = \"UITableViewSection\"; headerTitle = \"Extra keys\"; ObjectID = \"Kaj-9x-pfF\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Extra keys"
+          }
+        }
+      }
+    },
+    "KvX-Y2-vlm.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Send ctrl-space to terminal\"; ObjectID = \"KvX-Y2-vlm\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Send ctrl-space to terminal"
+          }
+        }
+      }
+    },
+    "L09-wA-jCg.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Upgrade Repositories\"; ObjectID = \"L09-wA-jCg\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Upgrade Repositories"
+          }
+        }
+      }
+    },
+    "NR7-h5-BZD.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Escape\"; ObjectID = \"NR7-h5-BZD\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Escape"
+          }
+        }
+      }
+    },
+    "oTd-4i-TSa.headerTitle" : {
+      "comment" : "Class = \"UITableViewSection\"; headerTitle = \"Map Caps Lock\"; ObjectID = \"oTd-4i-TSa\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Map Caps Lock"
+          }
+        }
+      }
+    },
+    "Ozh-OX-eF1.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Reset ios mounts\"; ObjectID = \"Ozh-OX-eF1\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Reset ios mounts"
+          }
+        }
+      }
+    },
+    "PWB-d9-Zhd.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Hide with external keyboard\"; ObjectID = \"PWB-d9-Zhd\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Hide with external keyboard"
+          }
+        }
+      }
+    },
+    "qax-I0-tqo.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Option → Meta\"; ObjectID = \"qax-I0-tqo\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Option → Meta"
+          }
+        }
+      }
+    },
+    "R2f-RB-uga.title" : {
+      "comment" : "Class = \"UIBarButtonItem\"; title = \"Start\"; ObjectID = \"R2f-RB-uga\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Start"
+          }
+        }
+      }
+    },
+    "RGb-hU-8nK.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Always Hide Status Bar\"; ObjectID = \"RGb-hU-8nK\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Always Hide Status Bar"
+          }
+        }
+      }
+    },
+    "s64-vm-Jln.title" : {
+      "comment" : "Class = \"UINavigationItem\"; title = \"External Keyboard\"; ObjectID = \"s64-vm-Jln\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "External Keyboard"
+          }
+        }
+      }
+    },
+    "sL0-e1-fm7.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Blink Cursor\"; ObjectID = \"sL0-e1-fm7\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Blink Cursor"
+          }
+        }
+      }
+    },
+    "tuR-Og-SE8.footerTitle" : {
+      "comment" : "Class = \"UITableViewSection\"; footerTitle = \"When this option is enabled, the screen will not dim when iSH is in the foreground.\"; ObjectID = \"tuR-Og-SE8\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "When this option is enabled, the screen will not dim when iSH is in the foreground."
+          }
+        }
+      }
+    },
+    "Ucf-cb-qkd.footerTitle" : {
+      "comment" : "Class = \"UITableViewSection\"; footerTitle = \"If this is off, ctrl-space switches keyboard layouts.\"; ObjectID = \"Ucf-cb-qkd\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "If this is off, ctrl-space switches keyboard layouts."
+          }
+        }
+      }
+    },
+    "uXA-OB-CN7.title" : {
+      "comment" : "Class = \"UINavigationItem\"; title = \"Upgrade\"; ObjectID = \"uXA-OB-CN7\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Upgrade"
+          }
+        }
+      }
+    },
+    "WNa-qg-ZN5.normalTitle" : {
+      "comment" : "Class = \"UIButton\"; normalTitle = \"by @author\"; ObjectID = \"WNa-qg-ZN5\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "by @author"
+          }
+        }
+      }
+    },
+    "wyO-AY-ccm.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"iSH on the Fediverse\"; ObjectID = \"wyO-AY-ccm\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "iSH on the Fediverse"
+          }
+        }
+      }
+    },
+    "Xil-tm-WGD.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"iSH unknown (Build unknown)\"; ObjectID = \"Xil-tm-WGD\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "iSH unknown (Build unknown)"
+          }
+        }
+      }
+    },
+    "xMw-wC-igF.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"iSH Discord Server\"; ObjectID = \"xMw-wC-igF\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "iSH Discord Server"
+          }
+        }
+      }
+    },
+    "xvW-ah-hsy.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"External Keyboard\"; ObjectID = \"xvW-ah-hsy\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "External Keyboard"
+          }
+        }
+      }
+    },
+    "yfo-7h-YqG.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Cursor Style\"; ObjectID = \"yfo-7h-YqG\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Cursor Style"
+          }
+        }
+      }
+    },
+    "yhq-lV-Pc3.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Detail\"; ObjectID = \"yhq-lV-Pc3\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Detail"
+          }
+        }
+      }
+    },
+    "zJ4-1C-43Q.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Color Scheme\"; ObjectID = \"zJ4-1C-43Q\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Color Scheme"
+          }
+        }
+      }
+    },
+    "zuo-ZW-n37.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Control\"; ObjectID = \"zuo-ZW-n37\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Control"
+          }
+        }
+      }
+    },
+    "zWx-Iz-vdm.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Backtick → Escape\"; ObjectID = \"zWx-Iz-vdm\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Backtick → Escape"
+          }
+        }
+      }
+    },
+    "Zzy-IN-laJ.title" : {
+      "comment" : "Class = \"UITableViewController\"; title = \"External Keyboard\"; ObjectID = \"Zzy-IN-laJ\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "External Keyboard"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.2"
+}

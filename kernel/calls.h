@@ -44,6 +44,8 @@ dword_t sys_waitpid(pid_t_ pid, addr_t status_addr, dword_t options);
 
 // memory management
 addr_t sys_brk(addr_t new_brk);
+addr_t sys_mmap_native(addr_t addr, dword_t len, dword_t prot, dword_t flags, fd_t fd_no,
+                       off_t_ offset);
 
 #define MMAP_SHARED 0x1
 #define MMAP_PRIVATE 0x2

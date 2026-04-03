@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 54;
+	objectVersion = 60;
 	objects = {
 
 /* Begin PBXAggregateTarget section */
@@ -125,6 +125,10 @@
 		BBEF193726806364001225C5 /* ISHInstrumentationOpenTelemetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBEF193826806364001225C6 /* ISHInstrumentationOpenTelemetry.swift */; };
 		BBFB2CEC2590296B00545EAB /* libish_emu.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BBFB2C5B2590257E00545EAB /* libish_emu.a */; };
 		BBFB55662158644C00DFE6DE /* libresolv.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = BBFB55652158644C00DFE6DE /* libresolv.tbd */; };
+		CA8E72942F8012A0000BB6FF /* syscall_dispatch.c in Sources */ = {isa = PBXBuildFile; fileRef = CA8E72902F8012A0000BB6FF /* syscall_dispatch.c */; };
+		CA8E72952F8012A0000BB6FF /* signal.c in Sources */ = {isa = PBXBuildFile; fileRef = CA8E728F2F8012A0000BB6FF /* signal.c */; };
+		CA8E72962F8012A0000BB6FF /* vdso.c in Sources */ = {isa = PBXBuildFile; fileRef = CA8E72922F8012A0000BB6FF /* vdso.c */; };
+		CA8E72972F8012A0000BB6FF /* calls.c in Sources */ = {isa = PBXBuildFile; fileRef = CA8E728D2F8012A0000BB6FF /* calls.c */; };
 		ED1D1BF835048C160C9C1983 /* gen.h in Headers */ = {isa = PBXBuildFile; fileRef = 7FB5AED693B5FD4593514E8D /* gen.h */; };
 /* End PBXBuildFile section */
 
@@ -141,7 +145,7 @@
 				"$(DERIVED_FILE_DIR)/mach_excServer.c",
 			);
 			runOncePerArchitecture = 0;
-			script = "set -x\n\nunset IPHONEOS_DEPLOYMENT_TARGET\n\nsdk=\"$(dirname \"$SCRIPT_INPUT_FILE\")/../../../\"\ncd \"$DERIVED_FILE_DIR\"\nmig -sheader \"$DERIVED_FILE_DIR/mach_excServer.h\" -server \"$DERIVED_FILE_DIR/mach_excServer.c\" -Wno-incompatible-sysroot -isysroot \"$sdk\" \"$SCRIPT_INPUT_FILE\"\n";
+			script = "set -x\n\n#unset IPHONEOS_DEPLOYMENT_TARGET\n\nsdk=\"$(dirname \"$SCRIPT_INPUT_FILE\")/../../../\"\ncd \"$DERIVED_FILE_DIR\"\nmig -sheader \"$DERIVED_FILE_DIR/mach_excServer.h\" -server \"$DERIVED_FILE_DIR/mach_excServer.c\" -Wno-incompatible-sysroot -isysroot \"$sdk\" \"$SCRIPT_INPUT_FILE\"\n";
 		};
 /* End PBXBuildRule section */
 
@@ -644,6 +648,16 @@
 		CA1CE1C42F7E797100A9A907 /* ViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ViewController.h; sourceTree = "<group>"; };
 		CA1CE1C52F7E797100A9A907 /* xcode-meson.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "xcode-meson.sh"; sourceTree = "<group>"; };
 		CA1CE1C62F7E797100A9A907 /* xcode-ninja.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "xcode-ninja.sh"; sourceTree = "<group>"; };
+		CA8E728C2F8012A0000BB6FF /* calls.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = calls.h; sourceTree = "<group>"; };
+		CA8E728D2F8012A0000BB6FF /* calls.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = calls.c; sourceTree = "<group>"; };
+		CA8E728E2F8012A0000BB6FF /* signal.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = signal.h; sourceTree = "<group>"; };
+		CA8E728F2F8012A0000BB6FF /* signal.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = signal.c; sourceTree = "<group>"; };
+		CA8E72902F8012A0000BB6FF /* syscall_dispatch.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = syscall_dispatch.c; sourceTree = "<group>"; };
+		CA8E72912F8012A0000BB6FF /* vdso.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = vdso.h; sourceTree = "<group>"; };
+		CA8E72922F8012A0000BB6FF /* vdso.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = vdso.c; sourceTree = "<group>"; };
+		CA8E72982F8012FA000BB6FF /* mul */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; name = mul; path = mul.lproj/LaunchScreen.xcstrings; sourceTree = "<group>"; };
+		CA8E72992F8012FA000BB6FF /* mul */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; name = mul; path = mul.lproj/Terminal.xcstrings; sourceTree = "<group>"; };
+		CA8E729A2F8012FB000BB6FF /* mul */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; name = mul; path = mul.lproj/About.xcstrings; sourceTree = "<group>"; };
 		E26FE2880805F95B158DAF8B /* IntegrationTests.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = IntegrationTests.m; path = tests/Unit/IntegrationTests.m; sourceTree = "<group>"; };
 		E5A15F177E3BFF63DD46EB2E /* gadgets_arith.c */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.c; name = gadgets_arith.c; path = aarch64/gadgets_arith.c; sourceTree = "<group>"; };
 		E5E99FD1D802A075B6FFD133 /* GadgetTests.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = GadgetTests.m; path = tests/Unit/GadgetTests.m; sourceTree = "<group>"; };
@@ -1081,6 +1095,7 @@
 		BB7D933C2087C2880008DA78 /* kernel */ = {
 			isa = PBXGroup;
 			children = (
+				CA8E72932F8012A0000BB6FF /* aarch64 */,
 				497F6C9F254E5C9800C82F46 /* calls.c */,
 				497F6C7B254E5C9700C82F46 /* calls.h */,
 				497F6C82254E5C9700C82F46 /* elf.h */,
@@ -1439,6 +1454,20 @@
 				CA1CE1C22F7E797100A9A907 /* UITests.m */,
 			);
 			path = UITests;
+			sourceTree = "<group>";
+		};
+		CA8E72932F8012A0000BB6FF /* aarch64 */ = {
+			isa = PBXGroup;
+			children = (
+				CA8E728C2F8012A0000BB6FF /* calls.h */,
+				CA8E728D2F8012A0000BB6FF /* calls.c */,
+				CA8E728E2F8012A0000BB6FF /* signal.h */,
+				CA8E728F2F8012A0000BB6FF /* signal.c */,
+				CA8E72902F8012A0000BB6FF /* syscall_dispatch.c */,
+				CA8E72912F8012A0000BB6FF /* vdso.h */,
+				CA8E72922F8012A0000BB6FF /* vdso.c */,
+			);
+			path = aarch64;
 			sourceTree = "<group>";
 		};
 		CECE547663394A4236345BC5 /* emu */ = {
@@ -2003,6 +2032,10 @@
 				491B31E62883BF22008EEFB0 /* ThemeViewController.m in Sources */,
 				BB28C7B226896C4600BDC834 /* main.m in Sources */,
 				496C7AB227CC697E005D7613 /* Theme.m in Sources */,
+				CA8E72942F8012A0000BB6FF /* syscall_dispatch.c in Sources */,
+				CA8E72952F8012A0000BB6FF /* signal.c in Sources */,
+				CA8E72962F8012A0000BB6FF /* vdso.c in Sources */,
+				CA8E72972F8012A0000BB6FF /* calls.c in Sources */,
 				BB28C79426896B1F00BDC834 /* AboutNavigationController.m in Sources */,
 				BB28C79526896B1F00BDC834 /* TerminalViewController.m in Sources */,
 				BBC3863F276817AD00CC8C2E /* CurrentRoot.m in Sources */,
@@ -2097,6 +2130,7 @@
 			isa = PBXVariantGroup;
 			children = (
 				BB792B5A1F96D90D00FFB7A4 /* Base */,
+				CA8E72992F8012FA000BB6FF /* mul */,
 			);
 			name = Terminal.storyboard;
 			sourceTree = "<group>";
@@ -2105,6 +2139,7 @@
 			isa = PBXVariantGroup;
 			children = (
 				BB792B5F1F96D90D00FFB7A4 /* Base */,
+				CA8E72982F8012FA000BB6FF /* mul */,
 			);
 			name = LaunchScreen.storyboard;
 			sourceTree = "<group>";
@@ -2113,6 +2148,7 @@
 			isa = PBXVariantGroup;
 			children = (
 				BBBCE7E421D2F02200CA00B3 /* Base */,
+				CA8E729A2F8012FB000BB6FF /* mul */,
 			);
 			name = About.storyboard;
 			sourceTree = "<group>";
@@ -2333,6 +2369,8 @@
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CURRENT_PROJECT_VERSION = 806;
 				DEVELOPMENT_TEAM = M8Z2UYG8G9;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 			};
 			name = Debug;
@@ -2344,6 +2382,8 @@
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CURRENT_PROJECT_VERSION = 806;
 				DEVELOPMENT_TEAM = M8Z2UYG8G9;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 			};
@@ -2436,6 +2476,7 @@
 				ARM64_NAMES = arm64;
 				ENABLE_TESTING_SEARCH_PATHS = YES;
 				EXCLUDED_ARCHS = "";
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				ONLY_ACTIVE_ARCH = NO;
 				SDKROOT = iphoneos;
@@ -2451,6 +2492,7 @@
 				ARM64_NAMES = arm64;
 				ENABLE_TESTING_SEARCH_PATHS = YES;
 				EXCLUDED_ARCHS = "";
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				ONLY_ACTIVE_ARCH = NO;
 				SDKROOT = iphoneos;

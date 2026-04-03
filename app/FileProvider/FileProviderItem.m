@@ -5,7 +5,7 @@
 //  Created by Theodore Dubois on 9/20/18.
 //
 
-#import <MobileCoreServices/MobileCoreServices.h>
+#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 #include <sys/stat.h>
 #include <dirent.h>
 #import "FileProviderExtension.h"
@@ -64,7 +64,6 @@
             else
                 *error = [NSError errorWithDomain:NSPOSIXErrorDomain code:errno userInfo:nil];
         }
-        NSLog(@"opening %@ failed: %@", self.identifier, *error);
         return -1;
     }
     return fd;
@@ -173,29 +172,25 @@
     return [NSDate dateWithTimeIntervalSince1970:statbuf.st_mtimespec.tv_sec + (NSTimeInterval) statbuf.st_mtimespec.tv_nsec / 1000000000];
 }
 
-- (NSString *)typeIdentifier {
+- (UTType *)contentType {
     if (self.isRoot) {
-        NSLog(@"uti of %@ is %@", self.path, (NSString *) kUTTypeFolder);
-        return (NSString *) kUTTypeFolder;
+        return UTTypeFolder;
     }
     mode_t_ mode = self.ishStat.mode;
     if ((mode & S_IFMT) == S_IFDIR)
-        return (NSString *) kUTTypeFolder;
+        return UTTypeFolder;
     if ((mode & S_IFMT) == S_IFLNK)
-        return (NSString *) kUTTypeSymLink;
-    NSString *uti = CFBridgingRelease(UTTypeCreatePreferredIdentifierForTag(kUTTagClassFilenameExtension,
-                                                                            (__bridge CFStringRef _Nonnull) self.path.pathExtension, nil));
-    if ([uti hasPrefix:@"dyn."])
-        uti = (NSString *) kUTTypePlainText;
-    NSLog(@"uti of %@ is %@", self.path, uti);
-    return uti;
+        return UTTypeSymbolicLink;
+    UTType *contentType = [UTType typeWithFilenameExtension:self.path.pathExtension];
+    if (contentType == nil || [contentType.identifier hasPrefix:@"dyn."])
+        contentType = UTTypePlainText;
+    return contentType;
 }
 
 // locking on these keeps the remove/copy operation atomic
 // or at least tries to
 
 - (void)loadToURL:(NSURL *)url {
-    NSLog(@"copying %@ to %@", self.path, url);
     NSURL *itemURL = self.URL;
     NSError *err;
     sqlite3_mutex_enter(_mount->db.lock);
@@ -204,13 +199,11 @@
                                                          toURL:url
                                                          error:&err];
     sqlite3_mutex_leave(_mount->db.lock);
-    if (!success) {
-        NSLog(@"error copying to %@: %@", url, err);
-    }
+    (void) success;
+    (void) err;
 }
 
 - (void)saveFromURL:(NSURL *)url {
-    NSLog(@"copying %@ from %@", self.path, url);
     NSURL *itemURL = self.URL;
     NSError *err;
     sqlite3_mutex_enter(_mount->db.lock);
@@ -219,9 +212,8 @@
                                                          toURL:itemURL
                                                          error:&err];
     sqlite3_mutex_leave(_mount->db.lock);
-    if (!success) {
-        NSLog(@"error copying to %@: %@", url, err);
-    }
+    (void) success;
+    (void) err;
 }
 
 - (void)dealloc {

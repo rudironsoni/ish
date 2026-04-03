@@ -882,11 +882,12 @@ int_t sys_sendmsg(fd_t sock_fd, addr_t msghdr_addr, int_t flags)
     // msg_name
     struct sockaddr_max_ msg_name;
     if (msg_fake.msg_name != 0) {
-        int err = sockaddr_read(msg_fake.msg_name, &msg_name, &msg_fake.msg_namelen);
+        dword_t msg_name_len = msg_fake.msg_namelen;
+        int err = sockaddr_read(msg_fake.msg_name, &msg_name, &msg_name_len);
         if (err < 0)
             return err;
         msg.msg_name = &msg_name;
-        msg.msg_namelen = msg_fake.msg_namelen;
+        msg.msg_namelen = msg_name_len;
     } else {
         msg.msg_name = NULL;
     }
@@ -1269,47 +1270,61 @@ const struct fd_ops socket_fdops = {
     .ioctl = realfs_ioctl,
 };
 
-static struct socket_call {
-    syscall_t func;
-    int args;
-} socket_calls[] = {
-    { NULL },
-    { (syscall_t)sys_socket, 3 },
-    { (syscall_t)sys_bind, 3 },
-    { (syscall_t)sys_connect, 3 },
-    { (syscall_t)sys_listen, 2 },
-    { (syscall_t)sys_accept, 3 },
-    { (syscall_t)sys_getsockname, 3 },
-    { (syscall_t)sys_getpeername, 3 },
-    { (syscall_t)sys_socketpair, 4 },
-    { (syscall_t)sys_send, 4 },
-    { (syscall_t)sys_recv, 4 },
-    { (syscall_t)sys_sendto, 6 },
-    { (syscall_t)sys_recvfrom, 6 },
-    { (syscall_t)sys_shutdown, 2 },
-    { (syscall_t)sys_setsockopt, 5 },
-    { (syscall_t)sys_getsockopt, 5 },
-    { (syscall_t)sys_sendmsg, 3 },
-    { (syscall_t)sys_recvmsg, 3 },
-    { (syscall_t)sys_accept4, 4 },
-    { (syscall_t)sys_recvmmsg, 5 },
-    { (syscall_t)sys_sendmmsg, 4 },
-};
-;
-
 int_t sys_socketcall(dword_t call_num, addr_t args_addr)
 {
     STRACE("%d ", call_num);
-    if (call_num < 1 || call_num >= sizeof(socket_calls) / sizeof(socket_calls[0]))
-        return _EINVAL;
-    struct socket_call call = socket_calls[call_num];
-    if (call.func == NULL) {
+    dword_t args[6];
+    if (user_read(args_addr, args, sizeof(args)))
+        return _EFAULT;
+
+    switch (call_num) {
+    case 1:
+        return sys_socket(args[0], args[1], args[2]);
+    case 2:
+        return sys_bind((fd_t) args[0], (addr_t) args[1], args[2]);
+    case 3:
+        return sys_connect((fd_t) args[0], (addr_t) args[1], args[2]);
+    case 4:
+        return sys_listen((fd_t) args[0], (int_t) (sdword_t) args[1]);
+    case 5:
+        return sys_accept((fd_t) args[0], (addr_t) args[1], (addr_t) args[2]);
+    case 6:
+        return sys_getsockname((fd_t) args[0], (addr_t) args[1], (addr_t) args[2]);
+    case 7:
+        return sys_getpeername((fd_t) args[0], (addr_t) args[1], (addr_t) args[2]);
+    case 8:
+        return sys_socketpair(args[0], args[1], args[2], (addr_t) args[3]);
+    case 9:
+        return sys_send((fd_t) args[0], (addr_t) args[1], args[2], (int_t) (sdword_t) args[3]);
+    case 10:
+        return sys_recv((fd_t) args[0], (addr_t) args[1], args[2], (int_t) (sdword_t) args[3]);
+    case 11:
+        return sys_sendto((fd_t) args[0], (addr_t) args[1], args[2], args[3], (addr_t) args[4],
+                          args[5]);
+    case 12:
+        return sys_recvfrom((fd_t) args[0], (addr_t) args[1], args[2], args[3], (addr_t) args[4],
+                            (addr_t) args[5]);
+    case 13:
+        return sys_shutdown((fd_t) args[0], args[1]);
+    case 14:
+        return sys_setsockopt((fd_t) args[0], args[1], args[2], (addr_t) args[3], args[4]);
+    case 15:
+        return sys_getsockopt((fd_t) args[0], args[1], args[2], (addr_t) args[3], args[4]);
+    case 16:
+        return sys_sendmsg((fd_t) args[0], (addr_t) args[1], (int_t) (sdword_t) args[2]);
+    case 17:
+        return sys_recvmsg((fd_t) args[0], (addr_t) args[1], (int_t) (sdword_t) args[2]);
+    case 18:
+        return sys_accept4((fd_t) args[0], (addr_t) args[1], (addr_t) args[2],
+                           (int_t) (sdword_t) args[3]);
+    case 19:
+        return sys_recvmmsg((fd_t) args[0], (addr_t) args[1], args[2],
+                            (int_t) (sdword_t) args[3], (addr_t) args[4]);
+    case 20:
+        return sys_sendmmsg((fd_t) args[0], (addr_t) args[1], args[2],
+                            (int_t) (sdword_t) args[3]);
+    default:
         FIXME("socketcall %d", call_num);
         return _ENOSYS;
     }
-
-    dword_t args[6];
-    if (user_read(args_addr, args, sizeof(dword_t) * call.args))
-        return _EFAULT;
-    return call.func(args[0], args[1], args[2], args[3], args[4], args[5]);
 }

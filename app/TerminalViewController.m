@@ -55,6 +55,7 @@ static void trace_task_source_checkpoint(const char *name, struct task *task) {
     (void) trace_begin_interval(TRACE_ORIGIN_TASK, name, attrs, sizeof(attrs) / sizeof(attrs[0]));
 }
 
+#if ISH_RUNTIME_MODE_VALUE == 2
 // APPSIM-004 Stage 3B: Trace stdio fd wiring state
 // Captures what fd 0, 1, 2 point to and whether they're wired to PTY slave
 static void trace_stdio_wiring_checkpoint(struct task *task) {
@@ -156,6 +157,7 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
     [ISHInstrumentation recordEvent:ISHInstrumentationEventStdioPtySlaveBound];
     [ISHInstrumentation recordEvent:ISHInstrumentationEventStdioTtySessionState];
 }
+#endif
 
 @interface TerminalViewController () <UIGestureRecognizerDelegate>
 
@@ -304,7 +306,8 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
     // Shell-only mode: Skip ALL session infrastructure
     // No PTY, no Terminal, no become_new_init_child, no stdio setup
     // Just record the event and return success
-    if (ISH_RUNTIME_MODE == ISH_RUNTIME_MODE_SHELL_ONLY) {
+#if ISH_RUNTIME_MODE_VALUE == 0
+    {
         [ISHInstrumentation recordEvent:ISHInstrumentationEventSessionBootstrapDeferred];
         // Mark session as deferred/inactive - no guest running, no terminal
         self.sessionPid = -1;
@@ -313,10 +316,12 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
         // Return success without creating any session infrastructure
         return 0;
     }
+#endif
 
     // Session bootstrap mode: Init child + PTY + stdio, but NO exec/start
     // Creates session infrastructure without guest execution
-    if (ISH_RUNTIME_MODE == ISH_RUNTIME_MODE_SESSION_BOOTSTRAP) {
+#if ISH_RUNTIME_MODE_VALUE == 1
+    {
         // Step 1: Become init child
         int err = become_new_init_child();
         if (err < 0)
@@ -350,10 +355,12 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 
         return 0;
     }
+#endif
 
     // Session exec mode: Init child + PTY + stdio + do_execve, but NO task_start
     // Loads shell binary without starting guest execution
-    if (ISH_RUNTIME_MODE == ISH_RUNTIME_MODE_SESSION_EXEC) {
+#if ISH_RUNTIME_MODE_VALUE == 2
+    {
         // Step 1: Become init child
         int err = become_new_init_child();
         if (err < 0)
@@ -421,6 +428,7 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 
         return 0;
     }
+#endif
 
     // Full-guest mode: Normal session creation with PTY and Terminal
     int err = become_new_init_child();

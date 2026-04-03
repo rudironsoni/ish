@@ -21,6 +21,7 @@ typedef enum {
 // Compile-time mode selection - change this to switch modes
 // APPSIM-004: FULL_GUEST mode for shell/login readiness validation
 // This enables complete guest execution including task_start() and CPU run loop
-#define ISH_RUNTIME_MODE ISH_RUNTIME_MODE_FULL_GUEST
+#define ISH_RUNTIME_MODE_VALUE 3
+#define ISH_RUNTIME_MODE ((ish_runtime_mode_t) ISH_RUNTIME_MODE_VALUE)
 
 #endif /* ISHRuntimeFlags_h */

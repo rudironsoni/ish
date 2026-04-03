@@ -50,7 +50,7 @@ BOOL CLIsAuthorized(CLAuthorizationStatus status) {
         self.locationManager = [CLLocationManager new];
         self.locationManager.delegate = self;
         self.locationManager.allowsBackgroundLocationUpdates = YES;
-        if (CLIsAuthorized([CLLocationManager authorizationStatus])) {
+        if (CLIsAuthorized(self.locationManager.authorizationStatus)) {
             [self.locationManager startUpdatingLocation];
             [self.locationManager requestLocation];
         } else {
@@ -71,7 +71,8 @@ BOOL CLIsAuthorized(CLAuthorizationStatus status) {
 }
 
 - (void)locationManager:(CLLocationManager *)manager didFailWithError:(NSError *)error {
-    NSLog(@"location failed %@", error);
+    (void) manager;
+    (void) error;
 }
 
 - (void)dealloc {
@@ -92,10 +93,10 @@ BOOL CLIsAuthorized(CLAuthorizationStatus status) {
     return err;
 }
 
-- (void)locationManager:(CLLocationManager *)manager didChangeAuthorizationStatus:(CLAuthorizationStatus)status {
-    if (status == kCLAuthorizationStatusAuthorizedAlways || status == kCLAuthorizationStatusAuthorizedWhenInUse) {
-        NSLog(@"got auth, starting updates");
+- (void)locationManagerDidChangeAuthorization:(CLLocationManager *)manager {
+    if (CLIsAuthorized(manager.authorizationStatus)) {
         [manager startUpdatingLocation];
+        [manager requestLocation];
     }
 }
 

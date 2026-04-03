@@ -170,8 +170,6 @@ static int read_header(struct fd *fd, struct elf_header *header)
     // Copy to header struct
     memcpy(header, raw_header, sizeof(*header));
 
-    uint8_t *magic_bytes = (uint8_t *)&header->magic;
-
     // Validate ELF header with detailed error codes
     if (memcmp(&header->magic, ELF_MAGIC, sizeof(header->magic)) != 0) {
         return _ENOEXEC; // Error -8: Magic bytes wrong
@@ -706,11 +704,9 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
 
         // For dynamically linked executables, x1 must point to loader's _DYNAMIC
         dynamic_addr = 0;
-        addr_t interp_dyn_fileoffset = 0;
         for (int i = 0; i < interp_header.phent_count; i++) {
             if (interp_ph[i].type == PT_DYNAMIC) {
                 dynamic_addr = interp_base + interp_ph[i].vaddr;
-                interp_dyn_fileoffset = interp_ph[i].offset;
                 break;
             }
         }
@@ -733,7 +729,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
         for (int i = 0; i < interp_header.phent_count; i++) {
             if (interp_ph[i].type == PT_LOAD) {
                 addr_t seg_addr = interp_base + interp_ph[i].vaddr;
-                addr_t seg_end = seg_addr + interp_ph[i].memsize;
+                (void) seg_addr;
             }
         }
     }
@@ -1263,7 +1259,7 @@ int __do_execve(const char *file, struct exec_args argv, struct exec_args envp)
 
     char debug_buf[17] = { 0 };
     fd->ops->lseek(fd, 0, LSEEK_SET);
-    ssize_t debug_read = fd->ops->read(fd, debug_buf, 16);
+    (void) fd->ops->read(fd, debug_buf, 16);
     fd->ops->lseek(fd, 0, LSEEK_SET);
 
     // TRACE[3]: before_format_exec

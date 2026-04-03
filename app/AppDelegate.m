@@ -89,11 +89,13 @@ static NSString *const kSkipStartupMessage = @"Skip Startup Message";
     }
 
     // Shell-only mode: Establish base runtime state but skip guest execution
-    if (ISH_RUNTIME_MODE == ISH_RUNTIME_MODE_SHELL_ONLY) {
+#if ISH_RUNTIME_MODE_VALUE == 0
+    {
         FsInitialize();
         [ISHInstrumentation recordEvent:ISHInstrumentationEventSessionBootstrapDeferred];
         return 0;  // Success - guest execution bypassed, but PID 1 exists
     }
+#endif
 
     FsInitialize();
 

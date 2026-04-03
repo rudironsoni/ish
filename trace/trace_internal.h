@@ -92,6 +92,9 @@ void trace_emit_gadget_ldr_host_ptr(uint64_t host_ptr);
 void trace_emit_mem_translate_attempt(uint64_t guest_addr, uint64_t size);
 void trace_emit_mem_translate_result(uint64_t host_ptr, int success);
 
+/* Page-table lookup diagnostic event */
+void trace_emit_mem_pgdir_lookup(uint64_t page, uint64_t pgdir_slot);
+
 /* Task handoff proof events */
 void trace_emit_task_handoff_parent_pre_create(uint64_t task_ptr, uint64_t mm, uint64_t mem,
                                                uint32_t pid, uint64_t host_thread_id);

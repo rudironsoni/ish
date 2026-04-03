@@ -7,6 +7,8 @@
 
 #import "UIApplication+OpenURL.h"
 
+void UIApplicationOpenURLCategoryAnchor(void) {}
+
 @implementation UIApplication (OpenURL)
 
 + (void)openURL:(NSString *)url {

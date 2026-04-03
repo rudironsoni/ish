@@ -1,0 +1,114 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "5dl-UV-6qh.accessibilityLabel" : {
+      "comment" : "Class = \"UIButton\"; accessibilityLabel = \"Settings\"; ObjectID = \"5dl-UV-6qh\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Settings"
+          }
+        }
+      }
+    },
+    "7qw-ie-p4d.accessibilityLabel" : {
+      "comment" : "Class = \"UIButton\"; accessibilityLabel = \"Hide Keyboard\"; ObjectID = \"7qw-ie-p4d\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Hide Keyboard"
+          }
+        }
+      }
+    },
+    "cJt-oG-BnW.accessibilityLabel" : {
+      "comment" : "Class = \"UIButton\"; accessibilityLabel = \"Tab\"; ObjectID = \"cJt-oG-BnW\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Tab"
+          }
+        }
+      }
+    },
+    "cJt-oG-BnW.normalTitle" : {
+      "comment" : "Class = \"UIButton\"; normalTitle = \"⇥\"; ObjectID = \"cJt-oG-BnW\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "⇥"
+          }
+        }
+      }
+    },
+    "hmm-tv-z35.accessibilityLabel" : {
+      "comment" : "Class = \"UIButton\"; accessibilityLabel = \"Paste\"; ObjectID = \"hmm-tv-z35\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Paste"
+          }
+        }
+      }
+    },
+    "IPm-l0-f25.accessibilityLabel" : {
+      "comment" : "Class = \"UIButton\"; accessibilityLabel = \"Escape\"; ObjectID = \"IPm-l0-f25\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Escape"
+          }
+        }
+      }
+    },
+    "IPm-l0-f25.normalTitle" : {
+      "comment" : "Class = \"UIButton\"; normalTitle = \"⎋\"; ObjectID = \"IPm-l0-f25\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "⎋"
+          }
+        }
+      }
+    },
+    "W9v-cj-FWz.accessibilityLabel" : {
+      "comment" : "Class = \"UIButton\"; accessibilityLabel = \"Control\"; ObjectID = \"W9v-cj-FWz\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Control"
+          }
+        }
+      }
+    },
+    "W9v-cj-FWz.normalTitle" : {
+      "comment" : "Class = \"UIButton\"; normalTitle = \"⌃\"; ObjectID = \"W9v-cj-FWz\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "⌃"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.2"
+}

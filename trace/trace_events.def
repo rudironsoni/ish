@@ -334,4 +334,7 @@ TRACE_EVENT(MEM_TRANSLATE_ATTEMPT, 2, TRACE_CAT_MEMORY, 16)
 /* Memory translation result - payload: struct { uint64_t host_ptr; int32_t success; } */
 TRACE_EVENT(MEM_TRANSLATE_RESULT, 2, TRACE_CAT_MEMORY, 16)
 
+/* Page-table directory slot lookup - payload: uint64_t pgdir_slot */
+TRACE_EVENT(MEM_PGDIR_LOOKUP, 2, TRACE_CAT_MEMORY, 8)
+
 #undef TRACE_EVENT

@@ -13,8 +13,5 @@
       "command": ["/usr/bin/clangd", "--compile-commands-dir=build"],
       "extensions": [".c", ".cpp", ".cc", ".cxx", ".h", ".hpp", ".S"]
     }
-  },
-  "plugin": [
-    "ocx"
-  ]
+  }
 }

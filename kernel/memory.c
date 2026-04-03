@@ -63,6 +63,7 @@ static struct pt_entry *mem_pt_new(struct mem *mem, page_t page)
 struct pt_entry *mem_pt(struct mem *mem, page_t page)
 {
     struct pt_entry *pgdir = mem->pgdir[PGDIR_TOP(page)];
+    trace_emit_mem_pgdir_lookup(page, (uint64_t)pgdir);
     if (pgdir == NULL)
         return NULL;
     struct pt_entry *entry = &pgdir[PGDIR_BOTTOM(page)];
