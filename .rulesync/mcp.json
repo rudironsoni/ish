@@ -25,12 +25,6 @@
       "httpUrl": "https://mcp.deepwiki.com/mcp",
       "env": {}
     },
-    "XcodeBuildMCP": {
-      "type": "stdio",
-      "command": "xcodebuildmcp",
-      "args": ["mcp"],
-      "env": {}
-    },
     "rulesync": {
       "type": "stdio",
       "command": "rulesync",

@@ -24,15 +24,6 @@
       "url": "https://mcp.deepwiki.com/mcp",
       "enabled": true
     },
-    "XcodeBuildMCP": {
-      "type": "local",
-      "command": [
-        "xcodebuildmcp",
-        "mcp"
-      ],
-      "enabled": true,
-      "environment": {}
-    },
     "rulesync": {
       "type": "local",
       "command": [

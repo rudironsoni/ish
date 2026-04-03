@@ -127,9 +127,11 @@ int pt_map(struct mem *mem, page_t start, pages_t pages, void *memory, size_t of
     if (data == NULL) {
         return _ENOMEM;
     }
+    size_t guest_bytes = pages * PAGE_SIZE + offset;
+    size_t host_bytes = HOST_ROUND_UP(guest_bytes);
     *data = (struct data){
         .data = memory,
-        .size = pages * PAGE_SIZE + offset,
+        .host_size = host_bytes,
 
 #if LEAK_DEBUG
         .pid = current ? current->pid : 0,
@@ -175,9 +177,9 @@ int pt_unmap_always(struct mem *mem, page_t start, pages_t pages)
         if (--data->refcount == 0) {
             // vdso wasn't allocated with mmap, it's just in our data segment
             if (data->data != vdso_data) {
-                int err = munmap(data->data, data->size);
+                int err = munmap(data->data, data->host_size);
                 if (err != 0)
-                    die("munmap(%p, %lu) failed: %s", data->data, data->size, strerror(errno));
+                    die("munmap(%p, %lu) failed: %s", data->data, data->host_size, strerror(errno));
             }
             if (data->fd != NULL) {
                 fd_close(data->fd);
@@ -193,8 +195,8 @@ int pt_map_nothing(struct mem *mem, page_t start, pages_t pages, unsigned flags)
 {
     if (pages == 0)
         return 0;
-    void *memory =
-        mmap(NULL, pages * PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+    void *memory = mmap(NULL, HOST_ROUND_UP(pages * PAGE_SIZE), PROT_READ | PROT_WRITE,
+                        MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
     return pt_map(mem, start, pages, memory, 0, flags | P_ANONYMOUS);
 }
 
@@ -331,15 +333,17 @@ void *mem_ptr(struct mem *mem, addr_t addr, int type)
         }
         // if page is cow, ~~milk~~ copy it
         if (entry->flags & P_COW) {
-            void *data = (char *)entry->data->data + entry->offset;
-            void *copy =
-                mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+            void *guest_ptr = (char *)entry->data->data + entry->offset;
+            void *host_base = (void *)HOST_ROUND_DOWN((uintptr_t)guest_ptr);
+            size_t host_off = (uintptr_t)guest_ptr - (uintptr_t)host_base;
+            void *copy = mmap(NULL, real_page_size, PROT_READ | PROT_WRITE,
+                              MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
 
             // copy/paste from above
             read_wrunlock(&mem->lock);
             write_wrlock(&mem->lock);
-            memcpy(copy, data, PAGE_SIZE);
-            pt_map(mem, page, 1, copy, 0, entry->flags & ~P_COW);
+            memcpy(copy, host_base, real_page_size);
+            pt_map(mem, page, 1, copy, host_off, entry->flags & ~P_COW);
             write_wrunlock(&mem->lock);
             read_wrlock(&mem->lock);
         }
