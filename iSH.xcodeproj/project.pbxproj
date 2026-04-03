@@ -458,7 +458,6 @@
 		BB123ACB26C9EFD900419CDA /* LinuxTTY.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = LinuxTTY.c; sourceTree = "<group>"; };
 		BB13F4DC21C5770000343E17 /* NSError+ISHErrno.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "NSError+ISHErrno.h"; sourceTree = "<group>"; };
 		BB13F4DD21C5770000343E17 /* NSError+ISHErrno.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "NSError+ISHErrno.m"; sourceTree = "<group>"; };
-		BB13F7C8200ACC24003D1C4D /* xcode-meson.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; name = "xcode-meson.sh"; path = "app/xcode-meson.sh"; sourceTree = "<group>"; };
 		BB13F7DC200AD81D003D1C4D /* libish.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libish.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		BB149E7E256DC97C00F57815 /* PassthroughView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PassthroughView.h; sourceTree = "<group>"; };
 		BB149E7F256DC97C00F57815 /* PassthroughView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = PassthroughView.m; sourceTree = "<group>"; };
@@ -466,7 +465,6 @@
 		BB1D9D91234A8FE100F364E8 /* AboutNavigationController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AboutNavigationController.h; sourceTree = "<group>"; };
 		BB1D9D92234A8FE100F364E8 /* AboutNavigationController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AboutNavigationController.m; sourceTree = "<group>"; };
 		BB21A16F2689041500BD19B4 /* libfakefs.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libfakefs.a; sourceTree = BUILT_PRODUCTS_DIR; };
-		BB21A18C268951CA00BD19B4 /* NotLinux.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = NotLinux.xcconfig; sourceTree = "<group>"; };
 		BB235533235D488400139E00 /* LocationDevice.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = LocationDevice.m; sourceTree = "<group>"; };
 		BB235535235D489400139E00 /* LocationDevice.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LocationDevice.h; sourceTree = "<group>"; };
 		BB235536235D49B300139E00 /* CoreLocation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreLocation.framework; path = System/Library/Frameworks/CoreLocation.framework; sourceTree = SDKROOT; };
@@ -621,15 +619,10 @@
 		CA1CE1A42F7E797100A9A907 /* ISHInstrumentationSinkApple.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ISHInstrumentationSinkApple.m; sourceTree = "<group>"; };
 		CA1CE1A52F7E797100A9A907 /* ISHRuntimeFlags.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ISHRuntimeFlags.h; sourceTree = "<group>"; };
 		CA1CE1A72F7E797100A9A907 /* iSH.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = iSH.xcconfig; sourceTree = "<group>"; };
-		CA1CE1A82F7E797100A9A907 /* Linux.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Linux.xcconfig; sourceTree = "<group>"; };
 		CA1CE1A92F7E797100A9A907 /* LinuxInterop.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LinuxInterop.h; sourceTree = "<group>"; };
 		CA1CE1AA2F7E797100A9A907 /* LinuxInterop.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = LinuxInterop.c; sourceTree = "<group>"; };
 		CA1CE1AB2F7E797100A9A907 /* LinuxPTY.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = LinuxPTY.c; sourceTree = "<group>"; };
 		CA1CE1AC2F7E797100A9A907 /* LinuxRoot.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = LinuxRoot.c; sourceTree = "<group>"; };
-		CA1CE1AD2F7E797100A9A907 /* ProjectDebugLinux.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = ProjectDebugLinux.xcconfig; sourceTree = "<group>"; };
-		CA1CE1AE2F7E797100A9A907 /* ProjectReleaseLinux.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = ProjectReleaseLinux.xcconfig; sourceTree = "<group>"; };
-		CA1CE1AF2F7E797100A9A907 /* StaticLibLinux.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = StaticLibLinux.xcconfig; sourceTree = "<group>"; };
-		CA1CE1B02F7E797100A9A907 /* StaticLibLinuxUser.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = StaticLibLinuxUser.xcconfig; sourceTree = "<group>"; };
 		CA1CE1B12F7E797100A9A907 /* AppTarget.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = AppTarget.xcconfig; sourceTree = "<group>"; };
 		CA1CE1B22F7E797100A9A907 /* FileProviderTarget.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = FileProviderTarget.xcconfig; sourceTree = "<group>"; };
 		CA1CE1B32F7E797100A9A907 /* UITests.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = UITests.xcconfig; sourceTree = "<group>"; };
@@ -646,7 +639,6 @@
 		CA1CE1C12F7E797100A9A907 /* Screenshots.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = Screenshots.xctestplan; sourceTree = "<group>"; };
 		CA1CE1C22F7E797100A9A907 /* UITests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = UITests.m; sourceTree = "<group>"; };
 		CA1CE1C42F7E797100A9A907 /* ViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ViewController.h; sourceTree = "<group>"; };
-		CA1CE1C52F7E797100A9A907 /* xcode-meson.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "xcode-meson.sh"; sourceTree = "<group>"; };
 		CA1CE1C62F7E797100A9A907 /* xcode-ninja.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "xcode-ninja.sh"; sourceTree = "<group>"; };
 		CA8E728C2F8012A0000BB6FF /* calls.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = calls.h; sourceTree = "<group>"; };
 		CA8E728D2F8012A0000BB6FF /* calls.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = calls.c; sourceTree = "<group>"; };
@@ -833,7 +825,6 @@
 				BB0B86CD2586FD8800208600 /* App.xcconfig */,
 				BBEF192C26806546001225BD /* AppLib.xcconfig */,
 				BB0B86D52587009D00208600 /* iOS.xcconfig */,
-				BB21A18C268951CA00BD19B4 /* NotLinux.xcconfig */,
 				BB0B85AD2586F3EB00208600 /* Project.xcconfig */,
 				BB0B85A42586F1CB00208600 /* ProjectDebug.xcconfig */,
 				BB0B85A52586F1E100208600 /* ProjectRelease.xcconfig */,
@@ -863,7 +854,6 @@
 		BB18B27F1F97F2590059FCD8 /* Scripts */ = {
 			isa = PBXGroup;
 			children = (
-				BB13F7C8200ACC24003D1C4D /* xcode-meson.sh */,
 				494D03F72727DAC6004F0CCE /* xcode-ninja.sh */,
 				BB0C03002AEEC85500E5ECBB /* gen_apk_repositories.py */,
 			);
@@ -1008,21 +998,15 @@
 				CA1CE19B2F7E797100A9A907 /* Icons */,
 				CA1CE1A62F7E797100A9A907 /* Instrumentation */,
 				CA1CE1A72F7E797100A9A907 /* iSH.xcconfig */,
-				CA1CE1A82F7E797100A9A907 /* Linux.xcconfig */,
 				CA1CE1A92F7E797100A9A907 /* LinuxInterop.h */,
 				CA1CE1AA2F7E797100A9A907 /* LinuxInterop.c */,
 				CA1CE1AB2F7E797100A9A907 /* LinuxPTY.c */,
 				CA1CE1AC2F7E797100A9A907 /* LinuxRoot.c */,
-				CA1CE1AD2F7E797100A9A907 /* ProjectDebugLinux.xcconfig */,
-				CA1CE1AE2F7E797100A9A907 /* ProjectReleaseLinux.xcconfig */,
-				CA1CE1AF2F7E797100A9A907 /* StaticLibLinux.xcconfig */,
-				CA1CE1B02F7E797100A9A907 /* StaticLibLinuxUser.xcconfig */,
 				CA1CE1B52F7E797100A9A907 /* targets */,
 				CA1CE1B92F7E797100A9A907 /* terminal */,
 				CA1CE1BD2F7E797100A9A907 /* Tests */,
 				CA1CE1C32F7E797100A9A907 /* UITests */,
 				CA1CE1C42F7E797100A9A907 /* ViewController.h */,
-				CA1CE1C52F7E797100A9A907 /* xcode-meson.sh */,
 				CA1CE1C62F7E797100A9A907 /* xcode-ninja.sh */,
 				BBFB557321586C7600DFE6DE /* About */,
 				BB792B531F96D90D00FFB7A4 /* AppDelegate.h */,
@@ -1492,38 +1476,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXHeadersBuildPhase section */
-
-/* Begin PBXLegacyTarget section */
-		BB13F7CA200ACC31003D1C4D /* Meson */ = {
-			isa = PBXLegacyTarget;
-			buildArgumentsString = "";
-			buildConfigurationList = BB13F7CB200ACC31003D1C4D /* Build configuration list for PBXLegacyTarget "Meson" */;
-			buildPhases = (
-			);
-			buildToolPath = "$(SRCROOT)/app/xcode-meson.sh";
-			buildWorkingDirectory = "";
-			dependencies = (
-			);
-			name = Meson;
-			passBuildSettingsInEnvironment = 1;
-			productName = Meson;
-		};
-		BB13F7D0200ACCA2003D1C4D /* Ninja */ = {
-			isa = PBXLegacyTarget;
-			buildArgumentsString = "$(NINJA_TARGETS)";
-			buildConfigurationList = BB13F7D1200ACCA2003D1C4D /* Build configuration list for PBXLegacyTarget "Ninja" */;
-			buildPhases = (
-			);
-			buildToolPath = "$(SRCROOT)/app/xcode-ninja.sh";
-			buildWorkingDirectory = "$(MESON_BUILD_DIR)";
-			dependencies = (
-				BB13F7D5200ACCA8003D1C4D /* PBXTargetDependency */,
-			);
-			name = Ninja;
-			passBuildSettingsInEnvironment = 1;
-			productName = Ninja;
-		};
-/* End PBXLegacyTarget section */
 
 /* Begin PBXNativeTarget section */
 		489181476DFFBEDBB5881EA3 /* UnitTests */ = {
