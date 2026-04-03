@@ -44,8 +44,8 @@
       }
     },
     "clangd": {
-      "command": ["/usr/bin/clangd", "--compile-commands-dir=build"],
-      "extensions": [".c", ".cpp", ".cc", ".cxx", ".h", ".hpp", ".S"]
+      "command": ["/usr/bin/clangd"],
+      "extensions": [".c", ".cpp", ".cc", ".cxx", ".h", ".hpp"]
     }
   }
 }
