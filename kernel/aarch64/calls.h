@@ -52,7 +52,7 @@ typedef qword_t (*a64_syscall_t)(qword_t, qword_t, qword_t, qword_t, qword_t, qw
 #define A64_SYS_linkat            37
 #define A64_SYS_renameat          38
 #define A64_SYS_renameat2         276
-#define A64_SYS_utimensat         280
+#define A64_SYS_utimensat         88
 #define A64_SYS_umount2           39
 #define A64_SYS_mount             40
 #define A64_SYS_pivot_root        41
@@ -77,7 +77,6 @@ typedef qword_t (*a64_syscall_t)(qword_t, qword_t, qword_t, qword_t, qword_t, qw
 #define A64_SYS_quotactl          60
 #define A64_SYS_getdents64        61
 #define A64_SYS_lseek             62
-#define A64_SYS_llseek            62 // aarch64 uses lseek for 64-bit offsets
 #define A64_SYS_read              63
 #define A64_SYS_write             64
 #define A64_SYS_readv             65
@@ -132,9 +131,9 @@ typedef qword_t (*a64_syscall_t)(qword_t, qword_t, qword_t, qword_t, qword_t, qw
 #define A64_SYS_mmap                   222
 #define A64_SYS_fork                   1079
 #define A64_SYS_vfork                  1071
-#define A64_SYS_clone                  1072
-#define A64_SYS_execve                 1083
-#define A64_SYS_execveat               1084
+#define A64_SYS_clone                  220
+#define A64_SYS_execve                 221
+#define A64_SYS_execveat               281
 #define A64_SYS_wait4                  260
 #define A64_SYS_kexec_load             104
 #define A64_SYS_init_module            105
@@ -199,11 +198,6 @@ typedef qword_t (*a64_syscall_t)(qword_t, qword_t, qword_t, qword_t, qword_t, qw
 #define A64_SYS_getrlimit              163
 #define A64_SYS_setrlimit              164
 #define A64_SYS_getrusage              165
-#define A64_SYS_pause                  34
-#define A64_SYS_creat                  85
-#define A64_SYS_access                 21
-#define A64_SYS_poll                   7
-#define A64_SYS_select                 23
 
 // Socket syscalls from Linux UAPI
 #define A64_SYS_socket      198
@@ -241,6 +235,6 @@ struct syscall_info {
 extern struct syscall_info a64_syscall_table[];
 extern a64_syscall_t syscall_table_a64[A64_SYS_MAX];
 int a64_max_syscall(void);
-const char *a64_syscall_name(int num);
+const char *a64_syscall_name(qword_t num);
 
 #endif

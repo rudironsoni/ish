@@ -7,6 +7,8 @@
 
 #import "UIViewController+Extras.h"
 
+void UIViewControllerExtrasCategoryAnchor(void) {}
+
 @implementation UIViewController (Extras)
 
 - (void)presentError:(NSError *)error title:(NSString *)title {

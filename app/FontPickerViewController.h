@@ -9,7 +9,6 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-NS_CLASS_DEPRECATED_IOS(10_0, 12_0, "UIFontPickerViewController is better")
 @interface FontPickerViewController : UITableViewController
 
 @end

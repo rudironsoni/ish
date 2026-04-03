@@ -5,7 +5,7 @@
 //  Created by Theodore Dubois on 9/20/18.
 //
 
-#import <MobileCoreServices/MobileCoreServices.h>
+#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 #include <dirent.h>
 #import "FileProviderExtension.h"
 #import "FileProviderEnumerator.h"
@@ -29,15 +29,13 @@
 }
 
 - (void)enumerateItemsForObserver:(id<NSFileProviderEnumerationObserver>)observer startingAtPage:(NSFileProviderPage)page {
-    NSLog(@"enumeration start %@", self.item.itemIdentifier);
     // if we're asked to enumerate the working set
     if (self.item == nil) {
         [observer finishEnumeratingUpToPage:page];
         return;
     }
     // if we're asked to enumerate a file
-    if (![self.item.typeIdentifier isEqualToString:(NSString *) kUTTypeFolder]) {
-        NSLog(@"not enumerating a file (%@)", self.item.typeIdentifier);
+    if (![self.item.contentType conformsToType:UTTypeFolder]) {
         [observer finishEnumeratingUpToPage:page];
         return;
     }
@@ -66,13 +64,11 @@
             inode_t inode = path_get_inode(&_item.mount->db, [path stringByAppendingFormat:@"/%@", [NSString stringWithUTF8String:dirent->d_name]].fileSystemRepresentation);
             db_commit(&_item.mount->db);
             if (inode == 0) {
-                NSLog(@"could not find %s in database, assuming nonexistent", dirent->d_name);
                 continue;
             }
             childIdent = [NSString stringWithFormat:@"%lu", (unsigned long) inode];
         }
 
-        NSLog(@"returning %s %@", dirent->d_name, childIdent);
         FileProviderItem *item = [[FileProviderItem alloc] initWithIdentifier:childIdent mount:_item.mount error:&error];
         if (item == nil) {
             [observer finishEnumeratingWithError:error];
@@ -84,20 +80,17 @@
     }
     if (errno != 0) {
         NSError *error = [NSError errorWithDomain:NSPOSIXErrorDomain code:errno userInfo:nil];
-        NSLog(@"readdir returned %@", error);
         [observer finishEnumeratingWithError:error];
         closedir(dir);
         return;
     }
 
     closedir(dir);
-    NSLog(@"returning %@", items);
     [observer didEnumerateItems:items];
     [observer finishEnumeratingUpToPage:nil];
 }
 
 - (void)enumerateChangesForObserver:(id<NSFileProviderChangeObserver>)observer fromSyncAnchor:(NSFileProviderSyncAnchor)anchor {
-    NSLog(@"saying no file changes");
     // TODO implement by having the sync anchor be a serialized list of files
     [observer finishEnumeratingChangesUpToSyncAnchor:anchor moreComing:NO];
 }

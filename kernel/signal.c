@@ -75,6 +75,7 @@ void sighand_release(struct sighand *sighand)
  */
 void send_signal(struct task *task, int sig, struct siginfo_ info)
 {
+    (void)info;
     if (task == NULL || sig < 1 || sig >= NUM_SIGS) {
         return;
     }
@@ -88,6 +89,7 @@ void send_signal(struct task *task, int sig, struct siginfo_ info)
  */
 void deliver_signal(struct task *task, int sig, struct siginfo_ info)
 {
+    (void)info;
     if (task == NULL || sig < 1 || sig >= NUM_SIGS) {
         return;
     }
@@ -130,6 +132,9 @@ bool try_self_signal(int sig)
  */
 int send_group_signal(dword_t pgid, int sig, struct siginfo_ info)
 {
+    (void)pgid;
+    (void)sig;
+    (void)info;
     // Minimal implementation - just return success for now
     // Real implementation would iterate through process group
     return 0;
@@ -300,6 +305,7 @@ void sigmask_set_temp(sigset_t_ mask)
 // sys_kill - Send signal to process
 dword_t sys_kill(pid_t_ pid, dword_t sig)
 {
+    (void)pid;
     // Minimal implementation - just return success
     // Real implementation would look up process and send signal
     if (sig == 0) {
@@ -311,6 +317,7 @@ dword_t sys_kill(pid_t_ pid, dword_t sig)
 // sys_tkill - Send signal to thread
 dword_t sys_tkill(pid_t_ tid, dword_t sig)
 {
+    (void)tid;
     // Minimal implementation
     if (sig == 0) {
         return 0;
@@ -321,6 +328,8 @@ dword_t sys_tkill(pid_t_ tid, dword_t sig)
 // sys_tgkill - Send signal to thread group
 dword_t sys_tgkill(pid_t_ tgid, pid_t_ tid, dword_t sig)
 {
+    (void)tgid;
+    (void)tid;
     // Minimal implementation
     if (sig == 0) {
         return 0;

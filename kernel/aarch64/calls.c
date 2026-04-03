@@ -271,9 +271,9 @@ void a64_syscall_init(void)
 /*
  * Get syscall name for debugging
  */
-const char *a64_syscall_name(int num)
+const char *a64_syscall_name(qword_t num)
 {
-    if (num < 0 || num >= A64_SYS_MAX)
+    if (num >= A64_SYS_MAX)
         return "unknown";
 
     static const char *syscall_names[] = {
@@ -286,7 +286,7 @@ const char *a64_syscall_name(int num)
         [A64_SYS_getgid] = "getgid",
     };
 
-    if (num < 0 || (size_t)num >= sizeof(syscall_names) / sizeof(syscall_names[0]))
+    if (num >= sizeof(syscall_names) / sizeof(syscall_names[0]))
         return "unknown";
     if (syscall_names[num])
         return syscall_names[num];

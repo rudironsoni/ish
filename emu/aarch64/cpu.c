@@ -66,7 +66,6 @@ int a64_execute_block(struct cpu_state *cpu, struct a64_block *block);
 static uint64_t a64_read_reg_or_sp(struct cpu_state *cpu, int reg, bool is_64bit);
 static void a64_write_reg_or_sp(struct cpu_state *cpu, int reg, uint64_t value, bool is_64bit);
 static uint64_t a64_extend_index(uint64_t value, int extend_type);
-static uint64_t a64_apply_shift(uint64_t value, int shift_type, int amount, bool is_64bit);
 
 /*
  * Initialize aarch64 CPU for a task
@@ -530,29 +529,6 @@ static uint64_t a64_extend_index(uint64_t value, int extend_type)
     }
 }
 
-static uint64_t a64_apply_shift(uint64_t value, int shift_type, int amount, bool is_64bit)
-{
-    amount &= is_64bit ? 63 : 31;
-    if (!is_64bit)
-        value = (uint32_t)value;
-    switch (shift_type) {
-    case A64_SHIFT_LSR:
-        return is_64bit ? (value >> amount) : (uint32_t)value >> amount;
-    case A64_SHIFT_ASR:
-        return is_64bit ? (uint64_t)((int64_t)value >> amount)
-                        : (uint32_t)((int32_t)value >> amount);
-    case A64_SHIFT_ROR:
-        if (amount == 0)
-            return is_64bit ? value : (uint32_t)value;
-        return is_64bit
-                   ? ((value >> amount) | (value << (64 - amount)))
-                   : (uint32_t)(((uint32_t)value >> amount) | ((uint32_t)value << (32 - amount)));
-    case A64_SHIFT_LSL:
-    default:
-        return is_64bit ? (value << amount) : (uint32_t)value << amount;
-    }
-}
-
 /*
  * Stage 3A.6: Pre-syscall userspace initialization tracing
  * Tracks first userspace entry and execution progression
@@ -808,7 +784,6 @@ static void trace_interpreter_loop_predicate_checkpoint(const char *name, struct
     uint32_t compare_raw = 0;
     uint32_t branch_raw = 0;
     a64_instr_t compare_decoded = { 0 };
-    a64_instr_t branch_decoded = { 0 };
     uint64_t branch_target = 0;
     uint64_t compare_lhs = 0;
     uint64_t compare_rhs = 0;
@@ -825,7 +800,6 @@ static void trace_interpreter_loop_predicate_checkpoint(const char *name, struct
             if (target == block_start) {
                 branch_pc = insn_pc;
                 branch_raw = raw;
-                branch_decoded = decoded;
                 branch_target = target;
                 branch_taken = (cpu->pc == target);
                 break;
@@ -1079,7 +1053,6 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb)
     bool first_compile = true;
     bool first_execute = true;
     bool first_user_entry = true;
-    int block_execution_count = 0;
     uint64_t last_block_start_pc = 0;
     int same_block_repeat_count = 0;
     int total_blocks_executed = 0;

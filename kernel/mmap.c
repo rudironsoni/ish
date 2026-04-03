@@ -69,7 +69,8 @@ void mm_release(struct mm *mm) {
     }
 }
 
-static addr_t do_mmap(addr_t addr, dword_t len, dword_t prot, dword_t flags, fd_t fd_no, dword_t offset) {
+static addr_t do_mmap(addr_t addr, dword_t len, dword_t prot, dword_t flags, fd_t fd_no,
+                      off_t_ offset) {
     int err;
     pages_t pages = PAGE_ROUND_UP(len);
     if (!pages) return _EINVAL;
@@ -101,7 +102,7 @@ static addr_t do_mmap(addr_t addr, dword_t len, dword_t prot, dword_t flags, fd_
             return _EBADF;
         if (fd->ops->mmap == NULL)
             return _ENODEV;
-        if ((err = fd->ops->mmap(fd, current->mem, page, pages, offset, prot, flags)) < 0)
+        if ((err = fd->ops->mmap(fd, current->mem, page, pages, (off_t) offset, prot, flags)) < 0)
             return err;
         mem_pt(current->mem, page)->data->fd = fd_retain(fd);
         mem_pt(current->mem, page)->data->file_offset = offset;
@@ -109,8 +110,10 @@ static addr_t do_mmap(addr_t addr, dword_t len, dword_t prot, dword_t flags, fd_
     return page << PAGE_BITS;
 }
 
-static addr_t mmap_common(addr_t addr, dword_t len, dword_t prot, dword_t flags, fd_t fd_no, dword_t offset) {
-    STRACE("mmap(0x%x, 0x%x, 0x%x, 0x%x, %d, %d)", addr, len, prot, flags, fd_no, offset);
+static addr_t mmap_common(addr_t addr, dword_t len, dword_t prot, dword_t flags, fd_t fd_no,
+                          off_t_ offset) {
+    STRACE("mmap(0x%x, 0x%x, 0x%x, 0x%x, %d, %lld)", addr, len, prot, flags, fd_no,
+           (long long) offset);
     if (len == 0)
         return _EINVAL;
     if (prot & ~P_RWX)
@@ -124,8 +127,14 @@ static addr_t mmap_common(addr_t addr, dword_t len, dword_t prot, dword_t flags,
     return res;
 }
 
+addr_t sys_mmap_native(addr_t addr, dword_t len, dword_t prot, dword_t flags, fd_t fd_no,
+                       off_t_ offset)
+{
+    return mmap_common(addr, len, prot, flags, fd_no, offset);
+}
+
 addr_t sys_mmap2(addr_t addr, dword_t len, dword_t prot, dword_t flags, fd_t fd_no, dword_t offset) {
-    return mmap_common(addr, len, prot, flags, fd_no, offset << PAGE_BITS);
+    return mmap_common(addr, len, prot, flags, fd_no, (off_t_) offset << PAGE_BITS);
 }
 
 struct mmap_arg_struct {

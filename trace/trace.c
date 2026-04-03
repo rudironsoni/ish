@@ -865,6 +865,18 @@ void trace_emit_mem_translate_result(uint64_t host_ptr, int success)
     trace_tcti_to_ring(TRACE_EVENT_MEM_TRANSLATE_RESULT, host_ptr);
 }
 
+void trace_emit_mem_pgdir_lookup(uint64_t page, uint64_t pgdir_slot)
+{
+    /* Buffers retained for ring buffer logging */
+    char page_buf[24];
+    char slot_buf[24];
+    snprintf(page_buf, sizeof(page_buf), "0x%llx", (unsigned long long)page);
+    snprintf(slot_buf, sizeof(slot_buf), "0x%llx", (unsigned long long)pgdir_slot);
+
+    ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_KERNEL, "mem.pgdir.lookup");
+    trace_tcti_to_ring(TRACE_EVENT_MEM_PGDIR_LOOKUP, pgdir_slot);
+}
+
 /* ============================================
  * Output and Utility - STUBBED
  * ============================================ */
