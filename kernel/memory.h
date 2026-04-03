@@ -1,13 +1,15 @@
 #ifndef MEMORY_H
 #define MEMORY_H
 
-#include <stdatomic.h>
-#include <unistd.h>
-#include <stdbool.h>
 #include "emu/mmu.h"
 #include "util/list.h"
 #include "util/sync.h"
+
 #include "misc.h"
+
+#include <stdatomic.h>
+#include <stdbool.h>
+#include <unistd.h>
 
 struct mem {
     struct pt_entry **pgdir;
@@ -30,13 +32,13 @@ struct pt_entry *mem_pt(struct mem *mem, page_t page);
 void mem_next_page(struct mem *mem, page_t *page);
 
 #define BYTES_ROUND_DOWN(bytes) (PAGE(bytes) << PAGE_BITS)
-#define BYTES_ROUND_UP(bytes) (PAGE_ROUND_UP(bytes) << PAGE_BITS)
+#define BYTES_ROUND_UP(bytes)   (PAGE_ROUND_UP(bytes) << PAGE_BITS)
 
 #define LEAK_DEBUG 0
 
 struct data {
-    void *data; // immutable
-    size_t size; // also immutable
+    void *data;       // immutable
+    size_t host_size; // host VM backing length (host-page-rounded)
     atomic_uint refcount;
 
     // for display in /proc/pid/maps
@@ -56,13 +58,13 @@ struct pt_entry {
 };
 // page flags
 // P_READ and P_EXEC are ignored for now
-#define P_READ (1 << 0)
+#define P_READ  (1 << 0)
 #define P_WRITE (1 << 1)
 #undef P_EXEC // defined in sys/proc.h on darwin
-#define P_EXEC (1 << 2)
-#define P_RWX (P_READ | P_WRITE | P_EXEC)
-#define P_GROWSDOWN (1 << 3)
-#define P_COW (1 << 4)
+#define P_EXEC            (1 << 2)
+#define P_RWX             (P_READ | P_WRITE | P_EXEC)
+#define P_GROWSDOWN       (1 << 3)
+#define P_COW             (1 << 4)
 #define P_WRITABLE(flags) (flags & P_WRITE && !(flags & P_COW))
 
 // mapping was created with pt_map_nothing
@@ -76,7 +78,8 @@ page_t pt_find_hole(struct mem *mem, pages_t size);
 // Map memory + offset into fake memory, unmapping existing mappings. Takes
 // ownership of memory. It will be freed with:
 // munmap(memory, pages * PAGE_SIZE)
-int pt_map(struct mem *mem, page_t start, pages_t pages, void *memory, size_t offset, unsigned flags);
+int pt_map(struct mem *mem, page_t start, pages_t pages, void *memory, size_t offset,
+           unsigned flags);
 // Map empty space into fake memory
 int pt_map_nothing(struct mem *mem, page_t page, pages_t pages, unsigned flags);
 // Unmap fake memory, return -1 if any part of the range isn't mapped and 0 otherwise
@@ -93,5 +96,10 @@ void *mem_ptr(struct mem *mem, addr_t addr, int type);
 int mem_segv_reason(struct mem *mem, addr_t addr);
 
 extern size_t real_page_size;
+
+// Host page helpers (for mmap/munmap operations on the host)
+#define HOST_PAGE_SIZE     real_page_size
+#define HOST_ROUND_DOWN(x) ((x) & ~(real_page_size - 1))
+#define HOST_ROUND_UP(x)   (((x) + real_page_size - 1) & ~(real_page_size - 1))
 
 #endif
