@@ -1,0 +1,193 @@
+name: IXLand
+options:
+  bundleIdPrefix: app.ixland
+  deploymentTarget:
+    iOS: "14.0"
+  xcodeVersion: "15.0"
+  generateEmptyDirectories: true
+  groupSortPosition: top
+  createIntermediateGroups: true
+
+packages:
+  libarchive-for-swift:
+    url: https://github.com/matteo-pacini/libarchive-for-swift
+    from: 1.0.0
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    CLANG_ENABLE_MODULES: true
+    CLANG_ENABLE_OBJC_ARC: true
+
+targetTemplates:
+  LinuxRuntimeBase:
+    platform: iOS
+    deploymentTarget: "14.0"
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: app.ixland.linuxruntime
+      PRODUCT_NAME: IXLandLinuxRuntime
+      MACH_O_TYPE: mh_dylib
+      DEFINES_MODULE: YES
+      HEADER_SEARCH_PATHS:
+        - "$(SRCROOT)/Sources/IXLandLinuxRuntime"
+        - "$(SRCROOT)/Sources/IXLandLinuxRuntime/emu"
+        - "$(SRCROOT)/Sources/IXLandLinuxRuntime/emu/aarch64"
+        - "$(SRCROOT)/Sources/IXLandLinuxRuntime/kernel"
+        - "$(SRCROOT)/Sources/IXLandLinuxRuntime/kernel/aarch64"
+        - "$(SRCROOT)/Sources/IXLandLinuxRuntime/fs"
+        - "$(SRCROOT)/Sources/IXLandLinuxRuntime/fs/proc"
+        - "$(SRCROOT)/Sources/IXLandLinuxRuntime/platform"
+        - "$(SRCROOT)/Sources/IXLandLinuxRuntime/platform/ios"
+        - "$(SRCROOT)/Sources/IXLandLinuxRuntime/tcti"
+        - "$(SRCROOT)/Sources/IXLandLinuxRuntime/tcti/aarch64"
+        - "$(SRCROOT)/Sources/IXLandLinuxRuntime/util"
+      GCC_PREPROCESSOR_DEFINITIONS:
+        - "IXLAND_LINUX_RUNTIME=1"
+        - "ISH_PLATFORM_IOS=1"
+      OTHER_CFLAGS:
+        - "-x"
+        - "assembler-with-cpp"
+
+targets:
+  # MARK: - IXLandLinuxRuntime Framework
+  IXLandLinuxRuntime:
+    templates:
+      - LinuxRuntimeBase
+    type: framework
+    platform: iOS
+    sources:
+      - path: Sources/IXLandLinuxRuntime
+        headerVisibility: public
+        excludes:
+          - "include/IXLandLinuxRuntime.h"
+    settings:
+      PUBLIC_HEADERS_FOLDER_PATH: "include/IXLandLinuxRuntime"
+    dependencies:
+      - package: libarchive-for-swift
+        product: libarchive
+    scheme:
+      testTargets:
+        - IXLandLinuxRuntimeUnitTests
+        - IXLandLinuxRuntimeFunctionalTests
+
+  # MARK: - IXLandLinuxRuntime Unit Tests
+  IXLandLinuxRuntimeUnitTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests/IXLandLinuxRuntimeUnitTests
+        excludes:
+          - "e2e/**"
+    dependencies:
+      - target: IXLandLinuxRuntime
+    settings:
+      GENERATE_INFOPLIST_FILE: true
+      TEST_HOST: "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal"
+      BUNDLE_LOADER: "$(TEST_HOST)"
+
+  # MARK: - IXLandLinuxRuntime Functional Tests
+  IXLandLinuxRuntimeFunctionalTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - Tests/IXLandLinuxRuntimeFunctionalTests
+    dependencies:
+      - target: IXLandLinuxRuntime
+    settings:
+      GENERATE_INFOPLIST_FILE: true
+      TEST_HOST: "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal"
+      BUNDLE_LOADER: "$(TEST_HOST)"
+
+  # MARK: - IXLandLinuxRuntime End-to-End Tests
+  IXLandLinuxRuntimeEnd2EndTests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: Tests/IXLandLinuxRuntimeEnd2EndTests
+        excludes:
+          - "cases/**"
+          - "manual/**"
+          - "benchmark/**"
+          - "workloads/**"
+          - "harness/**"
+    dependencies:
+      - target: IXLandTerminal
+    settings:
+      GENERATE_INFOPLIST_FILE: true
+
+  # MARK: - IXLandTerminal App
+  IXLandTerminal:
+    type: application
+    platform: iOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: Sources/IXLandTerminal
+        excludes:
+          - "Tests/**"
+          - "UITests/**"
+          - "targets/**"
+          - "*.xcconfig"
+          - "xcode-ninja.sh"
+          - "gen_apk_repositories.py"
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: app.ixland.terminal
+      PRODUCT_NAME: IXLandTerminal
+      INFOPLIST_FILE: Sources/IXLandTerminal/Info.plist
+      CODE_SIGN_ENTITLEMENTS: Sources/IXLandTerminal/iSH.entitlements
+      ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+      HEADER_SEARCH_PATHS:
+        - "$(SRCROOT)/Sources/IXLandTerminal"
+        - "$(SRCROOT)/Sources/IXLandLinuxRuntime"
+        - "$(SRCROOT)/Sources/IXLandLinuxRuntime/include"
+    dependencies:
+      - target: IXLandLinuxRuntime
+    scheme:
+      testTargets:
+        - IXLandTerminalUnitTests
+        - IXLandTerminalEnd2EndTests
+
+  # MARK: - IXLandTerminal Unit Tests
+  IXLandTerminalUnitTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - Tests/IXLandTerminalUnitTests
+    dependencies:
+      - target: IXLandTerminal
+    settings:
+      GENERATE_INFOPLIST_FILE: true
+      TEST_HOST: "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal"
+      BUNDLE_LOADER: "$(TEST_HOST)"
+
+  # MARK: - IXLandTerminal End-to-End Tests
+  IXLandTerminalEnd2EndTests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - Tests/IXLandTerminalEnd2EndTests
+    dependencies:
+      - target: IXLandTerminal
+    settings:
+      GENERATE_INFOPLIST_FILE: true
+
+schemes:
+  IXLand:
+    build:
+      targets:
+        IXLandLinuxRuntime: all
+        IXLandTerminal: all
+    run:
+      config: Debug
+      executable: IXLandTerminal
+    test:
+      config: Debug
+      gatherCoverageData: true
+      targets:
+        - name: IXLandLinuxRuntimeUnitTests
+          parallelizable: true
+        - name: IXLandLinuxRuntimeFunctionalTests
+          parallelizable: true
+        - name: IXLandTerminalUnitTests
+          parallelizable: true
+        - IXLandTerminalEnd2EndTests
+        - IXLandLinuxRuntimeEnd2EndTests
