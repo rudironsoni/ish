@@ -4,10 +4,8 @@
  * Provides per-CPU execution contexts for TCTI with L0 block cache.
  */
 
-#import <IXLandLinuxRuntime/tcti/frame.h>
-
 #import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
-
+#import <IXLandLinuxRuntime/tcti/frame.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -68,4 +66,17 @@ void fiber_exec_ctx_reset(struct fiber_exec_ctx *ctx, struct cpu_state *cpu)
     // frame.cpu is RESERVED for future fiber work
     // Current execution runs directly on the authoritative cpu_state
     ctx->active = true;
+}
+
+/*
+ * Explicitly reset the global fiber context for test harness isolation
+ * Called between test cases to ensure clean state
+ */
+void fiber_exec_ctx_reset_global(void)
+{
+    if (g_fiber_ctx != NULL) {
+        // Clear everything for test isolation
+        // This ensures no cross-test contamination
+        memset(g_fiber_ctx, 0, sizeof(*g_fiber_ctx));
+    }
 }

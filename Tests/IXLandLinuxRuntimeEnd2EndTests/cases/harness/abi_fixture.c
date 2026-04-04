@@ -5,23 +5,24 @@
  * Phase 04 test harness for MMU and ABI cases.
  */
 
+#include <errno.h>
+#include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <sys/mman.h>
-#include <signal.h>
-#include <errno.h>
-#include <stdint.h>
+#include <unistd.h>
 
 #define MAX_PATH 4096
 #define MAX_LINE 1024
 
 /* Stub kernel functions required by iSH headers */
 #include <stdarg.h>
-static void ish_printk(const char *msg, ...) {
+static void ish_printk(const char *msg, ...)
+{
     va_list args;
     va_start(args, msg);
     vfprintf(stderr, msg, args);
@@ -29,24 +30,27 @@ static void ish_printk(const char *msg, ...) {
 }
 #define printk ish_printk
 
-static void handle_interrupt(int interrupt) {
+static void handle_interrupt(int interrupt)
+{
     fprintf(stderr, "[HARNESS] handle_interrupt: %d\n", interrupt);
 }
 
-static void memset_junk(void *buf, size_t size) {
+static void memset_junk(void *buf, size_t size)
+{
     memset(buf, 0xAB, size);
 }
 
 static void *g_end_brk = NULL;
 
 /* iSH headers */
-#import <IXLandLinuxRuntime/util/misc.h>
+#import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/kernel/errno.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
-#import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
+#import <IXLandLinuxRuntime/util/misc.h>
 
-static int setup_artifact_dir(const char *artifact_dir) {
+static int setup_artifact_dir(const char *artifact_dir)
+{
     /* Remove existing directory recursively using C APIs */
     remove(artifact_dir);
 
@@ -58,18 +62,18 @@ static int setup_artifact_dir(const char *artifact_dir) {
     return 0;
 }
 
-static int write_report(const char *artifact_dir, const char *case_id, 
-                        const char *phase, const char *harness,
-                        int passed, const char *failure_summary) {
+static int write_report(const char *artifact_dir, const char *case_id, const char *phase,
+                        const char *harness, int passed, const char *failure_summary)
+{
     char path[MAX_PATH];
     snprintf(path, sizeof(path), "%s/report.json", artifact_dir);
-    
+
     FILE *fp = fopen(path, "w");
     if (!fp) {
         fprintf(stderr, "Error: Cannot write report.json: %s\n", strerror(errno));
         return -1;
     }
-    
+
     fprintf(fp, "{\n");
     fprintf(fp, "  \"case_id\": \"%s\",\n", case_id);
     fprintf(fp, "  \"phase\": \"%s\",\n", phase);
@@ -86,16 +90,18 @@ static int write_report(const char *artifact_dir, const char *case_id,
         fprintf(fp, "  \"failure_summary\": null\n");
     }
     fprintf(fp, "}\n");
-    
+
     fclose(fp);
     return 0;
 }
 
 /* Extract case ID from path */
-static const char *extract_case_id(const char *case_yaml) {
+static const char *extract_case_id(const char *case_yaml)
+{
     static char case_id[64];
     const char *last_slash = strrchr(case_yaml, '/');
-    if (!last_slash) return "UNKNOWN";
+    if (!last_slash)
+        return "UNKNOWN";
 
     const char *dir_start = last_slash;
     while (dir_start > case_yaml && *(dir_start - 1) != '/') {
@@ -104,22 +110,24 @@ static const char *extract_case_id(const char *case_yaml) {
 
     /* Extract case ID (e.g., "MMU-001" from "MMU-001-anon-mmap") */
     const char *dash = strchr(dir_start, '-');
-    if (!dash) return "UNKNOWN";
+    if (!dash)
+        return "UNKNOWN";
     const char *second_dash = strchr(dash + 1, '-');
     int len = second_dash ? (second_dash - dir_start) : (last_slash - dir_start);
-    if (len >= 63) len = 63;
+    if (len >= 63)
+        len = 63;
     strncpy(case_id, dir_start, len);
     case_id[len] = '\0';
     return case_id;
 }
 
 /* MMU-001: Anonymous mmap test */
-static int test_mmu_001_anon_mmap(const char *artifact_dir) {
+static int test_mmu_001_anon_mmap(const char *artifact_dir)
+{
     printf("MMU-001: Testing anonymous mmap...\n");
 
     size_t size = 4096; /* 1 page */
-    void *addr = mmap(NULL, size, PROT_READ | PROT_WRITE,
-                      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    void *addr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
     if (addr == MAP_FAILED) {
         printf("  FAIL: mmap failed: %s\n", strerror(errno));
@@ -137,7 +145,7 @@ static int test_mmu_001_anon_mmap(const char *artifact_dir) {
     printf("  Page aligned: YES\n");
 
     /* Test write */
-    volatile uint64_t *ptr = (uint64_t*)addr;
+    volatile uint64_t *ptr = (uint64_t *)addr;
     *ptr = 0xDEADBEEFCAFEBABEULL;
     printf("  Write test: OK\n");
 
@@ -151,7 +159,7 @@ static int test_mmu_001_anon_mmap(const char *artifact_dir) {
     printf("  Read test: OK (0x%016llx)\n", (unsigned long long)val);
 
     /* Check zero-initialization */
-    volatile uint64_t *ptr2 = (uint64_t*)((char*)addr + 8);
+    volatile uint64_t *ptr2 = (uint64_t *)((char *)addr + 8);
     if (*ptr2 != 0) {
         printf("  FAIL: Memory not zero-initialized\n");
         munmap(addr, size);
@@ -165,13 +173,13 @@ static int test_mmu_001_anon_mmap(const char *artifact_dir) {
 }
 
 /* MMU-002: mprotect permissions test */
-static int test_mmu_002_mprotect(const char *artifact_dir) {
+static int test_mmu_002_mprotect(const char *artifact_dir)
+{
     (void)artifact_dir;
     printf("MMU-002: Testing mprotect permissions...\n");
 
     size_t size = 4096;
-    void *addr = mmap(NULL, size, PROT_READ | PROT_WRITE,
-                      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    void *addr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if (addr == MAP_FAILED) {
         printf("  FAIL: mmap failed\n");
         return -1;
@@ -179,7 +187,7 @@ static int test_mmu_002_mprotect(const char *artifact_dir) {
     printf("  mmap: %p (R/W)\n", addr);
 
     /* Test write */
-    volatile uint64_t *ptr = (uint64_t*)addr;
+    volatile uint64_t *ptr = (uint64_t *)addr;
     *ptr = 0x123456789ABCDEF0ULL;
     printf("  Write with PROT_WRITE: OK\n");
 
@@ -216,7 +224,8 @@ static int test_mmu_002_mprotect(const char *artifact_dir) {
 }
 
 /* MMU-003: brk heap growth test */
-static int test_mmu_003_brk(const char *artifact_dir) {
+static int test_mmu_003_brk(const char *artifact_dir)
+{
     (void)artifact_dir;
     printf("MMU-003: Testing brk heap growth...\n");
 
@@ -226,14 +235,14 @@ static int test_mmu_003_brk(const char *artifact_dir) {
 
     /* Allocate 1 page */
     void *new_brk = sbrk(4096);
-    if (new_brk == (void*)-1) {
+    if (new_brk == (void *)-1) {
         printf("  FAIL: sbrk(4096) failed\n");
         return -1;
     }
     printf("  After sbrk(4096): %p\n", sbrk(0));
 
     /* Verify we can access the new memory */
-    volatile uint64_t *ptr = (volatile uint64_t*)new_brk;
+    volatile uint64_t *ptr = (volatile uint64_t *)new_brk;
     *ptr = 0xDEADBEEFCAFEBABEULL;
     if (*ptr != 0xDEADBEEFCAFEBABEULL) {
         printf("  FAIL: Heap access failed\n");
@@ -263,14 +272,15 @@ static int test_mmu_003_brk(const char *artifact_dir) {
 }
 
 /* MMU-004: Growdown stack test */
-static int test_mmu_004_growdown_stack(const char *artifact_dir) {
+static int test_mmu_004_growdown_stack(const char *artifact_dir)
+{
     (void)artifact_dir;
     printf("MMU-004: Testing growdown stack behavior...\n");
 
     /* Get current stack pointer */
     volatile char *sp;
     __asm__ volatile("mov %0, sp" : "=r"(sp));
-    printf("  Current SP: %p\n", (void*)sp);
+    printf("  Current SP: %p\n", (void *)sp);
 
     /* Check 16-byte alignment */
     if ((uintptr_t)sp % 16 != 0) {
@@ -280,14 +290,14 @@ static int test_mmu_004_growdown_stack(const char *artifact_dir) {
     printf("  Stack alignment: 16-byte OK\n");
 
     /* Test stack access at current SP */
-    volatile uint64_t *stack_ptr = (volatile uint64_t*)sp;
-    uint64_t saved_value = *stack_ptr;  /* Save original */
+    volatile uint64_t *stack_ptr = (volatile uint64_t *)sp;
+    uint64_t saved_value = *stack_ptr; /* Save original */
     *stack_ptr = 0xDEADBEEFCAFEBABEULL;
     if (*stack_ptr != 0xDEADBEEFCAFEBABEULL) {
         printf("  FAIL: Stack write/read failed at SP\n");
         return -1;
     }
-    *stack_ptr = saved_value;  /* Restore */
+    *stack_ptr = saved_value; /* Restore */
     printf("  Stack access at SP: OK\n");
 
     /* Test stack growth by allocating on stack */
@@ -305,7 +315,8 @@ static int test_mmu_004_growdown_stack(const char *artifact_dir) {
 }
 
 /* ABI-002: Required auxv entries test */
-static int test_abi_002_auxv(const char *artifact_dir) {
+static int test_abi_002_auxv(const char *artifact_dir)
+{
     (void)artifact_dir;
     printf("ABI-002: Testing required auxv entries...\n");
 
@@ -332,7 +343,7 @@ static int test_abi_002_auxv(const char *artifact_dir) {
         unsigned long value;
     } auxv_t;
 
-    auxv_t *auxv = (auxv_t*)ptr;
+    auxv_t *auxv = (auxv_t *)ptr;
 
     int found_pagesz = 0;
     int found_phdr = 0;
@@ -343,27 +354,27 @@ static int test_abi_002_auxv(const char *artifact_dir) {
 
     while (auxv->type != 0) { /* AT_NULL = 0 */
         switch (auxv->type) {
-            case 6:  /* AT_PAGESZ */
-                found_pagesz = 1;
-                pagesz = auxv->value;
-                printf("  AT_PAGESZ: %lu\n", pagesz);
-                break;
-            case 3:  /* AT_PHDR */
-                found_phdr = 1;
-                printf("  AT_PHDR: 0x%lx\n", auxv->value);
-                break;
-            case 4:  /* AT_PHENT */
-                found_phent = 1;
-                printf("  AT_PHENT: %lu\n", auxv->value);
-                break;
-            case 5:  /* AT_PHNUM */
-                found_phnum = 1;
-                printf("  AT_PHNUM: %lu\n", auxv->value);
-                break;
-            case 9:  /* AT_ENTRY */
-                found_entry = 1;
-                printf("  AT_ENTRY: 0x%lx\n", auxv->value);
-                break;
+        case 6: /* AT_PAGESZ */
+            found_pagesz = 1;
+            pagesz = auxv->value;
+            printf("  AT_PAGESZ: %lu\n", pagesz);
+            break;
+        case 3: /* AT_PHDR */
+            found_phdr = 1;
+            printf("  AT_PHDR: 0x%lx\n", auxv->value);
+            break;
+        case 4: /* AT_PHENT */
+            found_phent = 1;
+            printf("  AT_PHENT: %lu\n", auxv->value);
+            break;
+        case 5: /* AT_PHNUM */
+            found_phnum = 1;
+            printf("  AT_PHNUM: %lu\n", auxv->value);
+            break;
+        case 9: /* AT_ENTRY */
+            found_entry = 1;
+            printf("  AT_ENTRY: 0x%lx\n", auxv->value);
+            break;
         }
         auxv++;
     }
@@ -410,7 +421,8 @@ static int test_abi_002_auxv(const char *artifact_dir) {
 }
 
 /* ABI-003: AT_RANDOM entropy test */
-static int test_abi_003_at_random(const char *artifact_dir) {
+static int test_abi_003_at_random(const char *artifact_dir)
+{
     (void)artifact_dir;
     printf("ABI-003: Testing AT_RANDOM entropy...\n");
 
@@ -437,12 +449,12 @@ static int test_abi_003_at_random(const char *artifact_dir) {
         unsigned long value;
     } auxv_t;
 
-    auxv_t *auxv = (auxv_t*)ptr;
+    auxv_t *auxv = (auxv_t *)ptr;
     unsigned char *random_bytes = NULL;
 
-    while (auxv->type != 0) { /* AT_NULL = 0 */
+    while (auxv->type != 0) {   /* AT_NULL = 0 */
         if (auxv->type == 25) { /* AT_RANDOM = 25 */
-            random_bytes = (unsigned char*)auxv->value;
+            random_bytes = (unsigned char *)auxv->value;
             break;
         }
         auxv++;
@@ -452,14 +464,15 @@ static int test_abi_003_at_random(const char *artifact_dir) {
         printf("  FAIL: AT_RANDOM not found\n");
         return -1;
     }
-    printf("  AT_RANDOM pointer: %p\n", (void*)random_bytes);
+    printf("  AT_RANDOM pointer: %p\n", (void *)random_bytes);
 
     /* Read 16 bytes */
     printf("  Random bytes: ");
     int all_zero = 1;
     for (int i = 0; i < 16; i++) {
         printf("%02x", random_bytes[i]);
-        if (random_bytes[i] != 0) all_zero = 0;
+        if (random_bytes[i] != 0)
+            all_zero = 0;
     }
     printf("\n");
 
@@ -475,14 +488,15 @@ static int test_abi_003_at_random(const char *artifact_dir) {
 }
 
 /* ABI-001: Process entry stack test */
-static int test_abi_001_stack(const char *artifact_dir) {
+static int test_abi_001_stack(const char *artifact_dir)
+{
     printf("ABI-001: Testing process entry stack...\n");
 
     /* Get current stack pointer */
     volatile char *sp;
     __asm__ volatile("mov %0, sp" : "=r"(sp));
 
-    printf("  Current SP: %p\n", (void*)sp);
+    printf("  Current SP: %p\n", (void *)sp);
 
     /* Check 16-byte alignment */
     if ((uintptr_t)sp % 16 != 0) {
@@ -504,7 +518,8 @@ static int test_abi_001_stack(const char *artifact_dir) {
 }
 
 /* MMU-005: Cross-page memory access test */
-static int test_mmu_005_cross_page(const char *artifact_dir) {
+static int test_mmu_005_cross_page(const char *artifact_dir)
+{
     (void)artifact_dir;
     printf("MMU-005: Testing cross-page memory access...\n");
 
@@ -517,8 +532,7 @@ static int test_mmu_005_cross_page(const char *artifact_dir) {
 
     /* Allocate 2 pages to test cross-page access */
     size_t size = (size_t)page_size * 2;
-    void *addr = mmap(NULL, size, PROT_READ | PROT_WRITE,
-                      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    void *addr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if (addr == MAP_FAILED) {
         printf("  FAIL: mmap failed\n");
         return -1;
@@ -557,13 +571,13 @@ static int test_mmu_005_cross_page(const char *artifact_dir) {
     printf("  Multi-page access: OK (verified both pages accessible)\n");
 
     /* Test that permissions are checked for both pages by making page 2 read-only */
-    if (mprotect((void*)page_boundary, (size_t)page_size, PROT_READ) != 0) {
+    if (mprotect((void *)page_boundary, (size_t)page_size, PROT_READ) != 0) {
         printf("  WARN: Could not change page permissions (may be expected on some platforms)\n");
     } else {
         printf("  Page 2 changed to read-only\n");
         /* Note: Actually testing write to read-only page would cause SIGSEGV,
          * so we just verify mprotect succeeded and restore permissions */
-        mprotect((void*)page_boundary, (size_t)page_size, PROT_READ | PROT_WRITE);
+        mprotect((void *)page_boundary, (size_t)page_size, PROT_READ | PROT_WRITE);
         printf("  Permission change verified: OK\n");
     }
 
@@ -573,21 +587,21 @@ static int test_mmu_005_cross_page(const char *artifact_dir) {
 }
 
 /* MMU-006: TLB invalidation test */
-static int test_mmu_006_tlb(const char *artifact_dir) {
+static int test_mmu_006_tlb(const char *artifact_dir)
+{
     (void)artifact_dir;
     printf("MMU-006: Testing TLB invalidation...\n");
 
     /* Allocate a page */
     size_t size = 4096;
-    void *addr = mmap(NULL, size, PROT_READ | PROT_WRITE,
-                      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    void *addr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if (addr == MAP_FAILED) {
         printf("  FAIL: mmap failed\n");
         return -1;
     }
 
     /* Access the page to ensure it's in TLB */
-    volatile uint64_t *ptr = (volatile uint64_t*)addr;
+    volatile uint64_t *ptr = (volatile uint64_t *)addr;
     *ptr = 0x123456789ABCDEF0ULL;
     uint64_t val = *ptr;
     if (val != 0x123456789ABCDEF0ULL) {
@@ -643,7 +657,8 @@ static int test_mmu_006_tlb(const char *artifact_dir) {
 }
 
 /* ABI-004: TPIDR_EL0 TLS initialization test */
-static int test_abi_004_tpidr_el0(const char *artifact_dir) {
+static int test_abi_004_tpidr_el0(const char *artifact_dir)
+{
     (void)artifact_dir;
     printf("ABI-004: Testing TPIDR_EL0 TLS initialization...\n");
 
@@ -669,14 +684,14 @@ static int test_abi_004_tpidr_el0(const char *artifact_dir) {
     return 0;
 #else
     /* On Linux, verify the pointer is accessible */
-    volatile uint64_t *tls_ptr = (volatile uint64_t*)tpidr_el0;
-    uint64_t saved = *tls_ptr;  /* Save original */
+    volatile uint64_t *tls_ptr = (volatile uint64_t *)tpidr_el0;
+    uint64_t saved = *tls_ptr; /* Save original */
     *tls_ptr = 0xDEADBEEFCAFEBABEULL;
     if (*tls_ptr != 0xDEADBEEFCAFEBABEULL) {
         printf("  FAIL: TLS memory not accessible\n");
         return -1;
     }
-    *tls_ptr = saved;  /* Restore */
+    *tls_ptr = saved; /* Restore */
 
     printf("  TPIDR_EL0 initialized: YES\n");
     printf("  TLS memory accessible: YES\n");
@@ -690,7 +705,8 @@ static volatile int abi005_signal_received = 0;
 static volatile void *abi005_handler_sp = NULL;
 
 /* Signal handler for ABI-005 */
-static void abi005_handler(int sig, siginfo_t *info, void *context) {
+static void abi005_handler(int sig, siginfo_t *info, void *context)
+{
     (void)sig;
     (void)info;
     (void)context;
@@ -706,16 +722,17 @@ static void abi005_handler(int sig, siginfo_t *info, void *context) {
 
     /* Verify context pointer is valid */
     if (context != NULL) {
-        ucontext_t *uc = (ucontext_t*)context;
-        printf("  ucontext: %p\n", (void*)uc);
+        ucontext_t *uc = (ucontext_t *)context;
+        printf("  ucontext: %p\n", (void *)uc);
         /* Access mcontext to verify structure is valid */
         mcontext_t *mc = &uc->uc_mcontext;
-        printf("  mcontext: %p\n", (void*)mc);
+        printf("  mcontext: %p\n", (void *)mc);
     }
 }
 
 /* ABI-005: Signal frame and rt_sigreturn test */
-static int test_abi_005_sigframe(const char *artifact_dir) {
+static int test_abi_005_sigframe(const char *artifact_dir)
+{
     (void)artifact_dir;
     printf("ABI-005: Testing signal frame layout...\n");
 
@@ -753,8 +770,13 @@ static int test_abi_005_sigframe(const char *artifact_dir) {
     return 0;
 }
 
-int run_abi_fixture(const char *case_yaml, const char *artifact_dir) {
-if (setup_artifact_dir(artifact_dir) != 0) {
+int run_abi_fixture(const char *case_yaml, const char *artifact_dir)
+{
+    /* Reset static signal state before each run to prevent carry-over between test cases */
+    abi005_signal_received = 0;
+    abi005_handler_sp = NULL;
+
+    if (setup_artifact_dir(artifact_dir) != 0) {
         return 1;
     }
 
@@ -767,37 +789,48 @@ if (setup_artifact_dir(artifact_dir) != 0) {
     /* Route to appropriate test */
     if (strncmp(case_id, "MMU-001", 7) == 0) {
         result = test_mmu_001_anon_mmap(artifact_dir);
-        if (result != 0) failure_reason = "MMU-001 anon mmap test failed";
+        if (result != 0)
+            failure_reason = "MMU-001 anon mmap test failed";
     } else if (strncmp(case_id, "MMU-002", 7) == 0) {
         result = test_mmu_002_mprotect(artifact_dir);
-        if (result != 0) failure_reason = "MMU-002 mprotect test failed";
+        if (result != 0)
+            failure_reason = "MMU-002 mprotect test failed";
     } else if (strncmp(case_id, "MMU-003", 7) == 0) {
         result = test_mmu_003_brk(artifact_dir);
-        if (result != 0) failure_reason = "MMU-003 brk test failed";
+        if (result != 0)
+            failure_reason = "MMU-003 brk test failed";
     } else if (strncmp(case_id, "MMU-004", 7) == 0) {
         result = test_mmu_004_growdown_stack(artifact_dir);
-        if (result != 0) failure_reason = "MMU-004 growdown stack test failed";
+        if (result != 0)
+            failure_reason = "MMU-004 growdown stack test failed";
     } else if (strncmp(case_id, "ABI-001", 7) == 0) {
         result = test_abi_001_stack(artifact_dir);
-        if (result != 0) failure_reason = "ABI-001 stack test failed";
+        if (result != 0)
+            failure_reason = "ABI-001 stack test failed";
     } else if (strncmp(case_id, "ABI-002", 7) == 0) {
         result = test_abi_002_auxv(artifact_dir);
-        if (result != 0) failure_reason = "ABI-002 auxv test failed";
+        if (result != 0)
+            failure_reason = "ABI-002 auxv test failed";
     } else if (strncmp(case_id, "ABI-003", 7) == 0) {
         result = test_abi_003_at_random(artifact_dir);
-        if (result != 0) failure_reason = "ABI-003 AT_RANDOM test failed";
+        if (result != 0)
+            failure_reason = "ABI-003 AT_RANDOM test failed";
     } else if (strncmp(case_id, "MMU-005", 7) == 0) {
         result = test_mmu_005_cross_page(artifact_dir);
-        if (result != 0) failure_reason = "MMU-005 cross-page access test failed";
+        if (result != 0)
+            failure_reason = "MMU-005 cross-page access test failed";
     } else if (strncmp(case_id, "MMU-006", 7) == 0) {
         result = test_mmu_006_tlb(artifact_dir);
-        if (result != 0) failure_reason = "MMU-006 TLB invalidation test failed";
+        if (result != 0)
+            failure_reason = "MMU-006 TLB invalidation test failed";
     } else if (strncmp(case_id, "ABI-004", 7) == 0) {
         result = test_abi_004_tpidr_el0(artifact_dir);
-        if (result != 0) failure_reason = "ABI-004 TPIDR_EL0 test failed";
+        if (result != 0)
+            failure_reason = "ABI-004 TPIDR_EL0 test failed";
     } else if (strncmp(case_id, "ABI-005", 7) == 0) {
         result = test_abi_005_sigframe(artifact_dir);
-        if (result != 0) failure_reason = "ABI-005 signal frame test failed";
+        if (result != 0)
+            failure_reason = "ABI-005 signal frame test failed";
     } else {
         printf("STATUS: STUB - Test not implemented for %s\n", case_id);
         failure_reason = "STUB: Test not implemented";
@@ -830,8 +863,8 @@ if (setup_artifact_dir(artifact_dir) != 0) {
     }
 
     /* Write report */
-    if (write_report(artifact_dir, case_id, "04-mmu-abi", "abi_fixture",
-                     result == 0, failure_reason) != 0) {
+    if (write_report(artifact_dir, case_id, "04-mmu-abi", "abi_fixture", result == 0,
+                     failure_reason) != 0) {
         return 1;
     }
 
@@ -843,7 +876,8 @@ if (setup_artifact_dir(artifact_dir) != 0) {
     return result == 0 ? 0 : 1;
 }
 
-static int main(int argc, char *argv[]) {
+static int main(int argc, char *argv[])
+{
     const char *case_yaml = NULL;
     const char *artifact_dir = NULL;
 
@@ -862,4 +896,3 @@ static int main(int argc, char *argv[]) {
 
     return run_abi_fixture(case_yaml, artifact_dir);
 }
-

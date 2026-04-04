@@ -47,11 +47,12 @@ static void handle_interrupt(int interrupt)
 }
 
 /* TCTI headers */
-#import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
+#include <IXLandLinuxRuntime/emu/aarch64/cpu.h>
 #import <IXLandLinuxRuntime/emu/aarch64/decode.h>
 #import <IXLandLinuxRuntime/emu/aarch64/memory.h>
 #import <IXLandLinuxRuntime/emu/tlb.h>
 #import <IXLandLinuxRuntime/tcti/aarch64/gen.h>
+#import <IXLandLinuxRuntime/tcti/frame.h>
 #import <IXLandLinuxRuntime/tcti/gadgets_tcti.h>
 
 /* Real TCTI execution context
@@ -358,6 +359,30 @@ int run_semantic_micro(const char *case_yaml, const char *artifact_dir)
     int passed = 0;
     const char *failure_summary = NULL;
 
+    /* Reset static state before each run to prevent carry-over between test cases */
+    static struct tlb exec_tlb;
+    static struct mmu exec_mmu;
+    static int initialized = 0;
+
+    if (!initialized) {
+        memset(&exec_mmu, 0, sizeof(exec_mmu));
+        memset(&exec_tlb, 0, sizeof(exec_tlb));
+        exec_tlb.mmu = &exec_mmu;
+        initialized = 1;
+    } else {
+        /* Reset TLB entries and MMU state between runs */
+        memset(&exec_mmu, 0, sizeof(exec_mmu));
+        memset(&exec_tlb, 0, sizeof(exec_tlb));
+        exec_tlb.mmu = &exec_mmu;
+    }
+
+    /* Reset test memory and base for test isolation */
+    test_memory_base = 0x1000;
+    memset(test_memory, 0, sizeof(test_memory));
+
+    /* Reset global fiber execution context for test isolation */
+    fiber_exec_ctx_reset_global();
+
     if (setup_artifact_dir(artifact_dir) != 0) {
         return 1;
     }
@@ -425,10 +450,7 @@ int run_semantic_micro(const char *case_yaml, const char *artifact_dir)
      * Real TCTI execution requires TLB for memory access
      * This must happen before tcti_entry_block is called
      */
-    static struct tlb exec_tlb;
-    static struct mmu exec_mmu;
-    memset(&exec_mmu, 0, sizeof(exec_mmu));
-    memset(&exec_tlb, 0, sizeof(exec_tlb));
+    /* exec_tlb and exec_mmu are now declared at function entry with reset */
     exec_tlb.mmu = &exec_mmu;
     cpu.mmu = &exec_mmu;
     cpu.tlb = &exec_tlb;

@@ -5,21 +5,22 @@
  * Phase 05 test harness for ELF and Dynamic Loader cases.
  */
 
+#include <errno.h>
+#include <fcntl.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <stdint.h>
+#include <unistd.h>
 
 #define MAX_PATH 4096
 
 /* Stub kernel functions required by iSH headers */
 #include <stdarg.h>
-static void ish_printk(const char *msg, ...) {
+static void ish_printk(const char *msg, ...)
+{
     va_list args;
     va_start(args, msg);
     vfprintf(stderr, msg, args);
@@ -27,25 +28,28 @@ static void ish_printk(const char *msg, ...) {
 }
 #define printk ish_printk
 
-static void handle_interrupt(int interrupt) {
+static void handle_interrupt(int interrupt)
+{
     fprintf(stderr, "[HARNESS] handle_interrupt: %d\n", interrupt);
 }
 
-static void memset_junk(void *buf, size_t size) {
+static void memset_junk(void *buf, size_t size)
+{
     memset(buf, 0xAB, size);
 }
 
 static void *g_end_brk = NULL;
 
 /* iSH headers */
-#import <IXLandLinuxRuntime/util/misc.h>
+#import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
+#import <IXLandLinuxRuntime/kernel/elf.h>
 #import <IXLandLinuxRuntime/kernel/errno.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
-#import <IXLandLinuxRuntime/kernel/elf.h>
-#import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
+#import <IXLandLinuxRuntime/util/misc.h>
 
-static int setup_artifact_dir(const char *artifact_dir) {
+static int setup_artifact_dir(const char *artifact_dir)
+{
     /* Remove existing directory recursively using C APIs */
     remove(artifact_dir);
 
@@ -57,9 +61,9 @@ static int setup_artifact_dir(const char *artifact_dir) {
     return 0;
 }
 
-static int write_report(const char *artifact_dir, const char *case_id,
-                        const char *phase, const char *harness,
-                        int passed, const char *failure_summary) {
+static int write_report(const char *artifact_dir, const char *case_id, const char *phase,
+                        const char *harness, int passed, const char *failure_summary)
+{
     char path[MAX_PATH];
     snprintf(path, sizeof(path), "%s/report.json", artifact_dir);
 
@@ -91,10 +95,10 @@ static int write_report(const char *artifact_dir, const char *case_id,
 }
 
 /* Write ELF-specific artifact files */
-static int write_elf_artifacts(const char *artifact_dir, const char *case_id,
-                                int has_fixture, const char *fixture_path,
-                                const struct elf_header *header,
-                                int pt_load_count, int has_interp) {
+static int write_elf_artifacts(const char *artifact_dir, const char *case_id, int has_fixture,
+                               const char *fixture_path, const struct elf_header *header,
+                               int pt_load_count, int has_interp)
+{
     /* Write trace.json with ELF analysis results */
     char json_path[MAX_PATH];
     snprintf(json_path, sizeof(json_path), "%s/trace.json", artifact_dir);
@@ -222,10 +226,12 @@ static int write_elf_artifacts(const char *artifact_dir, const char *case_id,
 }
 
 /* Extract case ID from path */
-static const char *extract_case_id(const char *case_yaml) {
+static const char *extract_case_id(const char *case_yaml)
+{
     static char case_id[64];
     const char *last_slash = strrchr(case_yaml, '/');
-    if (!last_slash) return "UNKNOWN";
+    if (!last_slash)
+        return "UNKNOWN";
 
     const char *dir_start = last_slash;
     while (dir_start > case_yaml && *(dir_start - 1) != '/') {
@@ -234,24 +240,23 @@ static const char *extract_case_id(const char *case_yaml) {
 
     /* Extract case ID (e.g., "ELF-001" from "ELF-001-static-hello") */
     const char *dash = strchr(dir_start, '-');
-    if (!dash) return "UNKNOWN";
+    if (!dash)
+        return "UNKNOWN";
     const char *second_dash = strchr(dash + 1, '-');
     int len = second_dash ? (second_dash - dir_start) : (last_slash - dir_start);
-    if (len >= 63) len = 63;
+    if (len >= 63)
+        len = 63;
     strncpy(case_id, dir_start, len);
     case_id[len] = '\0';
     return case_id;
 }
 
 /* Find fixture binary for a case */
-static int find_fixture(const char *case_id, char *fixture_path, size_t size) {
+static int find_fixture(const char *case_id, char *fixture_path, size_t size)
+{
     /* Look for fixture in common locations */
-    const char *paths[] = {
-        "tests/fixtures/elf/%s.elf",
-        "tests/cases/05-elf-loader/%s/fixture.elf",
-        "build/tests/fixtures/%s",
-        NULL
-    };
+    const char *paths[] = { "tests/fixtures/elf/%s.elf", "tests/cases/05-elf-loader/%s/fixture.elf",
+                            "build/tests/fixtures/%s", NULL };
 
     for (int i = 0; paths[i] != NULL; i++) {
         snprintf(fixture_path, size, paths[i], case_id);
@@ -264,8 +269,9 @@ static int find_fixture(const char *case_id, char *fixture_path, size_t size) {
 }
 
 /* Read and parse ELF header */
-static int read_elf_header(const char *path, struct elf_header *header,
-                           char *error_buf, size_t error_size) {
+static int read_elf_header(const char *path, struct elf_header *header, char *error_buf,
+                           size_t error_size)
+{
     int fd = open(path, O_RDONLY);
     if (fd < 0) {
         snprintf(error_buf, error_size, "Cannot open %s: %s", path, strerror(errno));
@@ -284,14 +290,14 @@ static int read_elf_header(const char *path, struct elf_header *header,
 }
 
 /* Basic ELF header validation */
-static int validate_elf_header(const struct elf_header *header,
-                               char *error_buf, size_t error_size) {
+static int validate_elf_header(const struct elf_header *header, char *error_buf, size_t error_size)
+{
     /* Check magic - magic is uint32_t, first byte 0x7f then "ELF" */
-    uint8_t *magic_bytes = (uint8_t*)&header->magic;
-    if (magic_bytes[0] != 0x7f || magic_bytes[1] != 'E' ||
-        magic_bytes[2] != 'L' || magic_bytes[3] != 'F') {
-        snprintf(error_buf, error_size, "Invalid ELF magic: %02x %02x %02x %02x",
-                 magic_bytes[0], magic_bytes[1], magic_bytes[2], magic_bytes[3]);
+    uint8_t *magic_bytes = (uint8_t *)&header->magic;
+    if (magic_bytes[0] != 0x7f || magic_bytes[1] != 'E' || magic_bytes[2] != 'L' ||
+        magic_bytes[3] != 'F') {
+        snprintf(error_buf, error_size, "Invalid ELF magic: %02x %02x %02x %02x", magic_bytes[0],
+                 magic_bytes[1], magic_bytes[2], magic_bytes[3]);
         return -1;
     }
 
@@ -312,8 +318,9 @@ static int validate_elf_header(const struct elf_header *header,
 
 /* Count PT_LOAD segments and check for PT_INTERP */
 static int analyze_program_headers(const char *path, const struct elf_header *header,
-                                   int *pt_load_count, int *has_interp,
-                                   char *error_buf, size_t error_size) {
+                                   int *pt_load_count, int *has_interp, char *error_buf,
+                                   size_t error_size)
+{
     int fd = open(path, O_RDONLY);
     if (fd < 0) {
         snprintf(error_buf, error_size, "Cannot open %s: %s", path, strerror(errno));
@@ -352,7 +359,8 @@ static int analyze_program_headers(const char *path, const struct elf_header *he
 
 /* ELF-001: Static binary validation */
 static int test_elf_001_static(const char *artifact_dir, const char *fixture_path,
-                               struct elf_header *header) {
+                               struct elf_header *header)
+{
     printf("ELF-001: Testing static binary loading...\n");
 
     if (!fixture_path) {
@@ -371,7 +379,8 @@ static int test_elf_001_static(const char *artifact_dir, const char *fixture_pat
 
     /* Check for static binary (no PT_INTERP) */
     int pt_load_count, has_interp;
-    if (analyze_program_headers(fixture_path, header, &pt_load_count, &has_interp, error, sizeof(error)) != 0) {
+    if (analyze_program_headers(fixture_path, header, &pt_load_count, &has_interp, error,
+                                sizeof(error)) != 0) {
         printf("  FAIL: %s\n", error);
         return -1;
     }
@@ -394,7 +403,8 @@ static int test_elf_001_static(const char *artifact_dir, const char *fixture_pat
 
 /* ELF-002: Static PIE binary validation */
 static int test_elf_002_static_pie(const char *artifact_dir, const char *fixture_path,
-                                   struct elf_header *header) {
+                                   struct elf_header *header)
+{
     printf("ELF-002: Testing static PIE binary loading...\n");
 
     if (!fixture_path) {
@@ -412,13 +422,14 @@ static int test_elf_002_static_pie(const char *artifact_dir, const char *fixture
 
     /* Check for PIE (ET_DYN type indicates PIE) */
     if (header->type != ELF_DYNAMIC) {
-        printf("  FAIL: Not a PIE binary (type=%d, expected ET_DYN=%d)\n",
-               header->type, ELF_DYNAMIC);
+        printf("  FAIL: Not a PIE binary (type=%d, expected ET_DYN=%d)\n", header->type,
+               ELF_DYNAMIC);
         return -1;
     }
 
     int pt_load_count, has_interp;
-    if (analyze_program_headers(fixture_path, header, &pt_load_count, &has_interp, error, sizeof(error)) != 0) {
+    if (analyze_program_headers(fixture_path, header, &pt_load_count, &has_interp, error,
+                                sizeof(error)) != 0) {
         printf("  FAIL: %s\n", error);
         return -1;
     }
@@ -440,7 +451,8 @@ static int test_elf_002_static_pie(const char *artifact_dir, const char *fixture
 
 /* ELF-003: Dynamic PIE binary validation */
 static int test_elf_003_dynamic_pie(const char *artifact_dir, const char *fixture_path,
-                                    struct elf_header *header) {
+                                    struct elf_header *header)
+{
     printf("ELF-003: Testing dynamic PIE binary loading...\n");
 
     if (!fixture_path) {
@@ -462,7 +474,8 @@ static int test_elf_003_dynamic_pie(const char *artifact_dir, const char *fixtur
     }
 
     int pt_load_count, has_interp;
-    if (analyze_program_headers(fixture_path, header, &pt_load_count, &has_interp, error, sizeof(error)) != 0) {
+    if (analyze_program_headers(fixture_path, header, &pt_load_count, &has_interp, error,
+                                sizeof(error)) != 0) {
         printf("  FAIL: %s\n", error);
         return -1;
     }
@@ -484,7 +497,8 @@ static int test_elf_003_dynamic_pie(const char *artifact_dir, const char *fixtur
 
 /* ELF-004: PT_LOAD mapping validation */
 static int test_elf_004_pt_load(const char *artifact_dir, const char *fixture_path,
-                                struct elf_header *header) {
+                                struct elf_header *header)
+{
     printf("ELF-004: Testing PT_LOAD segment mapping...\n");
 
     if (!fixture_path) {
@@ -501,7 +515,8 @@ static int test_elf_004_pt_load(const char *artifact_dir, const char *fixture_pa
     }
 
     int pt_load_count, has_interp;
-    if (analyze_program_headers(fixture_path, header, &pt_load_count, &has_interp, error, sizeof(error)) != 0) {
+    if (analyze_program_headers(fixture_path, header, &pt_load_count, &has_interp, error,
+                                sizeof(error)) != 0) {
         printf("  FAIL: %s\n", error);
         return -1;
     }
@@ -516,14 +531,16 @@ static int test_elf_004_pt_load(const char *artifact_dir, const char *fixture_pa
     printf("  Segment mapping: validated\n");
     printf("  Permissions: will be checked at load time\n");
 
-    write_elf_artifacts(artifact_dir, "ELF-004", 1, fixture_path, header, pt_load_count, has_interp);
+    write_elf_artifacts(artifact_dir, "ELF-004", 1, fixture_path, header, pt_load_count,
+                        has_interp);
     printf("  Result: PASSED\n");
     return 0;
 }
 
 /* ELF-005: Basic relocations validation */
 static int test_elf_005_relocations(const char *artifact_dir, const char *fixture_path,
-                                    struct elf_header *header) {
+                                    struct elf_header *header)
+{
     printf("ELF-005: Testing basic ELF relocations...\n");
 
     if (!fixture_path) {
@@ -540,7 +557,8 @@ static int test_elf_005_relocations(const char *artifact_dir, const char *fixtur
     }
 
     int pt_load_count, has_interp;
-    if (analyze_program_headers(fixture_path, header, &pt_load_count, &has_interp, error, sizeof(error)) != 0) {
+    if (analyze_program_headers(fixture_path, header, &pt_load_count, &has_interp, error,
+                                sizeof(error)) != 0) {
         printf("  FAIL: %s\n", error);
         return -1;
     }
@@ -551,14 +569,16 @@ static int test_elf_005_relocations(const char *artifact_dir, const char *fixtur
     printf("  R_AARCH64_GLOB_DAT: supported\n");
     printf("  R_AARCH64_JUMP_SLOT: supported\n");
 
-    write_elf_artifacts(artifact_dir, "ELF-005", 1, fixture_path, header, pt_load_count, has_interp);
+    write_elf_artifacts(artifact_dir, "ELF-005", 1, fixture_path, header, pt_load_count,
+                        has_interp);
     printf("  Result: PASSED\n");
     return 0;
 }
 
 /* ELF-006: Interpreter handoff validation */
 static int test_elf_006_interpreter_handoff(const char *artifact_dir, const char *fixture_path,
-                                            struct elf_header *header) {
+                                            struct elf_header *header)
+{
     printf("ELF-006: Testing interpreter handoff...\n");
 
     if (!fixture_path) {
@@ -575,7 +595,8 @@ static int test_elf_006_interpreter_handoff(const char *artifact_dir, const char
     }
 
     int pt_load_count, has_interp;
-    if (analyze_program_headers(fixture_path, header, &pt_load_count, &has_interp, error, sizeof(error)) != 0) {
+    if (analyze_program_headers(fixture_path, header, &pt_load_count, &has_interp, error,
+                                sizeof(error)) != 0) {
         printf("  FAIL: %s\n", error);
         return -1;
     }
@@ -598,7 +619,8 @@ static int test_elf_006_interpreter_handoff(const char *artifact_dir, const char
 
 /* ELF-007: musl loader entry validation */
 static int test_elf_007_musl_loader(const char *artifact_dir, const char *fixture_path,
-                                    struct elf_header *header) {
+                                    struct elf_header *header)
+{
     printf("ELF-007: Testing musl dynamic loader entry...\n");
 
     if (!fixture_path) {
@@ -615,7 +637,8 @@ static int test_elf_007_musl_loader(const char *artifact_dir, const char *fixtur
     }
 
     int pt_load_count, has_interp;
-    if (analyze_program_headers(fixture_path, header, &pt_load_count, &has_interp, error, sizeof(error)) != 0) {
+    if (analyze_program_headers(fixture_path, header, &pt_load_count, &has_interp, error,
+                                sizeof(error)) != 0) {
         printf("  FAIL: %s\n", error);
         return -1;
     }
@@ -625,14 +648,16 @@ static int test_elf_007_musl_loader(const char *artifact_dir, const char *fixtur
     printf("  Self-relocations: supported\n");
     printf("  Program headers: will be parsed by loader\n");
 
-    write_elf_artifacts(artifact_dir, "ELF-007", 1, fixture_path, header, pt_load_count, has_interp);
+    write_elf_artifacts(artifact_dir, "ELF-007", 1, fixture_path, header, pt_load_count,
+                        has_interp);
     printf("  Result: PASSED\n");
     return 0;
 }
 
 /* ELF-008: glibc loader entry validation */
 static int test_elf_008_glibc_loader(const char *artifact_dir, const char *fixture_path,
-                                     struct elf_header *header) {
+                                     struct elf_header *header)
+{
     printf("ELF-008: Testing glibc dynamic loader entry...\n");
 
     if (!fixture_path) {
@@ -649,7 +674,8 @@ static int test_elf_008_glibc_loader(const char *artifact_dir, const char *fixtu
     }
 
     int pt_load_count, has_interp;
-    if (analyze_program_headers(fixture_path, header, &pt_load_count, &has_interp, error, sizeof(error)) != 0) {
+    if (analyze_program_headers(fixture_path, header, &pt_load_count, &has_interp, error,
+                                sizeof(error)) != 0) {
         printf("  FAIL: %s\n", error);
         return -1;
     }
@@ -659,14 +685,16 @@ static int test_elf_008_glibc_loader(const char *artifact_dir, const char *fixtu
     printf("  _dl_start: entry point supported\n");
     printf("  Shared libraries: loading supported\n");
 
-    write_elf_artifacts(artifact_dir, "ELF-008", 1, fixture_path, header, pt_load_count, has_interp);
+    write_elf_artifacts(artifact_dir, "ELF-008", 1, fixture_path, header, pt_load_count,
+                        has_interp);
     printf("  Result: PASSED\n");
     return 0;
 }
 
 /* ELF-009: init_array/fini_array validation */
 static int test_elf_009_init_fini(const char *artifact_dir, const char *fixture_path,
-                                  struct elf_header *header) {
+                                  struct elf_header *header)
+{
     printf("ELF-009: Testing init_array/fini_array execution...\n");
 
     if (!fixture_path) {
@@ -683,7 +711,8 @@ static int test_elf_009_init_fini(const char *artifact_dir, const char *fixture_
     }
 
     int pt_load_count, has_interp;
-    if (analyze_program_headers(fixture_path, header, &pt_load_count, &has_interp, error, sizeof(error)) != 0) {
+    if (analyze_program_headers(fixture_path, header, &pt_load_count, &has_interp, error,
+                                sizeof(error)) != 0) {
         printf("  FAIL: %s\n", error);
         return -1;
     }
@@ -693,13 +722,18 @@ static int test_elf_009_init_fini(const char *artifact_dir, const char *fixture_
     printf("  .fini_array: support implemented\n");
     printf("  Execution order: constructors before main, destructors at exit\n");
 
-    write_elf_artifacts(artifact_dir, "ELF-009", 1, fixture_path, header, pt_load_count, has_interp);
+    write_elf_artifacts(artifact_dir, "ELF-009", 1, fixture_path, header, pt_load_count,
+                        has_interp);
     printf("  Result: PASSED\n");
     return 0;
 }
 
-int run_elf_loader(const char *case_yaml, const char *artifact_dir) {
-if (setup_artifact_dir(artifact_dir) != 0) {
+int run_elf_loader(const char *case_yaml, const char *artifact_dir)
+{
+    /* Reset static state before each run to prevent carry-over between test cases */
+    /* No static state to reset in this harness */
+
+    if (setup_artifact_dir(artifact_dir) != 0) {
         return 1;
     }
 
@@ -734,39 +768,48 @@ if (setup_artifact_dir(artifact_dir) != 0) {
     if (strncmp(case_id, "ELF-001", 7) == 0) {
         result = test_elf_001_static(artifact_dir, has_fixture ? fixture_path : NULL,
                                      header_valid ? &header : NULL);
-        if (result != 0) failure_reason = "ELF-001 static binary test failed";
+        if (result != 0)
+            failure_reason = "ELF-001 static binary test failed";
     } else if (strncmp(case_id, "ELF-002", 7) == 0) {
         result = test_elf_002_static_pie(artifact_dir, has_fixture ? fixture_path : NULL,
                                          header_valid ? &header : NULL);
-        if (result != 0) failure_reason = "ELF-002 static PIE test failed";
+        if (result != 0)
+            failure_reason = "ELF-002 static PIE test failed";
     } else if (strncmp(case_id, "ELF-003", 7) == 0) {
         result = test_elf_003_dynamic_pie(artifact_dir, has_fixture ? fixture_path : NULL,
                                           header_valid ? &header : NULL);
-        if (result != 0) failure_reason = "ELF-003 dynamic PIE test failed";
+        if (result != 0)
+            failure_reason = "ELF-003 dynamic PIE test failed";
     } else if (strncmp(case_id, "ELF-004", 7) == 0) {
         result = test_elf_004_pt_load(artifact_dir, has_fixture ? fixture_path : NULL,
                                       header_valid ? &header : NULL);
-        if (result != 0) failure_reason = "ELF-004 PT_LOAD test failed";
+        if (result != 0)
+            failure_reason = "ELF-004 PT_LOAD test failed";
     } else if (strncmp(case_id, "ELF-005", 7) == 0) {
         result = test_elf_005_relocations(artifact_dir, has_fixture ? fixture_path : NULL,
                                           header_valid ? &header : NULL);
-        if (result != 0) failure_reason = "ELF-005 relocations test failed";
+        if (result != 0)
+            failure_reason = "ELF-005 relocations test failed";
     } else if (strncmp(case_id, "ELF-006", 7) == 0) {
         result = test_elf_006_interpreter_handoff(artifact_dir, has_fixture ? fixture_path : NULL,
                                                   header_valid ? &header : NULL);
-        if (result != 0) failure_reason = "ELF-006 interpreter handoff test failed";
+        if (result != 0)
+            failure_reason = "ELF-006 interpreter handoff test failed";
     } else if (strncmp(case_id, "ELF-007", 7) == 0) {
         result = test_elf_007_musl_loader(artifact_dir, has_fixture ? fixture_path : NULL,
                                           header_valid ? &header : NULL);
-        if (result != 0) failure_reason = "ELF-007 musl loader test failed";
+        if (result != 0)
+            failure_reason = "ELF-007 musl loader test failed";
     } else if (strncmp(case_id, "ELF-008", 7) == 0) {
         result = test_elf_008_glibc_loader(artifact_dir, has_fixture ? fixture_path : NULL,
                                            header_valid ? &header : NULL);
-        if (result != 0) failure_reason = "ELF-008 glibc loader test failed";
+        if (result != 0)
+            failure_reason = "ELF-008 glibc loader test failed";
     } else if (strncmp(case_id, "ELF-009", 7) == 0) {
         result = test_elf_009_init_fini(artifact_dir, has_fixture ? fixture_path : NULL,
                                         header_valid ? &header : NULL);
-        if (result != 0) failure_reason = "ELF-009 init/fini test failed";
+        if (result != 0)
+            failure_reason = "ELF-009 init/fini test failed";
     } else {
         printf("Unknown case: %s\n", case_id);
         failure_reason = "Unknown case ID";
@@ -774,8 +817,8 @@ if (setup_artifact_dir(artifact_dir) != 0) {
     }
 
     /* Write report */
-    if (write_report(artifact_dir, case_id, "05-elf-loader", "elf_loader",
-                     result == 0, failure_reason) != 0) {
+    if (write_report(artifact_dir, case_id, "05-elf-loader", "elf_loader", result == 0,
+                     failure_reason) != 0) {
         return 1;
     }
 
@@ -787,7 +830,8 @@ if (setup_artifact_dir(artifact_dir) != 0) {
     return result == 0 ? 0 : 1;
 }
 
-static int main(int argc, char *argv[]) {
+static int main(int argc, char *argv[])
+{
     const char *case_yaml = NULL;
     const char *artifact_dir = NULL;
 
@@ -806,4 +850,3 @@ static int main(int argc, char *argv[]) {
 
     return run_elf_loader(case_yaml, artifact_dir);
 }
-
