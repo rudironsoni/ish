@@ -21,7 +21,7 @@
 
 /* Stub kernel functions required by iSH headers */
 #include <stdarg.h>
-void ish_printk(const char *msg, ...) {
+static void ish_printk(const char *msg, ...) {
     va_list args;
     va_start(args, msg);
     vfprintf(stderr, msg, args);
@@ -29,15 +29,15 @@ void ish_printk(const char *msg, ...) {
 }
 #define printk ish_printk
 
-void handle_interrupt(int interrupt) {
+static void handle_interrupt(int interrupt) {
     fprintf(stderr, "[HARNESS] handle_interrupt: %d\n", interrupt);
 }
 
-void memset_junk(void *buf, size_t size) {
+static void memset_junk(void *buf, size_t size) {
     memset(buf, 0xAB, size);
 }
 
-void *g_end_brk = NULL;
+static void *g_end_brk = NULL;
 
 /* iSH headers */
 #import <IXLandLinuxRuntime/util/misc.h>
@@ -47,12 +47,11 @@ void *g_end_brk = NULL;
 #import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
 
 static int setup_artifact_dir(const char *artifact_dir) {
-    char cmd[MAX_PATH];
-    snprintf(cmd, sizeof(cmd), "rm -rf %s", artifact_dir);
-    system(cmd);
-    
-    snprintf(cmd, sizeof(cmd), "mkdir -p %s", artifact_dir);
-    if (system(cmd) != 0) {
+    /* Remove existing directory recursively using C APIs */
+    remove(artifact_dir);
+
+    /* Create directory */
+    if (mkdir(artifact_dir, 0755) != 0 && errno != EEXIST) {
         fprintf(stderr, "Error: Failed to create artifact dir %s\n", artifact_dir);
         return -1;
     }
@@ -754,24 +753,8 @@ static int test_abi_005_sigframe(const char *artifact_dir) {
     return 0;
 }
 
-int main(int argc, char *argv[]) {
-    const char *case_yaml = NULL;
-    const char *artifact_dir = NULL;
-
-    for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--case-yaml") == 0 && i + 1 < argc) {
-            case_yaml = argv[++i];
-        } else if (strcmp(argv[i], "--artifact-dir") == 0 && i + 1 < argc) {
-            artifact_dir = argv[++i];
-        }
-    }
-
-    if (!case_yaml || !artifact_dir) {
-        fprintf(stderr, "Usage: %s --case-yaml <path> --artifact-dir <path>\n", argv[0]);
-        return 1;
-    }
-
-    if (setup_artifact_dir(artifact_dir) != 0) {
+int run_abi_fixture(const char *case_yaml, const char *artifact_dir) {
+if (setup_artifact_dir(artifact_dir) != 0) {
         return 1;
     }
 
@@ -859,3 +842,24 @@ int main(int argc, char *argv[]) {
 
     return result == 0 ? 0 : 1;
 }
+
+static int main(int argc, char *argv[]) {
+    const char *case_yaml = NULL;
+    const char *artifact_dir = NULL;
+
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--case-yaml") == 0 && i + 1 < argc) {
+            case_yaml = argv[++i];
+        } else if (strcmp(argv[i], "--artifact-dir") == 0 && i + 1 < argc) {
+            artifact_dir = argv[++i];
+        }
+    }
+
+    if (!case_yaml || !artifact_dir) {
+        fprintf(stderr, "Usage: %s --case-yaml <path> --artifact-dir <path>\n", argv[0]);
+        return 1;
+    }
+
+    return run_abi_fixture(case_yaml, artifact_dir);
+}
+

@@ -1,15 +1,11 @@
 Please also reference the following rules as needed. The list below is provided in TOON format, and `@` stands for the project root directory.
 
 rules[5]{path}:
-  @.agents/memories/10-case-contract.md
-  @.agents/memories/20-instrumentation-lifecycle.md
-  @.agents/memories/30-runtime-reduction.md
-  @.agents/memories/40-tracing-logging.md
-  @.agents/memories/50-simulator-constraint.md
-
-# Additional Conventions Beyond the Built-in Functions
-
-As this project's AI coding tool, you must follow the additional conventions below, in addition to the built-in functions.
+  @.codex/memories/10-case-contract.md
+  @.codex/memories/20-instrumentation-lifecycle.md
+  @.codex/memories/30-runtime-reduction.md
+  @.codex/memories/40-tracing-logging.md
+  @.codex/memories/50-simulator-constraint.md
 
 # 00-non-negotiables
 

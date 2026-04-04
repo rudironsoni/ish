@@ -13,13 +13,13 @@ xcodegen generate
 ### iOS App (Xcode)
 
 ```bash
-xcodebuild build -project IXLand.xcodeproj -scheme IXLand -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+xcodebuild build -project IXLand.xcodeproj -scheme IXLand -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17'
 ```
 
 ### Runtime Library Only
 
 ```bash
-xcodebuild build -project IXLand.xcodeproj -scheme IXLandLinuxRuntime -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+xcodebuild build -project IXLand.xcodeproj -scheme IXLandLinuxRuntime -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17'
 ```
 
 ## Test
@@ -27,13 +27,13 @@ xcodebuild build -project IXLand.xcodeproj -scheme IXLandLinuxRuntime -configura
 ### Unit Tests
 
 ```bash
-xcodebuild test -project IXLand.xcodeproj -scheme IXLandTerminalUnitTests -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+xcodebuild test -project IXLand.xcodeproj -scheme IXLandTerminalUnitTests -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17'
 ```
 
 ### Runtime Tests
 
 ```bash
-xcodebuild test -project IXLand.xcodeproj -scheme IXLandLinuxRuntimeUnitTests -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+xcodebuild test -project IXLand.xcodeproj -scheme IXLandLinuxRuntimeUnitTests -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17'
 ```
 
 ## Project Structure

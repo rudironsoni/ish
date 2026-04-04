@@ -26,7 +26,21 @@
 
 /* Stub kernel functions required by iSH headers */
 #include <stdarg.h>
-void ish_printk(const char *msg, ...)
+
+/* iOS wrapper for system() - system() is unavailable on iOS
+ * For macOS host tests, the real system() is used.
+ */
+#if defined(TARGET_OS_IOS) && TARGET_OS_IOS
+#include <TargetConditionals.h>
+static int ios_system_wrapper(const char *cmd)
+{
+    fprintf(stderr, "ERROR: system() unavailable on iOS. Command: %s\n", cmd);
+    return -1;
+}
+#define system(cmd) ios_system_wrapper(cmd)
+#endif
+
+static void ish_printk(const char *msg, ...)
 {
     va_list args;
     va_start(args, msg);
@@ -35,17 +49,17 @@ void ish_printk(const char *msg, ...)
 }
 #define printk ish_printk
 
-void handle_interrupt(int interrupt)
+static void handle_interrupt(int interrupt)
 {
     fprintf(stderr, "[HARNESS] handle_interrupt: %d\n", interrupt);
 }
 
-void memset_junk(void *buf, size_t size)
+static void memset_junk(void *buf, size_t size)
 {
     memset(buf, 0xAB, size);
 }
 
-void *g_end_brk = NULL;
+static void *g_end_brk = NULL;
 
 /* iSH headers */
 #import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
@@ -57,7 +71,7 @@ void *g_end_brk = NULL;
 /* Configuration from .factory/services.yaml */
 #define DEFAULT_PROJECT_PATH   "/Users/rudironsoni/src/github/rudironsoni/ish/IXLand.xcodeproj"
 #define DEFAULT_SCHEME         "IXLand"
-#define DEFAULT_SIMULATOR_NAME "iPhone 17 Pro"
+#define DEFAULT_SIMULATOR_NAME "iPhone 17"
 #define DEFAULT_SIMULATOR_ID   "E6186E89-8784-473B-A4E4-66E42693F14E"
 #define DEFAULT_BUNDLE_ID      "app.ixland.terminal"
 #define DEFAULT_CONFIGURATION  "Debug"
@@ -109,12 +123,11 @@ static case_type_t parse_case_type(const char *case_id)
 
 static int setup_artifact_dir(const char *artifact_dir)
 {
-    char cmd[MAX_PATH];
-    snprintf(cmd, sizeof(cmd), "rm -rf %s", artifact_dir);
-    system(cmd);
+    /* Remove existing directory recursively using C APIs */
+    remove(artifact_dir);
 
-    snprintf(cmd, sizeof(cmd), "mkdir -p %s", artifact_dir);
-    if (system(cmd) != 0) {
+    /* Create directory */
+    if (mkdir(artifact_dir, 0755) != 0 && errno != EEXIST) {
         fprintf(stderr, "Error: Failed to create artifact dir %s\n", artifact_dir);
         return -1;
     }
@@ -3891,24 +3904,8 @@ static int test_appsim_006(const char *artifact_dir, char *log_buf, size_t log_s
     return passed ? 0 : -1;
 }
 
-int main(int argc, char *argv[])
+int run_ios_app_harness(const char *case_yaml, const char *artifact_dir)
 {
-    const char *case_yaml = NULL;
-    const char *artifact_dir = NULL;
-
-    for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--case-yaml") == 0 && i + 1 < argc) {
-            case_yaml = argv[++i];
-        } else if (strcmp(argv[i], "--artifact-dir") == 0 && i + 1 < argc) {
-            artifact_dir = argv[++i];
-        }
-    }
-
-    if (!case_yaml || !artifact_dir) {
-        fprintf(stderr, "Usage: %s --case-yaml <path> --artifact-dir <path>\n", argv[0]);
-        return 1;
-    }
-
     if (setup_artifact_dir(artifact_dir) != 0) {
         return 1;
     }
@@ -4005,4 +4002,25 @@ int main(int argc, char *argv[])
     }
 
     return result == 0 ? 0 : 1;
+}
+
+static int main(int argc, char *argv[])
+{
+    const char *case_yaml = NULL;
+    const char *artifact_dir = NULL;
+
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--case-yaml") == 0 && i + 1 < argc) {
+            case_yaml = argv[++i];
+        } else if (strcmp(argv[i], "--artifact-dir") == 0 && i + 1 < argc) {
+            artifact_dir = argv[++i];
+        }
+    }
+
+    if (!case_yaml || !artifact_dir) {
+        fprintf(stderr, "Usage: %s --case-yaml <path> --artifact-dir <path>\n", argv[0]);
+        return 1;
+    }
+
+    return run_ios_app_harness(case_yaml, artifact_dir);
 }

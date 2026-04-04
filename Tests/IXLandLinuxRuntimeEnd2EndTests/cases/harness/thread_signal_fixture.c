@@ -5,28 +5,29 @@
  * Phase 07 test harness for threads, signals, and TLS.
  */
 
+#include <errno.h>
+#include <fcntl.h>
+#include <pthread.h>
+#include <setjmp.h>
+#include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <sys/syscall.h>
+#include <sys/types.h>
 #include <sys/wait.h>
-#include <fcntl.h>
-#include <signal.h>
-#include <errno.h>
-#include <stdint.h>
-#include <pthread.h>
-#include <setjmp.h>
+#include <unistd.h>
 
 #define MAX_PATH 4096
 #define MAX_LINE 1024
 
 /* Stub kernel functions required by iSH headers */
 #include <stdarg.h>
-void ish_printk(const char *msg, ...) {
+static void ish_printk(const char *msg, ...)
+{
     va_list args;
     va_start(args, msg);
     vfprintf(stderr, msg, args);
@@ -34,39 +35,40 @@ void ish_printk(const char *msg, ...) {
 }
 #define printk ish_printk
 
-void handle_interrupt(int interrupt) {
+static void handle_interrupt(int interrupt)
+{
     fprintf(stderr, "[HARNESS] handle_interrupt: %d\n", interrupt);
 }
 
-void memset_junk(void *buf, size_t size) {
+static void memset_junk(void *buf, size_t size)
+{
     memset(buf, 0xAB, size);
 }
 
-void *g_end_brk = NULL;
+static void *g_end_brk = NULL;
 
 /* iSH headers */
-#import <IXLandLinuxRuntime/util/misc.h>
+#import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/kernel/errno.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
-#import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
+#import <IXLandLinuxRuntime/util/misc.h>
 
 static int setup_artifact_dir(const char *artifact_dir) {
-    char cmd[MAX_PATH];
-    snprintf(cmd, sizeof(cmd), "rm -rf %s", artifact_dir);
-    system(cmd);
+    /* Remove existing directory recursively using C APIs */
+    remove(artifact_dir);
 
-    snprintf(cmd, sizeof(cmd), "mkdir -p %s", artifact_dir);
-    if (system(cmd) != 0) {
+    /* Create directory */
+    if (mkdir(artifact_dir, 0755) != 0 && errno != EEXIST) {
         fprintf(stderr, "Error: Failed to create artifact dir %s\n", artifact_dir);
         return -1;
     }
     return 0;
 }
 
-static int write_report(const char *artifact_dir, const char *case_id,
-                        const char *phase, const char *harness,
-                        int passed, const char *failure_summary) {
+static int write_report(const char *artifact_dir, const char *case_id, const char *phase,
+                        const char *harness, int passed, const char *failure_summary)
+{
     char path[MAX_PATH];
     snprintf(path, sizeof(path), "%s/report.json", artifact_dir);
 
@@ -97,8 +99,9 @@ static int write_report(const char *artifact_dir, const char *case_id,
     return 0;
 }
 
-static int write_thread_log(const char *artifact_dir, const char *case_id,
-                             int event_count, const char *log_entries) {
+static int write_thread_log(const char *artifact_dir, const char *case_id, int event_count,
+                            const char *log_entries)
+{
     char path[MAX_PATH];
     snprintf(path, sizeof(path), "%s/thread_log.json", artifact_dir);
 
@@ -123,10 +126,12 @@ static int write_thread_log(const char *artifact_dir, const char *case_id,
 }
 
 /* Extract case ID from path */
-static const char *extract_case_id(const char *case_yaml) {
+static const char *extract_case_id(const char *case_yaml)
+{
     static char case_id[64];
     const char *last_slash = strrchr(case_yaml, '/');
-    if (!last_slash) return "UNKNOWN";
+    if (!last_slash)
+        return "UNKNOWN";
 
     const char *dir_start = last_slash;
     while (dir_start > case_yaml && *(dir_start - 1) != '/') {
@@ -135,10 +140,12 @@ static const char *extract_case_id(const char *case_yaml) {
 
     /* Extract case ID (e.g., "THR-001" from "THR-001-clone-thread-start") */
     const char *dash = strchr(dir_start, '-');
-    if (!dash) return "UNKNOWN";
+    if (!dash)
+        return "UNKNOWN";
     const char *second_dash = strchr(dash + 1, '-');
     int len = second_dash ? (second_dash - dir_start) : (last_slash - dir_start);
-    if (len >= 63) len = 63;
+    if (len >= 63)
+        len = 63;
     strncpy(case_id, dir_start, len);
     case_id[len] = '\0';
     return case_id;
@@ -152,20 +159,22 @@ struct thread_data {
 };
 
 /* THR-001: pthread_create/join basic test */
-static void *thr001_worker(void *arg) {
+static void *thr001_worker(void *arg)
+{
     struct thread_data *data = (struct thread_data *)arg;
     printf("  Thread %d started (tid=%lu)\n", data->thread_id, (unsigned long)pthread_self());
     data->result = data->thread_id * 10;
     pthread_exit((void *)(intptr_t)data->result);
 }
 
-static int test_thr_001_clone_thread_start(const char *artifact_dir, char *log_buf, size_t log_size) {
+static int test_thr_001_clone_thread_start(const char *artifact_dir, char *log_buf, size_t log_size)
+{
     (void)artifact_dir;
     printf("THR-001: Testing pthread_create/join...\n");
 
     int log_pos = 0;
-    log_pos += snprintf(log_buf + log_pos, log_size - log_pos,
-                        "    {\"event\": \"pthread_create\"},\n");
+    log_pos +=
+        snprintf(log_buf + log_pos, log_size - log_pos, "    {\"event\": \"pthread_create\"},\n");
 
     struct thread_data data = { .thread_id = 1, .result = 0 };
 
@@ -177,8 +186,8 @@ static int test_thr_001_clone_thread_start(const char *artifact_dir, char *log_b
     }
     printf("  pthread_create: OK (thread=%lu)\n", (unsigned long)data.thread);
 
-    log_pos += snprintf(log_buf + log_pos, log_size - log_pos,
-                        "    {\"event\": \"pthread_join\"},\n");
+    log_pos +=
+        snprintf(log_buf + log_pos, log_size - log_pos, "    {\"event\": \"pthread_join\"},\n");
 
     /* Test pthread_join */
     void *thread_result;
@@ -200,7 +209,8 @@ static int test_thr_001_clone_thread_start(const char *artifact_dir, char *log_b
 }
 
 /* THR-002: set_tid_address test */
-static int test_thr_002_set_tid_address(const char *artifact_dir, char *log_buf, size_t log_size) {
+static int test_thr_002_set_tid_address(const char *artifact_dir, char *log_buf, size_t log_size)
+{
     (void)artifact_dir;
     (void)log_size;
     printf("THR-002: Testing set_tid_address...\n");
@@ -211,8 +221,8 @@ static int test_thr_002_set_tid_address(const char *artifact_dir, char *log_buf,
     return 0;
 #else
     int log_pos = 0;
-    log_pos += snprintf(log_buf + log_pos, log_size - log_pos,
-                        "    {\"event\": \"set_tid_address\"},\n");
+    log_pos +=
+        snprintf(log_buf + log_pos, log_size - log_pos, "    {\"event\": \"set_tid_address\"},\n");
 
     /* Test set_tid_address syscall */
     int clear_child_tid = 0;
@@ -237,7 +247,8 @@ static int test_thr_002_set_tid_address(const char *artifact_dir, char *log_buf,
 }
 
 /* THR-003: set_robust_list test */
-static int test_thr_003_set_robust_list(const char *artifact_dir, char *log_buf, size_t log_size) {
+static int test_thr_003_set_robust_list(const char *artifact_dir, char *log_buf, size_t log_size)
+{
     (void)artifact_dir;
     (void)log_size;
     printf("THR-003: Testing set_robust_list...\n");
@@ -248,8 +259,8 @@ static int test_thr_003_set_robust_list(const char *artifact_dir, char *log_buf,
     return 0;
 #else
     int log_pos = 0;
-    log_pos += snprintf(log_buf + log_pos, log_size - log_pos,
-                        "    {\"event\": \"set_robust_list\"},\n");
+    log_pos +=
+        snprintf(log_buf + log_pos, log_size - log_pos, "    {\"event\": \"set_robust_list\"},\n");
 
     /* Robust mutex list structure */
     struct robust_list {
@@ -273,14 +284,16 @@ static int test_thr_003_set_robust_list(const char *artifact_dir, char *log_buf,
 
 /* Futex operations for THR-004 */
 #if !defined(__APPLE__)
-static int futex(int *uaddr, int futex_op, int val,
-                 const struct timespec *timeout, int *uaddr2, int val3) {
+static int futex(int *uaddr, int futex_op, int val, const struct timespec *timeout, int *uaddr2,
+                 int val3)
+{
     return syscall(SYS_futex, uaddr, futex_op, val, timeout, uaddr2, val3);
 }
 #endif
 
 /* THR-004: futex wait/wake test */
-static int test_thr_004_futex_wait_wake(const char *artifact_dir, char *log_buf, size_t log_size) {
+static int test_thr_004_futex_wait_wake(const char *artifact_dir, char *log_buf, size_t log_size)
+{
     (void)artifact_dir;
     (void)log_size;
     printf("THR-004: Testing futex wait/wake...\n");
@@ -291,8 +304,8 @@ static int test_thr_004_futex_wait_wake(const char *artifact_dir, char *log_buf,
     return 0;
 #else
     int log_pos = 0;
-    log_pos += snprintf(log_buf + log_pos, log_size - log_pos,
-                        "    {\"event\": \"futex_wait_wake\"},\n");
+    log_pos +=
+        snprintf(log_buf + log_pos, log_size - log_pos, "    {\"event\": \"futex_wait_wake\"},\n");
 
     int futex_var = 0;
     int *uaddr = &futex_var;
@@ -306,8 +319,8 @@ static int test_thr_004_futex_wait_wake(const char *artifact_dir, char *log_buf,
 
     if (pid == 0) {
         /* Child - wait a bit then wake parent */
-        usleep(10000);  /* 10ms */
-        *uaddr = 1;  /* Set the value */
+        usleep(10000); /* 10ms */
+        *uaddr = 1;    /* Set the value */
         futex(uaddr, FUTEX_WAKE, 1, NULL, NULL, 0);
         _exit(0);
     } else {
@@ -337,7 +350,9 @@ static int thr005_flag = 0;
 static int thr005_counter = 0;
 
 /* THR-005: pthread_mutex and condition variable test */
-static int test_thr_005_pthread_mutex_condvar(const char *artifact_dir, char *log_buf, size_t log_size) {
+static int test_thr_005_pthread_mutex_condvar(const char *artifact_dir, char *log_buf,
+                                              size_t log_size)
+{
     (void)artifact_dir;
     (void)log_size;
     printf("THR-005: Testing pthread_mutex and condvar...\n");
@@ -406,7 +421,8 @@ static int test_thr_005_pthread_mutex_condvar(const char *artifact_dir, char *lo
 static __thread int thr006_tls_var = 42;
 static __thread char thr006_tls_buffer[256];
 
-static void *thr006_worker(void *arg) {
+static void *thr006_worker(void *arg)
+{
     (void)arg;
     /* Each thread has its own copy of thr006_tls_var */
     thr006_tls_var = (int)(intptr_t)arg;
@@ -414,14 +430,15 @@ static void *thr006_worker(void *arg) {
     pthread_exit(NULL);
 }
 
-static int test_thr_006_thread_local_storage(const char *artifact_dir, char *log_buf, size_t log_size) {
+static int test_thr_006_thread_local_storage(const char *artifact_dir, char *log_buf,
+                                             size_t log_size)
+{
     (void)artifact_dir;
     (void)log_size;
     printf("THR-006: Testing thread-local storage...\n");
 
     int log_pos = 0;
-    log_pos += snprintf(log_buf + log_pos, log_size - log_pos,
-                        "    {\"event\": \"tls_init\"},\n");
+    log_pos += snprintf(log_buf + log_pos, log_size - log_pos, "    {\"event\": \"tls_init\"},\n");
 
     /* Verify initial TLS value */
     if (thr006_tls_var != 42) {
@@ -432,7 +449,7 @@ static int test_thr_006_thread_local_storage(const char *artifact_dir, char *log
 
     /* Create threads with different TLS values */
     pthread_t t1, t2;
-    thr006_tls_var = 100;  /* Set in main thread */
+    thr006_tls_var = 100; /* Set in main thread */
 
     log_pos += snprintf(log_buf + log_pos, log_size - log_pos,
                         "    {\"event\": \"pthread_create_tls\"},\n");
@@ -460,8 +477,8 @@ static int test_thr_006_thread_local_storage(const char *artifact_dir, char *log
     }
     printf("  TLS isolation: OK (main thread value preserved)\n");
 
-    log_pos += snprintf(log_buf + log_pos, log_size - log_pos,
-                        "    {\"event\": \"tls_verify\"},\n");
+    log_pos +=
+        snprintf(log_buf + log_pos, log_size - log_pos, "    {\"event\": \"tls_verify\"},\n");
 
     printf("  Result: PASSED\n");
     return 0;
@@ -471,7 +488,8 @@ static int test_thr_006_thread_local_storage(const char *artifact_dir, char *log
 static volatile int sig001_received = 0;
 static volatile int sig001_siginfo_valid = 0;
 
-static void sig001_handler(int sig, siginfo_t *info, void *context) {
+static void sig001_handler(int sig, siginfo_t *info, void *context)
+{
     (void)sig;
     (void)context;
     sig001_received = 1;
@@ -481,7 +499,8 @@ static void sig001_handler(int sig, siginfo_t *info, void *context) {
 }
 
 /* SIG-001: rt_sigaction and sigprocmask test */
-static int test_sig_001_rt_sigaction_mask(const char *artifact_dir, char *log_buf, size_t log_size) {
+static int test_sig_001_rt_sigaction_mask(const char *artifact_dir, char *log_buf, size_t log_size)
+{
     (void)artifact_dir;
     (void)log_size;
     printf("SIG-001: Testing rt_sigaction and sigprocmask...\n");
@@ -525,7 +544,7 @@ static int test_sig_001_rt_sigaction_mask(const char *artifact_dir, char *log_bu
 
     /* Send signal while blocked */
     raise(SIGUSR1);
-    usleep(1000);  /* Give time for signal processing */
+    usleep(1000); /* Give time for signal processing */
 
     /* Verify signal not received (blocked) */
     if (sig001_received) {
@@ -562,7 +581,8 @@ static int test_sig_001_rt_sigaction_mask(const char *artifact_dir, char *log_bu
 static volatile int sig002_thread_received = 0;
 static volatile int sig002_main_received = 0;
 
-static void sig002_handler(int sig) {
+static void sig002_handler(int sig)
+{
     (void)sig;
     pthread_t self = pthread_self();
     if (self == pthread_self()) {
@@ -571,7 +591,8 @@ static void sig002_handler(int sig) {
     }
 }
 
-static void *sig002_thread_func(void *arg) {
+static void *sig002_thread_func(void *arg)
+{
     (void)arg;
     /* Thread waits for signal */
     for (int i = 0; i < 100 && !sig002_thread_received; i++) {
@@ -580,7 +601,8 @@ static void *sig002_thread_func(void *arg) {
     pthread_exit(NULL);
 }
 
-static int test_sig_002_signal_delivery(const char *artifact_dir, char *log_buf, size_t log_size) {
+static int test_sig_002_signal_delivery(const char *artifact_dir, char *log_buf, size_t log_size)
+{
     (void)artifact_dir;
     (void)log_size;
     printf("SIG-002: Testing signal delivery to threads...\n");
@@ -616,7 +638,7 @@ static int test_sig_002_signal_delivery(const char *artifact_dir, char *log_buf,
     printf("  thread created: OK\n");
 
     /* Send signal to process - should be delivered to some thread */
-    usleep(10000);  /* Let thread start */
+    usleep(10000); /* Let thread start */
     raise(SIGUSR2);
 
     pthread_join(thread, NULL);
@@ -637,19 +659,21 @@ static int test_sig_002_signal_delivery(const char *artifact_dir, char *log_buf,
 static volatile int sig003_received = 0;
 static volatile int sig003_after_restart = 0;
 
-static void sig003_handler(int sig) {
+static void sig003_handler(int sig)
+{
     (void)sig;
     sig003_received = 1;
 }
 
-static int test_sig_003_sa_restart_fatal(const char *artifact_dir, char *log_buf, size_t log_size) {
+static int test_sig_003_sa_restart_fatal(const char *artifact_dir, char *log_buf, size_t log_size)
+{
     (void)artifact_dir;
     (void)log_size;
     printf("SIG-003: Testing SA_RESTART and fatal signals...\n");
 
     int log_pos = 0;
-    log_pos += snprintf(log_buf + log_pos, log_size - log_pos,
-                        "    {\"event\": \"sa_restart\"},\n");
+    log_pos +=
+        snprintf(log_buf + log_pos, log_size - log_pos, "    {\"event\": \"sa_restart\"},\n");
 
     /* Reset globals */
     sig003_received = 0;
@@ -670,10 +694,10 @@ static int test_sig_003_sa_restart_fatal(const char *artifact_dir, char *log_buf
     printf("  sigaction with SA_RESTART: OK\n");
 
     /* Set up alarm - alarm fires in 100ms */
-    ualarm(100000, 0);  /* 100ms in microseconds */
+    ualarm(100000, 0); /* 100ms in microseconds */
 
     /* This sleep should be interrupted by alarm */
-    usleep(500000);  /* 500ms - longer than alarm */
+    usleep(500000); /* 500ms - longer than alarm */
 
     /* Wait for signal to be processed */
     for (int i = 0; i < 100 && !sig003_received; i++) {
@@ -687,8 +711,7 @@ static int test_sig_003_sa_restart_fatal(const char *artifact_dir, char *log_buf
     printf("  signal received: OK\n");
 
     /* Reset handler to default for fatal signal test (just verify we can) */
-    log_pos += snprintf(log_buf + log_pos, log_size - log_pos,
-                        "    {\"event\": \"sig_dfl\"},\n");
+    log_pos += snprintf(log_buf + log_pos, log_size - log_pos, "    {\"event\": \"sig_dfl\"},\n");
 
     sa.sa_handler = SIG_DFL;
     sa.sa_flags = 0;
@@ -716,23 +739,8 @@ static int test_sig_003_sa_restart_fatal(const char *artifact_dir, char *log_buf
     return 0;
 }
 
-int main(int argc, char *argv[]) {
-    const char *case_yaml = NULL;
-    const char *artifact_dir = NULL;
-
-    for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--case-yaml") == 0 && i + 1 < argc) {
-            case_yaml = argv[++i];
-        } else if (strcmp(argv[i], "--artifact-dir") == 0 && i + 1 < argc) {
-            artifact_dir = argv[++i];
-        }
-    }
-
-    if (!case_yaml || !artifact_dir) {
-        fprintf(stderr, "Usage: %s --case-yaml <path> --artifact-dir <path>\n", argv[0]);
-        return 1;
-    }
-
+int run_thread_signal_fixture(const char *case_yaml, const char *artifact_dir)
+{
     if (setup_artifact_dir(artifact_dir) != 0) {
         return 1;
     }
@@ -748,31 +756,40 @@ int main(int argc, char *argv[]) {
     /* Route to appropriate test */
     if (strncmp(case_id, "THR-001", 7) == 0) {
         result = test_thr_001_clone_thread_start(artifact_dir, log_buf, sizeof(log_buf));
-        if (result != 0) failure_reason = "THR-001 pthread_create/join test failed";
+        if (result != 0)
+            failure_reason = "THR-001 pthread_create/join test failed";
     } else if (strncmp(case_id, "THR-002", 7) == 0) {
         result = test_thr_002_set_tid_address(artifact_dir, log_buf, sizeof(log_buf));
-        if (result != 0) failure_reason = "THR-002 set_tid_address test failed";
+        if (result != 0)
+            failure_reason = "THR-002 set_tid_address test failed";
     } else if (strncmp(case_id, "THR-003", 7) == 0) {
         result = test_thr_003_set_robust_list(artifact_dir, log_buf, sizeof(log_buf));
-        if (result != 0) failure_reason = "THR-003 set_robust_list test failed";
+        if (result != 0)
+            failure_reason = "THR-003 set_robust_list test failed";
     } else if (strncmp(case_id, "THR-004", 7) == 0) {
         result = test_thr_004_futex_wait_wake(artifact_dir, log_buf, sizeof(log_buf));
-        if (result != 0) failure_reason = "THR-004 futex wait/wake test failed";
+        if (result != 0)
+            failure_reason = "THR-004 futex wait/wake test failed";
     } else if (strncmp(case_id, "THR-005", 7) == 0) {
         result = test_thr_005_pthread_mutex_condvar(artifact_dir, log_buf, sizeof(log_buf));
-        if (result != 0) failure_reason = "THR-005 pthread_mutex/condvar test failed";
+        if (result != 0)
+            failure_reason = "THR-005 pthread_mutex/condvar test failed";
     } else if (strncmp(case_id, "THR-006", 7) == 0) {
         result = test_thr_006_thread_local_storage(artifact_dir, log_buf, sizeof(log_buf));
-        if (result != 0) failure_reason = "THR-006 thread-local storage test failed";
+        if (result != 0)
+            failure_reason = "THR-006 thread-local storage test failed";
     } else if (strncmp(case_id, "SIG-001", 7) == 0) {
         result = test_sig_001_rt_sigaction_mask(artifact_dir, log_buf, sizeof(log_buf));
-        if (result != 0) failure_reason = "SIG-001 rt_sigaction/sigprocmask test failed";
+        if (result != 0)
+            failure_reason = "SIG-001 rt_sigaction/sigprocmask test failed";
     } else if (strncmp(case_id, "SIG-002", 7) == 0) {
         result = test_sig_002_signal_delivery(artifact_dir, log_buf, sizeof(log_buf));
-        if (result != 0) failure_reason = "SIG-002 signal delivery test failed";
+        if (result != 0)
+            failure_reason = "SIG-002 signal delivery test failed";
     } else if (strncmp(case_id, "SIG-003", 7) == 0) {
         result = test_sig_003_sa_restart_fatal(artifact_dir, log_buf, sizeof(log_buf));
-        if (result != 0) failure_reason = "SIG-003 SA_RESTART/fatal signal test failed";
+        if (result != 0)
+            failure_reason = "SIG-003 SA_RESTART/fatal signal test failed";
     } else {
         printf("STATUS: STUB - Test not implemented for %s\n", case_id);
         failure_reason = "STUB: Test not implemented";
@@ -789,7 +806,8 @@ int main(int argc, char *argv[]) {
     /* Write thread log */
     int event_count = 0;
     for (char *p = log_buf; *p; p++) {
-        if (*p == '{') event_count++;
+        if (*p == '{')
+            event_count++;
     }
     write_thread_log(artifact_dir, case_id, event_count, log_buf);
 
@@ -805,4 +823,25 @@ int main(int argc, char *argv[]) {
     }
 
     return result == 0 ? 0 : 1;
+}
+
+static int main(int argc, char *argv[])
+{
+    const char *case_yaml = NULL;
+    const char *artifact_dir = NULL;
+
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--case-yaml") == 0 && i + 1 < argc) {
+            case_yaml = argv[++i];
+        } else if (strcmp(argv[i], "--artifact-dir") == 0 && i + 1 < argc) {
+            artifact_dir = argv[++i];
+        }
+    }
+
+    if (!case_yaml || !artifact_dir) {
+        fprintf(stderr, "Usage: %s --case-yaml <path> --artifact-dir <path>\n", argv[0]);
+        return 1;
+    }
+
+    return run_thread_signal_fixture(case_yaml, artifact_dir);
 }

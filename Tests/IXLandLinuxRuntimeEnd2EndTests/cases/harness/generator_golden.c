@@ -3,21 +3,22 @@
  * Validates TCTI generator emits correct gadget sequences for ADD immediate.
  */
 
+#include <ctype.h>
+#include <errno.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <errno.h>
-#include <ctype.h>
-#include <stdarg.h>
+#include <unistd.h>
 
 #define MAX_PATH 4096
 #define MAX_LINE 1024
 
 /* Stub kernel functions required by tcti/aarch64/gen.c */
-void ish_printk(const char *msg, ...) {
+static void ish_printk(const char *msg, ...)
+{
     va_list args;
     va_start(args, msg);
     vfprintf(stderr, msg, args);
@@ -27,36 +28,35 @@ void ish_printk(const char *msg, ...) {
 #define printk ish_printk
 
 /* Stub interrupt handler - not used in harness */
-void handle_interrupt(int interrupt) {
+static void handle_interrupt(int interrupt)
+{
     fprintf(stderr, "[HARNESS] handle_interrupt called: %d\n", interrupt);
 }
 
 /* TCTI headers */
-#import <IXLandLinuxRuntime/tcti/aarch64/gen.h>
 #import <IXLandLinuxRuntime/emu/aarch64/decode.h>
+#import <IXLandLinuxRuntime/tcti/aarch64/gen.h>
 
 /* Map guest registers 0-15 to TCTI hot registers */
 #define IS_TCTI_REG(r) ((r) >= 0 && (r) < 16)
 
 /* Clean and recreate artifact directory */
-static int setup_artifact_dir(const char *artifact_dir) {
-    char cmd[MAX_PATH];
+static int setup_artifact_dir(const char *artifact_dir)
+{
+    /* Remove existing directory recursively using C APIs */
+    remove(artifact_dir);
 
-    snprintf(cmd, sizeof(cmd), "rm -rf %s", artifact_dir);
-    system(cmd);
-
-    snprintf(cmd, sizeof(cmd), "mkdir -p %s", artifact_dir);
-    if (system(cmd) != 0) {
+    /* Create directory */
+    if (mkdir(artifact_dir, 0755) != 0 && errno != EEXIST) {
         fprintf(stderr, "Error: Failed to create artifact dir %s\n", artifact_dir);
         return -1;
     }
-
     return 0;
 }
 
-static int write_report(const char *artifact_dir, const char *case_id,
-                        const char *phase, const char *harness,
-                        int passed, const char *failure_summary) {
+static int write_report(const char *artifact_dir, const char *case_id, const char *phase,
+                        const char *harness, int passed, const char *failure_summary)
+{
     char path[MAX_PATH];
     snprintf(path, sizeof(path), "%s/report.json", artifact_dir);
 
@@ -87,7 +87,8 @@ static int write_report(const char *artifact_dir, const char *case_id,
 }
 
 /* Parse hex encoding from YAML */
-static int parse_hex_encoding_from_yaml(const char *yaml_path, char *out_hex, size_t out_size) {
+static int parse_hex_encoding_from_yaml(const char *yaml_path, char *out_hex, size_t out_size)
+{
     FILE *fp = fopen(yaml_path, "r");
     if (!fp) {
         fprintf(stderr, "Error: Cannot open %s\n", yaml_path);
@@ -99,8 +100,10 @@ static int parse_hex_encoding_from_yaml(const char *yaml_path, char *out_hex, si
         char *key = strstr(line, "encoding_hex_le:");
         if (key) {
             char *value = key + strlen("encoding_hex_le:");
-            while (*value && isspace(*value)) value++;
-            if (*value == '"') value++;
+            while (*value && isspace(*value))
+                value++;
+            if (*value == '"')
+                value++;
             size_t len = strcspn(value, "\"\n");
             if (len > 0 && len < out_size) {
                 strncpy(out_hex, value, len);
@@ -117,7 +120,8 @@ static int parse_hex_encoding_from_yaml(const char *yaml_path, char *out_hex, si
 }
 
 /* Convert hex string to uint32_t (little endian byte order) */
-static int hex_to_u32(const char *hex, uint32_t *out) {
+static int hex_to_u32(const char *hex, uint32_t *out)
+{
     if (strlen(hex) != 8) {
         fprintf(stderr, "Error: Expected 8 hex chars, got %zu\n", strlen(hex));
         return -1;
@@ -126,7 +130,7 @@ static int hex_to_u32(const char *hex, uint32_t *out) {
     /* Parse as little-endian: "20040091" -> 0x91000420 */
     unsigned int bytes[4];
     for (int i = 0; i < 4; i++) {
-        char byte_str[3] = {hex[i*2], hex[i*2+1], '\0'};
+        char byte_str[3] = { hex[i * 2], hex[i * 2 + 1], '\0' };
         if (sscanf(byte_str, "%x", &bytes[i]) != 1) {
             fprintf(stderr, "Error: Invalid hex byte: %s\n", byte_str);
             return -1;
@@ -138,8 +142,9 @@ static int hex_to_u32(const char *hex, uint32_t *out) {
 }
 
 /* Map guest register to host register name for hot registers (x0-x15 -> x1-x16) */
-static const char* guest_to_host_reg_name(int guest_reg) {
-    static const char* hot_names[] = {
+static const char *guest_to_host_reg_name(int guest_reg)
+{
+    static const char *hot_names[] = {
         "x1",  /* guest x0 */
         "x2",  /* guest x1 */
         "x3",  /* guest x2 */
@@ -166,7 +171,8 @@ static const char* guest_to_host_reg_name(int guest_reg) {
 
 /* Write emitted.json with actual generator output */
 static int write_emitted(const char *artifact_dir, const a64_instr_t *instr,
-                         a64_gen_state_t *gen_state, int gen_result) {
+                         a64_gen_state_t *gen_state, int gen_result)
+{
     char path[MAX_PATH];
     snprintf(path, sizeof(path), "%s/emitted.json", artifact_dir);
 
@@ -187,12 +193,24 @@ static int write_emitted(const char *artifact_dir, const a64_instr_t *instr,
     /* Get actual instruction class from category */
     const char *cat_name = "unknown";
     switch (instr->cat) {
-        case A64_DP_IMM: cat_name = "A64_DP_IMM"; break;
-        case A64_SIMD0: cat_name = "A64_SIMD0"; break;
-        case A64_DP_REG: cat_name = "A64_DP_REG"; break;
-        case A64_BRANCH: cat_name = "A64_BRANCH"; break;
-        case A64_LD_ST: cat_name = "A64_LD_ST"; break;
-        default: cat_name = "other"; break;
+    case A64_DP_IMM:
+        cat_name = "A64_DP_IMM";
+        break;
+    case A64_SIMD0:
+        cat_name = "A64_SIMD0";
+        break;
+    case A64_DP_REG:
+        cat_name = "A64_DP_REG";
+        break;
+    case A64_BRANCH:
+        cat_name = "A64_BRANCH";
+        break;
+    case A64_LD_ST:
+        cat_name = "A64_LD_ST";
+        break;
+    default:
+        cat_name = "other";
+        break;
     }
 
     fprintf(fp, "{\n");
@@ -216,7 +234,7 @@ static int write_emitted(const char *artifact_dir, const a64_instr_t *instr,
     for (size_t i = 0; i < gen_state->num_gadgets; i++) {
         fprintf(fp, "    {\n");
         fprintf(fp, "      \"index\": %zu,\n", i);
-        fprintf(fp, "      \"gadget_address\": \"%p\"\n", (void*)gen_state->gadgets[i]);
+        fprintf(fp, "      \"gadget_address\": \"%p\"\n", (void *)gen_state->gadgets[i]);
         fprintf(fp, "    }");
         if (i < gen_state->num_gadgets - 1) {
             fprintf(fp, ",");
@@ -237,8 +255,8 @@ static int write_emitted(const char *artifact_dir, const a64_instr_t *instr,
     fprintf(fp, "    \"writes_flags\": %s\n", instr->set_flags ? "true" : "false");
     fprintf(fp, "  },\n");
     fprintf(fp, "  \"verification\": {\n");
-    fprintf(fp, "    \"expected_effect\": \"x%d := x%d + %lld\",\n",
-            instr->Rd, instr->Rn, (long long)instr->imm);
+    fprintf(fp, "    \"expected_effect\": \"x%d := x%d + %lld\",\n", instr->Rd, instr->Rn,
+            (long long)instr->imm);
     fprintf(fp, "    \"hot_register_mapping\": \"guest_x0-x15 -> host_x1-x16\"\n");
     fprintf(fp, "  }\n");
     fprintf(fp, "}\n");
@@ -248,35 +266,29 @@ static int write_emitted(const char *artifact_dir, const a64_instr_t *instr,
 }
 
 /* Detect case ID from yaml path */
-static const char* detect_case_id(const char *yaml_path) {
-    if (strstr(yaml_path, "GEN-002")) return "GEN-002";
-    if (strstr(yaml_path, "GEN-003")) return "GEN-003";
-    if (strstr(yaml_path, "GEN-004")) return "GEN-004";
-    if (strstr(yaml_path, "GEN-005")) return "GEN-005";
-    if (strstr(yaml_path, "GEN-006")) return "GEN-006";
-    if (strstr(yaml_path, "GEN-007")) return "GEN-007";
-    if (strstr(yaml_path, "GEN-008")) return "GEN-008";
+static const char *detect_case_id(const char *yaml_path)
+{
+    if (strstr(yaml_path, "GEN-002"))
+        return "GEN-002";
+    if (strstr(yaml_path, "GEN-003"))
+        return "GEN-003";
+    if (strstr(yaml_path, "GEN-004"))
+        return "GEN-004";
+    if (strstr(yaml_path, "GEN-005"))
+        return "GEN-005";
+    if (strstr(yaml_path, "GEN-006"))
+        return "GEN-006";
+    if (strstr(yaml_path, "GEN-007"))
+        return "GEN-007";
+    if (strstr(yaml_path, "GEN-008"))
+        return "GEN-008";
     return "GEN-001"; /* default */
 }
 
-int main(int argc, char *argv[]) {
-    const char *case_yaml = NULL;
-    const char *artifact_dir = NULL;
+int run_generator_golden(const char *case_yaml, const char *artifact_dir)
+{
     int passed = 0;
     const char *failure_summary = NULL;
-
-    for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--case-yaml") == 0 && i + 1 < argc) {
-            case_yaml = argv[++i];
-        } else if (strcmp(argv[i], "--artifact-dir") == 0 && i + 1 < argc) {
-            artifact_dir = argv[++i];
-        }
-    }
-
-    if (!case_yaml || !artifact_dir) {
-        fprintf(stderr, "Usage: %s --case-yaml <path> --artifact-dir <path>\n", argv[0]);
-        return 1;
-    }
 
     if (setup_artifact_dir(artifact_dir) != 0) {
         return 1;
@@ -322,9 +334,8 @@ int main(int argc, char *argv[]) {
         goto cleanup;
     }
 
-    printf("  Decoded: rd=%d, rn=%d, imm=%lld, set_flags=%s\n",
-           instr.Rd, instr.Rn, (long long)instr.imm,
-           instr.set_flags ? "true" : "false");
+    printf("  Decoded: rd=%d, rn=%d, imm=%lld, set_flags=%s\n", instr.Rd, instr.Rn,
+           (long long)instr.imm, instr.set_flags ? "true" : "false");
 
     /* Step 4: Initialize generator state */
     tcti_gadget_t gadget_buffer[A64_MAX_GADGETS_PER_BLOCK];
@@ -361,8 +372,8 @@ int main(int argc, char *argv[]) {
     passed = 1;
 
 cleanup:
-    if (write_report(artifact_dir, case_id, "02-generator", "generator_golden",
-                     passed, failure_summary) != 0) {
+    if (write_report(artifact_dir, case_id, "02-generator", "generator_golden", passed,
+                     failure_summary) != 0) {
         return 1;
     }
 
@@ -372,4 +383,25 @@ cleanup:
     }
 
     return passed ? 0 : 1;
+}
+
+static int main(int argc, char *argv[])
+{
+    const char *case_yaml = NULL;
+    const char *artifact_dir = NULL;
+
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--case-yaml") == 0 && i + 1 < argc) {
+            case_yaml = argv[++i];
+        } else if (strcmp(argv[i], "--artifact-dir") == 0 && i + 1 < argc) {
+            artifact_dir = argv[++i];
+        }
+    }
+
+    if (!case_yaml || !artifact_dir) {
+        fprintf(stderr, "Usage: %s --case-yaml <path> --artifact-dir <path>\n", argv[0]);
+        return 1;
+    }
+
+    return run_generator_golden(case_yaml, artifact_dir);
 }

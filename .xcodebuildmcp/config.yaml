@@ -25,7 +25,7 @@ sessionDefaults:
   projectPath: /Users/rudironsoni/src/github/rudironsoni/ish/IXLand.xcodeproj
   scheme: IXLand
   configuration: Debug
-  simulatorName: iPhone 17 Pro
+  simulatorName: iPhone 17
   simulatorId: 971A2EC4-3492-4F21-8D79-96E6863127B4
   simulatorPlatform: iOS Simulator
   useLatestOS: true

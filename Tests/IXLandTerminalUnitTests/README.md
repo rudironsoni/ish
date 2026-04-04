@@ -4,7 +4,7 @@
 
 ```bash
 # Command line
-xcodebuild test -project IXLand.xcodeproj -scheme IXLandTerminalUnitTests -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+xcodebuild test -project IXLand.xcodeproj -scheme IXLandTerminalUnitTests -destination 'platform=iOS Simulator,name=iPhone 17'
 
 # Or in Xcode
 Cmd+U to run all tests

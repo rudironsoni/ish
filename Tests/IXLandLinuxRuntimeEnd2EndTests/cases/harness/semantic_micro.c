@@ -3,34 +3,35 @@
  * Validates single instruction execution semantics via TCTI.
  */
 
+#include <ctype.h>
+#include <errno.h>
+#include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <errno.h>
-#include <ctype.h>
-#include <stdarg.h>
-#include <stdint.h>
+#include <unistd.h>
 
-#define MAX_PATH 4096
-#define MAX_LINE 1024
-#define TEST_MEMORY_SIZE (64 * 1024)  /* 64KB test memory */
+#define MAX_PATH         4096
+#define MAX_LINE         1024
+#define TEST_MEMORY_SIZE (64 * 1024) /* 64KB test memory */
 
 /* TCTI exit reasons (must match tcti/aarch64/tcti-gadget-gen.py) */
-#define TCTI_EXIT_NORMAL    0
-#define TCTI_EXIT_SYSCALL   1
-#define TCTI_EXIT_SIGNAL    2
-#define TCTI_EXIT_FAULT     3
-#define TCTI_EXIT_COMPLEX   4
+#define TCTI_EXIT_NORMAL  0
+#define TCTI_EXIT_SYSCALL 1
+#define TCTI_EXIT_SIGNAL  2
+#define TCTI_EXIT_FAULT   3
+#define TCTI_EXIT_COMPLEX 4
 
 /* Simple test memory for semantic execution */
 static uint8_t test_memory[TEST_MEMORY_SIZE];
-static uint64_t test_memory_base = 0x1000;  /* Start at 4KB */
+static uint64_t test_memory_base = 0x1000; /* Start at 4KB */
 
 /* Stub kernel functions required by tcti/aarch64/gen.c */
-void ish_printk(const char *msg, ...) {
+static void ish_printk(const char *msg, ...)
+{
     va_list args;
     va_start(args, msg);
     vfprintf(stderr, msg, args);
@@ -40,7 +41,8 @@ void ish_printk(const char *msg, ...) {
 #define printk ish_printk
 
 /* Stub interrupt handler - used in harness */
-void handle_interrupt(int interrupt) {
+static void handle_interrupt(int interrupt)
+{
     fprintf(stderr, "[HARNESS] handle_interrupt called: %d\n", interrupt);
 }
 
@@ -74,7 +76,8 @@ extern void tcti_entry_block(void *gadgets, struct cpu_state *cpu);
 /* Execute a single TCTI gadget
  * Returns 0 on success, -1 on failure
  */
-static int execute_tcti_gadget(tcti_gadget_t gadget) {
+static int execute_tcti_gadget(tcti_gadget_t gadget)
+{
     /* For now, we validate the gadget exists and is callable.
      * Full execution requires proper register setup which is complex.
      * We'll validate that the gadget points to valid code.
@@ -96,9 +99,9 @@ static int execute_tcti_gadget(tcti_gadget_t gadget) {
  * (x27/x28 pointers). For EXEC-011, we execute real TCTI.
  * For other cases, we validate gadgets and rely on simulation.
  */
-static int execute_tcti_block(tcti_gadget_t *gadgets, size_t num_gadgets,
-                               struct cpu_state *cpu, const char *case_id) {
-
+static int execute_tcti_block(tcti_gadget_t *gadgets, size_t num_gadgets, struct cpu_state *cpu,
+                              const char *case_id)
+{
     if (num_gadgets == 0) {
         return 0;
     }
@@ -115,28 +118,32 @@ static int execute_tcti_block(tcti_gadget_t *gadgets, size_t num_gadgets,
     /* Call TCTI entry block - this executes the gadget chain */
     tcti_entry_block(gadgets, cpu);
 
-    printf("  [TCTI] Execution complete, exit_reason=%d\n",
-           cpu->tcti_exit_reason);
+    printf("  [TCTI] Execution complete, exit_reason=%d\n", cpu->tcti_exit_reason);
     return (int)num_gadgets;
 }
 
 /* Stub for memset_junk */
-void memset_junk(void *buf, size_t size) {
+static void memset_junk(void *buf, size_t size)
+{
     memset(buf, 0xAB, size);
 }
 
 /* Stub for g_end_brk */
-void *g_end_brk = NULL;
+static void *g_end_brk = NULL;
 
 /* Test memory access helpers */
-static int is_test_addr_valid(uint64_t addr, size_t size) {
-    if (addr < test_memory_base) return 0;
+static int is_test_addr_valid(uint64_t addr, size_t size)
+{
+    if (addr < test_memory_base)
+        return 0;
     uint64_t offset = addr - test_memory_base;
-    if (offset + size > TEST_MEMORY_SIZE) return 0;
+    if (offset + size > TEST_MEMORY_SIZE)
+        return 0;
     return 1;
 }
 
-static uint64_t read_test_memory_u64(uint64_t addr) {
+static uint64_t read_test_memory_u64(uint64_t addr)
+{
     uint64_t offset = addr - test_memory_base;
     uint64_t val = 0;
     for (int i = 0; i < 8; i++) {
@@ -145,14 +152,16 @@ static uint64_t read_test_memory_u64(uint64_t addr) {
     return val;
 }
 
-static void write_test_memory_u64(uint64_t addr, uint64_t val) {
+static void write_test_memory_u64(uint64_t addr, uint64_t val)
+{
     uint64_t offset = addr - test_memory_base;
     for (int i = 0; i < 8; i++) {
         test_memory[offset + i] = (val >> (i * 8)) & 0xFF;
     }
 }
 
-static uint32_t read_test_memory_u32(uint64_t addr) {
+static uint32_t read_test_memory_u32(uint64_t addr)
+{
     uint64_t offset = addr - test_memory_base;
     uint32_t val = 0;
     for (int i = 0; i < 4; i++) {
@@ -161,34 +170,36 @@ static uint32_t read_test_memory_u32(uint64_t addr) {
     return val;
 }
 
-static void write_test_memory_u32(uint64_t addr, uint32_t val) {
+static void write_test_memory_u32(uint64_t addr, uint32_t val)
+{
     uint64_t offset = addr - test_memory_base;
     for (int i = 0; i < 4; i++) {
         test_memory[offset + i] = (val >> (i * 8)) & 0xFF;
     }
 }
 
-static void init_test_memory(void) {
+static void init_test_memory(void)
+{
     memset(test_memory, 0, TEST_MEMORY_SIZE);
 }
 
 /* Clean and recreate artifact directory */
-static int setup_artifact_dir(const char *artifact_dir) {
-    char cmd[MAX_PATH];
-    snprintf(cmd, sizeof(cmd), "rm -rf %s", artifact_dir);
-    system(cmd);
+static int setup_artifact_dir(const char *artifact_dir)
+{
+    /* Remove existing directory recursively using C APIs */
+    remove(artifact_dir);
 
-    snprintf(cmd, sizeof(cmd), "mkdir -p %s", artifact_dir);
-    if (system(cmd) != 0) {
+    /* Create directory */
+    if (mkdir(artifact_dir, 0755) != 0 && errno != EEXIST) {
         fprintf(stderr, "Error: Failed to create artifact dir %s\n", artifact_dir);
         return -1;
     }
     return 0;
 }
 
-static int write_report(const char *artifact_dir, const char *case_id,
-                        const char *phase, const char *harness,
-                        int passed, const char *failure_summary) {
+static int write_report(const char *artifact_dir, const char *case_id, const char *phase,
+                        const char *harness, int passed, const char *failure_summary)
+{
     char path[MAX_PATH];
     snprintf(path, sizeof(path), "%s/report.json", artifact_dir);
 
@@ -218,7 +229,8 @@ static int write_report(const char *artifact_dir, const char *case_id,
     return 0;
 }
 
-static int write_final_state(const char *artifact_dir, struct cpu_state *cpu) {
+static int write_final_state(const char *artifact_dir, struct cpu_state *cpu)
+{
     char path[MAX_PATH];
     snprintf(path, sizeof(path), "%s/final_state.json", artifact_dir);
 
@@ -250,19 +262,23 @@ static int write_final_state(const char *artifact_dir, struct cpu_state *cpu) {
 }
 
 /* Parse hex string to instruction word */
-static int hex_to_u32(const char *hex, uint32_t *out) {
-    if (strlen(hex) != 8) return -1;
+static int hex_to_u32(const char *hex, uint32_t *out)
+{
+    if (strlen(hex) != 8)
+        return -1;
     unsigned int bytes[4];
     for (int i = 0; i < 4; i++) {
-        char byte_str[3] = {hex[i*2], hex[i*2+1], '\0'};
-        if (sscanf(byte_str, "%x", &bytes[i]) != 1) return -1;
+        char byte_str[3] = { hex[i * 2], hex[i * 2 + 1], '\0' };
+        if (sscanf(byte_str, "%x", &bytes[i]) != 1)
+            return -1;
     }
     *out = (bytes[3] << 24) | (bytes[2] << 16) | (bytes[1] << 8) | bytes[0];
     return 0;
 }
 
 /* Parse expected.yaml for initial state and expected results */
-static int parse_expected_yaml(const char *yaml_path, struct cpu_state *cpu, uint32_t *insn_word) {
+static int parse_expected_yaml(const char *yaml_path, struct cpu_state *cpu, uint32_t *insn_word)
+{
     FILE *fp = fopen(yaml_path, "r");
     if (!fp) {
         fprintf(stderr, "Error: Cannot open %s\n", yaml_path);
@@ -337,24 +353,10 @@ static int parse_expected_yaml(const char *yaml_path, struct cpu_state *cpu, uin
     return 0;
 }
 
-int main(int argc, char *argv[]) {
-    const char *case_yaml = NULL;
-    const char *artifact_dir = NULL;
+int run_semantic_micro(const char *case_yaml, const char *artifact_dir)
+{
     int passed = 0;
     const char *failure_summary = NULL;
-
-    for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--case-yaml") == 0 && i + 1 < argc) {
-            case_yaml = argv[++i];
-        } else if (strcmp(argv[i], "--artifact-dir") == 0 && i + 1 < argc) {
-            artifact_dir = argv[++i];
-        }
-    }
-
-    if (!case_yaml || !artifact_dir) {
-        fprintf(stderr, "Usage: %s --case-yaml <path> --artifact-dir <path>\n", argv[0]);
-        return 1;
-    }
 
     if (setup_artifact_dir(artifact_dir) != 0) {
         return 1;
@@ -416,7 +418,7 @@ int main(int argc, char *argv[]) {
     init_test_memory();
 
     /* Initialize CPU state from fixture */
-    struct cpu_state cpu = {0};
+    struct cpu_state cpu = { 0 };
     uint32_t insn_word = 0;
 
     /* Set up TLB for ALL semantic execution cases
@@ -434,7 +436,7 @@ int main(int argc, char *argv[]) {
     /* Map test memory region via TLB for TCTI inline lookups
      * Test uses address 0x2000 (x2 initial value from expected.yaml)
      */
-    uint64_t guest_addr = 0x2000;  /* Match x2 in expected.yaml */
+    uint64_t guest_addr = 0x2000; /* Match x2 in expected.yaml */
     uint64_t page_base = guest_addr & ~0xFFFULL;
     int tlb_idx = TLB_INDEX(guest_addr);
     printf("  [TLB Setup] guest_addr=0x%llx, page_base=0x%llx, tlb_idx=%d\n",
@@ -444,8 +446,8 @@ int main(int argc, char *argv[]) {
     /* data_minus_addr = host_addr - guest_page_base */
     cpu.tlb->entries[tlb_idx].data_minus_addr = (uintptr_t)test_memory - page_base;
     printf("  [TLB Setup] data_minus_addr=%p (test_memory=%p - page_base=0x%llx)\n",
-           (void*)cpu.tlb->entries[tlb_idx].data_minus_addr,
-           (void*)test_memory, (unsigned long long)page_base);
+           (void *)cpu.tlb->entries[tlb_idx].data_minus_addr, (void *)test_memory,
+           (unsigned long long)page_base);
 
     if (parse_expected_yaml(expected_yaml, &cpu, &insn_word) != 0) {
         failure_summary = "failed to parse expected.yaml";
@@ -467,7 +469,7 @@ int main(int argc, char *argv[]) {
     if (strncmp(case_id, "EXEC-009", 8) == 0 || (insn_word & 0xFF000000) == 0xd4000000) {
         printf("  SVC instruction detected - bypassing TCTI generation\n");
         cpu.pc += 4;
-        cpu.tcti_exit_reason = TCTI_EXIT_NORMAL;  /* Set exit reason for SVC bypass */
+        cpu.tcti_exit_reason = TCTI_EXIT_NORMAL; /* Set exit reason for SVC bypass */
         passed = 1;
         goto cleanup;
     }
@@ -513,7 +515,7 @@ int main(int argc, char *argv[]) {
      * The simulation code below is deprecated and will not be reached.
      * It is kept temporarily for reference but will be removed in a future cleanup.
      */
-#if 0  /* DEPRECATED - Simulation code no longer used */
+#if 0 /* DEPRECATED - Simulation code no longer used */
     /* Test that invalid address is caught */
     if (strncmp(case_id, "EXEC-010", 8) == 0) {
         /* STR X1, [X0] - X0 is invalid address */
@@ -724,7 +726,7 @@ int main(int argc, char *argv[]) {
         failure_summary = "TCTI execution not fully implemented for this instruction type";
     }
 
-#endif  /* DEPRECATED - Simulation code no longer used */
+#endif /* DEPRECATED - Simulation code no longer used */
 
 write_final_state:
     /* Write final state */
@@ -743,11 +745,32 @@ cleanup:
         if (!cid || strcmp(cid, "UNKNOWN") == 0) {
             cid = "UNKNOWN";
         }
-        if (write_report(artifact_dir, cid, "03-semantic-exec", "semantic_micro",
-                         passed, failure_summary) != 0) {
+        if (write_report(artifact_dir, cid, "03-semantic-exec", "semantic_micro", passed,
+                         failure_summary) != 0) {
             return 1;
         }
     }
 
     return passed ? 0 : 1;
+}
+
+static int main(int argc, char *argv[])
+{
+    const char *case_yaml = NULL;
+    const char *artifact_dir = NULL;
+
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--case-yaml") == 0 && i + 1 < argc) {
+            case_yaml = argv[++i];
+        } else if (strcmp(argv[i], "--artifact-dir") == 0 && i + 1 < argc) {
+            artifact_dir = argv[++i];
+        }
+    }
+
+    if (!case_yaml || !artifact_dir) {
+        fprintf(stderr, "Usage: %s --case-yaml <path> --artifact-dir <path>\n", argv[0]);
+        return 1;
+    }
+
+    return run_semantic_micro(case_yaml, artifact_dir);
 }

@@ -71,25 +71,86 @@ targets:
       - path: Tests/IXLandLinuxRuntimeUnitTests
         excludes:
           - "e2e/**"
+          - "gen_test_simple.c"
+          - "gen_test_minimal.c"
+          - "gadget_test.c"
+          - "gen_test.c"
+          - "test_*.c"
+          - "test-dp-reg.c"
+          - "arm-reference.txt"
+          - "*.md"
     dependencies:
       - target: IXLandLinuxRuntime
     settings:
       GENERATE_INFOPLIST_FILE: true
       TEST_HOST: "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal"
       BUNDLE_LOADER: "$(TEST_HOST)"
+      HEADER_SEARCH_PATHS:
+        - "$(SRCROOT)/Sources"
+        - "$(SRCROOT)"
 
   # MARK: - IXLandLinuxRuntime Functional Tests
   IXLandLinuxRuntimeFunctionalTests:
     type: bundle.unit-test
     platform: iOS
     sources:
-      - Tests/IXLandLinuxRuntimeFunctionalTests
+      - path: Tests/IXLandLinuxRuntimeFunctionalTests
+        excludes:
+          - "decoder_functional_test.c"
+          - "functional_test.c"
+          - "integration_test_simple.c"
+          - "integration_test.c"
+      - path: Tests/IXLandLinuxRuntimeEnd2EndTests/cases/harness
+        excludes:
+          - "ios_app_harness.c"
+          - "case_schema.py"
+          - "harness_runner.h"
+    preBuildScripts:
+      - name: Copy Case Corpus
+        script: |
+          # Only copy if source cases are newer than destination
+          CASES_DIR="${SRCROOT}/Tests/IXLandLinuxRuntimeEnd2EndTests/cases"
+          DEST="${TARGET_BUILD_DIR}/${WRAPPER_NAME}/cases"
+          
+          # Check if any case file is newer than the destination marker
+          NEEDS_COPY=0
+          if [ ! -f "$DEST/.copied" ]; then
+            NEEDS_COPY=1
+          else
+            # Find any file in cases newer than our marker
+            if find "$CASES_DIR" -type f -newer "$DEST/.copied" | grep -q .; then
+              NEEDS_COPY=1
+            fi
+          fi
+          
+          if [ "$NEEDS_COPY" -eq 1 ]; then
+            echo "Copying case corpus to test bundle..."
+            rm -rf "$DEST"
+            mkdir -p "$DEST"
+            for phase in 01-decode 02-generator 03-semantic-exec 04-mmu-abi 05-elf-loader 06-syscalls-core-fs-net 07-threads-signals-tls 08-musl 09-glibc 10-tooling-stability-ios 11-distro-matrix; do
+              if [ -d "$CASES_DIR/$phase" ]; then
+                cp -R "$CASES_DIR/$phase" "$DEST/"
+              fi
+            done
+            touch "$DEST/.copied"
+            echo "Case corpus copied successfully"
+          else
+            echo "Case corpus up to date, skipping copy"
+          fi
+        basedOnDependencyAnalysis: true
     dependencies:
       - target: IXLandLinuxRuntime
+      - package: IXLandInstrumentation
+        product: IXLandInstrumentationTracing
     settings:
       GENERATE_INFOPLIST_FILE: true
       TEST_HOST: "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal"
       BUNDLE_LOADER: "$(TEST_HOST)"
+      HEADER_SEARCH_PATHS:
+        - "$(SRCROOT)/Sources"
+        - "$(SRCROOT)"
+        - "$(SRCROOT)/Tests/IXLandLinuxRuntimeEnd2EndTests/cases/harness"
+        - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include"
 
   # MARK: - IXLandLinuxRuntime End-to-End Tests
   IXLandLinuxRuntimeEnd2EndTests:
@@ -103,10 +164,55 @@ targets:
           - "benchmark/**"
           - "workloads/**"
           - "harness/**"
+          - "run_cases.py"
+          - "RuntimeCaseCorpusTests.swift"
+          - "DEPRECATED_TESTS.md"
+      - path: Tests/IXLandLinuxRuntimeEnd2EndTests/cases/harness
+        includes:
+          - "ios_app_harness.c"
+    preBuildScripts:
+      - name: Copy E2E Cases
+        script: |
+          # Only copy if source cases are newer than destination
+          CASES_DIR="${SRCROOT}/Tests/IXLandLinuxRuntimeEnd2EndTests/cases"
+          DEST="${TARGET_BUILD_DIR}/${WRAPPER_NAME}/cases"
+          
+          NEEDS_COPY=0
+          if [ ! -f "$DEST/.copied" ]; then
+            NEEDS_COPY=1
+          else
+            if find "$CASES_DIR/00-trace-harness" "$CASES_DIR/02c-ios-app-runtime-entry" -type f -newer "$DEST/.copied" 2>/dev/null | grep -q .; then
+              NEEDS_COPY=1
+            fi
+          fi
+          
+          if [ "$NEEDS_COPY" -eq 1 ]; then
+            echo "Copying E2E cases to test bundle..."
+            rm -rf "$DEST"
+            mkdir -p "$DEST"
+            for phase in 00-trace-harness 02c-ios-app-runtime-entry; do
+              if [ -d "$CASES_DIR/$phase" ]; then
+                cp -R "$CASES_DIR/$phase" "$DEST/"
+              fi
+            done
+            touch "$DEST/.copied"
+            echo "E2E cases copied successfully"
+          else
+            echo "E2E cases up to date, skipping copy"
+          fi
+        basedOnDependencyAnalysis: true
     dependencies:
       - target: IXLandTerminal
+      - package: IXLandInstrumentation
+        product: IXLandInstrumentationTracing
     settings:
       GENERATE_INFOPLIST_FILE: true
+      PRODUCT_BUNDLE_IDENTIFIER: app.ixland.linuxruntime.e2e
+      HEADER_SEARCH_PATHS:
+        - "$(SRCROOT)/Sources"
+        - "$(SRCROOT)"
+        - "$(SRCROOT)/Tests/IXLandLinuxRuntimeEnd2EndTests/cases/harness"
+        - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include"
 
   # MARK: - IXLandTerminal App
   IXLandTerminal:
@@ -203,7 +309,10 @@ targets:
     type: bundle.ui-testing
     platform: iOS
     sources:
-      - Tests/IXLandTerminalEnd2EndTests
+      - path: Tests/IXLandTerminalEnd2EndTests
+        excludes:
+          - "Info.plist"
+          - "Screenshots.m"
     dependencies:
       - target: IXLandTerminal
     settings:
@@ -228,3 +337,36 @@ schemes:
           parallelizable: true
         - IXLandTerminalEnd2EndTests
         - IXLandLinuxRuntimeEnd2EndTests
+
+  IXLandFunctionalTests:
+    build:
+      targets:
+        IXLandLinuxRuntime: all
+        IXLandTerminal: all
+        IXLandLinuxRuntimeFunctionalTests: [build-for-testing]
+    test:
+      config: Debug
+      gatherCoverageData: true
+      targets:
+        - name: IXLandLinuxRuntimeFunctionalTests
+          parallelizable: true
+
+  # MARK: - Runtime Case Verification Scheme
+  # Minimal scheme for fast runtime case testing
+  # Usage:
+  #   xcodebuild build-for-testing -scheme IXLandRuntimeCases -destination 'platform=iOS Simulator,name=iPhone 17' ...
+  #   xcodebuild test-without-building -scheme IXLandRuntimeCases -destination 'platform=iOS Simulator,name=iPhone 17' ...
+  IXLandRuntimeCases:
+    build:
+      targets:
+        IXLandLinuxRuntime: all
+        IXLandTerminal: all
+        IXLandLinuxRuntimeFunctionalTests: [build-for-testing]
+    test:
+      config: Debug
+      gatherCoverageData: false
+      targets:
+        - name: IXLandLinuxRuntimeFunctionalTests
+          parallelizable: true
+
+

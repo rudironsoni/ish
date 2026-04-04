@@ -8,25 +8,25 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/mman.h>
-#include <sys/syscall.h>
 #include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <sys/un.h>
+#include <sys/mman.h>
 #include <sys/poll.h>
 #include <sys/select.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
+#include <sys/un.h>
+#include <unistd.h>
 #if !defined(__APPLE__)
 #include <sys/epoll.h>
 #endif
-#include <sys/wait.h>
+#include <dirent.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
-#include <errno.h>
 #include <stdint.h>
-#include <dirent.h>
+#include <sys/wait.h>
 #include <termios.h>
 #if !defined(__APPLE__)
 #include <linux/random.h>
@@ -38,7 +38,8 @@
 
 /* Stub kernel functions required by iSH headers */
 #include <stdarg.h>
-void ish_printk(const char *msg, ...) {
+static void ish_printk(const char *msg, ...)
+{
     va_list args;
     va_start(args, msg);
     vfprintf(stderr, msg, args);
@@ -46,39 +47,40 @@ void ish_printk(const char *msg, ...) {
 }
 #define printk ish_printk
 
-void handle_interrupt(int interrupt) {
+static void handle_interrupt(int interrupt)
+{
     fprintf(stderr, "[HARNESS] handle_interrupt: %d\n", interrupt);
 }
 
-void memset_junk(void *buf, size_t size) {
+static void memset_junk(void *buf, size_t size)
+{
     memset(buf, 0xAB, size);
 }
 
-void *g_end_brk = NULL;
+static void *g_end_brk = NULL;
 
 /* iSH headers */
-#import <IXLandLinuxRuntime/util/misc.h>
+#import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/kernel/errno.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
-#import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
+#import <IXLandLinuxRuntime/util/misc.h>
 
 static int setup_artifact_dir(const char *artifact_dir) {
-    char cmd[MAX_PATH];
-    snprintf(cmd, sizeof(cmd), "rm -rf %s", artifact_dir);
-    system(cmd);
+    /* Remove existing directory recursively using C APIs */
+    remove(artifact_dir);
 
-    snprintf(cmd, sizeof(cmd), "mkdir -p %s", artifact_dir);
-    if (system(cmd) != 0) {
+    /* Create directory */
+    if (mkdir(artifact_dir, 0755) != 0 && errno != EEXIST) {
         fprintf(stderr, "Error: Failed to create artifact dir %s\n", artifact_dir);
         return -1;
     }
     return 0;
 }
 
-static int write_report(const char *artifact_dir, const char *case_id,
-                        const char *phase, const char *harness,
-                        int passed, const char *failure_summary) {
+static int write_report(const char *artifact_dir, const char *case_id, const char *phase,
+                        const char *harness, int passed, const char *failure_summary)
+{
     char path[MAX_PATH];
     snprintf(path, sizeof(path), "%s/report.json", artifact_dir);
 
@@ -109,8 +111,9 @@ static int write_report(const char *artifact_dir, const char *case_id,
     return 0;
 }
 
-static int write_syscall_log(const char *artifact_dir, const char *case_id,
-                              int syscall_count, const char *log_entries) {
+static int write_syscall_log(const char *artifact_dir, const char *case_id, int syscall_count,
+                             const char *log_entries)
+{
     char path[MAX_PATH];
     snprintf(path, sizeof(path), "%s/syscall_log.json", artifact_dir);
 
@@ -135,10 +138,12 @@ static int write_syscall_log(const char *artifact_dir, const char *case_id,
 }
 
 /* Extract case ID from path */
-static const char *extract_case_id(const char *case_yaml) {
+static const char *extract_case_id(const char *case_yaml)
+{
     static char case_id[64];
     const char *last_slash = strrchr(case_yaml, '/');
-    if (!last_slash) return "UNKNOWN";
+    if (!last_slash)
+        return "UNKNOWN";
 
     const char *dir_start = last_slash;
     while (dir_start > case_yaml && *(dir_start - 1) != '/') {
@@ -147,17 +152,20 @@ static const char *extract_case_id(const char *case_yaml) {
 
     /* Extract case ID (e.g., "SYS-001" from "SYS-001-read-write-close") */
     const char *dash = strchr(dir_start, '-');
-    if (!dash) return "UNKNOWN";
+    if (!dash)
+        return "UNKNOWN";
     const char *second_dash = strchr(dash + 1, '-');
     int len = second_dash ? (second_dash - dir_start) : (last_slash - dir_start);
-    if (len >= 63) len = 63;
+    if (len >= 63)
+        len = 63;
     strncpy(case_id, dir_start, len);
     case_id[len] = '\0';
     return case_id;
 }
 
 /* SYS-001: read, write, close test */
-static int test_sys_001_read_write_close(const char *artifact_dir, char *log_buf, size_t log_size) {
+static int test_sys_001_read_write_close(const char *artifact_dir, char *log_buf, size_t log_size)
+{
     (void)artifact_dir;
     printf("SYS-001: Testing read, write, close...\n");
 
@@ -204,7 +212,7 @@ static int test_sys_001_read_write_close(const char *artifact_dir, char *log_buf
                         "    {\"syscall\": \"read\", \"fd\": %d, \"count\": 4},\n", fd);
 
     /* Test read */
-    char read_buf[16] = {0};
+    char read_buf[16] = { 0 };
     ssize_t nread = read(fd, read_buf, sizeof(read_buf));
     if (nread != 4) {
         printf("  FAIL: read returned %zd, expected 4\n", nread);
@@ -248,7 +256,8 @@ static int test_sys_001_read_write_close(const char *artifact_dir, char *log_buf
 }
 
 /* SYS-002: openat, fstat, lseek test */
-static int test_sys_002_openat_fstat_lseek(const char *artifact_dir, char *log_buf, size_t log_size) {
+static int test_sys_002_openat_fstat_lseek(const char *artifact_dir, char *log_buf, size_t log_size)
+{
     (void)artifact_dir;
     printf("SYS-002: Testing openat, fstat, lseek...\n");
 
@@ -345,7 +354,8 @@ static int test_sys_002_openat_fstat_lseek(const char *artifact_dir, char *log_b
 }
 
 /* SYS-003: getdents64 test */
-static int test_sys_003_getdents64(const char *artifact_dir, char *log_buf, size_t log_size) {
+static int test_sys_003_getdents64(const char *artifact_dir, char *log_buf, size_t log_size)
+{
     (void)artifact_dir;
     (void)log_size;
     printf("SYS-003: Testing getdents64...\n");
@@ -380,13 +390,16 @@ static int test_sys_003_getdents64(const char *artifact_dir, char *log_buf, size
     /* Parse entries */
     int entry_count = 0;
     int found_dot = 0, found_dotdot = 0;
-    for (int bpos = 0; bpos < nread; ) {
+    for (int bpos = 0; bpos < nread;) {
         struct dirent *d = (struct dirent *)(buf + bpos);
-        if (d->d_reclen == 0) break;
+        if (d->d_reclen == 0)
+            break;
 
         entry_count++;
-        if (strcmp(d->d_name, ".") == 0) found_dot = 1;
-        if (strcmp(d->d_name, "..") == 0) found_dotdot = 1;
+        if (strcmp(d->d_name, ".") == 0)
+            found_dot = 1;
+        if (strcmp(d->d_name, "..") == 0)
+            found_dotdot = 1;
 
         bpos += d->d_reclen;
     }
@@ -408,20 +421,22 @@ static int test_sys_003_getdents64(const char *artifact_dir, char *log_buf, size
 }
 
 /* SYS-004: mmap, munmap, mprotect test */
-static int test_sys_004_mmap_munmap_mprotect(const char *artifact_dir, char *log_buf, size_t log_size) {
+static int test_sys_004_mmap_munmap_mprotect(const char *artifact_dir, char *log_buf,
+                                             size_t log_size)
+{
     (void)artifact_dir;
     (void)log_size;
     printf("SYS-004: Testing mmap, munmap, mprotect...\n");
 
     int log_pos = 0;
 
-    log_pos += snprintf(log_buf + log_pos, log_size - log_pos,
-                        "    {\"syscall\": \"mmap\", \"size\": 4096, \"flags\": \"MAP_ANONYMOUS\"},\n");
+    log_pos +=
+        snprintf(log_buf + log_pos, log_size - log_pos,
+                 "    {\"syscall\": \"mmap\", \"size\": 4096, \"flags\": \"MAP_ANONYMOUS\"},\n");
 
     /* Test anonymous mmap */
     size_t size = 4096;
-    void *addr = mmap(NULL, size, PROT_READ | PROT_WRITE,
-                      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    void *addr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if (addr == MAP_FAILED) {
         printf("  FAIL: mmap failed: %s\n", strerror(errno));
         return -1;
@@ -429,7 +444,7 @@ static int test_sys_004_mmap_munmap_mprotect(const char *artifact_dir, char *log
     printf("  mmap(anonymous): OK (%p)\n", addr);
 
     /* Test memory access */
-    volatile uint64_t *ptr = (volatile uint64_t*)addr;
+    volatile uint64_t *ptr = (volatile uint64_t *)addr;
     *ptr = 0xDEADBEEFCAFEBABEULL;
     if (*ptr != 0xDEADBEEFCAFEBABEULL) {
         printf("  FAIL: Memory write/read failed\n");
@@ -438,8 +453,9 @@ static int test_sys_004_mmap_munmap_mprotect(const char *artifact_dir, char *log
     }
     printf("  Memory access: OK\n");
 
-    log_pos += snprintf(log_buf + log_pos, log_size - log_pos,
-                        "    {\"syscall\": \"mprotect\", \"addr\": \"%p\", \"prot\": \"PROT_READ\"},\n", addr);
+    log_pos += snprintf(
+        log_buf + log_pos, log_size - log_pos,
+        "    {\"syscall\": \"mprotect\", \"addr\": \"%p\", \"prot\": \"PROT_READ\"},\n", addr);
 
     /* Test mprotect - change to read-only */
     if (mprotect(addr, size, PROT_READ) != 0) {
@@ -473,7 +489,8 @@ static int test_sys_004_mmap_munmap_mprotect(const char *artifact_dir, char *log
 }
 
 /* SYS-005: brk test */
-static int test_sys_005_brk(const char *artifact_dir, char *log_buf, size_t log_size) {
+static int test_sys_005_brk(const char *artifact_dir, char *log_buf, size_t log_size)
+{
     (void)artifact_dir;
     (void)log_size;
     printf("SYS-005: Testing brk...\n");
@@ -489,14 +506,14 @@ static int test_sys_005_brk(const char *artifact_dir, char *log_buf, size_t log_
 
     /* Allocate 1 page */
     void *new_brk = sbrk(4096);
-    if (new_brk == (void*)-1) {
+    if (new_brk == (void *)-1) {
         printf("  FAIL: sbrk(4096) failed\n");
         return -1;
     }
     printf("  After sbrk(4096): %p\n", sbrk(0));
 
     /* Verify we can access the new memory */
-    volatile uint64_t *ptr = (volatile uint64_t*)new_brk;
+    volatile uint64_t *ptr = (volatile uint64_t *)new_brk;
     *ptr = 0xDEADBEEFCAFEBABEULL;
     if (*ptr != 0xDEADBEEFCAFEBABEULL) {
         printf("  FAIL: Heap access failed\n");
@@ -522,7 +539,8 @@ static int test_sys_005_brk(const char *artifact_dir, char *log_buf, size_t log_
 }
 
 /* SYS-006: dup, pipe, pipe2 test */
-static int test_sys_006_dup_pipe_pipe2(const char *artifact_dir, char *log_buf, size_t log_size) {
+static int test_sys_006_dup_pipe_pipe2(const char *artifact_dir, char *log_buf, size_t log_size)
+{
     (void)artifact_dir;
     (void)log_size;
     printf("SYS-006: Testing dup, pipe, pipe2...\n");
@@ -635,7 +653,8 @@ static int test_sys_006_dup_pipe_pipe2(const char *artifact_dir, char *log_buf, 
 }
 
 /* SYS-007: ioctl tty/pty test */
-static int test_sys_007_ioctl_tty_pty(const char *artifact_dir, char *log_buf, size_t log_size) {
+static int test_sys_007_ioctl_tty_pty(const char *artifact_dir, char *log_buf, size_t log_size)
+{
     (void)artifact_dir;
     (void)log_size;
     printf("SYS-007: Testing ioctl TTY/PTY...\n");
@@ -659,8 +678,9 @@ static int test_sys_007_ioctl_tty_pty(const char *artifact_dir, char *log_buf, s
         }
 
         /* Test TIOCGWINSZ */
-        log_pos += snprintf(log_buf + log_pos, log_size - log_pos,
-                            "    {\"syscall\": \"ioctl\", \"fd\": 0, \"request\": \"TIOCGWINSZ\"},\n");
+        log_pos +=
+            snprintf(log_buf + log_pos, log_size - log_pos,
+                     "    {\"syscall\": \"ioctl\", \"fd\": 0, \"request\": \"TIOCGWINSZ\"},\n");
 
         struct winsize ws;
         if (ioctl(STDIN_FILENO, TIOCGWINSZ, &ws) != 0) {
@@ -675,8 +695,9 @@ static int test_sys_007_ioctl_tty_pty(const char *artifact_dir, char *log_buf, s
     /* Test with /dev/tty if available */
     int tty_fd = open("/dev/tty", O_RDWR);
     if (tty_fd >= 0) {
-        log_pos += snprintf(log_buf + log_pos, log_size - log_pos,
-                            "    {\"syscall\": \"ioctl\", \"fd\": %d, \"request\": \"TIOCGWINSZ\"},\n", tty_fd);
+        log_pos += snprintf(
+            log_buf + log_pos, log_size - log_pos,
+            "    {\"syscall\": \"ioctl\", \"fd\": %d, \"request\": \"TIOCGWINSZ\"},\n", tty_fd);
 
         struct winsize ws;
         if (ioctl(tty_fd, TIOCGWINSZ, &ws) == 0) {
@@ -692,7 +713,9 @@ static int test_sys_007_ioctl_tty_pty(const char *artifact_dir, char *log_buf, s
 }
 
 /* SYS-008: getrandom, prctl, uname test */
-static int test_sys_008_getrandom_prctl_uname(const char *artifact_dir, char *log_buf, size_t log_size) {
+static int test_sys_008_getrandom_prctl_uname(const char *artifact_dir, char *log_buf,
+                                              size_t log_size)
+{
     (void)artifact_dir;
     (void)log_size;
     printf("SYS-008: Testing getrandom, prctl, uname...\n");
@@ -712,7 +735,8 @@ static int test_sys_008_getrandom_prctl_uname(const char *artifact_dir, char *lo
         /* Check not all zeros */
         int all_zero = 1;
         for (int i = 0; i < 16; i++) {
-            if (random_buf[i] != 0) all_zero = 0;
+            if (random_buf[i] != 0)
+                all_zero = 0;
         }
         if (all_zero) {
             printf("  getrandom: FAILED (all zeros)\n");
@@ -760,7 +784,9 @@ static int test_sys_008_getrandom_prctl_uname(const char *artifact_dir, char *lo
 }
 
 /* SYS-009: poll, ppoll, select, epoll test */
-static int test_sys_009_poll_ppoll_select_epoll(const char *artifact_dir, char *log_buf, size_t log_size) {
+static int test_sys_009_poll_ppoll_select_epoll(const char *artifact_dir, char *log_buf,
+                                                size_t log_size)
+{
     (void)artifact_dir;
     (void)log_size;
     printf("SYS-009: Testing poll, ppoll, select, epoll...\n");
@@ -775,11 +801,12 @@ static int test_sys_009_poll_ppoll_select_epoll(const char *artifact_dir, char *
     }
 
     /* Test poll - initially should return 0 (no data) with timeout */
-    log_pos += snprintf(log_buf + log_pos, log_size - log_pos,
-                        "    {\"syscall\": \"poll\", \"fd\": %d, \"events\": \"POLLIN\"},\n", pipefd[0]);
+    log_pos +=
+        snprintf(log_buf + log_pos, log_size - log_pos,
+                 "    {\"syscall\": \"poll\", \"fd\": %d, \"events\": \"POLLIN\"},\n", pipefd[0]);
 
     struct pollfd pfd = { .fd = pipefd[0], .events = POLLIN };
-    int ret = poll(&pfd, 1, 0);  /* Non-blocking poll */
+    int ret = poll(&pfd, 1, 0); /* Non-blocking poll */
     if (ret != 0) {
         printf("  FAIL: poll (no data) should return 0, got %d\n", ret);
         close(pipefd[0]);
@@ -807,8 +834,9 @@ static int test_sys_009_poll_ppoll_select_epoll(const char *artifact_dir, char *
     read(pipefd[0], buf, 1);
 
     /* Test select */
-    log_pos += snprintf(log_buf + log_pos, log_size - log_pos,
-                        "    {\"syscall\": \"select\", \"fd\": %d, \"readfds\": set},\n", pipefd[0]);
+    log_pos +=
+        snprintf(log_buf + log_pos, log_size - log_pos,
+                 "    {\"syscall\": \"select\", \"fd\": %d, \"readfds\": set},\n", pipefd[0]);
 
     fd_set rfds;
     FD_ZERO(&rfds);
@@ -905,7 +933,9 @@ static int test_sys_009_poll_ppoll_select_epoll(const char *artifact_dir, char *
 }
 
 /* SYS-010: socket, connect, accept test */
-static int test_sys_010_socket_connect_accept(const char *artifact_dir, char *log_buf, size_t log_size) {
+static int test_sys_010_socket_connect_accept(const char *artifact_dir, char *log_buf,
+                                              size_t log_size)
+{
     (void)artifact_dir;
     (void)log_size;
     printf("SYS-010: Testing socket, connect, accept...\n");
@@ -913,8 +943,9 @@ static int test_sys_010_socket_connect_accept(const char *artifact_dir, char *lo
     int log_pos = 0;
 
     /* Create a Unix domain socket */
-    log_pos += snprintf(log_buf + log_pos, log_size - log_pos,
-                        "    {\"syscall\": \"socket\", \"domain\": \"AF_UNIX\", \"type\": \"SOCK_STREAM\"},\n");
+    log_pos += snprintf(
+        log_buf + log_pos, log_size - log_pos,
+        "    {\"syscall\": \"socket\", \"domain\": \"AF_UNIX\", \"type\": \"SOCK_STREAM\"},\n");
 
     int server_fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (server_fd < 0) {
@@ -935,7 +966,8 @@ static int test_sys_010_socket_connect_accept(const char *artifact_dir, char *lo
     strncpy(addr.sun_path, sock_path, sizeof(addr.sun_path) - 1);
 
     log_pos += snprintf(log_buf + log_pos, log_size - log_pos,
-                        "    {\"syscall\": \"bind\", \"fd\": %d, \"path\": \"%s\"},\n", server_fd, sock_path);
+                        "    {\"syscall\": \"bind\", \"fd\": %d, \"path\": \"%s\"},\n", server_fd,
+                        sock_path);
 
     if (bind(server_fd, (struct sockaddr *)&addr, sizeof(addr)) != 0) {
         printf("  FAIL: bind failed: %s\n", strerror(errno));
@@ -966,7 +998,7 @@ static int test_sys_010_socket_connect_accept(const char *artifact_dir, char *lo
 
     if (pid == 0) {
         /* Child - connect */
-        sleep(1);  /* Give server time to accept */
+        sleep(1); /* Give server time to accept */
 
         int client_fd = socket(AF_UNIX, SOCK_STREAM, 0);
         if (client_fd < 0) {
@@ -1022,7 +1054,8 @@ static int test_sys_010_socket_connect_accept(const char *artifact_dir, char *lo
 }
 
 /* SYS-011: send, recv, msg test */
-static int test_sys_011_send_recv_msg(const char *artifact_dir, char *log_buf, size_t log_size) {
+static int test_sys_011_send_recv_msg(const char *artifact_dir, char *log_buf, size_t log_size)
+{
     (void)artifact_dir;
     (void)log_size;
     printf("SYS-011: Testing send, recv, sendmsg, recvmsg...\n");
@@ -1120,7 +1153,9 @@ static int test_sys_011_send_recv_msg(const char *artifact_dir, char *log_buf, s
 }
 
 /* SYS-012: rename, link, symlink, readlink test */
-static int test_sys_012_rename_link_symlink_readlink(const char *artifact_dir, char *log_buf, size_t log_size) {
+static int test_sys_012_rename_link_symlink_readlink(const char *artifact_dir, char *log_buf,
+                                                     size_t log_size)
+{
     (void)artifact_dir;
     (void)log_size;
     printf("SYS-012: Testing rename, link, symlink, readlink...\n");
@@ -1143,7 +1178,8 @@ static int test_sys_012_rename_link_symlink_readlink(const char *artifact_dir, c
     mktemp(newname);
 
     log_pos += snprintf(log_buf + log_pos, log_size - log_pos,
-                        "    {\"syscall\": \"rename\", \"from\": \"%s\", \"to\": \"%s\"},\n", tmpfile, newname);
+                        "    {\"syscall\": \"rename\", \"from\": \"%s\", \"to\": \"%s\"},\n",
+                        tmpfile, newname);
 
     if (rename(tmpfile, newname) != 0) {
         printf("  FAIL: rename failed: %s\n", strerror(errno));
@@ -1165,7 +1201,8 @@ static int test_sys_012_rename_link_symlink_readlink(const char *artifact_dir, c
     mktemp(hardlink);
 
     log_pos += snprintf(log_buf + log_pos, log_size - log_pos,
-                        "    {\"syscall\": \"link\", \"oldpath\": \"%s\", \"newpath\": \"%s\"},\n", newname, hardlink);
+                        "    {\"syscall\": \"link\", \"oldpath\": \"%s\", \"newpath\": \"%s\"},\n",
+                        newname, hardlink);
 
     if (link(newname, hardlink) != 0) {
         printf("  FAIL: link failed: %s\n", strerror(errno));
@@ -1199,8 +1236,10 @@ static int test_sys_012_rename_link_symlink_readlink(const char *artifact_dir, c
     strcpy(symlink_path, "/tmp/syscall_test_symlink_XXXXXX");
     mktemp(symlink_path);
 
-    log_pos += snprintf(log_buf + log_pos, log_size - log_pos,
-                        "    {\"syscall\": \"symlink\", \"target\": \"%s\", \"linkpath\": \"%s\"},\n", newname, symlink_path);
+    log_pos +=
+        snprintf(log_buf + log_pos, log_size - log_pos,
+                 "    {\"syscall\": \"symlink\", \"target\": \"%s\", \"linkpath\": \"%s\"},\n",
+                 newname, symlink_path);
 
     if (symlink(newname, symlink_path) != 0) {
         printf("  FAIL: symlink failed: %s\n", strerror(errno));
@@ -1243,23 +1282,8 @@ static int test_sys_012_rename_link_symlink_readlink(const char *artifact_dir, c
     return 0;
 }
 
-int main(int argc, char *argv[]) {
-    const char *case_yaml = NULL;
-    const char *artifact_dir = NULL;
-
-    for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--case-yaml") == 0 && i + 1 < argc) {
-            case_yaml = argv[++i];
-        } else if (strcmp(argv[i], "--artifact-dir") == 0 && i + 1 < argc) {
-            artifact_dir = argv[++i];
-        }
-    }
-
-    if (!case_yaml || !artifact_dir) {
-        fprintf(stderr, "Usage: %s --case-yaml <path> --artifact-dir <path>\n", argv[0]);
-        return 1;
-    }
-
+int run_syscall_fixture(const char *case_yaml, const char *artifact_dir)
+{
     if (setup_artifact_dir(artifact_dir) != 0) {
         return 1;
     }
@@ -1275,40 +1299,52 @@ int main(int argc, char *argv[]) {
     /* Route to appropriate test */
     if (strncmp(case_id, "SYS-001", 7) == 0) {
         result = test_sys_001_read_write_close(artifact_dir, log_buf, sizeof(log_buf));
-        if (result != 0) failure_reason = "SYS-001 read/write/close test failed";
+        if (result != 0)
+            failure_reason = "SYS-001 read/write/close test failed";
     } else if (strncmp(case_id, "SYS-002", 7) == 0) {
         result = test_sys_002_openat_fstat_lseek(artifact_dir, log_buf, sizeof(log_buf));
-        if (result != 0) failure_reason = "SYS-002 openat/fstat/lseek test failed";
+        if (result != 0)
+            failure_reason = "SYS-002 openat/fstat/lseek test failed";
     } else if (strncmp(case_id, "SYS-003", 7) == 0) {
         result = test_sys_003_getdents64(artifact_dir, log_buf, sizeof(log_buf));
-        if (result != 0) failure_reason = "SYS-003 getdents64 test failed";
+        if (result != 0)
+            failure_reason = "SYS-003 getdents64 test failed";
     } else if (strncmp(case_id, "SYS-004", 7) == 0) {
         result = test_sys_004_mmap_munmap_mprotect(artifact_dir, log_buf, sizeof(log_buf));
-        if (result != 0) failure_reason = "SYS-004 mmap/munmap/mprotect test failed";
+        if (result != 0)
+            failure_reason = "SYS-004 mmap/munmap/mprotect test failed";
     } else if (strncmp(case_id, "SYS-005", 7) == 0) {
         result = test_sys_005_brk(artifact_dir, log_buf, sizeof(log_buf));
-        if (result != 0) failure_reason = "SYS-005 brk test failed";
+        if (result != 0)
+            failure_reason = "SYS-005 brk test failed";
     } else if (strncmp(case_id, "SYS-006", 7) == 0) {
         result = test_sys_006_dup_pipe_pipe2(artifact_dir, log_buf, sizeof(log_buf));
-        if (result != 0) failure_reason = "SYS-006 dup/pipe/pipe2 test failed";
+        if (result != 0)
+            failure_reason = "SYS-006 dup/pipe/pipe2 test failed";
     } else if (strncmp(case_id, "SYS-007", 7) == 0) {
         result = test_sys_007_ioctl_tty_pty(artifact_dir, log_buf, sizeof(log_buf));
-        if (result != 0) failure_reason = "SYS-007 ioctl TTY/PTY test failed";
+        if (result != 0)
+            failure_reason = "SYS-007 ioctl TTY/PTY test failed";
     } else if (strncmp(case_id, "SYS-008", 7) == 0) {
         result = test_sys_008_getrandom_prctl_uname(artifact_dir, log_buf, sizeof(log_buf));
-        if (result != 0) failure_reason = "SYS-008 getrandom/prctl/uname test failed";
+        if (result != 0)
+            failure_reason = "SYS-008 getrandom/prctl/uname test failed";
     } else if (strncmp(case_id, "SYS-009", 7) == 0) {
         result = test_sys_009_poll_ppoll_select_epoll(artifact_dir, log_buf, sizeof(log_buf));
-        if (result != 0) failure_reason = "SYS-009 poll/ppoll/select/epoll test failed";
+        if (result != 0)
+            failure_reason = "SYS-009 poll/ppoll/select/epoll test failed";
     } else if (strncmp(case_id, "SYS-010", 7) == 0) {
         result = test_sys_010_socket_connect_accept(artifact_dir, log_buf, sizeof(log_buf));
-        if (result != 0) failure_reason = "SYS-010 socket/connect/accept test failed";
+        if (result != 0)
+            failure_reason = "SYS-010 socket/connect/accept test failed";
     } else if (strncmp(case_id, "SYS-011", 7) == 0) {
         result = test_sys_011_send_recv_msg(artifact_dir, log_buf, sizeof(log_buf));
-        if (result != 0) failure_reason = "SYS-011 send/recv/msg test failed";
+        if (result != 0)
+            failure_reason = "SYS-011 send/recv/msg test failed";
     } else if (strncmp(case_id, "SYS-012", 7) == 0) {
         result = test_sys_012_rename_link_symlink_readlink(artifact_dir, log_buf, sizeof(log_buf));
-        if (result != 0) failure_reason = "SYS-012 rename/link/symlink/readlink test failed";
+        if (result != 0)
+            failure_reason = "SYS-012 rename/link/symlink/readlink test failed";
     } else {
         printf("STATUS: STUB - Test not implemented for %s\n", case_id);
         failure_reason = "STUB: Test not implemented";
@@ -1325,7 +1361,8 @@ int main(int argc, char *argv[]) {
     /* Write syscall log */
     int syscall_count = 0;
     for (char *p = log_buf; *p; p++) {
-        if (*p == '{') syscall_count++;
+        if (*p == '{')
+            syscall_count++;
     }
     write_syscall_log(artifact_dir, case_id, syscall_count, log_buf);
 
@@ -1341,4 +1378,25 @@ int main(int argc, char *argv[]) {
     }
 
     return result == 0 ? 0 : 1;
+}
+
+static int main(int argc, char *argv[])
+{
+    const char *case_yaml = NULL;
+    const char *artifact_dir = NULL;
+
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--case-yaml") == 0 && i + 1 < argc) {
+            case_yaml = argv[++i];
+        } else if (strcmp(argv[i], "--artifact-dir") == 0 && i + 1 < argc) {
+            artifact_dir = argv[++i];
+        }
+    }
+
+    if (!case_yaml || !artifact_dir) {
+        fprintf(stderr, "Usage: %s --case-yaml <path> --artifact-dir <path>\n", argv[0]);
+        return 1;
+    }
+
+    return run_syscall_fixture(case_yaml, artifact_dir);
 }
