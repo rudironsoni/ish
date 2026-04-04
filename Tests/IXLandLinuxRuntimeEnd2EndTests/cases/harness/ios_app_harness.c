@@ -52,15 +52,14 @@ void *g_end_brk = NULL;
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/kernel/errno.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
-
 #import <IXLandLinuxRuntime/util/misc.h>
 
 /* Configuration from .factory/services.yaml */
-#define DEFAULT_PROJECT_PATH   "/Users/rudironsoni/src/github/rudironsoni/ish/iSH.xcodeproj"
-#define DEFAULT_SCHEME         "iSH"
+#define DEFAULT_PROJECT_PATH   "/Users/rudironsoni/src/github/rudironsoni/ish/IXLand.xcodeproj"
+#define DEFAULT_SCHEME         "IXLand"
 #define DEFAULT_SIMULATOR_NAME "iPhone 17 Pro"
 #define DEFAULT_SIMULATOR_ID   "E6186E89-8784-473B-A4E4-66E42693F14E"
-#define DEFAULT_BUNDLE_ID      "com.rudironsoni.ish"
+#define DEFAULT_BUNDLE_ID      "app.ixland.terminal"
 #define DEFAULT_CONFIGURATION  "Debug"
 
 /* Case types */

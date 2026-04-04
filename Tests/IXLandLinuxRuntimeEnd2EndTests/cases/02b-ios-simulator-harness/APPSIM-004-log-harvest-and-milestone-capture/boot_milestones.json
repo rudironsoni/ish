@@ -1,7 +1,0 @@
-{
-  "milestones": [
-    {"name": "app_launched", "order": 1, "timestamp_ms": 0}
-  ],
-  "ordering_valid": true,
-  "highest_completed": "app_launched"
-}

@@ -307,7 +307,6 @@
 		135EE3B85DD1C8E37C011698 /* inode.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = inode.h; sourceTree = "<group>"; };
 		13ED649203C7A5C9BEAB80C6 /* vdso.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = vdso.h; sourceTree = "<group>"; };
 		142C7059858863CA4154679B /* dir.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = dir.c; sourceTree = "<group>"; };
-		145F73523DD55E13D24F3CD6 /* Screenshots.xctestplan */ = {isa = PBXFileReference; path = Screenshots.xctestplan; sourceTree = "<group>"; };
 		153A4C55FAE1DFF8060B8434 /* stat.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = stat.c; sourceTree = "<group>"; };
 		159E99CC713B16AB7DD93E6D /* test.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = test.h; sourceTree = "<group>"; };
 		15AF3057431E43D0FA701DA0 /* ish.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ish.c; sourceTree = "<group>"; };
@@ -983,7 +982,6 @@
 				413013AD1B96BB4B80FE5BD6 /* Aarch64EmulatorTests.m */,
 				AB5D4B649B55D956B58D2240 /* Info.plist */,
 				E9DBF985ED9D64662C474457 /* Screenshots.m */,
-				145F73523DD55E13D24F3CD6 /* Screenshots.xctestplan */,
 				7358D27FA7157FF1189DC202 /* UITests.m */,
 			);
 			path = IXLandTerminalEnd2EndTests;

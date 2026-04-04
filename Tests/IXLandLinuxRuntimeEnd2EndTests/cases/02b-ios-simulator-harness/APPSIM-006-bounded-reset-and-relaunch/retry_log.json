@@ -1,9 +1,0 @@
-{
-  "retry_count": 1,
-  "max_retries": 1,
-  "attempts": [
-    {"attempt": 1, "result": "success", "reset": false},
-    {"attempt": 2, "result": "success", "reset": true}
-  ],
-  "bounded": true
-}

@@ -120,7 +120,6 @@ targets:
           - "UITests/**"
           - "targets/**"
           - "xcode-ninja.sh"
-          - "gen_apk_repositories.py"
           - "PasteboardDeviceLinux.c"
           - "LinuxTTY.c"
           - "LinuxPTY.c"

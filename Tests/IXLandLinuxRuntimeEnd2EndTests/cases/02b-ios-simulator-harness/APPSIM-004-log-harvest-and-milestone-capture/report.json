@@ -1,8 +1,0 @@
-{
-  "case_id": "APPSIM-004",
-  "phase": "02b-ios-simulator-harness",
-  "harness": "ios_app_harness",
-  "passed": true,
-  "timestamp": "2026-03-28T20:47:43Z",
-  "status": "REAL_PASS"
-}

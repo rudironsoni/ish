@@ -62,8 +62,7 @@ let package = Package(
                 "XcodeDebug.xcconfig",
                 "XcodeDefault.xcconfig",
                 "XcodeRelease.xcconfig",
-                "xcode-ninja.sh",
-                "gen_apk_repositories.py"
+                "xcode-ninja.sh"
             ],
             cSettings: [
                 .headerSearchPath("."),
