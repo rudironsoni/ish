@@ -137,7 +137,9 @@ targets:
           else
             echo "Case corpus up to date, skipping copy"
           fi
-        basedOnDependencyAnalysis: true
+        basedOnDependencyAnalysis: false
+        outputFiles:
+          - "$(TARGET_BUILD_DIR)/$(WRAPPER_NAME)/cases/.copied"
     dependencies:
       - target: IXLandLinuxRuntime
       - package: IXLandInstrumentation
@@ -200,7 +202,9 @@ targets:
           else
             echo "E2E cases up to date, skipping copy"
           fi
-        basedOnDependencyAnalysis: true
+        basedOnDependencyAnalysis: false
+        outputFiles:
+          - "$(TARGET_BUILD_DIR)/$(WRAPPER_NAME)/cases/.copied"
     dependencies:
       - target: IXLandTerminal
       - package: IXLandInstrumentation
@@ -334,7 +338,7 @@ schemes:
         - name: IXLandLinuxRuntimeUnitTests
           parallelizable: true
         - name: IXLandLinuxRuntimeFunctionalTests
-          parallelizable: true
+          parallelizable: false
         - IXLandTerminalEnd2EndTests
         - IXLandLinuxRuntimeEnd2EndTests
 
@@ -349,7 +353,7 @@ schemes:
       gatherCoverageData: true
       targets:
         - name: IXLandLinuxRuntimeFunctionalTests
-          parallelizable: true
+          parallelizable: false
 
   # MARK: - Runtime Case Verification Scheme
   # Minimal scheme for fast runtime case testing
@@ -367,6 +371,6 @@ schemes:
       gatherCoverageData: false
       targets:
         - name: IXLandLinuxRuntimeFunctionalTests
-          parallelizable: true
+          parallelizable: false
 
 

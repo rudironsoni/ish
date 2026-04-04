@@ -1530,6 +1530,7 @@
 		};
 		95FB6EDC9011EF47AADAC9EE /* Copy E2E Cases */ = {
 			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
 			files = (
 			);
@@ -1541,6 +1542,7 @@
 			outputFileListPaths = (
 			);
 			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(WRAPPER_NAME)/cases/.copied",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -1548,6 +1550,7 @@
 		};
 		9D8AA46520BECAB09E48EC51 /* Copy Case Corpus */ = {
 			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
 			files = (
 			);
@@ -1559,6 +1562,7 @@
 			outputFileListPaths = (
 			);
 			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(WRAPPER_NAME)/cases/.copied",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
