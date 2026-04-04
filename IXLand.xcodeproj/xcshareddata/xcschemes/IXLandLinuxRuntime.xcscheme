@@ -16,7 +16,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "8B71F48AE7216B5689802404"
-               BuildableName = "IXLandLinuxRuntime.framework"
+               BuildableName = "libIXLandLinuxRuntime.a"
                BlueprintName = "IXLandLinuxRuntime"
                ReferencedContainer = "container:IXLand.xcodeproj">
             </BuildableReference>
@@ -33,7 +33,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "8B71F48AE7216B5689802404"
-            BuildableName = "IXLandLinuxRuntime.framework"
+            BuildableName = "libIXLandLinuxRuntime.a"
             BlueprintName = "IXLandLinuxRuntime"
             ReferencedContainer = "container:IXLand.xcodeproj">
          </BuildableReference>
@@ -79,7 +79,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "8B71F48AE7216B5689802404"
-            BuildableName = "IXLandLinuxRuntime.framework"
+            BuildableName = "libIXLandLinuxRuntime.a"
             BlueprintName = "IXLandLinuxRuntime"
             ReferencedContainer = "container:IXLand.xcodeproj">
          </BuildableReference>
@@ -99,7 +99,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "8B71F48AE7216B5689802404"
-            BuildableName = "IXLandLinuxRuntime.framework"
+            BuildableName = "libIXLandLinuxRuntime.a"
             BlueprintName = "IXLandLinuxRuntime"
             ReferencedContainer = "container:IXLand.xcodeproj">
          </BuildableReference>

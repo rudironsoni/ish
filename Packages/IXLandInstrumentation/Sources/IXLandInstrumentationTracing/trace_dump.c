@@ -3,8 +3,8 @@
  * Block sidecar implementation and dump utilities.
  */
 
-#include "trace/trace.h"
-#include "trace/trace_types.h"
+#include "trace.h"
+#include "trace_types.h"
 
 #include <stdio.h>
 #include <stdlib.h>

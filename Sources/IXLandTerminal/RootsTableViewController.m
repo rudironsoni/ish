@@ -6,6 +6,7 @@
 //
 
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
+#import <FileProvider/FileProvider.h>
 #import "Roots.h"
 #import "RootsTableViewController.h"
 #import "ProgressReportViewController.h"

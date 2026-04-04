@@ -12,11 +12,13 @@ packages:
   libarchive-for-swift:
     url: https://github.com/matteo-pacini/libarchive-for-swift
     from: 1.0.0
+  IXLandInstrumentation:
+    path: Packages/IXLandInstrumentation
 
 settings:
   base:
     SWIFT_VERSION: "5.9"
-    CLANG_ENABLE_MODULES: true
+    CLANG_ENABLE_MODULES: false
     CLANG_ENABLE_OBJC_ARC: true
 
 targetTemplates:
@@ -26,43 +28,34 @@ targetTemplates:
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: app.ixland.linuxruntime
       PRODUCT_NAME: IXLandLinuxRuntime
-      MACH_O_TYPE: mh_dylib
-      DEFINES_MODULE: YES
       HEADER_SEARCH_PATHS:
-        - "$(SRCROOT)/Sources/IXLandLinuxRuntime"
-        - "$(SRCROOT)/Sources/IXLandLinuxRuntime/emu"
-        - "$(SRCROOT)/Sources/IXLandLinuxRuntime/emu/aarch64"
-        - "$(SRCROOT)/Sources/IXLandLinuxRuntime/kernel"
-        - "$(SRCROOT)/Sources/IXLandLinuxRuntime/kernel/aarch64"
-        - "$(SRCROOT)/Sources/IXLandLinuxRuntime/fs"
-        - "$(SRCROOT)/Sources/IXLandLinuxRuntime/fs/proc"
-        - "$(SRCROOT)/Sources/IXLandLinuxRuntime/platform"
-        - "$(SRCROOT)/Sources/IXLandLinuxRuntime/platform/ios"
-        - "$(SRCROOT)/Sources/IXLandLinuxRuntime/tcti"
-        - "$(SRCROOT)/Sources/IXLandLinuxRuntime/tcti/aarch64"
-        - "$(SRCROOT)/Sources/IXLandLinuxRuntime/util"
+        - "$(SRCROOT)/Sources"
+        - "$(SRCROOT)"
+        - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentation/include"
+        - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include"
       GCC_PREPROCESSOR_DEFINITIONS:
         - "IXLAND_LINUX_RUNTIME=1"
         - "ISH_PLATFORM_IOS=1"
-      OTHER_CFLAGS:
-        - "-x"
-        - "assembler-with-cpp"
 
 targets:
   # MARK: - IXLandLinuxRuntime Framework
   IXLandLinuxRuntime:
     templates:
       - LinuxRuntimeBase
-    type: framework
+    type: library.static
     platform: iOS
     sources:
       - path: Sources/IXLandLinuxRuntime
-        headerVisibility: public
+        headerVisibility: project
         excludes:
-          - "include/IXLandLinuxRuntime.h"
-    settings:
-      PUBLIC_HEADERS_FOLDER_PATH: "include/IXLandLinuxRuntime"
+          - "platform/linux.c"
+          - "kernel/calls.c"
+          - "trace/**"
     dependencies:
+      - package: IXLandInstrumentation
+        product: IXLandInstrumentation
+      - package: IXLandInstrumentation
+        product: IXLandInstrumentationTracing
       - package: libarchive-for-swift
         product: libarchive
     scheme:
@@ -126,9 +119,31 @@ targets:
           - "Tests/**"
           - "UITests/**"
           - "targets/**"
-          - "*.xcconfig"
           - "xcode-ninja.sh"
           - "gen_apk_repositories.py"
+          - "PasteboardDeviceLinux.c"
+          - "LinuxTTY.c"
+          - "LinuxPTY.c"
+          - "LinuxInterop.c"
+          - "LinuxInterop.h"
+          - "LinuxRoot.c"
+      - path: tools
+        headerVisibility: project
+        includes:
+          - "fakefs.h"
+          - "fakefs.c"
+      - path: $(DERIVED_FILE_DIR)/mach_excServer.c
+        optional: true
+    preBuildScripts:
+      - name: Generate mach_excServer
+        script: |
+          set -x
+          cd "$DERIVED_FILE_DIR"
+          mig -sheader "$DERIVED_FILE_DIR/mach_excServer.h" -server "$DERIVED_FILE_DIR/mach_excServer.c" -Wno-incompatible-sysroot -isysroot "$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk" "$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/mach/mach_exc.defs"
+        basedOnDependencyAnalysis: false
+        outputFiles:
+          - "$(DERIVED_FILE_DIR)/mach_excServer.h"
+          - "$(DERIVED_FILE_DIR)/mach_excServer.c"
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: app.ixland.terminal
       PRODUCT_NAME: IXLandTerminal
@@ -137,14 +152,35 @@ targets:
       ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
       HEADER_SEARCH_PATHS:
         - "$(SRCROOT)/Sources/IXLandTerminal"
-        - "$(SRCROOT)/Sources/IXLandLinuxRuntime"
-        - "$(SRCROOT)/Sources/IXLandLinuxRuntime/include"
+        - "$(DERIVED_FILE_DIR)"
+        - "$(SRCROOT)/Sources"
+        - "$(SRCROOT)/tools"
+        - "$(SDKROOT)/usr/include/libxml2"
+        - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentation/include"
+        - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationBridge"
+        - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include"
     dependencies:
       - target: IXLandLinuxRuntime
-    scheme:
-      testTargets:
-        - IXLandTerminalUnitTests
-        - IXLandTerminalEnd2EndTests
+      - package: IXLandInstrumentation
+        product: IXLandInstrumentation
+      - package: IXLandInstrumentation
+        product: IXLandInstrumentationTracing
+      - package: IXLandInstrumentation
+        product: IXLandInstrumentationBridge
+      - package: libarchive-for-swift
+        product: libarchive
+      - sdk: CoreLocation.framework
+      - sdk: UIKit.framework
+      - sdk: WebKit.framework
+      - sdk: SystemConfiguration.framework
+      - sdk: CoreGraphics.framework
+      - sdk: QuartzCore.framework
+      - sdk: AudioToolbox.framework
+      - sdk: libsqlite3.tbd
+      - sdk: libxml2.tbd
+      - sdk: libresolv.tbd
+      - sdk: libiconv.tbd
+      - sdk: UniformTypeIdentifiers.framework
 
   # MARK: - IXLandTerminal Unit Tests
   IXLandTerminalUnitTests:
@@ -154,10 +190,14 @@ targets:
       - Tests/IXLandTerminalUnitTests
     dependencies:
       - target: IXLandTerminal
+      - target: IXLandLinuxRuntime
     settings:
       GENERATE_INFOPLIST_FILE: true
       TEST_HOST: "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal"
       BUNDLE_LOADER: "$(TEST_HOST)"
+      HEADER_SEARCH_PATHS:
+        - "$(SRCROOT)/Sources"
+        - "$(SRCROOT)"
 
   # MARK: - IXLandTerminal End-to-End Tests
   IXLandTerminalEnd2EndTests:
@@ -186,8 +226,6 @@ schemes:
         - name: IXLandLinuxRuntimeUnitTests
           parallelizable: true
         - name: IXLandLinuxRuntimeFunctionalTests
-          parallelizable: true
-        - name: IXLandTerminalUnitTests
           parallelizable: true
         - IXLandTerminalEnd2EndTests
         - IXLandLinuxRuntimeEnd2EndTests

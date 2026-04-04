@@ -1,14 +1,15 @@
-#include <string.h>
-#import <IXLandLinuxRuntime/util/debug.h>
+#import <IXLandInstrumentationTracing/trace.h>
+#import <IXLandLinuxRuntime/fs/fd.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/kernel/errno.h>
-#import <IXLandLinuxRuntime/kernel/task.h>
-#import <IXLandLinuxRuntime/fs/fd.h>
 #import <IXLandLinuxRuntime/kernel/memory.h>
 #import <IXLandLinuxRuntime/kernel/mm.h>
-#import <IXLandLinuxRuntime/trace/trace.h>
+#import <IXLandLinuxRuntime/kernel/task.h>
+#import <IXLandLinuxRuntime/util/debug.h>
+#include <string.h>
 
-struct mm *mm_new() {
+struct mm *mm_new()
+{
     struct mm *mm = malloc(sizeof(struct mm));
     if (mm == NULL)
         return NULL;
@@ -20,7 +21,8 @@ struct mm *mm_new() {
     return mm;
 }
 
-struct mm *mm_copy(struct mm *mm) {
+struct mm *mm_copy(struct mm *mm)
+{
     trace_emit_mm_copy((uint64_t)mm, 0);
     struct mm *new_mm = malloc(sizeof(struct mm));
     if (new_mm == NULL)
@@ -38,12 +40,14 @@ struct mm *mm_copy(struct mm *mm) {
     return new_mm;
 }
 
-void mm_retain(struct mm *mm) {
+void mm_retain(struct mm *mm)
+{
     mm->refcount++;
     trace_emit_mm_retain((uint64_t)mm, mm->refcount);
 }
 
-void mm_release(struct mm *mm) {
+void mm_release(struct mm *mm)
+{
     printk("[mm] mm_release: ENTRY, mm=%p, refcount=%d\n", mm, mm ? mm->refcount : -1);
     if (mm == NULL) {
         printk("[mm] ERROR: mm is NULL!\n");
@@ -70,10 +74,12 @@ void mm_release(struct mm *mm) {
 }
 
 static addr_t do_mmap(addr_t addr, dword_t len, dword_t prot, dword_t flags, fd_t fd_no,
-                      off_t_ offset) {
+                      off_t_ offset)
+{
     int err;
     pages_t pages = PAGE_ROUND_UP(len);
-    if (!pages) return _EINVAL;
+    if (!pages)
+        return _EINVAL;
     page_t page;
     if (addr != 0) {
         if (PGOFFSET(addr) != 0)
@@ -102,7 +108,7 @@ static addr_t do_mmap(addr_t addr, dword_t len, dword_t prot, dword_t flags, fd_
             return _EBADF;
         if (fd->ops->mmap == NULL)
             return _ENODEV;
-        if ((err = fd->ops->mmap(fd, current->mem, page, pages, (off_t) offset, prot, flags)) < 0)
+        if ((err = fd->ops->mmap(fd, current->mem, page, pages, (off_t)offset, prot, flags)) < 0)
             return err;
         mem_pt(current->mem, page)->data->fd = fd_retain(fd);
         mem_pt(current->mem, page)->data->file_offset = offset;
@@ -111,9 +117,10 @@ static addr_t do_mmap(addr_t addr, dword_t len, dword_t prot, dword_t flags, fd_
 }
 
 static addr_t mmap_common(addr_t addr, dword_t len, dword_t prot, dword_t flags, fd_t fd_no,
-                          off_t_ offset) {
+                          off_t_ offset)
+{
     STRACE("mmap(0x%x, 0x%x, 0x%x, 0x%x, %d, %lld)", addr, len, prot, flags, fd_no,
-           (long long) offset);
+           (long long)offset);
     if (len == 0)
         return _EINVAL;
     if (prot & ~P_RWX)
@@ -133,22 +140,25 @@ addr_t sys_mmap_native(addr_t addr, dword_t len, dword_t prot, dword_t flags, fd
     return mmap_common(addr, len, prot, flags, fd_no, offset);
 }
 
-addr_t sys_mmap2(addr_t addr, dword_t len, dword_t prot, dword_t flags, fd_t fd_no, dword_t offset) {
-    return mmap_common(addr, len, prot, flags, fd_no, (off_t_) offset << PAGE_BITS);
+addr_t sys_mmap2(addr_t addr, dword_t len, dword_t prot, dword_t flags, fd_t fd_no, dword_t offset)
+{
+    return mmap_common(addr, len, prot, flags, fd_no, (off_t_)offset << PAGE_BITS);
 }
 
 struct mmap_arg_struct {
     dword_t addr, len, prot, flags, fd, offset;
 };
 
-addr_t sys_mmap(addr_t args_addr) {
+addr_t sys_mmap(addr_t args_addr)
+{
     struct mmap_arg_struct args;
     if (user_get(args_addr, args))
         return _EFAULT;
     return mmap_common(args.addr, args.len, args.prot, args.flags, args.fd, args.offset);
 }
 
-int_t sys_munmap(addr_t addr, uint_t len) {
+int_t sys_munmap(addr_t addr, uint_t len)
+{
     STRACE("munmap(0x%x, 0x%x)", addr, len);
     if (PGOFFSET(addr) != 0)
         return _EINVAL;
@@ -163,9 +173,10 @@ int_t sys_munmap(addr_t addr, uint_t len) {
 }
 
 #define MREMAP_MAYMOVE_ 1
-#define MREMAP_FIXED_ 2
+#define MREMAP_FIXED_   2
 
-int_t sys_mremap(addr_t addr, dword_t old_len, dword_t new_len, dword_t flags) {
+int_t sys_mremap(addr_t addr, dword_t old_len, dword_t new_len, dword_t flags)
+{
     STRACE("mremap(%#x, %#x, %#x, %d)", addr, old_len, new_len, flags);
     if (PGOFFSET(addr) != 0)
         return _EINVAL;
@@ -209,7 +220,8 @@ int_t sys_mremap(addr_t addr, dword_t old_len, dword_t new_len, dword_t flags) {
     return addr;
 }
 
-int_t sys_mprotect(addr_t addr, uint_t len, int_t prot) {
+int_t sys_mprotect(addr_t addr, uint_t len, int_t prot)
+{
     STRACE("mprotect(0x%x, 0x%x, 0x%x)", addr, len, prot);
     if (PGOFFSET(addr) != 0)
         return _EINVAL;
@@ -222,25 +234,30 @@ int_t sys_mprotect(addr_t addr, uint_t len, int_t prot) {
     return err;
 }
 
-dword_t sys_madvise(addr_t UNUSED(addr), dword_t UNUSED(len), dword_t UNUSED(advice)) {
+dword_t sys_madvise(addr_t UNUSED(addr), dword_t UNUSED(len), dword_t UNUSED(advice))
+{
     // portable applications should not rely on linux's destructive semantics for MADV_DONTNEED.
     return 0;
 }
 
 dword_t sys_mbind(addr_t UNUSED(addr), dword_t UNUSED(len), int_t UNUSED(mode),
-        addr_t UNUSED(nodemask), dword_t UNUSED(maxnode), uint_t UNUSED(flags)) {
+                  addr_t UNUSED(nodemask), dword_t UNUSED(maxnode), uint_t UNUSED(flags))
+{
     return 0;
 }
 
-int_t sys_mlock(addr_t UNUSED(addr), dword_t UNUSED(len)) {
+int_t sys_mlock(addr_t UNUSED(addr), dword_t UNUSED(len))
+{
     return 0;
 }
 
-int_t sys_msync(addr_t UNUSED(addr), dword_t UNUSED(len), int_t UNUSED(flags)) {
+int_t sys_msync(addr_t UNUSED(addr), dword_t UNUSED(len), int_t UNUSED(flags))
+{
     return 0;
 }
 
-addr_t sys_brk(addr_t new_brk) {
+addr_t sys_brk(addr_t new_brk)
+{
     STRACE("brk(0x%x)", new_brk);
     struct mm *mm = current->mm;
 
@@ -251,8 +268,9 @@ addr_t sys_brk(addr_t new_brk) {
 
     if (new_brk > old_brk) {
         // expand heap: map region from old_brk to new_brk
-        // round up because of the definition of brk: "the first location after the end of the uninitialized data segment." (brk(2))
-        // if the brk is 0x2000, page 0x2000 shouldn't be mapped, but it should be if the brk is 0x2001.
+        // round up because of the definition of brk: "the first location after the end of the
+        // uninitialized data segment." (brk(2)) if the brk is 0x2000, page 0x2000 shouldn't be
+        // mapped, but it should be if the brk is 0x2001.
         page_t start = PAGE_ROUND_UP(old_brk);
         pages_t size = PAGE_ROUND_UP(new_brk) - PAGE_ROUND_UP(old_brk);
         if (!pt_is_hole(&mm->mem, start, size))

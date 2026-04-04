@@ -9,13 +9,11 @@
 #include <sys/stat.h>
 
 #define ISH_INTERNAL
-#include "tools/fakefs.h"
-
-#include "fs/fake-db.h"
-#include "fs/sqlutil.h"
-#include "util/fchdir.h"
-
-#include "misc.h"
+#include "IXLandLinuxRuntime/fs/fake-db.h"
+#include "IXLandLinuxRuntime/fs/sqlutil.h"
+#include "IXLandLinuxRuntime/util/fchdir.h"
+#include "IXLandLinuxRuntime/util/misc.h"
+#include "fakefs.h"
 
 #ifndef MAX_PATH
 #define MAX_PATH 4096

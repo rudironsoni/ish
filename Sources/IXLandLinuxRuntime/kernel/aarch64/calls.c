@@ -8,13 +8,11 @@
  *   x0  = return value
  */
 
-#import <IXLandLinuxRuntime/kernel/aarch64/calls.h>
-
+#import <IXLandInstrumentationTracing/trace.h>
 #import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
 #import <IXLandLinuxRuntime/emu/interrupt.h>
+#import <IXLandLinuxRuntime/kernel/aarch64/calls.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
-#import <IXLandLinuxRuntime/trace/trace.h>
-
 #include <stdio.h>
 #include <string.h>
 

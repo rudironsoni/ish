@@ -1,46 +1,41 @@
 /*
- * ISHInstrumentationBridge.m
- * Objective-C bridge implementing C API for ISHInstrumentation
+ * IXLandInstrumentationBridge.mm
+ * Apple-side sink implementation for IXLandInstrumentation.
+ * Translates C instrumentation calls to ISHInstrumentation Objective-C API.
  */
 
-#import "ISHInstrumentationBridge.h"
+#import "IXLandInstrumentationBridge.h"
+#import "IXLandInstrumentation/IXLandInstrumentation.h"
 #import "ISHInstrumentation.h"
 
 #include <stdatomic.h>
+#include <string.h>
 
-// C-level atomic flags for startup safety
-// These are checked BEFORE any Objective-C calls to prevent crashes
-// when the bridge is called before the Objective-C runtime is ready
-static atomic_bool instrumentation_bootstrapped = ATOMIC_VAR_INIT(false);
-static atomic_bool instrumentation_active = ATOMIC_VAR_INIT(false);
+static atomic_bool bridge_initialized = ATOMIC_VAR_INIT(false);
+static atomic_bool bridge_active = ATOMIC_VAR_INIT(false);
 
-void ish_instrumentation_bootstrap(void) {
-    atomic_store(&instrumentation_bootstrapped, true);
+static void bridge_bootstrap(void) {
+    atomic_store(&bridge_initialized, true);
     [ISHInstrumentation bootstrap];
 }
 
-void ish_instrumentation_activate(void) {
-    atomic_store(&instrumentation_active, true);
+static void bridge_activate(void) {
+    atomic_store(&bridge_active, true);
     [ISHInstrumentation activate];
 }
 
-bool ish_instrumentation_is_active(void) {
-    return atomic_load(&instrumentation_active);
+static bool bridge_is_active(void) {
+    return atomic_load(&bridge_active);
 }
 
-void ish_instrumentation_record_event(ish_instrumentation_origin_t origin, const char *event_name) {
+static void bridge_record_event(ixland_instrumentation_origin_t origin, const char *event_name) {
     (void)origin;
 
-    // CRITICAL: Check C-level atomic flag FIRST before any Objective-C calls
-    // This prevents crashes when the bridge is called before:
-    //   - The Objective-C runtime is fully initialized
-    //   - ISHInstrumentation is bootstrapped/activated
-    //   - The app layer is ready
-    if (!atomic_load(&instrumentation_active)) {
+    if (!atomic_load(&bridge_active)) {
         return;
     }
 
-    ISHInstrumentationEvent event = ISHInstrumentationEventBootstrapReady; // default
+    ISHInstrumentationEvent event = ISHInstrumentationEventBootstrapReady;
 
     if (strcmp(event_name, "task_proof_start_enter") == 0) {
         event = ISHInstrumentationEventTaskProofStartEnter;
@@ -84,18 +79,18 @@ void ish_instrumentation_record_event(ish_instrumentation_origin_t origin, const
         event = ISHInstrumentationEventGadgetEntryX28;
     } else if (strcmp(event_name, "gadget.fault_addr") == 0) {
         event = ISHInstrumentationEventGadgetFaultAddr;
+    } else if (strcmp(event_name, "tty.input.entry") == 0) {
+        event = ISHInstrumentationEventTtyInputEntry;
     }
-    // Add other event mappings as needed
 
     [ISHInstrumentation recordEvent:event];
 }
 
-uint64_t ish_instrumentation_begin_interval(ish_instrumentation_origin_t origin, const char *interval_name,
-                                             const ish_instrumentation_attribute_t *attrs, uint32_t attr_count) {
+static uint64_t bridge_begin_interval(ixland_instrumentation_origin_t origin, const char *interval_name,
+                                      const ixland_instrumentation_attribute_t *attrs, uint32_t attr_count) {
     (void)origin;
 
-    // CRITICAL: Check C-level atomic flag FIRST before any Objective-C calls
-    if (!atomic_load(&instrumentation_active)) {
+    if (!atomic_load(&bridge_active)) {
         return 0;
     }
 
@@ -110,15 +105,13 @@ uint64_t ish_instrumentation_begin_interval(ish_instrumentation_origin_t origin,
         }
     }
     [ISHInstrumentation beginInterval:name attributes:attributes];
-    // Return a simple hash of the name as interval ID
     return (uint64_t)[name hash];
 }
 
-void ish_instrumentation_end_interval(uint64_t interval_id, const ish_instrumentation_attribute_t *attrs, uint32_t attr_count) {
+static void bridge_end_interval(uint64_t interval_id, const ixland_instrumentation_attribute_t *attrs, uint32_t attr_count) {
     (void)interval_id;
 
-    // CRITICAL: Check C-level atomic flag FIRST before any Objective-C calls
-    if (!atomic_load(&instrumentation_active)) {
+    if (!atomic_load(&bridge_active)) {
         return;
     }
 
@@ -132,4 +125,17 @@ void ish_instrumentation_end_interval(uint64_t interval_id, const ish_instrument
         }
     }
     [ISHInstrumentation endInterval:@"" attributes:attributes];
+}
+
+static const ixland_instrumentation_sink_t bridge_sink = {
+    .bootstrap = bridge_bootstrap,
+    .activate = bridge_activate,
+    .is_active = bridge_is_active,
+    .record_event = bridge_record_event,
+    .begin_interval = bridge_begin_interval,
+    .end_interval = bridge_end_interval,
+};
+
+void ixland_instrumentation_bridge_register(void) {
+    ixland_instrumentation_register_sink(&bridge_sink);
 }

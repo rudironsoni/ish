@@ -8,7 +8,7 @@
 #import "Terminal.h"
 #import "DelayedUITask.h"
 #import "UserPreferences.h"
-#import "Instrumentation/ISHInstrumentation.h"
+#import <ISHInstrumentation.h>
 #import "LinuxInterop.h"
 #import <IXLandLinuxRuntime/fs/devices.h>
 #import <IXLandLinuxRuntime/fs/tty.h>

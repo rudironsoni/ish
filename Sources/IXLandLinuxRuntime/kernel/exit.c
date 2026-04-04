@@ -1,3 +1,4 @@
+#import <IXLandInstrumentationTracing/trace.h>
 #import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
 #import <IXLandLinuxRuntime/emu/interrupt.h>
 #import <IXLandLinuxRuntime/fs/fd.h>
@@ -6,8 +7,6 @@
 #import <IXLandLinuxRuntime/kernel/futex.h>
 #import <IXLandLinuxRuntime/kernel/mm.h>
 #import <IXLandLinuxRuntime/kernel/ptrace.h>
-#import <IXLandLinuxRuntime/trace/trace.h>
-
 #include <pthread.h>
 #include <signal.h>
 #include <stdio.h>

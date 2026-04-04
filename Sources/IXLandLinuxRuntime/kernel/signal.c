@@ -5,16 +5,14 @@
  * This is a minimal implementation for AArch64 bring-up.
  */
 
-#import <IXLandLinuxRuntime/kernel/signal.h>
-
+#import <IXLandInstrumentationTracing/trace.h>
 #import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
 #import <IXLandLinuxRuntime/emu/interrupt.h>
 #import <IXLandLinuxRuntime/kernel/aarch64/signal.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/kernel/errno.h>
+#import <IXLandLinuxRuntime/kernel/signal.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
-#import <IXLandLinuxRuntime/trace/trace.h>
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

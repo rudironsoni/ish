@@ -1,16 +1,16 @@
 /*
  * trace.c
- * Thin lifecycle shim forwarding to ISHInstrumentation.
+ * Thin lifecycle shim forwarding to IXLandInstrumentation.
  *
  * All startup markers, ring persistence, recovery, backend policy,
  * environment configuration, and proof scaffolding have been removed.
- * Only semantic forwarding to ish_instrumentation_* remains.
+ * Only semantic forwarding to ixland_instrumentation_* remains.
  */
 
-#include "trace/trace.h"
+#include "trace.h"
 
-#include "trace/trace_internal.h"
-#include "trace/trace_types.h"
+#include "trace_internal.h"
+#include "trace_types.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -18,45 +18,10 @@
 #include <string.h>
 
 /* ============================================
- * Bridge Forwarding (delegates to app layer)
- * ============================================
- *
- * These functions are provided by ISHInstrumentationBridge.mm
- * when building for iOS. The trace_types.h header provides the
- * origin enum and attribute struct definitions.
- */
+ * Instrumentation API (provided by IXLandInstrumentation package)
+ * ============================================ */
 
-#include "app/Instrumentation/ISHInstrumentationBridge.h"
-
-static int instrumentation_active = 0;
-__attribute__((weak)) bool ish_instrumentation_is_active(void)
-{
-    return instrumentation_active;
-}
-__attribute__((weak)) void ish_instrumentation_record_event(ish_instrumentation_origin_t origin,
-                                                            const char *event_name)
-{
-    (void)origin;
-    (void)event_name;
-}
-__attribute__((weak)) uint64_t ish_instrumentation_begin_interval(
-    ish_instrumentation_origin_t origin, const char *interval_name,
-    const ish_instrumentation_attribute_t *attrs, uint32_t attr_count)
-{
-    (void)origin;
-    (void)interval_name;
-    (void)attrs;
-    (void)attr_count;
-    return 0;
-}
-__attribute__((weak)) void
-ish_instrumentation_end_interval(uint64_t interval_id, const ish_instrumentation_attribute_t *attrs,
-                                 uint32_t attr_count)
-{
-    (void)interval_id;
-    (void)attrs;
-    (void)attr_count;
-}
+#include <IXLandInstrumentation/IXLandInstrumentation.h>
 
 /* ============================================
  * Semantic API - forwards to ISHInstrumentation
@@ -64,36 +29,36 @@ ish_instrumentation_end_interval(uint64_t interval_id, const ish_instrumentation
 
 void trace_bootstrap(void)
 {
-    ish_instrumentation_bootstrap();
+    ixland_instrumentation_bootstrap();
 }
 
 void trace_activate(void)
 {
-    ish_instrumentation_activate();
+    ixland_instrumentation_activate();
 }
 
 bool trace_is_active(void)
 {
-    return ish_instrumentation_is_active();
+    return ixland_instrumentation_is_active();
 }
 
 void trace_record_event(int origin, const char *event_name)
 {
-    ish_instrumentation_record_event((ish_instrumentation_origin_t)origin, event_name);
+    ixland_instrumentation_record_event((ixland_instrumentation_origin_t)origin, event_name);
 }
 
 uint64_t trace_begin_interval(int origin, const char *interval_name, const void *attrs,
                               uint32_t attr_count)
 {
-    return ish_instrumentation_begin_interval((ish_instrumentation_origin_t)origin, interval_name,
-                                              (const ish_instrumentation_attribute_t *)attrs,
-                                              attr_count);
+    return ixland_instrumentation_begin_interval(
+        (ixland_instrumentation_origin_t)origin, interval_name,
+        (const ixland_instrumentation_attribute_t *)attrs, attr_count);
 }
 
 void trace_end_interval(uint64_t interval_id, const void *attrs, uint32_t attr_count)
 {
-    ish_instrumentation_end_interval(interval_id, (const ish_instrumentation_attribute_t *)attrs,
-                                     attr_count);
+    ixland_instrumentation_end_interval(
+        interval_id, (const ixland_instrumentation_attribute_t *)attrs, attr_count);
 }
 
 /* ============================================
@@ -116,7 +81,7 @@ static const trace_event_desc_t event_descriptors[TRACE_EVENT_MAX] = {
 
 #define TRACE_EVENT(name, level, category, payload_size)                                           \
     [TRACE_EVENT_##name] = { #name, level, category, payload_size },
-#include "trace/trace_events.def"
+#include "trace_events.def"
 #undef TRACE_EVENT
 };
 
@@ -161,7 +126,7 @@ trace_ctx_t *trace_get_global(void)
 /* Check if tracing is enabled - forwards to ISHInstrumentation */
 bool trace_is_enabled(void)
 {
-    return ish_instrumentation_is_active();
+    return ixland_instrumentation_is_active();
 }
 
 /* Get current trace level - always off */
@@ -602,48 +567,49 @@ void trace_emit_task_proof_point(task_proof_point_t point, uint32_t pid)
     /* Route through ISHInstrumentation bridge only - single observability path */
     switch (point) {
     case TASK_PROOF_START_ENTER:
-        ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK, "task_proof_start_enter");
+        ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TASK,
+                                            "task_proof_start_enter");
         break;
     case TASK_PROOF_BEFORE_PTHREAD:
-        ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
-                                         "task_proof_before_pthread");
+        ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TASK,
+                                            "task_proof_before_pthread");
         break;
     case TASK_PROOF_AFTER_PTHREAD:
-        ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
-                                         "task_proof_after_pthread");
+        ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TASK,
+                                            "task_proof_after_pthread");
         break;
     case TASK_PROOF_THREAD_ENTRY:
-        ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
-                                         "task_proof_thread_entry");
+        ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TASK,
+                                            "task_proof_thread_entry");
         break;
     case TASK_PROOF_BEFORE_CURRENT_SET:
-        ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
-                                         "task_proof_before_current_set");
+        ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TASK,
+                                            "task_proof_before_current_set");
         break;
     case TASK_PROOF_AFTER_CURRENT_SET:
-        ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
-                                         "task_proof_after_current_set");
+        ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TASK,
+                                            "task_proof_after_current_set");
         break;
     case TASK_PROOF_RUN_CURRENT_ENTER:
-        ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
-                                         "task_proof_run_current_enter");
+        ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TASK,
+                                            "task_proof_run_current_enter");
         break;
     case TASK_PROOF_BEFORE_GUEST_CPU:
-        ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
-                                         "task_proof_before_guest_cpu");
+        ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TASK,
+                                            "task_proof_before_guest_cpu");
         break;
     // Paired diagnostic proof points for narrowing failure boundary
     case TASK_PROOF_AFTER_THREAD_ENTRY:
-        ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
-                                         "task_proof_after_thread_entry");
+        ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TASK,
+                                            "task_proof_after_thread_entry");
         break;
     case TASK_PROOF_BEFORE_TASK_RUN_CURRENT:
-        ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
-                                         "task_proof_before_task_run_current");
+        ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TASK,
+                                            "task_proof_before_task_run_current");
         break;
     case TASK_PROOF_TASK_RUN_CURRENT_ENTRY:
-        ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TASK,
-                                         "task_proof_task_run_current_entry");
+        ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TASK,
+                                            "task_proof_task_run_current_entry");
         break;
     }
     (void)pid;
@@ -695,7 +661,8 @@ void trace_emit_tcti_entry_x28_before(uint64_t x28_value)
     char x28_buf[24];
     snprintf(x28_buf, sizeof(x28_buf), "0x%llx", (unsigned long long)x28_value);
 
-    ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "tcti.entry.x28.before");
+    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI,
+                                        "tcti.entry.x28.before");
 
     /* Also write to ring buffer for pre-crash capture */
     trace_tcti_to_ring(TRACE_EVENT_TCTI_ENTRY_X28_BEFORE, x28_value);
@@ -707,7 +674,7 @@ void trace_emit_tcti_entry_qword0(uint64_t qword0)
     char qword0_buf[24];
     snprintf(qword0_buf, sizeof(qword0_buf), "0x%llx", (unsigned long long)qword0);
 
-    ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "tcti.entry.qword0");
+    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI, "tcti.entry.qword0");
 
     /* Also write to ring buffer for pre-crash capture */
     trace_tcti_to_ring(TRACE_EVENT_TCTI_ENTRY_QWORD0, qword0);
@@ -719,7 +686,7 @@ void trace_emit_tcti_entry_x27_after(uint64_t x27_value)
     char x27_buf[24];
     snprintf(x27_buf, sizeof(x27_buf), "0x%llx", (unsigned long long)x27_value);
 
-    ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "tcti.entry.x27.after");
+    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI, "tcti.entry.x27.after");
 
     /* Also write to ring buffer for pre-crash capture */
     trace_tcti_to_ring(TRACE_EVENT_TCTI_ENTRY_X27_AFTER, x27_value);
@@ -731,7 +698,7 @@ void trace_emit_tcti_entry_x28_after(uint64_t x28_value)
     char x28_buf[24];
     snprintf(x28_buf, sizeof(x28_buf), "0x%llx", (unsigned long long)x28_value);
 
-    ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "tcti.entry.x28.after");
+    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI, "tcti.entry.x28.after");
 
     /* Also write to ring buffer for pre-crash capture */
     trace_tcti_to_ring(TRACE_EVENT_TCTI_ENTRY_X28_AFTER, x28_value);
@@ -743,7 +710,7 @@ void trace_emit_tcti_entry_qword1(uint64_t qword1)
     char qword1_buf[24];
     snprintf(qword1_buf, sizeof(qword1_buf), "0x%llx", (unsigned long long)qword1);
 
-    ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "tcti.entry.qword1");
+    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI, "tcti.entry.qword1");
 
     /* Also write to ring buffer for pre-crash capture */
     trace_tcti_to_ring(TRACE_EVENT_TCTI_ENTRY_QWORD1, qword1);
@@ -755,7 +722,7 @@ void trace_emit_gadget_entry_x28(uint64_t x28_value)
     char x28_buf[24];
     snprintf(x28_buf, sizeof(x28_buf), "0x%llx", (unsigned long long)x28_value);
 
-    ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "gadget.entry.x28");
+    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI, "gadget.entry.x28");
 
     /* Also write to ring buffer for pre-crash capture */
     trace_tcti_to_ring(TRACE_EVENT_GADGET_ENTRY_X28, x28_value);
@@ -767,7 +734,7 @@ void trace_emit_gadget_fault_addr(uint64_t fault_addr)
     char addr_buf[24];
     snprintf(addr_buf, sizeof(addr_buf), "0x%llx", (unsigned long long)fault_addr);
 
-    ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "gadget.fault_addr");
+    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI, "gadget.fault_addr");
 
     /* Also write to ring buffer for pre-crash capture */
     trace_tcti_to_ring(TRACE_EVENT_GADGET_FAULT_ADDR, fault_addr);
@@ -787,7 +754,7 @@ void trace_emit_gadget_ldr_fault_pc(uint64_t fault_pc)
     char buf[24];
     snprintf(buf, sizeof(buf), "0x%llx", (unsigned long long)fault_pc);
 
-    ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "gadget.ldr.fault_pc");
+    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI, "gadget.ldr.fault_pc");
     trace_tcti_to_ring(TRACE_EVENT_GADGET_LDR_FAULT_PC, fault_pc);
 }
 
@@ -797,7 +764,7 @@ void trace_emit_gadget_ldr_rn_value(uint64_t rn_value)
     char buf[24];
     snprintf(buf, sizeof(buf), "0x%llx", (unsigned long long)rn_value);
 
-    ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "gadget.ldr.rn_value");
+    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI, "gadget.ldr.rn_value");
     trace_tcti_to_ring(TRACE_EVENT_GADGET_LDR_RN_VALUE, rn_value);
 }
 
@@ -807,7 +774,7 @@ void trace_emit_gadget_ldr_imm_value(uint64_t imm_value)
     char buf[24];
     snprintf(buf, sizeof(buf), "0x%llx", (unsigned long long)imm_value);
 
-    ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "gadget.ldr.imm_value");
+    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI, "gadget.ldr.imm_value");
     trace_tcti_to_ring(TRACE_EVENT_GADGET_LDR_IMM_VALUE, imm_value);
 }
 
@@ -817,7 +784,7 @@ void trace_emit_gadget_ldr_idx_mode(uint64_t idx_mode)
     char buf[24];
     snprintf(buf, sizeof(buf), "0x%llx", (unsigned long long)idx_mode);
 
-    ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "gadget.ldr.idx_mode");
+    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI, "gadget.ldr.idx_mode");
     trace_tcti_to_ring(TRACE_EVENT_GADGET_LDR_IDX_MODE, idx_mode);
 }
 
@@ -827,7 +794,8 @@ void trace_emit_gadget_ldr_guest_vaddr(uint64_t guest_vaddr)
     char buf[24];
     snprintf(buf, sizeof(buf), "0x%llx", (unsigned long long)guest_vaddr);
 
-    ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "gadget.ldr.guest_vaddr");
+    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI,
+                                        "gadget.ldr.guest_vaddr");
     trace_tcti_to_ring(TRACE_EVENT_GADGET_LDR_GUEST_VADDR, guest_vaddr);
 }
 
@@ -837,7 +805,7 @@ void trace_emit_gadget_ldr_host_ptr(uint64_t host_ptr)
     char buf[24];
     snprintf(buf, sizeof(buf), "0x%llx", (unsigned long long)host_ptr);
 
-    ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_TCTI, "gadget.ldr.host_ptr");
+    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI, "gadget.ldr.host_ptr");
     trace_tcti_to_ring(TRACE_EVENT_GADGET_LDR_HOST_PTR, host_ptr);
 }
 
@@ -849,7 +817,8 @@ void trace_emit_mem_translate_attempt(uint64_t guest_addr, uint64_t size)
     snprintf(addr_buf, sizeof(addr_buf), "0x%llx", (unsigned long long)guest_addr);
     snprintf(size_buf, sizeof(size_buf), "0x%llx", (unsigned long long)size);
 
-    ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_KERNEL, "mem.translate.attempt");
+    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
+                                        "mem.translate.attempt");
     trace_tcti_to_ring(TRACE_EVENT_MEM_TRANSLATE_ATTEMPT, guest_addr);
 }
 
@@ -861,7 +830,8 @@ void trace_emit_mem_translate_result(uint64_t host_ptr, int success)
     snprintf(ptr_buf, sizeof(ptr_buf), "0x%llx", (unsigned long long)host_ptr);
     snprintf(success_buf, sizeof(success_buf), "%d", success);
 
-    ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_KERNEL, "mem.translate.result");
+    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
+                                        "mem.translate.result");
     trace_tcti_to_ring(TRACE_EVENT_MEM_TRANSLATE_RESULT, host_ptr);
 }
 
@@ -873,7 +843,7 @@ void trace_emit_mem_pgdir_lookup(uint64_t page, uint64_t pgdir_slot)
     snprintf(page_buf, sizeof(page_buf), "0x%llx", (unsigned long long)page);
     snprintf(slot_buf, sizeof(slot_buf), "0x%llx", (unsigned long long)pgdir_slot);
 
-    ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_KERNEL, "mem.pgdir.lookup");
+    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "mem.pgdir.lookup");
     trace_tcti_to_ring(TRACE_EVENT_MEM_PGDIR_LOOKUP, pgdir_slot);
 }
 

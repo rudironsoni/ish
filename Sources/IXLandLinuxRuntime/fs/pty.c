@@ -1,9 +1,8 @@
+#import <IXLandInstrumentationTracing/trace.h>
 #import <IXLandLinuxRuntime/fs/devices.h>
 #import <IXLandLinuxRuntime/fs/tty.h>
 #import <IXLandLinuxRuntime/kernel/errno.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
-#import <IXLandLinuxRuntime/trace/trace.h>
-
 #include <ctype.h>
 #include <limits.h>
 #include <stdio.h>

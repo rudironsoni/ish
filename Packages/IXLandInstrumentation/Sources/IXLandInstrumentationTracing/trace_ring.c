@@ -3,8 +3,8 @@
  * Ring buffer flight recorder backend implementation.
  */
 
-#include "trace/trace.h"
-#include "trace/trace_types.h"
+#include "trace.h"
+#include "trace_types.h"
 
 #include <fcntl.h>
 #include <signal.h>

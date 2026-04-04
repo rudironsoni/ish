@@ -1,8 +1,8 @@
-#import <IXLandLinuxRuntime/kernel/task.h>
-
 #import <IXLandLinuxRuntime/kernel/memory.h>
 #import <IXLandLinuxRuntime/kernel/signal.h>
+#import <IXLandLinuxRuntime/kernel/task.h>
 #define _GNU_SOURCE
+#import <IXLandInstrumentationTracing/trace.h>
 #import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
 #import <IXLandLinuxRuntime/emu/aarch64/tls.h>
 #import <IXLandLinuxRuntime/fs/fd.h>
@@ -11,10 +11,7 @@
 #import <IXLandLinuxRuntime/kernel/errno.h>
 #import <IXLandLinuxRuntime/kernel/random.h>
 #import <IXLandLinuxRuntime/kernel/vdso.h>
-#import <IXLandLinuxRuntime/trace/trace.h>
-
 #import <IXLandLinuxRuntime/util/misc.h>
-
 #include <fcntl.h>
 #include <pthread.h>
 #include <stdarg.h>
@@ -729,7 +726,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
         for (int i = 0; i < interp_header.phent_count; i++) {
             if (interp_ph[i].type == PT_LOAD) {
                 addr_t seg_addr = interp_base + interp_ph[i].vaddr;
-                (void) seg_addr;
+                (void)seg_addr;
             }
         }
     }
@@ -1259,7 +1256,7 @@ int __do_execve(const char *file, struct exec_args argv, struct exec_args envp)
 
     char debug_buf[17] = { 0 };
     fd->ops->lseek(fd, 0, LSEEK_SET);
-    (void) fd->ops->read(fd, debug_buf, 16);
+    (void)fd->ops->read(fd, debug_buf, 16);
     fd->ops->lseek(fd, 0, LSEEK_SET);
 
     // TRACE[3]: before_format_exec

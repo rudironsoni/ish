@@ -16,14 +16,14 @@
 #import "NSObject+SaneKVO.h"
 #import "LinuxInterop.h"
 #import "Instrumentation/ISHRuntimeFlags.h"
-#import "Instrumentation/ISHInstrumentation.h"
+#import <ISHInstrumentation.h>
 #import <IXLandLinuxRuntime/kernel/init.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/fs/devices.h>
 #import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
 #import <IXLandLinuxRuntime/emu/tlb.h>
-#import <IXLandLinuxRuntime/trace/trace.h>
+#import <IXLandInstrumentationTracing/trace.h>
 
 #include <stdio.h>
 

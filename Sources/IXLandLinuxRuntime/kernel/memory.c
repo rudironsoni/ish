@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 #define DEFAULT_CHANNEL memory
+#import <IXLandInstrumentationTracing/trace_internal.h>
 #import <IXLandLinuxRuntime/emu/aarch64/block-cache.h>
 #import <IXLandLinuxRuntime/fs/fd.h>
 #import <IXLandLinuxRuntime/kernel/errno.h>
@@ -14,8 +15,6 @@
 #import <IXLandLinuxRuntime/kernel/signal.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
 #import <IXLandLinuxRuntime/kernel/vdso.h>
-#import <IXLandLinuxRuntime/trace/trace_internal.h>
-
 #import <IXLandLinuxRuntime/util/debug.h>
 
 // increment the change count

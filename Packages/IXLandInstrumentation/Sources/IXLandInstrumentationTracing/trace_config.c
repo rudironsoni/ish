@@ -10,7 +10,7 @@
  * retained below for source compatibility, but the implementation is a no-op.
  */
 
-#include "trace/trace.h"
+#include "trace.h"
 
 #include <stdio.h>
 #include <stdlib.h>

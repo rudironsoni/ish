@@ -25,14 +25,15 @@
 #import "UserPreferences.h"
 #import "UIApplication+OpenURL.h"
 #import "Instrumentation/ISHRuntimeFlags.h"
-#import "Instrumentation/ISHInstrumentation.h"
-#import "Instrumentation/ISHInstrumentationBridge.h"
+#import <IXLandInstrumentation/IXLandInstrumentation.h>
+#import <IXLandInstrumentationBridge.h>
+#import <ISHInstrumentation.h>
 #import <IXLandLinuxRuntime/kernel/init.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/fs/dyndev.h>
 #import <IXLandLinuxRuntime/fs/devices.h>
 #import <IXLandLinuxRuntime/fs/path.h>
-#import <IXLandLinuxRuntime/trace/trace.h>
+#import <IXLandInstrumentationTracing/trace.h>
 #include <fcntl.h>
 
 @interface AppDelegate ()
@@ -246,7 +247,7 @@ static NSString *const kSkipStartupMessage = @"Skip Startup Message";
     }
 
     // Activate instrumentation before boot to capture all kernel events
-    ish_instrumentation_activate();
+    ixland_instrumentation_activate();
 
     bootError = [self boot];
 

@@ -10,7 +10,7 @@
 #import "Roots.h"
 #import "AppGroup.h"
 #import "NSObject+SaneKVO.h"
-#import "tools/fakefs.h"
+#import "fakefs.h"
 
 static NSURL *RootsDir(void) {
     static NSURL *rootsDir;

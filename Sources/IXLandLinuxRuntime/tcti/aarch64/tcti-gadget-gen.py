@@ -317,7 +317,7 @@ IMPL_TEMPLATE = """/*
  */
 
 #include "gadgets_tcti.h"
-#include "emu/aarch64/cpu.h"
+#include "IXLandLinuxRuntime/emu/aarch64/cpu.h"
 
 // ============================================================================
 // Diagnostic Buffer for CMP-to-B.NE Handoff Debugging

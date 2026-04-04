@@ -1,17 +1,16 @@
 #ifndef TASK_H
 #define TASK_H
 
+#import <IXLandInstrumentationTracing/trace.h>
 #import <IXLandLinuxRuntime/emu/cpu.h>
 #import <IXLandLinuxRuntime/fs/sockrestart.h>
 #import <IXLandLinuxRuntime/kernel/fs.h>
 #import <IXLandLinuxRuntime/kernel/mm.h>
 #import <IXLandLinuxRuntime/kernel/resource.h>
 #import <IXLandLinuxRuntime/kernel/signal.h>
-#import <IXLandLinuxRuntime/trace/trace.h>
 #import <IXLandLinuxRuntime/util/list.h>
 #import <IXLandLinuxRuntime/util/sync.h>
 #import <IXLandLinuxRuntime/util/timer.h>
-
 #include <pthread.h>
 
 // everything here is private to the thread executing this task and needs no

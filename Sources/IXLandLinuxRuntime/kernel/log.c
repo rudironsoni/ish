@@ -10,12 +10,22 @@
 #if LOG_HANDLER_OS_LOG
 #include <os/log.h>
 #endif
+#ifndef LOG_HANDLER_DPRINTF
+#ifndef LOG_HANDLER_NSLOG
+#ifndef LOG_HANDLER_SYSLOG
+#ifndef LOG_HANDLER_OS_LOG
+#ifndef LOG_HANDLER_STDERR
+#include <CoreFoundation/CoreFoundation.h>
+#endif
+#endif
+#endif
+#endif
+#endif
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
 #import <IXLandLinuxRuntime/util/fifo.h>
-#import <IXLandLinuxRuntime/util/sync.h>
-
 #import <IXLandLinuxRuntime/util/misc.h>
+#import <IXLandLinuxRuntime/util/sync.h>
 
 #define LOG_BUF_SHIFT 20
 static char log_buffer[1 << LOG_BUF_SHIFT];
@@ -170,6 +180,13 @@ static void log_line(const char *line)
 static void log_line(const char *line)
 {
     fprintf(stderr, "%s\n", line);
+}
+#else
+// Default: use NSLog on Apple platforms
+static void log_line(const char *line)
+{
+    extern void NSLog(CFStringRef msg, ...);
+    NSLog(CFSTR("%s"), line);
 }
 #endif
 

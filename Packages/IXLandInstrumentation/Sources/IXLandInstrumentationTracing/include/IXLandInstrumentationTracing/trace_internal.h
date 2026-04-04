@@ -20,7 +20,7 @@
 #ifndef TRACE_INTERNAL_H
 #define TRACE_INTERNAL_H
 
-#include "trace/trace_types.h"
+#include "trace_types.h"
 
 #include <stdbool.h>
 #include <stdint.h>

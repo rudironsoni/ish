@@ -4,11 +4,9 @@
  * Bridges the TCTI gadgets with iSH's process model.
  */
 
-#import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
-
-#import <IXLandLinuxRuntime/tcti/gadgets_tcti.h>
-
+#import <IXLandInstrumentationTracing/trace.h>
 #import <IXLandLinuxRuntime/emu/aarch64/block-cache.h>
+#import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
 #import <IXLandLinuxRuntime/emu/aarch64/memory.h>
 #import <IXLandLinuxRuntime/emu/interrupt.h>
 #import <IXLandLinuxRuntime/emu/mmu.h>
@@ -17,8 +15,7 @@
 #import <IXLandLinuxRuntime/kernel/task.h>
 #import <IXLandLinuxRuntime/tcti/aarch64/gen.h>
 #import <IXLandLinuxRuntime/tcti/frame.h>
-#import <IXLandLinuxRuntime/trace/trace.h>
-
+#import <IXLandLinuxRuntime/tcti/gadgets_tcti.h>
 #include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>

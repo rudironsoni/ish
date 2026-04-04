@@ -14,8 +14,8 @@
 #ifndef TRACE_H
 #define TRACE_H
 
-#include "trace/trace_types.h"
-#include "trace/trace_internal.h"
+#include "trace_types.h"
+#include "trace_internal.h"
 
 #include <stdbool.h>
 #include <stdint.h>

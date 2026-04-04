@@ -16,13 +16,16 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(url: "https://github.com/matteo-pacini/libarchive-for-swift", from: "1.0.0")
+        .package(url: "https://github.com/matteo-pacini/libarchive-for-swift", from: "1.0.0"),
+        .package(path: "Packages/IXLandInstrumentation"),
     ],
     targets: [
         .target(
             name: "IXLandLinuxRuntime",
             dependencies: [
-                .product(name: "libarchive", package: "libarchive-for-swift")
+                .product(name: "libarchive", package: "libarchive-for-swift"),
+                .product(name: "IXLandInstrumentation", package: "IXLandInstrumentation"),
+                .product(name: "IXLandInstrumentationTracing", package: "IXLandInstrumentation"),
             ],
             path: "Sources/IXLandLinuxRuntime",
             exclude: [
@@ -30,19 +33,7 @@ let package = Package(
             ],
             publicHeadersPath: "include",
             cSettings: [
-                .headerSearchPath("."),
-                .headerSearchPath("emu"),
-                .headerSearchPath("emu/aarch64"),
-                .headerSearchPath("kernel"),
-                .headerSearchPath("kernel/aarch64"),
-                .headerSearchPath("fs"),
-                .headerSearchPath("fs/proc"),
-                .headerSearchPath("platform"),
-                .headerSearchPath("platform/ios"),
-                .headerSearchPath("tcti"),
-                .headerSearchPath("tcti/aarch64"),
-                .headerSearchPath("util"),
-                .unsafeFlags(["-x", "assembler-with-cpp"]),
+                .headerSearchPath("../"),
                 .define("IXLAND_LINUX_RUNTIME"),
                 .define("ISH_PLATFORM_IOS"),
             ],
@@ -53,14 +44,24 @@ let package = Package(
         .executableTarget(
             name: "IXLandTerminal",
             dependencies: [
-                "IXLandLinuxRuntime"
+                "IXLandLinuxRuntime",
+                .product(name: "IXLandInstrumentation", package: "IXLandInstrumentation"),
+                .product(name: "IXLandInstrumentationBridge", package: "IXLandInstrumentation"),
             ],
             path: "Sources/IXLandTerminal",
             exclude: [
                 "Tests/",
                 "UITests/",
                 "targets/",
-                "*.xcconfig",
+                "AppLib.xcconfig",
+                "CLI.xcconfig",
+                "iOS.xcconfig",
+                "iSH.xcconfig",
+                "Project.xcconfig",
+                "StaticLib.xcconfig",
+                "XcodeDebug.xcconfig",
+                "XcodeDefault.xcconfig",
+                "XcodeRelease.xcconfig",
                 "xcode-ninja.sh",
                 "gen_apk_repositories.py"
             ],

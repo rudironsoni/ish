@@ -15,12 +15,10 @@
  *   x27-x29 (host)  -> TCTI internals  [gadget ptr, bytecode, cpu_state]
  */
 
-#import <IXLandLinuxRuntime/tcti/gadgets_tcti.h>
-
+#import <IXLandInstrumentationTracing/trace.h>
 #import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
 #import <IXLandLinuxRuntime/emu/aarch64/memory.h>
-#import <IXLandLinuxRuntime/trace/trace.h>
-
+#import <IXLandLinuxRuntime/tcti/gadgets_tcti.h>
 #include <stddef.h>
 #include <stdio.h>
 

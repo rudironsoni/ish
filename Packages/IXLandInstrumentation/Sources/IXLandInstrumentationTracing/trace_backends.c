@@ -7,8 +7,8 @@
  * provide forensic evidence of the events leading to the crash.
  */
 
-#include "trace/trace.h"
-#include "trace/trace_types.h"
+#include "trace.h"
+#include "trace_types.h"
 
 #include <signal.h>
 #include <stdbool.h>
@@ -17,10 +17,10 @@
 #include <string.h>
 
 /* ============================================
- * Bridge Forwarding to ISHInstrumentationBridge
+ * Instrumentation API (provided by IXLandInstrumentation package)
  * ============================================ */
 
-#include "app/Instrumentation/ISHInstrumentationBridge.h"
+#include <IXLandInstrumentation/IXLandInstrumentation.h>
 
 /* ============================================
  * Ring Buffer State - Always Active
@@ -120,9 +120,9 @@ static void bridge_emit(void *ctx, trace_record_t *record)
     ring_buffer_write(record);
 
     /* Forward to the app-owned instrumentation bridge if active */
-    if (ish_instrumentation_is_active()) {
+    if (ixland_instrumentation_is_active()) {
         const char *event_name = trace_event_name(record->header.event_id);
-        ish_instrumentation_record_event(ISH_INSTRUMENTATION_ORIGIN_EMULATOR, event_name);
+        ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR, event_name);
     }
 }
 
