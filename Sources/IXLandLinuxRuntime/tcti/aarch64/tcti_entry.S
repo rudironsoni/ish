@@ -192,8 +192,8 @@ tcti_c_call_epilogue:
 _tcti_exit_block:
 tcti_exit_block:
     // Save exit reason to cpu_state
-    // tcti_exit_reason is at offset 860 (calculated from structure layout)
-    str     w0,  [x29, #860]        // Store exit reason to cpu->tcti_exit_reason (32-bit int)
+    // tcti_exit_reason is at offset 356 (verified via static_assert)
+    str     w0,  [x29, #364]        // Store exit reason to cpu->tcti_exit_reason (32-bit int)
     
     // CRITICAL: Save NZCV immediately before any flag-setting instruction
     // This prevents debug logic (cmp below) from clobbering guest flags

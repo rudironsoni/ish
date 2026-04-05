@@ -14,13 +14,13 @@ code:
   # Address 0x4008: b.ne 0x4000         # Branch back if not equal (Z=0)
 
   # First instruction encoding (at initial PC = 0x4000)
-  encoding_hex_le: "428400f8"
+  encoding_hex_le: "028400f8"
 
   instructions:
     - name: str_post_loop
       address: 0x4000
       asm: "str x2, [x0], #8"
-      encoding_hex_le: "428400f8"
+      encoding_hex_le: "028400f8"
       description: "Store x2 to [x0], then x0 += 8"
 
     - name: subs_counter

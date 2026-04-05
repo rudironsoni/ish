@@ -8,13 +8,10 @@
  * memory-backed registers (x16-x30, SP) via load/store sequences.
  */
 
-#import <IXLandLinuxRuntime/tcti/aarch64/gen.h>
-
 #import <IXLandLinuxRuntime/emu/aarch64/decode.h>
 #import <IXLandLinuxRuntime/tcti/aarch64/gadgets_complex.h>
-
+#import <IXLandLinuxRuntime/tcti/aarch64/gen.h>
 #import <IXLandLinuxRuntime/util/debug.h>
-
 #include <stdlib.h>
 #include <string.h>
 
@@ -1241,9 +1238,7 @@ int a64_gen_ldst(a64_gen_state_t *state, const a64_instr_t *instr)
     if (ret != A64_GEN_OK)
         return ret;
 
-    // Single-instruction helpers already apply pre/post-index writeback.
-    // Emitting an extra base writeback here corrupts the architectural base
-    // register and causes post-index loops to run past their bounds.
+    // Single load/store helpers own pre/post-index writeback internally.
     return A64_GEN_OK;
 }
 
@@ -1253,27 +1248,43 @@ int a64_gen_ldst(a64_gen_state_t *state, const a64_instr_t *instr)
  */
 int a64_gen_system(a64_gen_state_t *state, const a64_instr_t *instr)
 {
-    tcti_gadget_t gadget = NULL;
+    int ret;
 
     // Exception generation (SVC, HVC, SMC) - subtype from decoder
     switch (instr->subtype) {
     case 0: // SVC
-        gadget = gadget_svc;
+        ret = emit_gadget(state, gadget_svc);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->imm);
+        if (ret != A64_GEN_OK)
+            return ret;
         state->is_complete = 1;
-        break;
+        return A64_GEN_OK;
+    case 2: // MRS
+        ret = emit_gadget(state, gadget_mrs);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->sysreg);
+        if (ret != A64_GEN_OK)
+            return ret;
+        return emit_u64(state, instr->Rd);
+    case 4: // MSR (reg)
+        ret = emit_gadget(state, gadget_msr);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->sysreg);
+        if (ret != A64_GEN_OK)
+            return ret;
+        return emit_u64(state, instr->Rd);
     case 6: // HINT (NOP, YIELD, etc.)
         if (instr->imm == 0) {
-            gadget = gadget_nop;
+            return emit_gadget(state, gadget_nop);
         }
-        break;
+        return A64_GEN_UNSUPPORTED;
     default:
         return A64_GEN_UNSUPPORTED;
     }
-
-    if (gadget)
-        return emit_gadget(state, gadget);
-
-    return A64_GEN_UNSUPPORTED;
 }
 
 /* ============================================================================

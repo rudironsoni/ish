@@ -300,18 +300,7 @@ gadget_cbz:
  * ============================================================================
  */
 
-// MRS - Move to register from system register
-.global _gadget_mrs
-gadget_mrs:
-    // For now, exit to C for system register access
-    mov     x0, #4                  // COMPLEX exit
-    b       _tcti_exit_block
-
-// MSR - Move from register to system register
-.global _gadget_msr
-gadget_msr:
-    mov     x0, #4                  // COMPLEX exit
-    b       _tcti_exit_block
+// MRS/MSR live in gadgets_memory.c as bytecode-driven helpers.
 
 /* ============================================================================
  * System Call

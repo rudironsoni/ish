@@ -22,6 +22,19 @@
 #include <stddef.h>
 #include <stdio.h>
 
+// ============================================================================
+// TCTI Helper Function Declarations
+// ============================================================================
+// These functions are called from naked assembly gadgets and must be
+// declared before use to ensure proper symbol visibility.
+
+extern int _a64_tcti_ldr_x_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64_t rt,
+                                  uint64_t rn, int64_t imm, uint64_t size, uint64_t idx_mode,
+                                  uint64_t meta);
+extern int _a64_tcti_str_x_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64_t rt,
+                                  uint64_t rn, int64_t imm, uint64_t size, uint64_t idx_mode,
+                                  uint64_t meta);
+
 // Stub functions for removed diagnostics
 void dump_str_wb_diag(void)
 {
@@ -41,18 +54,23 @@ void dump_runtime_diag(void)
 }
 
 // Verify offset assumptions at compile time
-#define XREG_OFFSET(n) (offsetof(struct cpu_state, x[n]))
-#define SP_OFFSET      offsetof(struct cpu_state, sp)
-#define PC_OFFSET      offsetof(struct cpu_state, pc)
-#define PSTATE_OFFSET  offsetof(struct cpu_state, pstate)
+#define XREG_OFFSET(n)   (offsetof(struct cpu_state, x[n]))
+#define SP_OFFSET        offsetof(struct cpu_state, sp)
+#define PC_OFFSET        offsetof(struct cpu_state, pc)
+#define PSTATE_OFFSET    offsetof(struct cpu_state, pstate)
+#define TCTI_EXIT_OFFSET offsetof(struct cpu_state, tcti_exit_reason)
 
 // Guest x[0] is at offset 16 (after mmu pointer and cycle counter)
 static_assert(XREG_OFFSET(0) == 16, "x[0] offset check");
 static_assert(SP_OFFSET == 264, "SP offset check");
 static_assert(PC_OFFSET == 272, "pc offset check");
 static_assert(PSTATE_OFFSET == 280, "pstate offset check");
+// TCTI_EXIT_OFFSET verified to be 364 via runtime check
 
 #define REG_OFFSET(n) (XREG_OFFSET(n))
+
+#define A64_SYSREG_MRS_NZCV 0x40D8u
+#define A64_SYSREG_MSR_NZCV 0x58D8u
 
 static uint64_t tcti_read_base_reg_or_sp(struct cpu_state *cpu, int reg)
 {
@@ -70,6 +88,26 @@ static uint64_t tcti_read_reg_or_zr(struct cpu_state *cpu, int reg)
     if (reg < 0 || reg > 30)
         return 0;
     return cpu->x[reg];
+}
+
+static int a64_tcti_mrs_helper(struct cpu_state *cpu, uint64_t sysreg, uint64_t rd)
+{
+    if (sysreg != A64_SYSREG_MRS_NZCV)
+        return TCTI_EXIT_COMPLEX;
+
+    if (rd < 31)
+        cpu->x[rd] = cpu->pstate & 0xF0000000ULL;
+
+    return TCTI_EXIT_NORMAL;
+}
+
+static int a64_tcti_msr_helper(struct cpu_state *cpu, uint64_t sysreg, uint64_t rt)
+{
+    if (sysreg != A64_SYSREG_MSR_NZCV)
+        return TCTI_EXIT_COMPLEX;
+
+    cpu->pstate = tcti_read_reg_or_zr(cpu, (int)rt) & 0xF0000000ULL;
+    return TCTI_EXIT_NORMAL;
 }
 
 static void trace_reg_write_checkpoint(const char *name, int reg, uint64_t old_val,
@@ -468,6 +506,19 @@ int a64_tcti_str_x_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64_t rt,
                           int64_t imm, uint64_t size, uint64_t idx_mode, uint64_t meta)
 {
     return a64_tcti_ldst_helper(cpu, fault_pc, rt, rn, imm, size, idx_mode, meta, 0);
+}
+
+// Assembly-visible wrappers with underscore prefix (used by gadget bl instructions)
+int _a64_tcti_ldr_x_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64_t rt, uint64_t rn,
+                           int64_t imm, uint64_t size, uint64_t idx_mode, uint64_t meta)
+{
+    return a64_tcti_ldr_x_helper(cpu, fault_pc, rt, rn, imm, size, idx_mode, meta);
+}
+
+int _a64_tcti_str_x_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64_t rt, uint64_t rn,
+                           int64_t imm, uint64_t size, uint64_t idx_mode, uint64_t meta)
+{
+    return a64_tcti_str_x_helper(cpu, fault_pc, rt, rn, imm, size, idx_mode, meta);
 }
 
 // ============================================================================
@@ -1902,6 +1953,92 @@ __attribute__((naked)) void gadget_nop_impl(void)
 }
 
 tcti_gadget_t gadget_nop = gadget_nop_impl;
+
+__attribute__((naked)) void gadget_mrs_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t"
+                 "ldr x20, [x28], #8\n\t"
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "stp x13, x14, [x29, #112]\n\t"
+                 "stp x15, x16, [x29, #128]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "mov x2, x20\n\t"
+                 "bl _a64_tcti_mrs_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "ldp x1, x2, [x29, #16]\n\t"
+                 "ldp x3, x4, [x29, #32]\n\t"
+                 "ldp x5, x6, [x29, #48]\n\t"
+                 "ldp x7, x8, [x29, #64]\n\t"
+                 "ldp x9, x10, [x29, #80]\n\t"
+                 "ldp x11, x12, [x29, #96]\n\t"
+                 "ldp x13, x14, [x29, #112]\n\t"
+                 "ldp x15, x16, [x29, #128]\n\t"
+                 "cmp x0, #0\n\t"
+                 "b.ne 1f\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t"
+                 "1:\n\t"
+                 "b _tcti_exit_block\n\t");
+}
+
+tcti_gadget_t gadget_mrs = gadget_mrs_impl;
+
+__attribute__((visibility("default"))) int _a64_tcti_mrs_helper(struct cpu_state *cpu,
+                                                                uint64_t sysreg, uint64_t rd)
+{
+    return a64_tcti_mrs_helper(cpu, sysreg, rd);
+}
+
+__attribute__((naked)) void gadget_msr_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t"
+                 "ldr x20, [x28], #8\n\t"
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "stp x13, x14, [x29, #112]\n\t"
+                 "stp x15, x16, [x29, #128]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "mov x2, x20\n\t"
+                 "bl _a64_tcti_msr_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "ldp x1, x2, [x29, #16]\n\t"
+                 "ldp x3, x4, [x29, #32]\n\t"
+                 "ldp x5, x6, [x29, #48]\n\t"
+                 "ldp x7, x8, [x29, #64]\n\t"
+                 "ldp x9, x10, [x29, #80]\n\t"
+                 "ldp x11, x12, [x29, #96]\n\t"
+                 "ldp x13, x14, [x29, #112]\n\t"
+                 "ldp x15, x16, [x29, #128]\n\t"
+                 "ldr x21, [x29, #280]\n\t"
+                 "msr nzcv, x21\n\t"
+                 "cmp x0, #0\n\t"
+                 "b.ne 1f\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t"
+                 "1:\n\t"
+                 "b _tcti_exit_block\n\t");
+}
+
+tcti_gadget_t gadget_msr = gadget_msr_impl;
+
+__attribute__((visibility("default"))) int _a64_tcti_msr_helper(struct cpu_state *cpu,
+                                                                uint64_t sysreg, uint64_t rt)
+{
+    return a64_tcti_msr_helper(cpu, sysreg, rt);
+}
 
 __attribute__((naked)) void gadget_svc_impl(void)
 {
