@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		004CB381BB23DFCCD96CA7DD /* IXLandTerminalFunctionalTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44CAAE0E651FC750F3AB481B /* IXLandTerminalFunctionalTests.swift */; };
 		0180CB5CBBC09EEF1C15DE22 /* UIApplication+OpenURL.m in Sources */ = {isa = PBXBuildFile; fileRef = 1DAB174BD1F4233E89D024E0 /* UIApplication+OpenURL.m */; };
 		01F5164B620DA4E518B0E76D /* libIXLandLinuxRuntime.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CB26B1B5D3A91542EDE0757A /* libIXLandLinuxRuntime.a */; };
 		029640A72DDF6EE7F4798DF5 /* ProgressReportViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = E516F4936121FB17E17C35AD /* ProgressReportViewController.m */; };
@@ -192,7 +191,6 @@
 		EE0AF117E54170777216140B /* timer.c in Sources */ = {isa = PBXBuildFile; fileRef = E1491C7C24DA49C49F35F53E /* timer.c */; };
 		EE9A69547CACF0794BA7CFEE /* elf_loader.c in Sources */ = {isa = PBXBuildFile; fileRef = 2DA986A9083D69130A508A0A /* elf_loader.c */; };
 		F03EA524B0E8EB9CD935875A /* gadgets_complex.S in Sources */ = {isa = PBXBuildFile; fileRef = 85C61C918ABD750317FD3872 /* gadgets_complex.S */; };
-		F092CDCAE90531D05306D44A /* libIXLandLinuxRuntime.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CB26B1B5D3A91542EDE0757A /* libIXLandLinuxRuntime.a */; };
 		F0AB0AD28BBA6ABA043D03BD /* AboutViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = B7A24C008228C73347F0F997 /* AboutViewController.m */; };
 		F120169162F0E3BD1ADA16A0 /* 3d.png in Resources */ = {isa = PBXBuildFile; fileRef = 171CD2F6B1E0CC6138B024E2 /* 3d.png */; };
 		F2B2E1AC7AF73E1D3BEE4CA4 /* LocationDevice.m in Sources */ = {isa = PBXBuildFile; fileRef = 4D526958EA5CE79135703843 /* LocationDevice.m */; };
@@ -215,6 +213,13 @@
 			remoteGlobalIDString = 8B71F48AE7216B5689802404;
 			remoteInfo = IXLandLinuxRuntime;
 		};
+		16FBB527B95E397674D5A9C0 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A2F6030825E783FA19A7CB4C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 1C10AF3D9F0341B987C8E504;
+			remoteInfo = IXLandTerminal;
+		};
 		17B910DB7E24C815E877C99D /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = A2F6030825E783FA19A7CB4C /* Project object */;
@@ -229,6 +234,13 @@
 			remoteGlobalIDString = 8B71F48AE7216B5689802404;
 			remoteInfo = IXLandLinuxRuntime;
 		};
+		3C417D6191EAE31D27435A06 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A2F6030825E783FA19A7CB4C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 1C10AF3D9F0341B987C8E504;
+			remoteInfo = IXLandTerminal;
+		};
 		539F002DBF291DD71B46EC91 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = A2F6030825E783FA19A7CB4C /* Project object */;
@@ -242,20 +254,6 @@
 			proxyType = 1;
 			remoteGlobalIDString = 1C10AF3D9F0341B987C8E504;
 			remoteInfo = IXLandTerminal;
-		};
-		CFE39514D82763AE5EAD4D6F /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = A2F6030825E783FA19A7CB4C /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 1C10AF3D9F0341B987C8E504;
-			remoteInfo = IXLandTerminal;
-		};
-		D7A38EC4AE0501CAA95844E2 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = A2F6030825E783FA19A7CB4C /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 8B71F48AE7216B5689802404;
-			remoteInfo = IXLandLinuxRuntime;
 		};
 		E115BE5C1F0398FD29BA7CD3 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -370,7 +368,6 @@
 		42F56059E1BBD9A6474A584E /* Roots.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Roots.h; sourceTree = "<group>"; };
 		434E79B731FC608DF7DA0F2B /* interrupt.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = interrupt.h; sourceTree = "<group>"; };
 		43B7AE632209C7F8460E97B7 /* calls.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = calls.h; sourceTree = "<group>"; };
-		44CAAE0E651FC750F3AB481B /* IXLandTerminalFunctionalTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IXLandTerminalFunctionalTests.swift; sourceTree = "<group>"; };
 		47BCAADCC74D0397C2433CD9 /* PassthroughView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = PassthroughView.m; sourceTree = "<group>"; };
 		47D5DF6136F144C9AD589159 /* decode_golden.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = decode_golden.c; sourceTree = "<group>"; };
 		49221EC885A4808B10523534 /* rgb.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = rgb.png; sourceTree = "<group>"; };
@@ -468,7 +465,6 @@
 		954C8EF99EE722854A1164D5 /* iOSFS.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = iOSFS.h; sourceTree = "<group>"; };
 		96E2E9417EEA0EDE1B4050C2 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
 		97DB252437E128B0AC5E308F /* fd.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = fd.c; sourceTree = "<group>"; };
-		98EA2A87E735B56B745E6989 /* IXLandTerminalFunctionalTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = IXLandTerminalFunctionalTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		9DC949EAB5EAC64F57A0E876 /* exit.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = exit.c; sourceTree = "<group>"; };
 		9E79D2E2708A68F2CEDC52C5 /* fake-db.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "fake-db.h"; sourceTree = "<group>"; };
 		9EE786F34AD9049C3A3784BF /* tlb.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = tlb.h; sourceTree = "<group>"; };
@@ -638,14 +634,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		48A396E0BDF197B52CEB2FD6 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				F092CDCAE90531D05306D44A /* libIXLandLinuxRuntime.a in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		515407D3F7F596AA6581C369 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -666,14 +654,6 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		0C1507E461CFC60080BC96A8 /* IXLandTerminalFunctionalTests */ = {
-			isa = PBXGroup;
-			children = (
-				44CAAE0E651FC750F3AB481B /* IXLandTerminalFunctionalTests.swift */,
-			);
-			path = IXLandTerminalFunctionalTests;
-			sourceTree = "<group>";
-		};
 		1255E443A5832661104E6664 = {
 			isa = PBXGroup;
 			children = (
@@ -765,7 +745,6 @@
 				A2CFB546D78C76BDB07B9919 /* IXLandLinuxRuntimeUnitTests.xctest */,
 				C4D634F7FEDACD511EBA6D83 /* IXLandTerminal.app */,
 				580831AFE9C3A1CD95BAC860 /* IXLandTerminalEnd2EndTests.xctest */,
-				98EA2A87E735B56B745E6989 /* IXLandTerminalFunctionalTests.xctest */,
 				00E183B2E47DBB09796ADBB6 /* IXLandTerminalUnitTests.xctest */,
 				CB26B1B5D3A91542EDE0757A /* libIXLandLinuxRuntime.a */,
 			);
@@ -1017,7 +996,6 @@
 				F7764F1CC9CA3CBA5C6BDA3A /* IXLandLinuxRuntimeFunctionalTests */,
 				8AB775E35B0105AA5EE5DC5D /* IXLandLinuxRuntimeUnitTests */,
 				AB17EB30231C7833A714AD22 /* IXLandTerminalEnd2EndTests */,
-				0C1507E461CFC60080BC96A8 /* IXLandTerminalFunctionalTests */,
 				C9C0B9C02D91E25485217951 /* IXLandTerminalUnitTests */,
 				96564D0C286DF4E06DE70503 /* Support */,
 			);
@@ -1291,6 +1269,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				4EABADD2060B3F72CA5C79AC /* PBXTargetDependency */,
 				92CEF7268260F46C1015F365 /* PBXTargetDependency */,
 			);
 			name = IXLandLinuxRuntimeUnitTests;
@@ -1305,6 +1284,7 @@
 			buildConfigurationList = FB614A533AEE8578E93FC83F /* Build configuration list for PBXNativeTarget "IXLandTerminal" */;
 			buildPhases = (
 				7493D492729D3A602B5D2E1B /* Generate mach_excServer */,
+				19AF886B4DC42F693F05169F /* Provision bundled rootfs */,
 				0AD76E10200E5D4D6E75DF0C /* Sources */,
 				C0F6006A39B06DB64A5A2570 /* Resources */,
 				1336CF41414106ED30FC6385 /* Frameworks */,
@@ -1370,26 +1350,6 @@
 			productReference = 81FEC37655A0775E25919A6C /* IXLandLinuxRuntimeEnd2EndTests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
-		9A79F895C896A5C7BE140FF0 /* IXLandTerminalFunctionalTests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = E65CE7F96824158CBD54CC9E /* Build configuration list for PBXNativeTarget "IXLandTerminalFunctionalTests" */;
-			buildPhases = (
-				1D7B3BF12DF1E56DD0FB84C6 /* Sources */,
-				48A396E0BDF197B52CEB2FD6 /* Frameworks */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				6EF006EB0ECE3A730BD93DE8 /* PBXTargetDependency */,
-				3F5523228B380437E15D2F1D /* PBXTargetDependency */,
-			);
-			name = IXLandTerminalFunctionalTests;
-			packageProductDependencies = (
-			);
-			productName = IXLandTerminalFunctionalTests;
-			productReference = 98EA2A87E735B56B745E6989 /* IXLandTerminalFunctionalTests.xctest */;
-			productType = "com.apple.product-type.bundle.unit-test";
-		};
 		A549863F1B49DC1E151FBF1E /* IXLandTerminalUnitTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = F41D55D6782D164A735123DC /* Build configuration list for PBXNativeTarget "IXLandTerminalUnitTests" */;
@@ -1440,6 +1400,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				B3D754FFF8914DF13DCAE59F /* PBXTargetDependency */,
 				37046E707D89D05C5B354C21 /* PBXTargetDependency */,
 			);
 			name = IXLandLinuxRuntimeFunctionalTests;
@@ -1492,7 +1453,6 @@
 				19499F623F5EDC6C8CC1DE44 /* IXLandLinuxRuntimeUnitTests */,
 				1C10AF3D9F0341B987C8E504 /* IXLandTerminal */,
 				E31936E1AF397D55605846A8 /* IXLandTerminalEnd2EndTests */,
-				9A79F895C896A5C7BE140FF0 /* IXLandTerminalFunctionalTests */,
 				A549863F1B49DC1E151FBF1E /* IXLandTerminalUnitTests */,
 			);
 		};
@@ -1573,6 +1533,27 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		19AF886B4DC42F693F05169F /* Provision bundled rootfs */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Provision bundled rootfs";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/root.tar.gz",
+				"$(TARGET_BUILD_DIR)/$(WRAPPER_NAME)/root.tar.gz",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -eu\nROOTFS_OUT=\"${DERIVED_FILE_DIR}/root.tar.gz\"\nTMP_OUT=\"${ROOTFS_OUT}.tmp\"\nROOTFS_SOURCE_URL=\"${ROOTFS_URL:-https://dl-cdn.alpinelinux.org/alpine/v3.23/releases/aarch64/alpine-minirootfs-3.23.3-aarch64.tar.gz}\"\nif [ -s \"$ROOTFS_OUT\" ]; then\n  gzip -t \"$ROOTFS_OUT\"\nelse\n  rm -f \"$TMP_OUT\"\n  curl --fail --location --silent --show-error \"$ROOTFS_SOURCE_URL\" --output \"$TMP_OUT\"\n  gzip -t \"$TMP_OUT\"\n  mv \"$TMP_OUT\" \"$ROOTFS_OUT\"\nfi\ncp -f \"$ROOTFS_OUT\" \"${TARGET_BUILD_DIR}/${WRAPPER_NAME}/root.tar.gz\"\n";
+		};
 		7493D492729D3A602B5D2E1B /* Generate mach_excServer */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -1639,14 +1620,6 @@
 				349CAD64E052A89D88BCD6AD /* iOSFS.m in Sources */,
 				67444FA04FAB98AF5446FFBC /* mach_excServer.c in Sources */,
 				34E2C4F599549773088CA806 /* main.m in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		1D7B3BF12DF1E56DD0FB84C6 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				004CB381BB23DFCCD96CA7DD /* IXLandTerminalFunctionalTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1810,19 +1783,14 @@
 			target = 8B71F48AE7216B5689802404 /* IXLandLinuxRuntime */;
 			targetProxy = E542E0620C0D4C24B6E3D991 /* PBXContainerItemProxy */;
 		};
-		3F5523228B380437E15D2F1D /* PBXTargetDependency */ = {
+		4EABADD2060B3F72CA5C79AC /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 8B71F48AE7216B5689802404 /* IXLandLinuxRuntime */;
-			targetProxy = D7A38EC4AE0501CAA95844E2 /* PBXContainerItemProxy */;
+			target = 1C10AF3D9F0341B987C8E504 /* IXLandTerminal */;
+			targetProxy = 3C417D6191EAE31D27435A06 /* PBXContainerItemProxy */;
 		};
 		671B78034F78C722E5212D0E /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			productRef = 864C93664B31280749EB6D36 /* IXLandInstrumentationTracing */;
-		};
-		6EF006EB0ECE3A730BD93DE8 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 1C10AF3D9F0341B987C8E504 /* IXLandTerminal */;
-			targetProxy = CFE39514D82763AE5EAD4D6F /* PBXContainerItemProxy */;
 		};
 		74DABF569302B90E9F49D1BA /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -1847,6 +1815,11 @@
 			isa = PBXTargetDependency;
 			target = 1C10AF3D9F0341B987C8E504 /* IXLandTerminal */;
 			targetProxy = E115BE5C1F0398FD29BA7CD3 /* PBXContainerItemProxy */;
+		};
+		B3D754FFF8914DF13DCAE59F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 1C10AF3D9F0341B987C8E504 /* IXLandTerminal */;
+			targetProxy = 16FBB527B95E397674D5A9C0 /* PBXContainerItemProxy */;
 		};
 		ECD02DDE64ABC13EC8A3330A /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -2053,31 +2026,6 @@
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = IXLandTerminal;
-			};
-			name = Release;
-		};
-		7AB979EB25B9CA0EFF37C821 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				GENERATE_INFOPLIST_FILE = YES;
-				HEADER_SEARCH_PATHS = (
-					"$(SRCROOT)/Sources",
-					"$(SRCROOT)",
-				);
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
-				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					"-ObjC",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = app.ixland.IXLandTerminalFunctionalTests;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal";
 			};
 			name = Release;
 		};
@@ -2381,31 +2329,6 @@
 			};
 			name = Release;
 		};
-		F43934098236A4FE44DB8A2C /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				GENERATE_INFOPLIST_FILE = YES;
-				HEADER_SEARCH_PATHS = (
-					"$(SRCROOT)/Sources",
-					"$(SRCROOT)",
-				);
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
-				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					"-ObjC",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = app.ixland.IXLandTerminalFunctionalTests;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal";
-			};
-			name = Debug;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -2459,15 +2382,6 @@
 			buildConfigurations = (
 				72CA08A4ED62F852468C40AE /* Debug */,
 				182A3CB900EA0A9036F0D294 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Debug;
-		};
-		E65CE7F96824158CBD54CC9E /* Build configuration list for PBXNativeTarget "IXLandTerminalFunctionalTests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				F43934098236A4FE44DB8A2C /* Debug */,
-				7AB979EB25B9CA0EFF37C821 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

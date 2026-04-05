@@ -159,13 +159,6 @@ final class IXLandLinuxRuntimeFunctionalTests: XCTestCase {
         runCasesForPhase("09-glibc")
     }
 
-    // Phase 10 (iOS tooling) cases use ios_fixture harness which requires
-    // host-side orchestration. These cases are tested in IXLandTerminalEndToEndTests.
-    func testPhase10_iOSToolingCases() {
-        // Skip: iOS tooling cases require host-side orchestration via ios_fixture
-        // These are EndToEnd tests, not Functional tests, and run in IXLandTerminalEndToEndTests
-    }
-
     func testPhase11_DistroMatrixCases() {
         runCasesForPhase("11-distro-matrix")
     }

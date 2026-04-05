@@ -30,6 +30,8 @@
     } while (0)
 #define ARCHIVE_ERR(archive)                                                                       \
     FILL_ERR(ERR_ARCHIVE, archive_errno(archive), archive_error_string(archive))
+#define ARCHIVE_CAP_ERR(name)                                                                      \
+    FILL_ERR(ERR_ARCHIVE_CAPABILITY, 0, "libarchive " name " capability registration failed")
 #define POSIX_ERR() FILL_ERR(ERR_POSIX, errno, strerror(errno))
 #undef HANDLE_ERR // for sqlite
 #define HANDLE_ERR(db) FILL_ERR(ERR_SQLITE, sqlite3_extended_errcode(db), sqlite3_errmsg(db))
@@ -107,8 +109,10 @@ bool fakefs_import(const char *archive_path, const char *fs, struct fakefsify_er
     struct archive *archive = archive_read_new();
     if (archive == NULL)
         ARCHIVE_ERR(archive);
-    archive_read_support_filter_gzip(archive);
-    archive_read_support_format_tar(archive);
+    if (archive_read_support_filter_gzip(archive) != ARCHIVE_OK)
+        ARCHIVE_CAP_ERR("gzip read filter");
+    if (archive_read_support_format_tar(archive) != ARCHIVE_OK)
+        ARCHIVE_CAP_ERR("tar format");
     if (archive_read_open_filename(archive, archive_path, 65536) != ARCHIVE_OK)
         ARCHIVE_ERR(archive);
 
@@ -129,9 +133,7 @@ bool fakefs_import(const char *archive_path, const char *fs, struct fakefsify_er
     while ((err = archive_read_next_header(archive, &entry)) == ARCHIVE_OK) {
         char entry_path[MAX_PATH];
         if (!path_normalize(archive_entry_pathname(entry), entry_path)) {
-            // Avoid pwnage
-            fprintf(stderr, "warning: skipped possible path traversal %s\n",
-                    archive_entry_pathname(entry));
+            // Path traversal attempt rejected; skip silently and continue.
             continue;
         }
         if (!progress_update(&p, (double)archive_filter_bytes(archive, -1) / archive_bytes,
@@ -144,7 +146,7 @@ bool fakefs_import(const char *archive_path, const char *fs, struct fakefsify_er
         if (hardlink) {
             char hardlink_path[MAX_PATH];
             if (!path_normalize(hardlink, hardlink_path)) {
-                fprintf(stderr, "warning: almost pwned by hardlink %s\n", hardlink);
+                // Malformed hardlink path; skip silently.
                 continue;
             }
             if (linkat(root_fd, fix_path(hardlink_path), root_fd, fix_path(entry_path), 0) < 0)
@@ -287,8 +289,10 @@ bool fakefs_export(const char *fs, const char *archive_path, struct fakefsify_er
     struct archive *archive = archive_write_new();
     if (archive == NULL)
         ARCHIVE_ERR(archive);
-    archive_write_add_filter_gzip(archive);
-    archive_write_set_format_pax(archive);
+    if (archive_write_add_filter_gzip(archive) != ARCHIVE_OK)
+        ARCHIVE_CAP_ERR("gzip write filter");
+    if (archive_write_set_format_pax(archive) != ARCHIVE_OK)
+        ARCHIVE_CAP_ERR("pax format");
     if (archive_write_open_filename(archive, archive_path) != ARCHIVE_OK)
         ARCHIVE_ERR(archive);
 
@@ -340,7 +344,6 @@ bool fakefs_export(const char *fs, const char *archive_path, struct fakefsify_er
         struct stat real_stat;
         if (fstatat(root_fd, path, &real_stat, 0) < 0) {
             if (errno == ENOENT) {
-                printf("skipping %s\n", path);
                 goto skip;
             }
             POSIX_ERR();
@@ -378,8 +381,6 @@ bool fakefs_export(const char *fs, const char *archive_path, struct fakefsify_er
                 ssize_t written = archive_write_data(archive, buf, len);
                 if (written < 0)
                     ARCHIVE_ERR(archive);
-                if (written != len)
-                    printf("uh oh\n");
             }
             if (len < 0)
                 POSIX_ERR();

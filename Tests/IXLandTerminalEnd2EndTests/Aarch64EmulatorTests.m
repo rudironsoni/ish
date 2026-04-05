@@ -20,44 +20,32 @@
     self.app = [[XCUIApplication alloc] init];
     [self.app launch];
 
-    // Wait for app to be ready
     XCTAssertTrue([self.app waitForExistenceWithTimeout:5.0]);
+    XCTAssertTrue([self.app.otherElements[@"TerminalViewController"] waitForExistenceWithTimeout:10.0], @"Terminal view should exist");
+    XCTAssertTrue([self.app.webViews.staticTexts.firstMatch waitForExistenceWithTimeout:30.0], @"Terminal text should exist before typing");
 }
 
 - (void)tearDown {
     [super tearDown];
 }
 
-// Helper: Type a command in the terminal
+// The terminal UI is rendered in a web view and accepts keyboard input at the
+// application level once the scene is active.
 - (void)typeCommand:(NSString *)command {
-    XCUIElement *terminal = self.app.textViews.firstMatch;
-    XCTAssertTrue(terminal.exists, "Terminal should exist");
-
-    // Tap to focus
-    [terminal tap];
-
-    // Type command
-    [terminal typeText:command];
-
-    // Send return
-    [terminal typeText:@"\n"];
-
-    // Wait for output
+    XCUIElement *terminalView = self.app.otherElements[@"TerminalViewController"];
+    XCTAssertTrue(terminalView.exists, @"Terminal view should exist before typing");
+    XCTAssertTrue(self.app.webViews.staticTexts.firstMatch.exists, @"Terminal text should exist before typing");
+    [self.app typeText:[NSString stringWithFormat:@"%@\n", command]];
     [NSThread sleepForTimeInterval:0.5];
 }
 
 // Helper: Get terminal text
 - (NSString *)terminalText {
     XCUIElement *terminalVC = self.app.otherElements[@"TerminalViewController"];
-    
-    // Step A: Prove element exists before reading value
-    XCTAssertTrue(terminalVC.exists, @"TerminalViewController element must exist");
     XCTAssertTrue([terminalVC waitForExistenceWithTimeout:5.0], @"TerminalViewController must be accessible within 5 seconds");
-    
-    // Step B: Only after existence proven, read value
+
     NSString *value = terminalVC.value;
     XCTAssertNotNil(value, @"TerminalViewController value must not be nil");
-    
     return value;
 }
 

@@ -92,17 +92,6 @@
             parallelizable = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "9A79F895C896A5C7BE140FF0"
-               BuildableName = "IXLandTerminalFunctionalTests.xctest"
-               BlueprintName = "IXLandTerminalFunctionalTests"
-               ReferencedContainer = "container:IXLand.xcodeproj">
-            </BuildableReference>
-         </TestableReference>
-         <TestableReference
-            skipped = "NO"
-            parallelizable = "NO">
-            <BuildableReference
-               BuildableIdentifier = "primary"
                BlueprintIdentifier = "E31936E1AF397D55605846A8"
                BuildableName = "IXLandTerminalEnd2EndTests.xctest"
                BlueprintName = "IXLandTerminalEnd2EndTests"

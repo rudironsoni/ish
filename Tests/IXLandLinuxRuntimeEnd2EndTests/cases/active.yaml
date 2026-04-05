@@ -17,9 +17,7 @@ migration_policy:
                                 "02b-ios-simulator-harness", "02c-ios-app-runtime-entry",
                                 "03-semantic-exec", "04-mmu-abi", "05-elf-loader",
                                 "06-syscalls-core-fs-net", "07-threads-signals-tls",
-                                "08-musl", "09-glibc", "10-tooling-stability-ios",
-                                "11-distro-matrix"] OR
-      active_case.case_id in ["IOS-001", "IOS-002", "IOS-003"]
+                                "08-musl", "09-glibc", "11-distro-matrix"]
     action: |
       1. Clear active case lock (case_id: null, phase: null)
       2. Reset session state to INITIAL

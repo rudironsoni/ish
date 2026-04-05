@@ -82,6 +82,7 @@ targets:
           - "arm-reference.txt"
           - "*.md"
     dependencies:
+      - target: IXLandTerminal
       - target: IXLandLinuxRuntime
     settings:
       GENERATE_INFOPLIST_FILE: true
@@ -109,6 +110,7 @@ targets:
         type: folder
         buildPhase: resources
     dependencies:
+      - target: IXLandTerminal
       - target: IXLandLinuxRuntime
       - package: IXLandInstrumentation
         product: IXLandInstrumentationTracing
@@ -184,6 +186,25 @@ targets:
         outputFiles:
           - "$(DERIVED_FILE_DIR)/mach_excServer.h"
           - "$(DERIVED_FILE_DIR)/mach_excServer.c"
+      - name: Provision bundled rootfs
+        script: |
+          set -eu
+          ROOTFS_OUT="${DERIVED_FILE_DIR}/root.tar.gz"
+          TMP_OUT="${ROOTFS_OUT}.tmp"
+          ROOTFS_SOURCE_URL="${ROOTFS_URL:-https://dl-cdn.alpinelinux.org/alpine/v3.23/releases/aarch64/alpine-minirootfs-3.23.3-aarch64.tar.gz}"
+          if [ -s "$ROOTFS_OUT" ]; then
+            gzip -t "$ROOTFS_OUT"
+          else
+            rm -f "$TMP_OUT"
+            curl --fail --location --silent --show-error "$ROOTFS_SOURCE_URL" --output "$TMP_OUT"
+            gzip -t "$TMP_OUT"
+            mv "$TMP_OUT" "$ROOTFS_OUT"
+          fi
+          cp -f "$ROOTFS_OUT" "${TARGET_BUILD_DIR}/${WRAPPER_NAME}/root.tar.gz"
+        basedOnDependencyAnalysis: false
+        outputFiles:
+          - "$(DERIVED_FILE_DIR)/root.tar.gz"
+          - "$(TARGET_BUILD_DIR)/$(WRAPPER_NAME)/root.tar.gz"
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: app.ixland.terminal
       PRODUCT_NAME: IXLandTerminal
@@ -239,23 +260,6 @@ targets:
         - "$(SRCROOT)/Sources"
         - "$(SRCROOT)"
 
-  # MARK: - IXLandTerminal Functional Tests
-  IXLandTerminalFunctionalTests:
-    type: bundle.unit-test
-    platform: iOS
-    sources:
-      - Tests/IXLandTerminalFunctionalTests
-    dependencies:
-      - target: IXLandTerminal
-      - target: IXLandLinuxRuntime
-    settings:
-      GENERATE_INFOPLIST_FILE: true
-      TEST_HOST: "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal"
-      BUNDLE_LOADER: "$(TEST_HOST)"
-      HEADER_SEARCH_PATHS:
-        - "$(SRCROOT)/Sources"
-        - "$(SRCROOT)"
-
   # MARK: - IXLandTerminal End-to-End Tests
   IXLandTerminalEnd2EndTests:
     type: bundle.ui-testing
@@ -263,8 +267,11 @@ targets:
     sources:
       - path: Tests/IXLandTerminalEnd2EndTests
         excludes:
+          - "cases/**"
           - "Info.plist"
           - "Screenshots.m"
+    resources:
+      - Tests/IXLandTerminalEnd2EndTests/cases
     dependencies:
       - target: IXLandTerminal
     settings:
@@ -289,8 +296,6 @@ schemes:
           parallelizable: false
         - name: IXLandTerminalUnitTests
           parallelizable: false
-        - name: IXLandTerminalFunctionalTests
-          parallelizable: false
         - IXLandTerminalEnd2EndTests
         - IXLandLinuxRuntimeEnd2EndTests
 
@@ -305,16 +310,4 @@ schemes:
       gatherCoverageData: true
       targets:
         - name: IXLandLinuxRuntimeFunctionalTests
-          parallelizable: false
-
-  IXLandTerminalFunctionalTests:
-    build:
-      targets:
-        IXLandTerminal: all
-        IXLandTerminalFunctionalTests: [build-for-testing]
-    test:
-      config: Debug
-      gatherCoverageData: true
-      targets:
-        - name: IXLandTerminalFunctionalTests
           parallelizable: false

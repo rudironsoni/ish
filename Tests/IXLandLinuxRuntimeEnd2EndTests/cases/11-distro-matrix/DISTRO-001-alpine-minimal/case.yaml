@@ -6,8 +6,7 @@ kind: distro_fixture
 harness: distro_fixture
 meson_test: case:DISTRO-001
 
-prerequisites:
-  - IOS-003
+prerequisites: []
 
 expectation_authority:
   semantic_source: musl-libc-contract
@@ -49,4 +48,4 @@ metadata:
   notes: |
     Implemented. Tests Alpine Linux minimal system boot.
     Uses mock fixtures on macOS, real detection on Linux.
-    Prerequisites: IOS-003 must be REAL PASS.
+    No terminal-owned Phase 10 prerequisite remains after ownership split.
