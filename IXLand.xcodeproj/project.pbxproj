@@ -39,7 +39,7 @@
 		25A0EA5C1CA800D0005B20A8 /* libIXLandLinuxRuntime.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CB26B1B5D3A91542EDE0757A /* libIXLandLinuxRuntime.a */; };
 		29098D015A1688CA881B2A44 /* IXLandInstrumentation in Frameworks */ = {isa = PBXBuildFile; productRef = 51ABDCFF20FABF291742442A /* IXLandInstrumentation */; };
 		2950E3C19C22EA566157E68C /* thread_signal_fixture.c in Sources */ = {isa = PBXBuildFile; fileRef = 69501D9805DCF9464AD440E5 /* thread_signal_fixture.c */; };
-		2F153E3C6EF36E32B1725E3F /* decoder_test.c in Sources */ = {isa = PBXBuildFile; fileRef = DBDBB9E9DE76B5F308ECE96B /* decoder_test.c */; };
+		2DC1BA9E290C0ED7CC39B467 /* cases in Resources */ = {isa = PBXBuildFile; fileRef = 6F78756571FB1C04D075538C /* cases */; };
 		2FF4836EB2A5D6B224F2E739 /* gadgets_ldst_tlb.S in Sources */ = {isa = PBXBuildFile; fileRef = 0ABD252C58B06EBB0A44685E /* gadgets_ldst_tlb.S */; };
 		349CAD64E052A89D88BCD6AD /* iOSFS.m in Sources */ = {isa = PBXBuildFile; fileRef = 8C7F3B2F81D97B00FCA35891 /* iOSFS.m */; };
 		34E2C4F599549773088CA806 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = E536189B8FE196208B1A772A /* main.m */; };
@@ -76,6 +76,7 @@
 		59C88C60B3D58114F7F8A008 /* fake.c in Sources */ = {isa = PBXBuildFile; fileRef = F8B91D5887EEBACADD3B5C44 /* fake.c */; };
 		5A49B9AC32363E504DE5EF1B /* AppGroup.m in Sources */ = {isa = PBXBuildFile; fileRef = C060C452E7ADDCE44D66B5C9 /* AppGroup.m */; };
 		5CFC60A05640633FE58D7117 /* path.c in Sources */ = {isa = PBXBuildFile; fileRef = A9B6B7FAE0369CFD15B06415 /* path.c */; };
+		5DF3676B13EB6294F5162599 /* SysregXCTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 32CEF5964400A9F761CB7D2B /* SysregXCTests.m */; };
 		5E3E92754DCD4F16C8AFC64A /* fork.c in Sources */ = {isa = PBXBuildFile; fileRef = 3268F8FE6225F8B58EEF7531 /* fork.c */; };
 		5E8E598B062322878B2C6234 /* FontPickerViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 5A7C34AF1E6683B5985A0652 /* FontPickerViewController.m */; };
 		606F58FB819923C5EB0094A5 /* ipc.c in Sources */ = {isa = PBXBuildFile; fileRef = BF249005260B7A21629F8543 /* ipc.c */; };
@@ -158,6 +159,7 @@
 		C54EF3C145560F464049E9A5 /* IXLandInstrumentationTracing in Frameworks */ = {isa = PBXBuildFile; productRef = 2CF49282FCED3387A78F41C2 /* IXLandInstrumentationTracing */; };
 		C54F922B29B32C05BF571CDB /* uname.c in Sources */ = {isa = PBXBuildFile; fileRef = 5512387FF24FE4EA299BAAD0 /* uname.c */; };
 		C692C13CD307DB6827DE7A20 /* libarchive in Frameworks */ = {isa = PBXBuildFile; productRef = E7B0164E5350C8A5A4E0CE8B /* libarchive */; };
+		C97D688F340BEFFE552AE015 /* sysreg.c in Sources */ = {isa = PBXBuildFile; fileRef = 724BCE40498A7A29DF9E8AC1 /* sysreg.c */; };
 		CAC77D6223909682311F17E0 /* libresolv.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 8C804D8247F78845E3D03ADD /* libresolv.tbd */; };
 		D0D6E9415551716BAFDF25BE /* darwin.c in Sources */ = {isa = PBXBuildFile; fileRef = 3FA2BEE2C204898B61FE4816 /* darwin.c */; };
 		D1AF25DB734DA206F8EE7114 /* eventfd.c in Sources */ = {isa = PBXBuildFile; fileRef = BB2A17AB54E7A646C8EFB3BB /* eventfd.c */; };
@@ -338,6 +340,7 @@
 		3268F8FE6225F8B58EEF7531 /* fork.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = fork.c; sourceTree = "<group>"; };
 		327D2604BFC3ABFFF1B4AD50 /* tls.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = tls.c; sourceTree = "<group>"; };
 		32A99C6158148B709A2DD058 /* ishcolontildehash.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = ishcolontildehash.png; sourceTree = "<group>"; };
+		32CEF5964400A9F761CB7D2B /* SysregXCTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SysregXCTests.m; sourceTree = "<group>"; };
 		33A2DE2552AFCCFA1C7A230B /* fs_info.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = fs_info.c; sourceTree = "<group>"; };
 		33D058D3511AEC693FCC7A51 /* AccessibilityFixes.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AccessibilityFixes.m; sourceTree = "<group>"; };
 		33F48F0FFF7A981F3B71C461 /* memory.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = memory.c; sourceTree = "<group>"; };
@@ -349,6 +352,7 @@
 		37B7E26866AA9B0AE347F5B8 /* memory.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = memory.c; sourceTree = "<group>"; };
 		37C2EA1E3B69D21400702B5A /* cpu-offsets.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "cpu-offsets.h"; sourceTree = "<group>"; };
 		38178F3DC3959DE00848B27E /* hook.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = hook.c; sourceTree = "<group>"; };
+		38214852B98C342F21C4945A /* sysreg.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sysreg.h; sourceTree = "<group>"; };
 		384D4E240AC5A70AAA5746C3 /* mem.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = mem.c; sourceTree = "<group>"; };
 		39C989E0A85F390DA3E2F17D /* IXLandLinuxRuntimeFunctionalTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = IXLandLinuxRuntimeFunctionalTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3B361A3D1CC6CE60B0C27D12 /* stat.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = stat.h; sourceTree = "<group>"; };
@@ -414,7 +418,9 @@
 		6D20515B229501D151828731 /* errno.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = errno.h; sourceTree = "<group>"; };
 		6F2AF854AD7F8B71BED49E91 /* resource.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = resource.c; sourceTree = "<group>"; };
 		6F7505C93FB34163BAF32949 /* cpu.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = cpu.h; sourceTree = "<group>"; };
+		6F78756571FB1C04D075538C /* cases */ = {isa = PBXFileReference; lastKnownFileType = folder; name = cases; path = Tests/IXLandLinuxRuntimeEnd2EndTests/cases; sourceTree = SOURCE_ROOT; };
 		70022BEE8187389F8A5E5755 /* AppGroup.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppGroup.h; sourceTree = "<group>"; };
+		724BCE40498A7A29DF9E8AC1 /* sysreg.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sysreg.c; sourceTree = "<group>"; };
 		7331A2AFB857A36FE4667A3D /* init.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = init.c; sourceTree = "<group>"; };
 		7358D27FA7157FF1189DC202 /* UITests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = UITests.m; sourceTree = "<group>"; };
 		7411CFB551DB123C72DAC0C8 /* mmu.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = mmu.h; sourceTree = "<group>"; };
@@ -535,7 +541,6 @@
 		D9E91AEB0870FFD7A2355662 /* mul */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; name = mul; path = mul.lproj/About.xcstrings; sourceTree = "<group>"; };
 		DAC1C3D5E64BD10C05E08814 /* debug.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = debug.h; sourceTree = "<group>"; };
 		DB38F8D499A2BA93072BB447 /* gen.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = gen.c; sourceTree = "<group>"; };
-		DBDBB9E9DE76B5F308ECE96B /* decoder_test.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = decoder_test.c; sourceTree = "<group>"; };
 		DE88CB76F664588CDE81BCB4 /* ISHRuntimeFlags.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ISHRuntimeFlags.h; sourceTree = "<group>"; };
 		E08BDE3EF4B2E3E3289BC97C /* tty-real.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "tty-real.c"; sourceTree = "<group>"; };
 		E0EDBAD8D5296DBCDBA3C8CD /* AltIconViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AltIconViewController.m; sourceTree = "<group>"; };
@@ -814,6 +819,8 @@
 				683A3ABC2733C702F5B6BED5 /* decode.h */,
 				37B7E26866AA9B0AE347F5B8 /* memory.c */,
 				2354FB26A844458906B662F8 /* memory.h */,
+				724BCE40498A7A29DF9E8AC1 /* sysreg.c */,
+				38214852B98C342F21C4945A /* sysreg.h */,
 				E99741FF04E4B026577C142D /* tls.c */,
 				A216E71F0F89C382829E98CE /* tls.h */,
 			);
@@ -858,7 +865,7 @@
 		8AB775E35B0105AA5EE5DC5D /* IXLandLinuxRuntimeUnitTests */ = {
 			isa = PBXGroup;
 			children = (
-				DBDBB9E9DE76B5F308ECE96B /* decoder_test.c */,
+				32CEF5964400A9F761CB7D2B /* SysregXCTests.m */,
 				159E99CC713B16AB7DD93E6D /* test.h */,
 			);
 			path = IXLandLinuxRuntimeUnitTests;
@@ -921,6 +928,7 @@
 			children = (
 				293AD30867AE3796DF6B56C7 /* performance */,
 				81A2115562C6AAB349069ACC /* trace */,
+				6F78756571FB1C04D075538C /* cases */,
 			);
 			path = IXLandLinuxRuntimeEnd2EndTests;
 			sourceTree = "<group>";
@@ -1426,6 +1434,7 @@
 			buildConfigurationList = 8FBC8C72D4836413AE066FED /* Build configuration list for PBXNativeTarget "IXLandLinuxRuntimeFunctionalTests" */;
 			buildPhases = (
 				442B045F06CE58B20BEC06C8 /* Sources */,
+				3923848143E483EF66D0176F /* Resources */,
 				515407D3F7F596AA6581C369 /* Frameworks */,
 			);
 			buildRules = (
@@ -1496,6 +1505,14 @@
 			files = (
 				E93CDE0D5A8A21FB18C48959 /* README.generated.md in Resources */,
 				6B808C5BDB151118C6ADE852 /* tcti-gadget-gen.py in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3923848143E483EF66D0176F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2DC1BA9E290C0ED7CC39B467 /* cases in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1637,7 +1654,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				2F153E3C6EF36E32B1725E3F /* decoder_test.c in Sources */,
+				5DF3676B13EB6294F5162599 /* SysregXCTests.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1748,6 +1765,7 @@
 				9E7879EE4A78764E40A02E64 /* stat.c in Sources */,
 				2316DF8A131C1F54408AF528 /* sync.c in Sources */,
 				95BD85B46C61DF948D348C20 /* syscall_dispatch.c in Sources */,
+				C97D688F340BEFFE552AE015 /* sysreg.c in Sources */,
 				F914C3E7ADAD7D8C48668623 /* task.c in Sources */,
 				3502333C1EE68DDDEE9299B8 /* tcti_entry.S in Sources */,
 				9150B17792D65FEC11EB0D2D /* time.c in Sources */,
@@ -1898,7 +1916,7 @@
 					"$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentation/include",
 					"$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include",
 				);
-				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -1953,7 +1971,7 @@
 					"$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include",
 				);
 				INFOPLIST_FILE = Sources/IXLandTerminal/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -2007,7 +2025,7 @@
 					"$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentation/include",
 					"$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include",
 				);
-				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -2135,7 +2153,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -2163,7 +2181,7 @@
 					"$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include",
 				);
 				INFOPLIST_FILE = Sources/IXLandTerminal/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -2255,7 +2273,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;

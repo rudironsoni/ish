@@ -9,6 +9,7 @@
  */
 
 #import <IXLandLinuxRuntime/emu/aarch64/decode.h>
+#import <IXLandLinuxRuntime/emu/aarch64/sysreg.h>
 #import <IXLandLinuxRuntime/tcti/aarch64/gadgets_complex.h>
 #import <IXLandLinuxRuntime/tcti/aarch64/gen.h>
 #import <IXLandLinuxRuntime/util/debug.h>
@@ -17,6 +18,7 @@
 
 extern const tcti_gadget_t gadget_tbz_reg[16];
 extern const tcti_gadget_t gadget_tbnz_reg[16];
+extern tcti_gadget_t gadget_sysreg_unsupported;
 
 // Map guest registers 0-15 to our pre-generated gadget tables
 // Registers 16-30 and sp are handled differently (in memory)
@@ -1262,6 +1264,11 @@ int a64_gen_system(a64_gen_state_t *state, const a64_instr_t *instr)
         state->is_complete = 1;
         return A64_GEN_OK;
     case 2: // MRS
+        if (a64_sysreg_route_for_access((uint16_t)instr->sysreg, 0) ==
+            A64_SYSREG_ROUTE_UNSUPPORTED) {
+            state->is_complete = 1;
+            return emit_gadget(state, gadget_sysreg_unsupported);
+        }
         ret = emit_gadget(state, gadget_mrs);
         if (ret != A64_GEN_OK)
             return ret;
@@ -1270,6 +1277,11 @@ int a64_gen_system(a64_gen_state_t *state, const a64_instr_t *instr)
             return ret;
         return emit_u64(state, instr->Rd);
     case 4: // MSR (reg)
+        if (a64_sysreg_route_for_access((uint16_t)instr->sysreg, 1) ==
+            A64_SYSREG_ROUTE_UNSUPPORTED) {
+            state->is_complete = 1;
+            return emit_gadget(state, gadget_sysreg_unsupported);
+        }
         ret = emit_gadget(state, gadget_msr);
         if (ret != A64_GEN_OK)
             return ret;

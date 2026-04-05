@@ -18,6 +18,7 @@
 #import <IXLandInstrumentationTracing/trace.h>
 #import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
 #import <IXLandLinuxRuntime/emu/aarch64/memory.h>
+#import <IXLandLinuxRuntime/emu/aarch64/sysreg.h>
 #import <IXLandLinuxRuntime/tcti/gadgets_tcti.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -69,9 +70,6 @@ static_assert(PSTATE_OFFSET == 280, "pstate offset check");
 
 #define REG_OFFSET(n) (XREG_OFFSET(n))
 
-#define A64_SYSREG_MRS_NZCV 0x40D8u
-#define A64_SYSREG_MSR_NZCV 0x58D8u
-
 static uint64_t tcti_read_base_reg_or_sp(struct cpu_state *cpu, int reg)
 {
     if (reg == 31)
@@ -92,22 +90,12 @@ static uint64_t tcti_read_reg_or_zr(struct cpu_state *cpu, int reg)
 
 static int a64_tcti_mrs_helper(struct cpu_state *cpu, uint64_t sysreg, uint64_t rd)
 {
-    if (sysreg != A64_SYSREG_MRS_NZCV)
-        return TCTI_EXIT_COMPLEX;
-
-    if (rd < 31)
-        cpu->x[rd] = cpu->pstate & 0xF0000000ULL;
-
-    return TCTI_EXIT_NORMAL;
+    return a64_sysreg_read(cpu, (uint16_t)sysreg, rd);
 }
 
 static int a64_tcti_msr_helper(struct cpu_state *cpu, uint64_t sysreg, uint64_t rt)
 {
-    if (sysreg != A64_SYSREG_MSR_NZCV)
-        return TCTI_EXIT_COMPLEX;
-
-    cpu->pstate = tcti_read_reg_or_zr(cpu, (int)rt) & 0xF0000000ULL;
-    return TCTI_EXIT_NORMAL;
+    return a64_sysreg_write(cpu, (uint16_t)sysreg, rt);
 }
 
 static void trace_reg_write_checkpoint(const char *name, int reg, uint64_t old_val,
@@ -1954,6 +1942,14 @@ __attribute__((naked)) void gadget_nop_impl(void)
 
 tcti_gadget_t gadget_nop = gadget_nop_impl;
 
+__attribute__((naked)) void gadget_sysreg_unsupported_impl(void)
+{
+    asm volatile("mov x0, #5\n\t"
+                 "b _tcti_exit_block\n\t");
+}
+
+tcti_gadget_t gadget_sysreg_unsupported = gadget_sysreg_unsupported_impl;
+
 __attribute__((naked)) void gadget_mrs_impl(void)
 {
     asm volatile("ldr x19, [x28], #8\n\t"
@@ -2022,8 +2018,12 @@ __attribute__((naked)) void gadget_msr_impl(void)
                  "ldp x11, x12, [x29, #96]\n\t"
                  "ldp x13, x14, [x29, #112]\n\t"
                  "ldp x15, x16, [x29, #128]\n\t"
+                 "mov x22, #0x5a10\n\t"
+                 "cmp x19, x22\n\t"
+                 "b.ne 0f\n\t"
                  "ldr x21, [x29, #280]\n\t"
                  "msr nzcv, x21\n\t"
+                 "0:\n\t"
                  "cmp x0, #0\n\t"
                  "b.ne 1f\n\t"
                  "ldr x27, [x28], #8\n\t"

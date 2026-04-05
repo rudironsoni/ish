@@ -3,11 +3,14 @@
  * TDD approach - tests define expected behavior
  */
 
+#import <IXLandLinuxRuntime/emu/aarch64/sysreg.h>
+#import <IXLandLinuxRuntime/tcti/aarch64/gen.h>
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
-#import <IXLandLinuxRuntime/tcti/aarch64/gen.h>
+
+extern tcti_gadget_t gadget_sysreg_unsupported;
 
 // Test fixtures
 static a64_gen_state_t test_state;
@@ -19,34 +22,38 @@ static int tests_passed = 0;
 static int tests_failed = 0;
 
 #define TEST(name) void test_##name(void)
-#define RUN_TEST(name) do { \
-    printf("  Running %s... ", #name); \
-    tests_run++; \
-    test_##name(); \
-    tests_passed++; \
-    printf("OK\n"); \
-} while(0)
+#define RUN_TEST(name)                                                                             \
+    do {                                                                                           \
+        printf("  Running %s... ", #name);                                                         \
+        tests_run++;                                                                               \
+        test_##name();                                                                             \
+        tests_passed++;                                                                            \
+        printf("OK\n");                                                                            \
+    } while (0)
 
-#define ASSERT(cond) do { \
-    if (!(cond)) { \
-        printf("FAILED: %s at line %d\n", #cond, __LINE__); \
-        tests_failed++; \
-        tests_passed--; \
-        return; \
-    } \
-} while(0)
+#define ASSERT(cond)                                                                               \
+    do {                                                                                           \
+        if (!(cond)) {                                                                             \
+            printf("FAILED: %s at line %d\n", #cond, __LINE__);                                    \
+            tests_failed++;                                                                        \
+            tests_passed--;                                                                        \
+            return;                                                                                \
+        }                                                                                          \
+    } while (0)
 
 #define ASSERT_EQ(a, b) ASSERT((a) == (b))
 
 // Setup before each test
-static void setup(void) {
+static void setup(void)
+{
     memset(&test_state, 0, sizeof(test_state));
     memset(test_buffer, 0, sizeof(test_buffer));
     a64_gen_init(&test_state, test_buffer, A64_MAX_GADGETS_PER_BLOCK);
 }
 
 // Test initialization
-TEST(gen_init) {
+TEST(gen_init)
+{
     setup();
 
     ASSERT_EQ(test_state.gadgets, test_buffer);
@@ -55,7 +62,8 @@ TEST(gen_init) {
 }
 
 // Test adding gadgets
-TEST(gen_add_gadget) {
+TEST(gen_add_gadget)
+{
     setup();
     a64_gen_reset(&test_state, 0x1000);
 
@@ -69,14 +77,15 @@ TEST(gen_add_gadget) {
 }
 
 // Test MOVZ generation
-TEST(gen_movz) {
+TEST(gen_movz)
+{
     setup();
     a64_gen_reset(&test_state, 0x1000);
 
     // MOVZ x0, #0x1234
     // Encoding: sf=1, hw=0, imm16=0x1234, Rd=0
     // Opcode: 1|10|100101|hw|imm16|Rd
-    uint32_t movz = 0xD2802468;  // mov x0, #0x1234
+    uint32_t movz = 0xD2802468; // mov x0, #0x1234
 
     int ret = a64_gen_instruction(&test_state, movz, 0x1000);
     ASSERT_EQ(ret, A64_GEN_OK);
@@ -88,13 +97,14 @@ TEST(gen_movz) {
 }
 
 // Test ADD immediate generation
-TEST(gen_add_imm) {
+TEST(gen_add_imm)
+{
     setup();
     a64_gen_reset(&test_state, 0x1000);
 
     // ADD x0, x1, #0x10
     // sf=1, op=0, S=0, sh=0, imm12=0x10, Rn=1, Rd=0
-    uint32_t add_imm = 0x91004020;  // add x0, x1, #0x10
+    uint32_t add_imm = 0x91004020; // add x0, x1, #0x10
 
     int ret = a64_gen_instruction(&test_state, add_imm, 0x1000);
     ASSERT_EQ(ret, A64_GEN_OK);
@@ -102,20 +112,22 @@ TEST(gen_add_imm) {
 }
 
 // Test ADD register generation
-TEST(gen_add_reg) {
+TEST(gen_add_reg)
+{
     setup();
     a64_gen_reset(&test_state, 0x1000);
 
     // ADD x0, x1, x2
     // sf=1, shift=0, S=0, Rm=2, imm6=0, Rn=1, Rd=0
-    uint32_t add_reg = 0x8B020020;  // add x0, x1, x2
+    uint32_t add_reg = 0x8B020020; // add x0, x1, x2
 
     int ret = a64_gen_instruction(&test_state, add_reg, 0x1000);
     ASSERT_EQ(ret, A64_GEN_OK);
     ASSERT_EQ(test_state.num_gadgets, 1);
 }
 
-TEST(gen_add_reg_shifted_lsl) {
+TEST(gen_add_reg_shifted_lsl)
+{
     setup();
     a64_gen_reset(&test_state, 0x1000);
 
@@ -128,13 +140,14 @@ TEST(gen_add_reg_shifted_lsl) {
 }
 
 // Test branch ends block
-TEST(gen_branch_ends_block) {
+TEST(gen_branch_ends_block)
+{
     setup();
     a64_gen_reset(&test_state, 0x1000);
 
     // B #0x2000
     // Unconditional branch should end the block
-    uint32_t b_imm = 0x14000000;  // b #0 (as example)
+    uint32_t b_imm = 0x14000000; // b #0 (as example)
 
     int ret = a64_gen_instruction(&test_state, b_imm, 0x1000);
     // Branch should signal block end (return 1)
@@ -142,19 +155,21 @@ TEST(gen_branch_ends_block) {
 }
 
 // Test CBZ ends block
-TEST(gen_cbz_ends_block) {
+TEST(gen_cbz_ends_block)
+{
     setup();
     a64_gen_reset(&test_state, 0x1000);
 
     // CBZ x0, #0x100
-    uint32_t cbz = 0xB4000040;  // cbz x0, #offset
+    uint32_t cbz = 0xB4000040; // cbz x0, #offset
 
     int ret = a64_gen_instruction(&test_state, cbz, 0x1000);
     // Conditional branch should end block
     ASSERT_EQ(ret, 1);
 }
 
-TEST(gen_tbz_ends_block) {
+TEST(gen_tbz_ends_block)
+{
     setup();
     a64_gen_reset(&test_state, 0x1000);
 
@@ -166,12 +181,13 @@ TEST(gen_tbz_ends_block) {
 }
 
 // Test SVC ends block
-TEST(gen_svc_ends_block) {
+TEST(gen_svc_ends_block)
+{
     setup();
     a64_gen_reset(&test_state, 0x1000);
 
     // SVC #0
-    uint32_t svc = 0xD4000001;  // svc #0
+    uint32_t svc = 0xD4000001; // svc #0
 
     int ret = a64_gen_instruction(&test_state, svc, 0x1000);
     // Syscall should end block
@@ -179,19 +195,20 @@ TEST(gen_svc_ends_block) {
 }
 
 // Test multiple instructions in sequence
-TEST(gen_sequence) {
+TEST(gen_sequence)
+{
     setup();
     a64_gen_reset(&test_state, 0x1000);
 
     // ADD x0, x1, #1
     // ADD x0, x0, x2
     uint32_t insns[] = {
-        0x91000420,  // add x0, x1, #1
-        0x8B020000,  // add x0, x0, x2
+        0x91000420, // add x0, x1, #1
+        0x8B020000, // add x0, x0, x2
     };
 
     for (int i = 0; i < 2; i++) {
-        int ret = a64_gen_instruction(&test_state, insns[i], 0x1000 + i*4);
+        int ret = a64_gen_instruction(&test_state, insns[i], 0x1000 + i * 4);
         ASSERT_EQ(ret, A64_GEN_OK);
     }
 
@@ -200,7 +217,8 @@ TEST(gen_sequence) {
 }
 
 // Test overflow protection
-TEST(gen_overflow) {
+TEST(gen_overflow)
+{
     setup();
     a64_gen_reset(&test_state, 0x1000);
 
@@ -216,7 +234,8 @@ TEST(gen_overflow) {
 }
 
 // Test basic block generation
-TEST(gen_basic_block) {
+TEST(gen_basic_block)
+{
     setup();
 
     // Would need a mock CPU state for this
@@ -226,7 +245,8 @@ TEST(gen_basic_block) {
 }
 
 // Test PC tracking
-TEST(gen_pc_tracking) {
+TEST(gen_pc_tracking)
+{
     setup();
     a64_gen_reset(&test_state, 0x1000);
 
@@ -241,7 +261,8 @@ TEST(gen_pc_tracking) {
 }
 
 // Test invalid instruction
-TEST(gen_invalid) {
+TEST(gen_invalid)
+{
     setup();
     a64_gen_reset(&test_state, 0x1000);
 
@@ -254,7 +275,8 @@ TEST(gen_invalid) {
 }
 
 // Test finalize adds exit
-TEST(gen_finalize) {
+TEST(gen_finalize)
+{
     setup();
     a64_gen_reset(&test_state, 0x1000);
 
@@ -273,38 +295,41 @@ TEST(gen_finalize) {
 }
 
 // Test instruction counting
-TEST(gen_instruction_count) {
+TEST(gen_instruction_count)
+{
     setup();
     a64_gen_reset(&test_state, 0x1000);
 
     // Process 5 instructions
     for (int i = 0; i < 5; i++) {
         uint32_t nop = 0xD503201F;
-        a64_gen_instruction(&test_state, nop, 0x1000 + i*4);
+        a64_gen_instruction(&test_state, nop, 0x1000 + i * 4);
     }
 
     ASSERT_EQ(test_state.instructions_processed, 5);
 }
 
 // Test SUB register
-TEST(gen_sub_reg) {
+TEST(gen_sub_reg)
+{
     setup();
     a64_gen_reset(&test_state, 0x1000);
 
     // SUB x0, x1, x2
-    uint32_t sub = 0xCB020020;  // sub x0, x1, x2
+    uint32_t sub = 0xCB020020; // sub x0, x1, x2
 
     int ret = a64_gen_instruction(&test_state, sub, 0x1000);
     ASSERT_EQ(ret, A64_GEN_OK);
 }
 
 // Test load/store (calls into C)
-TEST(gen_ldr) {
+TEST(gen_ldr)
+{
     setup();
     a64_gen_reset(&test_state, 0x1000);
 
     // LDR x0, [x1]
-    uint32_t ldr = 0xF9400000;  // ldr x0, [x1]
+    uint32_t ldr = 0xF9400000; // ldr x0, [x1]
 
     int ret = a64_gen_instruction(&test_state, ldr, 0x1000);
     // Should generate thunk that calls C helper
@@ -313,7 +338,8 @@ TEST(gen_ldr) {
 
 // Test STR post-index store: str xzr, [x2], #8
 // This is the failing instruction from the zeroing loop
-TEST(gen_str_post_index) {
+TEST(gen_str_post_index)
+{
     setup();
     a64_gen_reset(&test_state, 0xf7fa4650);
 
@@ -323,30 +349,31 @@ TEST(gen_str_post_index) {
 
     int ret = a64_gen_instruction(&test_state, str, 0xf7fa4650);
     ASSERT_EQ(ret, A64_GEN_OK);
-    
+
     // The generator should emit gadget_str_x with proper parameters
     // Parameters in bytecode order:
     // - gadget pointer
     // - fault_pc = 0xf7fa4650
     // - Rt = 31 (XZR)
-    // - Rn = 2 (X2)  
+    // - Rn = 2 (X2)
     // - imm = 8 (post-index offset)
     // - size = 3 (64-bit)
     // - idx_mode = A64_POST_INDEX (1)
     // - meta = 0 (no signed extension, no register offset)
-    
+
     // Verify state tracking
     ASSERT_EQ(test_state.guest_pc, 0xf7fa4650);
-    ASSERT_EQ(test_state.num_gadgets, 1);  // Should emit exactly one gadget
+    ASSERT_EQ(test_state.num_gadgets, 1); // Should emit exactly one gadget
 }
 
 // Test RET
-TEST(gen_ret) {
+TEST(gen_ret)
+{
     setup();
     a64_gen_reset(&test_state, 0x1000);
 
     // RET
-    uint32_t ret = 0xD65F03C0;  // ret
+    uint32_t ret = 0xD65F03C0; // ret
 
     int result = a64_gen_instruction(&test_state, ret, 0x1000);
     // RET should end block
@@ -354,7 +381,8 @@ TEST(gen_ret) {
 }
 
 // Test NOP
-TEST(gen_nop) {
+TEST(gen_nop)
+{
     setup();
     a64_gen_reset(&test_state, 0x1000);
 
@@ -366,8 +394,93 @@ TEST(gen_nop) {
     // Should generate NOP gadget
 }
 
+TEST(gen_mrs_tpidr_el0)
+{
+    setup();
+    a64_gen_reset(&test_state, 0x1000);
+
+    uint32_t mrs_tpidr_el0 = 0xD53BD041; // mrs x1, tpidr_el0
+    int ret = a64_gen_instruction(&test_state, mrs_tpidr_el0, 0x1000);
+
+    ASSERT_EQ(ret, A64_GEN_OK);
+    ASSERT_EQ(test_state.num_gadgets, 3);
+    ASSERT_EQ(test_buffer[1], (tcti_gadget_t)(uintptr_t)A64_SYSREG_TPIDR_EL0);
+    ASSERT_EQ(test_buffer[2], (tcti_gadget_t)(uintptr_t)1);
+}
+
+TEST(gen_msr_fpcr)
+{
+    setup();
+    a64_gen_reset(&test_state, 0x1000);
+
+    uint32_t msr_fpcr_x2 = 0xD51B4402;
+    int ret = a64_gen_instruction(&test_state, msr_fpcr_x2, 0x1000);
+
+    ASSERT_EQ(ret, A64_GEN_OK);
+    ASSERT_EQ(test_state.num_gadgets, 3);
+    ASSERT_EQ(test_buffer[1], (tcti_gadget_t)(uintptr_t)A64_SYSREG_FPCR);
+    ASSERT_EQ(test_buffer[2], (tcti_gadget_t)(uintptr_t)2);
+}
+
+TEST(gen_mrs_daif_unsupported)
+{
+    setup();
+    a64_gen_reset(&test_state, 0x1000);
+
+    uint32_t mrs_daif = 0xD5420101;
+    int ret = a64_gen_instruction(&test_state, mrs_daif, 0x1000);
+
+    ASSERT_EQ(ret, A64_GEN_OK);
+    ASSERT_EQ(test_state.num_gadgets, 1);
+    ASSERT_EQ(test_buffer[0], gadget_sysreg_unsupported);
+    ASSERT_EQ(test_state.is_complete, 1);
+}
+
+TEST(gen_mrs_cntvct_unsupported)
+{
+    setup();
+    a64_gen_reset(&test_state, 0x1000);
+
+    uint32_t mrs_cntvct = 0xD53BE043;
+    int ret = a64_gen_instruction(&test_state, mrs_cntvct, 0x1000);
+
+    ASSERT_EQ(ret, A64_GEN_OK);
+    ASSERT_EQ(test_state.num_gadgets, 1);
+    ASSERT_EQ(test_buffer[0], gadget_sysreg_unsupported);
+    ASSERT_EQ(test_state.is_complete, 1);
+}
+
+TEST(gen_mrs_ctr_el0)
+{
+    setup();
+    a64_gen_reset(&test_state, 0x1000);
+
+    uint32_t mrs_ctr_el0 = 0xD53B0023;
+    int ret = a64_gen_instruction(&test_state, mrs_ctr_el0, 0x1000);
+
+    ASSERT_EQ(ret, A64_GEN_OK);
+    ASSERT_EQ(test_state.num_gadgets, 3);
+    ASSERT_EQ(test_buffer[1], (tcti_gadget_t)(uintptr_t)A64_SYSREG_CTR_EL0);
+    ASSERT_EQ(test_buffer[2], (tcti_gadget_t)(uintptr_t)3);
+}
+
+TEST(gen_mrs_dczid_el0)
+{
+    setup();
+    a64_gen_reset(&test_state, 0x1000);
+
+    uint32_t mrs_dczid_el0 = 0xD5330004;
+    int ret = a64_gen_instruction(&test_state, mrs_dczid_el0, 0x1000);
+
+    ASSERT_EQ(ret, A64_GEN_OK);
+    ASSERT_EQ(test_state.num_gadgets, 3);
+    ASSERT_EQ(test_buffer[1], (tcti_gadget_t)(uintptr_t)A64_SYSREG_DCZID_EL0);
+    ASSERT_EQ(test_buffer[2], (tcti_gadget_t)(uintptr_t)4);
+}
+
 // Integration test: Fibonacci-like sequence
-TEST(gen_fibonacci_sequence) {
+TEST(gen_fibonacci_sequence)
+{
     setup();
     a64_gen_reset(&test_state, 0x1000);
 
@@ -377,13 +490,13 @@ TEST(gen_fibonacci_sequence) {
     // MOV x1, x2      ; x1 = x2
 
     uint32_t sequence[] = {
-        0x8B010002,  // add x2, x0, x1
-        0xAA0103E0,  // mov x0, x1
-        0xAA0203E1,  // mov x1, x2
+        0x8B010002, // add x2, x0, x1
+        0xAA0103E0, // mov x0, x1
+        0xAA0203E1, // mov x1, x2
     };
 
     for (int i = 0; i < 3; i++) {
-        int ret = a64_gen_instruction(&test_state, sequence[i], 0x1000 + i*4);
+        int ret = a64_gen_instruction(&test_state, sequence[i], 0x1000 + i * 4);
         ASSERT_EQ(ret, A64_GEN_OK);
     }
 
@@ -392,7 +505,8 @@ TEST(gen_fibonacci_sequence) {
 }
 
 // Main test runner
-int main(void) {
+int main(void)
+{
     printf("aarch64 Generator Unit Tests\n");
     printf("=============================\n\n");
 
@@ -407,6 +521,12 @@ int main(void) {
     RUN_TEST(gen_add_reg_shifted_lsl);
     RUN_TEST(gen_sub_reg);
     RUN_TEST(gen_nop);
+    RUN_TEST(gen_mrs_tpidr_el0);
+    RUN_TEST(gen_msr_fpcr);
+    RUN_TEST(gen_mrs_ctr_el0);
+    RUN_TEST(gen_mrs_dczid_el0);
+    RUN_TEST(gen_mrs_daif_unsupported);
+    RUN_TEST(gen_mrs_cntvct_unsupported);
 
     printf("\nBlock Terminators:\n");
     RUN_TEST(gen_branch_ends_block);
@@ -432,8 +552,7 @@ int main(void) {
     RUN_TEST(gen_invalid);
 
     printf("\n=============================\n");
-    printf("Results: %d run, %d passed, %d failed\n",
-           tests_run, tests_passed, tests_failed);
+    printf("Results: %d run, %d passed, %d failed\n", tests_run, tests_passed, tests_failed);
 
     return tests_failed > 0 ? 1 : 0;
 }

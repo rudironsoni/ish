@@ -8,6 +8,7 @@
 #import <IXLandLinuxRuntime/emu/aarch64/block-cache.h>
 #import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
 #import <IXLandLinuxRuntime/emu/aarch64/memory.h>
+#import <IXLandLinuxRuntime/emu/aarch64/sysreg.h>
 #import <IXLandLinuxRuntime/emu/interrupt.h>
 #import <IXLandLinuxRuntime/emu/mmu.h>
 #import <IXLandLinuxRuntime/emu/tlb.h>
@@ -1313,47 +1314,15 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb)
             if (a64_fetch_insn(cpu, cpu->tlb, cpu->pc, &insn) == 0) {
                 a64_instr_t decoded;
                 if (a64_decode(insn, &decoded) == 0) {
-                    if (decoded.cat == A64_BRANCH && decoded.subtype == 2) {
-                        // MRS - Move to register from system register
-                        // TPIDR_EL0: op1=3, CRn=13, CRm=0, op2=2
-                        int op1 = (decoded.sysreg >> 14) & 0x7;
-                        int crn = (decoded.sysreg >> 10) & 0xF;
-                        int crm = (decoded.sysreg >> 6) & 0xF;
-                        int op2 = (decoded.sysreg >> 3) & 0x7;
-
-                        if (op1 == 3 && crn == 13 && crm == 0 && op2 == 2) {
-                            // TPIDR_EL0 read
-                            cpu->x[decoded.Rd] = cpu->tpidr_el0;
-                        } else if (op1 == 3 && crn == 13 && crm == 0 && op2 == 3) {
-                            // TPIDRRO_EL0 read (same value on Linux)
-                            cpu->x[decoded.Rd] = cpu->tpidr_el0;
-                        } else {
-                            // Unhandled MRS system register - this is an emulation limitation
-                            // Not a guest error, so we just set the register to 0 and continue
-                            trace_emit_unhandled_mrs(cpu->pc, decoded.sysreg);
-                            cpu->x[decoded.Rd] = 0;
+                    if (decoded.cat == A64_BRANCH &&
+                        (decoded.subtype == 2 || decoded.subtype == 4)) {
+                        if (a64_sysreg_handle_complex(cpu, &decoded) != 0) {
+                            if (decoded.subtype == 2)
+                                trace_emit_unhandled_mrs(cpu->pc, decoded.sysreg);
+                            else
+                                trace_emit_unhandled_msr(cpu->pc, decoded.sysreg);
+                            handle_interrupt(INT_GPF);
                         }
-                        cpu->pc += 4; // Advance past MRS instruction
-                    } else if (decoded.cat == A64_BRANCH && decoded.subtype == 4) {
-                        // MSR (reg) - Move from register to system register
-                        int op1 = (decoded.sysreg >> 14) & 0x7;
-                        int crn = (decoded.sysreg >> 10) & 0xF;
-                        int crm = (decoded.sysreg >> 6) & 0xF;
-                        int op2 = (decoded.sysreg >> 3) & 0x7;
-
-                        if (op1 == 3 && crn == 13 && crm == 0 && op2 == 2) {
-                            // TPIDR_EL0 write
-                            if (decoded.Rd < 31) {
-                                cpu->tpidr_el0 = cpu->x[decoded.Rd];
-                            } else {
-                                cpu->tpidr_el0 = 0;
-                            }
-                        } else {
-                            // Unhandled MSR system register - this is an emulation limitation
-                            // Not a guest error, so we just ignore the write and continue
-                            trace_emit_unhandled_msr(cpu->pc, decoded.sysreg);
-                        }
-                        cpu->pc += 4; // Advance past MSR instruction
                     } else {
                         trace_emit_complex_unknown(cpu->pc, decoded.cat, decoded.subtype);
                         handle_interrupt(INT_GPF);
@@ -1366,6 +1335,8 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb)
                 trace_emit_complex_fetch_fail(cpu->pc, -EFAULT);
                 handle_interrupt(INT_GPF);
             }
+        } else if (exit_reason == TCTI_EXIT_UNSUPPORTED_SYSREG) {
+            handle_interrupt(INT_GPF);
         } else {
             // Fallthrough blocks advance to end_pc. Control-transfer blocks preserve
             // the guest PC written by their terminal gadget.

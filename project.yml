@@ -2,7 +2,7 @@ name: IXLand
 options:
   bundleIdPrefix: app.ixland
   deploymentTarget:
-    iOS: "14.0"
+    iOS: "16.0"
   xcodeVersion: "15.0"
   generateEmptyDirectories: true
   groupSortPosition: top
@@ -24,7 +24,7 @@ settings:
 targetTemplates:
   LinuxRuntimeBase:
     platform: iOS
-    deploymentTarget: "14.0"
+    deploymentTarget: "16.0"
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: app.ixland.linuxruntime
       PRODUCT_NAME: IXLandLinuxRuntime
@@ -70,11 +70,13 @@ targets:
     sources:
       - path: Tests/IXLandLinuxRuntimeUnitTests
         excludes:
+          - "decoder_test.c"
           - "e2e/**"
           - "gen_test_simple.c"
           - "gen_test_minimal.c"
           - "gadget_test.c"
           - "gen_test.c"
+          - "sysreg_test.c"
           - "test_*.c"
           - "test-dp-reg.c"
           - "arm-reference.txt"
@@ -151,7 +153,7 @@ targets:
   IXLandTerminal:
     type: application
     platform: iOS
-    deploymentTarget: "14.0"
+    deploymentTarget: "16.0"
     sources:
       - path: Sources/IXLandTerminal
         excludes:
