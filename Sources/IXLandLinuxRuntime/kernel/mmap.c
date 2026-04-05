@@ -35,7 +35,7 @@ struct mm *mm_copy(struct mm *mm)
     mem_init(&new_mm->mem);
     fd_retain(new_mm->exefile);
     write_wrlock(&mm->mem.lock);
-    pt_copy_on_write(&mm->mem, &new_mm->mem, 0, MEM_PAGES);
+    pt_copy_on_write(&mm->mem, &new_mm->mem, 0, A64_USER_TOP >> PAGE_BITS);
     write_wrunlock(&mm->mem.lock);
     return new_mm;
 }
@@ -110,8 +110,12 @@ static addr_t do_mmap(addr_t addr, dword_t len, dword_t prot, dword_t flags, fd_
             return _ENODEV;
         if ((err = fd->ops->mmap(fd, current->mem, page, pages, (off_t)offset, prot, flags)) < 0)
             return err;
-        mem_pt(current->mem, page)->data->fd = fd_retain(fd);
-        mem_pt(current->mem, page)->data->file_offset = offset;
+        /* Set file-backed metadata on the first page's descriptor */
+        struct page_desc *first_desc = page_map_lookup(&current->mem->pages, page);
+        if (first_desc) {
+            first_desc->obj->fd = fd_retain(fd);
+            first_desc->obj->file_offset = offset;
+        }
     }
     return page << PAGE_BITS;
 }
@@ -197,13 +201,13 @@ int_t sys_mremap(addr_t addr, dword_t old_len, dword_t new_len, dword_t flags)
         return addr;
     }
 
-    struct pt_entry *entry = mem_pt(current->mem, PAGE(addr));
-    if (entry == NULL)
+    struct vm_area *vma = vma_tree_find(&current->mem->vmas, addr);
+    if (!vma || vma->start != addr)
         return _EFAULT;
-    dword_t pt_flags = entry->flags;
+    unsigned pt_flags = vma->flags;
     for (page_t page = PAGE(addr); page < PAGE(addr) + old_pages; page++) {
-        entry = mem_pt(current->mem, page);
-        if (entry == NULL && entry->flags != pt_flags)
+        struct page_desc *desc = page_map_lookup(&current->mem->pages, page);
+        if (!desc || desc->obj != vma->obj || desc->flags != pt_flags)
             return _EFAULT;
     }
     if (!(pt_flags & P_ANONYMOUS)) {

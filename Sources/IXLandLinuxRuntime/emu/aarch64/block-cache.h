@@ -1,12 +1,12 @@
 #ifndef AARCH64_BLOCK_CACHE_H
 #define AARCH64_BLOCK_CACHE_H
 
-#import <IXLandLinuxRuntime/util/misc.h>
-#import <IXLandLinuxRuntime/util/list.h>
-#import <IXLandLinuxRuntime/util/sync.h>
 #import <IXLandLinuxRuntime/emu/tlb.h>
-#include <stdint.h>
+#import <IXLandLinuxRuntime/util/list.h>
+#import <IXLandLinuxRuntime/util/misc.h>
+#import <IXLandLinuxRuntime/util/sync.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 // Forward declaration for trace sidecar
 struct trace_block_sidecar;
@@ -15,22 +15,24 @@ struct trace_block_sidecar;
 #import <IXLandLinuxRuntime/tcti/gadgets_tcti.h>
 
 struct a64_block {
-    uint64_t start_pc;          // Starting guest PC
-    uint64_t end_pc;            // Ending PC (one past last instruction)
-    size_t num_gadgets;         // Number of gadgets in block
-    bool explicit_pc_on_exit;   // Control-flow gadget writes guest PC before exit
+    uint64_t start_pc;
+    uint64_t end_pc;
+    size_t num_gadgets;
+    bool explicit_pc_on_exit;
 
-    // Gadget chain - array of function pointers
     tcti_gadget_t *gadgets;
 
-    // Hash chain links
     struct list chain;
 
-    // For invalidation tracking
+    /* Generation at compile time. If the address-space generation
+       changes after this block was compiled, the block is stale and
+       MUST NOT be used. This replaces jetsam-based invalidation as the
+       primary correctness mechanism. */
+    mem_generation_t compile_generation;
+
     bool is_jetsam;
     struct list jetsam;
-    
-    // Debug sidecar for tracing (NULL if tracing not enabled)
+
     struct trace_block_sidecar *trace_sidecar;
 };
 
@@ -49,8 +51,9 @@ struct a64_block_cache {
 // Initialize block cache
 void a64_cache_init(struct a64_block_cache *cache);
 
-// Look up block by PC. Returns NULL if not found.
-struct a64_block *a64_cache_lookup(struct a64_block_cache *cache, uint64_t pc);
+// Look up block by PC and current generation. Returns NULL if not found or stale.
+struct a64_block *a64_cache_lookup(struct a64_block_cache *cache, uint64_t pc,
+                                   mem_generation_t current_generation);
 
 // Insert block into cache
 void a64_cache_insert(struct a64_block_cache *cache, struct a64_block *block);
@@ -68,7 +71,8 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
 int a64_execute_block(struct cpu_state *cpu, struct a64_block *block);
 
 // Hash function for PC
-static inline size_t a64_cache_hash(uint64_t pc) {
+static inline size_t a64_cache_hash(uint64_t pc)
+{
     return ((pc >> 2) & (BLOCK_CACHE_HASH_SIZE - 1));
 }
 

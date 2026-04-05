@@ -1,6 +1,8 @@
 #import <IXLandLinuxRuntime/kernel/memory.h>
+#import <IXLandLinuxRuntime/kernel/page_map.h>
 #import <IXLandLinuxRuntime/kernel/signal.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
+#import <IXLandLinuxRuntime/kernel/vma.h>
 #define _GNU_SOURCE
 #import <IXLandInstrumentationTracing/trace.h>
 #import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
@@ -279,12 +281,12 @@ static int load_entry(struct prg_header ph, addr_t bias, struct fd *fd)
     }
 
     // TODO find a better place for these to avoid code duplication
-    struct pt_entry *first_pt = mem_pt(current->mem, start_page);
-    if (first_pt == NULL || first_pt->data == NULL) {
+    struct page_desc *first_desc = page_map_lookup(&current->mem->pages, start_page);
+    if (first_desc == NULL || first_desc->obj == NULL) {
         return _ENOMEM;
     }
-    first_pt->data->fd = fd_retain(fd);
-    first_pt->data->file_offset = map_offset;
+    first_desc->obj->fd = fd_retain(fd);
+    first_desc->obj->file_offset = map_offset;
 
     if (memsize > filesize) {
         // put zeroes between addr + filesize and addr + memsize, call that bss
@@ -546,7 +548,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
         strncpy(path_buf, file, sizeof(path_buf) - 1);
         path_buf[sizeof(path_buf) - 1] = '\0';
         snprintf(data_buf, sizeof(data_buf), "%p",
-                 (void *)mem_pt(current->mem, PAGE(bias + ph[i].vaddr)));
+                 (void *)page_map_lookup(&current->mem->pages, PAGE(bias + ph[i].vaddr)));
         snprintf(fd_buf, sizeof(fd_buf), "%p", (void *)fd);
         snprintf(map_start_buf, sizeof(map_start_buf), "0x%lx",
                  (unsigned long)(bias + ph[i].vaddr));
@@ -586,7 +588,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
         // we have to know where the brk starts
         addr_t brk = bias + ph[i].vaddr + ph[i].memsize;
         if (brk > current->mm->start_brk)
-            current->mm->start_brk = current->mm->brk = BYTES_ROUND_UP(brk);
+            current->mm->start_brk = current->mm->brk = HOST_ROUND_UP(brk);
     }
 
     addr_t entry = bias + header.entry_point;
@@ -627,7 +629,8 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
             strncpy(path_buf, interp_name, sizeof(path_buf) - 1);
             path_buf[sizeof(path_buf) - 1] = '\0';
             snprintf(data_buf, sizeof(data_buf), "%p",
-                     (void *)mem_pt(current->mem, PAGE(interp_base + interp_ph[i].vaddr)));
+                     (void *)page_map_lookup(&current->mem->pages,
+                                             PAGE(interp_base + interp_ph[i].vaddr)));
             snprintf(fd_buf, sizeof(fd_buf), "%p", (void *)interp_fd);
             snprintf(map_start_buf, sizeof(map_start_buf), "0x%lx",
                      (unsigned long)(interp_base + interp_ph[i].vaddr));
@@ -692,9 +695,9 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
             page_t start_page = PAGE(seg_start);
             page_t end_page = PAGE(seg_end);
             for (page_t pg = start_page; pg <= end_page; pg++) {
-                struct pt_entry *pt = mem_pt(current->mem, pg);
-                if (pt && pt->data && !pt->data->name) {
-                    pt->data->name = "[interpreter]";
+                struct page_desc *desc = page_map_lookup(&current->mem->pages, pg);
+                if (desc && desc->obj && !desc->obj->name) {
+                    desc->obj->name = "[interpreter]";
                 }
             }
         }
@@ -743,7 +746,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     vdso_page += 1;
     if ((err = pt_map(current->mem, vdso_page, vdso_pages, (void *)vdso_data, 0, 0)) < 0)
         goto beyond_hope;
-    mem_pt(current->mem, vdso_page)->data->name = "[vdso]";
+    page_map_lookup(&current->mem->pages, vdso_page)->obj->name = "[vdso]";
     current->mm->vdso = vdso_page << PAGE_BITS;
     addr_t vdso_entry = current->mm->vdso + ((struct elf_header *)vdso_data)->entry_point;
 
@@ -753,17 +756,17 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
         goto beyond_hope;
     if ((err = pt_map_nothing(current->mem, vvar_page, VVAR_PAGES, 0)) < 0)
         goto beyond_hope;
-    mem_pt(current->mem, vvar_page)->data->name = "[vvar]";
+    page_map_lookup(&current->mem->pages, vvar_page)->obj->name = "[vvar]";
 
 // STACK TIME!
 
 // Map sufficient stack pages to accommodate initial stack setup.
 // AArch64 startup layout - two-sided budget inside mapped stack region
 // Derived from USER_TOP with explicit upward headroom and downward reserve
-#define USER_TOP          (((addr_t)MEM_PAGES) << PAGE_BITS) // 0x100000000
-#define STARTUP_HEADROOM  ((addr_t)16 * 1024 * 1024)         // 16 MB gap
-#define STACK_MAPPED_SIZE ((addr_t)4 * 1024 * 1024)          // 4 MB mapped stack
-#define TLS_TCB_SIZE      ((addr_t)256 * 1024)               // 256 KB
+#define USER_TOP          A64_USER_TOP               /* 48-bit VA = 256TB */
+#define STARTUP_HEADROOM  ((addr_t)16 * 1024 * 1024) // 16 MB gap
+#define STACK_MAPPED_SIZE ((addr_t)4 * 1024 * 1024)  // 4 MB mapped stack
+#define TLS_TCB_SIZE      ((addr_t)256 * 1024)       // 256 KB
 #define GUARD_PAGES       4
 #define GUARD_SIZE        ((addr_t)GUARD_PAGES * PAGE_SIZE)
 

@@ -398,6 +398,7 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
     block->start_pc = gen_state.start_pc;
     block->end_pc = gen_state.end_pc;
     block->explicit_pc_on_exit = explicit_pc_on_exit;
+    block->compile_generation = cpu->mmu->generation;
     block->is_jetsam = false;
     block->trace_sidecar = NULL;
 
@@ -566,70 +567,41 @@ static void trace_pc_mapping_info(const char *name, uint64_t pc)
     map_end_buf[0] = '\0';
     file_offset_buf[0] = '\0';
 
-    // Look up page table entry for this PC
-    page_t page = PAGE(pc);
-    read_wrlock(&current->mem->lock);
-    struct pt_entry *entry = mem_pt(current->mem, page);
-    if (entry && entry->data) {
-        snprintf(page_buf, sizeof(page_buf), "0x%lx", (unsigned long)page << PAGE_BITS);
-        snprintf(flags_buf, sizeof(flags_buf), "0x%x", entry->flags);
+    // Look up mapping for this PC using VMA tree
+    uint64_t pc_addr = pc;
+    struct vm_area *vma = vma_tree_find(&current->mem->vmas, pc_addr);
+    if (vma) {
+        snprintf(page_buf, sizeof(page_buf), "0x%llx", (unsigned long long)(vma->start));
+        snprintf(flags_buf, sizeof(flags_buf), "0x%x", vma->flags);
 
-        // Scan backward to find mapping start (while data and flags match)
-        page_t map_start_page = page;
-        struct data *ref_data = entry->data;
-        unsigned ref_flags = entry->flags;
-
-        // Scan backward
-        for (page_t pg = page; pg > 0; pg--) {
-            struct pt_entry *e = mem_pt(current->mem, pg - 1);
-            if (!e || e->data != ref_data || e->flags != ref_flags) {
-                break;
-            }
-            map_start_page = pg - 1;
-        }
-
-        // Scan forward to find mapping end (while data and flags match)
-        page_t map_end_page = page;
-        // Scan forward up to reasonable limit
-        for (page_t pg = page; pg < page + 10000 && pg < 0xFFFFFFFF; pg++) {
-            struct pt_entry *e = mem_pt(current->mem, pg + 1);
-            if (!e || e->data != ref_data || e->flags != ref_flags) {
-                break;
-            }
-            map_end_page = pg + 1;
-        }
-
-        snprintf(map_start_buf, sizeof(map_start_buf), "0x%lx",
-                 (unsigned long)map_start_page << PAGE_BITS);
-        snprintf(map_end_buf, sizeof(map_end_buf), "0x%lx",
-                 ((unsigned long)(map_end_page + 1) << PAGE_BITS) - 1);
+        snprintf(map_start_buf, sizeof(map_start_buf), "0x%llx", (unsigned long long)vma->start);
+        snprintf(map_end_buf, sizeof(map_end_buf), "0x%llx", (unsigned long long)(vma->end - 1));
 
         // Calculate file offset for this PC
-        size_t page_offset_in_mapping = (page - map_start_page) * PAGE_SIZE;
-        addr_t file_offset = entry->data->file_offset + page_offset_in_mapping + PGOFFSET(pc);
-        snprintf(file_offset_buf, sizeof(file_offset_buf), "0x%lx", (unsigned long)file_offset);
+        size_t offset_in_vma = pc_addr - vma->start;
+        addr_t file_offset = vma->obj->file_offset + offset_in_vma + PGOFFSET(pc);
+        snprintf(file_offset_buf, sizeof(file_offset_buf), "0x%llx",
+                 (unsigned long long)file_offset);
 
-        if (entry->data->name) {
-            strncpy(name_buf, entry->data->name, sizeof(name_buf) - 1);
+        if (vma->obj->name) {
+            strncpy(name_buf, vma->obj->name, sizeof(name_buf) - 1);
             name_buf[sizeof(name_buf) - 1] = '\0';
 
-            // Check if this is interpreter mapping
             if (strstr(name_buf, "ld-musl") || strstr(name_buf, "ld-linux")) {
                 snprintf(is_interp_buf, sizeof(is_interp_buf), "yes");
             } else {
                 snprintf(is_interp_buf, sizeof(is_interp_buf), "no");
             }
 
-            // Check if this is the main executable
-            if (current->mm && current->mm->exefile && entry->data->fd == current->mm->exefile) {
+            if (current->mm && current->mm->exefile && vma->obj->fd == current->mm->exefile) {
                 snprintf(is_exe_buf, sizeof(is_exe_buf), "yes");
             } else {
                 snprintf(is_exe_buf, sizeof(is_exe_buf), "no");
             }
         }
 
-        if (entry->data->fd) {
-            snprintf(fd_buf, sizeof(fd_buf), "%p", (void *)entry->data->fd);
+        if (vma->obj->fd) {
+            snprintf(fd_buf, sizeof(fd_buf), "%p", (void *)vma->obj->fd);
         }
     } else {
         snprintf(page_buf, sizeof(page_buf), "unmapped");
@@ -642,7 +614,6 @@ static void trace_pc_mapping_info(const char *name, uint64_t pc)
         snprintf(map_end_buf, sizeof(map_end_buf), "unmapped");
         snprintf(file_offset_buf, sizeof(file_offset_buf), "none");
     }
-    read_wrunlock(&current->mem->lock);
 
     trace_attribute_t attrs[] = {
         { "pc", pc_buf },
@@ -1107,7 +1078,7 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb)
             // L0 miss - fall back to MMU cache (L1)
             block = NULL;
             if (cpu->mmu->block_cache) {
-                block = a64_cache_lookup(cpu->mmu->block_cache, pc);
+                block = a64_cache_lookup(cpu->mmu->block_cache, pc, cpu->mmu->generation);
                 if (block) {
                     fiber_stat_inc(ctx, STAT_TB_L1_HITS);
                 }

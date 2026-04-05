@@ -1,22 +1,22 @@
 #import <IXLandLinuxRuntime/emu/cpu.h>
 #import <IXLandLinuxRuntime/emu/tlb.h>
-#import <IXLandLinuxRuntime/tcti/frame.h> // For TLB statistics
+#import <IXLandLinuxRuntime/tcti/frame.h>
 
 void tlb_refresh(struct tlb *tlb, struct mmu *mmu)
 {
-    if (tlb->mmu == mmu && tlb->mem_changes == mmu->changes)
+    if (tlb->mmu == mmu && tlb->generation == mmu->generation)
         return;
     tlb->mmu = mmu;
     tlb->dirty_page = TLB_PAGE_EMPTY;
-    tlb->mem_changes = mmu->changes;
+    tlb->generation = mmu->generation;
     tlb_flush(tlb);
 }
 
 void tlb_flush(struct tlb *tlb)
 {
-    tlb->mem_changes = tlb->mmu->changes;
+    tlb->generation = tlb->mmu->generation;
     for (unsigned i = 0; i < TLB_SIZE; i++)
-        tlb->entries[i] = (struct tlb_entry){ .page = 1, .page_if_writable = 1 };
+        tlb->entries[i] = (struct tlb_entry){ .page = 1, .page_if_writable = 1, .generation = 0 };
 }
 
 void tlb_free(struct tlb *tlb)
@@ -56,7 +56,6 @@ bool __tlb_write_cross_page(struct tlb *tlb, addr_t addr, const char *value, uns
 
 __no_instrument void *tlb_handle_miss(struct tlb *tlb, addr_t addr, int type)
 {
-    // PR 8 prep: Track TLB misses for performance analysis
     if (tlb->stats_ctx) {
         if (type == MEM_READ) {
             fiber_stat_inc(tlb->stats_ctx, STAT_TLB_READ_MISSES);
@@ -65,8 +64,22 @@ __no_instrument void *tlb_handle_miss(struct tlb *tlb, addr_t addr, int type)
         }
     }
 
-    // Snapshot changes counter before translation to detect concurrent modifications
-    uint64_t changes_before = tlb->mmu->changes;
+    /*
+     * Generation-based TLB miss handling.
+     *
+     * 1. Snapshot the current generation BEFORE translation.
+     * 2. Resolve the translation via mmu_translate.
+     * 3. If translation failed, record segfault and return NULL.
+     * 4. If generation changed DURING translation, the memory layout
+     *    was mutated concurrently. Flush the TLB and retry from step 1.
+     * 5. Install the TLB entry with the current generation stamp.
+     *
+     * This guarantees that no stale host pointer is ever cached.
+     * The read-side (TLB hit path) also checks generation, so even
+     * if a concurrent mutation happens AFTER install, the next lookup
+     * will miss and re-resolve.
+     */
+    mem_generation_t gen_before = tlb->mmu->generation;
 
     char *ptr = mmu_translate(tlb->mmu, TLB_PAGE(addr), type);
     if (ptr == NULL) {
@@ -74,10 +87,9 @@ __no_instrument void *tlb_handle_miss(struct tlb *tlb, addr_t addr, int type)
         return NULL;
     }
 
-    // If memory changed during translation, the pointer may be stale - retry
-    if (tlb->mmu->changes != changes_before) {
+    /* Generation changed during translation -- stale result, retry */
+    if (tlb->mmu->generation != gen_before) {
         tlb_flush(tlb);
-        // Retry translation with stable memory state
         return tlb_handle_miss(tlb, addr, type);
     }
 
@@ -88,8 +100,9 @@ __no_instrument void *tlb_handle_miss(struct tlb *tlb, addr_t addr, int type)
     if (type == MEM_WRITE)
         tlb_ent->page_if_writable = tlb_ent->page;
     else
-        // 1 is not a valid page so this won't look like a hit
         tlb_ent->page_if_writable = TLB_PAGE_EMPTY;
     tlb_ent->data_minus_addr = (uintptr_t)ptr - TLB_PAGE(addr);
+    tlb_ent->generation = gen_before;
+
     return (void *)(tlb_ent->data_minus_addr + addr);
 }

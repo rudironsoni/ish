@@ -17,100 +17,129 @@
 #import <IXLandLinuxRuntime/kernel/vdso.h>
 #import <IXLandLinuxRuntime/util/debug.h>
 
-// increment the change count
-static void mem_changed(struct mem *mem);
 static struct mmu_ops mem_mmu_ops;
 
 void mem_init(struct mem *mem)
 {
-    mem->pgdir = calloc(MEM_PGDIR_SIZE, sizeof(struct pt_entry *));
-    mem->pgdir_used = 0;
+    memset(mem, 0, sizeof(*mem));
+    vma_tree_init(&mem->vmas);
+    page_map_init(&mem->pages);
     mem->mmu.ops = &mem_mmu_ops;
-    mem->mmu.changes = 0;
+    mem->mmu.generation = 0;
+    list_init(&mem->retire_list);
+    mem->retire_tail = NULL;
+    mem->retire_count = 0;
     wrlock_init(&mem->lock);
+}
+
+static void retire_list_add(struct mem *mem, struct mem_object *obj)
+{
+    obj->retire_generation = mem->mmu.generation;
+    list_add_tail(&mem->retire_list, &obj->retire_link);
+    if (!mem->retire_tail)
+        mem->retire_tail = obj;
+    mem->retire_count++;
+}
+
+void mem_drain_retired(struct mem *mem)
+{
+    mem_generation_t current = mem->mmu.generation;
+    struct list *head = &mem->retire_list;
+    struct list *cur = head->next;
+    while (cur != head) {
+        struct mem_object *obj = container_of(cur, struct mem_object, retire_link);
+        struct list *next = cur->next;
+        if (obj->retire_generation < current) {
+            list_remove(cur);
+            if (mem->retire_tail == obj) {
+                mem->retire_tail = cur->prev != head
+                                       ? container_of(cur->prev, struct mem_object, retire_link)
+                                       : NULL;
+            }
+            mem->retire_count--;
+
+            if (obj->host_base && obj->host_base != MAP_FAILED && obj->host_base != vdso_data) {
+                munmap(obj->host_base, obj->host_size);
+            }
+            if (obj->fd)
+                fd_close(obj->fd);
+            free((void *)obj->name);
+            free(obj);
+        }
+        cur = next;
+    }
+}
+
+static int mem_destroy_page_cb(uint64_t page, struct page_desc *desc, void *ctx)
+{
+    (void)page;
+    struct mem *mem = (struct mem *)ctx;
+    mem_object_retire(desc->obj);
+    retire_list_add(mem, desc->obj);
+    free(desc);
+    return 0;
+}
+
+static int mem_coredump_max_page_cb(uint64_t page, struct page_desc *desc, void *ctx)
+{
+    (void)desc;
+    page_t *max = (page_t *)ctx;
+    if (page > *max)
+        *max = page;
+    return 0;
+}
+
+static int mem_coredump_write_cb(uint64_t page, struct page_desc *desc, void *ctx)
+{
+    int *fd_ptr = (int *)ctx;
+    if (lseek(*fd_ptr, page << PAGE_BITS, SEEK_SET) < 0) {
+        perror("lseek");
+        return 1;
+    }
+    if (write(*fd_ptr, desc->obj->host_base + desc->offset, PAGE_SIZE) < 0) {
+        perror("write");
+        return 1;
+    }
+    return 0;
 }
 
 void mem_destroy(struct mem *mem)
 {
-    if (mem == NULL) {
+    if (!mem)
         return;
-    }
     write_wrlock(&mem->lock);
-    pt_unmap_always(mem, 0, MEM_PAGES);
-    for (int i = 0; i < MEM_PGDIR_SIZE; i++) {
-        if (mem->pgdir[i] != NULL)
-            free(mem->pgdir[i]);
-    }
-    free(mem->pgdir);
+
+    page_map_iterate_all(&mem->pages, mem_destroy_page_cb, mem);
+
+    page_map_destroy(&mem->pages, NULL);
+    vma_tree_destroy(&mem->vmas);
+
+    mem->mmu.generation++;
+    mem_drain_retired(mem);
+
     write_wrunlock(&mem->lock);
     wrlock_destroy(&mem->lock);
 }
 
-#define PGDIR_TOP(page)    ((page) >> 10)
-#define PGDIR_BOTTOM(page) ((page) & (MEM_PGDIR_SIZE - 1))
-
-static struct pt_entry *mem_pt_new(struct mem *mem, page_t page)
-{
-    struct pt_entry *pgdir = mem->pgdir[PGDIR_TOP(page)];
-    if (pgdir == NULL) {
-        pgdir = mem->pgdir[PGDIR_TOP(page)] = calloc(MEM_PGDIR_SIZE, sizeof(struct pt_entry));
-        mem->pgdir_used++;
-    }
-    return &pgdir[PGDIR_BOTTOM(page)];
-}
-
-struct pt_entry *mem_pt(struct mem *mem, page_t page)
-{
-    struct pt_entry *pgdir = mem->pgdir[PGDIR_TOP(page)];
-    trace_emit_mem_pgdir_lookup(page, (uint64_t)pgdir);
-    if (pgdir == NULL)
-        return NULL;
-    struct pt_entry *entry = &pgdir[PGDIR_BOTTOM(page)];
-    if (entry->data == NULL)
-        return NULL;
-    return entry;
-}
-
-static void mem_pt_del(struct mem *mem, page_t page)
-{
-    struct pt_entry *entry = mem_pt(mem, page);
-    if (entry != NULL)
-        entry->data = NULL;
-}
-
-void mem_next_page(struct mem *mem, page_t *page)
-{
-    (*page)++;
-    if (*page >= MEM_PAGES)
-        return;
-    while (*page < MEM_PAGES && mem->pgdir[PGDIR_TOP(*page)] == NULL)
-        *page = (*page - PGDIR_BOTTOM(*page)) + MEM_PGDIR_SIZE;
-}
-
 page_t pt_find_hole(struct mem *mem, pages_t size)
 {
-    page_t hole_end = 0; // this can never be used before initializing but gcc doesn't realize
-    bool in_hole = false;
-    for (page_t page = 0xf7ffd; page > 0x40000; page--) {
-        // I don't know how this works but it does
-        if (!in_hole && mem_pt(mem, page) == NULL) {
-            in_hole = true;
-            hole_end = page + 1;
-        }
-        if (mem_pt(mem, page) != NULL)
-            in_hole = false;
-        else if (hole_end - page == size)
-            return page;
-    }
-    return BAD_PAGE;
+    uint64_t page = vma_tree_find_hole(&mem->vmas, size);
+    return (page_t)page;
 }
 
 bool pt_is_hole(struct mem *mem, page_t start, pages_t pages)
 {
-    for (page_t page = start; page < start + pages; page++) {
-        if (mem_pt(mem, page) != NULL)
-            return false;
-    }
+    uint64_t addr = start << PAGE_BITS;
+    uint64_t end_addr = (start + pages) << PAGE_BITS;
+
+    struct vm_area *vma = vma_tree_find(&mem->vmas, addr);
+    if (vma)
+        return false;
+
+    vma = vma_tree_find_exact(&mem->vmas, start);
+    if (vma && vma->start < (end_addr >> PAGE_BITS))
+        return false;
+
     return true;
 }
 
@@ -120,74 +149,73 @@ int pt_map(struct mem *mem, page_t start, pages_t pages, void *memory, size_t of
     if (memory == MAP_FAILED)
         return errno_map();
 
-    // If this fails, the munmap in pt_unmap would probably fail.
     assert((uintptr_t)memory % real_page_size == 0 || memory == vdso_data);
 
-    struct data *data = malloc(sizeof(struct data));
-    if (data == NULL) {
+    enum mem_object_kind kind = MEM_OBJ_RAM;
+    if (flags & P_ANONYMOUS)
+        kind = MEM_OBJ_RAM;
+    else if (memory == vdso_data)
+        kind = MEM_OBJ_VDSO;
+    else
+        kind = MEM_OBJ_FILE;
+
+    struct mem_object *obj =
+        mem_object_new(memory, HOST_ROUND_UP((size_t)pages * PAGE_SIZE + offset), kind);
+    if (!obj)
+        return _ENOMEM;
+
+    struct vm_area *removed[64];
+    int n_removed = vma_tree_remove_range(&mem->vmas, start, pages, removed, 64);
+    for (int i = 0; i < n_removed; i++) {
+        page_t pg_start = removed[i]->start >> PAGE_BITS;
+        page_t pg_end = removed[i]->end >> PAGE_BITS;
+        for (page_t pg = pg_start; pg < pg_end; pg++) {
+            struct page_desc *old_desc = page_map_remove(&mem->pages, pg);
+            if (old_desc) {
+                mem_object_retire(old_desc->obj);
+                retire_list_add(mem, old_desc->obj);
+                free(old_desc);
+            }
+        }
+        mem_object_release(removed[i]->obj);
+        vma_free(removed[i]);
+    }
+
+    struct vm_area *vma = vma_alloc();
+    if (!vma) {
+        mem_object_release(obj);
         return _ENOMEM;
     }
-    size_t guest_bytes = pages * PAGE_SIZE + offset;
-    size_t host_bytes = HOST_ROUND_UP(guest_bytes);
-    *data = (struct data){
-        .data = memory,
-        .host_size = host_bytes,
-
-#if LEAK_DEBUG
-        .pid = current ? current->pid : 0,
-        .dest = start << PAGE_BITS,
-#endif
-    };
+    vma->start = start << PAGE_BITS;
+    vma->end = (start + pages) << PAGE_BITS;
+    vma->flags = flags;
+    vma->obj = obj;
+    vma->obj_offset = offset;
+    vma_tree_insert(&mem->vmas, vma);
 
     for (page_t page = start; page < start + pages; page++) {
-        if (mem_pt(mem, page) != NULL)
-            pt_unmap(mem, page, 1);
-        data->refcount++;
-        struct pt_entry *pt = mem_pt_new(mem, page);
-        pt->data = data;
-        pt->offset = ((page - start) << PAGE_BITS) + offset;
-        pt->flags = flags;
-    }
-    return 0;
-}
-
-int pt_unmap(struct mem *mem, page_t start, pages_t pages)
-{
-    for (page_t page = start; page < start + pages; page++)
-        if (mem_pt(mem, page) == NULL)
-            return -1;
-    return pt_unmap_always(mem, start, pages);
-}
-
-int pt_unmap_always(struct mem *mem, page_t start, pages_t pages)
-{
-    // Invalidate all TCTI blocks when memory changes
-    // Per-MMU cache invalidation via current task
-    struct task *task = current;
-    if (task && task->cpu.mmu && task->cpu.mmu->block_cache) {
-        a64_cache_invalidate_all(task->cpu.mmu->block_cache);
-    }
-
-    for (page_t page = start; page < start + pages; mem_next_page(mem, &page)) {
-        struct pt_entry *pt = mem_pt(mem, page);
-        if (pt == NULL)
-            continue;
-        struct data *data = pt->data;
-        mem_pt_del(mem, page);
-        if (--data->refcount == 0) {
-            // vdso wasn't allocated with mmap, it's just in our data segment
-            if (data->data != vdso_data) {
-                int err = munmap(data->data, data->host_size);
-                if (err != 0)
-                    die("munmap(%p, %lu) failed: %s", data->data, data->host_size, strerror(errno));
+        struct page_desc *desc = malloc(sizeof(struct page_desc));
+        if (!desc) {
+            for (page_t pg = start; pg < page; pg++) {
+                struct page_desc *d = page_map_remove(&mem->pages, pg);
+                if (d) {
+                    mem_object_retire(d->obj);
+                    retire_list_add(mem, d->obj);
+                    free(d);
+                }
             }
-            if (data->fd != NULL) {
-                fd_close(data->fd);
-            }
-            free(data);
+            vma_tree_remove(&mem->vmas, vma);
+            mem_object_release(obj);
+            vma_free(vma);
+            return _ENOMEM;
         }
+        desc->obj = obj;
+        desc->offset = ((page - start) << PAGE_BITS) + offset;
+        desc->flags = flags;
+        page_map_install(&mem->pages, page, desc);
     }
-    mem_changed(mem);
+
+    mem_bump_generation(mem);
     return 0;
 }
 
@@ -195,186 +223,147 @@ int pt_map_nothing(struct mem *mem, page_t start, pages_t pages, unsigned flags)
 {
     if (pages == 0)
         return 0;
-    void *memory = mmap(NULL, HOST_ROUND_UP(pages * PAGE_SIZE), PROT_READ | PROT_WRITE,
+    void *memory = mmap(NULL, HOST_ROUND_UP((size_t)pages * PAGE_SIZE), PROT_READ | PROT_WRITE,
                         MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
     return pt_map(mem, start, pages, memory, 0, flags | P_ANONYMOUS);
 }
 
+int pt_unmap(struct mem *mem, page_t start, pages_t pages)
+{
+    for (page_t page = start; page < start + pages; page++) {
+        if (!page_map_lookup(&mem->pages, page))
+            return -1;
+    }
+    return pt_unmap_always(mem, start, pages);
+}
+
+int pt_unmap_always(struct mem *mem, page_t start, pages_t pages)
+{
+    struct task *task = current;
+    if (task && task->cpu.mmu && task->cpu.mmu->block_cache) {
+        a64_cache_invalidate_all(task->cpu.mmu->block_cache);
+    }
+
+    for (page_t page = start; page < start + pages; page++) {
+        struct page_desc *desc = page_map_remove(&mem->pages, page);
+        if (desc) {
+            mem_object_retire(desc->obj);
+            retire_list_add(mem, desc->obj);
+            free(desc);
+        }
+    }
+
+    struct vm_area *removed[64];
+    int n_removed = vma_tree_remove_range(&mem->vmas, start, pages, removed, 64);
+    for (int i = 0; i < n_removed; i++) {
+        mem_object_release(removed[i]->obj);
+        vma_free(removed[i]);
+    }
+
+    mem_bump_generation(mem);
+    return 0;
+}
+
 int pt_set_flags(struct mem *mem, page_t start, pages_t pages, int flags)
 {
-    for (page_t page = start; page < start + pages; page++)
-        if (mem_pt(mem, page) == NULL)
-            return _ENOMEM;
     for (page_t page = start; page < start + pages; page++) {
-        struct pt_entry *entry = mem_pt(mem, page);
-        int old_flags = entry->flags;
-        entry->flags = flags;
-        // check if protection is increasing
+        struct page_desc *desc = page_map_lookup(&mem->pages, page);
+        if (!desc)
+            return _ENOMEM;
+
+        int old_flags = desc->flags;
+        desc->flags = flags;
+
+        struct vm_area *vma = vma_tree_find(&mem->vmas, page << PAGE_BITS);
+        if (vma)
+            vma->flags = flags;
+
         if ((flags & ~old_flags) & (P_READ | P_WRITE)) {
-            void *data = (char *)entry->data->data + entry->offset;
-            // force to be page aligned
-            data = (void *)((uintptr_t)data & ~(real_page_size - 1));
+            void *host_ptr = (char *)desc->obj->host_base + desc->offset;
+            host_ptr = (void *)((uintptr_t)host_ptr & ~(real_page_size - 1));
             int prot = PROT_READ;
             if (flags & P_WRITE)
                 prot |= PROT_WRITE;
-            if (mprotect(data, real_page_size, prot) < 0)
+            if (mprotect(host_ptr, real_page_size, prot) < 0)
                 return errno_map();
         }
     }
-    mem_changed(mem);
+
+    mem_bump_generation(mem);
     return 0;
 }
 
-int pt_copy_on_write(struct mem *src, struct mem *dst, page_t start, page_t pages)
+int pt_copy_on_write(struct mem *src, struct mem *dst, page_t start, pages_t pages)
 {
-    for (page_t page = start; page < start + pages; mem_next_page(src, &page)) {
-        struct pt_entry *entry = mem_pt(src, page);
-        if (entry == NULL)
+    for (page_t page = start; page < start + pages; page++) {
+        struct page_desc *src_desc = page_map_lookup(&src->pages, page);
+        if (!src_desc)
             continue;
-        if (pt_unmap_always(dst, page, 1) < 0)
-            return -1;
-        if (!(entry->flags & P_SHARED))
-            entry->flags |= P_COW;
-        entry->data->refcount++;
-        struct pt_entry *dst_entry = mem_pt_new(dst, page);
-        dst_entry->data = entry->data;
-        dst_entry->offset = entry->offset;
-        dst_entry->flags = entry->flags;
+
+        struct page_desc *old_dst = page_map_remove(&dst->pages, page);
+        if (old_dst) {
+            mem_object_retire(old_dst->obj);
+            retire_list_add(dst, old_dst->obj);
+            free(old_dst);
+        }
+
+        if (!(src_desc->flags & P_SHARED))
+            src_desc->flags |= P_COW;
+
+        struct page_desc *dst_desc = malloc(sizeof(struct page_desc));
+        if (!dst_desc)
+            return _ENOMEM;
+        dst_desc->obj = src_desc->obj;
+        dst_desc->offset = src_desc->offset;
+        dst_desc->flags = src_desc->flags;
+        mem_object_retain(dst_desc->obj);
+        page_map_install(&dst->pages, page, dst_desc);
+
+        struct vm_area *src_vma = vma_tree_find(&src->vmas, page << PAGE_BITS);
+        if (src_vma) {
+            struct vm_area *dst_vma = vma_tree_find(&dst->vmas, page << PAGE_BITS);
+            if (!dst_vma) {
+                dst_vma = vma_alloc();
+                dst_vma->start = src_vma->start;
+                dst_vma->end = src_vma->end;
+                dst_vma->flags = src_vma->flags | P_COW;
+                dst_vma->obj = src_vma->obj;
+                dst_vma->obj_offset = src_vma->obj_offset;
+                vma_tree_insert(&dst->vmas, dst_vma);
+            }
+        }
     }
-    mem_changed(src);
-    mem_changed(dst);
+
+    mem_bump_generation(src);
+    mem_bump_generation(dst);
     return 0;
-}
-
-static void mem_changed(struct mem *mem)
-{
-    // PR 5: Use atomic increment for thread safety on 64-bit counter
-    __atomic_fetch_add(&mem->mmu.changes, 1, __ATOMIC_SEQ_CST);
-}
-
-// This version will return NULL instead of making necessary pagetable changes.
-// Used by the emulator to avoid deadlocks.
-static void *mem_ptr_nofault(struct mem *mem, addr_t addr, int type)
-{
-    // EMIT MEMORY TRANSLATION ATTEMPT (at entry)
-    uint64_t size = (type == MEM_WRITE) ? 1 : 0;
-    trace_emit_mem_translate_attempt(addr, size);
-
-    struct pt_entry *entry = mem_pt(mem, PAGE(addr));
-    if (entry == NULL) {
-        // EMIT MEMORY TRANSLATION RESULT (failure path)
-        trace_emit_mem_translate_result(0, 0);
-        return NULL;
-    }
-    if (type == MEM_WRITE && !P_WRITABLE(entry->flags)) {
-        // EMIT MEMORY TRANSLATION RESULT (failure path - permission denied)
-        trace_emit_mem_translate_result(0, 0);
-        return NULL;
-    }
-
-    void *host_ptr = entry->data->data + entry->offset + PGOFFSET(addr);
-
-    // EMIT MEMORY TRANSLATION RESULT (success path)
-    trace_emit_mem_translate_result((uint64_t)host_ptr, 1);
-
-    return host_ptr;
 }
 
 void *mem_ptr(struct mem *mem, addr_t addr, int type)
 {
-    void *old_ptr = mem_ptr_nofault(mem, addr, type); // just for an assert
-
     page_t page = PAGE(addr);
-    struct pt_entry *entry = mem_pt(mem, page);
 
-    if (entry == NULL) {
-        // page does not exist
-        // look to see if the next VM region is willing to grow down
-        // For stack growth down, check pages ABOVE the fault (page+1, page+2, ...)
-        // Only a mapped page above the fault with P_GROWSDOWN justifies mapping the fault page
-        // Stack grows downward, so a fault at page X can only be resolved if page X+1
-        // (or higher) is mapped and has P_GROWSDOWN set
-        page_t p = page + 1;
-        while (p < MEM_PAGES && mem_pt(mem, p) == NULL)
-            p++;
-        if (p >= MEM_PAGES)
-            return NULL;
-        if (!(mem_pt(mem, p)->flags & P_GROWSDOWN))
-            return NULL;
+    struct page_desc *desc = page_map_lookup(&mem->pages, page);
+    if (!desc)
+        return NULL;
 
-        // Changing memory maps must be done with the write lock. But this is
-        // called with the read lock.
-        // This locking stuff is copy/pasted for all the code in this function
-        // which changes memory maps.
-        // TODO: factor the lock/unlock code here into a new function. Do this
-        // next time you touch this function.
-        read_wrunlock(&mem->lock);
-        write_wrlock(&mem->lock);
-        pt_map_nothing(mem, page, 1, P_WRITE | P_GROWSDOWN);
-        write_wrunlock(&mem->lock);
-        read_wrlock(&mem->lock);
+    if (type == MEM_WRITE && !P_WRITABLE(desc->flags))
+        return NULL;
 
-        entry = mem_pt(mem, page);
-    }
+    if (desc->obj->kind == MEM_OBJ_SPECIAL)
+        return NULL;
 
-    if (entry != NULL && (type == MEM_WRITE || type == MEM_WRITE_PTRACE)) {
-        // if page is unwritable, well tough luck
-        if (type != MEM_WRITE_PTRACE && !(entry->flags & P_WRITE))
-            return NULL;
-        if (type == MEM_WRITE_PTRACE) {
-            // TODO: Is P_WRITE really correct? The page shouldn't be writable without ptrace.
-            entry->flags |= P_WRITE | P_COW;
-        }
-        // Invalidate TCTI blocks when memory is modified
-        // Per-MMU cache invalidation via current task
-        struct task *task = current;
-        if (task && task->cpu.mmu && task->cpu.mmu->block_cache) {
-            a64_cache_invalidate_all(task->cpu.mmu->block_cache);
-        }
-        // if page is cow, ~~milk~~ copy it
-        if (entry->flags & P_COW) {
-            void *guest_ptr = (char *)entry->data->data + entry->offset;
-            void *host_base = (void *)HOST_ROUND_DOWN((uintptr_t)guest_ptr);
-            size_t host_off = (uintptr_t)guest_ptr - (uintptr_t)host_base;
-            void *copy = mmap(NULL, real_page_size, PROT_READ | PROT_WRITE,
-                              MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+    void *host_ptr = (char *)desc->obj->host_base + desc->offset + PGOFFSET(addr);
 
-            // copy/paste from above
-            read_wrunlock(&mem->lock);
-            write_wrlock(&mem->lock);
-            memcpy(copy, host_base, real_page_size);
-            pt_map(mem, page, 1, copy, host_off, entry->flags & ~P_COW);
-            write_wrunlock(&mem->lock);
-            read_wrlock(&mem->lock);
-        }
-    }
-
-    void *ptr = mem_ptr_nofault(mem, addr, type);
-    assert(old_ptr == NULL || old_ptr == ptr || type == MEM_WRITE_PTRACE);
-    return ptr;
+    return host_ptr;
 }
-
-static void *mem_mmu_translate(struct mmu *mmu, addr_t addr, int type)
-{
-    return mem_ptr_nofault(container_of(mmu, struct mem, mmu), addr, type);
-}
-
-static struct mmu_ops mem_mmu_ops = {
-    .translate = mem_mmu_translate,
-};
 
 int mem_segv_reason(struct mem *mem, addr_t addr)
 {
-    struct pt_entry *pt = mem_pt(mem, PAGE(addr));
-    if (pt == NULL)
+    struct page_desc *pt = page_map_lookup(&mem->pages, PAGE(addr));
+    if (!pt)
         return SEGV_MAPERR_;
     return SEGV_ACCERR_;
-}
-
-size_t real_page_size;
-__attribute__((constructor)) static void get_real_page_size()
-{
-    real_page_size = sysconf(_SC_PAGESIZE);
 }
 
 void mem_coredump(struct mem *mem, const char *file)
@@ -384,26 +373,37 @@ void mem_coredump(struct mem *mem, const char *file)
         perror("open");
         return;
     }
-    if (ftruncate(fd, 0xffffffff) < 0) {
-        perror("ftruncate");
-        return;
+
+    page_t max_page = 0;
+    page_map_iterate_all(&mem->pages, mem_coredump_max_page_cb, &max_page);
+
+    if (max_page > 0) {
+        off_t file_size = ((max_page + 1) << PAGE_BITS);
+        if (ftruncate(fd, file_size) < 0) {
+            perror("ftruncate");
+            close(fd);
+            return;
+        }
     }
 
-    int pages = 0;
-    for (page_t page = 0; page < MEM_PAGES; page++) {
-        struct pt_entry *entry = mem_pt(mem, page);
-        if (entry == NULL)
-            continue;
-        pages++;
-        if (lseek(fd, page << PAGE_BITS, SEEK_SET) < 0) {
-            perror("lseek");
-            return;
-        }
-        if (write(fd, entry->data->data, PAGE_SIZE) < 0) {
-            perror("write");
-            return;
-        }
-    }
-    printk("dumped %d pages\n", pages);
+    page_map_iterate_all(&mem->pages, mem_coredump_write_cb, &fd);
+
+    printk("dumped pages\n");
     close(fd);
+}
+
+static void *mem_mmu_translate(struct mmu *mmu, addr_t addr, int type)
+{
+    struct mem *mem = container_of(mmu, struct mem, mmu);
+    return mem_ptr(mem, addr, type);
+}
+
+static struct mmu_ops mem_mmu_ops = {
+    .translate = mem_mmu_translate,
+};
+
+size_t real_page_size;
+__attribute__((constructor)) static void get_real_page_size()
+{
+    real_page_size = sysconf(_SC_PAGESIZE);
 }
