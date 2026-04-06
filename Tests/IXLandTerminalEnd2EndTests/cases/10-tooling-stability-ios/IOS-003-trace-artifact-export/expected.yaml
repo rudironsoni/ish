@@ -1,0 +1,31 @@
+version: "2.0"
+
+case_id: IOS-003
+phase: 10-tooling-stability-ios
+title: Trace artifacts export from iOS correctly
+
+artifacts:
+  tooling_log.json:
+    description: JSON log of tooling events
+    schema: tooling_event_log
+    required: true
+  report.json:
+    description: Test execution report
+    schema: case_report
+    required: true
+  test_artifact.txt:
+    description: Test artifact for export validation
+    schema: text_file
+    required: true
+
+success_conditions:
+  structural:
+    - harness exits 0
+    - report.json exists and is valid JSON
+    - tooling_log.json exists and is valid JSON
+    - test_artifact.txt exists and is readable
+  semantic:
+    - report.passed is true
+    - artifact created and written successfully
+    - artifact content readable after creation
+    - event log contains artifact_created event

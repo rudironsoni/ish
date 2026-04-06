@@ -3,35 +3,78 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/uio.h>
-#include <syslog.h>
-#if LOG_HANDLER_NSLOG
-#include <CoreFoundation/CoreFoundation.h>
-#endif
-#if LOG_HANDLER_OS_LOG
-#include <os/log.h>
-#endif
-#ifndef LOG_HANDLER_DPRINTF
-#ifndef LOG_HANDLER_NSLOG
-#ifndef LOG_HANDLER_SYSLOG
-#ifndef LOG_HANDLER_OS_LOG
-#ifndef LOG_HANDLER_STDERR
-#include <CoreFoundation/CoreFoundation.h>
-#endif
-#endif
-#endif
-#endif
-#endif
+
+// Single authoritative external sink: OSLog
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
 #import <IXLandLinuxRuntime/util/fifo.h>
 #import <IXLandLinuxRuntime/util/misc.h>
 #import <IXLandLinuxRuntime/util/sync.h>
+#include <os/log.h>
 
 #define LOG_BUF_SHIFT 20
 static char log_buffer[1 << LOG_BUF_SHIFT];
 static struct fifo log_buf = FIFO_INIT(log_buffer);
 static size_t log_max_since_clear = 0;
 static lock_t log_lock = LOCK_INITIALIZER;
+
+// MARK: - OSLog Integration
+// Single authoritative external sink for normal runtime observability
+
+static os_log_t g_log_kernel;
+static os_log_t g_log_emulator;
+static os_log_t g_log_crash;
+static const char *const kISHOSLogSubsystem = "app.ixland.terminal";
+
+__attribute__((constructor)) static void init_os_log(void)
+{
+    g_log_kernel = os_log_create(kISHOSLogSubsystem, "kernel");
+    g_log_emulator = os_log_create(kISHOSLogSubsystem, "emulator");
+    g_log_crash = os_log_create(kISHOSLogSubsystem, "crash");
+}
+
+// Determine appropriate log level based on message content
+static os_log_type_t log_level_for_message(const char *msg)
+{
+    if (!msg)
+        return OS_LOG_TYPE_DEFAULT;
+
+    // Check for error/fault indicators
+    if (strstr(msg, "FATAL") || strstr(msg, "CRASH") || strstr(msg, "fault:") ||
+        strstr(msg, "Assertion failed")) {
+        return OS_LOG_TYPE_FAULT;
+    }
+    if (strstr(msg, "ERROR") || strstr(msg, "error:") || strstr(msg, "failed") ||
+        strstr(msg, "Failed")) {
+        return OS_LOG_TYPE_ERROR;
+    }
+    if (strstr(msg, "WARNING") || strstr(msg, "warn:")) {
+        return OS_LOG_TYPE_DEFAULT; // OSLog doesn't have warning, use default
+    }
+    if (strstr(msg, "DEBUG") || strstr(msg, "debug:")) {
+        return OS_LOG_TYPE_DEBUG;
+    }
+    if (strstr(msg, "ENTRY") || strstr(msg, "EXIT") || strstr(msg, "ready") ||
+        strstr(msg, "complete")) {
+        return OS_LOG_TYPE_INFO;
+    }
+    return OS_LOG_TYPE_DEFAULT;
+}
+
+// Explicit category routing for printk compatibility shim
+// All printk output goes to kernel category by default
+// Crash category is used only for explicit fatal/error paths
+static os_log_t log_for_message(const char *msg)
+{
+    if (!msg)
+        return g_log_kernel;
+
+    // Crash category only for fatal/emergency paths
+    if (strstr(msg, "FATAL") || strstr(msg, "CRASH")) {
+        return g_log_crash;
+    }
+    return g_log_kernel;
+}
 
 #define SYSLOG_ACTION_CLOSE_         0
 #define SYSLOG_ACTION_OPEN_          1
@@ -113,12 +156,43 @@ static void log_buf_append(const char *msg)
     if (log_max_since_clear > fifo_capacity(&log_buf))
         log_max_since_clear = fifo_capacity(&log_buf);
 }
-static void log_line(const char *line);
+
+// MARK: - Unified log_line implementation
+// Single path to OSLog with proper subsystem, category, and level
+
+static void log_line(const char *line)
+{
+    os_log_t log = log_for_message(line);
+    os_log_type_t type = log_level_for_message(line);
+
+    switch (type) {
+    case OS_LOG_TYPE_DEBUG:
+        os_log_debug(log, "%{public}s", line);
+        break;
+    case OS_LOG_TYPE_INFO:
+        os_log_info(log, "%{public}s", line);
+        break;
+    case OS_LOG_TYPE_DEFAULT:
+        os_log(log, "%{public}s", line);
+        break;
+    case OS_LOG_TYPE_ERROR:
+        os_log_error(log, "%{public}s", line);
+        break;
+    case OS_LOG_TYPE_FAULT:
+        os_log_fault(log, "%{public}s", line);
+        break;
+    default:
+        os_log(log, "%{public}s", line);
+        break;
+    }
+}
+
 static void output_line(const char *line)
 {
-    // send it to stdout or wherever
+    // Publish to unified OSLog (single authoritative external sink)
     log_line(line);
-    // add it to the circular buffer
+
+    // Also add to circular buffer for guest-visible syslog semantics
     log_buf_append(line);
     log_buf_append("\n");
 }
@@ -126,7 +200,6 @@ static void output_line(const char *line)
 void ish_vprintk(const char *msg, va_list args)
 {
     // format the message
-    // I'm trusting you to not pass an absurdly long message
     static __thread char buf[16384] = "";
     static __thread size_t buf_size = 0;
     buf_size += vsprintf(buf + buf_size, msg, args);
@@ -153,43 +226,6 @@ void ish_printk(const char *msg, ...)
     va_end(args);
 }
 
-#if LOG_HANDLER_DPRINTF
-#define NEWLINE "\r\n"
-static void log_line(const char *line)
-{
-    struct iovec output[2] = { { (void *)line, strlen(line) }, { "\n", 1 } };
-    writev(666, output, 2);
-}
-#elif LOG_HANDLER_NSLOG
-static void log_line(const char *line)
-{
-    extern void NSLog(CFStringRef msg, ...);
-    NSLog(CFSTR("%s"), line);
-}
-#elif LOG_HANDLER_SYSLOG
-static void log_line(const char *line)
-{
-    syslog(LOG_DEBUG, "%s", line);
-}
-#elif LOG_HANDLER_OS_LOG
-static void log_line(const char *line)
-{
-    os_log_fault(OS_LOG_DEFAULT, "%s", line);
-}
-#elif LOG_HANDLER_STDERR
-static void log_line(const char *line)
-{
-    fprintf(stderr, "%s\n", line);
-}
-#else
-// Default: use NSLog on Apple platforms
-static void log_line(const char *line)
-{
-    extern void NSLog(CFStringRef msg, ...);
-    NSLog(CFSTR("%s"), line);
-}
-#endif
-
 static void default_die_handler(const char *msg)
 {
     printk("%s\n", msg);
@@ -203,17 +239,16 @@ void die(const char *msg, ...)
     char buf[4096];
     vsprintf(buf, msg, args);
 
-    /* FATAL PATH: Persist trace ring before dying for next-launch recovery */
-    /* Note: g_crash_ring_path is set by app layer to iOS Caches directory */
+    // FATAL PATH: Log as fault and persist crash artifacts
+    os_log_fault(g_log_crash, "FATAL: %{public}s", buf);
+
+    /* Persist trace ring before dying for next-launch recovery */
+    /* Note: g_crash_ring_path should point to app sandbox Diagnostics directory */
     extern const char *g_crash_ring_path;
     extern int trace_persist_ring(const char *path);
     if (g_crash_ring_path) {
         trace_persist_ring(g_crash_ring_path);
     }
-
-    /* Also dump to stderr for immediate visibility */
-    extern void trace_dump_ring_stderr(void);
-    trace_dump_ring_stderr();
 
     die_handler(buf);
     abort();

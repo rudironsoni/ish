@@ -69,8 +69,8 @@ static NSString *const kSkipStartupMessage = @"Skip Startup Message";
 @implementation AppDelegate
 
 - (int)boot {
-    trace_emit(TRACE_EVENT_APP_TRACE_BOOTSTRAP_STARTED, 0);
-    trace_emit(TRACE_EVENT_APP_BOOT_STARTED, 0);
+    [ISHInstrumentation recordEvent:@"app.trace.bootstrap_started"];
+    [ISHInstrumentation recordEvent:@"app.boot.started"];
     
     NSURL *root = [Roots.instance rootUrl:Roots.instance.defaultRoot];
 
@@ -93,7 +93,7 @@ static NSString *const kSkipStartupMessage = @"Skip Startup Message";
 #if ISH_RUNTIME_MODE_VALUE == 0
     {
         FsInitialize();
-        [ISHInstrumentation recordEvent:ISHInstrumentationEventSessionBootstrapDeferred];
+        [ISHInstrumentation recordEvent:@"session.bootstrap.deferred"];
         return 0;  // Success - guest execution bypassed, but PID 1 exists
     }
 #endif

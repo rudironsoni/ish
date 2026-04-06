@@ -164,14 +164,14 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
 - (int)sendOutput:(const void *)buf length:(int)len {
     // APPSIM-004 Stage 2: PTY byte detection
     // Record byte count at terminal input boundary
-    [ISHInstrumentation recordEvent:ISHInstrumentationEventTerminalOutputQueued];
+    [ISHInstrumentation recordEvent:@"terminal.output.queued"];
     
     // Trace byte count at PTY master read boundary (TerminalView reading from PTY)
     NSDictionary *byteAttrs = @{
         @"byte_count": @(len),
         @"pending_before": @(_pendingData.length)
     };
-    [ISHInstrumentation beginInterval:@"task.proof.pty.master.read" attributes:byteAttrs];
+    uint64_t ptyReadInterval = [ISHInstrumentation beginInterval:@"task.proof.pty.master.read" attributes:byteAttrs];
     
     lock(&_dataLock);
     if (!NSThread.isMainThread) {
@@ -187,7 +187,7 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
         @"byte_count": @(len),
         @"pending_after": @(_pendingData.length)
     };
-    [ISHInstrumentation endInterval:@"task.proof.pty.master.read" attributes:queuedAttrs];
+    [ISHInstrumentation endInterval:ptyReadInterval attributes:queuedAttrs];
     
     [self.refreshTask schedule];
     unlock(&_dataLock);
@@ -197,7 +197,7 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
 
 
 - (void)sendInput:(NSData *)input {
-    [ISHInstrumentation recordEvent:ISHInstrumentationEventTerminalSendInputEnter];
+    [ISHInstrumentation recordEvent:@"terminal.send_input.enter"];
     if (self.tty == NULL)
         return;
     // Capture tty pointer, byte count, first byte
@@ -206,11 +206,11 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
         @"byte_count": @(input.length),
         @"first_byte": input.length > 0 ? @(((const unsigned char *)input.bytes)[0]) : @(0)
     };
-    [ISHInstrumentation beginInterval:@"terminal.send_input.data" attributes:inputAttrs];
-    [ISHInstrumentation recordEvent:ISHInstrumentationEventTerminalBeforeTtyInput];
+    uint64_t intervalId = [ISHInstrumentation beginInterval:@"terminal.send_input.data" attributes:inputAttrs];
+    [ISHInstrumentation recordEvent:@"terminal.before_tty_input"];
     tty_input(self.tty, input.bytes, input.length, 0);
-    [ISHInstrumentation recordEvent:ISHInstrumentationEventTerminalAfterTtyInput];
-    [ISHInstrumentation endInterval:@"terminal.send_input.data" attributes:inputAttrs];
+    [ISHInstrumentation recordEvent:@"terminal.after_tty_input"];
+    [ISHInstrumentation endInterval:intervalId attributes:inputAttrs];
     [self.webView evaluateJavaScript:@"exports.setUserGesture()" completionHandler:nil];
     [self.scrollToBottomTask schedule];
 }
@@ -228,7 +228,7 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
         return;
     
     // APPSIM-004 Stage 2: PTY byte detection
-    [ISHInstrumentation recordEvent:ISHInstrumentationEventTerminalRefreshTriggered];
+    [ISHInstrumentation recordEvent:@"terminal.refresh.triggered"];
 
     lock(&_dataLock);
     if (_outputInProgress) {
@@ -244,13 +244,14 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
     unlock(&_dataLock);
 
     // Trace byte count being sent to WebView
+    __block uint64_t byteCountInterval = 0;
     if (refreshByteCount > 0) {
         NSDictionary *byteCountAttrs = @{
             @"byte_count": @(refreshByteCount),
             @"task": @"terminal_refresh",
             @"destination": @"webview"
         };
-        [ISHInstrumentation beginInterval:@"task.proof.pty.byte_count" attributes:byteCountAttrs];
+        byteCountInterval = [ISHInstrumentation beginInterval:@"task.proof.pty.byte_count" attributes:byteCountAttrs];
     }
 
     NSString *dataString = [[NSString alloc] initWithBytes:data.bytes length:data.length encoding:NSISOLatin1StringEncoding];
@@ -262,12 +263,12 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
     NSString *jsToEvaluate = [NSString stringWithFormat:@"exports.write(\"%@\")", dataString];
     [self.webView evaluateJavaScript:jsToEvaluate completionHandler:^(id result, NSError *error) {
         // Trace completion
-        if (refreshByteCount > 0) {
+        if (byteCountInterval != 0) {
             NSDictionary *completeAttrs = @{
                 @"byte_count": @(refreshByteCount),
                 @"error": error ? @YES : @NO
             };
-            [ISHInstrumentation endInterval:@"task.proof.pty.byte_count" attributes:completeAttrs];
+            [ISHInstrumentation endInterval:byteCountInterval attributes:completeAttrs];
         }
         lock(&self->_dataLock);
         self->_outputInProgress = NO;

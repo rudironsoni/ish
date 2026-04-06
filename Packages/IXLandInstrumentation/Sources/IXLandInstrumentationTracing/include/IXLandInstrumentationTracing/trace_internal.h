@@ -279,6 +279,10 @@ void trace_ring_dump_on_crash(void);
 /* Get global ring buffer for crash dump */
 trace_ring_t *trace_get_global_ring(void);
 
+/* Get/set crash dump path for sandbox-safe crash artifact locations */
+const char *trace_get_crash_dump_path(void);
+void trace_set_crash_dump_path(const char *path);
+
 #ifdef __cplusplus
 }
 #endif

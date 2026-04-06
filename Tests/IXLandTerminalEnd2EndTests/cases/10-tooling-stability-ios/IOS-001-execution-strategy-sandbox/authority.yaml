@@ -1,0 +1,33 @@
+version: "2.0"
+
+case_id: IOS-001
+phase: 10-tooling-stability-ios
+
+semantic_authority:
+  source: ios-sandbox-contract
+  normative_reference: Apple iOS App Sandbox Documentation
+  description: |
+    Validates iOS-specific execution environment and sandbox strategy.
+    Tests platform detection and basic process information that
+    would be relevant for iOS app execution.
+
+toolchain_notes:
+  - Platform detection via __APPLE__ preprocessor macro
+  - Process information via getpid/getppid
+  - Execution strategy varies by platform
+  - macOS shares many characteristics with iOS
+
+expected_behavior:
+  - Detects platform (macOS/iOS vs other)
+  - Captures process identity
+  - Validates execution environment
+  - Passes on all platforms (with platform-specific validation)
+
+known_gaps:
+  - Cannot test actual iOS sandbox entitlements without app bundle
+  - Cannot test app lifecycle on non-iOS platforms
+  - Limited to POSIX-compliant checks on non-Apple platforms
+
+non_authoritative_fields:
+  - Process PID (varies per execution)
+  - Platform-specific capabilities

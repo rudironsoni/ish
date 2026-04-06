@@ -287,8 +287,24 @@ const trace_backend_ops_t *trace_ring_backend_get_ops(void)
  * Pre-Crash Capture - Crash Signal Handler
  * ============================================ */
 
-/* Global crash dump path */
-static const char *g_crash_dump_path = "/tmp/ish_crash.trace";
+/* Global crash dump path - now uses app sandbox Diagnostics/Caches directory */
+/* The actual path is set at runtime based on the app container */
+static char g_crash_dump_path[1024] = { 0 };
+
+/* Get the current crash dump path */
+const char *trace_get_crash_dump_path(void)
+{
+    return g_crash_dump_path;
+}
+
+/* Set the crash dump path to a sandbox-safe location */
+void trace_set_crash_dump_path(const char *path)
+{
+    if (path && *path) {
+        strncpy(g_crash_dump_path, path, sizeof(g_crash_dump_path) - 1);
+        g_crash_dump_path[sizeof(g_crash_dump_path) - 1] = '\0';
+    }
+}
 
 /* External reference to ring buffer in trace_backends.c */
 extern trace_ring_t *trace_get_global_ring(void);
@@ -483,9 +499,13 @@ static void install_crash_handlers(void)
 }
 
 /* atexit handler to dump ring buffer on normal exit */
+/* Uses sandbox-safe path set at app startup */
 static void atexit_dump_ring(void)
 {
-    trace_ring_dump_to_file("/tmp/ish_exit.trace");
+    const char *exit_path = trace_get_crash_dump_path();
+    if (exit_path && *exit_path) {
+        trace_ring_dump_to_file(exit_path);
+    }
 }
 
 /* ============================================

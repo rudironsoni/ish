@@ -29,7 +29,10 @@ let package = Package(
             name: "IXLandInstrumentationBridge",
             dependencies: ["IXLandInstrumentation"],
             path: "Sources/IXLandInstrumentationBridge",
-            publicHeadersPath: "."
+            publicHeadersPath: ".",
+            linkerSettings: [
+                .linkedFramework("Foundation"),
+            ]
         ),
         .target(
             name: "IXLandInstrumentationTracing",

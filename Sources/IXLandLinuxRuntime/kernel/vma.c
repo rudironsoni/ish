@@ -133,10 +133,47 @@ int vma_tree_remove_range(struct vma_tree *tree, uint64_t start_page, uint64_t p
     while (vma) {
         struct vm_area *next = vma->next;
         if (vma->end > start_addr && vma->start < end_addr) {
+            vma_tree_remove(tree, vma);
+
+            uint64_t original_start = vma->start;
+            uint64_t original_end = vma->end;
+            size_t original_offset = vma->obj_offset;
+
+            uint64_t removed_start = original_start > start_addr ? original_start : start_addr;
+            uint64_t removed_end = original_end < end_addr ? original_end : end_addr;
+
+            if (original_start < removed_start) {
+                struct vm_area *left = vma_alloc();
+                if (left != NULL) {
+                    left->start = original_start;
+                    left->end = removed_start;
+                    left->flags = vma->flags;
+                    left->obj = vma->obj;
+                    left->obj_offset = original_offset;
+                    vma_tree_insert(tree, left);
+                }
+            }
+
+            if (removed_end < original_end) {
+                struct vm_area *right = vma_alloc();
+                if (right != NULL) {
+                    right->start = removed_end;
+                    right->end = original_end;
+                    right->flags = vma->flags;
+                    right->obj = vma->obj;
+                    right->obj_offset = original_offset + (removed_end - original_start);
+                    vma_tree_insert(tree, right);
+                }
+            }
+
+            vma->start = removed_start;
+            vma->end = removed_end;
+            vma->obj_offset = original_offset + (removed_start - original_start);
+            vma->next = NULL;
+
             if (count < max_removed)
                 out_removed[count] = vma;
             count++;
-            vma_tree_remove(tree, vma);
         }
         vma = next;
     }

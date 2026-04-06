@@ -35,55 +35,14 @@ static void bridge_record_event(ixland_instrumentation_origin_t origin, const ch
         return;
     }
 
-    ISHInstrumentationEvent event = ISHInstrumentationEventBootstrapReady;
-
-    if (strcmp(event_name, "task_proof_start_enter") == 0) {
-        event = ISHInstrumentationEventTaskProofStartEnter;
-    } else if (strcmp(event_name, "task_proof_before_pthread") == 0) {
-        event = ISHInstrumentationEventTaskProofBeforePthread;
-    } else if (strcmp(event_name, "task_proof_after_pthread") == 0) {
-        event = ISHInstrumentationEventTaskProofAfterPthread;
-    } else if (strcmp(event_name, "task_proof_thread_entry") == 0) {
-        event = ISHInstrumentationEventTaskProofThreadEntry;
-    } else if (strcmp(event_name, "task_proof_before_current_set") == 0) {
-        event = ISHInstrumentationEventTaskProofBeforeCurrentSet;
-    } else if (strcmp(event_name, "task_proof_after_current_set") == 0) {
-        event = ISHInstrumentationEventTaskProofAfterCurrentSet;
-    } else if (strcmp(event_name, "task_proof_run_current_enter") == 0) {
-        event = ISHInstrumentationEventTaskProofRunCurrentEnter;
-    } else if (strcmp(event_name, "task_proof_before_guest_cpu") == 0) {
-        event = ISHInstrumentationEventTaskProofBeforeGuestCpu;
-    } else if (strcmp(event_name, "task_proof_after_thread_entry") == 0) {
-        event = ISHInstrumentationEventTaskProofAfterThreadEntry;
-    } else if (strcmp(event_name, "task_proof_before_task_run_current") == 0) {
-        event = ISHInstrumentationEventTaskProofBeforeTaskRunCurrent;
-    } else if (strcmp(event_name, "task_proof_task_run_current_entry") == 0) {
-        event = ISHInstrumentationEventTaskProofTaskRunCurrentEntry;
-    } else if (strcmp(event_name, "session.bootstrap.ready") == 0) {
-        event = ISHInstrumentationEventSessionBootstrapReady;
-    } else if (strcmp(event_name, "session.exec.ready") == 0) {
-        event = ISHInstrumentationEventSessionExecReady;
-    } else if (strcmp(event_name, "guest.thread.start") == 0) {
-        event = ISHInstrumentationEventGuestThreadStart;
-    } else if (strcmp(event_name, "tcti.entry.x28.before") == 0) {
-        event = ISHInstrumentationEventTctiEntryX28Before;
-    } else if (strcmp(event_name, "tcti.entry.qword0") == 0) {
-        event = ISHInstrumentationEventTctiEntryQword0;
-    } else if (strcmp(event_name, "tcti.entry.x27.after") == 0) {
-        event = ISHInstrumentationEventTctiEntryX27After;
-    } else if (strcmp(event_name, "tcti.entry.x28.after") == 0) {
-        event = ISHInstrumentationEventTctiEntryX28After;
-    } else if (strcmp(event_name, "tcti.entry.qword1") == 0) {
-        event = ISHInstrumentationEventTctiEntryQword1;
-    } else if (strcmp(event_name, "gadget.entry.x28") == 0) {
-        event = ISHInstrumentationEventGadgetEntryX28;
-    } else if (strcmp(event_name, "gadget.fault_addr") == 0) {
-        event = ISHInstrumentationEventGadgetFaultAddr;
-    } else if (strcmp(event_name, "tty.input.entry") == 0) {
-        event = ISHInstrumentationEventTtyInputEntry;
+    if (!event_name || strlen(event_name) == 0) {
+        return;
     }
 
-    [ISHInstrumentation recordEvent:event];
+    // Forward semantic event name directly to ISHInstrumentation
+    // NO remapping to enum - original semantic names preserved
+    NSString *name = [NSString stringWithUTF8String:event_name];
+    [ISHInstrumentation recordEvent:name];
 }
 
 static uint64_t bridge_begin_interval(ixland_instrumentation_origin_t origin, const char *interval_name,
@@ -94,7 +53,11 @@ static uint64_t bridge_begin_interval(ixland_instrumentation_origin_t origin, co
         return 0;
     }
 
-    NSString *name = interval_name ? [NSString stringWithUTF8String:interval_name] : @"";
+    if (!interval_name || strlen(interval_name) == 0) {
+        return 0;
+    }
+
+    NSString *name = [NSString stringWithUTF8String:interval_name];
     NSMutableDictionary *attributes = nil;
     if (attrs && attr_count > 0) {
         attributes = [NSMutableDictionary dictionaryWithCapacity:attr_count];
@@ -104,14 +67,17 @@ static uint64_t bridge_begin_interval(ixland_instrumentation_origin_t origin, co
             attributes[key] = value;
         }
     }
-    [ISHInstrumentation beginInterval:name attributes:attributes];
-    return (uint64_t)[name hash];
+    
+    // ISHInstrumentation returns a real interval ID from the sink
+    return [ISHInstrumentation beginInterval:name attributes:attributes];
 }
 
 static void bridge_end_interval(uint64_t interval_id, const ixland_instrumentation_attribute_t *attrs, uint32_t attr_count) {
-    (void)interval_id;
-
     if (!atomic_load(&bridge_active)) {
+        return;
+    }
+
+    if (interval_id == 0) {
         return;
     }
 
@@ -124,7 +90,10 @@ static void bridge_end_interval(uint64_t interval_id, const ixland_instrumentati
             attributes[key] = value;
         }
     }
-    [ISHInstrumentation endInterval:@"" attributes:attributes];
+    
+    // Pass the actual interval ID for proper correlation
+    // The sink looks up the interval name from its storage
+    [ISHInstrumentation endInterval:interval_id attributes:attributes];
 }
 
 static const ixland_instrumentation_sink_t bridge_sink = {

@@ -60,7 +60,7 @@ static void trace_task_source_checkpoint(const char *name, struct task *task) {
 // Captures what fd 0, 1, 2 point to and whether they're wired to PTY slave
 static void trace_stdio_wiring_checkpoint(struct task *task) {
     // Always record entry to prove function is called
-    [ISHInstrumentation recordEvent:ISHInstrumentationEventStdioFd0Target];
+    [ISHInstrumentation recordEvent:@"stdio.fd0_target"];
     
     if (!task || !task->files)
         return;
@@ -151,11 +151,11 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
     (void) trace_begin_interval(TRACE_ORIGIN_TASK, "task.proof.stdio.wiring", attrs, sizeof(attrs) / sizeof(attrs[0]));
     
     // Record semantic events for each checkpoint
-    [ISHInstrumentation recordEvent:ISHInstrumentationEventStdioFd0Target];
-    [ISHInstrumentation recordEvent:ISHInstrumentationEventStdioFd1Target];
-    [ISHInstrumentation recordEvent:ISHInstrumentationEventStdioFd2Target];
-    [ISHInstrumentation recordEvent:ISHInstrumentationEventStdioPtySlaveBound];
-    [ISHInstrumentation recordEvent:ISHInstrumentationEventStdioTtySessionState];
+    [ISHInstrumentation recordEvent:@"stdio.fd0_target"];
+    [ISHInstrumentation recordEvent:@"stdio.fd1_target"];
+    [ISHInstrumentation recordEvent:@"stdio.fd2_target"];
+    [ISHInstrumentation recordEvent:@"stdio.pty_slave_bound"];
+    [ISHInstrumentation recordEvent:@"stdio.tty_session_state"];
 }
 #endif
 
@@ -308,7 +308,7 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
     // Just record the event and return success
 #if ISH_RUNTIME_MODE_VALUE == 0
     {
-        [ISHInstrumentation recordEvent:ISHInstrumentationEventSessionBootstrapDeferred];
+        [ISHInstrumentation recordEvent:@"session.bootstrap.deferred"];
         // Mark session as deferred/inactive - no guest running, no terminal
         self.sessionPid = -1;
         // Terminal remains nil - UI shows empty terminal view
@@ -351,7 +351,7 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
         self.sessionPid = -2;
 
         // Record semantic event
-        [ISHInstrumentation recordEvent:ISHInstrumentationEventSessionBootstrapReady];
+        [ISHInstrumentation recordEvent:@"session.bootstrap.ready"];
 
         return 0;
     }
@@ -386,7 +386,7 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
         
         // APPSIM-004 Stage 3B: Prove stdio wiring for fd 0, 1, 2
         // Capture what fds point to and whether they're wired to PTY slave
-        [ISHInstrumentation recordEvent:ISHInstrumentationEventStdioFd0Target];
+        [ISHInstrumentation recordEvent:@"stdio.fd0_target"];
         trace_stdio_wiring_checkpoint(current);
         
         tty_release(tty);
@@ -397,25 +397,25 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
         const char *envp = "TERM=xterm-256color\0";
         
         // APPSIM-004 Stage 3A: Trace exec entry
-        [ISHInstrumentation recordEvent:ISHInstrumentationEventLoginExecEntry];
+        [ISHInstrumentation recordEvent:@"login.exec.entry"];
         trace_task_source_checkpoint("task.proof.login.exec.entry", current);
         
         err = do_execve(command[0].UTF8String, command.count, argv, envp);
         
         if (err < 0) {
             // APPSIM-004 Stage 3A: Trace exec failure
-            [ISHInstrumentation recordEvent:ISHInstrumentationEventLoginExecFailure];
+            [ISHInstrumentation recordEvent:@"login.exec.failure"];
             trace_task_source_checkpoint("task.proof.login.exec.failure", current);
             return err;
         }
         
         // APPSIM-004 Stage 3A: Trace exec success
-        [ISHInstrumentation recordEvent:ISHInstrumentationEventLoginExecSuccess];
+        [ISHInstrumentation recordEvent:@"login.exec.success"];
         trace_task_source_checkpoint("task.proof.login.exec.success", current);
         
         // APPSIM-004 Stage 3A: Verify PID remains alive after exec
         if (current != NULL && current->pid != 0) {
-            [ISHInstrumentation recordEvent:ISHInstrumentationEventLoginPidAlive];
+            [ISHInstrumentation recordEvent:@"login.pid_alive"];
             trace_task_source_checkpoint("task.proof.login.pid.alive", current);
         }
 
@@ -424,7 +424,7 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
         self.sessionPid = current->pid;
 
         // Record semantic event
-        [ISHInstrumentation recordEvent:ISHInstrumentationEventSessionExecReady];
+        [ISHInstrumentation recordEvent:@"session.exec.ready"];
 
         return 0;
     }
@@ -455,25 +455,25 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
     const char *envp = "TERM=xterm-256color\0";
     
     // APPSIM-004 Stage 1: Trace /bin/login exec entry
-    [ISHInstrumentation recordEvent:ISHInstrumentationEventLoginExecEntry];
+    [ISHInstrumentation recordEvent:@"login.exec.entry"];
     trace_task_source_checkpoint("task.proof.login.exec.entry", current);
     
     err = do_execve(command[0].UTF8String, command.count, argv, envp);
     
     if (err < 0) {
         // APPSIM-004 Stage 1: Trace /bin/login exec failure
-        [ISHInstrumentation recordEvent:ISHInstrumentationEventLoginExecFailure];
+        [ISHInstrumentation recordEvent:@"login.exec.failure"];
         trace_task_source_checkpoint("task.proof.login.exec.failure", current);
         return err;
     }
     
     // APPSIM-004 Stage 1: Trace /bin/login exec success
-    [ISHInstrumentation recordEvent:ISHInstrumentationEventLoginExecSuccess];
+    [ISHInstrumentation recordEvent:@"login.exec.success"];
     trace_task_source_checkpoint("task.proof.login.exec.success", current);
     
     // APPSIM-004 Stage 1: Verify PID remains alive after exec
     if (current != NULL && current->pid != 0) {
-        [ISHInstrumentation recordEvent:ISHInstrumentationEventLoginPidAlive];
+        [ISHInstrumentation recordEvent:@"login.pid_alive"];
         trace_task_source_checkpoint("task.proof.login.pid.alive", current);
     }
     
@@ -487,7 +487,7 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
     __sync_synchronize();
 
     // Record semantic event before starting guest thread
-    [ISHInstrumentation recordEvent:ISHInstrumentationEventGuestThreadStart];
+    [ISHInstrumentation recordEvent:@"guest.thread.start"];
 
     trace_task_source_checkpoint("task.proof.before_task_start_callsite", current);
 

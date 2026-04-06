@@ -7,78 +7,74 @@
 
 #import <Foundation/Foundation.h>
 
-typedef NS_ENUM(NSInteger, ISHInstrumentationEvent) {
-    ISHInstrumentationEventBootstrapReady,
-    ISHInstrumentationEventLaunchBegan,
-    ISHInstrumentationEventLaunchReady,
-    ISHInstrumentationEventSceneConnected,
-    ISHInstrumentationEventSessionStarted,
-    ISHInstrumentationEventSessionReady,
-    ISHInstrumentationEventSessionBootstrapDeferred,
-    ISHInstrumentationEventSessionBootstrapReady,
-    ISHInstrumentationEventSessionExecReady,
-    ISHInstrumentationEventGuestThreadStart,
-    ISHInstrumentationEventRecoveryDetected,
-    ISHInstrumentationEventShutdownClean,
-    // Proof point events
-    ISHInstrumentationEventTaskProofStartEnter,
-    ISHInstrumentationEventTaskProofBeforePthread,
-    ISHInstrumentationEventTaskProofAfterPthread,
-    ISHInstrumentationEventTaskProofThreadEntry,
-    ISHInstrumentationEventTaskProofBeforeCurrentSet,
-    ISHInstrumentationEventTaskProofAfterCurrentSet,
-    ISHInstrumentationEventTaskProofRunCurrentEnter,
-    ISHInstrumentationEventTaskProofBeforeGuestCpu,
-    // Paired diagnostic proof points for narrowing failure boundary
-    ISHInstrumentationEventTaskProofAfterThreadEntry,
-    ISHInstrumentationEventTaskProofBeforeTaskRunCurrent,
-    ISHInstrumentationEventTaskProofTaskRunCurrentEntry,
-    // APPSIM-004 Stage 1: /bin/login exec verification
-    ISHInstrumentationEventLoginExecEntry,
-    ISHInstrumentationEventLoginExecSuccess,
-    ISHInstrumentationEventLoginExecFailure,
-    ISHInstrumentationEventLoginPidAlive,
-    // APPSIM-004 Stage 2: PTY byte detection
-    ISHInstrumentationEventPtyMasterWrite,
-    ISHInstrumentationEventPtySlaveWrite,
-    ISHInstrumentationEventPtyMasterRead,
-    ISHInstrumentationEventTerminalOutputQueued,
-    ISHInstrumentationEventTerminalRefreshTriggered,
-    // APPSIM-004 Stage 3A: Guest exec continuity and first output
-    ISHInstrumentationEventGuestExecTarget,
-    ISHInstrumentationEventGuestExecSuccess,
-    ISHInstrumentationEventGuestPidAliveAfterExec,
-    ISHInstrumentationEventGuestWriteAttempt,
-    ISHInstrumentationEventGuestIoctlAttempt,
-    ISHInstrumentationEventGuestReadAttempt,
-    // APPSIM-004 Stage 3B: stdio wiring proof
-    ISHInstrumentationEventStdioFd0Target,
-    ISHInstrumentationEventStdioFd1Target,
-    ISHInstrumentationEventStdioFd2Target,
-    ISHInstrumentationEventStdioPtySlaveBound,
- ISHInstrumentationEventStdioTtySessionState,
-    // TCTI trace events
-    ISHInstrumentationEventTctiEntryX28Before,
-    ISHInstrumentationEventTctiEntryQword0,
-    ISHInstrumentationEventTctiEntryX27After,
-    ISHInstrumentationEventTctiEntryX28After,
-    ISHInstrumentationEventTctiEntryQword1,
-    ISHInstrumentationEventGadgetEntryX28,
-    ISHInstrumentationEventGadgetFaultAddr,
-    // Keyboard input path instrumentation (APPSIM-003)
-    ISHInstrumentationEventTerminalSendInputEnter,
-    ISHInstrumentationEventTerminalBeforeTtyInput,
-    ISHInstrumentationEventTtyInputEntry,
-    ISHInstrumentationEventTerminalAfterTtyInput,
-};
+NS_ASSUME_NONNULL_BEGIN
 
+/**
+ * ISHInstrumentation
+ *
+ * App-owned instrumentation facade. All semantic events and intervals
+ * flow through this facade to the concrete sink(s).
+ *
+ * This facade uses string-based semantic event names that are forwarded
+ * directly to Apple Unified Logging without lossy enum conversion.
+ */
 @interface ISHInstrumentation : NSObject
 
+#pragma mark - Lifecycle
+
+/**
+ * Bootstrap the instrumentation system.
+ * Called once during app startup before any events are recorded.
+ */
 + (void)bootstrap;
+
+/**
+ * Activate instrumentation after bootstrap is complete.
+ * Events will begin recording after this call.
+ */
 + (void)activate;
+
+/**
+ * Check if instrumentation is currently active.
+ */
 + (BOOL)isActive;
-+ (void)recordEvent:(ISHInstrumentationEvent)event;
-+ (void)beginInterval:(NSString *)name attributes:(NSDictionary *)attributes;
-+ (void)endInterval:(NSString *)name attributes:(NSDictionary *)attributes;
+
+#pragma mark - Event Recording
+
+/**
+ * Record a semantic event by name.
+ *
+ * @param eventName The semantic event name (e.g., "session.bootstrap.ready")
+ */
++ (void)recordEvent:(NSString *)eventName;
+
+/**
+ * Record a semantic event with attributes.
+ *
+ * @param eventName The semantic event name
+ * @param attributes Key-value attributes for the event
+ */
++ (void)recordEvent:(NSString *)eventName attributes:(nullable NSDictionary *)attributes;
+
+#pragma mark - Interval Tracking
+
+/**
+ * Begin an interval and return a correlation identifier.
+ *
+ * @param name The interval name (e.g., "session.bootstrap")
+ * @param attributes Optional initial attributes
+ * @return A unique interval identifier for correlation
+ */
++ (uint64_t)beginInterval:(NSString *)name attributes:(nullable NSDictionary *)attributes;
+
+/**
+ * End an interval using the correlation identifier.
+ *
+ * @param intervalId The identifier returned by beginInterval
+ * @param attributes Optional final attributes
+ */
++ (void)endInterval:(uint64_t)intervalId attributes:(nullable NSDictionary *)attributes;
 
 @end
+
+NS_ASSUME_NONNULL_END

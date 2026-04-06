@@ -6,17 +6,7 @@
 //
 
 #import "ISHInstrumentation.h"
-
-// Forward declare the SinkApple class for weak linking
-// The actual ISHInstrumentationSinkApple class is defined in a separate file
-// and will be linked when available via task5-project-wiring
-@interface ISHInstrumentationSinkApple : NSObject
-+ (void)setup;
-+ (void)activate;
-+ (void)recordEvent:(ISHInstrumentationEvent)event;
-+ (void)beginInterval:(NSString *)name attributes:(NSDictionary *)attributes;
-+ (void)endInterval:(NSString *)name attributes:(NSDictionary *)attributes;
-@end
+#import "ISHInstrumentationSinkApple.h"
 
 // Private interface for internal state
 @interface ISHInstrumentation ()
@@ -53,16 +43,22 @@
 
 #pragma mark - Event Recording
 
-+ (void)recordEvent:(ISHInstrumentationEvent)event {
-    [[self sharedInstrumentation] recordEventInternal:event];
++ (void)recordEvent:(NSString *)eventName {
+    [[self sharedInstrumentation] recordEventInternal:eventName attributes:nil];
 }
 
-+ (void)beginInterval:(NSString *)name attributes:(NSDictionary *)attributes {
-    [[self sharedInstrumentation] beginIntervalInternal:name attributes:attributes];
++ (void)recordEvent:(NSString *)eventName attributes:(NSDictionary *)attributes {
+    [[self sharedInstrumentation] recordEventInternal:eventName attributes:attributes];
 }
 
-+ (void)endInterval:(NSString *)name attributes:(NSDictionary *)attributes {
-    [[self sharedInstrumentation] endIntervalInternal:name attributes:attributes];
+#pragma mark - Interval Tracking
+
++ (uint64_t)beginInterval:(NSString *)name attributes:(NSDictionary *)attributes {
+    return [[self sharedInstrumentation] beginIntervalInternal:name attributes:attributes];
+}
+
++ (void)endInterval:(uint64_t)intervalId attributes:(NSDictionary *)attributes {
+    [[self sharedInstrumentation] endIntervalInternal:intervalId attributes:attributes];
 }
 
 #pragma mark - Instance Methods
@@ -81,12 +77,8 @@
         return;
     }
 
-    // Initialize sinks without filesystem I/O, path probing, or recovery
-    // Use NSClassFromString to avoid hard dependency until SinkApple is linked
-    Class sinkClass = NSClassFromString(@"ISHInstrumentationSinkApple");
-    if (sinkClass && [sinkClass respondsToSelector:@selector(setup)]) {
-        [sinkClass setup];
-    }
+    // Initialize the concrete Apple sink
+    [ISHInstrumentationSinkApple setup];
 
     self.bootstrapped = YES;
 }
@@ -100,61 +92,49 @@
         return;
     }
 
-    // Activate sinks
-    Class sinkClass = NSClassFromString(@"ISHInstrumentationSinkApple");
-    if (sinkClass && [sinkClass respondsToSelector:@selector(activate)]) {
-        [sinkClass activate];
-    }
-
-    // TODO: Activate OpenTelemetry bridge when available
+    // Activate the concrete Apple sink
+    [ISHInstrumentationSinkApple activate];
 
     self.activated = YES;
 }
 
-- (void)recordEventInternal:(ISHInstrumentationEvent)event {
+- (void)recordEventInternal:(NSString *)eventName attributes:(NSDictionary *)attributes {
     if (!self.activated) {
         return;
     }
 
-    // Forward to Apple sink using runtime lookup
-    Class sinkClass = NSClassFromString(@"ISHInstrumentationSinkApple");
-    if (sinkClass && [sinkClass respondsToSelector:@selector(recordEvent:)]) {
-        [sinkClass recordEvent:event];
+    if (!eventName || eventName.length == 0) {
+        return;
     }
 
-    // TODO: Forward to OpenTelemetry bridge when available
+    // Forward to the concrete Apple sink with string-based event name
+    [ISHInstrumentationSinkApple recordEvent:eventName attributes:attributes];
 }
 
-- (void)beginIntervalInternal:(NSString *)name attributes:(NSDictionary *)attributes {
+- (uint64_t)beginIntervalInternal:(NSString *)name attributes:(NSDictionary *)attributes {
     if (!self.activated) {
-        return;
+        return 0;
     }
 
-    if (name.length == 0) {
-        return;
+    if (!name || name.length == 0) {
+        return 0;
     }
 
-    // Forward to Apple sink using runtime lookup
-    Class sinkClass = NSClassFromString(@"ISHInstrumentationSinkApple");
-    if (sinkClass && [sinkClass respondsToSelector:@selector(beginInterval:attributes:)]) {
-        [sinkClass beginInterval:name attributes:attributes];
-    }
-
-    // TODO: Forward to OpenTelemetry bridge when available
+    // Forward to the concrete Apple sink
+    return [ISHInstrumentationSinkApple beginInterval:name attributes:attributes];
 }
 
-- (void)endIntervalInternal:(NSString *)name attributes:(NSDictionary *)attributes {
+- (void)endIntervalInternal:(uint64_t)intervalId attributes:(NSDictionary *)attributes {
     if (!self.activated) {
         return;
     }
 
-    // Forward to Apple sink using runtime lookup
-    Class sinkClass = NSClassFromString(@"ISHInstrumentationSinkApple");
-    if (sinkClass && [sinkClass respondsToSelector:@selector(endInterval:attributes:)]) {
-        [sinkClass endInterval:name attributes:attributes];
+    if (intervalId == 0) {
+        return;
     }
 
-    // TODO: Forward to OpenTelemetry bridge when available
+    // Forward to the concrete Apple sink with proper interval ID
+    [ISHInstrumentationSinkApple endInterval:intervalId attributes:attributes];
 }
 
 @end

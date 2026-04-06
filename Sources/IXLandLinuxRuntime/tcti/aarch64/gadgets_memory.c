@@ -314,6 +314,31 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
     if (is_reg_offset) {
         uint64_t offset = tcti_extend_ldst_offset(cpu, rm, extend_type);
         addr = base + (offset << reg_shift);
+
+        // Trace register offset addressing details for fault analysis
+        // Capture x2 and x3 values when they are used in the address computation
+        if (rn == 3) {
+            char x3_val_buf[24];
+            snprintf(x3_val_buf, sizeof(x3_val_buf), "0x%llx", (unsigned long long)base);
+            trace_attribute_t x3_attr[] = { { "x3_base", x3_val_buf } };
+            trace_begin_interval(TRACE_ORIGIN_EXEC, "task.proof.ldst.x3_base", x3_attr, 1);
+        }
+        if (rm == 2) {
+            uint64_t x2_raw = tcti_read_reg_or_zr(cpu, 2);
+            char x2_val_buf[24];
+            char offset_buf[24];
+            char extend_buf[8];
+            snprintf(x2_val_buf, sizeof(x2_val_buf), "0x%llx", (unsigned long long)x2_raw);
+            snprintf(offset_buf, sizeof(offset_buf), "0x%llx",
+                     (unsigned long long)(offset << reg_shift));
+            snprintf(extend_buf, sizeof(extend_buf), "%d", extend_type);
+            trace_attribute_t x2_attr[] = {
+                { "x2_raw", x2_val_buf },
+                { "offset_shifted", offset_buf },
+                { "extend_type", extend_buf },
+            };
+            trace_begin_interval(TRACE_ORIGIN_EXEC, "task.proof.ldst.x2_offset", x2_attr, 3);
+        }
     } else {
         switch (idx_mode) {
         case A64_PRE_INDEX:

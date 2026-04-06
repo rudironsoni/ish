@@ -1,0 +1,51 @@
+id: STAB-001
+phase: 10-tooling-stability-ios
+title: Shell loops run without resource leaks
+class: stability
+kind: ios_fixture
+harness: ios_fixture
+meson_test: case:STAB-001
+
+prerequisites:
+  - TOOL-004
+
+expectation_authority:
+  semantic_source: ios-sandbox-contract
+  primary_tool: runtime-fixture
+  secondary_tool: null
+  tertiary_tool: null
+
+success_criteria:
+  structural:
+    - harness exits 0
+    - report.json exists and valid
+  semantic:
+    - test validates expected behavior
+
+allowed_patch_scope:
+  - kernel/*
+  - emu/*
+  - tests/cases/*
+  - tests/cases/10-tooling-stability-ios/STAB-001-shell-loop-stability/*
+
+regression_target:
+  meson_test: case:STAB-001
+
+trace_defaults:
+  backend: nop
+  level: 0
+  events: ""
+  pc_range: null
+  regs: []
+  dump_on: none
+
+informational_only: false
+status: REAL_PASS
+is_gate_case: true
+
+metadata:
+  scaffolded: true
+  implementation_ready: true
+  notes: |
+    Implementation complete. Tests shell loop stability.
+    Validates resource integrity over repeated command execution.
