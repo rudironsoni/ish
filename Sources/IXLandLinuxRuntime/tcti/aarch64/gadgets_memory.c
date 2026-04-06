@@ -418,6 +418,23 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
         }
 
         if (mem_ret != A64_MEM_OK) {
+            // PHASE 1: Detailed fault analysis - capture all diagnostic items
+            // to determine if EA is wrong before translation or translation is wrong after correct
+            // EA
+            uint32_t raw_insn = 0;
+            a64_fetch_insn(cpu, cpu->tlb, fault_pc, &raw_insn);
+
+            uint64_t offset_reg_val = is_reg_offset ? tcti_read_reg_or_zr(cpu, rm) : 0;
+            uint64_t computed_offset =
+                is_reg_offset ? (tcti_extend_ldst_offset(cpu, rm, extend_type) << reg_shift) : imm;
+            int translation_success = (mem_ret == A64_MEM_OK) ? 1 : 0;
+
+            // Emit comprehensive fault analysis
+            trace_emit_a64_ldr_full_analysis(fault_pc, raw_insn, base, offset_reg_val, (int)rn, rm,
+                                             (int)rt, extend_type, reg_shift, computed_offset, addr,
+                                             (uint64_t)0, translation_success,
+                                             is_reg_offset ? 1 : 0, (int)idx_mode);
+
             cpu->pc = fault_pc;
             cpu->fault_was_write = false;
             return TCTI_EXIT_FAULT;

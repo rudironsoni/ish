@@ -848,6 +848,76 @@ void trace_emit_mem_pgdir_lookup(uint64_t page, uint64_t pgdir_slot)
 }
 
 /* ============================================
+ * AArch64 Detailed Load Analysis - Phase 1 Fault Isolation
+ * ============================================
+ *
+ * This function captures all 13 required diagnostic items for the first
+ * failing AArch64 load to determine if EA is wrong before translation
+ * or translation is wrong after correct EA.
+ */
+void trace_emit_a64_ldr_full_analysis(uint64_t fault_pc, uint32_t raw_insn, uint64_t base_reg_val,
+                                      uint64_t offset_reg_val, int rn, int rm, int rt,
+                                      int extend_type, int shift, uint64_t computed_offset,
+                                      uint64_t guest_ea, uint64_t host_ptr, int translation_success,
+                                      int is_reg_offset, int idx_mode)
+{
+    /* Buffers for attribute values */
+    char fault_pc_buf[24];
+    char raw_insn_buf[16];
+    char base_buf[24];
+    char offset_buf[24];
+    char rn_buf[8];
+    char rm_buf[8];
+    char rt_buf[8];
+    char extend_buf[8];
+    char shift_buf[8];
+    char computed_off_buf[24];
+    char guest_ea_buf[24];
+    char host_ptr_buf[24];
+    char trans_success_buf[8];
+    char is_reg_off_buf[8];
+    char idx_mode_buf[8];
+
+    snprintf(fault_pc_buf, sizeof(fault_pc_buf), "0x%llx", (unsigned long long)fault_pc);
+    snprintf(raw_insn_buf, sizeof(raw_insn_buf), "0x%08x", raw_insn);
+    snprintf(base_buf, sizeof(base_buf), "0x%llx", (unsigned long long)base_reg_val);
+    snprintf(offset_buf, sizeof(offset_buf), "0x%llx", (unsigned long long)offset_reg_val);
+    snprintf(rn_buf, sizeof(rn_buf), "%d", rn);
+    snprintf(rm_buf, sizeof(rm_buf), "%d", rm);
+    snprintf(rt_buf, sizeof(rt_buf), "%d", rt);
+    snprintf(extend_buf, sizeof(extend_buf), "%d", extend_type);
+    snprintf(shift_buf, sizeof(shift_buf), "%d", shift);
+    snprintf(computed_off_buf, sizeof(computed_off_buf), "0x%llx",
+             (unsigned long long)computed_offset);
+    snprintf(guest_ea_buf, sizeof(guest_ea_buf), "0x%llx", (unsigned long long)guest_ea);
+    snprintf(host_ptr_buf, sizeof(host_ptr_buf), "0x%llx", (unsigned long long)host_ptr);
+    snprintf(trans_success_buf, sizeof(trans_success_buf), "%d", translation_success);
+    snprintf(is_reg_off_buf, sizeof(is_reg_off_buf), "%d", is_reg_offset);
+    snprintf(idx_mode_buf, sizeof(idx_mode_buf), "%d", idx_mode);
+
+    trace_attribute_t attrs[] = {
+        { "fault_pc", fault_pc_buf },
+        { "raw_insn", raw_insn_buf },
+        { "base_reg_val", base_buf },
+        { "offset_reg_val", offset_buf },
+        { "rn", rn_buf },
+        { "rm", rm_buf },
+        { "rt", rt_buf },
+        { "extend_type", extend_buf },
+        { "shift", shift_buf },
+        { "computed_offset", computed_off_buf },
+        { "guest_ea", guest_ea_buf },
+        { "host_ptr", host_ptr_buf },
+        { "translation_success", trans_success_buf },
+        { "is_reg_offset", is_reg_off_buf },
+        { "idx_mode", idx_mode_buf },
+    };
+
+    (void)trace_begin_interval(TRACE_ORIGIN_EXEC, "a64.ldr.full_analysis", attrs,
+                               sizeof(attrs) / sizeof(attrs[0]));
+}
+
+/* ============================================
  * Output and Utility - STUBBED
  * ============================================ */
 

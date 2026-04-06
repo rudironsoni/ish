@@ -95,6 +95,13 @@ void trace_emit_mem_translate_result(uint64_t host_ptr, int success);
 /* Page-table lookup diagnostic event */
 void trace_emit_mem_pgdir_lookup(uint64_t page, uint64_t pgdir_slot);
 
+/* AArch64 Detailed Load Analysis - Phase 1 Fault Isolation */
+void trace_emit_a64_ldr_full_analysis(uint64_t fault_pc, uint32_t raw_insn, uint64_t base_reg_val,
+                                      uint64_t offset_reg_val, int rn, int rm, int rt,
+                                      int extend_type, int shift, uint64_t computed_offset,
+                                      uint64_t guest_ea, uint64_t host_ptr, int translation_success,
+                                      int is_reg_offset, int idx_mode);
+
 /* Task handoff proof events */
 void trace_emit_task_handoff_parent_pre_create(uint64_t task_ptr, uint64_t mm, uint64_t mem,
                                                uint32_t pid, uint64_t host_thread_id);
