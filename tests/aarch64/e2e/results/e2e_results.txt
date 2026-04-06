@@ -1,5 +1,0 @@
-E2E Test Results - Thu Mar 19 09:53:10 AM CET 2026
-================================
-
-TEST: Prerequisites
-FAIL: iSH binary not found at /home/rrj/src/github/rudironsoni/ish/.worktrees/aarch64-migration/build/ish
