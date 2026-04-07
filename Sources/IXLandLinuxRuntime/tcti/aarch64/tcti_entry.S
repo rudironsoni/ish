@@ -110,6 +110,7 @@ tcti_entry_block:
     ldr     x1, [x29, #16]          // Guest x0 -> host x1
     ldr     x2, [x29, #24]          // Guest x1 -> host x2
     ldr     x3, [x29, #32]          // Guest x2 -> host x3
+    ldr     x4, [x29, #40]          // Guest x3 -> host x4
     ldr     x5, [x29, #48]          // Guest x4 -> host x5
     ldr     x6, [x29, #56]          // Guest x5 -> host x6
     ldr     x7, [x29, #64]          // Guest x6 -> host x7
@@ -162,6 +163,8 @@ tcti_c_call_prologue:
     stp     x3,  x4,  [sp, #-16]!
     stp     x1,  x2,  [sp, #-16]!
     str     x28, [sp, #-16]!         // Save bytecode ptr (x0 is clobbered by C return value)
+    mrs     x17, nzcv
+    str     x17, [sp, #-16]!         // Preserve guest flags across helper C call
     ret
 
 // C call epilogue - restore all TCTI registers after C call
@@ -169,6 +172,8 @@ tcti_c_call_prologue:
 .global tcti_c_call_epilogue
 _tcti_c_call_epilogue:
 tcti_c_call_epilogue:
+    ldr     x17, [sp], #16
+    msr     nzcv, x17
     ldr     x28, [sp], #16          // Restore bytecode ptr only (x0 has C return value)
     ldp     x1,  x2,  [sp], #16
     ldp     x3,  x4,  [sp], #16
@@ -192,8 +197,8 @@ tcti_c_call_epilogue:
 _tcti_exit_block:
 tcti_exit_block:
     // Save exit reason to cpu_state
-    // tcti_exit_reason is at offset 356 (verified via static_assert)
-    str     w0,  [x29, #364]        // Store exit reason to cpu->tcti_exit_reason (32-bit int)
+    // tcti_exit_reason offset in struct cpu_state
+    str     w0,  [x29, #860]        // Store exit reason to cpu->tcti_exit_reason (32-bit int)
     
     // CRITICAL: Save NZCV immediately before any flag-setting instruction
     // This prevents debug logic (cmp below) from clobbering guest flags
@@ -214,6 +219,7 @@ tcti_exit_block:
     str     x1,  [x29, #16]         // Host x1 -> guest x0
     str     x2,  [x29, #24]         // Host x2 -> guest x1
     str     x3,  [x29, #32]         // Host x3 -> guest x2
+    str     x4,  [x29, #40]         // Host x4 -> guest x3
     str     x5,  [x29, #48]         // Host x5 -> guest x4
     str     x6,  [x29, #56]         // Host x6 -> guest x5
     str     x7,  [x29, #64]         // Host x7 -> guest x6

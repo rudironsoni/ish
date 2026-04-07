@@ -19,6 +19,8 @@
 #import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
 #import <IXLandLinuxRuntime/emu/aarch64/memory.h>
 #import <IXLandLinuxRuntime/emu/aarch64/sysreg.h>
+#import <IXLandLinuxRuntime/kernel/memory.h>
+#import <IXLandLinuxRuntime/kernel/page_map.h>
 #import <IXLandLinuxRuntime/tcti/gadgets_tcti.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -35,6 +37,8 @@ extern int _a64_tcti_ldr_x_helper(struct cpu_state *cpu, uint64_t fault_pc, uint
 extern int _a64_tcti_str_x_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64_t rt,
                                   uint64_t rn, int64_t imm, uint64_t size, uint64_t idx_mode,
                                   uint64_t meta);
+
+static uint64_t tcti_extend_ldst_offset(struct cpu_state *cpu, int rm, int extend_type);
 
 // Stub functions for removed diagnostics
 void dump_str_wb_diag(void)
@@ -199,6 +203,227 @@ static const char *get_ldst_mnemonic(int is_load, int size, int is_signed)
     }
 }
 
+static const char *get_ldst_extend_name(int extend_type)
+{
+    switch (extend_type) {
+    case A64_EXT_UXTW:
+        return "uxtw";
+    case A64_EXT_UXTX:
+        return "uxtx";
+    case A64_EXT_SXTW:
+        return "sxtw";
+    case A64_EXT_SXTX:
+        return "sxtx";
+    case A64_EXT_LSL:
+        return "lsl";
+    default:
+        return "unknown";
+    }
+}
+
+static void trace_6967c_ldst_probe(struct cpu_state *cpu, uint64_t fault_pc, uint64_t rt,
+                                   uint64_t rn, int64_t imm, uint64_t size, uint64_t idx_mode,
+                                   uint64_t meta, uint64_t is_load, uint64_t base, uint64_t addr,
+                                   int mem_ret)
+{
+    static int budget = 24;
+    if (fault_pc != 0x6967cULL || budget <= 0)
+        return;
+
+    uint32_t raw = 0;
+    a64_instr_t decoded;
+    bool decode_ok = false;
+    if (a64_fetch_insn(cpu, cpu->tlb, fault_pc, &raw) == 0 && a64_decode(raw, &decoded) == 0)
+        decode_ok = true;
+
+    uint64_t is_signed = meta & 0xff;
+    uint64_t is_reg_offset = (meta >> 8) & 0xff;
+    int rm = (meta >> 16) & 0xff;
+    int extend_type = (meta >> 24) & 0xff;
+    int reg_shift = (meta >> 32) & 0xff;
+
+    uint64_t rt_val = tcti_read_reg_or_zr(cpu, (int)rt);
+    uint64_t rn_val = tcti_read_base_reg_or_sp(cpu, (int)rn);
+    uint64_t rm_val = is_reg_offset ? tcti_read_reg_or_zr(cpu, rm) : 0;
+
+    int writeback_expected =
+        (!is_reg_offset && (idx_mode == A64_PRE_INDEX || idx_mode == A64_POST_INDEX)) ? 1 : 0;
+    uint64_t writeback_val =
+        writeback_expected ? ((idx_mode == A64_POST_INDEX) ? (base + imm) : base) : rn_val;
+
+    struct mem *mem = cpu->mmu ? container_of(cpu->mmu, struct mem, mmu) : NULL;
+    page_t page = PAGE(addr);
+    struct page_desc *desc = mem ? page_map_lookup(&mem->pages, page) : NULL;
+    uint64_t host_ptr = 0;
+    if (desc && desc->obj) {
+        host_ptr =
+            (uint64_t)((char *)desc->obj->host_base + desc->offset + (unsigned)PGOFFSET(addr));
+    }
+
+    char ev[256];
+    snprintf(ev, sizeof(ev), "task.proof.6967c.raw=0x%08x", raw);
+    trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+    if (decode_ok) {
+        snprintf(ev, sizeof(ev),
+                 "task.proof.6967c.decode=cat:%d,sub:%d,rt:%d,rn:%d,rm:%d,idx:%d,ext:%d,shift:%d",
+                 decoded.cat, decoded.subtype, decoded.Rd, decoded.Rn, decoded.Rm, decoded.idx_mode,
+                 decoded.extend_type, decoded.imm_shift);
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+    }
+
+    snprintf(ev, sizeof(ev), "task.proof.6967c.human=%s x%llu,[x%llu,x%d,%s #%d]",
+             get_ldst_mnemonic((int)is_load, (int)size, (int)is_signed), (unsigned long long)rt,
+             (unsigned long long)rn, rm, get_ldst_extend_name(extend_type), reg_shift);
+    trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+    snprintf(ev, sizeof(ev),
+             "task.proof.6967c.operands=rt_val:0x%llx,rn_val:0x%llx,rm_val:0x%llx,imm:%lld",
+             (unsigned long long)rt_val, (unsigned long long)rn_val, (unsigned long long)rm_val,
+             (long long)imm);
+    trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+    snprintf(ev, sizeof(ev), "task.proof.6967c.guest_ea=0x%llx", (unsigned long long)addr);
+    trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+    snprintf(ev, sizeof(ev),
+             "task.proof.6967c.translation=page:%s,host_ptr:0x%llx,mem_ret:%d,is_load:%llu",
+             desc ? "hit" : "miss", (unsigned long long)host_ptr, mem_ret,
+             (unsigned long long)is_load);
+    trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+    snprintf(ev, sizeof(ev), "task.proof.6967c.writeback=expected:%d,val:0x%llx",
+             writeback_expected, (unsigned long long)writeback_val);
+    trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+    snprintf(ev, sizeof(ev), "task.proof.6967c.path=helper_slow");
+    trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+    budget--;
+}
+
+static void trace_live_ldr_probe(struct cpu_state *cpu, uint64_t instance_id, uint64_t fault_pc,
+                                 uint64_t rt, uint64_t rn, int64_t imm, uint64_t size,
+                                 uint64_t idx_mode, uint64_t meta, uint64_t is_load, uint64_t base,
+                                 uint64_t addr, int mem_ret, int phase_pre)
+{
+    static int budget = 48;
+    if (budget <= 0)
+        return;
+
+    uint32_t raw = 0;
+    a64_instr_t decoded;
+    bool decode_ok = false;
+    if (a64_fetch_insn(cpu, cpu->tlb, fault_pc, &raw) == 0 && a64_decode(raw, &decoded) == 0)
+        decode_ok = true;
+
+    uint64_t is_signed = meta & 0xff;
+    uint64_t is_reg_offset = (meta >> 8) & 0xff;
+    int rm = (meta >> 16) & 0xff;
+    int extend_type = (meta >> 24) & 0xff;
+    int reg_shift = (meta >> 32) & 0xff;
+
+    uint64_t rt_val = tcti_read_reg_or_zr(cpu, (int)rt);
+    uint64_t rn_val = tcti_read_base_reg_or_sp(cpu, (int)rn);
+    uint64_t rm_val = is_reg_offset ? tcti_read_reg_or_zr(cpu, rm) : 0;
+    uint64_t offset_before_shift =
+        is_reg_offset ? tcti_extend_ldst_offset(cpu, rm, extend_type) : (uint64_t)imm;
+    uint64_t computed_offset = is_reg_offset ? (offset_before_shift << reg_shift) : (uint64_t)imm;
+
+    int writeback_expected =
+        (!is_reg_offset && (idx_mode == A64_PRE_INDEX || idx_mode == A64_POST_INDEX)) ? 1 : 0;
+    uint64_t writeback_val =
+        writeback_expected ? ((idx_mode == A64_POST_INDEX) ? (base + imm) : base) : rn_val;
+
+    struct mem *mem = cpu->mmu ? container_of(cpu->mmu, struct mem, mmu) : NULL;
+    page_t page = PAGE(addr);
+    struct page_desc *desc = mem ? page_map_lookup(&mem->pages, page) : NULL;
+    uint64_t host_ptr_page = 0;
+    if (desc && desc->obj) {
+        host_ptr_page =
+            (uint64_t)((char *)desc->obj->host_base + desc->offset + (unsigned)PGOFFSET(addr));
+    }
+
+    char ev[320];
+    snprintf(ev, sizeof(ev), "task.proof.ldr_live.phase=%s,instance:%llu",
+             phase_pre ? "pre" : "post", (unsigned long long)instance_id);
+    trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+    if (phase_pre) {
+        snprintf(ev, sizeof(ev), "task.proof.ldr_live.pc=0x%llx", (unsigned long long)fault_pc);
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+        snprintf(ev, sizeof(ev), "task.proof.ldr_live.raw=0x%08x", raw);
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+        if (decode_ok) {
+            snprintf(ev, sizeof(ev),
+                     "task.proof.ldr_live.decode=cat:%d,sub:%d,rt:%d,rn:%d,rm:%d,idx:%d,ext:%d,"
+                     "shift:%d,imm:%lld",
+                     decoded.cat, decoded.subtype, decoded.Rd, decoded.Rn, decoded.Rm,
+                     decoded.idx_mode, decoded.extend_type, decoded.imm_shift,
+                     (long long)decoded.imm);
+            trace_record_event(TRACE_ORIGIN_EXEC, ev);
+        }
+
+        snprintf(ev, sizeof(ev), "task.proof.ldr_live.human=%s x%llu,[x%llu,x%d,%s #%d]",
+                 get_ldst_mnemonic((int)is_load, (int)size, (int)is_signed), (unsigned long long)rt,
+                 (unsigned long long)rn, rm, get_ldst_extend_name(extend_type), reg_shift);
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+        snprintf(ev, sizeof(ev),
+                 "task.proof.ldr_live.regs=is_load:%llu,is_reg_offset:%llu,rt_val:0x%llx,rn_val:"
+                 "0x%llx,rm_val:0x%llx",
+                 (unsigned long long)is_load, (unsigned long long)is_reg_offset,
+                 (unsigned long long)rt_val, (unsigned long long)rn_val,
+                 (unsigned long long)rm_val);
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+        snprintf(ev, sizeof(ev),
+                 "task.proof.ldr_live.address=offset_pre_shift:0x%llx,computed_offset:0x%llx,"
+                 "guest_ea:0x%llx",
+                 (unsigned long long)offset_before_shift, (unsigned long long)computed_offset,
+                 (unsigned long long)addr);
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+        snprintf(ev, sizeof(ev),
+                 "task.proof.ldr_live.translation=page_lookup:%s,host_ptr_page:0x%llx",
+                 desc ? "hit" : "miss", (unsigned long long)host_ptr_page);
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+        snprintf(ev, sizeof(ev), "task.proof.ldr_live.writeback=expected:%d,val:0x%llx",
+                 writeback_expected, (unsigned long long)writeback_val);
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+        snprintf(ev, sizeof(ev), "task.proof.ldr_live.path=helper_slow");
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+    }
+
+    snprintf(ev, sizeof(ev), "task.proof.ldr_live.mem_result=mem_ret:%d", mem_ret);
+    trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+    budget--;
+}
+
+static int a64_tcti_guest_write64_strict(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr,
+                                         uint64_t val)
+{
+    void *fast = __tlb_write_ptr(tlb, addr);
+    if (fast) {
+        *(uint64_t *)fast = val;
+        return A64_MEM_OK;
+    }
+
+    void *slow = tlb_handle_miss(tlb, addr, MEM_WRITE);
+    if (!slow) {
+        cpu->fault_addr = tlb->segfault_addr;
+        return A64_MEM_FAULT;
+    }
+
+    *(uint64_t *)slow = val;
+    return A64_MEM_OK;
+}
+
 static void tcti_write_base_reg_or_sp(struct cpu_state *cpu, int reg, uint64_t value, int is_64bit)
 {
     uint64_t masked = is_64bit ? value : (uint32_t)value;
@@ -287,12 +512,152 @@ static void trace_ldst_arch_checkpoint(const char *name, uint64_t fault_pc, uint
     (void)trace_begin_interval(TRACE_ORIGIN_EXEC, name, attrs, sizeof(attrs) / sizeof(attrs[0]));
 }
 
+void trace_add_imm_sp_to_x7_probe(struct cpu_state *cpu, uint64_t src_x14, uint64_t new_x7)
+{
+    static uint64_t seq = 0;
+    if (!cpu)
+        return;
+    seq++;
+    if (seq > 8)
+        return;
+
+    char ev[320];
+    snprintf(ev, sizeof(ev),
+             "task.proof.69640.add_x7_sp_8=seq:%llu,src_x14:0x%llx,new_x7:0x%llx,cpu_sp:0x%llx,cpu_"
+             "x7:0x%llx,cpu_pc:0x%llx",
+             (unsigned long long)seq, (unsigned long long)src_x14, (unsigned long long)new_x7,
+             (unsigned long long)cpu->sp, (unsigned long long)cpu->x[7],
+             (unsigned long long)cpu->pc);
+    trace_record_event(TRACE_ORIGIN_EXEC, ev);
+}
+
+void trace_mov_x7_to_x2_probe(struct cpu_state *cpu, uint64_t src_x7, uint64_t new_x2)
+{
+    static uint64_t seq = 0;
+    if (!cpu)
+        return;
+    seq++;
+    if (seq > 8)
+        return;
+
+    char ev[320];
+    snprintf(ev, sizeof(ev),
+             "task.proof.6964c.mov_x7_to_x2=seq:%llu,src_x7:0x%llx,new_x2:0x%llx,cpu_x7:0x%llx,cpu_"
+             "x2:0x%llx,cpu_pc:0x%llx",
+             (unsigned long long)seq, (unsigned long long)src_x7, (unsigned long long)new_x2,
+             (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
+             (unsigned long long)cpu->pc);
+    trace_record_event(TRACE_ORIGIN_EXEC, ev);
+}
+
+void trace_probe_x7_x2_state(struct cpu_state *cpu, uint64_t guest_pc)
+{
+    static uint64_t seq = 0;
+    if (!cpu)
+        return;
+    seq++;
+    if (seq > 8)
+        return;
+
+    char ev[320];
+    snprintf(ev, sizeof(ev),
+             "task.proof.x7x2.state=seq:%llu,guest_pc:0x%llx,x2:0x%llx,x7:0x%llx,sp:0x%llx,cpu_pc:"
+             "0x%llx",
+             (unsigned long long)seq, (unsigned long long)guest_pc, (unsigned long long)cpu->x[2],
+             (unsigned long long)cpu->x[7], (unsigned long long)cpu->sp,
+             (unsigned long long)cpu->pc);
+    trace_record_event(TRACE_ORIGIN_EXEC, ev);
+}
+
+void trace_str_handoff_probe(struct cpu_state *cpu, uint64_t stage, uint64_t fault_pc,
+                             uint64_t live_x3, uint64_t live_x8, uint64_t live_x14,
+                             uint64_t live_x20, uint64_t live_x21)
+{
+    static int captured = 0;
+    if (!cpu || fault_pc != 0x69650ULL || captured >= 6)
+        return;
+    captured++;
+
+    char ev[512];
+    snprintf(ev, sizeof(ev),
+             "task.proof.69650.handoff=stage:%llu,fault_pc:0x%llx,live_x3:0x%llx,live_x8:0x%llx,"
+             "live_x14:0x%llx,live_rt_x20:0x%llx,live_rn_x21:0x%llx,cpu_x2:0x%llx,cpu_x7:0x%llx,"
+             "cpu_sp:0x%llx,cpu_pc:0x%llx",
+             (unsigned long long)stage, (unsigned long long)fault_pc, (unsigned long long)live_x3,
+             (unsigned long long)live_x8, (unsigned long long)live_x14,
+             (unsigned long long)live_x20, (unsigned long long)live_x21,
+             (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[7],
+             (unsigned long long)cpu->sp, (unsigned long long)cpu->pc);
+    trace_record_event(TRACE_ORIGIN_EXEC, ev);
+}
+
+__attribute__((naked)) void gadget_probe_x7_x2_state(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t"
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "stp x13, x14, [x29, #112]\n\t"
+                 "stp x15, x16, [x29, #128]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "bl _trace_probe_x7_x2_state\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "ldp x1, x2, [x29, #16]\n\t"
+                 "ldp x3, x4, [x29, #32]\n\t"
+                 "ldp x5, x6, [x29, #48]\n\t"
+                 "ldp x7, x8, [x29, #64]\n\t"
+                 "ldp x9, x10, [x29, #80]\n\t"
+                 "ldp x11, x12, [x29, #96]\n\t"
+                 "ldp x13, x14, [x29, #112]\n\t"
+                 "ldp x15, x16, [x29, #128]\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
+__attribute__((naked)) void gadget_force_x7_from_sp_plus_8(void)
+{
+    asm volatile("ldr x8, [x29, %[sp_off]]\n\t"
+                 "add x8, x8, #8\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t"
+                 :
+                 : [sp_off] "i"(SP_OFFSET));
+}
+
+__attribute__((naked)) void gadget_probe_live_x3_x8(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t"
+                 "ldr x20, [x28], #8\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "mov x2, x20\n\t"
+                 "mov x3, x3\n\t"
+                 "mov x4, x8\n\t"
+                 "mov x5, x14\n\t"
+                 "mov x6, #0\n\t"
+                 "mov x7, #0\n\t"
+                 "bl _trace_str_handoff_probe\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
 static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64_t rt, uint64_t rn,
                                 int64_t imm, uint64_t size, uint64_t idx_mode, uint64_t meta,
                                 uint64_t is_load)
 {
     // Generate unique instance ID for correlation
     uint64_t instance_id = ++g_ldst_instance_id;
+
+    // FIRST FAULT GUARD: emits detailed analysis once at actual fault decision point
+    static int first_fault_captured = 0;
+    static int fault_69650_captured = 0;
 
     // EMIT MEMORY TRANSLATION TRACE EVENTS (before translation)
     // These trace the TCTI boundary: fault PC, Rn value, immediate, idx_mode
@@ -358,6 +723,45 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
     // EMIT GUEST VIRTUAL ADDRESS (after computing effective address)
     trace_emit_gadget_ldr_guest_vaddr(addr);
 
+    if (fault_pc == 0x69650ULL && !fault_69650_captured) {
+        fault_69650_captured = 1;
+
+        void *host_ptr_probe = a64_guest_to_host(cpu, cpu->tlb, addr, is_load ? 0 : 1);
+        struct mem *fault_mem = cpu->mmu ? container_of(cpu->mmu, struct mem, mmu) : NULL;
+        struct page_desc *fault_desc =
+            fault_mem ? page_map_lookup(&fault_mem->pages, PAGE(addr)) : NULL;
+        unsigned fault_flags = fault_desc ? fault_desc->flags : 0;
+        int writeback_expected =
+            (!is_reg_offset && (idx_mode == A64_PRE_INDEX || idx_mode == A64_POST_INDEX)) ? 1 : 0;
+        uint64_t writeback_val = base;
+        if (writeback_expected) {
+            writeback_val = (idx_mode == A64_POST_INDEX) ? (base + imm) : base;
+        }
+
+        char ev[384];
+        snprintf(
+            ev, sizeof(ev),
+            "task.proof.69650.helper_regs=x0:0x%llx,x1:0x%llx,x2:0x%llx,x3:0x%llx,x4:0x%llx,"
+            "x5:0x%llx,x6:0x%llx,x7:0x%llx,x8:0x%llx,sp:0x%llx,pc:0x%llx,rt:%llu,rn:%llu,rm:%d",
+            (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[1],
+            (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[3],
+            (unsigned long long)cpu->x[4], (unsigned long long)cpu->x[5],
+            (unsigned long long)cpu->x[6], (unsigned long long)cpu->x[7],
+            (unsigned long long)cpu->x[8], (unsigned long long)cpu->sp, (unsigned long long)cpu->pc,
+            (unsigned long long)rt, (unsigned long long)rn, is_reg_offset ? rm : -1);
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+        snprintf(ev, sizeof(ev),
+                 "task.proof.69650.helper_access=is_load:%llu,idx:%llu,imm:%lld,guest_ea:0x%llx,"
+                 "host_ptr_probe:0x%llx,page_lookup:%s,page_flags:0x%x,writeback_expected:%d,"
+                 "writeback_val:0x%llx",
+                 (unsigned long long)is_load, (unsigned long long)idx_mode, (long long)imm,
+                 (unsigned long long)addr, (unsigned long long)(uintptr_t)host_ptr_probe,
+                 fault_desc ? "hit" : "miss", fault_flags, writeback_expected,
+                 (unsigned long long)writeback_val);
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+    }
+
     // ARCHITECTURAL CHECKPOINT: Pre-access state for fault analysis
     // Captures base (pre-writeback) and addr (effective address for access)
     // SAMPLE POINT 1: Before memory access, base unchanged, addr computed
@@ -385,7 +789,10 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
 
     if (is_load) {
         uint64_t value = 0;
-        int mem_ret;
+        int mem_ret = A64_MEM_FAULT;
+
+        trace_live_ldr_probe(cpu, instance_id, fault_pc, rt, rn, imm, size, idx_mode, meta, is_load,
+                             base, addr, -1, 1);
 
         switch (width) {
         case 1: {
@@ -417,23 +824,161 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
             break;
         }
 
+        trace_live_ldr_probe(cpu, instance_id, fault_pc, rt, rn, imm, size, idx_mode, meta, is_load,
+                             base, addr, mem_ret, 0);
+
+        trace_6967c_ldst_probe(cpu, fault_pc, rt, rn, imm, size, idx_mode, meta, is_load, base,
+                               addr, mem_ret);
+
         if (mem_ret != A64_MEM_OK) {
-            // PHASE 1: Detailed fault analysis - capture all diagnostic items
-            // to determine if EA is wrong before translation or translation is wrong after correct
-            // EA
-            uint32_t raw_insn = 0;
-            a64_fetch_insn(cpu, cpu->tlb, fault_pc, &raw_insn);
+            if (!first_fault_captured) {
+                first_fault_captured = 1;
 
-            uint64_t offset_reg_val = is_reg_offset ? tcti_read_reg_or_zr(cpu, rm) : 0;
-            uint64_t computed_offset =
-                is_reg_offset ? (tcti_extend_ldst_offset(cpu, rm, extend_type) << reg_shift) : imm;
-            int translation_success = (mem_ret == A64_MEM_OK) ? 1 : 0;
+                uint32_t raw_insn = 0;
+                (void)a64_fetch_insn(cpu, cpu->tlb, fault_pc, &raw_insn);
 
-            // Emit comprehensive fault analysis
-            trace_emit_a64_ldr_full_analysis(fault_pc, raw_insn, base, offset_reg_val, (int)rn, rm,
-                                             (int)rt, extend_type, reg_shift, computed_offset, addr,
-                                             (uint64_t)0, translation_success,
-                                             is_reg_offset ? 1 : 0, (int)idx_mode);
+                uint64_t offset_reg_val = is_reg_offset ? tcti_read_reg_or_zr(cpu, rm) : 0;
+                uint64_t offset_before_add =
+                    is_reg_offset ? tcti_extend_ldst_offset(cpu, rm, extend_type) : (uint64_t)imm;
+                uint64_t computed_offset =
+                    is_reg_offset ? (offset_before_add << reg_shift) : (uint64_t)imm;
+                uint64_t guest_ea = addr;
+
+                struct mem *mem = cpu->mmu ? container_of(cpu->mmu, struct mem, mmu) : NULL;
+                page_t page = PAGE(guest_ea);
+                struct page_desc *desc = mem ? page_map_lookup(&mem->pages, page) : NULL;
+                uint64_t host_ptr = 0;
+                unsigned desc_flags = 0;
+                if (desc) {
+                    host_ptr = (uint64_t)((char *)desc->obj->host_base + desc->offset +
+                                          PGOFFSET(guest_ea));
+                    desc_flags = desc->flags;
+                }
+
+                const char *insn_form = "other";
+                if (is_reg_offset) {
+                    insn_form = "register offset";
+                } else {
+                    if (idx_mode == A64_PRE_INDEX)
+                        insn_form = "immediate pre-index";
+                    else if (idx_mode == A64_POST_INDEX)
+                        insn_form = "immediate post-index";
+                    else
+                        insn_form = "immediate unsigned offset";
+                }
+
+                const char *failure_reason = "other";
+                if (!desc) {
+                    failure_reason = "page_lookup_miss";
+                } else if (host_ptr == 0) {
+                    failure_reason = "translation_rejected";
+                }
+
+                char fault_pc_buf[24], raw_insn_buf[16], rn_buf[8], rm_buf[8], rt_buf[8];
+                char base_buf[24], idx_val_buf[24], imm_buf[24], extend_buf[8], shift_flag_buf[8];
+                char shift_amt_buf[8], off_before_add_buf[24], comp_off_buf[24], ea_buf[24];
+                char trans_in_buf[24], host_ptr_buf[24], page_buf[24], desc_ptr_buf[24],
+                    flags_buf[24];
+                snprintf(fault_pc_buf, sizeof(fault_pc_buf), "0x%llx",
+                         (unsigned long long)fault_pc);
+                snprintf(raw_insn_buf, sizeof(raw_insn_buf), "0x%08x", raw_insn);
+                snprintf(rn_buf, sizeof(rn_buf), "%d", (int)rn);
+                snprintf(rm_buf, sizeof(rm_buf), "%d", is_reg_offset ? rm : -1);
+                snprintf(rt_buf, sizeof(rt_buf), "%d", (int)rt);
+                snprintf(base_buf, sizeof(base_buf), "0x%llx", (unsigned long long)base);
+                snprintf(idx_val_buf, sizeof(idx_val_buf), "0x%llx",
+                         (unsigned long long)offset_reg_val);
+                snprintf(imm_buf, sizeof(imm_buf), "%lld", (long long)imm);
+                snprintf(extend_buf, sizeof(extend_buf), "%d", is_reg_offset ? extend_type : -1);
+                snprintf(shift_flag_buf, sizeof(shift_flag_buf), "%d", reg_shift ? 1 : 0);
+                snprintf(shift_amt_buf, sizeof(shift_amt_buf), "%d", reg_shift);
+                snprintf(off_before_add_buf, sizeof(off_before_add_buf), "0x%llx",
+                         (unsigned long long)offset_before_add);
+                snprintf(comp_off_buf, sizeof(comp_off_buf), "0x%llx",
+                         (unsigned long long)computed_offset);
+                snprintf(ea_buf, sizeof(ea_buf), "0x%llx", (unsigned long long)guest_ea);
+                snprintf(trans_in_buf, sizeof(trans_in_buf), "0x%llx",
+                         (unsigned long long)guest_ea);
+                snprintf(host_ptr_buf, sizeof(host_ptr_buf), "0x%llx",
+                         (unsigned long long)host_ptr);
+                snprintf(page_buf, sizeof(page_buf), "0x%llx", (unsigned long long)page);
+                snprintf(desc_ptr_buf, sizeof(desc_ptr_buf), "%p", (void *)desc);
+                snprintf(flags_buf, sizeof(flags_buf), "0x%x", desc_flags);
+
+                trace_attribute_t attrs[] = {
+                    { "live_site", "a64_tcti_ldst_helper.pre_fault" },
+                    { "fault_pc", fault_pc_buf },
+                    { "raw_opcode", raw_insn_buf },
+                    { "decoded_form", insn_form },
+                    { "rt", rt_buf },
+                    { "rn", rn_buf },
+                    { "rn_val", base_buf },
+                    { "rm", rm_buf },
+                    { "rm_val", idx_val_buf },
+                    { "imm", imm_buf },
+                    { "extend_type", extend_buf },
+                    { "shift_flag", shift_flag_buf },
+                    { "shift_amt", shift_amt_buf },
+                    { "offset_before_add", off_before_add_buf },
+                    { "computed_offset", comp_off_buf },
+                    { "guest_ea", ea_buf },
+                    { "translation_in", trans_in_buf },
+                    { "translation_out", host_ptr_buf },
+                    { "page", page_buf },
+                    { "page_desc", desc_ptr_buf },
+                    { "page_flags", flags_buf },
+                    { "lookup_result", desc ? "hit" : "miss" },
+                    { "fault_reason", failure_reason },
+                };
+                (void)trace_begin_interval(TRACE_ORIGIN_EXEC, "a64.ldr.first_fault_analysis", attrs,
+                                           sizeof(attrs) / sizeof(attrs[0]));
+
+                // Emit key-value first-fault proof as visible semantic events (once)
+                char ev[192];
+                snprintf(ev, sizeof(ev), "a64.ldr.first.live_site=a64_tcti_ldst_helper.pre_fault");
+                trace_record_event(TRACE_ORIGIN_EXEC, ev);
+                snprintf(ev, sizeof(ev), "a64.ldr.first.fault_pc=0x%llx",
+                         (unsigned long long)fault_pc);
+                trace_record_event(TRACE_ORIGIN_EXEC, ev);
+                snprintf(ev, sizeof(ev), "a64.ldr.first.raw_opcode=0x%08x", raw_insn);
+                trace_record_event(TRACE_ORIGIN_EXEC, ev);
+                snprintf(ev, sizeof(ev), "a64.ldr.first.decoded_form=%s", insn_form);
+                trace_record_event(TRACE_ORIGIN_EXEC, ev);
+                snprintf(ev, sizeof(ev), "a64.ldr.first.rt=%d", (int)rt);
+                trace_record_event(TRACE_ORIGIN_EXEC, ev);
+                snprintf(ev, sizeof(ev), "a64.ldr.first.rn=%d", (int)rn);
+                trace_record_event(TRACE_ORIGIN_EXEC, ev);
+                snprintf(ev, sizeof(ev), "a64.ldr.first.rn_val=0x%llx", (unsigned long long)base);
+                trace_record_event(TRACE_ORIGIN_EXEC, ev);
+                snprintf(ev, sizeof(ev), "a64.ldr.first.rm=%d", is_reg_offset ? rm : -1);
+                trace_record_event(TRACE_ORIGIN_EXEC, ev);
+                snprintf(ev, sizeof(ev), "a64.ldr.first.rm_val=0x%llx",
+                         (unsigned long long)offset_reg_val);
+                trace_record_event(TRACE_ORIGIN_EXEC, ev);
+                snprintf(ev, sizeof(ev), "a64.ldr.first.extend_type=%d",
+                         is_reg_offset ? extend_type : -1);
+                trace_record_event(TRACE_ORIGIN_EXEC, ev);
+                snprintf(ev, sizeof(ev), "a64.ldr.first.shift_amt=%d", reg_shift);
+                trace_record_event(TRACE_ORIGIN_EXEC, ev);
+                snprintf(ev, sizeof(ev), "a64.ldr.first.offset_before_add=0x%llx",
+                         (unsigned long long)offset_before_add);
+                trace_record_event(TRACE_ORIGIN_EXEC, ev);
+                snprintf(ev, sizeof(ev), "a64.ldr.first.computed_offset=0x%llx",
+                         (unsigned long long)computed_offset);
+                trace_record_event(TRACE_ORIGIN_EXEC, ev);
+                snprintf(ev, sizeof(ev), "a64.ldr.first.guest_ea=0x%llx",
+                         (unsigned long long)guest_ea);
+                trace_record_event(TRACE_ORIGIN_EXEC, ev);
+                snprintf(ev, sizeof(ev), "a64.ldr.first.translation_out=0x%llx",
+                         (unsigned long long)host_ptr);
+                trace_record_event(TRACE_ORIGIN_EXEC, ev);
+                snprintf(ev, sizeof(ev), "a64.ldr.first.page=0x%llx", (unsigned long long)page);
+                trace_record_event(TRACE_ORIGIN_EXEC, ev);
+                snprintf(ev, sizeof(ev), "a64.ldr.first.lookup_result=%s", desc ? "hit" : "miss");
+                trace_record_event(TRACE_ORIGIN_EXEC, ev);
+                snprintf(ev, sizeof(ev), "a64.ldr.first.fault_reason=%s", failure_reason);
+                trace_record_event(TRACE_ORIGIN_EXEC, ev);
+            }
 
             cpu->pc = fault_pc;
             cpu->fault_was_write = false;
@@ -467,7 +1012,10 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
         }
     } else {
         uint64_t value = tcti_read_reg_or_zr(cpu, (int)rt);
-        int mem_ret;
+        int mem_ret = A64_MEM_FAULT;
+
+        trace_live_ldr_probe(cpu, instance_id, fault_pc, rt, rn, imm, size, idx_mode, meta, is_load,
+                             base, addr, -1, 1);
 
         switch (width) {
         case 1:
@@ -480,12 +1028,18 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
             mem_ret = a64_guest_write32(cpu, cpu->tlb, addr, (uint32_t)value);
             break;
         case 8:
-            mem_ret = a64_guest_write64(cpu, cpu->tlb, addr, value);
+            mem_ret = a64_tcti_guest_write64_strict(cpu, cpu->tlb, addr, value);
             break;
         default:
             mem_ret = A64_MEM_FAULT;
             break;
         }
+
+        trace_live_ldr_probe(cpu, instance_id, fault_pc, rt, rn, imm, size, idx_mode, meta, is_load,
+                             base, addr, mem_ret, 0);
+
+        trace_6967c_ldst_probe(cpu, fault_pc, rt, rn, imm, size, idx_mode, meta, is_load, base,
+                               addr, mem_ret);
 
         // SAMPLE POINT 2: After memory access, check if fault occurred
         if (mem_ret != A64_MEM_OK) {
@@ -497,6 +1051,20 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
 
     if (!is_reg_offset && (idx_mode == A64_PRE_INDEX || idx_mode == A64_POST_INDEX)) {
         uint64_t updated = (idx_mode == A64_POST_INDEX) ? (base + imm) : base;
+
+        if (rn == 2 && idx_mode == A64_POST_INDEX) {
+            static int wb_probe_budget = 32;
+            if (wb_probe_budget > 0) {
+                char ev[224];
+                snprintf(ev, sizeof(ev),
+                         "task.proof.ldst.writeback.rn2.post=pc:0x%llx,base:0x%llx,imm:%lld,"
+                         "updated:0x%llx",
+                         (unsigned long long)fault_pc, (unsigned long long)base, (long long)imm,
+                         (unsigned long long)updated);
+                trace_record_event(TRACE_ORIGIN_EXEC, ev);
+                wb_probe_budget--;
+            }
+        }
 
         // PHASE 1: Track X2 writeback (pre/post-index addressing)
         if (rn == 2) {
@@ -515,6 +1083,20 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
         }
 
         tcti_write_base_reg_or_sp(cpu, (int)rn, updated, true);
+
+        if (rn == 2 && idx_mode == A64_POST_INDEX) {
+            static int wb_commit_budget = 32;
+            if (wb_commit_budget > 0) {
+                uint64_t committed = tcti_read_base_reg_or_sp(cpu, 2);
+                char ev[224];
+                snprintf(ev, sizeof(ev),
+                         "task.proof.ldst.writeback.rn2.committed=pc:0x%llx,val:0x%llx",
+                         (unsigned long long)fault_pc, (unsigned long long)committed);
+                trace_record_event(TRACE_ORIGIN_EXEC, ev);
+                wb_commit_budget--;
+            }
+        }
+
         // ARCHITECTURAL CHECKPOINT: Post-writeback state
         // SAMPLE POINT 3: After writeback, base modified
         if (fault_pc == 0xf7fa4650ULL) {
@@ -1456,6 +2038,11 @@ __attribute__((naked)) void gadget_ldr_x_impl(void)
         "cmp x25, #0\n\t" // Is meta 0 (no reg offset, not signed)?
         "b.ne 94f\n\t"    // Branch to meta counter
 
+        // PRE/POST-INDEX forms must go through helper to apply base writeback.
+        // Fast path only supports offset addressing semantics.
+        "cmp x24, #0\n\t"
+        "b.ne 99f\n\t"
+
         // Get base register value (hot, in x1-x16) using computed goto
         // Branch table for Rn 0-15
         "adr x26, 70f\n\t"              // x26 = base of branch table
@@ -1518,8 +2105,8 @@ __attribute__((naked)) void gadget_ldr_x_impl(void)
         // All original args (x19-x25) remain stable
         // Use x26, x27 as scratch for TLB operations
 
-        "ldr x26, [x29, #344]\n\t" // x26 = cpu->tlb
-        "cbz x26, 98f\n\t"         // Branch to notlb counter
+        "ldr x26, [x29, %[cpu_tlb_off]]\n\t" // x26 = cpu->tlb
+        "cbz x26, 98f\n\t"                   // Branch to notlb counter
 
         // TLB index: ((addr >> 12) & 1023) ^ (addr >> 22)
         "lsr x27, x17, #12\n\t"
@@ -1686,7 +2273,7 @@ __attribute__((naked)) void gadget_ldr_x_impl(void)
         "1:\n\t"
         "b _tcti_exit_block\n\t"
         :
-        : [ldr_fast_hits_off] "i"(STAT_LDR_FAST_HITS_OFFSET),
+        : [cpu_tlb_off] "i"(CPU_TLB_OFFSET), [ldr_fast_hits_off] "i"(STAT_LDR_FAST_HITS_OFFSET),
           [ldr_fallback_off] "i"(STAT_LDR_FALLBACK_OFFSET),
           [ldr_fallback_nonhot_off] "i"(STAT_LDR_FALLBACK_NONHOT_OFFSET),
           [ldr_fallback_size_off] "i"(STAT_LDR_FALLBACK_SIZE_OFFSET),
@@ -1726,6 +2313,11 @@ __attribute__((naked)) void gadget_str_x_impl(void)
         "b.ne 93f\n\t"    // Branch to idxmode counter
         "cmp x25, #0\n\t" // Is meta 0 (no reg offset, not signed)?
         "b.ne 94f\n\t"    // Branch to meta counter
+
+        // PRE/POST-INDEX forms must go through helper to apply base writeback.
+        // Fast path only supports offset addressing semantics.
+        "cmp x24, #0\n\t"
+        "b.ne 99f\n\t"
 
 
         // Get base register value (hot, in x1-x16) using computed goto
@@ -1836,8 +2428,8 @@ __attribute__((naked)) void gadget_str_x_impl(void)
         // CRITICAL: x20 contains original Rt - do NOT clobber it
         // Use x0 as scratch for TLB operations to avoid clobbering hot guest regs
 
-        "ldr x26, [x29, #344]\n\t" // x26 = cpu->tlb
-        "cbz x26, 98f\n\t"         // Branch to notlb counter
+        "ldr x26, [x29, %[cpu_tlb_off]]\n\t" // x26 = cpu->tlb
+        "cbz x26, 98f\n\t"                   // Branch to notlb counter
 
         // TLB index: ((addr >> 12) & 1023) ^ (addr >> 22)
         "lsr x27, x17, #12\n\t"
@@ -1925,6 +2517,18 @@ __attribute__((naked)) void gadget_str_x_impl(void)
         "ldr x26, [x29, %[str_fallback_off]]\n\t"
         "add x26, x26, #1\n\t"
         "str x26, [x29, %[str_fallback_off]]\n\t"
+        // Handoff probe stage 1: before cpu_state snapshot
+        "bl _tcti_c_call_prologue\n\t"
+        "mov x0, x29\n\t"
+        "mov x1, #1\n\t"
+        "mov x2, x19\n\t"
+        "mov x3, x3\n\t"
+        "mov x4, x8\n\t"
+        "mov x5, x14\n\t"
+        "mov x6, x20\n\t"
+        "mov x7, x21\n\t"
+        "bl _trace_str_handoff_probe\n\t"
+        "bl _tcti_c_call_epilogue\n\t"
         // Save registers and call C helper
         "stp x1, x2, [x29, #16]\n\t"
         "stp x3, x4, [x29, #32]\n\t"
@@ -1934,7 +2538,29 @@ __attribute__((naked)) void gadget_str_x_impl(void)
         "stp x11, x12, [x29, #96]\n\t"
         "stp x13, x14, [x29, #112]\n\t"
         "stp x15, x16, [x29, #128]\n\t"
+        // Handoff probe stage 2: after cpu_state snapshot, before helper prologue
         "bl _tcti_c_call_prologue\n\t"
+        "mov x0, x29\n\t"
+        "mov x1, #2\n\t"
+        "mov x2, x19\n\t"
+        "mov x3, x3\n\t"
+        "mov x4, x8\n\t"
+        "mov x5, x14\n\t"
+        "mov x6, x20\n\t"
+        "mov x7, x21\n\t"
+        "bl _trace_str_handoff_probe\n\t"
+        "bl _tcti_c_call_epilogue\n\t"
+        "bl _tcti_c_call_prologue\n\t"
+        // Handoff probe stage 3: immediately after helper prologue
+        "mov x0, x29\n\t"
+        "mov x1, #3\n\t"
+        "mov x2, x19\n\t"
+        "mov x3, x3\n\t"
+        "mov x4, x8\n\t"
+        "mov x5, x14\n\t"
+        "mov x6, x20\n\t"
+        "mov x7, x21\n\t"
+        "bl _trace_str_handoff_probe\n\t"
         "mov x0, x29\n\t"
         "mov x1, x19\n\t" // fault_pc
         "mov x2, x20\n\t" // Rt
@@ -1960,7 +2586,7 @@ __attribute__((naked)) void gadget_str_x_impl(void)
         "1:\n\t"
         "b _tcti_exit_block\n\t"
         :
-        : [str_fast_hits_off] "i"(STAT_STR_FAST_HITS_OFFSET),
+        : [cpu_tlb_off] "i"(CPU_TLB_OFFSET), [str_fast_hits_off] "i"(STAT_STR_FAST_HITS_OFFSET),
           [str_fallback_off] "i"(STAT_STR_FALLBACK_OFFSET),
           [str_fallback_nonhot_off] "i"(STAT_STR_FALLBACK_NONHOT_OFFSET),
           [str_fallback_size_off] "i"(STAT_STR_FALLBACK_SIZE_OFFSET),

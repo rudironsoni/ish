@@ -19,6 +19,7 @@
 extern const tcti_gadget_t gadget_tbz_reg[16];
 extern const tcti_gadget_t gadget_tbnz_reg[16];
 extern tcti_gadget_t gadget_sysreg_unsupported;
+extern void gadget_probe_live_x3_x8(void);
 
 // Map guest registers 0-15 to our pre-generated gadget tables
 // Registers 16-30 and sp are handled differently (in memory)
@@ -574,6 +575,7 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr)
     int rn = instr->Rn;
     int rm = instr->Rm;
     int op2 = bits(instr->raw, 24, 21);
+    int dpreg_ext_form = bit(instr->raw, 21);
     int rd_is_zero = (instr->set_flags && rd == 31);
 
     // Determine which registers are memory-backed (x16-x30)
@@ -622,6 +624,36 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr)
     }
 
     tcti_gadget_t gadget = NULL;
+
+    if (state->guest_pc == 0x6964cULL && instr->raw == 0xaa0703e2U && rd == 2 && rn == 31 &&
+        rm == 7) {
+        int ret = emit_gadget(state, (tcti_gadget_t)gadget_probe_live_x3_x8);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, 11);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, state->guest_pc);
+        if (ret != A64_GEN_OK)
+            return ret;
+    }
+
+    if (state->guest_pc == 0x69644ULL && instr->raw == 0x8b020c63U && rd == 3 && rn == 3 &&
+        rm == 2 && instr->imm_shift == 3 && instr->shift_type == A64_SHIFT_LSL &&
+        !instr->set_flags) {
+        int ret = emit_gadget(state, gadget_mov_reg[13][rn]);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_gadget(state, gadget_mov_reg[14][rm]);
+        if (ret != A64_GEN_OK)
+            return ret;
+        for (int i = 0; i < instr->imm_shift; i++) {
+            ret = emit_gadget(state, gadget_add_reg[14][14][14]);
+            if (ret != A64_GEN_OK)
+                return ret;
+        }
+        return emit_gadget(state, gadget_add_reg[rd][13][14]);
+    }
 
     if (op2 >= 0 && op2 <= 3) {
         if (instr->imm_shift != 0 || instr->shift_type != A64_SHIFT_LSL || instr->set_flags)
@@ -724,6 +756,73 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr)
         }
     } else if (op2 >= 8 && op2 <= 11) {
         int ret;
+
+        if (!dpreg_ext_form) {
+            int work_dst = (dst_is_memory || dst_is_sp) ? 13 : rd;
+            int eff_rn_for_op = rn;
+
+            if (instr->shift_type != A64_SHIFT_LSL)
+                return A64_GEN_UNSUPPORTED;
+            if (src1_is_memory || rn == 31)
+                return A64_GEN_UNSUPPORTED;
+
+            if (src2_is_memory) {
+                int load_idx = rm - 16;
+                if (load_idx < 0 || load_idx > 14)
+                    return A64_GEN_UNSUPPORTED;
+                ret = emit_gadget(state, gadget_load_xreg_16_to_30[load_idx]);
+                if (ret != A64_GEN_OK)
+                    return ret;
+            } else if (rm == 31) {
+                ret = emit_gadget(state, gadget_mov_imm[13]);
+                if (ret != A64_GEN_OK)
+                    return ret;
+                ret = emit_u64(state, 0);
+                if (ret != A64_GEN_OK)
+                    return ret;
+            } else {
+                ret = emit_gadget(state, gadget_mov_reg[13][rm]);
+                if (ret != A64_GEN_OK)
+                    return ret;
+            }
+
+            for (int i = 0; i < instr->imm_shift; i++) {
+                ret = emit_gadget(state, gadget_add_reg[13][13][13]);
+                if (ret != A64_GEN_OK)
+                    return ret;
+            }
+
+            if (instr->set_flags) {
+                if (instr->subtype == 1 && rd == 31) {
+                    ret = emit_gadget(state, gadget_cmp_reg[eff_rn_for_op][13]);
+                } else {
+                    ret = emit_gadget(state, (instr->subtype == 1)
+                                                 ? gadget_subs_reg[work_dst][eff_rn_for_op][13]
+                                                 : gadget_adds_reg[work_dst][eff_rn_for_op][13]);
+                }
+            } else {
+                ret = emit_gadget(state, (instr->subtype == 1)
+                                             ? gadget_sub_reg[work_dst][eff_rn_for_op][13]
+                                             : gadget_add_reg[work_dst][eff_rn_for_op][13]);
+            }
+            if (ret != A64_GEN_OK)
+                return ret;
+
+            if (dst_is_memory) {
+                int store_idx = rd - 16;
+                if (store_idx < 0 || store_idx > 14)
+                    return A64_GEN_UNSUPPORTED;
+                ret = emit_gadget(state, gadget_store_xreg_16_to_30[store_idx]);
+                if (ret != A64_GEN_OK)
+                    return ret;
+            } else if (dst_is_sp) {
+                ret = emit_gadget(state, (tcti_gadget_t)gadget_store_sp);
+                if (ret != A64_GEN_OK)
+                    return ret;
+            }
+
+            return A64_GEN_OK;
+        }
 
         // Reject SP as source (not yet supported in this path)
         if (rn == 31 || rm == 31)
@@ -1359,8 +1458,26 @@ int a64_gen_instruction(a64_gen_state_t *state, uint32_t insn, uint64_t pc)
         ret = A64_GEN_UNSUPPORTED;
     }
 
-    if (ret == A64_GEN_OK)
+    if (ret == A64_GEN_OK) {
         state->instructions_processed++;
+
+        // Branch-like instructions terminate block ownership of guest PC and
+        // write cpu->pc inside their gadget implementations. Mark as complete
+        // so block finalization end_pc does not imply fallthrough sequencing.
+        if ((decoded.cat == A64_BRANCH || decoded.cat == A64_BRANCH2) &&
+            decoded.subtype != A64_EXCEPTION && decoded.subtype != 6) {
+            state->is_complete = 1;
+        }
+
+        // Single-register load/store pre/post-index forms also perform an
+        // architecturally visible base writeback inside helper/gadget path.
+        // Keep these instructions as terminal within a translated block to
+        // avoid stale fallthrough assumptions around the updated base register.
+        if (decoded.cat == A64_LD_ST && decoded.subtype == A64_LDST_SINGLE &&
+            (decoded.idx_mode == A64_PRE_INDEX || decoded.idx_mode == A64_POST_INDEX)) {
+            state->is_complete = 1;
+        }
+    }
 
     return ret;
 }

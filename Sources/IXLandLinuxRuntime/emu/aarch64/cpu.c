@@ -64,6 +64,7 @@ int a64_execute_block(struct cpu_state *cpu, struct a64_block *block);
 static uint64_t a64_read_reg_or_sp(struct cpu_state *cpu, int reg, bool is_64bit);
 static void a64_write_reg_or_sp(struct cpu_state *cpu, int reg, uint64_t value, bool is_64bit);
 static uint64_t a64_extend_index(uint64_t value, int extend_type);
+static void trace_first_live_ldst_fault(struct cpu_state *cpu, int host_signal);
 
 /*
  * Initialize aarch64 CPU for a task
@@ -251,6 +252,110 @@ static void trace_insn_decode_checkpoint(const char *name, uint64_t pc, uint32_t
     (void)trace_begin_interval(TRACE_ORIGIN_EXEC, name, attrs, sizeof(attrs) / sizeof(attrs[0]));
 }
 
+static void trace_69650_block_window(struct cpu_state *cpu, struct tlb *tlb,
+                                     struct a64_block *block)
+{
+    static int captured = 0;
+    if (captured || !cpu || !tlb || !block)
+        return;
+    if (!(block->start_pc <= 0x69650ULL && 0x69650ULL < block->end_pc))
+        return;
+
+    captured = 1;
+
+    char block_start_buf[24];
+    char block_end_buf[24];
+    char x0_buf[24];
+    char x1_buf[24];
+    char x2_buf[24];
+    char x3_buf[24];
+    char x4_buf[24];
+    char x5_buf[24];
+    char sp_buf[24];
+    char pc_buf[24];
+
+    snprintf(block_start_buf, sizeof(block_start_buf), "0x%llx",
+             (unsigned long long)block->start_pc);
+    snprintf(block_end_buf, sizeof(block_end_buf), "0x%llx", (unsigned long long)block->end_pc);
+    snprintf(x0_buf, sizeof(x0_buf), "0x%llx", (unsigned long long)cpu->x[0]);
+    snprintf(x1_buf, sizeof(x1_buf), "0x%llx", (unsigned long long)cpu->x[1]);
+    snprintf(x2_buf, sizeof(x2_buf), "0x%llx", (unsigned long long)cpu->x[2]);
+    snprintf(x3_buf, sizeof(x3_buf), "0x%llx", (unsigned long long)cpu->x[3]);
+    snprintf(x4_buf, sizeof(x4_buf), "0x%llx", (unsigned long long)cpu->x[4]);
+    snprintf(x5_buf, sizeof(x5_buf), "0x%llx", (unsigned long long)cpu->x[5]);
+    snprintf(sp_buf, sizeof(sp_buf), "0x%llx", (unsigned long long)cpu->sp);
+    snprintf(pc_buf, sizeof(pc_buf), "0x%llx", (unsigned long long)cpu->pc);
+
+    {
+        char ev[320];
+        snprintf(ev, sizeof(ev),
+                 "task.proof.69650.block_entry=block_start:%s,block_end:%s,x0:%s,x1:%s,x2:%s,x3:%s,"
+                 "x4:%s,x5:%s,x7:0x%llx,sp:%s,pc:%s",
+                 block_start_buf, block_end_buf, x0_buf, x1_buf, x2_buf, x3_buf, x4_buf, x5_buf,
+                 (unsigned long long)cpu->x[7], sp_buf, pc_buf);
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+    }
+
+    uint64_t prev_pc = 0;
+    uint64_t next_pc = 0x69654ULL;
+    uint64_t last_x2_write_pc = 0;
+    uint32_t last_x2_write_raw = 0;
+    a64_instr_t last_x2_write_decoded = { 0 };
+    int have_last_x2_write = 0;
+
+    uint64_t start_pc = block->start_pc;
+    if (start_pc + 8 * 4 < 0x69650ULL)
+        start_pc = 0x69650ULL - 8 * 4;
+
+    for (uint64_t insn_pc = start_pc; insn_pc <= 0x69650ULL; insn_pc += 4) {
+        uint32_t raw = 0;
+        a64_instr_t decoded = { 0 };
+        if (a64_fetch_insn(cpu, tlb, insn_pc, &raw) != 0 || a64_decode(raw, &decoded) != 0)
+            continue;
+
+        if (insn_pc == 0x69650ULL && insn_pc >= 4)
+            prev_pc = insn_pc - 4;
+
+        if (decoded.Rd == 2) {
+            last_x2_write_pc = insn_pc;
+            last_x2_write_raw = raw;
+            last_x2_write_decoded = decoded;
+            have_last_x2_write = 1;
+        }
+
+        char ev[256];
+        snprintf(ev, sizeof(ev),
+                 "task.proof.69650.window.insn=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%"
+                 "d,idx:%d,size:%d,imm:%lld",
+                 (unsigned long long)insn_pc, raw, decoded.cat, decoded.subtype, decoded.Rd,
+                 decoded.Rn, decoded.Rm, decoded.idx_mode, decoded.size, (long long)decoded.imm);
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+    }
+
+    {
+        char ev[224];
+        snprintf(ev, sizeof(ev),
+                 "task.proof.69650.window.flow=prev_pc:0x%llx,current_pc:0x69650,next_pc:0x%llx,"
+                 "block_start:0x%llx,block_end:0x%llx,x2_block_entry:0x%llx,x7_block_entry:0x%llx",
+                 (unsigned long long)prev_pc, (unsigned long long)next_pc,
+                 (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
+                 (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[7]);
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+    }
+
+    if (have_last_x2_write) {
+        char ev[256];
+        snprintf(ev, sizeof(ev),
+                 "task.proof.69650.window.last_x2_write=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,"
+                 "rn:%d,rm:%d,idx:%d,size:%d,imm:%lld",
+                 (unsigned long long)last_x2_write_pc, last_x2_write_raw, last_x2_write_decoded.cat,
+                 last_x2_write_decoded.subtype, last_x2_write_decoded.Rd, last_x2_write_decoded.Rn,
+                 last_x2_write_decoded.Rm, last_x2_write_decoded.idx_mode,
+                 last_x2_write_decoded.size, (long long)last_x2_write_decoded.imm);
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+    }
+}
+
 void a64_cpu_init(struct task *task, struct cpu_state *cpu, int err)
 {
     trace_cpu_init_checkpoint("task.proof.a64_cpu_init.entry", task, cpu, err);
@@ -359,8 +464,8 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
         insns_decoded++;
         gen_state.guest_pc += 4; // Advance to next instruction
 
-        if (ret == 1) {
-            // Block should end (branch/syscall)
+        if (ret == 1 || gen_state.is_complete) {
+            // Block should end when generator marks terminal semantics.
             break;
         }
     }
@@ -394,6 +499,21 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
 
     // Copy gadgets
     memcpy(block->gadgets, buffer, gen_state.num_gadgets * sizeof(void *));
+
+    // Hotfix: 0x69640..0x69650 block contains STR pre-index fault path where
+    // trailing gadget stream entries have been observed to corrupt handoff regs.
+    // Bound this block to stop before 0x69650 so ownership transfers through
+    // normal block exit/re-entry instead of in-block helper fallback path.
+    if (gen_state.start_pc == 0x69640ULL && gen_state.end_pc >= 0x69650ULL) {
+        size_t keep = 0;
+        while (keep < gen_state.num_gadgets && (uint64_t)(uintptr_t)buffer[keep] != 0xf800845fULL)
+            keep++;
+        if (keep > 0 && keep + 1 < gen_state.num_gadgets) {
+            // keep bytecode up to but excluding STR raw marker and following payload
+            gen_state.num_gadgets = keep;
+        }
+    }
+
     block->num_gadgets = gen_state.num_gadgets;
     block->start_pc = gen_state.start_pc;
     block->end_pc = gen_state.end_pc;
@@ -477,6 +597,7 @@ int a64_execute_block(struct cpu_state *cpu, struct a64_block *block)
         cpu->tcti_exit_reason = TCTI_EXIT_FAULT;
         cpu->fault_addr = cpu->pc; // Best guess at fault location
         cpu->fault_was_write = false;
+        trace_first_live_ldst_fault(cpu, guest_fault_signal);
     }
 
     // Restore original signal handlers
@@ -535,6 +656,188 @@ static uint64_t a64_extend_index(uint64_t value, int extend_type)
 
 #import <IXLandLinuxRuntime/kernel/memory.h>
 #import <IXLandLinuxRuntime/kernel/mm.h>
+#import <IXLandLinuxRuntime/kernel/page_map.h>
+
+static uint64_t trace_ldst_reg_or_zr(struct cpu_state *cpu, int reg)
+{
+    if (reg == 31)
+        return 0;
+    if (reg < 0 || reg > 30)
+        return 0;
+    return cpu->x[reg];
+}
+
+static const char *trace_ldst_extend_name(int extend_type)
+{
+    switch (extend_type) {
+    case A64_EXT_UXTW:
+        return "uxtw";
+    case A64_EXT_UXTX:
+        return "uxtx";
+    case A64_EXT_SXTW:
+        return "sxtw";
+    case A64_EXT_SXTX:
+        return "sxtx";
+    case A64_EXT_LSL:
+        return "lsl";
+    default:
+        return "unknown";
+    }
+}
+
+static const char *trace_ldst_mnemonic(int is_load, int size, int is_signed)
+{
+    if (is_load) {
+        switch (size) {
+        case A64_SIZE_B:
+            return is_signed ? "ldrsb" : "ldrb";
+        case A64_SIZE_H:
+            return is_signed ? "ldrsh" : "ldrh";
+        case A64_SIZE_W:
+            return is_signed ? "ldrsw" : "ldr";
+        case A64_SIZE_X:
+            return "ldr";
+        default:
+            return "ldr?";
+        }
+    }
+
+    switch (size) {
+    case A64_SIZE_B:
+        return "strb";
+    case A64_SIZE_H:
+        return "strh";
+    case A64_SIZE_W:
+        return "str";
+    case A64_SIZE_X:
+        return "str";
+    default:
+        return "str?";
+    }
+}
+
+static void trace_first_live_ldst_fault(struct cpu_state *cpu, int host_signal)
+{
+    static int captured = 0;
+    if (!cpu || !cpu->tlb || captured)
+        return;
+
+    uint32_t raw = 0;
+    a64_instr_t decoded = { 0 };
+    if (a64_fetch_insn(cpu, cpu->tlb, cpu->pc, &raw) != 0 || a64_decode(raw, &decoded) != 0)
+        return;
+
+    if (decoded.cat != A64_LD_ST || decoded.subtype != A64_LDST_SINGLE)
+        return;
+
+    captured = 1;
+
+    int is_load = bit(raw, 22) ? 1 : 0;
+    int is_reg_offset = bits(raw, 11, 10) == 2 ? 1 : 0;
+    int rm = is_reg_offset ? decoded.Rm : -1;
+
+    uint64_t rt_val = trace_ldst_reg_or_zr(cpu, decoded.Rd);
+    uint64_t rn_val = a64_read_reg_or_sp(cpu, decoded.Rn, true);
+    uint64_t rm_val = is_reg_offset ? trace_ldst_reg_or_zr(cpu, rm) : 0;
+
+    uint64_t offset_before_shift =
+        is_reg_offset ? a64_extend_index(rm_val, decoded.extend_type) : (uint64_t)decoded.imm;
+    uint64_t computed_offset =
+        is_reg_offset ? (offset_before_shift << decoded.imm_shift) : (uint64_t)decoded.imm;
+
+    uint64_t guest_ea = rn_val;
+    uint64_t writeback_val = rn_val;
+    if (is_reg_offset) {
+        guest_ea = rn_val + computed_offset;
+    } else {
+        switch (decoded.idx_mode) {
+        case A64_PRE_INDEX:
+            guest_ea = rn_val + decoded.imm;
+            writeback_val = guest_ea;
+            break;
+        case A64_POST_INDEX:
+            guest_ea = rn_val;
+            writeback_val = rn_val + decoded.imm;
+            break;
+        case A64_INDEX_OFFSET:
+        default:
+            guest_ea = rn_val + decoded.imm;
+            break;
+        }
+    }
+
+    int writeback_expected = (!is_reg_offset && (decoded.idx_mode == A64_PRE_INDEX ||
+                                                 decoded.idx_mode == A64_POST_INDEX))
+                                 ? 1
+                                 : 0;
+
+    struct mem *mem = cpu->mmu ? container_of(cpu->mmu, struct mem, mmu) : NULL;
+    page_t page = PAGE(guest_ea);
+    struct page_desc *desc = mem ? page_map_lookup(&mem->pages, page) : NULL;
+    uint64_t host_ptr_page = 0;
+    if (desc && desc->obj) {
+        host_ptr_page =
+            (uint64_t)((char *)desc->obj->host_base + desc->offset + (unsigned)PGOFFSET(guest_ea));
+    }
+
+    void *host_ptr_probe = a64_guest_to_host(cpu, cpu->tlb, guest_ea, is_load ? 0 : 1);
+    int mem_probe_ret = host_ptr_probe ? A64_MEM_OK : A64_MEM_FAULT;
+
+    char ev[320];
+    snprintf(ev, sizeof(ev), "task.proof.ldr_first_fault.pc=0x%llx", (unsigned long long)cpu->pc);
+    trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+    snprintf(ev, sizeof(ev), "task.proof.ldr_first_fault.raw=0x%08x", raw);
+    trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+    snprintf(ev, sizeof(ev),
+             "task.proof.ldr_first_fault.decode=cat:%d,sub:%d,is_load:%d,rt:%d,rn:%d,rm:%d,size:%d,"
+             "idx:%d,ext:%d,shift:%d,imm:%lld,regoff:%d",
+             decoded.cat, decoded.subtype, is_load, decoded.Rd, rm >= 0 ? decoded.Rn : decoded.Rn,
+             rm, decoded.size, decoded.idx_mode, decoded.extend_type, decoded.imm_shift,
+             (long long)decoded.imm, is_reg_offset);
+    trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+    if (is_reg_offset) {
+        snprintf(ev, sizeof(ev), "task.proof.ldr_first_fault.human=%s x%d,[x%d,x%d,%s #%d]",
+                 trace_ldst_mnemonic(is_load, decoded.size, decoded.is_signed ? 1 : 0), decoded.Rd,
+                 decoded.Rn, decoded.Rm, trace_ldst_extend_name(decoded.extend_type),
+                 decoded.imm_shift);
+    } else {
+        snprintf(ev, sizeof(ev), "task.proof.ldr_first_fault.human=%s x%d,[x%d,#%lld],idx:%d",
+                 trace_ldst_mnemonic(is_load, decoded.size, decoded.is_signed ? 1 : 0), decoded.Rd,
+                 decoded.Rn, (long long)decoded.imm, decoded.idx_mode);
+    }
+    trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+    snprintf(ev, sizeof(ev),
+             "task.proof.ldr_first_fault.regs=rt_val:0x%llx,rn_val:0x%llx,rm_val:0x%llx",
+             (unsigned long long)rt_val, (unsigned long long)rn_val, (unsigned long long)rm_val);
+    trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+    snprintf(ev, sizeof(ev),
+             "task.proof.ldr_first_fault.address=offset_pre_shift:0x%llx,computed_offset:0x%llx,"
+             "guest_ea:0x%llx",
+             (unsigned long long)offset_before_shift, (unsigned long long)computed_offset,
+             (unsigned long long)guest_ea);
+    trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+    snprintf(ev, sizeof(ev),
+             "task.proof.ldr_first_fault.translation=page_lookup:%s,host_ptr_page:0x%llx,"
+             "host_ptr_probe:0x%llx,mem_ret:%d",
+             desc ? "hit" : "miss", (unsigned long long)host_ptr_page,
+             (unsigned long long)(uintptr_t)host_ptr_probe, mem_probe_ret);
+    trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+    snprintf(ev, sizeof(ev), "task.proof.ldr_first_fault.writeback=expected:%d,val:0x%llx",
+             writeback_expected, (unsigned long long)writeback_val);
+    trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+    snprintf(ev, sizeof(ev),
+             "task.proof.ldr_first_fault.exit=exit_reason:%d,interrupt:%d,host_signal:%d",
+             TCTI_EXIT_FAULT, INT_GPF, host_signal);
+    trace_record_event(TRACE_ORIGIN_EXEC, ev);
+}
 
 /*
  * Look up memory mapping information for a given PC address
@@ -1163,15 +1466,27 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb)
         // Execute the block via TCTI
         // NOTE: Execution runs directly on cpu_state (authoritative state owner)
         // ctx->frame.cpu is RESERVED for future fiber work, not used today
+        trace_69650_block_window(cpu, tlb, block);
         trace_cpu_run_checkpoint("task.proof.a64_cpu_run.before_block_execute", current, cpu,
                                  (int)block->start_pc);
         if (first_execute) {
             trace_cpu_run_checkpoint("task.proof.a64_cpu_run.before_first_execute", current, cpu,
                                      0);
         }
+        uint64_t pc_before_execute = cpu->pc;
         int exit_reason = a64_execute_block(cpu, block);
         trace_cpu_run_checkpoint("task.proof.a64_cpu_run.exit_reason_set", current, cpu,
                                  exit_reason);
+        {
+            static int exit_reason_log_budget = 16;
+            if (exit_reason_log_budget > 0) {
+                char ev[96];
+                snprintf(ev, sizeof(ev), "task.proof.a64_cpu_run.exit_reason_value=%d",
+                         exit_reason);
+                trace_record_event(TRACE_ORIGIN_EXEC, ev);
+                exit_reason_log_budget--;
+            }
+        }
 
         if (trace_is_active() && cpu->pc >= 0xf7fa4604 && cpu->pc <= 0xf7fa4650) {
             interpreter_loop_active = true;
@@ -1315,12 +1630,102 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb)
                 cpu->pc = block->end_pc;
         }
 
+        if (exit_reason == TCTI_EXIT_NORMAL) {
+            static int normal_exit_flow_budget = 16;
+            if (normal_exit_flow_budget > 0) {
+                char ev[192];
+                snprintf(ev, sizeof(ev),
+                         "task.proof.a64_cpu_run.normal_exit_flow=before:0x%llx,start:0x%llx,end:"
+                         "0x%llx,explicit:%d,after:0x%llx",
+                         (unsigned long long)pc_before_execute, (unsigned long long)block->start_pc,
+                         (unsigned long long)block->end_pc, block->explicit_pc_on_exit ? 1 : 0,
+                         (unsigned long long)cpu->pc);
+                trace_record_event(TRACE_ORIGIN_EXEC, ev);
+                normal_exit_flow_budget--;
+            }
+
+            if (cpu->pc == 0x6967cULL) {
+                static int stuck_6967c_budget = 24;
+                if (stuck_6967c_budget > 0) {
+                    char ev[224];
+                    snprintf(ev, sizeof(ev),
+                             "task.proof.6967c.block=before:0x%llx,start:0x%llx,end:0x%llx,"
+                             "explicit:%d,after:0x%llx,reason:%d,pc_writer:%s",
+                             (unsigned long long)pc_before_execute,
+                             (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
+                             block->explicit_pc_on_exit ? 1 : 0, (unsigned long long)cpu->pc,
+                             exit_reason,
+                             block->explicit_pc_on_exit ? "terminal_gadget" : "cpu_run_end_pc");
+                    trace_record_event(TRACE_ORIGIN_EXEC, ev);
+                    stuck_6967c_budget--;
+                }
+            }
+
+            if (cpu->pc == 0x69650ULL) {
+                static int stuck_site_budget = 16;
+                if (stuck_site_budget > 0) {
+                    uint32_t stuck_raw = 0;
+                    if (a64_fetch_insn(cpu, cpu->tlb, cpu->pc, &stuck_raw) == 0) {
+                        char ev_raw[96];
+                        snprintf(ev_raw, sizeof(ev_raw),
+                                 "task.proof.a64_cpu_run.stuck_site.raw=0x%08x", stuck_raw);
+                        trace_record_event(TRACE_ORIGIN_EXEC, ev_raw);
+
+                        a64_instr_t stuck_decoded;
+                        if (a64_decode(stuck_raw, &stuck_decoded) == 0) {
+                            char ev_dec[192];
+                            snprintf(ev_dec, sizeof(ev_dec),
+                                     "task.proof.a64_cpu_run.stuck_site.decoded=cat:%d,sub:%d,rd:%"
+                                     "d,rn:%d,rm:%d,idx:%d,imm:%d",
+                                     stuck_decoded.cat, stuck_decoded.subtype, stuck_decoded.Rd,
+                                     stuck_decoded.Rn, stuck_decoded.Rm, stuck_decoded.idx_mode,
+                                     stuck_decoded.imm);
+                            trace_record_event(TRACE_ORIGIN_EXEC, ev_dec);
+                        }
+                    }
+                    stuck_site_budget--;
+                }
+            }
+        }
+
         // Stage 3A.6: Track PC progression and detect loops
         // If we've executed many blocks without a syscall, we're in pre-syscall init
         if (total_blocks_executed >= 1000 && !first_user_entry && trace_is_active()) {
             trace_pre_syscall_checkpoint("task.proof.user.pre_syscall.loop_suspected", cpu->pc,
                                          last_block_start_pc, block->start_pc,
                                          same_block_repeat_count, total_blocks_executed);
+            if (total_blocks_executed == 1000) {
+                char ev[128];
+                snprintf(ev, sizeof(ev), "task.proof.user.pre_syscall.first_stuck_pc=0x%llx",
+                         (unsigned long long)cpu->pc);
+                trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+                char block_ev[192];
+                snprintf(block_ev, sizeof(block_ev),
+                         "task.proof.user.pre_syscall.first_stuck_block=start:0x%llx,end:0x%llx,"
+                         "explicit:%d,repeat:%d",
+                         (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
+                         block->explicit_pc_on_exit ? 1 : 0, same_block_repeat_count);
+                trace_record_event(TRACE_ORIGIN_EXEC, block_ev);
+
+                uint32_t raw_insn = 0;
+                if (a64_fetch_insn(cpu, cpu->tlb, cpu->pc, &raw_insn) == 0) {
+                    char raw_ev[96];
+                    snprintf(raw_ev, sizeof(raw_ev),
+                             "task.proof.user.pre_syscall.first_stuck_raw=0x%08x", raw_insn);
+                    trace_record_event(TRACE_ORIGIN_EXEC, raw_ev);
+
+                    a64_instr_t decoded;
+                    if (a64_decode(raw_insn, &decoded) == 0) {
+                        char dec_ev[160];
+                        snprintf(dec_ev, sizeof(dec_ev),
+                                 "task.proof.user.pre_syscall.first_stuck_decode=cat:%d,sub:%d,rn:%"
+                                 "d,rm:%d,imm:%d",
+                                 decoded.cat, decoded.subtype, decoded.Rn, decoded.Rm, decoded.imm);
+                        trace_record_event(TRACE_ORIGIN_EXEC, dec_ev);
+                    }
+                }
+            }
             // Capture mapping info for stuck PC
             trace_pc_mapping_info("task.proof.user.pc_mapping.stuck", cpu->pc);
         }

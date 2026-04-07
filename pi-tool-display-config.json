@@ -1,0 +1,36 @@
+{
+  "packages": [
+    {
+      "source": "npm:@ifi/oh-pi-extensions",
+      "extensions": [
+        "-extensions/bg-process.ts"
+      ]
+    },
+    "npm:@ifi/oh-pi-ant-colony",
+    "npm:@ifi/pi-extension-subagents",
+    "npm:@ifi/pi-plan",
+    "npm:@ifi/pi-spec",
+    "npm:@ifi/oh-pi-themes",
+    "npm:@ifi/oh-pi-prompts",
+    "npm:@ifi/oh-pi-skills",
+    "npm:@ifi/pi-web-remote",
+    {
+      "source": "npm:@aliou/pi-synthetic",
+      "extensions": [
+        "-src/extensions/command-quotas/index.ts"
+      ]
+    },
+    "npm:pi-mcp-adapter",
+    "npm:pi-rewind-hook",
+    "git:github.com/PSU3D0/pi-dcp",
+    "npm:pi-rtk-optimizer",
+    "git:github.com/cv/pi-bd",
+    "npm:@rbwsam/pi-exa",
+    "npm:pi-librarian",
+    "https://github.com/davebcn87/pi-autoresearch",
+    "git:github.com/MasuRii/pi-tool-display"
+  ],
+  "lastChangelogVersion": "0.65.2",
+  "defaultProvider": "synthetic",
+  "defaultModel": "hf:moonshotai/Kimi-K2.5"
+}

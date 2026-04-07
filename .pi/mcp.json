@@ -1,0 +1,32 @@
+{
+  "mcpServers": {
+    "serena": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/oraios/serena",
+        "serena",
+        "start-mcp-server",
+        "--context",
+        "ide-assistant",
+        "--enable-web-dashboard",
+        "false",
+        "--project",
+        "."
+      ],
+      "env": {},
+      "lifecycle": "lazy"
+    },
+    "deepwiki": {
+      "url": "https://mcp.deepwiki.com/mcp",
+      "env": {},
+      "lifecycle": "lazy"
+    },
+    "rulesync": {
+      "command": "rulesync",
+      "args": ["mcp"],
+      "env": {},
+      "lifecycle": "lazy"
+    }
+  }
+}
