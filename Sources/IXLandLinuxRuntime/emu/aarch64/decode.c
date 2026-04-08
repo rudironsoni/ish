@@ -332,27 +332,27 @@ int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out)
         // Add/subtract (extended register) - bit 21 is 1
         int op = bit(insn, 30);
         int S = bit(insn, 29);
-        int opt = bits(insn, 23, 22); // option for extension
-        int imm3 = bits(insn, 15, 10);
+        int opt = bits(insn, 15, 13); // option for extension
+        int imm3 = bits(insn, 12, 10);
         out->Rd = bits(insn, 4, 0);
         out->Rn = bits(insn, 9, 5);
         out->Rm = bits(insn, 20, 16);
         switch (opt) {
-        case 0:
+        case 2: // UXTW
             out->extend_type = A64_EXT_UXTW;
             break;
-        case 1:
+        case 3: // UXTX (LSL alias in some forms)
             out->extend_type = A64_EXT_UXTX;
             break;
-        case 2:
+        case 6: // SXTW
             out->extend_type = A64_EXT_SXTW;
             break;
-        case 3:
+        case 7: // SXTX
             out->extend_type = A64_EXT_SXTX;
             break;
         default:
-            out->extend_type = A64_EXT_UXTX;
-            break;
+            // UXTB/UXTH/SXTB/SXTH not represented in current internal enum.
+            return -1;
         }
         out->imm_shift = imm3;
         out->set_flags = S;
