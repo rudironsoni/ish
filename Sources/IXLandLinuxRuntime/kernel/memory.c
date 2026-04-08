@@ -34,6 +34,10 @@ void mem_init(struct mem *mem)
 
 static void retire_list_add(struct mem *mem, struct mem_object *obj)
 {
+    // CRITICAL: Initialize list node before adding
+    // If retire_link is already in a list, list_add_tail will corrupt
+    obj->retire_link.next = NULL;
+    obj->retire_link.prev = NULL;
     obj->retire_generation = mem->mmu.generation;
     list_add_tail(&mem->retire_list, &obj->retire_link);
     if (!mem->retire_tail)
@@ -58,13 +62,9 @@ void mem_drain_retired(struct mem *mem)
             }
             mem->retire_count--;
 
-            if (obj->host_base && obj->host_base != MAP_FAILED && obj->host_base != vdso_data) {
-                munmap(obj->host_base, obj->host_size);
-            }
-            if (obj->fd)
-                fd_close(obj->fd);
-            free((void *)obj->name);
-            free(obj);
+            // CRITICAL FIX: Use mem_object_release to properly handle refcount
+            // instead of directly freeing. The object may be shared.
+            mem_object_release(obj);
         }
         cur = next;
     }
@@ -74,7 +74,11 @@ static int mem_destroy_page_cb(uint64_t page, struct page_desc *desc, void *ctx)
 {
     (void)page;
     struct mem *mem = (struct mem *)ctx;
-    mem_object_retire(desc->obj);
+    // CRITICAL FIX: Remove broken mem_object_retire call that used NULL list head
+    // Only use retire_list_add which properly uses mem->retire_list
+    // IMPORTANT: Do NOT call mem_object_release here - the object must stay alive
+    // until mem_drain_retired removes it from the list and releases it there.
+    // Calling release here causes use-after-free: object freed but still in list.
     retire_list_add(mem, desc->obj);
     free(desc);
     return 0;
@@ -172,7 +176,8 @@ int pt_map(struct mem *mem, page_t start, pages_t pages, void *memory, size_t of
         for (page_t pg = pg_start; pg < pg_end; pg++) {
             struct page_desc *old_desc = page_map_remove(&mem->pages, pg);
             if (old_desc) {
-                mem_object_retire(old_desc->obj);
+                // CRITICAL FIX: Remove broken mem_object_retire call
+                // retire_list_add already sets retire_generation and adds to list
                 retire_list_add(mem, old_desc->obj);
                 free(old_desc);
             }

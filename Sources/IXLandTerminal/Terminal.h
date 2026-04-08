@@ -35,6 +35,12 @@ struct tty;
 
 @property (readonly) WKWebView *webView;
 @property (nonatomic) BOOL enableVoiceOverAnnounce;
+@property (nonatomic) uint64_t attemptSequence;
+@property (nonatomic) uint64_t sessionGeneration;
+@property (nonatomic) int64_t guestPID;
+@property (nonatomic) BOOL restartPath;
+@property (nonatomic) BOOL hasSessionTerminal;
+@property (nonatomic) BOOL firstPTYByteSeen;
 // Use KVO on this
 @property (readonly) BOOL loaded;
 

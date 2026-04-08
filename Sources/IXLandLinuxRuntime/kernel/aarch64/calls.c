@@ -13,6 +13,7 @@
 #import <IXLandLinuxRuntime/emu/interrupt.h>
 #import <IXLandLinuxRuntime/kernel/aarch64/calls.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
+#import <IXLandLinuxRuntime/kernel/guest_trace_context.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -303,6 +304,10 @@ void handle_interrupt(int interrupt)
 {
     struct cpu_state *cpu = &current->cpu;
     trace_handle_interrupt_checkpoint("task.proof.handle_interrupt.entry", interrupt, 0);
+    ixland_guest_trace_emit_int(IXLAND_INSTRUMENTATION_ORIGIN_TASK,
+                                "guest.handle_interrupt.entry",
+                                "interrupt",
+                                interrupt);
     printk("[HANDLE_INTERRUPT] interrupt=%d (INT_GPF=%d, INT_SYSCALL=%d)\n", interrupt, INT_GPF,
            INT_SYSCALL);
 

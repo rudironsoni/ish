@@ -19,6 +19,7 @@
 #import <ISHInstrumentation.h>
 #import <IXLandLinuxRuntime/kernel/init.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
+#import <IXLandLinuxRuntime/kernel/guest_trace_context.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/fs/devices.h>
 #import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
@@ -187,6 +188,14 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 
 @property int sessionPid;
 @property (nonatomic) Terminal *sessionTerminal;
+@property (nonatomic) uint64_t sessionAttemptSequence;
+@property (nonatomic) uint64_t lastExitedAttemptSequence;
+@property (nonatomic) uint64_t sessionGenerationSequence;
+@property (nonatomic) uint64_t activeSessionGeneration;
+@property (nonatomic) uint64_t lastHandledExitGeneration;
+@property (nonatomic) BOOL sessionStartInProgress;
+@property (nonatomic) CFAbsoluteTime activeSessionStartTime;
+@property (nonatomic) NSInteger postPTYRestartBudget;
 
 @property BOOL ignoreKeyboardMotion;
 @property (nonatomic) BOOL hasExternalKeyboard;
@@ -195,8 +204,35 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 
 @implementation TerminalViewController
 
+- (NSDictionary *)sessionAttemptAttributesWithExtra:(NSDictionary *)extra {
+    NSMutableDictionary *attributes = [NSMutableDictionary dictionary];
+    attributes[@"attempt"] = @(self.sessionAttemptSequence);
+    attributes[@"generation"] = @(self.activeSessionGeneration);
+    attributes[@"ui_pid"] = @((int)getpid());
+    attributes[@"session_pid"] = @(self.sessionPid);
+    attributes[@"guest_pid"] = @(self.sessionPid);
+    attributes[@"has_terminal"] = @(self.sessionTerminal != nil);
+    attributes[@"is_restart_path"] = @((self.sessionTerminal != nil && self.sessionTerminal.restartPath) || self.lastExitedAttemptSequence != 0);
+    attributes[@"first_pty_byte_seen"] = @(self.sessionTerminal.firstPTYByteSeen);
+    attributes[@"after_process_exit_attempt"] = @(self.lastExitedAttemptSequence);
+    if (self.activeSessionStartTime > 0) {
+        CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
+        attributes[@"uptime_ms"] = @((long long)((now - self.activeSessionStartTime) * 1000.0));
+    }
+    if (self.sessionTerminal.uuid != nil)
+        attributes[@"terminal_uuid"] = self.sessionTerminal.uuid.UUIDString;
+    if (extra != nil)
+        [attributes addEntriesFromDictionary:extra];
+    return attributes;
+}
+
+- (void)recordSessionAttemptEvent:(NSString *)name extra:(NSDictionary *)extra {
+    [ISHInstrumentation recordEvent:name attributes:[self sessionAttemptAttributesWithExtra:extra]];
+}
+
 - (void)viewDidLoad {
     [super viewDidLoad];
+    self.postPTYRestartBudget = 1;
     
     // Ensure UI test surface is accessibility-exposed
     self.view.isAccessibilityElement = YES;
@@ -278,13 +314,31 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 }
 
 - (void)viewDidAppear:(BOOL)animated {
-    [AppDelegate maybePresentStartupMessageOnViewController:self];
     [super viewDidAppear:animated];
 }
 
 - (void)startNewSession {
+    BOOL isRestartPath = (self.lastExitedAttemptSequence != 0);
+    [self recordSessionAttemptEvent:@"session.start.requested" extra:@{ @"is_restart_path": @(isRestartPath), @"post_pty_restart_budget": @(self.postPTYRestartBudget) }];
+    if (self.sessionStartInProgress) {
+        [self recordSessionAttemptEvent:@"session.start.blocked.reentrant" extra:@{ @"is_restart_path": @(isRestartPath) }];
+        return;
+    }
+
+    self.sessionStartInProgress = YES;
+    self.sessionAttemptSequence += 1;
+    self.sessionGenerationSequence += 1;
+    self.activeSessionGeneration = self.sessionGenerationSequence;
+    self.activeSessionStartTime = CFAbsoluteTimeGetCurrent();
+    [self recordSessionAttemptEvent:@"session.generation.assigned" extra:@{ @"is_restart_path": @(isRestartPath), @"assigned_generation": @(self.activeSessionGeneration) }];
+    [self recordSessionAttemptEvent:@"session.start.enter" extra:@{ @"is_restart_path": @(isRestartPath) }];
+
     int err = [self startSession];
+    [self recordSessionAttemptEvent:@"session.start.exit" extra:@{ @"is_restart_path": @(isRestartPath), @"return_value": @(err) }];
+    self.sessionStartInProgress = NO;
+
     if (err < 0) {
+        [self recordSessionAttemptEvent:@"session.dialog.raise" extra:@{ @"return_value": @(err), @"message": @"could not start session", @"is_restart_path": @(isRestartPath) }];
         [self showMessage:@"could not start session"
                  subtitle:[NSString stringWithFormat:@"error code %d", err]];
     }
@@ -301,6 +355,7 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 }
 
 - (int)startSession {
+    [self recordSessionAttemptEvent:@"session.attempt.startSession.entry" extra:nil];
     NSArray<NSString *> *command = UserPreferences.shared.launchCommand;
 
     // Shell-only mode: Skip ALL session infrastructure
@@ -432,44 +487,67 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 
     // Full-guest mode: Normal session creation with PTY and Terminal
     int err = become_new_init_child();
-    if (err < 0)
+    if (err < 0) {
+        [self recordSessionAttemptEvent:@"session.exit.reason" extra:@{ @"return_value": @(err), @"reason": @"exec_failure", @"stdio_succeeded": @NO, @"pty_exists": @NO, @"is_restart_path": @(self.lastExitedAttemptSequence != 0) }];
+        [self recordSessionAttemptEvent:@"session.attempt.fail.become_new_init_child" extra:@{ @"return_value": @(err), @"stdio_succeeded": @NO, @"pty_exists": @NO, @"is_restart_path": @(self.lastExitedAttemptSequence != 0) }];
         return err;
+    }
     trace_task_source_checkpoint("task.proof.after_become_new_init_child", current);
     struct tty *tty;
     self.sessionTerminal = nil;
     Terminal *terminal = [Terminal createPseudoTerminal:&tty];
     if (terminal == nil) {
         NSAssert(IS_ERR(tty), @"tty should be error");
-        return (int) PTR_ERR(tty);
+        int ttyErr = (int) PTR_ERR(tty);
+        [self recordSessionAttemptEvent:@"session.exit.reason" extra:@{ @"return_value": @(ttyErr), @"reason": @"exec_failure", @"stdio_succeeded": @NO, @"pty_exists": @NO, @"is_restart_path": @(self.lastExitedAttemptSequence != 0) }];
+        [self recordSessionAttemptEvent:@"session.attempt.fail.create_pseudoterminal" extra:@{ @"return_value": @(ttyErr), @"stdio_succeeded": @NO, @"pty_exists": @NO, @"is_restart_path": @(self.lastExitedAttemptSequence != 0) }];
+        return ttyErr;
     }
     self.sessionTerminal = terminal;
+    self.sessionTerminal.attemptSequence = self.sessionAttemptSequence;
+    self.sessionTerminal.sessionGeneration = self.activeSessionGeneration;
+    self.sessionTerminal.guestPID = current ? current->pid : -1;
+    self.sessionTerminal.restartPath = (self.lastExitedAttemptSequence != 0);
+    self.sessionTerminal.hasSessionTerminal = (self.sessionTerminal != nil);
+    self.sessionTerminal.firstPTYByteSeen = NO;
     NSString *stdioFile = [NSString stringWithFormat:@"/dev/pts/%d", tty->num];
     err = create_stdio(stdioFile.fileSystemRepresentation, TTY_PSEUDO_SLAVE_MAJOR, tty->num);
-    if (err < 0)
+    if (err < 0) {
+        [self recordSessionAttemptEvent:@"session.exit.reason" extra:@{ @"return_value": @(err), @"reason": @"exec_failure", @"stdio_succeeded": @NO, @"pty_exists": @YES, @"tty_num": @(tty->num), @"is_restart_path": @(self.lastExitedAttemptSequence != 0) }];
+        [self recordSessionAttemptEvent:@"session.attempt.fail.create_stdio" extra:@{ @"return_value": @(err), @"stdio_succeeded": @NO, @"pty_exists": @YES, @"tty_num": @(tty->num), @"is_restart_path": @(self.lastExitedAttemptSequence != 0) }];
         return err;
+    }
     trace_task_source_checkpoint("task.proof.after_create_stdio", current);
-    tty_release(tty);
 
     char argv[4096];
     [Terminal convertCommand:command toArgs:argv limitSize:sizeof(argv)];
     const char *envp = "TERM=xterm-256color\0";
     
     // APPSIM-004 Stage 1: Trace /bin/login exec entry
-    [ISHInstrumentation recordEvent:@"login.exec.entry"];
+    [self recordSessionAttemptEvent:@"login.exec.entry" extra:@{ @"stdio_succeeded": @YES, @"pty_exists": @YES, @"tty_num": @(tty->num), @"is_restart_path": @(self.lastExitedAttemptSequence != 0) }];
     trace_task_source_checkpoint("task.proof.login.exec.entry", current);
     
+    tty_release(tty);
     err = do_execve(command[0].UTF8String, command.count, argv, envp);
     
     if (err < 0) {
         // APPSIM-004 Stage 1: Trace /bin/login exec failure
-        [ISHInstrumentation recordEvent:@"login.exec.failure"];
+        [self recordSessionAttemptEvent:@"login.exec.failure" extra:@{ @"return_value": @(err), @"stdio_succeeded": @YES, @"pty_exists": @YES, @"is_restart_path": @(self.lastExitedAttemptSequence != 0) }];
+        [self recordSessionAttemptEvent:@"session.exit.reason" extra:@{ @"return_value": @(err), @"reason": @"exec_failure", @"stdio_succeeded": @YES, @"pty_exists": @YES, @"is_restart_path": @(self.lastExitedAttemptSequence != 0) }];
+        [self recordSessionAttemptEvent:@"session.attempt.fail.do_execve" extra:@{ @"return_value": @(err), @"stdio_succeeded": @YES, @"pty_exists": @YES, @"is_restart_path": @(self.lastExitedAttemptSequence != 0) }];
         trace_task_source_checkpoint("task.proof.login.exec.failure", current);
         return err;
     }
     
     // APPSIM-004 Stage 1: Trace /bin/login exec success
-    [ISHInstrumentation recordEvent:@"login.exec.success"];
+    [self recordSessionAttemptEvent:@"login.exec.success" extra:@{ @"stdio_succeeded": @YES, @"pty_exists": @YES, @"is_restart_path": @(self.lastExitedAttemptSequence != 0) }];
     trace_task_source_checkpoint("task.proof.login.exec.success", current);
+    ixland_guest_trace_set_context((int64_t) self.sessionAttemptSequence,
+                                   (int64_t) (current ? current->pid : -1),
+                                   (int64_t) getpid(),
+                                   self.lastExitedAttemptSequence != 0,
+                                   self.sessionTerminal != nil);
+    ixland_guest_trace_emit(IXLAND_INSTRUMENTATION_ORIGIN_EXEC, "guest.post_exec.success");
     
     // APPSIM-004 Stage 1: Verify PID remains alive after exec
     if (current != NULL && current->pid != 0) {
@@ -487,11 +565,20 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
     __sync_synchronize();
 
     // Record semantic event before starting guest thread
-    [ISHInstrumentation recordEvent:@"guest.thread.start"];
+    [self recordSessionAttemptEvent:@"guest.thread.start" extra:nil];
 
     trace_task_source_checkpoint("task.proof.before_task_start_callsite", current);
+    [self recordSessionAttemptEvent:@"guest.thread.before_task_start" extra:nil];
+    ixland_guest_trace_set_context((int64_t) self.sessionAttemptSequence,
+                                   (int64_t) (current ? current->pid : -1),
+                                   (int64_t) getpid(),
+                                   self.lastExitedAttemptSequence != 0,
+                                   self.sessionTerminal != nil);
+    ixland_guest_trace_emit(IXLAND_INSTRUMENTATION_ORIGIN_TASK, "guest.task_start.before_call");
 
     task_start(current);
+    [self recordSessionAttemptEvent:@"guest.thread.after_task_start_return" extra:nil];
+    ixland_guest_trace_emit(IXLAND_INSTRUMENTATION_ORIGIN_TASK, "guest.task_start.after_return");
 
     // task_start creates a detached thread that runs the child process
     // Return to allow normal UIKit runloop management
@@ -500,6 +587,12 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 
 - (void)processExited:(NSNotification *)notif {
     int pid = [notif.userInfo[@"pid"] intValue];
+    int code = [notif.userInfo[@"code"] intValue];
+    uint64_t observedGeneration = self.activeSessionGeneration;
+    BOOL firstPTYByteSeen = self.sessionTerminal.firstPTYByteSeen;
+    CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
+    long long uptimeMs = self.activeSessionStartTime > 0 ? (long long)((now - self.activeSessionStartTime) * 1000.0) : 0;
+    [self recordSessionAttemptEvent:@"session.exit.observed" extra:@{ @"notif_pid": @(pid), @"code": @(code), @"observed_generation": @(observedGeneration), @"first_pty_byte_seen": @(firstPTYByteSeen), @"uptime_ms": @(uptimeMs) }];
     // In shell-only mode, sessionPid is -1 (no live session)
     // Skip all exit handling because there's no guest to exit
     if (self.sessionPid < 0)
@@ -507,10 +600,52 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
     if (pid != self.sessionPid)
         return;
 
+    if (observedGeneration != self.activeSessionGeneration) {
+        [self recordSessionAttemptEvent:@"session.restart.blocked.stale_generation" extra:@{ @"observed_generation": @(observedGeneration), @"active_generation": @(self.activeSessionGeneration) }];
+        return;
+    }
+    if (self.lastHandledExitGeneration == observedGeneration) {
+        [self recordSessionAttemptEvent:@"session.restart.blocked.stale_generation" extra:@{ @"observed_generation": @(observedGeneration), @"active_generation": @(self.activeSessionGeneration), @"reason": @"duplicate_exit_callback" }];
+        return;
+    }
+    self.lastHandledExitGeneration = observedGeneration;
+
+    NSString *exitReason = @"signal_or_interrupt_exit";
+    if (code == 0) {
+        exitReason = @"clean_exit";
+    } else if (code < 0) {
+        exitReason = @"crash";
+    }
+    if (!firstPTYByteSeen) {
+        exitReason = @"pre_pty_failure";
+    } else if (code != 0) {
+        exitReason = @"post_pty_exit";
+    }
+    [self recordSessionAttemptEvent:@"session.exit.reason" extra:@{ @"reason": exitReason, @"code": @(code), @"first_pty_byte_seen": @(firstPTYByteSeen), @"uptime_ms": @(uptimeMs) }];
+
+    self.lastExitedAttemptSequence = self.sessionAttemptSequence;
     [self.sessionTerminal destroy];
+
+    BOOL allowRestart = YES;
+    NSString *decisionReason = @"allowed";
+    if (!firstPTYByteSeen) {
+        allowRestart = NO;
+        decisionReason = @"pre_pty_failure";
+        [self recordSessionAttemptEvent:@"session.restart.blocked.pre_pty" extra:@{ @"uptime_ms": @(uptimeMs) }];
+    } else if (uptimeMs < 1000) {
+        allowRestart = NO;
+        decisionReason = @"early_exit";
+        [self recordSessionAttemptEvent:@"session.restart.blocked.early_exit" extra:@{ @"uptime_ms": @(uptimeMs), @"threshold_ms": @1000 }];
+    } else if (self.postPTYRestartBudget <= 0) {
+        allowRestart = NO;
+        decisionReason = @"budget";
+        [self recordSessionAttemptEvent:@"session.restart.blocked.budget" extra:@{ @"uptime_ms": @(uptimeMs), @"budget": @(self.postPTYRestartBudget) }];
+    }
+
+    [self recordSessionAttemptEvent:(allowRestart ? @"session.restart.allowed" : @"session.restart.suppressed") extra:@{ @"reason": decisionReason, @"uptime_ms": @(uptimeMs), @"first_pty_byte_seen": @(firstPTYByteSeen), @"budget": @(self.postPTYRestartBudget) }];
+
     // On iOS 13, there are multiple windows, so just close this one.
     if (@available(iOS 13, *)) {
-        // On iPhone, destroying scenes will fail, but the error doesn't actually go to the error handler, which is really stupid. Apple doesn't fix bugs, so I'm forced to just add a check here.
         if (UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad && self.sceneSession != nil) {
             [UIApplication.sharedApplication requestSceneSessionDestruction:self.sceneSession options:nil errorHandler:^(NSError *error) {
                 self.sceneSession = nil;
@@ -519,11 +654,21 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
             return;
         }
     }
+
     current = NULL; // it's been freed
+    if (!allowRestart) {
+        return;
+    }
+
+    if (firstPTYByteSeen && self.postPTYRestartBudget > 0) {
+        self.postPTYRestartBudget -= 1;
+    }
+    [self recordSessionAttemptEvent:@"session.restart.requested" extra:@{ @"reason": decisionReason, @"remaining_budget": @(self.postPTYRestartBudget) }];
     [self startNewSession];
 }
 
 - (void)showMessage:(NSString *)message subtitle:(NSString *)subtitle {
+    [self recordSessionAttemptEvent:@"session.attempt.showMessage.entry" extra:@{ @"message": message ?: @"", @"subtitle": subtitle ?: @"" }];
     dispatch_async(dispatch_get_main_queue(), ^{
         UIAlertController *alert = [UIAlertController alertControllerWithTitle:message message:subtitle preferredStyle:UIAlertControllerStyleAlert];
         [alert addAction:[UIAlertAction actionWithTitle:@"k"

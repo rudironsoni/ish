@@ -15,14 +15,23 @@
  *   x27-x29 (host)  -> TCTI internals  [gadget ptr, bytecode, cpu_state]
  */
 
+#if __has_include(<IXLandInstrumentationTracing/trace.h>)
 #import <IXLandInstrumentationTracing/trace.h>
+#elif __has_include(                                                                               \
+    "../../../../Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include/IXLandInstrumentationTracing/trace.h")
+#import "../../../../Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include/IXLandInstrumentationTracing/trace.h"
+#else
+#error "trace.h not found for gadgets_memory.c"
+#endif
 #import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
 #import <IXLandLinuxRuntime/emu/aarch64/memory.h>
 #import <IXLandLinuxRuntime/emu/aarch64/sysreg.h>
 #import <IXLandLinuxRuntime/kernel/memory.h>
 #import <IXLandLinuxRuntime/kernel/page_map.h>
 #import <IXLandLinuxRuntime/tcti/gadgets_tcti.h>
+#include <assert.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 
 // ============================================================================
@@ -66,10 +75,10 @@ void dump_runtime_diag(void)
 #define TCTI_EXIT_OFFSET offsetof(struct cpu_state, tcti_exit_reason)
 
 // Guest x[0] is at offset 16 (after mmu pointer and cycle counter)
-static_assert(XREG_OFFSET(0) == 16, "x[0] offset check");
-static_assert(SP_OFFSET == 264, "SP offset check");
-static_assert(PC_OFFSET == 272, "pc offset check");
-static_assert(PSTATE_OFFSET == 280, "pstate offset check");
+_Static_assert(XREG_OFFSET(0) == 16, "x[0] offset check");
+_Static_assert(SP_OFFSET == 264, "SP offset check");
+_Static_assert(PC_OFFSET == 272, "pc offset check");
+_Static_assert(PSTATE_OFFSET == 280, "pstate offset check");
 // TCTI_EXIT_OFFSET verified to be 364 via runtime check
 
 #define REG_OFFSET(n) (XREG_OFFSET(n))
@@ -218,6 +227,19 @@ static const char *get_ldst_extend_name(int extend_type)
         return "lsl";
     default:
         return "unknown";
+    }
+}
+
+static const char *get_ldst_idx_mode_name(uint64_t idx_mode)
+{
+    switch (idx_mode) {
+    case A64_PRE_INDEX:
+        return "pre_index";
+    case A64_POST_INDEX:
+        return "post_index";
+    case A64_INDEX_OFFSET:
+    default:
+        return "index_offset";
     }
 }
 
@@ -634,10 +656,17 @@ __attribute__((naked)) void gadget_probe_live_x3_x8(void)
     asm volatile("ldr x19, [x28], #8\n\t"
                  "ldr x20, [x28], #8\n\t"
                  "bl _tcti_c_call_prologue\n\t"
+                 // CRITICAL FIX: Restore x3 and x8 from stack after prologue
+                 // Prologue does 13 pushes (208 bytes total):
+                 //   [sp+0] = NZCV, [sp+16] = x28
+                 //   [sp+32] = x1/x2, [sp+48] = x3/x4
+                 //   [sp+64] = x5/x6, [sp+80] = x7/x8
+                 // So x3 is at [sp+48], x8 is at [sp+80]
+                 "ldr x3, [sp, #48]\n\t"
+                 "ldr x8, [sp, #80]\n\t"
                  "mov x0, x29\n\t"
                  "mov x1, x19\n\t"
                  "mov x2, x20\n\t"
-                 "mov x3, x3\n\t"
                  "mov x4, x8\n\t"
                  "mov x5, x14\n\t"
                  "mov x6, #0\n\t"
@@ -663,6 +692,18 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
     // These trace the TCTI boundary: fault PC, Rn value, immediate, idx_mode
     trace_emit_gadget_ldr_fault_pc(fault_pc);
 
+    static int ldst_fault_trace_budget = 24;
+    int trace_ldst_fault = (ldst_fault_trace_budget > 0);
+    uint32_t fault_raw_opcode = 0;
+    a64_instr_t fault_decoded;
+    int decode_ok = 0;
+    if (trace_ldst_fault) {
+        if (a64_fetch_insn(cpu, cpu->tlb, fault_pc, &fault_raw_opcode) == 0 &&
+            a64_decode(fault_raw_opcode, &fault_decoded) == 0) {
+            decode_ok = 1;
+        }
+    }
+
     uint64_t base = tcti_read_base_reg_or_sp(cpu, (int)rn);
     trace_emit_gadget_ldr_rn_value(base);
     trace_emit_gadget_ldr_imm_value((uint64_t)imm);
@@ -675,8 +716,52 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
     int extend_type = (meta >> 24) & 0xff;
     int reg_shift = (meta >> 32) & 0xff;
     int width;
+    const char *decoded_mode = "index_offset";
+    int writeback_enabled = 0;
+    uint64_t writeback_value = base;
+    int helper_entry_reached = 1;
+    int fast_path_taken = 0;
+
+    static int ldr69634_trace_budget = 24;
+    int trace_ldr69634 = (is_load && fault_pc == 0x69634ULL && ldr69634_trace_budget > 0);
+
+    static int str_helper_trace_budget = 0;
+    int trace_str_helper = (!is_load && fault_pc == 0x69650ULL && str_helper_trace_budget < 8);
+    uint32_t helper_raw_opcode = 0;
+    int helper_mem_result = A64_MEM_FAULT;
+    void *helper_host_ptr_probe = NULL;
+
+    if (trace_str_helper) {
+        str_helper_trace_budget++;
+        (void)a64_fetch_insn(cpu, cpu->tlb, fault_pc, &helper_raw_opcode);
+    }
+
+    if (trace_ldr69634) {
+        uint64_t rm_val_pre = is_reg_offset ? tcti_read_reg_or_zr(cpu, rm) : 0;
+        uint64_t offset_before = is_reg_offset ? rm_val_pre : (uint64_t)imm;
+        uint64_t offset_after = is_reg_offset
+                                    ? (tcti_extend_ldst_offset(cpu, rm, extend_type) << reg_shift)
+                                    : (uint64_t)imm;
+        const char *mnemonic = get_ldst_mnemonic((int)is_load, (int)size, (int)is_signed);
+        const char *idx_name = get_ldst_idx_mode_name(idx_mode);
+        const char *extend_name = is_reg_offset ? get_ldst_extend_name(extend_type) : "none";
+        char ev[1024];
+        snprintf(
+            ev, sizeof(ev),
+            "ldr69634.helper_entry=attempt:%d,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,"
+            "mnemonic:%s,idx_mode:%s,base_reg:%llu,base_val:0x%llx,off_reg:%d,off_val:0x%llx,"
+            "extend:%s,shift:%d,offset_before:0x%llx,offset_after:0x%llx,guest_ea:0x%llx,"
+            "host_ptr_probe:0x%llx,mem_result:%d,helper_entry_reached:%d,signal_exit_immediate:%d",
+            -1, -1, (unsigned long long)fault_pc, fault_raw_opcode, mnemonic, idx_name,
+            (unsigned long long)rn, (unsigned long long)base, is_reg_offset ? rm : -1,
+            (unsigned long long)rm_val_pre, extend_name, reg_shift,
+            (unsigned long long)offset_before, (unsigned long long)offset_after,
+            (unsigned long long)(base + offset_after), 0ULL, -1, 1, 0);
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+    }
 
     if (is_reg_offset) {
+        decoded_mode = "register_offset";
         uint64_t offset = tcti_extend_ldst_offset(cpu, rm, extend_type);
         addr = base + (offset << reg_shift);
 
@@ -707,17 +792,194 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
     } else {
         switch (idx_mode) {
         case A64_PRE_INDEX:
+            decoded_mode = "pre_index";
             base += imm;
             addr = base;
             break;
         case A64_POST_INDEX:
+            decoded_mode = "post_index";
             addr = base;
             break;
         case A64_INDEX_OFFSET:
         default:
+            decoded_mode = "index_offset";
             addr = base + imm;
             break;
         }
+    }
+
+    if (trace_ldr69634) {
+        uint64_t rm_val_pre = is_reg_offset ? tcti_read_reg_or_zr(cpu, rm) : 0;
+        uint64_t offset_before = is_reg_offset ? rm_val_pre : (uint64_t)imm;
+        uint64_t offset_after = is_reg_offset
+                                    ? (tcti_extend_ldst_offset(cpu, rm, extend_type) << reg_shift)
+                                    : (uint64_t)imm;
+        const char *mnemonic = get_ldst_mnemonic((int)is_load, (int)size, (int)is_signed);
+        const char *idx_name = get_ldst_idx_mode_name(idx_mode);
+        const char *extend_name = is_reg_offset ? get_ldst_extend_name(extend_type) : "none";
+        char ev[1024];
+        snprintf(
+            ev, sizeof(ev),
+            "ldr69634.pre_addr_regs=attempt:%d,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,"
+            "mnemonic:%s,idx_mode:%s,base_reg:%llu,base_val:0x%llx,off_reg:%d,off_val:0x%llx,"
+            "extend:%s,shift:%d,offset_before:0x%llx,offset_after:0x%llx,guest_ea:0x%llx,"
+            "host_ptr_probe:0x%llx,mem_result:%d,helper_entry_reached:%d,signal_exit_immediate:%d",
+            -1, -1, (unsigned long long)fault_pc, fault_raw_opcode, mnemonic, idx_name,
+            (unsigned long long)rn, (unsigned long long)base, is_reg_offset ? rm : -1,
+            (unsigned long long)rm_val_pre, extend_name, reg_shift,
+            (unsigned long long)offset_before, (unsigned long long)offset_after,
+            (unsigned long long)addr, 0ULL, -1, 1, 0);
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+        snprintf(
+            ev, sizeof(ev),
+            "ldr69634.addr_calc=attempt:%d,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,"
+            "mnemonic:%s,idx_mode:%s,base_reg:%llu,base_val:0x%llx,off_reg:%d,off_val:0x%llx,"
+            "extend:%s,shift:%d,offset_before:0x%llx,offset_after:0x%llx,guest_ea:0x%llx,"
+            "host_ptr_probe:0x%llx,mem_result:%d,helper_entry_reached:%d,signal_exit_immediate:%d",
+            -1, -1, (unsigned long long)fault_pc, fault_raw_opcode, mnemonic, idx_name,
+            (unsigned long long)rn, (unsigned long long)base, is_reg_offset ? rm : -1,
+            (unsigned long long)rm_val_pre, extend_name, reg_shift,
+            (unsigned long long)offset_before, (unsigned long long)offset_after,
+            (unsigned long long)addr, 0ULL, -1, 1, 0);
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+    }
+
+    writeback_enabled =
+        (!is_reg_offset && (idx_mode == A64_PRE_INDEX || idx_mode == A64_POST_INDEX)) ? 1 : 0;
+    writeback_value =
+        writeback_enabled ? ((idx_mode == A64_POST_INDEX) ? (base + imm) : base) : base;
+
+    void *ldst_host_ptr_probe = NULL;
+    if (trace_ldst_fault) {
+        const char *mnemonic = get_ldst_mnemonic((int)is_load, (int)size, (int)is_signed);
+        const char *idx_name = get_ldst_idx_mode_name(idx_mode);
+        int decoded_rt = decode_ok ? fault_decoded.Rd : (int)rt;
+        int decoded_rn = decode_ok ? fault_decoded.Rn : (int)rn;
+        int decoded_rm = decode_ok ? fault_decoded.Rm : (is_reg_offset ? rm : -1);
+        char ev[640];
+        snprintf(ev, sizeof(ev),
+                 "ldst.fault.entry=attempt:%d,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,"
+                 "mnemonic:%s,decoded_category:%d,decoded_subtype:%d,is_load:%llu,rt:%d,rn:%d,"
+                 "rm:%d,idx_mode:%s,imm:%lld,base_value:0x%llx,helper_entry_reached:%d,"
+                 "fast_path_taken:%d",
+                 -1, -1, (unsigned long long)fault_pc, fault_raw_opcode, mnemonic,
+                 decode_ok ? (int)fault_decoded.cat : -1,
+                 decode_ok ? (int)fault_decoded.subtype : -1, (unsigned long long)is_load,
+                 decoded_rt, decoded_rn, decoded_rm, idx_name, (long long)imm,
+                 (unsigned long long)base, helper_entry_reached, fast_path_taken);
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+        snprintf(ev, sizeof(ev),
+                 "ldst.fault.decode=attempt:%d,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,"
+                 "mnemonic:%s,decoded_category:%d,decoded_subtype:%d,is_load:%llu,rt:%d,rn:%d,"
+                 "rm:%d,idx_mode:%s,imm:%lld,base_value:0x%llx,helper_entry_reached:%d,"
+                 "fast_path_taken:%d",
+                 -1, -1, (unsigned long long)fault_pc, fault_raw_opcode, mnemonic,
+                 decode_ok ? (int)fault_decoded.cat : -1,
+                 decode_ok ? (int)fault_decoded.subtype : -1, (unsigned long long)is_load,
+                 decoded_rt, decoded_rn, decoded_rm, idx_name, (long long)imm,
+                 (unsigned long long)base, helper_entry_reached, fast_path_taken);
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+        snprintf(ev, sizeof(ev),
+                 "ldst.fault.path=attempt:%d,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,"
+                 "mnemonic:%s,decoded_category:%d,decoded_subtype:%d,is_load:%llu,rt:%d,rn:%d,"
+                 "rm:%d,idx_mode:%s,imm:%lld,base_value:0x%llx,path:helper_slow,"
+                 "helper_entry_reached:%d,fast_path_taken:%d",
+                 -1, -1, (unsigned long long)fault_pc, fault_raw_opcode, mnemonic,
+                 decode_ok ? (int)fault_decoded.cat : -1,
+                 decode_ok ? (int)fault_decoded.subtype : -1, (unsigned long long)is_load,
+                 decoded_rt, decoded_rn, decoded_rm, idx_name, (long long)imm,
+                 (unsigned long long)base, helper_entry_reached, fast_path_taken);
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+    }
+
+    if (trace_ldr69634) {
+        uint64_t rm_val_pre = is_reg_offset ? tcti_read_reg_or_zr(cpu, rm) : 0;
+        uint64_t offset_before = is_reg_offset ? rm_val_pre : (uint64_t)imm;
+        uint64_t offset_after = is_reg_offset
+                                    ? (tcti_extend_ldst_offset(cpu, rm, extend_type) << reg_shift)
+                                    : (uint64_t)imm;
+        const char *mnemonic = get_ldst_mnemonic((int)is_load, (int)size, (int)is_signed);
+        const char *idx_name = get_ldst_idx_mode_name(idx_mode);
+        const char *extend_name = is_reg_offset ? get_ldst_extend_name(extend_type) : "none";
+        char ev[1024];
+        snprintf(
+            ev, sizeof(ev),
+            "ldr69634.translation=attempt:%d,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,"
+            "mnemonic:%s,idx_mode:%s,base_reg:%llu,base_val:0x%llx,off_reg:%d,off_val:0x%llx,"
+            "extend:%s,shift:%d,offset_before:0x%llx,offset_after:0x%llx,guest_ea:0x%llx,"
+            "host_ptr_probe:0x%llx,mem_result:%d,helper_entry_reached:%d,signal_exit_immediate:%d",
+            -1, -1, (unsigned long long)fault_pc, fault_raw_opcode, mnemonic, idx_name,
+            (unsigned long long)rn, (unsigned long long)base, is_reg_offset ? rm : -1,
+            (unsigned long long)rm_val_pre, extend_name, reg_shift,
+            (unsigned long long)offset_before, (unsigned long long)offset_after,
+            (unsigned long long)addr, (unsigned long long)(uintptr_t)ldst_host_ptr_probe, -1, 1, 0);
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+    }
+
+    if (trace_str_helper) {
+        helper_host_ptr_probe = a64_guest_to_host(cpu, cpu->tlb, addr, 1);
+
+        char ev[512];
+        snprintf(
+            ev, sizeof(ev),
+            "str.helper.entry.raw_regs=attempt:%d,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,"
+            "decoded_mode:%s,cpu_x2:0x%llx,carrier_x2:0x%llx,cpu_x7:0x%llx,carrier_x7:0x%llx,"
+            "rt:%llu,rn:%llu,imm:%lld,writeback_enabled:%d",
+            -1, -1, (unsigned long long)fault_pc, helper_raw_opcode, decoded_mode,
+            (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[2],
+            (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[7], (unsigned long long)rt,
+            (unsigned long long)rn, (long long)imm, writeback_enabled);
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+        snprintf(
+            ev, sizeof(ev),
+            "str.helper.entry.carriers=attempt:%d,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,"
+            "decoded_mode:%s,carrier_x2:0x%llx,carrier_x7:0x%llx,access_addr:0x%llx,"
+            "writeback_value:0x%llx,host_ptr_probe:0x%llx,writeback_enabled:%d",
+            -1, -1, (unsigned long long)fault_pc, helper_raw_opcode, decoded_mode,
+            (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[7], (unsigned long long)addr,
+            (unsigned long long)writeback_value,
+            (unsigned long long)(uintptr_t)helper_host_ptr_probe, writeback_enabled);
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+        snprintf(
+            ev, sizeof(ev),
+            "str.helper.pre_access=attempt:%d,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,"
+            "decoded_mode:%s,cpu_x2:0x%llx,carrier_x2:0x%llx,cpu_x7:0x%llx,carrier_x7:0x%llx,"
+            "access_addr:0x%llx,writeback_value:0x%llx,host_ptr_probe:0x%llx,writeback_enabled:%d",
+            -1, -1, (unsigned long long)fault_pc, helper_raw_opcode, decoded_mode,
+            (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[2],
+            (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[7], (unsigned long long)addr,
+            (unsigned long long)writeback_value,
+            (unsigned long long)(uintptr_t)helper_host_ptr_probe, writeback_enabled);
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+    }
+
+    ldst_host_ptr_probe = a64_guest_to_host(cpu, cpu->tlb, addr, is_load ? 0 : 1);
+
+    if (trace_ldst_fault) {
+        const char *mnemonic = get_ldst_mnemonic((int)is_load, (int)size, (int)is_signed);
+        const char *idx_name = get_ldst_idx_mode_name(idx_mode);
+        int decoded_rt = decode_ok ? fault_decoded.Rd : (int)rt;
+        int decoded_rn = decode_ok ? fault_decoded.Rn : (int)rn;
+        int decoded_rm = decode_ok ? fault_decoded.Rm : (is_reg_offset ? rm : -1);
+        char ev[640];
+        snprintf(ev, sizeof(ev),
+                 "ldst.fault.translation=attempt:%d,guest_pid:%d,guest_pc:0x%llx,raw_opcode:"
+                 "0x%08x,mnemonic:%s,decoded_category:%d,decoded_subtype:%d,is_load:%llu,rt:%d,"
+                 "rn:%d,rm:%d,idx_mode:%s,imm:%lld,base_value:0x%llx,guest_ea:0x%llx,"
+                 "host_ptr_probe:0x%llx,helper_entry_reached:%d,fast_path_taken:%d",
+                 -1, -1, (unsigned long long)fault_pc, fault_raw_opcode, mnemonic,
+                 decode_ok ? (int)fault_decoded.cat : -1,
+                 decode_ok ? (int)fault_decoded.subtype : -1, (unsigned long long)is_load,
+                 decoded_rt, decoded_rn, decoded_rm, idx_name, (long long)imm,
+                 (unsigned long long)base, (unsigned long long)addr,
+                 (unsigned long long)(uintptr_t)ldst_host_ptr_probe, helper_entry_reached,
+                 fast_path_taken);
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
     }
 
     // EMIT GUEST VIRTUAL ADDRESS (after computing effective address)
@@ -824,6 +1086,8 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
             break;
         }
 
+        helper_mem_result = mem_ret;
+
         trace_live_ldr_probe(cpu, instance_id, fault_pc, rt, rn, imm, size, idx_mode, meta, is_load,
                              base, addr, mem_ret, 0);
 
@@ -831,6 +1095,58 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
                                addr, mem_ret);
 
         if (mem_ret != A64_MEM_OK) {
+            if (trace_ldr69634) {
+                uint64_t rm_val_pre = is_reg_offset ? tcti_read_reg_or_zr(cpu, rm) : 0;
+                uint64_t offset_before = is_reg_offset ? rm_val_pre : (uint64_t)imm;
+                uint64_t offset_after =
+                    is_reg_offset ? (tcti_extend_ldst_offset(cpu, rm, extend_type) << reg_shift)
+                                  : (uint64_t)imm;
+                const char *mnemonic = get_ldst_mnemonic((int)is_load, (int)size, (int)is_signed);
+                const char *idx_name = get_ldst_idx_mode_name(idx_mode);
+                const char *extend_name =
+                    is_reg_offset ? get_ldst_extend_name(extend_type) : "none";
+                char ev[1024];
+                snprintf(
+                    ev, sizeof(ev),
+                    "ldr69634.exit=attempt:%d,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,"
+                    "mnemonic:%s,"
+                    "idx_mode:%s,base_reg:%llu,base_val:0x%llx,off_reg:%d,off_val:0x%llx,extend:%s,"
+                    "shift:%d,offset_before:0x%llx,offset_after:0x%llx,guest_ea:0x%llx,host_ptr_"
+                    "probe:0x%llx,"
+                    "mem_result:%d,helper_entry_reached:%d,signal_exit_immediate:%d",
+                    -1, -1, (unsigned long long)fault_pc, fault_raw_opcode, mnemonic, idx_name,
+                    (unsigned long long)rn, (unsigned long long)base, is_reg_offset ? rm : -1,
+                    (unsigned long long)rm_val_pre, extend_name, reg_shift,
+                    (unsigned long long)offset_before, (unsigned long long)offset_after,
+                    (unsigned long long)addr, (unsigned long long)(uintptr_t)ldst_host_ptr_probe,
+                    mem_ret, 1, 1);
+                trace_record_event(TRACE_ORIGIN_EXEC, ev);
+                ldr69634_trace_budget--;
+            }
+            if (trace_ldst_fault) {
+                const char *mnemonic = get_ldst_mnemonic((int)is_load, (int)size, (int)is_signed);
+                const char *idx_name = get_ldst_idx_mode_name(idx_mode);
+                int decoded_rt = decode_ok ? fault_decoded.Rd : (int)rt;
+                int decoded_rn = decode_ok ? fault_decoded.Rn : (int)rn;
+                int decoded_rm = decode_ok ? fault_decoded.Rm : (is_reg_offset ? rm : -1);
+                char ev[640];
+                snprintf(ev, sizeof(ev),
+                         "ldst.fault.exit=attempt:%d,guest_pid:%d,guest_pc:0x%llx,raw_opcode:"
+                         "0x%08x,mnemonic:%s,decoded_category:%d,decoded_subtype:%d,is_load:%llu,"
+                         "rt:%d,rn:%d,rm:%d,idx_mode:%s,imm:%lld,base_value:0x%llx,"
+                         "guest_ea:0x%llx,host_ptr_probe:0x%llx,mem_result:%d,"
+                         "helper_entry_reached:%d,fast_path_taken:%d,signal_exit_immediate:1",
+                         -1, -1, (unsigned long long)fault_pc, fault_raw_opcode, mnemonic,
+                         decode_ok ? (int)fault_decoded.cat : -1,
+                         decode_ok ? (int)fault_decoded.subtype : -1, (unsigned long long)is_load,
+                         decoded_rt, decoded_rn, decoded_rm, idx_name, (long long)imm,
+                         (unsigned long long)base, (unsigned long long)addr,
+                         (unsigned long long)(uintptr_t)ldst_host_ptr_probe, mem_ret,
+                         helper_entry_reached, fast_path_taken);
+                trace_record_event(TRACE_ORIGIN_EXEC, ev);
+                ldst_fault_trace_budget--;
+            }
+
             if (!first_fault_captured) {
                 first_fault_captured = 1;
 
@@ -1035,6 +1351,8 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
             break;
         }
 
+        helper_mem_result = mem_ret;
+
         trace_live_ldr_probe(cpu, instance_id, fault_pc, rt, rn, imm, size, idx_mode, meta, is_load,
                              base, addr, mem_ret, 0);
 
@@ -1043,14 +1361,101 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
 
         // SAMPLE POINT 2: After memory access, check if fault occurred
         if (mem_ret != A64_MEM_OK) {
+            if (trace_ldr69634) {
+                uint64_t rm_val_pre = is_reg_offset ? tcti_read_reg_or_zr(cpu, rm) : 0;
+                uint64_t offset_before = is_reg_offset ? rm_val_pre : (uint64_t)imm;
+                uint64_t offset_after =
+                    is_reg_offset ? (tcti_extend_ldst_offset(cpu, rm, extend_type) << reg_shift)
+                                  : (uint64_t)imm;
+                const char *mnemonic = get_ldst_mnemonic((int)is_load, (int)size, (int)is_signed);
+                const char *idx_name = get_ldst_idx_mode_name(idx_mode);
+                const char *extend_name =
+                    is_reg_offset ? get_ldst_extend_name(extend_type) : "none";
+                char ev[1024];
+                snprintf(
+                    ev, sizeof(ev),
+                    "ldr69634.exit=attempt:%d,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,"
+                    "mnemonic:%s,"
+                    "idx_mode:%s,base_reg:%llu,base_val:0x%llx,off_reg:%d,off_val:0x%llx,extend:%s,"
+                    "shift:%d,offset_before:0x%llx,offset_after:0x%llx,guest_ea:0x%llx,host_ptr_"
+                    "probe:0x%llx,"
+                    "mem_result:%d,helper_entry_reached:%d,signal_exit_immediate:%d",
+                    -1, -1, (unsigned long long)fault_pc, fault_raw_opcode, mnemonic, idx_name,
+                    (unsigned long long)rn, (unsigned long long)base, is_reg_offset ? rm : -1,
+                    (unsigned long long)rm_val_pre, extend_name, reg_shift,
+                    (unsigned long long)offset_before, (unsigned long long)offset_after,
+                    (unsigned long long)addr, (unsigned long long)(uintptr_t)ldst_host_ptr_probe,
+                    mem_ret, 1, 1);
+                trace_record_event(TRACE_ORIGIN_EXEC, ev);
+                ldr69634_trace_budget--;
+            }
+            if (trace_ldst_fault) {
+                const char *mnemonic = get_ldst_mnemonic((int)is_load, (int)size, (int)is_signed);
+                const char *idx_name = get_ldst_idx_mode_name(idx_mode);
+                int decoded_rt = decode_ok ? fault_decoded.Rd : (int)rt;
+                int decoded_rn = decode_ok ? fault_decoded.Rn : (int)rn;
+                int decoded_rm = decode_ok ? fault_decoded.Rm : (is_reg_offset ? rm : -1);
+                char ev[640];
+                snprintf(ev, sizeof(ev),
+                         "ldst.fault.exit=attempt:%d,guest_pid:%d,guest_pc:0x%llx,raw_opcode:"
+                         "0x%08x,mnemonic:%s,decoded_category:%d,decoded_subtype:%d,is_load:%llu,"
+                         "rt:%d,rn:%d,rm:%d,idx_mode:%s,imm:%lld,base_value:0x%llx,"
+                         "guest_ea:0x%llx,host_ptr_probe:0x%llx,mem_result:%d,"
+                         "helper_entry_reached:%d,fast_path_taken:%d,signal_exit_immediate:1",
+                         -1, -1, (unsigned long long)fault_pc, fault_raw_opcode, mnemonic,
+                         decode_ok ? (int)fault_decoded.cat : -1,
+                         decode_ok ? (int)fault_decoded.subtype : -1, (unsigned long long)is_load,
+                         decoded_rt, decoded_rn, decoded_rm, idx_name, (long long)imm,
+                         (unsigned long long)base, (unsigned long long)addr,
+                         (unsigned long long)(uintptr_t)ldst_host_ptr_probe, mem_ret,
+                         helper_entry_reached, fast_path_taken);
+                trace_record_event(TRACE_ORIGIN_EXEC, ev);
+                ldst_fault_trace_budget--;
+            }
+
             cpu->pc = fault_pc;
             cpu->fault_was_write = true;
             return TCTI_EXIT_FAULT;
         }
     }
 
+    if (trace_str_helper) {
+        char ev[512];
+        snprintf(
+            ev, sizeof(ev),
+            "str.helper.access_result=attempt:%d,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,"
+            "decoded_mode:%s,cpu_x2:0x%llx,carrier_x2:0x%llx,cpu_x7:0x%llx,carrier_x7:0x%llx,"
+            "access_addr:0x%llx,writeback_value:0x%llx,host_ptr_probe:0x%llx,mem_result:%d,"
+            "writeback_enabled:%d",
+            -1, -1, (unsigned long long)fault_pc, helper_raw_opcode, decoded_mode,
+            (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[2],
+            (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[7], (unsigned long long)addr,
+            (unsigned long long)writeback_value,
+            (unsigned long long)(uintptr_t)helper_host_ptr_probe, helper_mem_result,
+            writeback_enabled);
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+    }
+
     if (!is_reg_offset && (idx_mode == A64_PRE_INDEX || idx_mode == A64_POST_INDEX)) {
         uint64_t updated = (idx_mode == A64_POST_INDEX) ? (base + imm) : base;
+
+        if (trace_str_helper) {
+            char ev[512];
+            snprintf(
+                ev, sizeof(ev),
+                "str.helper.pre_writeback=attempt:%d,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%"
+                "08x,"
+                "decoded_mode:%s,cpu_x2:0x%llx,carrier_x2:0x%llx,cpu_x7:0x%llx,carrier_x7:0x%llx,"
+                "access_addr:0x%llx,writeback_value:0x%llx,host_ptr_probe:0x%llx,mem_result:%d,"
+                "writeback_enabled:%d",
+                -1, -1, (unsigned long long)fault_pc, helper_raw_opcode, decoded_mode,
+                (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[2],
+                (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[7],
+                (unsigned long long)addr, (unsigned long long)updated,
+                (unsigned long long)(uintptr_t)helper_host_ptr_probe, helper_mem_result,
+                writeback_enabled);
+            trace_record_event(TRACE_ORIGIN_EXEC, ev);
+        }
 
         if (rn == 2 && idx_mode == A64_POST_INDEX) {
             static int wb_probe_budget = 32;
@@ -1084,6 +1489,25 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
 
         tcti_write_base_reg_or_sp(cpu, (int)rn, updated, true);
 
+        if (trace_str_helper) {
+            uint64_t post_wb = tcti_read_base_reg_or_sp(cpu, (int)rn);
+            char ev[512];
+            snprintf(
+                ev, sizeof(ev),
+                "str.helper.post_writeback=attempt:%d,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%"
+                "08x,"
+                "decoded_mode:%s,cpu_x2:0x%llx,carrier_x2:0x%llx,cpu_x7:0x%llx,carrier_x7:0x%llx,"
+                "access_addr:0x%llx,writeback_value:0x%llx,host_ptr_probe:0x%llx,mem_result:%d,"
+                "writeback_enabled:%d",
+                -1, -1, (unsigned long long)fault_pc, helper_raw_opcode, decoded_mode,
+                (unsigned long long)cpu->x[2], (unsigned long long)post_wb,
+                (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[7],
+                (unsigned long long)addr, (unsigned long long)post_wb,
+                (unsigned long long)(uintptr_t)helper_host_ptr_probe, helper_mem_result,
+                writeback_enabled);
+            trace_record_event(TRACE_ORIGIN_EXEC, ev);
+        }
+
         if (rn == 2 && idx_mode == A64_POST_INDEX) {
             static int wb_commit_budget = 32;
             if (wb_commit_budget > 0) {
@@ -1105,6 +1529,37 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
         }
     }
 
+    if (trace_str_helper) {
+        char ev[512];
+        snprintf(
+            ev, sizeof(ev),
+            "str.helper.exit.raw_regs=attempt:%d,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,"
+            "decoded_mode:%s,cpu_x2:0x%llx,carrier_x2:0x%llx,cpu_x7:0x%llx,carrier_x7:0x%llx,"
+            "access_addr:0x%llx,writeback_value:0x%llx,host_ptr_probe:0x%llx,mem_result:%d,"
+            "writeback_enabled:%d",
+            -1, -1, (unsigned long long)fault_pc, helper_raw_opcode, decoded_mode,
+            (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[2],
+            (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[7], (unsigned long long)addr,
+            (unsigned long long)writeback_value,
+            (unsigned long long)(uintptr_t)helper_host_ptr_probe, helper_mem_result,
+            writeback_enabled);
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+        snprintf(
+            ev, sizeof(ev),
+            "str.helper.exit.cpu_regs=attempt:%d,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,"
+            "decoded_mode:%s,cpu_x2:0x%llx,carrier_x2:0x%llx,cpu_x7:0x%llx,carrier_x7:0x%llx,"
+            "access_addr:0x%llx,writeback_value:0x%llx,host_ptr_probe:0x%llx,mem_result:%d,"
+            "writeback_enabled:%d",
+            -1, -1, (unsigned long long)fault_pc, helper_raw_opcode, decoded_mode,
+            (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[2],
+            (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[7], (unsigned long long)addr,
+            (unsigned long long)writeback_value,
+            (unsigned long long)(uintptr_t)helper_host_ptr_probe, helper_mem_result,
+            writeback_enabled);
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+    }
+
     return 0;
 }
 
@@ -1124,12 +1579,34 @@ int a64_tcti_str_x_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64_t rt,
 int _a64_tcti_ldr_x_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64_t rt, uint64_t rn,
                            int64_t imm, uint64_t size, uint64_t idx_mode, uint64_t meta)
 {
+    static int ldr_helper_reach_budget = 24;
+    if (ldr_helper_reach_budget > 0) {
+        char ev[224];
+        snprintf(
+            ev, sizeof(ev),
+            "ldst.fault.helper_reach=kind:ldr,guest_pc:0x%llx,rt:%llu,rn:%llu,idx:%llu,imm:%lld",
+            (unsigned long long)fault_pc, (unsigned long long)rt, (unsigned long long)rn,
+            (unsigned long long)idx_mode, (long long)imm);
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+        ldr_helper_reach_budget--;
+    }
     return a64_tcti_ldr_x_helper(cpu, fault_pc, rt, rn, imm, size, idx_mode, meta);
 }
 
 int _a64_tcti_str_x_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64_t rt, uint64_t rn,
                            int64_t imm, uint64_t size, uint64_t idx_mode, uint64_t meta)
 {
+    static int str_helper_reach_budget = 24;
+    if (str_helper_reach_budget > 0) {
+        char ev[224];
+        snprintf(
+            ev, sizeof(ev),
+            "ldst.fault.helper_reach=kind:str,guest_pc:0x%llx,rt:%llu,rn:%llu,idx:%llu,imm:%lld",
+            (unsigned long long)fault_pc, (unsigned long long)rt, (unsigned long long)rn,
+            (unsigned long long)idx_mode, (long long)imm);
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+        str_helper_reach_budget--;
+    }
     return a64_tcti_str_x_helper(cpu, fault_pc, rt, rn, imm, size, idx_mode, meta);
 }
 
@@ -2517,19 +2994,6 @@ __attribute__((naked)) void gadget_str_x_impl(void)
         "ldr x26, [x29, %[str_fallback_off]]\n\t"
         "add x26, x26, #1\n\t"
         "str x26, [x29, %[str_fallback_off]]\n\t"
-        // Handoff probe stage 1: before cpu_state snapshot
-        "bl _tcti_c_call_prologue\n\t"
-        "mov x0, x29\n\t"
-        "mov x1, #1\n\t"
-        "mov x2, x19\n\t"
-        "mov x3, x3\n\t"
-        "mov x4, x8\n\t"
-        "mov x5, x14\n\t"
-        "mov x6, x20\n\t"
-        "mov x7, x21\n\t"
-        "bl _trace_str_handoff_probe\n\t"
-        "bl _tcti_c_call_epilogue\n\t"
-        // Save registers and call C helper
         "stp x1, x2, [x29, #16]\n\t"
         "stp x3, x4, [x29, #32]\n\t"
         "stp x5, x6, [x29, #48]\n\t"
@@ -2538,29 +3002,7 @@ __attribute__((naked)) void gadget_str_x_impl(void)
         "stp x11, x12, [x29, #96]\n\t"
         "stp x13, x14, [x29, #112]\n\t"
         "stp x15, x16, [x29, #128]\n\t"
-        // Handoff probe stage 2: after cpu_state snapshot, before helper prologue
         "bl _tcti_c_call_prologue\n\t"
-        "mov x0, x29\n\t"
-        "mov x1, #2\n\t"
-        "mov x2, x19\n\t"
-        "mov x3, x3\n\t"
-        "mov x4, x8\n\t"
-        "mov x5, x14\n\t"
-        "mov x6, x20\n\t"
-        "mov x7, x21\n\t"
-        "bl _trace_str_handoff_probe\n\t"
-        "bl _tcti_c_call_epilogue\n\t"
-        "bl _tcti_c_call_prologue\n\t"
-        // Handoff probe stage 3: immediately after helper prologue
-        "mov x0, x29\n\t"
-        "mov x1, #3\n\t"
-        "mov x2, x19\n\t"
-        "mov x3, x3\n\t"
-        "mov x4, x8\n\t"
-        "mov x5, x14\n\t"
-        "mov x6, x20\n\t"
-        "mov x7, x21\n\t"
-        "bl _trace_str_handoff_probe\n\t"
         "mov x0, x29\n\t"
         "mov x1, x19\n\t" // fault_pc
         "mov x2, x20\n\t" // Rt

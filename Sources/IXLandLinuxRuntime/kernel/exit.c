@@ -5,6 +5,7 @@
 #import <IXLandLinuxRuntime/fs/tty.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/kernel/futex.h>
+#import <IXLandLinuxRuntime/kernel/guest_trace_context.h>
 #import <IXLandLinuxRuntime/kernel/mm.h>
 #import <IXLandLinuxRuntime/kernel/ptrace.h>
 #include <pthread.h>
@@ -48,6 +49,9 @@ static struct task *find_new_parent(struct task *task)
 
 noreturn void do_exit(int status)
 {
+    ixland_guest_trace_emit_int(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR, "guest.do_exit.entry",
+                                "status", status);
+
     // has to happen before mm_release
     addr_t clear_tid = current->clear_tid;
     if (clear_tid) {
@@ -173,6 +177,8 @@ static void trace_do_exit_group_checkpoint(const char *name, int status)
 noreturn void do_exit_group(int status)
 {
     trace_do_exit_group_checkpoint("task.proof.do_exit_group.entry", status);
+    ixland_guest_trace_emit_int(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR, "guest.do_exit_group.entry",
+                                "status", status);
     struct tgroup *group = current->group;
     lock(&pids_lock);
     lock(&group->lock);

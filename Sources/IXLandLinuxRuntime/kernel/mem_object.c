@@ -55,11 +55,12 @@ void mem_object_retire(struct mem_object *obj)
 {
     if (!obj)
         return;
-    /* Object stays alive; it will be freed by drain_retired.
-       We set retire_generation to a non-zero value to mark it as
-       retired (not eligible for immediate free in release). */
+    /* Mark object as retired by setting retire_generation.
+       The caller is responsible for adding to the actual retire list.
+       CRITICAL: Do NOT call list_add here - we don't have the list head.
+       Calling list_add with NULL causes crash at address 0x8. */
     obj->retire_generation = 1; /* placeholder, set properly by caller */
-    list_add(&obj->retire_link, /* retire list head */ NULL);
+    /* list insertion removed - caller must use retire_list_add(mem, obj) */
 }
 
 void mem_object_drain_retired(uint64_t current_generation)

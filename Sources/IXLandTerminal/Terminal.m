@@ -161,11 +161,35 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
                    completionHandler:nil];
 }
 
+- (NSDictionary *)sessionTraceAttributesWithByteCount:(NSInteger)byteCount
+                                          pendingBefore:(NSInteger)pendingBefore {
+    return @{
+        @"attempt": @(self.attemptSequence),
+        @"generation": @(self.sessionGeneration),
+        @"ui_pid": @((int)getpid()),
+        @"guest_pid": @(self.guestPID),
+        @"is_restart_path": @(self.restartPath),
+        @"has_terminal": @(self.hasSessionTerminal),
+        @"first_pty_byte_seen": @(self.firstPTYByteSeen),
+        @"byte_count": @(byteCount),
+        @"pending_before": @(pendingBefore)
+    };
+}
+
+
 - (int)sendOutput:(const void *)buf length:(int)len {
     // APPSIM-004 Stage 2: PTY byte detection
     // Record byte count at terminal input boundary
-    [ISHInstrumentation recordEvent:@"terminal.output.queued"];
-    
+    NSDictionary *queueAttrs = [self sessionTraceAttributesWithByteCount:len
+                                                             pendingBefore:_pendingData.length];
+    if (!self.firstPTYByteSeen && len > 0) {
+        self.firstPTYByteSeen = YES;
+        [ISHInstrumentation recordEvent:@"session.pty.first_byte" attributes:queueAttrs];
+    }
+    [ISHInstrumentation recordEvent:@"terminal.output.queued" attributes:queueAttrs];
+    [ISHInstrumentation recordEvent:@"pty.bytes.first_marker" attributes:queueAttrs];
+
+
     // Trace byte count at PTY master read boundary (TerminalView reading from PTY)
     NSDictionary *byteAttrs = @{
         @"byte_count": @(len),
@@ -228,7 +252,9 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
         return;
     
     // APPSIM-004 Stage 2: PTY byte detection
-    [ISHInstrumentation recordEvent:@"terminal.refresh.triggered"];
+    [ISHInstrumentation recordEvent:@"terminal.refresh.triggered"
+                         attributes:[self sessionTraceAttributesWithByteCount:0
+                                                               pendingBefore:_pendingData.length]];
 
     lock(&_dataLock);
     if (_outputInProgress) {
@@ -261,6 +287,11 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
     dataString = [dataString stringByReplacingOccurrencesOfString:@"\n" withString:@"\\n"];
     dataString = [dataString stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""];
     NSString *jsToEvaluate = [NSString stringWithFormat:@"exports.write(\"%@\")", dataString];
+    if (refreshByteCount > 0) {
+        [ISHInstrumentation recordEvent:@"terminal.js.write.bytes"
+                             attributes:[self sessionTraceAttributesWithByteCount:refreshByteCount
+                                                                   pendingBefore:_pendingData.length]];
+    }
     [self.webView evaluateJavaScript:jsToEvaluate completionHandler:^(id result, NSError *error) {
         // Trace completion
         if (byteCountInterval != 0) {
@@ -363,6 +394,10 @@ static int ios_tty_init(struct tty *tty) {
 
 static int ios_tty_write(struct tty *tty, const void *buf, size_t len, bool blocking) {
     Terminal *terminal = (__bridge Terminal *) tty->data;
+    NSMutableDictionary *attrs = [[terminal sessionTraceAttributesWithByteCount:(NSInteger)len
+                                                                   pendingBefore:0] mutableCopy];
+    attrs[@"blocking"] = @(blocking);
+    [ISHInstrumentation recordEvent:@"terminal.tty.write.callback" attributes:attrs];
     return [terminal sendOutput:buf length:(int) len];
 }
 

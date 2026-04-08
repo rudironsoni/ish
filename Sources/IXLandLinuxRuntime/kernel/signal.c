@@ -11,6 +11,7 @@
 #import <IXLandLinuxRuntime/kernel/aarch64/signal.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/kernel/errno.h>
+#import <IXLandLinuxRuntime/kernel/guest_trace_context.h>
 #import <IXLandLinuxRuntime/kernel/signal.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
 #include <stdio.h>
@@ -196,6 +197,7 @@ static void trace_receive_signals_checkpoint(const char *name, int sig, uint64_t
 void receive_signals(void)
 {
     trace_receive_signals_checkpoint("task.proof.receive_signals.entry", 0, 0);
+    ixland_guest_trace_emit(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR, "guest.receive_signals.entry");
     struct task *task = current;
     if (task == NULL) {
         return;
@@ -221,6 +223,8 @@ void receive_signals(void)
 
         trace_receive_signals_checkpoint("task.proof.receive_signals.selected_signal", sig,
                                          task->pending);
+        ixland_guest_trace_emit_int(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR,
+                                    "guest.receive_signals.selected", "selected_sig", sig);
 
         // Clear this signal from pending set
         sigset_del(&task->pending, sig);

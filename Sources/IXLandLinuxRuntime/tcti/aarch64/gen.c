@@ -19,7 +19,6 @@
 extern const tcti_gadget_t gadget_tbz_reg[16];
 extern const tcti_gadget_t gadget_tbnz_reg[16];
 extern tcti_gadget_t gadget_sysreg_unsupported;
-extern void gadget_probe_live_x3_x8(void);
 
 // Map guest registers 0-15 to our pre-generated gadget tables
 // Registers 16-30 and sp are handled differently (in memory)
@@ -301,9 +300,22 @@ int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr)
                     return ret;
             }
 
-            ret = emit_addsub_imm(state, work_dst, work_src, (uint64_t)instr->imm, is_sub);
-            if (ret != A64_GEN_OK)
-                return ret;
+            if (src_is_sp) {
+                ret = emit_gadget(state, gadget_mov_imm[13]);
+                if (ret != A64_GEN_OK)
+                    return ret;
+                ret = emit_u64(state, (uint64_t)instr->imm);
+                if (ret != A64_GEN_OK)
+                    return ret;
+                ret = emit_gadget(state, is_sub ? gadget_sub_reg[work_dst][work_src][13]
+                                                : gadget_add_reg[work_dst][work_src][13]);
+                if (ret != A64_GEN_OK)
+                    return ret;
+            } else {
+                ret = emit_addsub_imm(state, work_dst, work_src, (uint64_t)instr->imm, is_sub);
+                if (ret != A64_GEN_OK)
+                    return ret;
+            }
 
             if (dst_is_memory) {
                 int store_idx = rd - 16;
@@ -624,19 +636,6 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr)
     }
 
     tcti_gadget_t gadget = NULL;
-
-    if (state->guest_pc == 0x6964cULL && instr->raw == 0xaa0703e2U && rd == 2 && rn == 31 &&
-        rm == 7) {
-        int ret = emit_gadget(state, (tcti_gadget_t)gadget_probe_live_x3_x8);
-        if (ret != A64_GEN_OK)
-            return ret;
-        ret = emit_u64(state, 11);
-        if (ret != A64_GEN_OK)
-            return ret;
-        ret = emit_u64(state, state->guest_pc);
-        if (ret != A64_GEN_OK)
-            return ret;
-    }
 
     if (state->guest_pc == 0x69644ULL && instr->raw == 0x8b020c63U && rd == 3 && rn == 3 &&
         rm == 2 && instr->imm_shift == 3 && instr->shift_type == A64_SHIFT_LSL &&

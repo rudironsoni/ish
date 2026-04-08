@@ -14,7 +14,6 @@
 
 + (int)bootError;
 
-+ (void)maybePresentStartupMessageOnViewController:(UIViewController *)vc;
 
 @end
 

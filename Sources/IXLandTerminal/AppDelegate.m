@@ -64,7 +64,6 @@ static void ios_handle_die(const char *msg) {
 }
 
 static int bootError;
-static NSString *const kSkipStartupMessage = @"Skip Startup Message";
 
 @implementation AppDelegate
 
@@ -215,25 +214,6 @@ static NSString *const kSkipStartupMessage = @"Skip Startup Message";
     return bootError;
 }
 
-+ (void)maybePresentStartupMessageOnViewController:(UIViewController *)vc {
-    if ([NSUserDefaults.standardUserDefaults integerForKey:kSkipStartupMessage] >= 1)
-        return;
-    if (!FsIsManaged()) {
-        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Install iSH’s built-in APK?"
-                                                                       message:@"iSH now includes the APK package manager, but it must be manually activated."
-                                                                preferredStyle:UIAlertControllerStyleAlert];
-        [alert addAction:[UIAlertAction actionWithTitle:@"Show me how"
-                                                  style:UIAlertActionStyleDefault
-                                                handler:^(UIAlertAction * _Nonnull action) {
-            [UIApplication openURL:@"https://go.ish.app/get-apk"];
-        }]];
-        [alert addAction:[UIAlertAction actionWithTitle:@"Don't show again"
-                                                  style:UIAlertActionStyleDefault
-                                                handler:nil]];
-        [vc presentViewController:alert animated:YES completion:nil];
-    }
-    [NSUserDefaults.standardUserDefaults setInteger:1 forKey:kSkipStartupMessage];
-}
 
 - (BOOL)application:(UIApplication *)application willFinishLaunchingWithOptions:(NSDictionary<UIApplicationLaunchOptionsKey,id> *)launchOptions {
     NSUserDefaults *defaults = NSUserDefaults.standardUserDefaults;

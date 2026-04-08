@@ -256,12 +256,16 @@ static void trace_69650_block_window(struct cpu_state *cpu, struct tlb *tlb,
                                      struct a64_block *block)
 {
     static int captured = 0;
+    static int captured_69634 = 0;
     if (captured || !cpu || !tlb || !block)
         return;
-    if (!(block->start_pc <= 0x69650ULL && 0x69650ULL < block->end_pc))
+    int has_69650 = (block->start_pc <= 0x69650ULL && 0x69650ULL < block->end_pc);
+    int has_69634 = (block->start_pc <= 0x69634ULL && 0x69634ULL < block->end_pc);
+    if (!has_69650 && !has_69634)
         return;
 
-    captured = 1;
+    if (has_69650)
+        captured = 1;
 
     char block_start_buf[24];
     char block_end_buf[24];
@@ -296,63 +300,200 @@ static void trace_69650_block_window(struct cpu_state *cpu, struct tlb *tlb,
         trace_record_event(TRACE_ORIGIN_EXEC, ev);
     }
 
-    uint64_t prev_pc = 0;
-    uint64_t next_pc = 0x69654ULL;
-    uint64_t last_x2_write_pc = 0;
-    uint32_t last_x2_write_raw = 0;
-    a64_instr_t last_x2_write_decoded = { 0 };
-    int have_last_x2_write = 0;
+    if (has_69650) {
+        uint64_t prev_pc = 0;
+        uint64_t next_pc = 0x69654ULL;
+        uint64_t last_x2_write_pc = 0;
+        uint32_t last_x2_write_raw = 0;
+        a64_instr_t last_x2_write_decoded = { 0 };
+        int have_last_x2_write = 0;
 
-    uint64_t start_pc = block->start_pc;
-    if (start_pc + 8 * 4 < 0x69650ULL)
-        start_pc = 0x69650ULL - 8 * 4;
+        uint64_t start_pc = block->start_pc;
+        if (start_pc + 8 * 4 < 0x69650ULL)
+            start_pc = 0x69650ULL - 8 * 4;
 
-    for (uint64_t insn_pc = start_pc; insn_pc <= 0x69650ULL; insn_pc += 4) {
-        uint32_t raw = 0;
-        a64_instr_t decoded = { 0 };
-        if (a64_fetch_insn(cpu, tlb, insn_pc, &raw) != 0 || a64_decode(raw, &decoded) != 0)
-            continue;
+        for (uint64_t insn_pc = start_pc; insn_pc <= 0x69650ULL; insn_pc += 4) {
+            uint32_t raw = 0;
+            a64_instr_t decoded = { 0 };
+            if (a64_fetch_insn(cpu, tlb, insn_pc, &raw) != 0 || a64_decode(raw, &decoded) != 0)
+                continue;
 
-        if (insn_pc == 0x69650ULL && insn_pc >= 4)
-            prev_pc = insn_pc - 4;
+            if (insn_pc == 0x69650ULL && insn_pc >= 4)
+                prev_pc = insn_pc - 4;
 
-        if (decoded.Rd == 2) {
-            last_x2_write_pc = insn_pc;
-            last_x2_write_raw = raw;
-            last_x2_write_decoded = decoded;
-            have_last_x2_write = 1;
+            if (decoded.Rd == 2) {
+                last_x2_write_pc = insn_pc;
+                last_x2_write_raw = raw;
+                last_x2_write_decoded = decoded;
+                have_last_x2_write = 1;
+            }
+
+            char ev[256];
+            snprintf(
+                ev, sizeof(ev),
+                "task.proof.69650.window.insn=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%"
+                "d,idx:%d,size:%d,imm:%lld",
+                (unsigned long long)insn_pc, raw, decoded.cat, decoded.subtype, decoded.Rd,
+                decoded.Rn, decoded.Rm, decoded.idx_mode, decoded.size, (long long)decoded.imm);
+            trace_record_event(TRACE_ORIGIN_EXEC, ev);
         }
 
-        char ev[256];
-        snprintf(ev, sizeof(ev),
-                 "task.proof.69650.window.insn=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%"
-                 "d,idx:%d,size:%d,imm:%lld",
-                 (unsigned long long)insn_pc, raw, decoded.cat, decoded.subtype, decoded.Rd,
-                 decoded.Rn, decoded.Rm, decoded.idx_mode, decoded.size, (long long)decoded.imm);
-        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+        {
+            char ev[224];
+            snprintf(
+                ev, sizeof(ev),
+                "task.proof.69650.window.flow=prev_pc:0x%llx,current_pc:0x69650,next_pc:0x%llx,"
+                "block_start:0x%llx,block_end:0x%llx,x2_block_entry:0x%llx,x7_block_entry:0x%llx",
+                (unsigned long long)prev_pc, (unsigned long long)next_pc,
+                (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
+                (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[7]);
+            trace_record_event(TRACE_ORIGIN_EXEC, ev);
+        }
+
+        if (have_last_x2_write) {
+            char ev[256];
+            snprintf(
+                ev, sizeof(ev),
+                "task.proof.69650.window.last_x2_write=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,"
+                "rn:%d,rm:%d,idx:%d,size:%d,imm:%lld",
+                (unsigned long long)last_x2_write_pc, last_x2_write_raw, last_x2_write_decoded.cat,
+                last_x2_write_decoded.subtype, last_x2_write_decoded.Rd, last_x2_write_decoded.Rn,
+                last_x2_write_decoded.Rm, last_x2_write_decoded.idx_mode,
+                last_x2_write_decoded.size, (long long)last_x2_write_decoded.imm);
+            trace_record_event(TRACE_ORIGIN_EXEC, ev);
+        }
     }
 
-    {
-        char ev[224];
-        snprintf(ev, sizeof(ev),
-                 "task.proof.69650.window.flow=prev_pc:0x%llx,current_pc:0x69650,next_pc:0x%llx,"
-                 "block_start:0x%llx,block_end:0x%llx,x2_block_entry:0x%llx,x7_block_entry:0x%llx",
-                 (unsigned long long)prev_pc, (unsigned long long)next_pc,
-                 (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
-                 (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[7]);
-        trace_record_event(TRACE_ORIGIN_EXEC, ev);
-    }
+    if (!captured_69634 && block->start_pc <= 0x69634ULL && 0x69634ULL < block->end_pc) {
+        captured_69634 = 1;
 
-    if (have_last_x2_write) {
-        char ev[256];
+        int guest_pid = current ? current->pid : -1;
+        int attempt_id = -1;
+
+        char ev[320];
         snprintf(ev, sizeof(ev),
-                 "task.proof.69650.window.last_x2_write=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,"
-                 "rn:%d,rm:%d,idx:%d,size:%d,imm:%lld",
-                 (unsigned long long)last_x2_write_pc, last_x2_write_raw, last_x2_write_decoded.cat,
-                 last_x2_write_decoded.subtype, last_x2_write_decoded.Rd, last_x2_write_decoded.Rn,
-                 last_x2_write_decoded.Rm, last_x2_write_decoded.idx_mode,
-                 last_x2_write_decoded.size, (long long)last_x2_write_decoded.imm);
+                 "ldr69634.block_entry=attempt:%d,guest_pid:%d,block_start:0x%llx,block_end:0x%llx,"
+                 "x2:0x%llx,w2:0x%x,x3:0x%llx,x7:0x%llx,sp:0x%llx,pc:0x%llx",
+                 attempt_id, guest_pid, (unsigned long long)block->start_pc,
+                 (unsigned long long)block->end_pc, (unsigned long long)cpu->x[2],
+                 (unsigned)((uint32_t)cpu->x[2]), (unsigned long long)cpu->x[3],
+                 (unsigned long long)cpu->x[7], (unsigned long long)cpu->sp,
+                 (unsigned long long)cpu->pc);
         trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+        uint64_t last_x2_pc = 0;
+        uint32_t last_x2_raw = 0;
+        a64_instr_t last_x2_decoded = { 0 };
+        int have_last_69634_x2 = 0;
+
+        uint64_t last_x3_pc = 0;
+        uint32_t last_x3_raw = 0;
+        a64_instr_t last_x3_decoded = { 0 };
+        int have_last_69634_x3 = 0;
+
+        uint64_t last_w2_pc_before_69630 = 0;
+        uint32_t last_w2_raw_before_69630 = 0;
+        a64_instr_t last_w2_decoded_before_69630 = { 0 };
+        int have_last_w2_before_69630 = 0;
+
+        for (uint64_t insn_pc = block->start_pc; insn_pc <= 0x69634ULL; insn_pc += 4) {
+            uint32_t raw = 0;
+            a64_instr_t decoded = { 0 };
+            if (a64_fetch_insn(cpu, tlb, insn_pc, &raw) != 0 || a64_decode(raw, &decoded) != 0)
+                continue;
+            if (decoded.Rd == 2) {
+                last_x2_pc = insn_pc;
+                last_x2_raw = raw;
+                last_x2_decoded = decoded;
+                have_last_69634_x2 = 1;
+                if (insn_pc < 0x69630ULL) {
+                    last_w2_pc_before_69630 = insn_pc;
+                    last_w2_raw_before_69630 = raw;
+                    last_w2_decoded_before_69630 = decoded;
+                    have_last_w2_before_69630 = 1;
+                }
+            }
+            if (decoded.Rd == 3) {
+                last_x3_pc = insn_pc;
+                last_x3_raw = raw;
+                last_x3_decoded = decoded;
+                have_last_69634_x3 = 1;
+            }
+        }
+
+        if (have_last_69634_x2) {
+            snprintf(ev, sizeof(ev),
+                     "ldr69634.last_x2_writer=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,"
+                     "rm:%d,idx:%d,size:%d,imm:%lld",
+                     (unsigned long long)last_x2_pc, last_x2_raw, last_x2_decoded.cat,
+                     last_x2_decoded.subtype, last_x2_decoded.Rd, last_x2_decoded.Rn,
+                     last_x2_decoded.Rm, last_x2_decoded.idx_mode, last_x2_decoded.size,
+                     (long long)last_x2_decoded.imm);
+            trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+            snprintf(
+                ev, sizeof(ev),
+                "x2.provenance.last_writer=attempt:%d,guest_pid:%d,pc:0x%llx,raw:0x%08x,"
+                "cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,idx:%d,size:%d,imm:%lld,x2_block_entry:0x%llx,"
+                "w2_block_entry:0x%x,x3_block_entry:0x%llx",
+                attempt_id, guest_pid, (unsigned long long)last_x2_pc, last_x2_raw,
+                last_x2_decoded.cat, last_x2_decoded.subtype, last_x2_decoded.Rd,
+                last_x2_decoded.Rn, last_x2_decoded.Rm, last_x2_decoded.idx_mode,
+                last_x2_decoded.size, (long long)last_x2_decoded.imm, (unsigned long long)cpu->x[2],
+                (unsigned)((uint32_t)cpu->x[2]), (unsigned long long)cpu->x[3]);
+            trace_record_event(TRACE_ORIGIN_EXEC, ev);
+        }
+
+        if (have_last_69634_x3) {
+            snprintf(
+                ev, sizeof(ev),
+                "x3.provenance.last_writer=attempt:%d,guest_pid:%d,pc:0x%llx,raw:0x%08x,"
+                "cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,idx:%d,size:%d,imm:%lld,x3_block_entry:0x%llx",
+                attempt_id, guest_pid, (unsigned long long)last_x3_pc, last_x3_raw,
+                last_x3_decoded.cat, last_x3_decoded.subtype, last_x3_decoded.Rd,
+                last_x3_decoded.Rn, last_x3_decoded.Rm, last_x3_decoded.idx_mode,
+                last_x3_decoded.size, (long long)last_x3_decoded.imm,
+                (unsigned long long)cpu->x[3]);
+            trace_record_event(TRACE_ORIGIN_EXEC, ev);
+        }
+
+        {
+            uint32_t raw_69630 = 0;
+            a64_instr_t dec_69630 = { 0 };
+            int have_69630 = (a64_fetch_insn(cpu, tlb, 0x69630ULL, &raw_69630) == 0 &&
+                              a64_decode(raw_69630, &dec_69630) == 0);
+            uint32_t w2_pre = (uint32_t)cpu->x[2];
+            uint64_t x2_post = (uint64_t)(int64_t)(int32_t)w2_pre;
+
+            snprintf(
+                ev, sizeof(ev),
+                "w2.provenance.pre_69630=attempt:%d,guest_pid:%d,pc:0x69630,raw:0x%08x,"
+                "canonical:sbfm x2,x2,#0,#31,alias:sxtw x2,w2,w2_pre:0x%x,x2_pre:0x%llx,"
+                "last_w2_writer_pc:0x%llx,last_w2_writer_raw:0x%08x,last_w2_writer_cat:%d,"
+                "last_w2_writer_sub:%d,last_w2_writer_rd:%d,last_w2_writer_rn:%d,last_w2_writer_rm:"
+                "%d",
+                attempt_id, guest_pid, raw_69630, (unsigned)w2_pre, (unsigned long long)cpu->x[2],
+                (unsigned long long)(have_last_w2_before_69630 ? last_w2_pc_before_69630 : 0ULL),
+                have_last_w2_before_69630 ? last_w2_raw_before_69630 : 0U,
+                have_last_w2_before_69630 ? last_w2_decoded_before_69630.cat : -1,
+                have_last_w2_before_69630 ? last_w2_decoded_before_69630.subtype : -1,
+                have_last_w2_before_69630 ? last_w2_decoded_before_69630.Rd : -1,
+                have_last_w2_before_69630 ? last_w2_decoded_before_69630.Rn : -1,
+                have_last_w2_before_69630 ? last_w2_decoded_before_69630.Rm : -1);
+            trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+            snprintf(ev, sizeof(ev),
+                     "w2.provenance.post_69630=attempt:%d,guest_pid:%d,pc:0x69630,raw:0x%08x,"
+                     "canonical:sbfm x2,x2,#0,#31,alias:sxtw x2,w2,w2_post:0x%x,x2_post:0x%llx,"
+                     "decode_cat:%d,decode_sub:%d,decode_rd:%d,decode_rn:%d,decode_rm:%d,decode_"
+                     "imm:%lld",
+                     attempt_id, guest_pid, raw_69630, (unsigned)w2_pre,
+                     (unsigned long long)x2_post, have_69630 ? dec_69630.cat : -1,
+                     have_69630 ? dec_69630.subtype : -1, have_69630 ? dec_69630.Rd : -1,
+                     have_69630 ? dec_69630.Rn : -1, have_69630 ? dec_69630.Rm : -1,
+                     (long long)(have_69630 ? dec_69630.imm : 0));
+            trace_record_event(TRACE_ORIGIN_EXEC, ev);
+        }
     }
 }
 
@@ -506,10 +647,10 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
     // normal block exit/re-entry instead of in-block helper fallback path.
     if (gen_state.start_pc == 0x69640ULL && gen_state.end_pc >= 0x69650ULL) {
         size_t keep = 0;
-        while (keep < gen_state.num_gadgets && (uint64_t)(uintptr_t)buffer[keep] != 0xf800845fULL)
+        while (keep < gen_state.num_gadgets && (uint64_t)(uintptr_t)buffer[keep] != 0xf800845fULL &&
+               (uint64_t)(uintptr_t)buffer[keep] != 0xaa0703e2ULL)
             keep++;
         if (keep > 0 && keep + 1 < gen_state.num_gadgets) {
-            // keep bytecode up to but excluding STR raw marker and following payload
             gen_state.num_gadgets = keep;
         }
     }

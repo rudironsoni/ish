@@ -3,14 +3,103 @@
 #import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
 #import <IXLandLinuxRuntime/emu/tlb.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
+#import <IXLandLinuxRuntime/kernel/guest_trace_context.h>
 #import <IXLandLinuxRuntime/kernel/memory.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
 #include <pthread.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 __thread struct task *current;
+
+static _Atomic int64_t g_trace_attempt_id = 0;
+static _Atomic int64_t g_trace_guest_pid = 0;
+static _Atomic int64_t g_trace_ui_pid = 0;
+static _Atomic int g_trace_is_restart = 0;
+static _Atomic int g_trace_has_terminal = 0;
+
+void ixland_guest_trace_set_context(int64_t attempt_id, int64_t guest_pid, int64_t ui_pid,
+                                    bool is_restart_path, bool has_terminal)
+{
+    atomic_store(&g_trace_attempt_id, attempt_id);
+    atomic_store(&g_trace_guest_pid, guest_pid);
+    atomic_store(&g_trace_ui_pid, ui_pid);
+    atomic_store(&g_trace_is_restart, is_restart_path ? 1 : 0);
+    atomic_store(&g_trace_has_terminal, has_terminal ? 1 : 0);
+}
+
+void ixland_guest_trace_set_guest_pid(int64_t guest_pid)
+{
+    atomic_store(&g_trace_guest_pid, guest_pid);
+}
+
+static uint32_t ixland_guest_trace_base_attrs(ixland_instrumentation_attribute_t *attrs,
+                                              char *attempt_buf, size_t attempt_len,
+                                              char *guest_pid_buf, size_t guest_pid_len,
+                                              char *ui_pid_buf, size_t ui_pid_len,
+                                              char *restart_buf, size_t restart_len,
+                                              char *terminal_buf, size_t terminal_len)
+{
+    snprintf(attempt_buf, attempt_len, "%lld", (long long)atomic_load(&g_trace_attempt_id));
+    snprintf(guest_pid_buf, guest_pid_len, "%lld", (long long)atomic_load(&g_trace_guest_pid));
+    snprintf(ui_pid_buf, ui_pid_len, "%lld", (long long)atomic_load(&g_trace_ui_pid));
+    snprintf(restart_buf, restart_len, "%d", atomic_load(&g_trace_is_restart));
+    snprintf(terminal_buf, terminal_len, "%d", atomic_load(&g_trace_has_terminal));
+
+    attrs[0] = (ixland_instrumentation_attribute_t){ .key = "attempt", .value = attempt_buf };
+    attrs[1] = (ixland_instrumentation_attribute_t){ .key = "guest_pid", .value = guest_pid_buf };
+    attrs[2] = (ixland_instrumentation_attribute_t){ .key = "ui_pid", .value = ui_pid_buf };
+    attrs[3] =
+        (ixland_instrumentation_attribute_t){ .key = "is_restart_path", .value = restart_buf };
+    attrs[4] = (ixland_instrumentation_attribute_t){ .key = "has_terminal", .value = terminal_buf };
+    return 5;
+}
+
+void ixland_guest_trace_emit(ixland_instrumentation_origin_t origin, const char *event_name)
+{
+    char attempt_buf[32], guest_pid_buf[32], ui_pid_buf[32], restart_buf[8], terminal_buf[8];
+    ixland_instrumentation_attribute_t attrs[5];
+    uint32_t count = ixland_guest_trace_base_attrs(
+        attrs, attempt_buf, sizeof(attempt_buf), guest_pid_buf, sizeof(guest_pid_buf), ui_pid_buf,
+        sizeof(ui_pid_buf), restart_buf, sizeof(restart_buf), terminal_buf, sizeof(terminal_buf));
+    uint64_t interval = ixland_instrumentation_begin_interval(origin, event_name, attrs, count);
+    ixland_instrumentation_end_interval(interval, NULL, 0);
+}
+
+void ixland_guest_trace_emit_int(ixland_instrumentation_origin_t origin, const char *event_name,
+                                 const char *key, int64_t value)
+{
+    char attempt_buf[32], guest_pid_buf[32], ui_pid_buf[32], restart_buf[8], terminal_buf[8],
+        value_buf[32];
+    ixland_instrumentation_attribute_t attrs[6];
+    uint32_t count = ixland_guest_trace_base_attrs(
+        attrs, attempt_buf, sizeof(attempt_buf), guest_pid_buf, sizeof(guest_pid_buf), ui_pid_buf,
+        sizeof(ui_pid_buf), restart_buf, sizeof(restart_buf), terminal_buf, sizeof(terminal_buf));
+    snprintf(value_buf, sizeof(value_buf), "%lld", (long long)value);
+    attrs[count++] = (ixland_instrumentation_attribute_t){ .key = key, .value = value_buf };
+    uint64_t interval = ixland_instrumentation_begin_interval(origin, event_name, attrs, count);
+    ixland_instrumentation_end_interval(interval, NULL, 0);
+}
+
+void ixland_guest_trace_emit_int2(ixland_instrumentation_origin_t origin, const char *event_name,
+                                  const char *key1, int64_t value1, const char *key2,
+                                  int64_t value2)
+{
+    char attempt_buf[32], guest_pid_buf[32], ui_pid_buf[32], restart_buf[8], terminal_buf[8];
+    char value1_buf[32], value2_buf[32];
+    ixland_instrumentation_attribute_t attrs[7];
+    uint32_t count = ixland_guest_trace_base_attrs(
+        attrs, attempt_buf, sizeof(attempt_buf), guest_pid_buf, sizeof(guest_pid_buf), ui_pid_buf,
+        sizeof(ui_pid_buf), restart_buf, sizeof(restart_buf), terminal_buf, sizeof(terminal_buf));
+    snprintf(value1_buf, sizeof(value1_buf), "%lld", (long long)value1);
+    snprintf(value2_buf, sizeof(value2_buf), "%lld", (long long)value2);
+    attrs[count++] = (ixland_instrumentation_attribute_t){ .key = key1, .value = value1_buf };
+    attrs[count++] = (ixland_instrumentation_attribute_t){ .key = key2, .value = value2_buf };
+    uint64_t interval = ixland_instrumentation_begin_interval(origin, event_name, attrs, count);
+    ixland_instrumentation_end_interval(interval, NULL, 0);
+}
 
 /* Sidecar canary system for task handoff proof */
 #define TASK_CANARY_MAGIC 0xDEADBEEFCAFEBABEULL
@@ -331,6 +420,8 @@ void task_run_current()
 {
     // DIAGNOSTIC: First executable line inside task_run_current
     trace_emit_task_proof_point(TASK_PROOF_TASK_RUN_CURRENT_ENTRY, current ? current->pid : 0);
+    ixland_guest_trace_set_guest_pid(current ? current->pid : -1);
+    ixland_guest_trace_emit(IXLAND_INSTRUMENTATION_ORIGIN_TASK, "guest.task_run_current.entry");
     task_start_validation_checkpoint("task.proof.task_run_current.entry", current);
 
     // PROOF POINT #6: task_run_current() entry
@@ -379,7 +470,9 @@ void task_run_current()
 
     struct tlb tlb = {};
     tlb_refresh(&tlb, &current->mem->mmu);
+    ixland_guest_trace_emit(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR, "guest.a64_cpu_run.entry");
     a64_cpu_run(cpu, &tlb);
+    ixland_guest_trace_emit(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR, "guest.a64_cpu_run.return");
     task_cpu_run_checkpoint("task.proof.process_terminating", current);
     die("a64_cpu_run returned");
 }
@@ -388,9 +481,12 @@ static void *task_thread(void *task)
 {
     // Get host thread ID for correlation
     uint64_t host_thread_id = (uint64_t)pthread_self();
+    struct task *task_arg_early = (struct task *)task;
+    ixland_guest_trace_set_guest_pid(task_arg_early ? task_arg_early->pid : -1);
+    ixland_guest_trace_emit(IXLAND_INSTRUMENTATION_ORIGIN_TASK, "guest.task_thread.entry");
+
 
     // PROOF POINT #4: task_thread() entry - first line
-    struct task *task_arg_early = (struct task *)task;
     trace_emit_task_proof_point(TASK_PROOF_THREAD_ENTRY, task_arg_early ? task_arg_early->pid : 0);
     task_start_validation_checkpoint("task.proof.thread_entry", task_arg_early);
 
