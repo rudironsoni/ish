@@ -22,6 +22,8 @@
 .text
 .align 4
 
+#include "cpu-offsets.h"
+
 /* ============================================================================
  * Load/Store Gadgets with TLB Support
  * ============================================================================
@@ -57,12 +59,12 @@ gadget_ldr_imm:
     cmp     x21, #31
     b.eq    1f                      // If Rn == 31, use SP
     // Load from cpu->x[Rn]
-    add     x23, x29, #16           // x23 = &cpu->x[0]
+    add     x23, x29, #CPU_OFFSET_x // x23 = &cpu->x[0]
     lsl     x24, x21, #3            // x24 = Rn * 8
     ldr     x23, [x23, x24]         // x23 = cpu->x[Rn]
     b       2f
 1:
-    ldr     x23, [x29, #264]        // x23 = cpu->sp
+    ldr     x23, [x29, #CPU_OFFSET_sp] // x23 = cpu->sp
 2:
     
     // Compute effective address
@@ -82,7 +84,7 @@ gadget_ldr_imm:
     mov     x2, x23                 // Pass address
     mov     x3, x19                 // Pass size
     // Store address for C handler
-    str     x23, [x29, #872]        // Store in scratch space
+    str     x23, [x29, #CPU_OFFSET_exclusive_addr] // Store in scratch space
     
     // Restore registers
     ldp     x23, x24, [sp], #16
@@ -130,12 +132,12 @@ gadget_sbfm:
     // Get source value from Rn
     cmp     x1, #31
     b.eq    1f
-    add     x5, x29, #16
+    add     x5, x29, #CPU_OFFSET_x
     lsl     x6, x1, #3
     ldr     x5, [x5, x6]            // x5 = cpu->x[Rn]
     b       2f
 1:
-    ldr     x5, [x29, #264]         // x5 = cpu->sp (XZR for source)
+    ldr     x5, [x29, #CPU_OFFSET_sp] // x5 = cpu->sp (XZR for source)
     mov     x5, #0
 2:
     
@@ -177,12 +179,12 @@ gadget_sbfm:
     // Store result to Rd
     cmp     x0, #31
     b.eq    6f
-    add     x6, x29, #16
+    add     x6, x29, #CPU_OFFSET_x
     lsl     x7, x0, #3
     str     x5, [x6, x7]            // cpu->x[Rd] = result
     b       7f
 6:
-    str     x5, [x29, #264]         // cpu->sp = result
+    str     x5, [x29, #CPU_OFFSET_sp] // cpu->sp = result
 7:
     
     // Continue to next gadget
@@ -202,7 +204,7 @@ gadget_ubfm:
     // Get source value
     cmp     x1, #31
     b.eq    1f
-    add     x5, x29, #16
+    add     x5, x29, #CPU_OFFSET_x
     lsl     x6, x1, #3
     ldr     x5, [x5, x6]
     b       2f
@@ -230,12 +232,12 @@ gadget_ubfm:
     // Store result
     cmp     x0, #31
     b.eq    5f
-    add     x6, x29, #16
+    add     x6, x29, #CPU_OFFSET_x
     lsl     x7, x0, #3
     str     x5, [x6, x7]
     b       6f
 5:
-    str     x5, [x29, #264]
+    str     x5, [x29, #CPU_OFFSET_sp]
 6:
     
     br      x27
@@ -266,7 +268,7 @@ gadget_cbz:
     // Get register value
     cmp     x0, #31
     b.eq    1f                      // XZR is always 0
-    add     x4, x29, #16            // x4 = &cpu->x[0]
+    add     x4, x29, #CPU_OFFSET_x  // x4 = &cpu->x[0]
     lsl     x5, x0, #3              // x5 = reg_idx * 8
     ldr     x4, [x4, x5]            // x4 = cpu->x[reg_idx]
     b       2f
@@ -289,7 +291,7 @@ gadget_cbz:
     csel    x6, x1, x2, ne          // x6 = target if branch, else fallthrough
     
     // Store target PC
-    str     x6, [x29, #272]         // cpu->pc = target
+    str     x6, [x29, #CPU_OFFSET_pc] // cpu->pc = target
     
     // Exit with normal exit reason
     mov     x0, #0
@@ -336,12 +338,12 @@ gadget_nop:
 gadget_b:
     ldr     x0, [x28], #8           // x0 = target PC
     ldr     x17, [x28], #8          // x17 = is_link
-    ldr     x18, [x28], #8          // x18 = fallthrough PC
+    ldr     x19, [x28], #8          // x19 = fallthrough PC
     cmp     x17, #0
     b.eq    1f
-    str     x18, [x29, #256]        // cpu->x[30] = return PC
+    str     x19, [x29, #CPU_OFFSET_x30] // cpu->x[30] = return PC
 1:
-    str     x0, [x29, #272]         // cpu->pc = target
+    str     x0, [x29, #CPU_OFFSET_pc] // cpu->pc = target
     mov     x0, #0                  // Normal exit
     b       _tcti_exit_block
 
@@ -352,7 +354,7 @@ gadget_bcond:
     ldr     x0, [x28], #8           // x0 = target PC
     ldr     x1, [x28], #8           // x1 = fallthrough PC
     ldr     x2, [x28], #8           // x2 = condition code
-    ldr     x3, [x29, #288]         // x3 = cpu->pstate (load NZCV flags)
+    ldr     x3, [x29, #CPU_OFFSET_pstate] // x3 = cpu->pstate (load NZCV flags)
     ldr     x27, [x28], #8          // x27 = next gadget
 
     // For now, exit to C to handle condition evaluation

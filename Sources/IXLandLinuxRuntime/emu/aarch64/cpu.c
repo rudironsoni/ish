@@ -19,7 +19,6 @@
 #import <IXLandLinuxRuntime/tcti/gadgets_tcti.h>
 #include <setjmp.h>
 #include <signal.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -28,26 +27,24 @@
 // External TCTI entry point (declared in gadgets_tcti.h)
 extern void tcti_entry_block(void *gadgets, struct cpu_state *cpu);
 
-// External diagnostic dump function from gen.c
-extern void dump_gen_emit_diag(void);
-extern struct emit_diag {
-    int captured;
-    uint64_t fault_pc;
-    uint64_t rt;
-    uint64_t rn;
-    int64_t imm;
-    uint64_t size;
-    uint64_t idx_mode;
-    uint64_t meta;
-    uint64_t is_load;
-} g_emit_diag;
-
 // Execution state is now passed via parameters, not globals
 static jmp_buf exit_jmpbuf __attribute__((unused));
 
 // Fault containment state for guest execution
 static jmp_buf guest_fault_jmpbuf;
 static volatile int guest_fault_signal = 0;
+
+static bool a64_conservative_mode_enabled(void)
+{
+    static int initialized = 0;
+    static bool enabled = false;
+    if (!initialized) {
+        const char *value = getenv("ISH_A64_CONSERVATIVE_MODE");
+        enabled = value && strcmp(value, "0") != 0;
+        initialized = 1;
+    }
+    return enabled;
+}
 
 // Signal handler that converts host signal to controlled exit
 static void guest_fault_handler(int sig)
@@ -572,8 +569,11 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
     }
     a64_gen_reset(&gen_state, pc);
 
+    bool conservative_mode = a64_conservative_mode_enabled();
+    a64_gen_set_conservative_mode(&gen_state, conservative_mode ? 1 : 0);
+
     // Translate instructions until block end
-    int max_insns = 50; // Reasonable limit
+    int max_insns = conservative_mode ? 1 : 50;
     int insns_decoded = 0;
     for (int i = 0; i < max_insns; i++) {
         uint32_t insn;
@@ -640,20 +640,6 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
 
     // Copy gadgets
     memcpy(block->gadgets, buffer, gen_state.num_gadgets * sizeof(void *));
-
-    // Hotfix: 0x69640..0x69650 block contains STR pre-index fault path where
-    // trailing gadget stream entries have been observed to corrupt handoff regs.
-    // Bound this block to stop before 0x69650 so ownership transfers through
-    // normal block exit/re-entry instead of in-block helper fallback path.
-    if (gen_state.start_pc == 0x69640ULL && gen_state.end_pc >= 0x69650ULL) {
-        size_t keep = 0;
-        while (keep < gen_state.num_gadgets && (uint64_t)(uintptr_t)buffer[keep] != 0xf800845fULL &&
-               (uint64_t)(uintptr_t)buffer[keep] != 0xaa0703e2ULL)
-            keep++;
-        if (keep > 0 && keep + 1 < gen_state.num_gadgets) {
-            gen_state.num_gadgets = keep;
-        }
-    }
 
     block->num_gadgets = gen_state.num_gadgets;
     block->start_pc = gen_state.start_pc;
@@ -1461,6 +1447,8 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb)
     tlb_refresh(tlb, cpu->mmu);
     trace_cpu_run_checkpoint("task.proof.a64_cpu_run.after_tlb_refresh", current, cpu, 0);
 
+    bool conservative_mode = a64_conservative_mode_enabled();
+
     // Stage 3A.6: Pre-syscall initialization tracing state
     bool first_block_lookup = true;
     bool first_compile = true;
@@ -1511,58 +1499,87 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb)
                                      cpu, 0);
         }
 
-        // L0 cache lookup (fast path via fiber_exec_ctx)
-        size_t l0_idx = ((pc ^ (pc >> 12)) & FIBER_EXEC_CTX_CACHE_MASK);
-        struct a64_block *block = ctx->l0_cache[l0_idx];
-
-        // Validate L0 cache hit (check PC matches)
-        if (block && block->start_pc == pc) {
-            fiber_stat_inc(ctx, STAT_TB_L0_HITS);
-        } else {
-            // L0 miss - fall back to MMU cache (L1)
-            block = NULL;
-            if (cpu->mmu->block_cache) {
-                block = a64_cache_lookup(cpu->mmu->block_cache, pc, cpu->mmu->generation);
-                if (block) {
-                    fiber_stat_inc(ctx, STAT_TB_L1_HITS);
-                }
+        struct a64_block *block = NULL;
+        if (conservative_mode) {
+            if (first_compile) {
+                trace_cpu_run_checkpoint("task.proof.a64_cpu_run.before_first_compile", current,
+                                         cpu, 0);
             }
-
+            block = a64_compile_block(cpu, pc, tlb);
             if (!block) {
-                // Compile new block
-                if (first_compile) {
-                    trace_cpu_run_checkpoint("task.proof.a64_cpu_run.before_first_compile", current,
-                                             cpu, 0);
-                }
-                block = a64_compile_block(cpu, pc, tlb);
-                if (!block) {
-                    trace_emit(TRACE_EVENT_FAULT, pc);
-                    trace_cpu_run_checkpoint("task.proof.a64_cpu_run.exit_fault", current, cpu,
-                                             TCTI_EXIT_FAULT);
-                    trace_cpu_run_checkpoint("task.proof.a64_cpu_run.before_handle_interrupt",
-                                             current, cpu, TCTI_EXIT_FAULT);
-                    handle_interrupt(INT_GPF);
-                    trace_cpu_run_checkpoint("task.proof.a64_cpu_run.after_handle_interrupt_call",
-                                             current, cpu, TCTI_EXIT_FAULT);
-                    trace_cpu_run_checkpoint("task.proof.a64_cpu_run.after_handle_interrupt",
-                                             current, cpu, TCTI_EXIT_FAULT);
-                    continue;
-                }
-                if (first_compile) {
-                    trace_cpu_run_checkpoint("task.proof.a64_cpu_run.after_first_compile", current,
-                                             cpu, 0);
-                    first_compile = false;
-                }
-                fiber_stat_inc(ctx, STAT_TB_COMPILES);
-
-                // Insert into MMU cache (L1)
-                if (cpu->mmu->block_cache) {
-                    a64_cache_insert(cpu->mmu->block_cache, block);
-                }
+                trace_emit(TRACE_EVENT_FAULT, pc);
+                trace_cpu_run_checkpoint("task.proof.a64_cpu_run.exit_fault", current, cpu,
+                                         TCTI_EXIT_FAULT);
+                trace_cpu_run_checkpoint("task.proof.a64_cpu_run.before_handle_interrupt", current,
+                                         cpu, TCTI_EXIT_FAULT);
+                handle_interrupt(INT_GPF);
+                trace_cpu_run_checkpoint("task.proof.a64_cpu_run.after_handle_interrupt_call",
+                                         current, cpu, TCTI_EXIT_FAULT);
+                trace_cpu_run_checkpoint("task.proof.a64_cpu_run.after_handle_interrupt", current,
+                                         cpu, TCTI_EXIT_FAULT);
+                continue;
             }
+            if (first_compile) {
+                trace_cpu_run_checkpoint("task.proof.a64_cpu_run.after_first_compile", current, cpu,
+                                         0);
+                first_compile = false;
+            }
+            fiber_stat_inc(ctx, STAT_TB_COMPILES);
+        } else {
+            // L0 cache lookup (fast path via fiber_exec_ctx)
+            size_t l0_idx = ((pc ^ (pc >> 12)) & FIBER_EXEC_CTX_CACHE_MASK);
+            block = ctx->l0_cache[l0_idx];
 
-            // Populate L0 cache for next access
-            ctx->l0_cache[l0_idx] = block;
+            // Validate L0 cache hit (check PC matches)
+            if (block && block->start_pc == pc) {
+                fiber_stat_inc(ctx, STAT_TB_L0_HITS);
+            } else {
+                // L0 miss - fall back to MMU cache (L1)
+                block = NULL;
+                if (cpu->mmu->block_cache) {
+                    block = a64_cache_lookup(cpu->mmu->block_cache, pc, cpu->mmu->generation);
+                    if (block) {
+                        fiber_stat_inc(ctx, STAT_TB_L1_HITS);
+                    }
+                }
+
+                if (!block) {
+                    // Compile new block
+                    if (first_compile) {
+                        trace_cpu_run_checkpoint("task.proof.a64_cpu_run.before_first_compile",
+                                                 current, cpu, 0);
+                    }
+                    block = a64_compile_block(cpu, pc, tlb);
+                    if (!block) {
+                        trace_emit(TRACE_EVENT_FAULT, pc);
+                        trace_cpu_run_checkpoint("task.proof.a64_cpu_run.exit_fault", current, cpu,
+                                                 TCTI_EXIT_FAULT);
+                        trace_cpu_run_checkpoint("task.proof.a64_cpu_run.before_handle_interrupt",
+                                                 current, cpu, TCTI_EXIT_FAULT);
+                        handle_interrupt(INT_GPF);
+                        trace_cpu_run_checkpoint(
+                            "task.proof.a64_cpu_run.after_handle_interrupt_call", current, cpu,
+                            TCTI_EXIT_FAULT);
+                        trace_cpu_run_checkpoint("task.proof.a64_cpu_run.after_handle_interrupt",
+                                                 current, cpu, TCTI_EXIT_FAULT);
+                        continue;
+                    }
+                    if (first_compile) {
+                        trace_cpu_run_checkpoint("task.proof.a64_cpu_run.after_first_compile",
+                                                 current, cpu, 0);
+                        first_compile = false;
+                    }
+                    fiber_stat_inc(ctx, STAT_TB_COMPILES);
+
+                    // Insert into MMU cache (L1)
+                    if (cpu->mmu->block_cache) {
+                        a64_cache_insert(cpu->mmu->block_cache, block);
+                    }
+                }
+
+                // Populate L0 cache for next access
+                ctx->l0_cache[l0_idx] = block;
+            }
         }
 
         if (first_block_lookup) {

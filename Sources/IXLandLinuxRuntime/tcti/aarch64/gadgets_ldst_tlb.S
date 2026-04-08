@@ -10,7 +10,7 @@
  *   x0-x15  -> Guest x0-x14 (TCTI-mapped) - preserved
  *   x16     -> Base address calculation temp
  *   x17     -> Computed guest address
- *   x18     -> TLB entry address
+ *   x19     -> TLB entry address
  *   x24     -> Page comparator (from TLB entry)
  *   x25     -> data_minus_addr (from TLB entry)
  *   x26     -> TLB index temp
@@ -21,6 +21,8 @@
 
 .text
 .align 4
+
+#include "cpu-offsets.h"
 
 /* ============================================================================
  * TLB Lookup Macros
@@ -42,7 +44,7 @@
 /* 
  * TLB_ENTRY_OFFSET - compute TLB entry address
  * Input: x17 = guest address
- * Output: x18 = TLB entry address
+ * Output: x19 = TLB entry address
  * Clobbers: x16, x26
  */
 .macro tlb_compute_entry
@@ -60,7 +62,7 @@
     
     // Load tlb pointer from cpu->mem->tlb
     // cpu->mem is at offset 0 of cpu_state
-    ldr     x18, [x29, #0]          // x18 = cpu->mem
+    ldr     x19, [x29, #CPU_OFFSET_mmu] // x19 = cpu->mem
     // tlb is at offset in mem struct - need to check actual offset
     // For now, assume tlb entries follow immediately after mem pointer
     // Actually, we need to load from mem->tlb.entries
@@ -98,18 +100,18 @@ gadget_ldr_tlb_64:
     // TCTI-mapped registers x0-x15 are in host x1-x16
     // Guest x[Rn] is in host x[Rn+1]
     add     x17, x17, #1
-    lsl     x18, x17, #3            // offset in register file
-    add     x18, x29, x18
-    ldr     x17, [x18, #16]         // x17 = base value
+    lsl     x19, x17, #3            // offset in register file
+    add     x19, x29, x19
+    ldr     x17, [x19, #CPU_OFFSET_x] // x17 = base value
     b       .Lbase_loaded
 .Lbase_mem_backed:
     // Load from memory-backed register
     // x[16] is at offset 16 + 16*8 = 144
-    sub     x18, x17, #16
-    lsl     x18, x18, #3
-    add     x18, x18, #144
-    add     x18, x29, x18
-    ldr     x17, [x18]              // x17 = base value
+    sub     x19, x17, #16
+    lsl     x19, x19, #3
+    add     x19, x19, #144
+    add     x19, x29, x19
+    ldr     x17, [x19]              // x17 = base value
 .Lbase_loaded:
     
     // Compute guest address = base + (imm12 << 3)

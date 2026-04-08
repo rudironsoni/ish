@@ -1,6 +1,4 @@
 #import <IXLandLinuxRuntime/emu/aarch64/decode.h>
-
-#include <stdio.h>
 #include <string.h>
 
 /* Mark variables as intentionally unused (for future expansion) */
@@ -339,7 +337,23 @@ int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out)
         out->Rd = bits(insn, 4, 0);
         out->Rn = bits(insn, 9, 5);
         out->Rm = bits(insn, 20, 16);
-        out->extend_type = opt;
+        switch (opt) {
+        case 0:
+            out->extend_type = A64_EXT_UXTW;
+            break;
+        case 1:
+            out->extend_type = A64_EXT_UXTX;
+            break;
+        case 2:
+            out->extend_type = A64_EXT_SXTW;
+            break;
+        case 3:
+            out->extend_type = A64_EXT_SXTX;
+            break;
+        default:
+            out->extend_type = A64_EXT_UXTX;
+            break;
+        }
         out->imm_shift = imm3;
         out->set_flags = S;
         out->subtype = op ? 1 : 0;
@@ -585,7 +599,26 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out)
         out->Rd = bits(insn, 4, 0);
         out->Rn = bits(insn, 9, 5);
         out->Rm = bits(insn, 20, 16);
-        out->extend_type = opt;
+
+        // Map raw option encoding to internal enum
+        switch (opt) {
+        case 2:
+            out->extend_type = A64_EXT_UXTW;
+            break; // 010
+        case 3:
+            out->extend_type = A64_EXT_LSL;
+            break; // 011
+        case 6:
+            out->extend_type = A64_EXT_SXTW;
+            break; // 110
+        case 7:
+            out->extend_type = A64_EXT_SXTX;
+            break; // 111
+        default:
+            out->extend_type = A64_EXT_UXTX;
+            break; // fallback/invalid
+        }
+
         out->imm_shift = S ? (out->size) : 0;
         out->subtype = A64_LDST_SINGLE;
         out->idx_mode = A64_INDEX_OFFSET;
