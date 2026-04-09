@@ -49,6 +49,20 @@ static struct task *find_new_parent(struct task *task)
 
 noreturn void do_exit(int status)
 {
+    {
+        char status_buf[32];
+        char code_buf[32];
+        snprintf(status_buf, sizeof(status_buf), "%d", status);
+        snprintf(code_buf, sizeof(code_buf), "%d", status >> 8);
+        ixland_instrumentation_attribute_t attrs[] = {
+            { .key = "status", .value = status_buf },
+            { .key = "code", .value = code_buf },
+        };
+        ixland_guest_trace_emit_attrs(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR,
+                                      "session.process.exit", attrs,
+                                      sizeof(attrs) / sizeof(attrs[0]));
+    }
+
     ixland_guest_trace_emit_int(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR, "guest.do_exit.entry",
                                 "status", status);
 

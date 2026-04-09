@@ -13,10 +13,14 @@
 #import <IXLandLinuxRuntime/emu/mmu.h>
 #import <IXLandLinuxRuntime/emu/tlb.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
+#import <IXLandLinuxRuntime/kernel/guest_trace_context.h>
+#import <IXLandLinuxRuntime/kernel/mem_object.h>
+#import <IXLandLinuxRuntime/kernel/page_map.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
 #import <IXLandLinuxRuntime/tcti/aarch64/gen.h>
 #import <IXLandLinuxRuntime/tcti/frame.h>
 #import <IXLandLinuxRuntime/tcti/gadgets_tcti.h>
+#include <dlfcn.h>
 #include <setjmp.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -44,6 +48,580 @@ static bool a64_conservative_mode_enabled(void)
         initialized = 1;
     }
     return enabled;
+}
+
+typedef struct {
+    int valid;
+    uint64_t writer_pc;
+    uint32_t writer_raw;
+    char writer_mnemonic[128];
+    int writer_rd;
+    int writer_rn;
+    uint64_t x3_before;
+    uint64_t x3_after;
+    uint64_t block_start;
+    uint64_t block_end;
+} base6a628_last_writer_t;
+
+typedef struct {
+    int valid;
+    uint64_t writer_pc;
+    uint32_t writer_raw;
+    char writer_mnemonic[128];
+    int writer_rd;
+    int writer_rn;
+    uint64_t x0_before;
+    uint64_t x0_after;
+    uint64_t block_start;
+    uint64_t block_end;
+} x0chain_last_writer_t;
+
+typedef struct {
+    int valid;
+    uint64_t writer_pc;
+    uint32_t writer_raw;
+    char writer_mnemonic[128];
+    int writer_rd;
+    int writer_rn;
+    int writer_rm;
+    int writer_idx_mode;
+    int64_t writer_imm;
+    uint64_t x2_before;
+    uint64_t x2_after;
+    uint64_t block_start;
+    uint64_t block_end;
+} str6a650_last_writer_t;
+
+typedef struct {
+    int valid;
+    uint64_t writer_pc;
+    uint32_t writer_raw;
+    char writer_mnemonic[128];
+    int writer_rd;
+    int writer_rn;
+    int writer_rm;
+    int writer_idx_mode;
+    int64_t writer_imm;
+    uint64_t x7_before;
+    uint64_t x7_after;
+    uint64_t block_start;
+    uint64_t block_end;
+} x7chain_last_writer_t;
+
+static base6a628_last_writer_t g_base6a628_last_writer;
+static int g_base6a628_trace_budget = 32;
+static x0chain_last_writer_t g_x0chain_last_writer;
+static int g_x0chain_trace_budget = 32;
+static str6a650_last_writer_t g_str6a650_last_writer;
+static int g_str6a650_trace_budget = 64;
+static x7chain_last_writer_t g_x7chain_last_writer;
+static int g_x7chain_trace_budget = 96;
+static int g_insn64_trace_budget = 128;
+static int g_guest_first_user_pc_emitted = 0;
+
+static uint64_t trace_ldst_reg_or_zr(struct cpu_state *cpu, int reg);
+static uint64_t a64_read_reg_or_sp(struct cpu_state *cpu, int reg, bool is_64bit);
+static uint64_t a64_extend_index(uint64_t value, int extend_type);
+static const char *trace_ldst_mnemonic(int is_load, int size, int is_signed);
+
+typedef struct {
+    int seen;
+    uint64_t pc;
+    uint32_t raw;
+    int cat;
+    int subtype;
+    int rd;
+    int rn;
+    int rm;
+    int idx_mode;
+    int size;
+    int is_load;
+    int is_signed;
+    uint64_t rt_val;
+    uint64_t rn_val;
+    uint64_t rm_val;
+    uint64_t guest_ea;
+    uint64_t host_ptr_probe;
+    int translation_fault;
+    int host_signal;
+} guest_first_fault_info_t;
+
+static guest_first_fault_info_t g_guest_first_fault = { 0 };
+
+static void trace_guest_first_fault_capture(struct cpu_state *cpu, int host_signal)
+{
+    if (!cpu || !cpu->tlb || g_guest_first_fault.seen)
+        return;
+
+    uint32_t raw = 0;
+    a64_instr_t decoded = { 0 };
+    if (a64_fetch_insn(cpu, cpu->tlb, cpu->pc, &raw) != 0 || a64_decode(raw, &decoded) != 0)
+        return;
+
+    g_guest_first_fault.seen = 1;
+    g_guest_first_fault.pc = cpu->pc;
+    g_guest_first_fault.raw = raw;
+    g_guest_first_fault.cat = decoded.cat;
+    g_guest_first_fault.subtype = decoded.subtype;
+    g_guest_first_fault.rd = decoded.Rd;
+    g_guest_first_fault.rn = decoded.Rn;
+    g_guest_first_fault.rm = decoded.Rm;
+    g_guest_first_fault.idx_mode = decoded.idx_mode;
+    g_guest_first_fault.size = decoded.size;
+    g_guest_first_fault.is_load = bit(raw, 22) ? 1 : 0;
+    g_guest_first_fault.is_signed = decoded.is_signed ? 1 : 0;
+    g_guest_first_fault.host_signal = host_signal;
+
+    if (decoded.Rd >= 0 && decoded.Rd <= 31)
+        g_guest_first_fault.rt_val = trace_ldst_reg_or_zr(cpu, decoded.Rd);
+    if (decoded.Rn >= 0 && decoded.Rn <= 31)
+        g_guest_first_fault.rn_val = a64_read_reg_or_sp(cpu, decoded.Rn, true);
+    if (decoded.Rm >= 0 && decoded.Rm <= 31)
+        g_guest_first_fault.rm_val = trace_ldst_reg_or_zr(cpu, decoded.Rm);
+
+    if (decoded.cat == A64_LD_ST) {
+        if (decoded.subtype == A64_LDST_SINGLE) {
+            int is_reg_offset = bits(raw, 11, 10) == 2 ? 1 : 0;
+            if (is_reg_offset && decoded.Rm >= 0 && decoded.Rm <= 31) {
+                uint64_t off = a64_extend_index(g_guest_first_fault.rm_val, decoded.extend_type);
+                g_guest_first_fault.guest_ea =
+                    g_guest_first_fault.rn_val + (off << decoded.imm_shift);
+            } else {
+                switch (decoded.idx_mode) {
+                case A64_PRE_INDEX:
+                    g_guest_first_fault.guest_ea = g_guest_first_fault.rn_val + decoded.imm;
+                    break;
+                case A64_POST_INDEX:
+                    g_guest_first_fault.guest_ea = g_guest_first_fault.rn_val;
+                    break;
+                case A64_INDEX_OFFSET:
+                default:
+                    g_guest_first_fault.guest_ea = g_guest_first_fault.rn_val + decoded.imm;
+                    break;
+                }
+            }
+        } else {
+            g_guest_first_fault.guest_ea = cpu->fault_addr;
+        }
+    } else {
+        g_guest_first_fault.guest_ea = cpu->fault_addr;
+    }
+
+    void *probe = a64_guest_to_host(cpu, cpu->tlb, g_guest_first_fault.guest_ea,
+                                    g_guest_first_fault.is_load ? 0 : 1);
+    g_guest_first_fault.host_ptr_probe = (uint64_t)(uintptr_t)probe;
+    g_guest_first_fault.translation_fault = probe ? 0 : 1;
+}
+
+static const char *trace_guest_mnemonic(const guest_first_fault_info_t *fi)
+{
+    if (!fi)
+        return "unknown";
+    if (fi->cat == A64_LD_ST)
+        return trace_ldst_mnemonic(fi->is_load, fi->size, fi->is_signed);
+    if (fi->cat == A64_BRANCH || fi->cat == A64_BRANCH2)
+        return "branch";
+    if (fi->cat == A64_DP_IMM || fi->cat == A64_DP_IMM2 || fi->cat == A64_DP_REG ||
+        fi->cat == A64_DP_REG2 || fi->cat == A64_DP_REG3 || fi->cat == A64_DP_REG4)
+        return "alu";
+    if (fi->cat == A64_SIMD || fi->cat == A64_SIMD2 || fi->cat == A64_SIMD0)
+        return "simd";
+    return "unknown";
+}
+
+static void trace_guest_first_fault_events(void)
+{
+    if (!g_guest_first_fault.seen)
+        return;
+
+    char pc_buf[32];
+    char raw_buf[32];
+    char cat_buf[16];
+    char sub_buf[16];
+    char rd_buf[16];
+    char rn_buf[16];
+    char rm_buf[16];
+    char idx_buf[16];
+    char load_buf[8];
+    char ea_buf[32];
+    char rt_buf[32];
+    char rnv_buf[32];
+    char rmv_buf[32];
+    char host_ptr_buf[32];
+    char trans_buf[8];
+    char host_sig_buf[16];
+    const char *mnemonic = trace_guest_mnemonic(&g_guest_first_fault);
+
+    snprintf(pc_buf, sizeof(pc_buf), "0x%llx", (unsigned long long)g_guest_first_fault.pc);
+    snprintf(raw_buf, sizeof(raw_buf), "0x%08x", g_guest_first_fault.raw);
+    snprintf(cat_buf, sizeof(cat_buf), "%d", g_guest_first_fault.cat);
+    snprintf(sub_buf, sizeof(sub_buf), "%d", g_guest_first_fault.subtype);
+    snprintf(rd_buf, sizeof(rd_buf), "%d", g_guest_first_fault.rd);
+    snprintf(rn_buf, sizeof(rn_buf), "%d", g_guest_first_fault.rn);
+    snprintf(rm_buf, sizeof(rm_buf), "%d", g_guest_first_fault.rm);
+    snprintf(idx_buf, sizeof(idx_buf), "%d", g_guest_first_fault.idx_mode);
+    snprintf(load_buf, sizeof(load_buf), "%d", g_guest_first_fault.is_load);
+    snprintf(ea_buf, sizeof(ea_buf), "0x%llx", (unsigned long long)g_guest_first_fault.guest_ea);
+    snprintf(rt_buf, sizeof(rt_buf), "0x%llx", (unsigned long long)g_guest_first_fault.rt_val);
+    snprintf(rnv_buf, sizeof(rnv_buf), "0x%llx", (unsigned long long)g_guest_first_fault.rn_val);
+    snprintf(rmv_buf, sizeof(rmv_buf), "0x%llx", (unsigned long long)g_guest_first_fault.rm_val);
+    snprintf(host_ptr_buf, sizeof(host_ptr_buf), "0x%llx",
+             (unsigned long long)g_guest_first_fault.host_ptr_probe);
+    snprintf(trans_buf, sizeof(trans_buf), "%d", g_guest_first_fault.translation_fault);
+    snprintf(host_sig_buf, sizeof(host_sig_buf), "%d", g_guest_first_fault.host_signal);
+
+    ixland_instrumentation_attribute_t pc_attrs[] = {
+        { .key = "guest_pc", .value = pc_buf },
+    };
+    ixland_guest_trace_emit_attrs(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR, "guest.first_fault.pc",
+                                  pc_attrs, sizeof(pc_attrs) / sizeof(pc_attrs[0]));
+
+    ixland_instrumentation_attribute_t decode_attrs[] = {
+        { .key = "guest_pc", .value = pc_buf },   { .key = "raw_opcode", .value = raw_buf },
+        { .key = "mnemonic", .value = mnemonic }, { .key = "cat", .value = cat_buf },
+        { .key = "subtype", .value = sub_buf },   { .key = "rd", .value = rd_buf },
+        { .key = "rn", .value = rn_buf },         { .key = "rm", .value = rm_buf },
+        { .key = "idx_mode", .value = idx_buf },  { .key = "is_load", .value = load_buf },
+    };
+    ixland_guest_trace_emit_attrs(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR,
+                                  "guest.first_fault.decode", decode_attrs,
+                                  sizeof(decode_attrs) / sizeof(decode_attrs[0]));
+
+    ixland_instrumentation_attribute_t regs_attrs[] = {
+        { .key = "rt_val", .value = rt_buf },
+        { .key = "rn_val", .value = rnv_buf },
+        { .key = "rm_val", .value = rmv_buf },
+    };
+    ixland_guest_trace_emit_attrs(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR, "guest.first_fault.regs",
+                                  regs_attrs, sizeof(regs_attrs) / sizeof(regs_attrs[0]));
+
+    ixland_instrumentation_attribute_t trans_attrs[] = {
+        { .key = "guest_ea", .value = ea_buf },
+        { .key = "host_ptr_probe", .value = host_ptr_buf },
+        { .key = "translation_fault", .value = trans_buf },
+    };
+    ixland_guest_trace_emit_attrs(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR,
+                                  "guest.first_fault.translation", trans_attrs,
+                                  sizeof(trans_attrs) / sizeof(trans_attrs[0]));
+
+    ixland_instrumentation_attribute_t exit_attrs[] = {
+        { .key = "host_signal", .value = host_sig_buf },
+        { .key = "translation_fault", .value = trans_buf },
+    };
+    ixland_guest_trace_emit_attrs(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR, "guest.first_fault.exit",
+                                  exit_attrs, sizeof(exit_attrs) / sizeof(exit_attrs[0]));
+}
+
+static void trace_base6a628_event(const char *name, const char *payload)
+{
+    if (!name || !payload || g_base6a628_trace_budget <= 0)
+        return;
+
+    char ev[768];
+    snprintf(ev, sizeof(ev), "%s=%s", name, payload);
+    trace_record_event(TRACE_ORIGIN_EXEC, ev);
+    g_base6a628_trace_budget--;
+}
+
+static void trace_x0chain_event(const char *name, const char *payload)
+{
+    if (!name || !payload || g_x0chain_trace_budget <= 0)
+        return;
+
+    char ev[768];
+    snprintf(ev, sizeof(ev), "%s=%s", name, payload);
+    trace_record_event(TRACE_ORIGIN_EXEC, ev);
+    g_x0chain_trace_budget--;
+}
+
+static void trace_str6a650_event(const char *name, const char *payload)
+{
+    if (!name || !payload || g_str6a650_trace_budget <= 0)
+        return;
+
+    ixland_instrumentation_attribute_t attrs[] = {
+        { .key = "payload", .value = payload },
+    };
+    ixland_guest_trace_emit_attrs(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR, name, attrs,
+                                  sizeof(attrs) / sizeof(attrs[0]));
+    g_str6a650_trace_budget--;
+}
+
+static void trace_x7chain_event(const char *name, const char *payload)
+{
+    if (!name || !payload || g_x7chain_trace_budget <= 0)
+        return;
+
+    ixland_instrumentation_attribute_t attrs[] = {
+        { .key = "payload", .value = payload },
+    };
+    ixland_guest_trace_emit_attrs(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR, name, attrs,
+                                  sizeof(attrs) / sizeof(attrs[0]));
+    g_x7chain_trace_budget--;
+}
+
+static void trace_insn64_event(const char *name, const char *payload)
+{
+    if (!name || !payload || g_insn64_trace_budget <= 0)
+        return;
+
+    ixland_instrumentation_attribute_t attrs[] = {
+        { .key = "payload", .value = payload },
+    };
+    ixland_guest_trace_emit_attrs(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR, name, attrs,
+                                  sizeof(attrs) / sizeof(attrs[0]));
+    g_insn64_trace_budget--;
+}
+
+static void trace_block6a640_bytecode(struct a64_block *block)
+{
+    if (!block || block->start_pc != 0x6a640ULL || !block->gadgets)
+        return;
+
+    char payload[384];
+    snprintf(payload, sizeof(payload),
+             "attempt:-1,guest_pid:%d,guest_pc:0x%llx,block_start:0x%llx,block_end:0x%llx,num_g"
+             "adgets:%zu",
+             current ? current->pid : -1, (unsigned long long)block->start_pc,
+             (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
+             block->num_gadgets);
+    trace_insn64_event("block6a640.bytecode.start", payload);
+
+    size_t max_items = block->num_gadgets < 16 ? block->num_gadgets : 16;
+    for (size_t i = 0; i < max_items; i++) {
+        void *entry = (void *)block->gadgets[i];
+        Dl_info info;
+        const char *symbol = "unknown";
+        if (entry && dladdr(entry, &info) != 0 && info.dli_sname)
+            symbol = info.dli_sname;
+
+        if (strstr(symbol, "gadget_mov_imm") != NULL && (i + 1) < block->num_gadgets) {
+            uint64_t imm = (uint64_t)(uintptr_t)block->gadgets[i + 1];
+            snprintf(payload, sizeof(payload),
+                     "attempt:-1,guest_pid:%d,guest_pc:0x%llx,block_start:0x%llx,index:%zu,symbol"
+                     ":%s,inline_imm:0x%llx",
+                     current ? current->pid : -1, (unsigned long long)block->start_pc,
+                     (unsigned long long)block->start_pc, i, symbol, (unsigned long long)imm);
+            trace_insn64_event("block6a640.bytecode.imm", payload);
+        } else {
+            snprintf(payload, sizeof(payload),
+                     "attempt:-1,guest_pid:%d,guest_pc:0x%llx,block_start:0x%llx,index:%zu,symbol"
+                     ":%s,addr:%p",
+                     current ? current->pid : -1, (unsigned long long)block->start_pc,
+                     (unsigned long long)block->start_pc, i, symbol, entry);
+            trace_insn64_event("block6a640.bytecode.gadget", payload);
+        }
+    }
+
+    snprintf(payload, sizeof(payload),
+             "attempt:-1,guest_pid:%d,guest_pc:0x%llx,block_start:0x%llx,block_end:0x%llx,emitte"
+             "d_items:%zu",
+             current ? current->pid : -1, (unsigned long long)block->start_pc,
+             (unsigned long long)block->start_pc, (unsigned long long)block->end_pc, max_items);
+    trace_insn64_event("block6a640.bytecode.end", payload);
+}
+
+__attribute__((visibility("default"))) void
+trace_emit_tcti_gadget6a640_load_sp_pre(uint64_t x14, uint64_t sp, uint64_t pc)
+{
+    if (pc != 0x6a640ULL)
+        return;
+
+    char payload[256];
+    snprintf(payload, sizeof(payload),
+             "attempt:-1,guest_pid:%d,guest_pc:0x%llx,gadget:gadget_load_sp,temp_x14:0x%llx,cpu_"
+             "state.sp:0x%llx",
+             current ? current->pid : -1, (unsigned long long)pc, (unsigned long long)x14,
+             (unsigned long long)sp);
+    trace_insn64_event("gadget6a640.load_sp.pre", payload);
+}
+
+__attribute__((visibility("default"))) void
+trace_emit_tcti_gadget6a640_load_sp_post(uint64_t x14, uint64_t sp, uint64_t pc)
+{
+    if (pc != 0x6a640ULL)
+        return;
+
+    char payload[256];
+    snprintf(payload, sizeof(payload),
+             "attempt:-1,guest_pid:%d,guest_pc:0x%llx,gadget:gadget_load_sp,temp_x14:0x%llx,cpu_"
+             "state.sp:0x%llx,equal:%d",
+             current ? current->pid : -1, (unsigned long long)pc, (unsigned long long)x14,
+             (unsigned long long)sp, x14 == sp ? 1 : 0);
+    trace_insn64_event("gadget6a640.load_sp.post", payload);
+}
+
+__attribute__((visibility("default"))) void trace_emit_tcti_gadget6a640_mov_imm_pre(uint64_t x15,
+                                                                                    uint64_t imm)
+{
+    char payload[256];
+    snprintf(payload, sizeof(payload),
+             "attempt:-1,guest_pid:%d,guest_pc:0x6a640,gadget:gadget_mov_imm_14,temp_x15:0x%llx,i"
+             "mm:0x%llx",
+             current ? current->pid : -1, (unsigned long long)x15, (unsigned long long)imm);
+    trace_insn64_event("gadget6a640.mov_imm.pre", payload);
+}
+
+__attribute__((visibility("default"))) void trace_emit_tcti_gadget6a640_mov_imm_post(uint64_t x15,
+                                                                                     uint64_t imm)
+{
+    char payload[256];
+    snprintf(payload, sizeof(payload),
+             "attempt:-1,guest_pid:%d,guest_pc:0x6a640,gadget:gadget_mov_imm_14,temp_x15:0x%llx,i"
+             "mm:0x%llx,equal:%d",
+             current ? current->pid : -1, (unsigned long long)x15, (unsigned long long)imm,
+             x15 == imm ? 1 : 0);
+    trace_insn64_event("gadget6a640.mov_imm.post", payload);
+}
+
+__attribute__((visibility("default"))) void
+trace_emit_tcti_gadget6a640_add_reg_pre(uint64_t x14, uint64_t x15, uint64_t x8)
+{
+    char payload[320];
+    snprintf(payload, sizeof(payload),
+             "attempt:-1,guest_pid:%d,guest_pc:0x6a640,gadget:gadget_add_reg_7_13_14,src_x14:0x%l"
+             "lx,src_x15:0x%llx,dst_x8_before:0x%llx",
+             current ? current->pid : -1, (unsigned long long)x14, (unsigned long long)x15,
+             (unsigned long long)x8);
+    trace_insn64_event("gadget6a640.add_reg.pre", payload);
+}
+
+__attribute__((visibility("default"))) void
+trace_emit_tcti_gadget6a640_add_reg_post(uint64_t x14, uint64_t x15, uint64_t x8, uint64_t sp)
+{
+    char payload[384];
+    uint64_t expected = x14 + x15;
+    snprintf(payload, sizeof(payload),
+             "attempt:-1,guest_pid:%d,guest_pc:0x6a640,gadget:gadget_add_reg_7_13_14,src_x14:0x%l"
+             "lx,src_x15:0x%llx,dst_x8_after:0x%llx,expected_add:0x%llx,equal_add:%d,cpu_state.sp"
+             ":0x%llx,equal_sp_plus8:%d",
+             current ? current->pid : -1, (unsigned long long)x14, (unsigned long long)x15,
+             (unsigned long long)x8, (unsigned long long)expected, x8 == expected ? 1 : 0,
+             (unsigned long long)sp, x8 == (sp + 8ULL) ? 1 : 0);
+    trace_insn64_event("gadget6a640.add_reg.post", payload);
+}
+
+static uint64_t trace_ldst_effective_address(struct cpu_state *cpu, uint32_t raw,
+                                             const a64_instr_t *instr, uint64_t rn_val,
+                                             uint64_t rm_val)
+{
+    if (!cpu || !instr)
+        return 0;
+
+    if (instr->subtype != A64_LDST_SINGLE)
+        return cpu->fault_addr;
+
+    if (bits(raw, 11, 10) == 2) {
+        uint64_t off = a64_extend_index(rm_val, instr->extend_type);
+        return rn_val + (off << instr->imm_shift);
+    }
+
+    switch (instr->idx_mode) {
+    case A64_PRE_INDEX:
+        return rn_val + instr->imm;
+    case A64_POST_INDEX:
+        return rn_val;
+    case A64_INDEX_OFFSET:
+    default:
+        return rn_val + instr->imm;
+    }
+}
+
+static bool trace_instr_writes_rd(const a64_instr_t *instr, uint32_t raw)
+{
+    if (!instr)
+        return false;
+
+    switch (instr->cat) {
+    case A64_BRANCH:
+    case A64_BRANCH2:
+        return false;
+
+    case A64_DP_REG:
+    case A64_DP_REG2:
+    case A64_DP_REG3:
+    case A64_DP_REG4:
+        // CCMN/CCMP update flags only; they do not write Rd.
+        if (instr->subtype == 4 || instr->subtype == 5)
+            return false;
+        return instr->Rd >= 0 && instr->Rd <= 31;
+
+    case A64_LD_ST:
+        // Single/pair forms share bit 22 as load/store selector.
+        if (instr->subtype == A64_LDST_SINGLE || instr->subtype == A64_LDST_PAIR)
+            return bit(raw, 22) != 0;
+        if (instr->subtype == A64_LDST_LITERAL)
+            return true;
+        return false;
+
+    case A64_SIMD:
+    case A64_SIMD2:
+    case A64_SIMD0:
+    case A64_DP_IMM:
+    case A64_DP_IMM2:
+        return instr->Rd >= 0 && instr->Rd <= 31;
+
+    default:
+        return false;
+    }
+}
+
+static const char *trace_page0_obj_kind_name(enum mem_object_kind kind)
+{
+    switch (kind) {
+    case MEM_OBJ_RAM:
+        return "ram";
+    case MEM_OBJ_FILE:
+        return "file";
+    case MEM_OBJ_VDSO:
+        return "vdso";
+    case MEM_OBJ_SPECIAL:
+        return "special";
+    default:
+        return "unknown";
+    }
+}
+
+static void trace_mm_page0_state_runtime(const char *name, struct cpu_state *cpu, struct tlb *tlb,
+                                         addr_t guest_ea)
+{
+    if (!name || !cpu || !tlb)
+        return;
+
+    struct page_desc *desc = NULL;
+    struct mem_object *obj = NULL;
+    void *host_ptr_from_map = NULL;
+    void *host_ptr_probe = a64_guest_to_host(cpu, tlb, guest_ea, 0);
+
+    if (current && current->mem) {
+        desc = page_map_lookup(&current->mem->pages, PAGE(guest_ea));
+        if (desc)
+            obj = desc->obj;
+    }
+
+    if (obj && obj->host_base != NULL && desc) {
+        size_t host_off = desc->offset + PGOFFSET(guest_ea);
+        if (host_off < obj->host_size)
+            host_ptr_from_map = (void *)((byte_t *)obj->host_base + host_off);
+    }
+
+    char ev[768];
+    snprintf(
+        ev, sizeof(ev),
+        "%s=mapped:%s,guest_page:0x%llx,guest_ea:0x%llx,backing:%s,host_ptr_probe:%p,"
+        "host_ptr_map:%p,guest_range:[0x%llx..0x%llx],task:%p,mm:%p,mem:%p,cpu:%p,tlb:%p,"
+        "page_desc:%p,obj:%p,cpu_mmu:%p,tlb_mmu:%p,cpu_mmu_gen:%llu,tlb_mmu_gen:%llu,"
+        "page_desc_off:0x%zx,page_flags:0x%x",
+        name, desc ? "yes" : "no", (unsigned long long)PAGE(guest_ea), (unsigned long long)guest_ea,
+        (obj && obj->name) ? obj->name : (obj ? trace_page0_obj_kind_name(obj->kind) : "none"),
+        host_ptr_probe, host_ptr_from_map, (unsigned long long)(PAGE(guest_ea) << PAGE_BITS),
+        (unsigned long long)(((PAGE(guest_ea) + 1) << PAGE_BITS) - 1), (void *)current,
+        current ? (void *)current->mm : NULL, current ? (void *)current->mem : NULL, (void *)cpu,
+        (void *)tlb, (void *)desc, (void *)obj, (void *)cpu->mmu, tlb ? (void *)tlb->mmu : NULL,
+        (unsigned long long)(cpu->mmu ? cpu->mmu->generation : 0),
+        (unsigned long long)(tlb && tlb->mmu ? tlb->mmu->generation : 0), desc ? desc->offset : 0,
+        desc ? desc->flags : 0);
+    trace_record_event(TRACE_ORIGIN_EXEC, ev);
 }
 
 // Signal handler that converts host signal to controlled exit
@@ -665,6 +1243,8 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
     // Trace: Block compilation end
     trace_emit_block_compile_end(pc, gen_state.end_pc, (uint32_t)insns_decoded);
 
+    trace_block6a640_bytecode(block);
+
     return block;
 }
 
@@ -718,7 +1298,136 @@ int a64_execute_block(struct cpu_state *cpu, struct a64_block *block)
 
     if (setjmp(guest_fault_jmpbuf) == 0) {
         // Normal execution path
+        if (block->start_pc == 0x6a628ULL) {
+            char payload[512];
+            snprintf(payload, sizeof(payload),
+                     "attempt:-1,guest_pid:%d,guest_pc:0x%llx,block_start:0x%llx,block_end:0x%llx,"
+                     "arch_base_reg:3,arch_base_val:0x%llx,carrier_val:0x%llx,cpu_slot_val:0x%llx,"
+                     "is_zero:%d,helper_path_reached:0,signal_immediate:0",
+                     current ? current->pid : -1, (unsigned long long)cpu->pc,
+                     (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
+                     (unsigned long long)cpu->x[3], (unsigned long long)cpu->x[3],
+                     (unsigned long long)cpu->x[3], cpu->x[3] == 0 ? 1 : 0);
+            trace_base6a628_event("base6a628.pre_sync", payload);
+        }
+        if (block->start_pc == 0x6a620ULL) {
+            char payload[512];
+            snprintf(payload, sizeof(payload),
+                     "attempt:-1,guest_pid:%d,guest_pc:0x%llx,block_start:0x%llx,block_end:0x%llx,"
+                     "x0_val:0x%llx,carrier_val:0x%llx,cpu_slot_val:0x%llx,is_zero:%d",
+                     current ? current->pid : -1, (unsigned long long)cpu->pc,
+                     (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
+                     (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[0],
+                     (unsigned long long)cpu->x[0], cpu->x[0] == 0 ? 1 : 0);
+            trace_x0chain_event("x0chain.pre_sync", payload);
+        }
+        if (block->start_pc == 0x6a650ULL) {
+            char payload[640];
+            snprintf(payload, sizeof(payload),
+                     "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:str,"
+                     "base_reg:2,base_val:0x%llx,src_reg:31,src_val:0x0,imm:unknown,idx_mode:"
+                     "unknown,guest_ea:unknown,host_probe:unknown,translation_fault:unknown,"
+                     "signal_follow_immediate:0",
+                     current ? current->pid : -1, (unsigned long long)cpu->pc,
+                     (unsigned)(cpu->pc == 0x6a650ULL ? 0xf800845fU : 0),
+                     (unsigned long long)cpu->x[2]);
+            trace_str6a650_event("str6a650.pre_sync", payload);
+        }
+        if (block->start_pc == 0x6a640ULL) {
+            char payload[1024];
+            snprintf(payload, sizeof(payload),
+                     "attempt:-1,guest_pid:%d,guest_pc:0x6a640,raw_opcode:0x910023e7,mnemonic:add "
+                     "x7,sp,#8,arch_sp:0x%llx,arch_x7:0x%llx,arch_x2:0x%llx,carrier_sp:0x%llx,"
+                     "carrier_x7:0x%llx,carrier_x2:0x%llx,cpu_state.sp:0x%llx,cpu_state.x7:0x%llx,"
+                     "cpu_state.x2:0x%llx,block_start:0x%llx,block_end:0x%llx",
+                     current ? current->pid : -1, (unsigned long long)cpu->sp,
+                     (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
+                     (unsigned long long)cpu->sp, (unsigned long long)cpu->x[7],
+                     (unsigned long long)cpu->x[2], (unsigned long long)cpu->sp,
+                     (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
+                     (unsigned long long)block->start_pc, (unsigned long long)block->end_pc);
+            trace_insn64_event("insn6a640.pre_sync", payload);
+        }
+        if (block->start_pc == 0x6a64cULL) {
+            char payload[768];
+            snprintf(payload, sizeof(payload),
+                     "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:mov_"
+                     "x2_x7,x7_arch:0x%llx,x2_arch:0x%llx,carrier_x7:0x%llx,carrier_x2:0x%llx,"
+                     "cpu_slot_x7:0x%llx,cpu_slot_x2:0x%llx,block_start:0x%llx,block_end:0x%llx",
+                     current ? current->pid : -1, (unsigned long long)cpu->pc, 0xaa0703e2U,
+                     (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
+                     (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
+                     (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
+                     (unsigned long long)block->start_pc, (unsigned long long)block->end_pc);
+            trace_x7chain_event("mov6a64c.pre_sync", payload);
+        }
         tcti_entry_block(block->gadgets, cpu);
+        if (block->start_pc == 0x6a628ULL) {
+            char payload[512];
+            snprintf(payload, sizeof(payload),
+                     "attempt:-1,guest_pid:%d,guest_pc:0x%llx,block_start:0x%llx,block_end:0x%llx,"
+                     "arch_base_reg:3,arch_base_val:0x%llx,carrier_val:0x%llx,cpu_slot_val:0x%llx,"
+                     "is_zero:%d,helper_path_reached:1,signal_immediate:%d",
+                     current ? current->pid : -1, (unsigned long long)cpu->pc,
+                     (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
+                     (unsigned long long)cpu->x[3], (unsigned long long)cpu->x[3],
+                     (unsigned long long)cpu->x[3], cpu->x[3] == 0 ? 1 : 0,
+                     cpu->tcti_exit_reason == TCTI_EXIT_FAULT ? 1 : 0);
+            trace_base6a628_event("base6a628.post_sync", payload);
+        }
+        if (block->start_pc == 0x6a620ULL) {
+            char payload[512];
+            snprintf(payload, sizeof(payload),
+                     "attempt:-1,guest_pid:%d,guest_pc:0x%llx,block_start:0x%llx,block_end:0x%llx,"
+                     "x0_val:0x%llx,carrier_val:0x%llx,cpu_slot_val:0x%llx,is_zero:%d",
+                     current ? current->pid : -1, (unsigned long long)cpu->pc,
+                     (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
+                     (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[0],
+                     (unsigned long long)cpu->x[0], cpu->x[0] == 0 ? 1 : 0);
+            trace_x0chain_event("x0chain.post_sync", payload);
+        }
+        if (block->start_pc == 0x6a650ULL) {
+            char payload[640];
+            snprintf(payload, sizeof(payload),
+                     "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:str,"
+                     "base_reg:2,base_val:0x%llx,src_reg:31,src_val:0x0,imm:unknown,idx_mode:"
+                     "unknown,guest_ea:unknown,host_probe:unknown,translation_fault:%d,"
+                     "signal_follow_immediate:%d",
+                     current ? current->pid : -1, (unsigned long long)cpu->pc,
+                     (unsigned)(cpu->pc == 0x6a650ULL ? 0xf800845fU : 0),
+                     (unsigned long long)cpu->x[2],
+                     cpu->tcti_exit_reason == TCTI_EXIT_FAULT ? 1 : 0,
+                     cpu->tcti_exit_reason == TCTI_EXIT_FAULT ? 1 : 0);
+            trace_str6a650_event("str6a650.post_sync", payload);
+        }
+        if (block->start_pc == 0x6a640ULL) {
+            char payload[1024];
+            snprintf(payload, sizeof(payload),
+                     "attempt:-1,guest_pid:%d,guest_pc:0x6a640,raw_opcode:0x910023e7,mnemonic:add "
+                     "x7,sp,#8,arch_sp:0x%llx,arch_x7:0x%llx,arch_x2:0x%llx,carrier_sp:0x%llx,"
+                     "carrier_x7:0x%llx,carrier_x2:0x%llx,cpu_state.sp:0x%llx,cpu_state.x7:0x%llx,"
+                     "cpu_state.x2:0x%llx,block_start:0x%llx,block_end:0x%llx",
+                     current ? current->pid : -1, (unsigned long long)cpu->sp,
+                     (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
+                     (unsigned long long)cpu->sp, (unsigned long long)cpu->x[7],
+                     (unsigned long long)cpu->x[2], (unsigned long long)cpu->sp,
+                     (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
+                     (unsigned long long)block->start_pc, (unsigned long long)block->end_pc);
+            trace_insn64_event("insn6a640.post_sync", payload);
+        }
+        if (block->start_pc == 0x6a64cULL) {
+            char payload[768];
+            snprintf(payload, sizeof(payload),
+                     "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:mov_"
+                     "x2_x7,x7_arch:0x%llx,x2_arch:0x%llx,carrier_x7:0x%llx,carrier_x2:0x%llx,"
+                     "cpu_slot_x7:0x%llx,cpu_slot_x2:0x%llx,block_start:0x%llx,block_end:0x%llx",
+                     current ? current->pid : -1, (unsigned long long)cpu->pc, 0xaa0703e2U,
+                     (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
+                     (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
+                     (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
+                     (unsigned long long)block->start_pc, (unsigned long long)block->end_pc);
+            trace_x7chain_event("mov6a64c.post_sync", payload);
+        }
     } else {
         // Fault containment path - signal was caught
         cpu->tcti_exit_reason = TCTI_EXIT_FAULT;
@@ -1446,6 +2155,7 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb)
     // Set up TLB for this CPU
     tlb_refresh(tlb, cpu->mmu);
     trace_cpu_run_checkpoint("task.proof.a64_cpu_run.after_tlb_refresh", current, cpu, 0);
+    trace_mm_page0_state_runtime("mm.page0.state.before_first_user_insn", cpu, tlb, 0);
 
     bool conservative_mode = a64_conservative_mode_enabled();
 
@@ -1480,6 +2190,20 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb)
 
         trace_begin_interval(TRACE_ORIGIN_EMULATOR, "task.proof.user.entry.pc", entry_attrs,
                              sizeof(entry_attrs) / sizeof(entry_attrs[0]));
+    }
+
+    if (!g_guest_first_user_pc_emitted) {
+        char pc_buf[32];
+        char sp_buf[32];
+        snprintf(pc_buf, sizeof(pc_buf), "0x%llx", (unsigned long long)cpu->pc);
+        snprintf(sp_buf, sizeof(sp_buf), "0x%llx", (unsigned long long)cpu->sp);
+        ixland_instrumentation_attribute_t attrs[] = {
+            { .key = "guest_pc", .value = pc_buf },
+            { .key = "sp", .value = sp_buf },
+        };
+        ixland_guest_trace_emit_attrs(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR, "guest.first_user_pc",
+                                      attrs, sizeof(attrs) / sizeof(attrs[0]));
+        g_guest_first_user_pc_emitted = 1;
     }
 
     while (1) {
@@ -1632,7 +2356,614 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb)
                                      0);
         }
         uint64_t pc_before_execute = cpu->pc;
+        uint64_t sp_before_execute = cpu->sp;
+        uint64_t x3_before_execute = cpu->x[3];
+        uint64_t x0_before_execute = cpu->x[0];
+        uint64_t x2_before_execute = cpu->x[2];
+        uint64_t x7_before_execute = cpu->x[7];
+        bool writer_candidate = false;
+        bool x0_writer_candidate = false;
+        bool x2_writer_candidate = false;
+        bool x7_writer_candidate = false;
+        uint32_t writer_raw = 0;
+        a64_instr_t writer_decoded;
+        memset(&writer_decoded, 0, sizeof(writer_decoded));
+
+        if (a64_fetch_insn(cpu, cpu->tlb, pc_before_execute, &writer_raw) == 0 &&
+            a64_decode(writer_raw, &writer_decoded) == 0) {
+            if (pc_before_execute == 0x6a640ULL || pc_before_execute == 0x6a64cULL) {
+                char payload[1024];
+                const char *mnemonic =
+                    pc_before_execute == 0x6a640ULL ? "add x7,sp,#8" : "orr x2,xzr,x7 (mov x2,x7)";
+                snprintf(
+                    payload, sizeof(payload),
+                    "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
+                    "arch_sp:0x%llx,arch_x7:0x%llx,arch_x2:0x%llx,carrier_sp:0x%llx,carrier_"
+                    "x7:0x%llx,carrier_x2:0x%llx,cpu_state.sp:0x%llx,cpu_state.x7:0x%llx,"
+                    "cpu_state.x2:0x%llx,block_start:0x%llx,block_end:0x%llx",
+                    current ? current->pid : -1, (unsigned long long)pc_before_execute, writer_raw,
+                    mnemonic, (unsigned long long)sp_before_execute,
+                    (unsigned long long)x7_before_execute, (unsigned long long)x2_before_execute,
+                    (unsigned long long)sp_before_execute, (unsigned long long)x7_before_execute,
+                    (unsigned long long)x2_before_execute, (unsigned long long)sp_before_execute,
+                    (unsigned long long)x7_before_execute, (unsigned long long)x2_before_execute,
+                    (unsigned long long)block->start_pc, (unsigned long long)block->end_pc);
+                trace_insn64_event(pc_before_execute == 0x6a640ULL ? "insn6a640.block_entry"
+                                                                   : "insn6a64c.block_entry",
+                                   payload);
+
+                snprintf(payload, sizeof(payload),
+                         "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
+                         "class:cat:%d_sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld,rn31_interp:%s,expected:"
+                         "%s",
+                         current ? current->pid : -1, (unsigned long long)pc_before_execute,
+                         writer_raw, mnemonic, (int)writer_decoded.cat, (int)writer_decoded.subtype,
+                         writer_decoded.Rd, writer_decoded.Rn, writer_decoded.Rm,
+                         (long long)writer_decoded.imm,
+                         (pc_before_execute == 0x6a640ULL && writer_decoded.Rn == 31) ? "SP"
+                                                                                      : "XZR",
+                         pc_before_execute == 0x6a640ULL ? "x7=sp+imm" : "x2=x7");
+                trace_insn64_event(pc_before_execute == 0x6a640ULL ? "insn6a640.decode"
+                                                                   : "insn6a64c.decode",
+                                   payload);
+
+                snprintf(
+                    payload, sizeof(payload),
+                    "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
+                    "arch_sp:0x%llx,arch_x7:0x%llx,arch_x2:0x%llx,carrier_sp:0x%llx,carrier_"
+                    "x7:0x%llx,carrier_x2:0x%llx,cpu_state.sp:0x%llx,cpu_state.x7:0x%llx,"
+                    "cpu_state.x2:0x%llx",
+                    current ? current->pid : -1, (unsigned long long)pc_before_execute, writer_raw,
+                    mnemonic, (unsigned long long)sp_before_execute,
+                    (unsigned long long)x7_before_execute, (unsigned long long)x2_before_execute,
+                    (unsigned long long)sp_before_execute, (unsigned long long)x7_before_execute,
+                    (unsigned long long)x2_before_execute, (unsigned long long)sp_before_execute,
+                    (unsigned long long)x7_before_execute, (unsigned long long)x2_before_execute);
+                trace_insn64_event(pc_before_execute == 0x6a640ULL ? "insn6a640.pre_exec"
+                                                                   : "insn6a64c.pre_exec",
+                                   payload);
+            }
+            if (pc_before_execute == 0x6a628ULL) {
+                char pretty[192] = { 0 };
+                snprintf(pretty, sizeof(pretty), "cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld",
+                         (int)writer_decoded.cat, (int)writer_decoded.subtype, writer_decoded.Rd,
+                         writer_decoded.Rn, writer_decoded.Rm, (long long)writer_decoded.imm);
+
+                char payload[640];
+                snprintf(
+                    payload, sizeof(payload),
+                    "attempt:-1,guest_pid:%d,guest_pc:0x%llx,block_start:0x%llx,block_end:0x%llx,"
+                    "arch_base_reg:%d,arch_base_val:0x%llx,carrier_val:0x%llx,cpu_slot_val:0x%llx,"
+                    "is_zero:%d",
+                    current ? current->pid : -1, (unsigned long long)pc_before_execute,
+                    (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
+                    writer_decoded.Rn, (unsigned long long)cpu->x[writer_decoded.Rn],
+                    (unsigned long long)cpu->x[writer_decoded.Rn],
+                    (unsigned long long)cpu->x[writer_decoded.Rn],
+                    cpu->x[writer_decoded.Rn] == 0 ? 1 : 0);
+                trace_base6a628_event("base6a628.block_entry", payload);
+
+                snprintf(payload, sizeof(payload),
+                         "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
+                         "addr_mode:%d,base_reg:%d,target_reg:%d,writeback:%d,sequencing:access_"
+                         "before_writeback",
+                         current ? current->pid : -1, (unsigned long long)pc_before_execute,
+                         writer_raw, pretty, (int)writer_decoded.idx_mode, writer_decoded.Rn,
+                         writer_decoded.Rd,
+                         (writer_decoded.idx_mode == A64_POST_INDEX ||
+                          writer_decoded.idx_mode == A64_PRE_INDEX)
+                             ? 1
+                             : 0);
+                trace_base6a628_event("base6a628.decode", payload);
+
+                if (g_base6a628_last_writer.valid) {
+                    snprintf(payload, sizeof(payload),
+                             "attempt:-1,guest_pid:%d,guest_pc:0x%llx,last_writer_pc:0x%llx,last_"
+                             "writer_raw:0x%08x,"
+                             "last_writer_mnemonic:%s,last_writer_rd:%d,last_writer_rn:%d,"
+                             "block_start:0x%llx,block_end:0x%llx,x3_before:0x%llx,x3_after:0x%llx,"
+                             "is_zero_after:%d",
+                             current ? current->pid : -1, (unsigned long long)pc_before_execute,
+                             (unsigned long long)g_base6a628_last_writer.writer_pc,
+                             g_base6a628_last_writer.writer_raw,
+                             g_base6a628_last_writer.writer_mnemonic,
+                             g_base6a628_last_writer.writer_rd, g_base6a628_last_writer.writer_rn,
+                             (unsigned long long)g_base6a628_last_writer.block_start,
+                             (unsigned long long)g_base6a628_last_writer.block_end,
+                             (unsigned long long)g_base6a628_last_writer.x3_before,
+                             (unsigned long long)g_base6a628_last_writer.x3_after,
+                             g_base6a628_last_writer.x3_after == 0 ? 1 : 0);
+                } else {
+                    snprintf(payload, sizeof(payload),
+                             "attempt:-1,guest_pid:%d,guest_pc:0x%llx,last_writer_pc:none",
+                             current ? current->pid : -1, (unsigned long long)pc_before_execute);
+                }
+                trace_base6a628_event("base6a628.last_writer", payload);
+            }
+
+            if (pc_before_execute == 0x6a620ULL) {
+                char payload[640];
+                snprintf(
+                    payload, sizeof(payload),
+                    "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:mov x3,x0,"
+                    "x0_val:0x%llx,x3_val:0x%llx,x3_produced:0x%llx,is_x0_zero:%d,"
+                    "block_start:0x%llx,block_end:0x%llx",
+                    current ? current->pid : -1, (unsigned long long)pc_before_execute, writer_raw,
+                    (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[3],
+                    (unsigned long long)cpu->x[0], cpu->x[0] == 0 ? 1 : 0,
+                    (unsigned long long)block->start_pc, (unsigned long long)block->end_pc);
+                trace_x0chain_event("x0chain.consumer_at_0x6a620", payload);
+
+                snprintf(
+                    payload, sizeof(payload),
+                    "attempt:-1,guest_pid:%d,guest_pc:0x%llx,block_start:0x%llx,block_end:0x%llx,"
+                    "x0_val:0x%llx,carrier_val:0x%llx,cpu_slot_val:0x%llx,is_zero:%d",
+                    current ? current->pid : -1, (unsigned long long)pc_before_execute,
+                    (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
+                    (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[0],
+                    (unsigned long long)cpu->x[0], cpu->x[0] == 0 ? 1 : 0);
+                trace_x0chain_event("x0chain.block_entry", payload);
+
+                if (g_x0chain_last_writer.valid) {
+                    snprintf(payload, sizeof(payload),
+                             "attempt:-1,guest_pid:%d,guest_pc:0x%llx,last_writer_pc:0x%llx,last_"
+                             "writer_raw:0x%08x,"
+                             "last_writer_mnemonic:%s,last_writer_rd:%d,last_writer_rn:%d,"
+                             "block_start:0x%llx,block_end:0x%llx,x0_before:0x%llx,x0_after:0x%llx,"
+                             "is_zero_after:%d",
+                             current ? current->pid : -1, (unsigned long long)pc_before_execute,
+                             (unsigned long long)g_x0chain_last_writer.writer_pc,
+                             g_x0chain_last_writer.writer_raw,
+                             g_x0chain_last_writer.writer_mnemonic, g_x0chain_last_writer.writer_rd,
+                             g_x0chain_last_writer.writer_rn,
+                             (unsigned long long)g_x0chain_last_writer.block_start,
+                             (unsigned long long)g_x0chain_last_writer.block_end,
+                             (unsigned long long)g_x0chain_last_writer.x0_before,
+                             (unsigned long long)g_x0chain_last_writer.x0_after,
+                             g_x0chain_last_writer.x0_after == 0 ? 1 : 0);
+                } else {
+                    snprintf(payload, sizeof(payload),
+                             "attempt:-1,guest_pid:%d,guest_pc:0x%llx,last_writer_pc:none",
+                             current ? current->pid : -1, (unsigned long long)pc_before_execute);
+                }
+                trace_x0chain_event("x0chain.last_writer", payload);
+            }
+
+            if (pc_before_execute == 0x6a650ULL) {
+                uint64_t base_val = a64_read_reg_or_sp(cpu, writer_decoded.Rn, true);
+                uint64_t src_val = trace_ldst_reg_or_zr(cpu, writer_decoded.Rd);
+                uint64_t idx_val = trace_ldst_reg_or_zr(cpu, writer_decoded.Rm);
+                uint64_t guest_ea = trace_ldst_effective_address(cpu, writer_raw, &writer_decoded,
+                                                                 base_val, idx_val);
+                const char *mnemonic = trace_ldst_mnemonic(bit(writer_raw, 22), writer_decoded.size,
+                                                           writer_decoded.is_signed ? 1 : 0);
+
+                char payload[768];
+                snprintf(payload, sizeof(payload),
+                         "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
+                         "base_reg:%d,base_val:0x%llx,src_reg:%d,src_val:0x%llx,idx_reg:%d,idx_"
+                         "val:0x%llx,imm:%lld,idx_mode:%d,guest_ea:0x%llx,host_probe:pending,"
+                         "translation_fault:pending,signal_follow_immediate:0",
+                         current ? current->pid : -1, (unsigned long long)pc_before_execute,
+                         writer_raw, mnemonic, writer_decoded.Rn, (unsigned long long)base_val,
+                         writer_decoded.Rd, (unsigned long long)src_val, writer_decoded.Rm,
+                         (unsigned long long)idx_val, (long long)writer_decoded.imm,
+                         (int)writer_decoded.idx_mode, (unsigned long long)guest_ea);
+                trace_str6a650_event("str6a650.block_entry", payload);
+
+                snprintf(payload, sizeof(payload),
+                         "attempt:-1,guest_pid:%d,guest_pc:0x6a650,raw_opcode:0x%08x,mnemonic:str,"
+                         "arch_sp:0x%llx,arch_x7:0x%llx,arch_x2:0x%llx,carrier_sp:0x%llx,carrier_"
+                         "x7:0x%llx,carrier_x2:0x%llx,cpu_state.sp:0x%llx,cpu_state.x7:0x%llx,"
+                         "cpu_state.x2:0x%llx,guest_ea:0x%llx",
+                         current ? current->pid : -1, writer_raw, (unsigned long long)cpu->sp,
+                         (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
+                         (unsigned long long)cpu->sp, (unsigned long long)cpu->x[7],
+                         (unsigned long long)cpu->x[2], (unsigned long long)cpu->sp,
+                         (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
+                         (unsigned long long)guest_ea);
+                trace_insn64_event("insn6a650.consumer", payload);
+
+                snprintf(payload, sizeof(payload),
+                         "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
+                         "base_reg:%d,src_reg:%d,idx_reg:%d,imm:%lld,idx_mode:%d,is_load:%d,"
+                         "sequencing:access_before_writeback,writeback:%d",
+                         current ? current->pid : -1, (unsigned long long)pc_before_execute,
+                         writer_raw, mnemonic, writer_decoded.Rn, writer_decoded.Rd,
+                         writer_decoded.Rm, (long long)writer_decoded.imm,
+                         (int)writer_decoded.idx_mode, bit(writer_raw, 22) ? 1 : 0,
+                         (writer_decoded.idx_mode == A64_POST_INDEX ||
+                          writer_decoded.idx_mode == A64_PRE_INDEX)
+                             ? 1
+                             : 0);
+                trace_str6a650_event("str6a650.decode", payload);
+
+                snprintf(payload, sizeof(payload),
+                         "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
+                         "base_reg:%d,base_val:0x%llx,src_reg:%d,src_val:0x%llx,idx_reg:%d,idx_"
+                         "val:0x%llx,imm:%lld,idx_mode:%d,guest_ea:0x%llx",
+                         current ? current->pid : -1, (unsigned long long)pc_before_execute,
+                         writer_raw, mnemonic, writer_decoded.Rn, (unsigned long long)base_val,
+                         writer_decoded.Rd, (unsigned long long)src_val, writer_decoded.Rm,
+                         (unsigned long long)idx_val, (long long)writer_decoded.imm,
+                         (int)writer_decoded.idx_mode, (unsigned long long)guest_ea);
+                trace_str6a650_event("str6a650.pre_access", payload);
+
+                if (g_str6a650_last_writer.valid) {
+                    snprintf(
+                        payload, sizeof(payload),
+                        "attempt:-1,guest_pid:%d,guest_pc:0x%llx,last_writer_pc:0x%llx,"
+                        "last_writer_raw:0x%08x,last_writer_mnemonic:%s,last_writer_rd:%d,"
+                        "last_writer_rn:%d,last_writer_rm:%d,last_writer_idx_mode:%d,"
+                        "last_writer_imm:%lld,block_start:0x%llx,block_end:0x%llx,x2_before:"
+                        "0x%llx,x2_after:0x%llx,is_zero_after:%d",
+                        current ? current->pid : -1, (unsigned long long)pc_before_execute,
+                        (unsigned long long)g_str6a650_last_writer.writer_pc,
+                        g_str6a650_last_writer.writer_raw, g_str6a650_last_writer.writer_mnemonic,
+                        g_str6a650_last_writer.writer_rd, g_str6a650_last_writer.writer_rn,
+                        g_str6a650_last_writer.writer_rm, g_str6a650_last_writer.writer_idx_mode,
+                        (long long)g_str6a650_last_writer.writer_imm,
+                        (unsigned long long)g_str6a650_last_writer.block_start,
+                        (unsigned long long)g_str6a650_last_writer.block_end,
+                        (unsigned long long)g_str6a650_last_writer.x2_before,
+                        (unsigned long long)g_str6a650_last_writer.x2_after,
+                        g_str6a650_last_writer.x2_after == 0 ? 1 : 0);
+                } else {
+                    snprintf(payload, sizeof(payload),
+                             "attempt:-1,guest_pid:%d,guest_pc:0x%llx,last_writer_pc:none",
+                             current ? current->pid : -1, (unsigned long long)pc_before_execute);
+                }
+                trace_str6a650_event("str6a650.last_base_writer", payload);
+
+                if (g_x7chain_last_writer.valid) {
+                    snprintf(payload, sizeof(payload),
+                             "attempt:-1,guest_pid:%d,guest_pc:0x%llx,last_writer_pc:0x%llx,last_"
+                             "writer_raw:0x%08x,last_writer_mnemonic:%s,last_writer_rd:%d,last_"
+                             "writer_rn:%d,last_writer_rm:%d,last_writer_idx_mode:%d,last_writer_"
+                             "imm:%lld,block_start:0x%llx,block_end:0x%llx,x7_before:0x%llx,x7_"
+                             "after:0x%llx,is_one_after:%d,is_zero_after:%d",
+                             current ? current->pid : -1, (unsigned long long)pc_before_execute,
+                             (unsigned long long)g_x7chain_last_writer.writer_pc,
+                             g_x7chain_last_writer.writer_raw,
+                             g_x7chain_last_writer.writer_mnemonic, g_x7chain_last_writer.writer_rd,
+                             g_x7chain_last_writer.writer_rn, g_x7chain_last_writer.writer_rm,
+                             g_x7chain_last_writer.writer_idx_mode,
+                             (long long)g_x7chain_last_writer.writer_imm,
+                             (unsigned long long)g_x7chain_last_writer.block_start,
+                             (unsigned long long)g_x7chain_last_writer.block_end,
+                             (unsigned long long)g_x7chain_last_writer.x7_before,
+                             (unsigned long long)g_x7chain_last_writer.x7_after,
+                             g_x7chain_last_writer.x7_after == 1 ? 1 : 0,
+                             g_x7chain_last_writer.x7_after == 0 ? 1 : 0);
+                } else {
+                    snprintf(payload, sizeof(payload),
+                             "attempt:-1,guest_pid:%d,guest_pc:0x%llx,last_writer_pc:none",
+                             current ? current->pid : -1, (unsigned long long)pc_before_execute);
+                }
+                trace_x7chain_event("x7chain.last_writer", payload);
+
+                snprintf(payload, sizeof(payload),
+                         "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:"
+                         "mov_x2_x7,src_reg:7,dst_reg:2,x7_arch:0x%llx,x2_arch:0x%llx,carrier_x7:"
+                         "0x%llx,carrier_x2:0x%llx,cpu_slot_x7:0x%llx,cpu_slot_x2:0x%llx,"
+                         "block_start:0x%llx,block_end:0x%llx,is_x7_one:%d,is_x2_one:%d",
+                         current ? current->pid : -1, (unsigned long long)pc_before_execute,
+                         writer_raw, (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
+                         (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
+                         (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
+                         (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
+                         cpu->x[7] == 1 ? 1 : 0, cpu->x[2] == 1 ? 1 : 0);
+                trace_x7chain_event("x7chain.block_entry", payload);
+
+                if (writer_raw == 0xaa0703e2U) {
+                    snprintf(payload, sizeof(payload),
+                             "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:"
+                             "orr x2,xzr,x7 (mov x2,x7),src_reg:7,dst_reg:2,expected_result:x2_"
+                             "after_equals_x7_before",
+                             current ? current->pid : -1, (unsigned long long)pc_before_execute,
+                             writer_raw);
+                    trace_x7chain_event("mov6a64c.decode", payload);
+
+                    snprintf(payload, sizeof(payload),
+                             "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:"
+                             "mov_x2_x7,x7_arch:0x%llx,x2_arch:0x%llx,carrier_x7:0x%llx,carrier_x2:"
+                             "0x%llx,cpu_slot_x7:0x%llx,cpu_slot_x2:0x%llx,block_start:0x%llx,"
+                             "block_end:0x%llx",
+                             current ? current->pid : -1, (unsigned long long)pc_before_execute,
+                             writer_raw, (unsigned long long)x7_before_execute,
+                             (unsigned long long)x2_before_execute,
+                             (unsigned long long)x7_before_execute,
+                             (unsigned long long)x2_before_execute,
+                             (unsigned long long)x7_before_execute,
+                             (unsigned long long)x2_before_execute,
+                             (unsigned long long)block->start_pc,
+                             (unsigned long long)block->end_pc);
+                    trace_x7chain_event("mov6a64c.pre_exec", payload);
+                }
+
+                if (g_str6a650_last_writer.writer_pc == 0x6a64cULL &&
+                    g_str6a650_last_writer.writer_raw == 0xaa0703e2U) {
+                    snprintf(payload, sizeof(payload),
+                             "attempt:-1,guest_pid:%d,guest_pc:0x6a650,raw_opcode:0xf800845f,"
+                             "mnemonic:str,x7_arch:0x%llx,x2_arch:0x%llx,x7_before_mov:0x%llx,"
+                             "x2_after_mov:0x%llx,x2_after_eq_x7_before:%d",
+                             current ? current->pid : -1, (unsigned long long)cpu->x[7],
+                             (unsigned long long)cpu->x[2],
+                             (unsigned long long)g_str6a650_last_writer.x2_after,
+                             (unsigned long long)g_str6a650_last_writer.x2_after,
+                             cpu->x[2] == g_str6a650_last_writer.x2_after ? 1 : 0);
+                    trace_x7chain_event("mov6a64c.consumer_at_6a650", payload);
+                }
+            }
+
+            if (trace_instr_writes_rd(&writer_decoded, writer_raw) && writer_decoded.Rd == 3 &&
+                pc_before_execute < 0x6a628ULL) {
+                writer_candidate = true;
+                char pretty[192] = { 0 };
+                snprintf(pretty, sizeof(pretty), "cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld",
+                         (int)writer_decoded.cat, (int)writer_decoded.subtype, writer_decoded.Rd,
+                         writer_decoded.Rn, writer_decoded.Rm, (long long)writer_decoded.imm);
+                char payload[640];
+                snprintf(
+                    payload, sizeof(payload),
+                    "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
+                    "arch_base_reg:3,arch_base_val:0x%llx,carrier_val:0x%llx,cpu_slot_val:0x%llx,"
+                    "block_start:0x%llx,block_end:0x%llx,is_zero:%d",
+                    current ? current->pid : -1, (unsigned long long)pc_before_execute, writer_raw,
+                    pretty, (unsigned long long)x3_before_execute,
+                    (unsigned long long)x3_before_execute, (unsigned long long)x3_before_execute,
+                    (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
+                    x3_before_execute == 0 ? 1 : 0);
+                trace_base6a628_event("base6a628.pre_writer_regs", payload);
+            }
+
+            if (trace_instr_writes_rd(&writer_decoded, writer_raw) && writer_decoded.Rd == 0 &&
+                pc_before_execute < 0x6a620ULL) {
+                x0_writer_candidate = true;
+                char pretty[192] = { 0 };
+                snprintf(pretty, sizeof(pretty), "cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld",
+                         (int)writer_decoded.cat, (int)writer_decoded.subtype, writer_decoded.Rd,
+                         writer_decoded.Rn, writer_decoded.Rm, (long long)writer_decoded.imm);
+                char payload[640];
+                snprintf(payload, sizeof(payload),
+                         "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
+                         "x0_val:0x%llx,carrier_val:0x%llx,cpu_slot_val:0x%llx,"
+                         "block_start:0x%llx,block_end:0x%llx,is_zero:%d",
+                         current ? current->pid : -1, (unsigned long long)pc_before_execute,
+                         writer_raw, pretty, (unsigned long long)x0_before_execute,
+                         (unsigned long long)x0_before_execute,
+                         (unsigned long long)x0_before_execute, (unsigned long long)block->start_pc,
+                         (unsigned long long)block->end_pc, x0_before_execute == 0 ? 1 : 0);
+                trace_x0chain_event("x0chain.pre_writer_regs", payload);
+            }
+
+            if (trace_instr_writes_rd(&writer_decoded, writer_raw) && writer_decoded.Rd == 2 &&
+                pc_before_execute < 0x6a650ULL) {
+                x2_writer_candidate = true;
+                char pretty[192] = { 0 };
+                snprintf(pretty, sizeof(pretty), "cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld",
+                         (int)writer_decoded.cat, (int)writer_decoded.subtype, writer_decoded.Rd,
+                         writer_decoded.Rn, writer_decoded.Rm, (long long)writer_decoded.imm);
+                char payload[768];
+                snprintf(payload, sizeof(payload),
+                         "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
+                         "base_reg:2,base_val:0x%llx,src_reg:%d,src_val:0x%llx,idx_reg:%d,idx_"
+                         "val:0x%llx,imm:%lld,idx_mode:%d,guest_ea:na,host_probe:na,translation_"
+                         "fault:na,signal_follow_immediate:0",
+                         current ? current->pid : -1, (unsigned long long)pc_before_execute,
+                         writer_raw, pretty, (unsigned long long)x2_before_execute,
+                         writer_decoded.Rd,
+                         (unsigned long long)trace_ldst_reg_or_zr(cpu, writer_decoded.Rd),
+                         writer_decoded.Rm,
+                         (unsigned long long)trace_ldst_reg_or_zr(cpu, writer_decoded.Rm),
+                         (long long)writer_decoded.imm, (int)writer_decoded.idx_mode);
+                trace_str6a650_event("str6a650.pre_writer_regs", payload);
+            }
+
+            if (trace_instr_writes_rd(&writer_decoded, writer_raw) && writer_decoded.Rd == 7 &&
+                pc_before_execute < 0x6a64cULL) {
+                x7_writer_candidate = true;
+                char pretty[192] = { 0 };
+                snprintf(pretty, sizeof(pretty), "cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld",
+                         (int)writer_decoded.cat, (int)writer_decoded.subtype, writer_decoded.Rd,
+                         writer_decoded.Rn, writer_decoded.Rm, (long long)writer_decoded.imm);
+                char payload[768];
+                snprintf(
+                    payload, sizeof(payload),
+                    "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
+                    "x7_arch:0x%llx,x2_arch:0x%llx,carrier_x7:0x%llx,carrier_x2:0x%llx,cpu_"
+                    "slot_x7:0x%llx,cpu_slot_x2:0x%llx,block_start:0x%llx,block_end:0x%llx,"
+                    "is_x7_one:%d,is_x7_zero:%d",
+                    current ? current->pid : -1, (unsigned long long)pc_before_execute, writer_raw,
+                    pretty, (unsigned long long)x7_before_execute,
+                    (unsigned long long)x2_before_execute, (unsigned long long)x7_before_execute,
+                    (unsigned long long)x2_before_execute, (unsigned long long)x7_before_execute,
+                    (unsigned long long)x2_before_execute, (unsigned long long)block->start_pc,
+                    (unsigned long long)block->end_pc, x7_before_execute == 1 ? 1 : 0,
+                    x7_before_execute == 0 ? 1 : 0);
+                trace_x7chain_event("x7chain.pre_writer_regs", payload);
+            }
+        }
         int exit_reason = a64_execute_block(cpu, block);
+        uint64_t sp_after_execute = cpu->sp;
+        uint64_t x7_after_execute = cpu->x[7];
+        uint64_t x2_after_execute = cpu->x[2];
+
+        if (pc_before_execute == 0x6a640ULL || pc_before_execute == 0x6a64cULL) {
+            char payload[1024];
+            const char *mnemonic =
+                pc_before_execute == 0x6a640ULL ? "add x7,sp,#8" : "orr x2,xzr,x7 (mov x2,x7)";
+            snprintf(payload, sizeof(payload),
+                     "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
+                     "arch_sp:0x%llx,arch_x7:0x%llx,arch_x2:0x%llx,carrier_sp:0x%llx,carrier_x7:"
+                     "0x%llx,carrier_x2:0x%llx,cpu_state.sp:0x%llx,cpu_state.x7:0x%llx,cpu_state."
+                     "x2:0x%llx,x2_after_eq_x7_before:%d,exit_reason:%d",
+                     current ? current->pid : -1, (unsigned long long)pc_before_execute, writer_raw,
+                     mnemonic, (unsigned long long)sp_after_execute,
+                     (unsigned long long)x7_after_execute, (unsigned long long)x2_after_execute,
+                     (unsigned long long)sp_after_execute, (unsigned long long)x7_after_execute,
+                     (unsigned long long)x2_after_execute, (unsigned long long)sp_after_execute,
+                     (unsigned long long)x7_after_execute, (unsigned long long)x2_after_execute,
+                     x2_after_execute == x7_before_execute ? 1 : 0, exit_reason);
+            trace_insn64_event(pc_before_execute == 0x6a640ULL ? "insn6a640.post_exec"
+                                                               : "insn6a64c.post_exec",
+                               payload);
+        }
+
+        if (writer_candidate) {
+            char pretty[192] = { 0 };
+            snprintf(pretty, sizeof(pretty), "cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld",
+                     (int)writer_decoded.cat, (int)writer_decoded.subtype, writer_decoded.Rd,
+                     writer_decoded.Rn, writer_decoded.Rm, (long long)writer_decoded.imm);
+
+            g_base6a628_last_writer.valid = 1;
+            g_base6a628_last_writer.writer_pc = pc_before_execute;
+            g_base6a628_last_writer.writer_raw = writer_raw;
+            strncpy(g_base6a628_last_writer.writer_mnemonic, pretty,
+                    sizeof(g_base6a628_last_writer.writer_mnemonic) - 1);
+            g_base6a628_last_writer
+                .writer_mnemonic[sizeof(g_base6a628_last_writer.writer_mnemonic) - 1] = '\0';
+            g_base6a628_last_writer.writer_rd = writer_decoded.Rd;
+            g_base6a628_last_writer.writer_rn = writer_decoded.Rn;
+            g_base6a628_last_writer.x3_before = x3_before_execute;
+            g_base6a628_last_writer.x3_after = cpu->x[3];
+            g_base6a628_last_writer.block_start = block->start_pc;
+            g_base6a628_last_writer.block_end = block->end_pc;
+
+            char payload[640];
+            snprintf(payload, sizeof(payload),
+                     "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
+                     "arch_base_reg:3,arch_base_val:0x%llx,carrier_val:0x%llx,cpu_slot_val:0x%llx,"
+                     "block_start:0x%llx,block_end:0x%llx,is_zero:%d",
+                     current ? current->pid : -1, (unsigned long long)pc_before_execute, writer_raw,
+                     pretty, (unsigned long long)cpu->x[3], (unsigned long long)cpu->x[3],
+                     (unsigned long long)cpu->x[3], (unsigned long long)block->start_pc,
+                     (unsigned long long)block->end_pc, cpu->x[3] == 0 ? 1 : 0);
+            trace_base6a628_event("base6a628.post_writer_regs", payload);
+        }
+
+        if (x0_writer_candidate) {
+            char pretty[192] = { 0 };
+            snprintf(pretty, sizeof(pretty), "cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld",
+                     (int)writer_decoded.cat, (int)writer_decoded.subtype, writer_decoded.Rd,
+                     writer_decoded.Rn, writer_decoded.Rm, (long long)writer_decoded.imm);
+
+            g_x0chain_last_writer.valid = 1;
+            g_x0chain_last_writer.writer_pc = pc_before_execute;
+            g_x0chain_last_writer.writer_raw = writer_raw;
+            strncpy(g_x0chain_last_writer.writer_mnemonic, pretty,
+                    sizeof(g_x0chain_last_writer.writer_mnemonic) - 1);
+            g_x0chain_last_writer
+                .writer_mnemonic[sizeof(g_x0chain_last_writer.writer_mnemonic) - 1] = '\0';
+            g_x0chain_last_writer.writer_rd = writer_decoded.Rd;
+            g_x0chain_last_writer.writer_rn = writer_decoded.Rn;
+            g_x0chain_last_writer.x0_before = x0_before_execute;
+            g_x0chain_last_writer.x0_after = cpu->x[0];
+            g_x0chain_last_writer.block_start = block->start_pc;
+            g_x0chain_last_writer.block_end = block->end_pc;
+
+            char payload[640];
+            snprintf(payload, sizeof(payload),
+                     "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
+                     "x0_val:0x%llx,carrier_val:0x%llx,cpu_slot_val:0x%llx,"
+                     "block_start:0x%llx,block_end:0x%llx,is_zero:%d",
+                     current ? current->pid : -1, (unsigned long long)pc_before_execute, writer_raw,
+                     pretty, (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[0],
+                     (unsigned long long)cpu->x[0], (unsigned long long)block->start_pc,
+                     (unsigned long long)block->end_pc, cpu->x[0] == 0 ? 1 : 0);
+            trace_x0chain_event("x0chain.post_writer_regs", payload);
+        }
+
+        if (x2_writer_candidate) {
+            char pretty[192] = { 0 };
+            snprintf(pretty, sizeof(pretty), "cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld",
+                     (int)writer_decoded.cat, (int)writer_decoded.subtype, writer_decoded.Rd,
+                     writer_decoded.Rn, writer_decoded.Rm, (long long)writer_decoded.imm);
+
+            g_str6a650_last_writer.valid = 1;
+            g_str6a650_last_writer.writer_pc = pc_before_execute;
+            g_str6a650_last_writer.writer_raw = writer_raw;
+            strncpy(g_str6a650_last_writer.writer_mnemonic, pretty,
+                    sizeof(g_str6a650_last_writer.writer_mnemonic) - 1);
+            g_str6a650_last_writer
+                .writer_mnemonic[sizeof(g_str6a650_last_writer.writer_mnemonic) - 1] = '\0';
+            g_str6a650_last_writer.writer_rd = writer_decoded.Rd;
+            g_str6a650_last_writer.writer_rn = writer_decoded.Rn;
+            g_str6a650_last_writer.writer_rm = writer_decoded.Rm;
+            g_str6a650_last_writer.writer_idx_mode = writer_decoded.idx_mode;
+            g_str6a650_last_writer.writer_imm = writer_decoded.imm;
+            g_str6a650_last_writer.x2_before = x2_before_execute;
+            g_str6a650_last_writer.x2_after = cpu->x[2];
+            g_str6a650_last_writer.block_start = block->start_pc;
+            g_str6a650_last_writer.block_end = block->end_pc;
+
+            char payload[768];
+            snprintf(payload, sizeof(payload),
+                     "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
+                     "base_reg:2,base_val:0x%llx,src_reg:%d,src_val:0x%llx,idx_reg:%d,idx_val:"
+                     "0x%llx,imm:%lld,idx_mode:%d,guest_ea:na,host_probe:na,translation_fault:na,"
+                     "signal_follow_immediate:0",
+                     current ? current->pid : -1, (unsigned long long)pc_before_execute, writer_raw,
+                     pretty, (unsigned long long)cpu->x[2], writer_decoded.Rd,
+                     (unsigned long long)trace_ldst_reg_or_zr(cpu, writer_decoded.Rd),
+                     writer_decoded.Rm,
+                     (unsigned long long)trace_ldst_reg_or_zr(cpu, writer_decoded.Rm),
+                     (long long)writer_decoded.imm, (int)writer_decoded.idx_mode);
+            trace_str6a650_event("str6a650.post_writer_regs", payload);
+
+            if (pc_before_execute == 0x6a64cULL && writer_raw == 0xaa0703e2U) {
+                snprintf(payload, sizeof(payload),
+                         "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:"
+                         "mov_x2_x7,x7_arch:0x%llx,x2_arch:0x%llx,carrier_x7:0x%llx,carrier_x2:"
+                         "0x%llx,cpu_slot_x7:0x%llx,cpu_slot_x2:0x%llx,x2_after_eq_x7_before:%d,"
+                         "block_start:0x%llx,block_end:0x%llx",
+                         current ? current->pid : -1, (unsigned long long)pc_before_execute,
+                         writer_raw, (unsigned long long)x7_before_execute,
+                         (unsigned long long)cpu->x[2], (unsigned long long)x7_before_execute,
+                         (unsigned long long)cpu->x[2], (unsigned long long)x7_before_execute,
+                         (unsigned long long)cpu->x[2], cpu->x[2] == x7_before_execute ? 1 : 0,
+                         (unsigned long long)block->start_pc, (unsigned long long)block->end_pc);
+                trace_x7chain_event("mov6a64c.post_exec", payload);
+            }
+        }
+
+        if (x7_writer_candidate) {
+            char pretty[192] = { 0 };
+            snprintf(pretty, sizeof(pretty), "cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld",
+                     (int)writer_decoded.cat, (int)writer_decoded.subtype, writer_decoded.Rd,
+                     writer_decoded.Rn, writer_decoded.Rm, (long long)writer_decoded.imm);
+
+            g_x7chain_last_writer.valid = 1;
+            g_x7chain_last_writer.writer_pc = pc_before_execute;
+            g_x7chain_last_writer.writer_raw = writer_raw;
+            strncpy(g_x7chain_last_writer.writer_mnemonic, pretty,
+                    sizeof(g_x7chain_last_writer.writer_mnemonic) - 1);
+            g_x7chain_last_writer
+                .writer_mnemonic[sizeof(g_x7chain_last_writer.writer_mnemonic) - 1] = '\0';
+            g_x7chain_last_writer.writer_rd = writer_decoded.Rd;
+            g_x7chain_last_writer.writer_rn = writer_decoded.Rn;
+            g_x7chain_last_writer.writer_rm = writer_decoded.Rm;
+            g_x7chain_last_writer.writer_idx_mode = writer_decoded.idx_mode;
+            g_x7chain_last_writer.writer_imm = writer_decoded.imm;
+            g_x7chain_last_writer.x7_before = x7_before_execute;
+            g_x7chain_last_writer.x7_after = cpu->x[7];
+            g_x7chain_last_writer.block_start = block->start_pc;
+            g_x7chain_last_writer.block_end = block->end_pc;
+
+            char payload[768];
+            snprintf(payload, sizeof(payload),
+                     "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,x7_"
+                     "arch:0x%llx,x2_arch:0x%llx,carrier_x7:0x%llx,carrier_x2:0x%llx,cpu_slot_x7:"
+                     "0x%llx,cpu_slot_x2:0x%llx,block_start:0x%llx,block_end:0x%llx,is_x7_one:%d,"
+                     "is_x7_zero:%d",
+                     current ? current->pid : -1, (unsigned long long)pc_before_execute, writer_raw,
+                     pretty, (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
+                     (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
+                     (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
+                     (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
+                     cpu->x[7] == 1 ? 1 : 0, cpu->x[7] == 0 ? 1 : 0);
+            trace_x7chain_event("x7chain.post_writer_regs", payload);
+        }
         trace_cpu_run_checkpoint("task.proof.a64_cpu_run.exit_reason_set", current, cpu,
                                  exit_reason);
         {
@@ -1716,6 +3047,8 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb)
             trace_cpu_run_checkpoint("task.proof.a64_cpu_run.exit_fault", current, cpu,
                                      exit_reason);
 
+            trace_guest_first_fault_capture(cpu, guest_fault_signal);
+
             // Decode and trace the faulting instruction
             uint32_t raw_insn = 0;
             a64_instr_t decoded;
@@ -1734,6 +3067,44 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb)
             // Dump sidecar and ring if configured
             trace_dump_on_fault(cpu->pc, cpu->fault_addr, cpu->fault_was_write);
 
+            // Emit first-fault proof before INT_GPF handling can terminate the task.
+            trace_guest_first_fault_events();
+
+            if (cpu->pc == 0x6a650ULL && g_guest_first_fault.seen) {
+                char payload[768];
+                const char *mnemonic = trace_guest_mnemonic(&g_guest_first_fault);
+
+                snprintf(payload, sizeof(payload),
+                         "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
+                         "base_reg:%d,base_val:0x%llx,src_reg:%d,src_val:0x%llx,idx_reg:%d,idx_"
+                         "val:0x%llx,imm:unknown,idx_mode:%d,guest_ea:0x%llx,host_probe:pending,"
+                         "translation_fault:pending,signal_follow_immediate:1",
+                         current ? current->pid : -1, (unsigned long long)g_guest_first_fault.pc,
+                         g_guest_first_fault.raw, mnemonic, g_guest_first_fault.rn,
+                         (unsigned long long)g_guest_first_fault.rn_val, g_guest_first_fault.rd,
+                         (unsigned long long)g_guest_first_fault.rt_val, g_guest_first_fault.rm,
+                         (unsigned long long)g_guest_first_fault.rm_val,
+                         g_guest_first_fault.idx_mode,
+                         (unsigned long long)g_guest_first_fault.guest_ea);
+                trace_str6a650_event("str6a650.pre_helper", payload);
+
+                snprintf(payload, sizeof(payload),
+                         "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
+                         "base_reg:%d,base_val:0x%llx,src_reg:%d,src_val:0x%llx,idx_reg:%d,idx_"
+                         "val:0x%llx,imm:unknown,idx_mode:%d,guest_ea:0x%llx,host_probe:0x%llx,"
+                         "translation_fault:%d,signal_follow_immediate:1",
+                         current ? current->pid : -1, (unsigned long long)g_guest_first_fault.pc,
+                         g_guest_first_fault.raw, mnemonic, g_guest_first_fault.rn,
+                         (unsigned long long)g_guest_first_fault.rn_val, g_guest_first_fault.rd,
+                         (unsigned long long)g_guest_first_fault.rt_val, g_guest_first_fault.rm,
+                         (unsigned long long)g_guest_first_fault.rm_val,
+                         g_guest_first_fault.idx_mode,
+                         (unsigned long long)g_guest_first_fault.guest_ea,
+                         (unsigned long long)g_guest_first_fault.host_ptr_probe,
+                         g_guest_first_fault.translation_fault);
+                trace_str6a650_event("str6a650.translation", payload);
+            }
+
             // Mark context inactive before handling fault
             fiber_exec_ctx_put(ctx);
             trace_cpu_run_checkpoint("task.proof.a64_cpu_run.before_handle_interrupt", current, cpu,
@@ -1743,6 +3114,26 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb)
                                      cpu, exit_reason);
             trace_cpu_run_checkpoint("task.proof.a64_cpu_run.after_handle_interrupt", current, cpu,
                                      exit_reason);
+
+            if (pc_before_execute == 0x6a650ULL && g_guest_first_fault.seen) {
+                char payload[768];
+                const char *mnemonic = trace_guest_mnemonic(&g_guest_first_fault);
+                snprintf(payload, sizeof(payload),
+                         "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
+                         "base_reg:%d,base_val:0x%llx,src_reg:%d,src_val:0x%llx,idx_reg:%d,idx_"
+                         "val:0x%llx,imm:unknown,idx_mode:%d,guest_ea:0x%llx,host_probe:0x%llx,"
+                         "translation_fault:%d,signal_follow_immediate:1",
+                         current ? current->pid : -1, (unsigned long long)g_guest_first_fault.pc,
+                         g_guest_first_fault.raw, mnemonic, g_guest_first_fault.rn,
+                         (unsigned long long)g_guest_first_fault.rn_val, g_guest_first_fault.rd,
+                         (unsigned long long)g_guest_first_fault.rt_val, g_guest_first_fault.rm,
+                         (unsigned long long)g_guest_first_fault.rm_val,
+                         g_guest_first_fault.idx_mode,
+                         (unsigned long long)g_guest_first_fault.guest_ea,
+                         (unsigned long long)g_guest_first_fault.host_ptr_probe,
+                         g_guest_first_fault.translation_fault);
+                trace_str6a650_event("str6a650.exit", payload);
+            }
         } else if (exit_reason == TCTI_EXIT_SIGNAL) {
             trace_cpu_run_checkpoint("task.proof.a64_cpu_run.exit_signal", current, cpu,
                                      exit_reason);

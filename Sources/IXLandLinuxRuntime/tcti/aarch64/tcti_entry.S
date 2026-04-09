@@ -18,6 +18,12 @@
 
 .global _tcti_entry_block
 .global tcti_entry_block
+.extern _trace_emit_tcti_gadget6a640_load_sp_pre
+.extern _trace_emit_tcti_gadget6a640_load_sp_post
+.extern _trace_emit_tcti_gadget6a640_mov_imm_pre
+.extern _trace_emit_tcti_gadget6a640_mov_imm_post
+.extern _trace_emit_tcti_gadget6a640_add_reg_pre
+.extern _trace_emit_tcti_gadget6a640_add_reg_post
 _tcti_entry_block:
 tcti_entry_block:
     // Entry: x0 = gadget array, x1 = cpu_state

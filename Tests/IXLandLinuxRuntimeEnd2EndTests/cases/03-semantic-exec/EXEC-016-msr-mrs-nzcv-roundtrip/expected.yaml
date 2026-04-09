@@ -8,12 +8,12 @@ code:
   instruction_1:
     name: msr_nzcv
     asm: "msr nzcv, x0"
-    encoding_hex_le: "001b1bd5"
+    encoding_hex_le: "00421bd5"
     description: "MSR NZCV from X0 - sets N=1, Z=1, C=0, V=0"
   instruction_2:
     name: mrs_nzcv
     asm: "mrs x1, nzcv"
-    encoding_hex_le: "011b38d5"
+    encoding_hex_le: "01423bd5"
     description: "MRS NZCV to X1 - should read back same value"
 
 execution_sequence:

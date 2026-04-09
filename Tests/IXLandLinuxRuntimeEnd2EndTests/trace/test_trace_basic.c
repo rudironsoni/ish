@@ -5,7 +5,6 @@
 
 #import <IXLandInstrumentationTracing/trace.h>
 #include <assert.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -16,15 +15,12 @@ static int fail_count = 0;
 #define RUN_TEST(name)                                                                             \
     do {                                                                                           \
         test_count++;                                                                              \
-        printf("Running test_%s... ", #name);                                                      \
         test_##name();                                                                             \
-        printf("PASS\n");                                                                          \
     } while (0)
 
 #define ASSERT(cond)                                                                               \
     do {                                                                                           \
         if (!(cond)) {                                                                             \
-            fprintf(stderr, "\nASSERTION FAILED: %s at %s:%d\n", #cond, __FILE__, __LINE__);       \
             fail_count++;                                                                          \
             return;                                                                                \
         }                                                                                          \
@@ -294,8 +290,6 @@ TEST(block_sidecar)
 /* Main test runner */
 int main(void)
 {
-    printf("=== iSH Trace Subsystem Tests ===\n\n");
-
     RUN_TEST(backend_selection);
     RUN_TEST(level_parsing);
     RUN_TEST(event_filtering);
@@ -306,11 +300,6 @@ int main(void)
     RUN_TEST(event_names);
     RUN_TEST(level_filtering);
     RUN_TEST(block_sidecar);
-
-    printf("\n=== Results ===\n");
-    printf("Tests run: %d\n", test_count);
-    printf("Passed: %d\n", test_count - fail_count);
-    printf("Failed: %d\n", fail_count);
 
     return fail_count > 0 ? 1 : 0;
 }

@@ -93,17 +93,13 @@ bool trace_event_enabled(trace_event_id_t event, uint64_t pc)
     return false;
 }
 
-/* Legacy init - minimal, with ring buffer for pre-crash capture */
+/* Legacy init - minimal */
 int trace_init(trace_config_t *config)
 {
     (void)config;
-    /* Minimal initialization - just set the global context to a dummy state */
     if (!g_trace_ctx) {
         g_trace_ctx = calloc(1, sizeof(trace_ctx_t));
     }
-
-    /* Enable pre-crash ring buffer capture - this is safe to call multiple times */
-    trace_ring_enable_precrash_capture();
 
     return 0;
 }
@@ -623,121 +619,47 @@ void trace_emit_task_proof_point(task_proof_point_t point, uint32_t pid)
  * for forensic analysis of the spill-first execution model.
  */
 
-/* Helper to write TCTI event to ring buffer - ALWAYS writes regardless of trace level or init state
- */
-static void trace_tcti_to_ring(trace_event_id_t event, uint64_t value)
-{
-    /* Get the global ring buffer directly - works even before trace_init */
-    trace_ring_t *ring = trace_get_global_ring();
-    if (!ring || !ring->records)
-        return;
-
-    /* Calculate write position */
-    size_t idx = ring->head % ring->capacity;
-
-    /* Build record directly in ring buffer */
-    trace_record_t *record = &ring->records[idx];
-    memset(record, 0, sizeof(trace_record_t));
-
-    record->header.event_id = event;
-    record->header.level = TRACE_LEVEL_BOUNDARY;
-    record->header.pc = 0; /* Not applicable for TCTI entry */
-    record->header.payload_size = 8;
-    record->header.seq = ring->seq++;
-
-    memcpy(record->payload, &value, 8);
-
-    /* Update ring buffer state */
-    ring->head++;
-    if (ring->head >= ring->capacity) {
-        ring->wrapped = true;
-        ring->dropped++;
-    }
-}
-
 void trace_emit_tcti_entry_x28_before(uint64_t x28_value)
 {
-    /* Buffer retained for ring buffer logging */
-    char x28_buf[24];
-    snprintf(x28_buf, sizeof(x28_buf), "0x%llx", (unsigned long long)x28_value);
-
     ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI,
                                         "tcti.entry.x28.before");
-
-    /* Also write to ring buffer for pre-crash capture */
-    trace_tcti_to_ring(TRACE_EVENT_TCTI_ENTRY_X28_BEFORE, x28_value);
+    (void)x28_value;
 }
 
 void trace_emit_tcti_entry_qword0(uint64_t qword0)
 {
-    /* Buffer retained for ring buffer logging */
-    char qword0_buf[24];
-    snprintf(qword0_buf, sizeof(qword0_buf), "0x%llx", (unsigned long long)qword0);
-
     ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI, "tcti.entry.qword0");
-
-    /* Also write to ring buffer for pre-crash capture */
-    trace_tcti_to_ring(TRACE_EVENT_TCTI_ENTRY_QWORD0, qword0);
+    (void)qword0;
 }
 
 void trace_emit_tcti_entry_x27_after(uint64_t x27_value)
 {
-    /* Buffer retained for ring buffer logging */
-    char x27_buf[24];
-    snprintf(x27_buf, sizeof(x27_buf), "0x%llx", (unsigned long long)x27_value);
-
     ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI, "tcti.entry.x27.after");
-
-    /* Also write to ring buffer for pre-crash capture */
-    trace_tcti_to_ring(TRACE_EVENT_TCTI_ENTRY_X27_AFTER, x27_value);
+    (void)x27_value;
 }
 
 void trace_emit_tcti_entry_x28_after(uint64_t x28_value)
 {
-    /* Buffer retained for ring buffer logging */
-    char x28_buf[24];
-    snprintf(x28_buf, sizeof(x28_buf), "0x%llx", (unsigned long long)x28_value);
-
     ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI, "tcti.entry.x28.after");
-
-    /* Also write to ring buffer for pre-crash capture */
-    trace_tcti_to_ring(TRACE_EVENT_TCTI_ENTRY_X28_AFTER, x28_value);
+    (void)x28_value;
 }
 
 void trace_emit_tcti_entry_qword1(uint64_t qword1)
 {
-    /* Buffer retained for ring buffer logging */
-    char qword1_buf[24];
-    snprintf(qword1_buf, sizeof(qword1_buf), "0x%llx", (unsigned long long)qword1);
-
     ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI, "tcti.entry.qword1");
-
-    /* Also write to ring buffer for pre-crash capture */
-    trace_tcti_to_ring(TRACE_EVENT_TCTI_ENTRY_QWORD1, qword1);
+    (void)qword1;
 }
 
 void trace_emit_gadget_entry_x28(uint64_t x28_value)
 {
-    /* Buffer retained for ring buffer logging */
-    char x28_buf[24];
-    snprintf(x28_buf, sizeof(x28_buf), "0x%llx", (unsigned long long)x28_value);
-
     ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI, "gadget.entry.x28");
-
-    /* Also write to ring buffer for pre-crash capture */
-    trace_tcti_to_ring(TRACE_EVENT_GADGET_ENTRY_X28, x28_value);
+    (void)x28_value;
 }
 
 void trace_emit_gadget_fault_addr(uint64_t fault_addr)
 {
-    /* Buffer retained for ring buffer logging */
-    char addr_buf[24];
-    snprintf(addr_buf, sizeof(addr_buf), "0x%llx", (unsigned long long)fault_addr);
-
     ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI, "gadget.fault_addr");
-
-    /* Also write to ring buffer for pre-crash capture */
-    trace_tcti_to_ring(TRACE_EVENT_GADGET_FAULT_ADDR, fault_addr);
+    (void)fault_addr;
 }
 
 /* ============================================
@@ -750,101 +672,62 @@ void trace_emit_gadget_fault_addr(uint64_t fault_addr)
 
 void trace_emit_gadget_ldr_fault_pc(uint64_t fault_pc)
 {
-    /* Buffer retained for ring buffer logging */
-    char buf[24];
-    snprintf(buf, sizeof(buf), "0x%llx", (unsigned long long)fault_pc);
-
     ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI, "gadget.ldr.fault_pc");
-    trace_tcti_to_ring(TRACE_EVENT_GADGET_LDR_FAULT_PC, fault_pc);
+    (void)fault_pc;
 }
 
 void trace_emit_gadget_ldr_rn_value(uint64_t rn_value)
 {
-    /* Buffer retained for ring buffer logging */
-    char buf[24];
-    snprintf(buf, sizeof(buf), "0x%llx", (unsigned long long)rn_value);
-
     ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI, "gadget.ldr.rn_value");
-    trace_tcti_to_ring(TRACE_EVENT_GADGET_LDR_RN_VALUE, rn_value);
+    (void)rn_value;
 }
 
 void trace_emit_gadget_ldr_imm_value(uint64_t imm_value)
 {
-    /* Buffer retained for ring buffer logging */
-    char buf[24];
-    snprintf(buf, sizeof(buf), "0x%llx", (unsigned long long)imm_value);
-
     ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI, "gadget.ldr.imm_value");
-    trace_tcti_to_ring(TRACE_EVENT_GADGET_LDR_IMM_VALUE, imm_value);
+    (void)imm_value;
 }
 
 void trace_emit_gadget_ldr_idx_mode(uint64_t idx_mode)
 {
-    /* Buffer retained for ring buffer logging */
-    char buf[24];
-    snprintf(buf, sizeof(buf), "0x%llx", (unsigned long long)idx_mode);
-
     ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI, "gadget.ldr.idx_mode");
-    trace_tcti_to_ring(TRACE_EVENT_GADGET_LDR_IDX_MODE, idx_mode);
+    (void)idx_mode;
 }
 
 void trace_emit_gadget_ldr_guest_vaddr(uint64_t guest_vaddr)
 {
-    /* Buffer retained for ring buffer logging */
-    char buf[24];
-    snprintf(buf, sizeof(buf), "0x%llx", (unsigned long long)guest_vaddr);
-
     ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI,
                                         "gadget.ldr.guest_vaddr");
-    trace_tcti_to_ring(TRACE_EVENT_GADGET_LDR_GUEST_VADDR, guest_vaddr);
+    (void)guest_vaddr;
 }
 
 void trace_emit_gadget_ldr_host_ptr(uint64_t host_ptr)
 {
-    /* Buffer retained for ring buffer logging */
-    char buf[24];
-    snprintf(buf, sizeof(buf), "0x%llx", (unsigned long long)host_ptr);
-
     ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI, "gadget.ldr.host_ptr");
-    trace_tcti_to_ring(TRACE_EVENT_GADGET_LDR_HOST_PTR, host_ptr);
+    (void)host_ptr;
 }
 
 void trace_emit_mem_translate_attempt(uint64_t guest_addr, uint64_t size)
 {
-    /* Buffers retained for ring buffer logging */
-    char addr_buf[24];
-    char size_buf[24];
-    snprintf(addr_buf, sizeof(addr_buf), "0x%llx", (unsigned long long)guest_addr);
-    snprintf(size_buf, sizeof(size_buf), "0x%llx", (unsigned long long)size);
-
     ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
                                         "mem.translate.attempt");
-    trace_tcti_to_ring(TRACE_EVENT_MEM_TRANSLATE_ATTEMPT, guest_addr);
+    (void)guest_addr;
+    (void)size;
 }
 
 void trace_emit_mem_translate_result(uint64_t host_ptr, int success)
 {
-    /* Buffers retained for ring buffer logging */
-    char ptr_buf[24];
-    char success_buf[8];
-    snprintf(ptr_buf, sizeof(ptr_buf), "0x%llx", (unsigned long long)host_ptr);
-    snprintf(success_buf, sizeof(success_buf), "%d", success);
-
     ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
                                         "mem.translate.result");
-    trace_tcti_to_ring(TRACE_EVENT_MEM_TRANSLATE_RESULT, host_ptr);
+    (void)host_ptr;
+    (void)success;
 }
 
 void trace_emit_mem_pgdir_lookup(uint64_t page, uint64_t pgdir_slot)
 {
-    /* Buffers retained for ring buffer logging */
-    char page_buf[24];
-    char slot_buf[24];
-    snprintf(page_buf, sizeof(page_buf), "0x%llx", (unsigned long long)page);
-    snprintf(slot_buf, sizeof(slot_buf), "0x%llx", (unsigned long long)pgdir_slot);
-
     ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "mem.pgdir.lookup");
-    trace_tcti_to_ring(TRACE_EVENT_MEM_PGDIR_LOOKUP, pgdir_slot);
+    (void)page;
+    (void)pgdir_slot;
 }
 
 /* ============================================
@@ -968,33 +851,5 @@ int trace_mark_run_completed(const char *path)
     return 0;
 }
 
-/* trace_dump_ring, trace_dump_ring_stderr, and trace_dump_on_fault
- * are implemented in trace_dump.c and trace_ring.c */
-
-/* Weak stub for trace_dump_ring - trace_ring.c provides real implementation */
-__attribute__((weak)) int trace_dump_ring(const char *path)
-{
-    (void)path;
-    return 0;
-}
-
-/* Weak stub for trace_dump_ring_stderr - trace_ring.c provides real implementation */
-__attribute__((weak)) void trace_dump_ring_stderr(void) {}
-
-/* Weak stub for trace_dump_on_fault - trace_dump.c provides real implementation */
-__attribute__((weak)) void trace_dump_on_fault(uint64_t fault_pc, uint64_t fault_addr, int is_write)
-{
-    (void)fault_pc;
-    (void)fault_addr;
-    (void)is_write;
-}
-
-/* ============================================
- * Sidecar Management - STUBBED
- * ============================================ */
-
-/* Weak stub - trace_dump.c provides the real implementation when linked */
-__attribute__((weak)) bool trace_sidecar_enabled(void)
-{
-    return false;
-}
+/* Legacy dump/sidecar APIs are implemented as no-op compatibility shims
+ * in trace_dump.c to preserve source compatibility without legacy sinks. */

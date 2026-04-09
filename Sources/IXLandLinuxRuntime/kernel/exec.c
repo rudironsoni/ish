@@ -11,6 +11,7 @@
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/kernel/elf.h>
 #import <IXLandLinuxRuntime/kernel/errno.h>
+#import <IXLandLinuxRuntime/kernel/personality.h>
 #import <IXLandLinuxRuntime/kernel/random.h>
 #import <IXLandLinuxRuntime/kernel/vdso.h>
 #import <IXLandLinuxRuntime/util/misc.h>
@@ -151,6 +152,327 @@ static void trace_elf_header_checkpoint(const char *name, struct elf_header *hea
     (void)trace_begin_interval(TRACE_ORIGIN_TASK, name, attrs, sizeof(attrs) / sizeof(attrs[0]));
 }
 
+static void trace_elf_header_role_checkpoint(const char *name, const char *role,
+                                             struct elf_header *header)
+{
+    char role_buf[24];
+    char class_buf[8];
+    char machine_buf[8];
+    char entry_buf[24];
+    char type_buf[8];
+
+    snprintf(role_buf, sizeof(role_buf), "%s", role ? role : "unknown");
+    snprintf(class_buf, sizeof(class_buf), "%u", header->bitness);
+    snprintf(machine_buf, sizeof(machine_buf), "%u", header->machine);
+    snprintf(entry_buf, sizeof(entry_buf), "0x%llx", (unsigned long long)header->entry_point);
+    snprintf(type_buf, sizeof(type_buf), "%u", header->type);
+
+    trace_attribute_t attrs[] = {
+        { "role", role_buf },       { "elf_class", class_buf }, { "elf_machine", machine_buf },
+        { "elf_entry", entry_buf }, { "elf_type", type_buf },
+    };
+
+    (void)trace_begin_interval(TRACE_ORIGIN_TASK, name, attrs, sizeof(attrs) / sizeof(attrs[0]));
+
+    static int budget = 4;
+    if (budget > 0) {
+        char ev[224];
+        snprintf(ev, sizeof(ev),
+                 "loader.%s_elf.header=class:%u,machine:%u,entry:0x%llx,e_ident:7f454c46%02x%02x%"
+                 "02x%02x%02x",
+                 role ? role : "unknown", header->bitness, header->machine,
+                 (unsigned long long)header->entry_point, (unsigned)header->bitness,
+                 (unsigned)header->endian, (unsigned)header->elfversion1, (unsigned)header->abi,
+                 (unsigned)header->abi_version);
+        trace_record_event(TRACE_ORIGIN_KERNEL, ev);
+        budget--;
+    }
+}
+
+static const char *trace_mem_object_kind_name(enum mem_object_kind kind)
+{
+    switch (kind) {
+    case MEM_OBJ_RAM:
+        return "ram";
+    case MEM_OBJ_FILE:
+        return "file";
+    case MEM_OBJ_VDSO:
+        return "vdso";
+    case MEM_OBJ_SPECIAL:
+        return "special";
+    default:
+        return "unknown";
+    }
+}
+
+static bool trace_read_guest_bytes_locked(addr_t guest_addr, byte_t *out, size_t len)
+{
+    if (current == NULL || current->mem == NULL || out == NULL)
+        return false;
+
+    for (size_t i = 0; i < len; i++) {
+        addr_t addr = guest_addr + i;
+        struct page_desc *desc = page_map_lookup(&current->mem->pages, PAGE(addr));
+        if (desc == NULL || desc->obj == NULL || desc->obj->host_base == NULL)
+            return false;
+
+        size_t host_off = desc->offset + PGOFFSET(addr);
+        if (host_off >= desc->obj->host_size)
+            return false;
+
+        const byte_t *host = (const byte_t *)desc->obj->host_base;
+        out[i] = host[host_off];
+    }
+    return true;
+}
+
+static void trace_loader_page_zero_locked(const char *name)
+{
+    struct page_desc *desc0 = NULL;
+    struct mem_object *obj0 = NULL;
+    bool mapped = false;
+    byte_t bytes[32] = { 0 };
+    bool have_bytes = false;
+
+    if (current && current->mem) {
+        desc0 = page_map_lookup(&current->mem->pages, 0);
+        if (desc0 && desc0->obj) {
+            mapped = true;
+            obj0 = desc0->obj;
+            have_bytes = trace_read_guest_bytes_locked(0, bytes, sizeof(bytes));
+        }
+    }
+
+    char mapped_buf[8];
+    char kind_buf[16];
+    char obj_name_buf[96];
+    char host_base_buf[32];
+    char host_size_buf[32];
+    char file_off_buf[32];
+    char page_desc_off_buf[32];
+    char bytes_buf[96];
+    char is_elf_buf[8];
+    char elf_class_buf[8];
+
+    int is_elf = 0;
+    int elf_class = 0;
+
+    snprintf(mapped_buf, sizeof(mapped_buf), "%d", mapped ? 1 : 0);
+    snprintf(kind_buf, sizeof(kind_buf), "%s",
+             obj0 ? trace_mem_object_kind_name(obj0->kind) : "none");
+    snprintf(obj_name_buf, sizeof(obj_name_buf), "%s", (obj0 && obj0->name) ? obj0->name : "none");
+    snprintf(host_base_buf, sizeof(host_base_buf), "%p", obj0 ? obj0->host_base : NULL);
+    snprintf(host_size_buf, sizeof(host_size_buf), "%zu", obj0 ? obj0->host_size : 0);
+    snprintf(file_off_buf, sizeof(file_off_buf), "0x%zx", obj0 ? obj0->file_offset : 0);
+    snprintf(page_desc_off_buf, sizeof(page_desc_off_buf), "0x%zx", desc0 ? desc0->offset : 0);
+
+    if (!have_bytes) {
+        snprintf(bytes_buf, sizeof(bytes_buf), "unavailable");
+    } else {
+        if (bytes[0] == 0x7f && bytes[1] == 'E' && bytes[2] == 'L' && bytes[3] == 'F') {
+            is_elf = 1;
+            elf_class = bytes[4];
+        }
+        size_t pos = 0;
+        for (size_t i = 0; i < sizeof(bytes); i++) {
+            int written = snprintf(bytes_buf + pos, sizeof(bytes_buf) - pos, "%02x", bytes[i]);
+            if (written <= 0 || (size_t)written >= sizeof(bytes_buf) - pos)
+                break;
+            pos += (size_t)written;
+        }
+    }
+
+    snprintf(is_elf_buf, sizeof(is_elf_buf), "%d", is_elf);
+    snprintf(elf_class_buf, sizeof(elf_class_buf), "%d", elf_class);
+
+    trace_attribute_t attrs[] = {
+        { "page0_mapped", mapped_buf },
+        { "backing_kind", kind_buf },
+        { "backing_name", obj_name_buf },
+        { "host_base", host_base_buf },
+        { "host_size", host_size_buf },
+        { "file_offset", file_off_buf },
+        { "page_desc_offset", page_desc_off_buf },
+        { "bytes_0_1f_hex", bytes_buf },
+        { "page0_is_elf", is_elf_buf },
+        { "page0_elf_class", elf_class_buf },
+    };
+
+    (void)trace_begin_interval(TRACE_ORIGIN_KERNEL, name, attrs, sizeof(attrs) / sizeof(attrs[0]));
+
+    static int budget = 1;
+    if (budget <= 0)
+        return;
+
+    char ev[320];
+    void *host_ptr0 = NULL;
+    if (obj0 && obj0->host_base && desc0 && desc0->offset < obj0->host_size)
+        host_ptr0 = (void *)((byte_t *)obj0->host_base + desc0->offset);
+
+    snprintf(ev, sizeof(ev), "loader.page0.mapped=mapped:%s,guest_page:0x0,host_ptr:%p",
+             mapped ? "yes" : "no", host_ptr0);
+    trace_record_event(TRACE_ORIGIN_KERNEL, ev);
+
+    snprintf(ev, sizeof(ev),
+             "mm.page0.state.loader_final=mapped:%s,guest_page:0x0,backing:%s,host_ptr:%p,"
+             "range:[0x%llx..0x%llx],task:%p,mm:%p,mem:%p,cpu:%p,tlb:%p,page_desc:%p,obj:%p",
+             mapped ? "yes" : "no",
+             (obj0 && obj0->name) ? obj0->name
+                                  : (obj0 ? trace_mem_object_kind_name(obj0->kind) : "none"),
+             host_ptr0, 0ULL, (unsigned long long)(PAGE_SIZE - 1), (void *)current,
+             current ? (void *)current->mm : NULL, current ? (void *)current->mem : NULL,
+             current ? (void *)&current->cpu : NULL, NULL, (void *)desc0, (void *)obj0);
+    trace_record_event(TRACE_ORIGIN_KERNEL, ev);
+
+    snprintf(ev, sizeof(ev),
+             "loader.page0.backing_object=obj:%p,kind:%s,name:%s,fd:%p,host_base:%p,host_size:%zu,"
+             "file_off:0x%zx,page_desc_off:0x%zx",
+             (void *)obj0, obj0 ? trace_mem_object_kind_name(obj0->kind) : "none",
+             (obj0 && obj0->name) ? obj0->name : "none", obj0 ? (void *)obj0->fd : NULL,
+             obj0 ? obj0->host_base : NULL, obj0 ? obj0->host_size : 0,
+             obj0 ? obj0->file_offset : 0, desc0 ? desc0->offset : 0);
+    trace_record_event(TRACE_ORIGIN_KERNEL, ev);
+
+    if (have_bytes) {
+        char low16[48];
+        char high16[48];
+        for (size_t i = 0; i < 16; i++) {
+            snprintf(low16 + i * 2, sizeof(low16) - i * 2, "%02x", bytes[i]);
+            snprintf(high16 + i * 2, sizeof(high16) - i * 2, "%02x", bytes[i + 16]);
+        }
+        snprintf(ev, sizeof(ev), "loader.page0.bytes=range:0x00-0x0f,hex:%s", low16);
+        trace_record_event(TRACE_ORIGIN_KERNEL, ev);
+        snprintf(ev, sizeof(ev), "loader.page0.bytes=range:0x10-0x1f,hex:%s", high16);
+        trace_record_event(TRACE_ORIGIN_KERNEL, ev);
+    } else {
+        trace_record_event(TRACE_ORIGIN_KERNEL, "loader.page0.bytes=unavailable");
+    }
+
+    budget--;
+}
+
+static void trace_loader_bias_checkpoint(const char *name, addr_t main_bias, addr_t interp_bias,
+                                         addr_t main_first_vaddr, addr_t main_first_file_off,
+                                         addr_t interp_first_vaddr, addr_t interp_first_file_off,
+                                         const char *interp_name)
+{
+    char main_bias_buf[32];
+    char interp_bias_buf[32];
+    char interp_name_buf[160];
+    char personality_buf[32];
+
+    snprintf(main_bias_buf, sizeof(main_bias_buf), "0x%llx", (unsigned long long)main_bias);
+    snprintf(interp_bias_buf, sizeof(interp_bias_buf), "0x%llx", (unsigned long long)interp_bias);
+    snprintf(interp_name_buf, sizeof(interp_name_buf), "%s", interp_name ? interp_name : "none");
+    snprintf(personality_buf, sizeof(personality_buf), "0x%x",
+             current && current->group ? current->group->personality : 0);
+
+    trace_attribute_t attrs[] = {
+        { "main_load_bias", main_bias_buf },
+        { "interp_load_bias", interp_bias_buf },
+        { "interp_path", interp_name_buf },
+        { "personality", personality_buf },
+    };
+
+    (void)trace_begin_interval(TRACE_ORIGIN_KERNEL, name, attrs, sizeof(attrs) / sizeof(attrs[0]));
+
+    static int budget = 1;
+    if (budget <= 0)
+        return;
+
+    char ev[320];
+    dword_t persona = (current && current->group) ? current->group->personality : 0;
+
+    snprintf(ev, sizeof(ev),
+             "loader.main_load_bias=bias:0x%llx,first_pt_load_vaddr:0x%llx,first_pt_load_file_off:"
+             "0x%llx",
+             (unsigned long long)main_bias, (unsigned long long)main_first_vaddr,
+             (unsigned long long)main_first_file_off);
+    trace_record_event(TRACE_ORIGIN_KERNEL, ev);
+
+    snprintf(ev, sizeof(ev),
+             "loader.interp_load_bias=bias:0x%llx,first_pt_load_vaddr:0x%llx,first_pt_load_file_"
+             "off:0x%llx,present:%s",
+             (unsigned long long)interp_bias, (unsigned long long)interp_first_vaddr,
+             (unsigned long long)interp_first_file_off,
+             (interp_name && interp_name[0]) ? "yes" : "no");
+    trace_record_event(TRACE_ORIGIN_KERNEL, ev);
+
+    snprintf(ev, sizeof(ev), "loader.interpreter_path=path:%s",
+             (interp_name && interp_name[0]) ? interp_name : "none");
+    trace_record_event(TRACE_ORIGIN_KERNEL, ev);
+
+    snprintf(ev, sizeof(ev),
+             "loader.personality.flags=raw:0x%x,addr_no_randomize:%d,mmap_page_zero_like:%d",
+             persona, (persona & ADDR_NO_RANDOMIZE_) ? 1 : 0, 0);
+    trace_record_event(TRACE_ORIGIN_KERNEL, ev);
+
+    budget--;
+}
+
+static void trace_auxv_essentials_checkpoint(const char *name, struct aux_ent *aux)
+{
+    addr_t at_phdr = 0;
+    addr_t at_base = 0;
+    addr_t at_entry = 0;
+    addr_t at_phnum = 0;
+    addr_t at_phent = 0;
+
+    for (size_t i = 0; aux[i].type != 0; i++) {
+        switch (aux[i].type) {
+        case AX_PHDR:
+            at_phdr = aux[i].value;
+            break;
+        case AX_BASE:
+            at_base = aux[i].value;
+            break;
+        case AX_ENTRY:
+            at_entry = aux[i].value;
+            break;
+        case AX_PHNUM:
+            at_phnum = aux[i].value;
+            break;
+        case AX_PHENT:
+            at_phent = aux[i].value;
+            break;
+        default:
+            break;
+        }
+    }
+
+    char at_phdr_buf[32];
+    char at_base_buf[32];
+    char at_entry_buf[32];
+    char at_phnum_buf[32];
+    char at_phent_buf[32];
+
+    snprintf(at_phdr_buf, sizeof(at_phdr_buf), "0x%llx", (unsigned long long)at_phdr);
+    snprintf(at_base_buf, sizeof(at_base_buf), "0x%llx", (unsigned long long)at_base);
+    snprintf(at_entry_buf, sizeof(at_entry_buf), "0x%llx", (unsigned long long)at_entry);
+    snprintf(at_phnum_buf, sizeof(at_phnum_buf), "%llu", (unsigned long long)at_phnum);
+    snprintf(at_phent_buf, sizeof(at_phent_buf), "%llu", (unsigned long long)at_phent);
+
+    trace_attribute_t attrs[] = {
+        { "AT_PHDR", at_phdr_buf },   { "AT_BASE", at_base_buf },   { "AT_ENTRY", at_entry_buf },
+        { "AT_PHNUM", at_phnum_buf }, { "AT_PHENT", at_phent_buf },
+    };
+
+    (void)trace_begin_interval(TRACE_ORIGIN_KERNEL, name, attrs, sizeof(attrs) / sizeof(attrs[0]));
+
+    static int budget = 1;
+    if (budget > 0) {
+        char ev[256];
+        snprintf(ev, sizeof(ev),
+                 "loader.auxv.core=AT_BASE:0x%llx,AT_PHDR:0x%llx,AT_ENTRY:0x%llx,AT_PHNUM:%llu,AT_"
+                 "PHENT:%llu",
+                 (unsigned long long)at_base, (unsigned long long)at_phdr,
+                 (unsigned long long)at_entry, (unsigned long long)at_phnum,
+                 (unsigned long long)at_phent);
+        trace_record_event(TRACE_ORIGIN_KERNEL, ev);
+        budget--;
+    }
+}
+
 static int read_header(struct fd *fd, struct elf_header *header)
 {
     // Reset file position to beginning
@@ -227,6 +549,47 @@ static int read_prg_headers(struct fd *fd, struct elf_header header, struct prg_
     trace_emit_u32(TRACE_EVENT_BLOCK_COMPILE_START, 0x1007, 0);
     *ph_out = ph;
     return 0;
+}
+
+static void trace_interp_phdr_event(int index, const struct prg_header *ph)
+{
+    static int budget = 16;
+    if (budget <= 0 || ph == NULL)
+        return;
+    char ev[320];
+    snprintf(ev, sizeof(ev),
+             "loader.interp.phdr=index:%d,p_type:%u,p_offset:0x%llx,p_vaddr:0x%llx,p_filesz:%llu,p_"
+             "memsz:%llu,p_align:0x%llx,flags:0x%x",
+             index, ph->type, (unsigned long long)ph->offset, (unsigned long long)ph->vaddr,
+             (unsigned long long)ph->filesize, (unsigned long long)ph->memsize,
+             (unsigned long long)ph->alignment, ph->flags);
+    trace_record_event(TRACE_ORIGIN_KERNEL, ev);
+    budget--;
+}
+
+static void trace_interp_pt_load_map_event(int index, const struct prg_header *ph,
+                                           addr_t interp_base)
+{
+    static int budget = 12;
+    if (budget <= 0 || ph == NULL)
+        return;
+    addr_t chosen_start = interp_base + ph->vaddr;
+    addr_t chosen_end = chosen_start + ph->memsize;
+    addr_t aligned_guest_vaddr = PAGE(chosen_start) << PAGE_BITS;
+    addr_t aligned_file_off = ph->offset - PGOFFSET(chosen_start);
+    addr_t page_start = PAGE(chosen_start);
+    addr_t page_end = PAGE(chosen_end);
+
+    char ev[384];
+    snprintf(
+        ev, sizeof(ev),
+        "loader.interp.pt_load.map=index:%d,guest_map_start:0x%llx,guest_map_end:0x%llx,page_"
+        "aligned_file_off:0x%llx,page_aligned_guest_vaddr:0x%llx,guest_page_range:[0x%llx..0x%llx]",
+        index, (unsigned long long)chosen_start, (unsigned long long)chosen_end,
+        (unsigned long long)aligned_file_off, (unsigned long long)aligned_guest_vaddr,
+        (unsigned long long)page_start, (unsigned long long)page_end);
+    trace_record_event(TRACE_ORIGIN_KERNEL, ev);
+    budget--;
 }
 
 static int load_entry(struct prg_header ph, addr_t bias, struct fd *fd)
@@ -352,6 +715,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     if ((err = read_header(fd, &header)) < 0) {
         return err;
     }
+    trace_elf_header_role_checkpoint("task.proof.loader.elf_header", "main", &header);
 
     struct prg_header *ph;
     if ((err = read_prg_headers(fd, header, &ph)) < 0) {
@@ -396,12 +760,14 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
                 err = _ELIBBAD;
             goto out_free_interp;
         }
+        trace_elf_header_role_checkpoint("task.proof.loader.elf_header", "interp", &interp_header);
         if ((err = read_prg_headers(interp_fd, interp_header, &interp_ph)) < 0) {
             if (err == _ENOEXEC)
                 err = _ELIBBAD;
             goto out_free_interp;
         }
     }
+
     // free the process's memory.
     // from this point on, if any error occurs the process will have to be
     // killed before it even starts. please don't be too sad about it, it's
@@ -474,6 +840,9 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     addr_t load_addr = 0; // used for AX_PHDR
     bool load_addr_set = false;
     addr_t bias = 0; // offset for loading shared libraries as executables
+    bool main_first_load_seen = false;
+    addr_t main_first_load_vaddr = 0;
+    addr_t main_first_load_off = 0;
 
     // map dat shit!
 
@@ -512,6 +881,12 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
 
         if (ph[i].type != PT_LOAD)
             continue;
+
+        if (!main_first_load_seen) {
+            main_first_load_seen = true;
+            main_first_load_vaddr = ph[i].vaddr;
+            main_first_load_off = ph[i].offset;
+        }
 
         if (!load_addr_set && header.type == ELF_DYNAMIC) {
             // see giant comment in linux/fs/binfmt_elf.c, around line 950
@@ -594,6 +969,11 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     addr_t entry = bias + header.entry_point;
     addr_t interp_base = 0;
     addr_t dynamic_addr = 0; // _DYNAMIC section address for x1
+    bool interp_first_load_seen = false;
+    addr_t interp_first_load_vaddr = 0;
+    addr_t interp_first_load_off = 0;
+    addr_t interp_lowest_pt_load_vaddr = 0;
+    addr_t interp_lowest_pt_load_off = 0;
 
     // Find PT_DYNAMIC in main executable (used if no interpreter)
     for (unsigned i = 0; i < header.phent_count; i++) {
@@ -604,13 +984,45 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     }
 
     if (interp_name) {
+        for (int i = 0; i < interp_header.phent_count; i++) {
+            trace_interp_phdr_event(i, &interp_ph[i]);
+            if (interp_ph[i].type != PT_LOAD)
+                continue;
+            if (!interp_first_load_seen || interp_ph[i].vaddr < interp_lowest_pt_load_vaddr) {
+                interp_lowest_pt_load_vaddr = interp_ph[i].vaddr;
+                interp_lowest_pt_load_off = interp_ph[i].offset;
+            }
+        }
+
         // map dat shit! interpreter edition
         interp_base = find_hole_for_elf(&interp_header, interp_ph);
+        {
+            // Keep interpreter away from guest page zero.
+            // This is a loader/MM invariant: page 0 must not become the interpreter base.
+            if (interp_base < PAGE_SIZE)
+                interp_base = PAGE_SIZE;
+
+            char ev[320];
+            snprintf(
+                ev, sizeof(ev),
+                "loader.interp.bias.compute=first_pt_load_vaddr:0x%llx,first_pt_load_file_off:0x%"
+                "llx,computed_load_bias:0x%llx,formula:interp_base+vaddr,interp_present_path:1",
+                (unsigned long long)interp_lowest_pt_load_vaddr,
+                (unsigned long long)interp_lowest_pt_load_off, (unsigned long long)interp_base);
+            trace_record_event(TRACE_ORIGIN_KERNEL, ev);
+        }
+
         for (int i = interp_header.phent_count - 1; i >= 0; i--) {
             if (interp_ph[i].type != PT_LOAD)
                 continue;
+            if (!interp_first_load_seen) {
+                interp_first_load_seen = true;
+                interp_first_load_vaddr = interp_ph[i].vaddr;
+                interp_first_load_off = interp_ph[i].offset;
+            }
             if ((err = load_entry(interp_ph[i], interp_base, interp_fd)) < 0)
                 goto beyond_hope;
+            trace_interp_pt_load_map_event(i, &interp_ph[i], interp_base);
 
             // Trace PT_LOAD mapping for APPSIM-004 diagnosis (interpreter)
             char role_buf[32] = "interpreter";
@@ -711,6 +1123,21 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
             }
         }
 
+        {
+            struct page_desc *page0_desc = page_map_lookup(&current->mem->pages, 0);
+            char ev[320];
+            snprintf(ev, sizeof(ev),
+                     "loader.interp.map.final=final_interp_base:0x%llx,final_interp_entry:0x%llx,"
+                     "page0_mapped:%s,page0_backing:%s",
+                     (unsigned long long)interp_base,
+                     (unsigned long long)(interp_base + interp_header.entry_point),
+                     page0_desc ? "yes" : "no",
+                     (page0_desc && page0_desc->obj && page0_desc->obj->name)
+                         ? page0_desc->obj->name
+                         : "none");
+            trace_record_event(TRACE_ORIGIN_KERNEL, ev);
+        }
+
         // Dump _DYNAMIC table from memory
         if (dynamic_addr != 0) {
             write_wrunlock(&current->mem->lock); // Unlock for user_get
@@ -734,29 +1161,35 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
         }
     }
 
+    trace_loader_bias_checkpoint("task.proof.loader.biases", bias, interp_base,
+                                 main_first_load_vaddr, main_first_load_off,
+                                 interp_first_load_vaddr, interp_first_load_off, interp_name);
+
     // map vdso
     err = _ENOMEM;
     pages_t vdso_pages = sizeof(vdso_data) >> PAGE_BITS;
-    // FIXME disgusting hack: musl's dynamic linker has a one-page hole, and
-    // I'd rather not put the vdso in that hole. so find a two-page hole and
-    // add one.
-    page_t vdso_page = pt_find_hole(current->mem, vdso_pages + 1);
-    if (vdso_page == BAD_PAGE)
+    pages_t aux_pages = vdso_pages + VVAR_PAGES + 2;
+    page_t aux_region = pt_find_hole(current->mem, aux_pages);
+    if (aux_region == BAD_PAGE)
         goto beyond_hope;
-    vdso_page += 1;
+
+    // Never allow the vvar/vdso helper region to claim guest page 0.
+    // Keep one guard page between vvar and vdso mappings.
+    page_t vvar_page = aux_region + 1;
+    page_t vdso_page = vvar_page + VVAR_PAGES + 1;
+
     if ((err = pt_map(current->mem, vdso_page, vdso_pages, (void *)vdso_data, 0, 0)) < 0)
         goto beyond_hope;
     page_map_lookup(&current->mem->pages, vdso_page)->obj->name = "[vdso]";
     current->mm->vdso = vdso_page << PAGE_BITS;
     addr_t vdso_entry = current->mm->vdso + ((struct elf_header *)vdso_data)->entry_point;
 
-    // map 3 empty "vvar" pages for VDSO compatibility
-    page_t vvar_page = pt_find_hole(current->mem, VVAR_PAGES);
-    if (vvar_page == BAD_PAGE)
-        goto beyond_hope;
+    // map empty "vvar" pages for VDSO compatibility
     if ((err = pt_map_nothing(current->mem, vvar_page, VVAR_PAGES, 0)) < 0)
         goto beyond_hope;
     page_map_lookup(&current->mem->pages, vvar_page)->obj->name = "[vvar]";
+
+    trace_loader_page_zero_locked("task.proof.loader.page0");
 
 // STACK TIME!
 
@@ -883,6 +1316,15 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
                              { AX_EXECFN, file_addr },
                              { AX_PLATFORM, platform_addr },
                              { 0, 0 } };
+    {
+        char ev[256];
+        snprintf(ev, sizeof(ev),
+                 "loader.auxv.at_base.write=value:0x%llx,source:interp_base,interp_present:%s,"
+                 "reason:interpreter_base_for_dynamic_linker",
+                 (unsigned long long)interp_base, interp_name ? "yes" : "no");
+        trace_record_event(TRACE_ORIGIN_KERNEL, ev);
+    }
+    trace_auxv_essentials_checkpoint("task.proof.loader.auxv", aux);
     // AArch64 user stacks are LP64: argc/argv/envp slots are 64-bit wide.
     sp -= ((argv.count + 1) + (envp.count + 1) + 1) * stack_slot_size;
     sp -= sizeof(aux);

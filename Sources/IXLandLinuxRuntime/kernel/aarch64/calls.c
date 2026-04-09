@@ -257,13 +257,17 @@ void a64_syscall_init(void)
     for (size_t i = 0; i < sizeof(critical_syscalls) / sizeof(critical_syscalls[0]); i++) {
         uint64_t num = critical_syscalls[i];
         if (num >= A64_SYS_MAX || syscall_table_a64[num] == NULL) {
-            printk("WARNING: Critical syscall %llu not mapped\n", num);
+            char ev[128];
+            snprintf(ev, sizeof(ev), "guest.syscall_table.critical_missing=%llu", num);
+            trace_record_event(TRACE_ORIGIN_TASK, ev);
             missing++;
         }
     }
 
     if (missing > 0) {
-        printk("WARNING: %d critical syscalls missing - some programs may fail\n", missing);
+        char ev[128];
+        snprintf(ev, sizeof(ev), "guest.syscall_table.missing_total=%d", missing);
+        trace_record_event(TRACE_ORIGIN_TASK, ev);
     }
 }
 
@@ -304,12 +308,8 @@ void handle_interrupt(int interrupt)
 {
     struct cpu_state *cpu = &current->cpu;
     trace_handle_interrupt_checkpoint("task.proof.handle_interrupt.entry", interrupt, 0);
-    ixland_guest_trace_emit_int(IXLAND_INSTRUMENTATION_ORIGIN_TASK,
-                                "guest.handle_interrupt.entry",
-                                "interrupt",
-                                interrupt);
-    printk("[HANDLE_INTERRUPT] interrupt=%d (INT_GPF=%d, INT_SYSCALL=%d)\n", interrupt, INT_GPF,
-           INT_SYSCALL);
+    ixland_guest_trace_emit_int(IXLAND_INSTRUMENTATION_ORIGIN_TASK, "guest.handle_interrupt.entry",
+                                "interrupt", interrupt);
 
     switch (interrupt) {
     case INT_SYSCALL:
@@ -335,6 +335,28 @@ void handle_interrupt(int interrupt)
                 .code = mem_segv_reason(current->mem, cpu->fault_addr),
                 .fault.addr = cpu->fault_addr,
             };
+
+            {
+                char pc_buf[32];
+                char fault_addr_buf[32];
+                char sig_buf[16];
+                char sig_code_buf[16];
+                snprintf(pc_buf, sizeof(pc_buf), "0x%llx", (unsigned long long)cpu->pc);
+                snprintf(fault_addr_buf, sizeof(fault_addr_buf), "0x%llx",
+                         (unsigned long long)cpu->fault_addr);
+                snprintf(sig_buf, sizeof(sig_buf), "%d", SIGSEGV_);
+                snprintf(sig_code_buf, sizeof(sig_code_buf), "%d", info.code);
+                ixland_instrumentation_attribute_t attrs[] = {
+                    { .key = "guest_pc", .value = pc_buf },
+                    { .key = "fault_addr", .value = fault_addr_buf },
+                    { .key = "signal", .value = sig_buf },
+                    { .key = "signal_code", .value = sig_code_buf },
+                };
+                ixland_guest_trace_emit_attrs(IXLAND_INSTRUMENTATION_ORIGIN_TASK,
+                                              "guest.signal.raise", attrs,
+                                              sizeof(attrs) / sizeof(attrs[0]));
+            }
+
             deliver_signal(current, SIGSEGV_, info);
         }
         // If ptr != NULL, page was mapped/grown successfully - execution will retry
@@ -343,7 +365,8 @@ void handle_interrupt(int interrupt)
     break;
 
     default:
-        printk("Unknown interrupt %d\n", interrupt);
+        ixland_guest_trace_emit_int(IXLAND_INSTRUMENTATION_ORIGIN_TASK,
+                                    "guest.handle_interrupt.unknown", "interrupt", interrupt);
         break;
     }
 
@@ -359,9 +382,30 @@ void handle_interrupt(int interrupt)
 
 void a64_dump_syscall(struct cpu_state *cpu)
 {
-    uint64_t num = cpu->x[8];
-    const char *name = a64_syscall_name(num);
+    if (!cpu)
+        return;
 
-    printk("SVC #%llu (%s) args: x0=%llx x1=%llx x2=%llx x3=%llx x4=%llx x5=%llx\n", num, name,
-           cpu->x[0], cpu->x[1], cpu->x[2], cpu->x[3], cpu->x[4], cpu->x[5]);
+    char num_buf[32];
+    char x0_buf[32];
+    char x1_buf[32];
+    char x2_buf[32];
+    char x3_buf[32];
+    char x4_buf[32];
+    char x5_buf[32];
+    snprintf(num_buf, sizeof(num_buf), "%llu", (unsigned long long)cpu->x[8]);
+    snprintf(x0_buf, sizeof(x0_buf), "0x%llx", (unsigned long long)cpu->x[0]);
+    snprintf(x1_buf, sizeof(x1_buf), "0x%llx", (unsigned long long)cpu->x[1]);
+    snprintf(x2_buf, sizeof(x2_buf), "0x%llx", (unsigned long long)cpu->x[2]);
+    snprintf(x3_buf, sizeof(x3_buf), "0x%llx", (unsigned long long)cpu->x[3]);
+    snprintf(x4_buf, sizeof(x4_buf), "0x%llx", (unsigned long long)cpu->x[4]);
+    snprintf(x5_buf, sizeof(x5_buf), "0x%llx", (unsigned long long)cpu->x[5]);
+
+    ixland_instrumentation_attribute_t attrs[] = {
+        { .key = "syscall", .value = num_buf }, { .key = "x0", .value = x0_buf },
+        { .key = "x1", .value = x1_buf },       { .key = "x2", .value = x2_buf },
+        { .key = "x3", .value = x3_buf },       { .key = "x4", .value = x4_buf },
+        { .key = "x5", .value = x5_buf },
+    };
+    ixland_guest_trace_emit_attrs(IXLAND_INSTRUMENTATION_ORIGIN_TASK, "guest.syscall.dump", attrs,
+                                  sizeof(attrs) / sizeof(attrs[0]));
 }

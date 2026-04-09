@@ -75,7 +75,6 @@ targets:
           - "gen_test_simple.c"
           - "gen_test_minimal.c"
           - "gadget_test.c"
-          - "gen_test.c"
           - "sysreg_test.c"
           - "test_*.c"
           - "test-dp-reg.c"

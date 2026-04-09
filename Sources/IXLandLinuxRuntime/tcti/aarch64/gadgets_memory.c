@@ -26,8 +26,10 @@
 #import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
 #import <IXLandLinuxRuntime/emu/aarch64/memory.h>
 #import <IXLandLinuxRuntime/emu/aarch64/sysreg.h>
+#import <IXLandLinuxRuntime/emu/tlb.h>
 #import <IXLandLinuxRuntime/kernel/memory.h>
 #import <IXLandLinuxRuntime/kernel/page_map.h>
+#import <IXLandLinuxRuntime/kernel/task.h>
 #import <IXLandLinuxRuntime/tcti/gadgets_tcti.h>
 #include <assert.h>
 #include <stddef.h>
@@ -48,6 +50,144 @@ extern int _a64_tcti_str_x_helper(struct cpu_state *cpu, uint64_t fault_pc, uint
                                   uint64_t meta);
 
 static uint64_t tcti_extend_ldst_offset(struct cpu_state *cpu, int rm, int extend_type);
+
+static const char *trace_mem_obj_kind_name(enum mem_object_kind kind)
+{
+    switch (kind) {
+    case MEM_OBJ_RAM:
+        return "ram";
+    case MEM_OBJ_FILE:
+        return "file";
+    case MEM_OBJ_VDSO:
+        return "vdso";
+    case MEM_OBJ_SPECIAL:
+        return "special";
+    default:
+        return "unknown";
+    }
+}
+
+static const char *trace_page0_pc_event_name(uint64_t fault_pc)
+{
+    switch (fault_pc) {
+    case 0x6a628ULL:
+        return "mm.page0.state.before_0x6a628";
+    case 0x6a634ULL:
+        return "mm.page0.state.before_0x6a634";
+    case 0x6a650ULL:
+        return "mm.page0.state.before_0x6a650";
+    default:
+        return NULL;
+    }
+}
+
+static void trace_page0_translation_identity(struct cpu_state *cpu, addr_t addr, int is_load,
+                                             uint64_t fault_pc, uint32_t raw_opcode,
+                                             void *host_ptr_probe)
+{
+    static int budget = 12;
+    if (budget <= 0 || PAGE(addr) != 0)
+        return;
+
+    struct mem *mem = cpu->mmu ? container_of(cpu->mmu, struct mem, mmu) : NULL;
+    struct page_desc *desc = mem ? page_map_lookup(&mem->pages, 0) : NULL;
+    struct mem_object *obj = desc ? desc->obj : NULL;
+
+    void *host_ptr_from_map = NULL;
+    if (obj && obj->host_base != NULL) {
+        size_t host_off = desc->offset + PGOFFSET(addr);
+        if (host_off < obj->host_size)
+            host_ptr_from_map = (void *)((byte_t *)obj->host_base + host_off);
+    }
+
+    struct tlb_entry tlb_snapshot = { 0 };
+    if (cpu->tlb)
+        tlb_snapshot = cpu->tlb->entries[TLB_INDEX(addr)];
+
+    char ev[512];
+    snprintf(ev, sizeof(ev),
+             "mismatch.probe.identity=guest_pc:0x%llx,raw_opcode:0x%08x,guest_ea:0x%llx,"
+             "guest_page:0x%llx,is_load:%d,cpu_mmu:%p,tlb:%p,tlb_mmu:%p,cpu_mmu_gen:%llu,"
+             "tlb_mmu_gen:%llu,tlb_entry_gen:%llu,tlb_entry_page:0x%llx,tlb_entry_wpage:0x%llx",
+             (unsigned long long)fault_pc, raw_opcode, (unsigned long long)addr,
+             (unsigned long long)PAGE(addr), is_load ? 1 : 0, (void *)cpu->mmu, (void *)cpu->tlb,
+             cpu->tlb ? (void *)cpu->tlb->mmu : NULL,
+             (unsigned long long)(cpu->mmu ? cpu->mmu->generation : 0),
+             (unsigned long long)(cpu->tlb && cpu->tlb->mmu ? cpu->tlb->mmu->generation : 0),
+             (unsigned long long)tlb_snapshot.generation, (unsigned long long)tlb_snapshot.page,
+             (unsigned long long)tlb_snapshot.page_if_writable);
+    trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+    snprintf(
+        ev, sizeof(ev),
+        "mismatch.probe.maplookup=guest_page:0x%llx,mapped:%s,page_desc:%p,obj:%p,obj_kind:%s,"
+        "obj_name:%s,obj_host_base:%p,obj_host_size:%zu,obj_file_off:0x%zx,page_desc_off:0x%zx,"
+        "page_flags:0x%x",
+        (unsigned long long)PAGE(addr), desc ? "yes" : "no", (void *)desc, (void *)obj,
+        obj ? trace_mem_obj_kind_name(obj->kind) : "none", (obj && obj->name) ? obj->name : "none",
+        obj ? obj->host_base : NULL, obj ? obj->host_size : 0, obj ? obj->file_offset : 0,
+        desc ? desc->offset : 0, desc ? desc->flags : 0);
+    trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+    snprintf(ev, sizeof(ev),
+             "mismatch.probe.translation=guest_ea:0x%llx,host_ptr_probe:%p,host_ptr_from_map:%p,"
+             "map_hit:%s,ptr_match:%s",
+             (unsigned long long)addr, host_ptr_probe, host_ptr_from_map, desc ? "yes" : "no",
+             (host_ptr_probe != NULL && host_ptr_probe == host_ptr_from_map) ? "yes" : "no");
+    trace_record_event(TRACE_ORIGIN_EXEC, ev);
+
+    const char *page0_event = trace_page0_pc_event_name(fault_pc);
+    if (page0_event != NULL) {
+        snprintf(ev, sizeof(ev),
+                 "%s=mapped:%s,guest_page:0x%llx,guest_ea:0x%llx,backing:%s,host_ptr_probe:%p,"
+                 "host_ptr_map:%p,guest_range:[0x%llx..0x%llx],task:%p,mm:%p,mem:%p,cpu:%p,tlb:%p,"
+                 "page_desc:%p,obj:%p,cpu_mmu:%p,tlb_mmu:%p,cpu_mmu_gen:%llu,tlb_mmu_gen:%llu,"
+                 "page_desc_off:0x%zx,page_flags:0x%x",
+                 page0_event, desc ? "yes" : "no", (unsigned long long)PAGE(addr),
+                 (unsigned long long)addr,
+                 (obj && obj->name) ? obj->name
+                                    : (obj ? trace_mem_obj_kind_name(obj->kind) : "none"),
+                 host_ptr_probe, host_ptr_from_map, (unsigned long long)(PAGE(addr) << PAGE_BITS),
+                 (unsigned long long)(((PAGE(addr) + 1) << PAGE_BITS) - 1), (void *)current,
+                 current ? (void *)current->mm : NULL, current ? (void *)current->mem : NULL,
+                 (void *)cpu, (void *)cpu->tlb, (void *)desc, (void *)obj, (void *)cpu->mmu,
+                 cpu->tlb ? (void *)cpu->tlb->mmu : NULL,
+                 (unsigned long long)(cpu->mmu ? cpu->mmu->generation : 0),
+                 (unsigned long long)(cpu->tlb && cpu->tlb->mmu ? cpu->tlb->mmu->generation : 0),
+                 desc ? desc->offset : 0, desc ? desc->flags : 0);
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+    }
+
+    budget--;
+}
+
+static void trace_base6a628_helper_event(const char *name, struct cpu_state *cpu, uint64_t fault_pc,
+                                         uint32_t raw_opcode, const char *mnemonic,
+                                         const a64_instr_t *decoded, uint64_t base_value,
+                                         uint64_t guest_ea, void *host_ptr_probe,
+                                         int helper_entry_reached, int signal_immediate)
+{
+    if (!name || !cpu || !decoded || fault_pc != 0x6a628ULL)
+        return;
+
+    static int budget = 24;
+    if (budget <= 0)
+        return;
+
+    char ev[768];
+    snprintf(ev, sizeof(ev),
+             "%s=attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
+             "arch_base_reg:%d,arch_base_val:0x%llx,carrier_val:0x%llx,cpu_slot_val:0x%llx,"
+             "block_start:0x0,block_end:0x0,is_zero:%d,helper_path_reached:%d,"
+             "signal_immediate:%d,guest_ea:0x%llx,host_ptr_probe:0x%llx",
+             name, current ? current->pid : -1, (unsigned long long)fault_pc, raw_opcode,
+             mnemonic ? mnemonic : "unknown", decoded->Rn, (unsigned long long)base_value,
+             (unsigned long long)base_value, (unsigned long long)cpu->x[decoded->Rn],
+             base_value == 0 ? 1 : 0, helper_entry_reached, signal_immediate,
+             (unsigned long long)guest_ea, (unsigned long long)(uintptr_t)host_ptr_probe);
+    trace_record_event(TRACE_ORIGIN_EXEC, ev);
+    budget--;
+}
 
 // Stub functions for removed diagnostics
 void dump_str_wb_diag(void)
@@ -536,59 +676,22 @@ static void trace_ldst_arch_checkpoint(const char *name, uint64_t fault_pc, uint
 
 void trace_add_imm_sp_to_x7_probe(struct cpu_state *cpu, uint64_t src_x14, uint64_t new_x7)
 {
-    static uint64_t seq = 0;
-    if (!cpu)
-        return;
-    seq++;
-    if (seq > 8)
-        return;
-
-    char ev[320];
-    snprintf(ev, sizeof(ev),
-             "task.proof.69640.add_x7_sp_8=seq:%llu,src_x14:0x%llx,new_x7:0x%llx,cpu_sp:0x%llx,cpu_"
-             "x7:0x%llx,cpu_pc:0x%llx",
-             (unsigned long long)seq, (unsigned long long)src_x14, (unsigned long long)new_x7,
-             (unsigned long long)cpu->sp, (unsigned long long)cpu->x[7],
-             (unsigned long long)cpu->pc);
-    trace_record_event(TRACE_ORIGIN_EXEC, ev);
+    (void)cpu;
+    (void)src_x14;
+    (void)new_x7;
 }
 
 void trace_mov_x7_to_x2_probe(struct cpu_state *cpu, uint64_t src_x7, uint64_t new_x2)
 {
-    static uint64_t seq = 0;
-    if (!cpu)
-        return;
-    seq++;
-    if (seq > 8)
-        return;
-
-    char ev[320];
-    snprintf(ev, sizeof(ev),
-             "task.proof.6964c.mov_x7_to_x2=seq:%llu,src_x7:0x%llx,new_x2:0x%llx,cpu_x7:0x%llx,cpu_"
-             "x2:0x%llx,cpu_pc:0x%llx",
-             (unsigned long long)seq, (unsigned long long)src_x7, (unsigned long long)new_x2,
-             (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
-             (unsigned long long)cpu->pc);
-    trace_record_event(TRACE_ORIGIN_EXEC, ev);
+    (void)cpu;
+    (void)src_x7;
+    (void)new_x2;
 }
 
 void trace_probe_x7_x2_state(struct cpu_state *cpu, uint64_t guest_pc)
 {
-    static uint64_t seq = 0;
-    if (!cpu)
-        return;
-    seq++;
-    if (seq > 8)
-        return;
-
-    char ev[320];
-    snprintf(ev, sizeof(ev),
-             "task.proof.x7x2.state=seq:%llu,guest_pc:0x%llx,x2:0x%llx,x7:0x%llx,sp:0x%llx,cpu_pc:"
-             "0x%llx",
-             (unsigned long long)seq, (unsigned long long)guest_pc, (unsigned long long)cpu->x[2],
-             (unsigned long long)cpu->x[7], (unsigned long long)cpu->sp,
-             (unsigned long long)cpu->pc);
-    trace_record_event(TRACE_ORIGIN_EXEC, ev);
+    (void)cpu;
+    (void)guest_pc;
 }
 
 void trace_str_handoff_probe(struct cpu_state *cpu, uint64_t stage, uint64_t fault_pc,
@@ -870,6 +973,10 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
                  (unsigned long long)base, helper_entry_reached, fast_path_taken);
         trace_record_event(TRACE_ORIGIN_EXEC, ev);
 
+        trace_base6a628_helper_event("base6a628.fault_entry", cpu, fault_pc, fault_raw_opcode,
+                                     mnemonic, &fault_decoded, base, addr, NULL,
+                                     helper_entry_reached, 0);
+
         snprintf(ev, sizeof(ev),
                  "ldst.fault.decode=attempt:%d,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,"
                  "mnemonic:%s,decoded_category:%d,decoded_subtype:%d,is_load:%llu,rt:%d,rn:%d,"
@@ -959,6 +1066,12 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
     }
 
     ldst_host_ptr_probe = a64_guest_to_host(cpu, cpu->tlb, addr, is_load ? 0 : 1);
+    trace_base6a628_helper_event("base6a628.pre_helper", cpu, fault_pc, fault_raw_opcode,
+                                 get_ldst_mnemonic((int)is_load, (int)size, (int)is_signed),
+                                 &fault_decoded, base, addr, ldst_host_ptr_probe,
+                                 helper_entry_reached, 0);
+    trace_page0_translation_identity(cpu, addr, (int)is_load, fault_pc, fault_raw_opcode,
+                                     ldst_host_ptr_probe);
 
     if (trace_ldst_fault) {
         const char *mnemonic = get_ldst_mnemonic((int)is_load, (int)size, (int)is_signed);
@@ -1146,6 +1259,11 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
                 trace_record_event(TRACE_ORIGIN_EXEC, ev);
                 ldst_fault_trace_budget--;
             }
+
+            trace_base6a628_helper_event("base6a628.fault_exit", cpu, fault_pc, fault_raw_opcode,
+                                         get_ldst_mnemonic((int)is_load, (int)size, (int)is_signed),
+                                         &fault_decoded, base, addr, ldst_host_ptr_probe,
+                                         helper_entry_reached, 1);
 
             if (!first_fault_captured) {
                 first_fault_captured = 1;
@@ -1713,11 +1831,43 @@ __attribute__((naked)) void gadget_store_x30_impl(void)
 // These are the actual implementations matching header declarations
 __attribute__((naked)) void gadget_load_sp(void)
 {
-    asm volatile("ldr x14, [x29, %[off]]\n\t"
+    asm volatile("stp x14, x15, [sp, #-16]!\n\t"
+                 "sub sp, sp, #32\n\t"
+                 "str x0, [sp, #0]\n\t"
+                 "str x1, [sp, #8]\n\t"
+                 "str x2, [sp, #16]\n\t"
+                 "str x3, [sp, #24]\n\t"
+                 "mov x0, x14\n\t"
+                 "ldr x1, [x29, %[off]]\n\t"
+                 "ldr x2, [x29, %[pc_off]]\n\t"
+                 "bl _trace_emit_tcti_gadget6a640_load_sp_pre\n\t"
+                 "ldr x0, [sp, #0]\n\t"
+                 "ldr x1, [sp, #8]\n\t"
+                 "ldr x2, [sp, #16]\n\t"
+                 "ldr x3, [sp, #24]\n\t"
+                 "add sp, sp, #32\n\t"
+                 "ldp x14, x15, [sp], #16\n\t"
+                 "ldr x14, [x29, %[off]]\n\t"
+                 "stp x14, x15, [sp, #-16]!\n\t"
+                 "sub sp, sp, #32\n\t"
+                 "str x0, [sp, #0]\n\t"
+                 "str x1, [sp, #8]\n\t"
+                 "str x2, [sp, #16]\n\t"
+                 "str x3, [sp, #24]\n\t"
+                 "mov x0, x14\n\t"
+                 "ldr x1, [x29, %[off]]\n\t"
+                 "ldr x2, [x29, %[pc_off]]\n\t"
+                 "bl _trace_emit_tcti_gadget6a640_load_sp_post\n\t"
+                 "ldr x0, [sp, #0]\n\t"
+                 "ldr x1, [sp, #8]\n\t"
+                 "ldr x2, [sp, #16]\n\t"
+                 "ldr x3, [sp, #24]\n\t"
+                 "add sp, sp, #32\n\t"
+                 "ldp x14, x15, [sp], #16\n\t"
                  "ldr x27, [x28], #8\n\t"
                  "br x27\n\t"
                  :
-                 : [off] "i"(SP_OFFSET));
+                 : [off] "i"(SP_OFFSET), [pc_off] "i"(PC_OFFSET));
 }
 
 __attribute__((naked)) void gadget_store_sp(void)

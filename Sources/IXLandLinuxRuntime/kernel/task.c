@@ -101,6 +101,34 @@ void ixland_guest_trace_emit_int2(ixland_instrumentation_origin_t origin, const 
     ixland_instrumentation_end_interval(interval, NULL, 0);
 }
 
+void ixland_guest_trace_emit_attrs(ixland_instrumentation_origin_t origin, const char *event_name,
+                                   const ixland_instrumentation_attribute_t *attrs,
+                                   uint32_t attr_count)
+{
+    char attempt_buf[32], guest_pid_buf[32], ui_pid_buf[32], restart_buf[8], terminal_buf[8];
+    ixland_instrumentation_attribute_t base_attrs[5];
+    ixland_instrumentation_attribute_t merged_attrs[16];
+    uint32_t base_count = ixland_guest_trace_base_attrs(
+        base_attrs, attempt_buf, sizeof(attempt_buf), guest_pid_buf, sizeof(guest_pid_buf),
+        ui_pid_buf, sizeof(ui_pid_buf), restart_buf, sizeof(restart_buf), terminal_buf,
+        sizeof(terminal_buf));
+    uint32_t extra_count = attr_count;
+    if (extra_count > (uint32_t)(16 - (int)base_count)) {
+        extra_count = (uint32_t)(16 - (int)base_count);
+    }
+
+    for (uint32_t i = 0; i < base_count; i++) {
+        merged_attrs[i] = base_attrs[i];
+    }
+    for (uint32_t i = 0; i < extra_count; i++) {
+        merged_attrs[base_count + i] = attrs[i];
+    }
+
+    uint64_t interval = ixland_instrumentation_begin_interval(origin, event_name, merged_attrs,
+                                                              base_count + extra_count);
+    ixland_instrumentation_end_interval(interval, NULL, 0);
+}
+
 /* Sidecar canary system for task handoff proof */
 #define TASK_CANARY_MAGIC 0xDEADBEEFCAFEBABEULL
 static _Atomic uint64_t task_canary_value = 0;
@@ -470,6 +498,20 @@ void task_run_current()
 
     struct tlb tlb = {};
     tlb_refresh(&tlb, &current->mem->mmu);
+
+    {
+        char pc_buf[32];
+        char sp_buf[32];
+        snprintf(pc_buf, sizeof(pc_buf), "0x%llx", (unsigned long long)cpu->pc);
+        snprintf(sp_buf, sizeof(sp_buf), "0x%llx", (unsigned long long)cpu->sp);
+        ixland_instrumentation_attribute_t attrs[] = {
+            { .key = "guest_pc", .value = pc_buf },
+            { .key = "sp", .value = sp_buf },
+        };
+        ixland_guest_trace_emit_attrs(IXLAND_INSTRUMENTATION_ORIGIN_TASK, "guest.run.entry", attrs,
+                                      sizeof(attrs) / sizeof(attrs[0]));
+    }
+
     ixland_guest_trace_emit(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR, "guest.a64_cpu_run.entry");
     a64_cpu_run(cpu, &tlb);
     ixland_guest_trace_emit(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR, "guest.a64_cpu_run.return");

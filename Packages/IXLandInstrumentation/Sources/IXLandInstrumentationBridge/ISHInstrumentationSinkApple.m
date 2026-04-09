@@ -207,7 +207,9 @@ static void log_with_level(os_log_t log, ISHLogLevel level, const char *eventNam
     });
     
     os_log_t log = log_for_category([intervalName componentsSeparatedByString:@"."].firstObject);
-    os_log_info(log, "BEGIN interval %{public}@ (id=%llu)", intervalName, intervalId);
+    NSString *beginAttrs = attributes.count > 0 ? [attributes description] : @"";
+    os_log_info(log, "BEGIN interval %{public}@ (id=%llu) %{public}@", intervalName, intervalId,
+                beginAttrs);
     
     return intervalId;
 }
@@ -234,9 +236,15 @@ static void log_with_level(os_log_t log, ISHLogLevel level, const char *eventNam
     CFAbsoluteTime endTime = CFAbsoluteTimeGetCurrent();
     NSTimeInterval duration = endTime - record.startTime;
     
+    NSMutableDictionary *mergedAttrs = [record.attributes mutableCopy] ?: [NSMutableDictionary dictionary];
+    if (attributes.count > 0) {
+        [mergedAttrs addEntriesFromDictionary:attributes];
+    }
+    NSString *endAttrs = mergedAttrs.count > 0 ? [mergedAttrs description] : @"";
+
     os_log_t log = log_for_category([record.name componentsSeparatedByString:@"."].firstObject);
-    os_log_info(log, "END interval %{public}@ (id=%llu) duration=%.3fs", 
-                record.name, intervalId, duration);
+    os_log_info(log, "END interval %{public}@ (id=%llu) duration=%.3fs %{public}@", 
+                record.name, intervalId, duration, endAttrs);
 }
 
 + (void)recordEventWithName:(const char *)eventName {

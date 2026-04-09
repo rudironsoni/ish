@@ -228,7 +228,6 @@ int trace_config_from_env(trace_config_t *config);
 
 void trace_flush(void);
 int trace_dump_ring(const char *path);
-void trace_dump_ring_stderr(void);
 void trace_dump_on_fault(uint64_t fault_pc, uint64_t fault_addr, int is_write);
 const char *trace_event_name(trace_event_id_t event);
 const trace_event_desc_t *trace_event_desc(trace_event_id_t event);
@@ -271,24 +270,6 @@ bool trace_sidecar_enabled(void);
  * ============================================ */
 
 const trace_backend_ops_t *trace_backend_get_ops(trace_backend_t backend);
-const trace_backend_ops_t *trace_ring_backend_get_ops(void);
-
-/* ============================================
- * Pre-Crash Capture API
- * ============================================ */
-
-/* Enable pre-crash ring buffer capture with signal handlers */
-void trace_ring_enable_precrash_capture(void);
-
-/* Dump ring buffer to crash file on demand */
-void trace_ring_dump_on_crash(void);
-
-/* Get global ring buffer for crash dump */
-trace_ring_t *trace_get_global_ring(void);
-
-/* Get/set crash dump path for sandbox-safe crash artifact locations */
-const char *trace_get_crash_dump_path(void);
-void trace_set_crash_dump_path(const char *path);
 
 #ifdef __cplusplus
 }

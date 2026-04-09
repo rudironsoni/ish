@@ -306,14 +306,17 @@ int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr)
             }
 
             if (src_is_sp) {
-                ret = emit_gadget(state, gadget_mov_imm[13]);
+                // Keep SP source value in x14 (work_src=13) and materialize
+                // immediate into x15 to avoid clobbering the source register.
+                ret = emit_gadget(state, gadget_mov_imm[14]);
                 if (ret != A64_GEN_OK)
                     return ret;
                 ret = emit_u64(state, (uint64_t)instr->imm);
                 if (ret != A64_GEN_OK)
                     return ret;
-                ret = emit_gadget(state, is_sub ? gadget_sub_reg[work_dst][work_src][13]
-                                                : gadget_add_reg[work_dst][work_src][13]);
+
+                ret = emit_gadget(state, is_sub ? gadget_sub_reg[work_dst][work_src][14]
+                                                : gadget_add_reg[work_dst][work_src][14]);
                 if (ret != A64_GEN_OK)
                     return ret;
             } else {
@@ -643,21 +646,51 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr)
     tcti_gadget_t gadget = NULL;
 
     if (op2 >= 0 && op2 <= 3) {
+        int ret;
+        int logical_rn = eff_rn;
+        int logical_rm = eff_rm;
+        int zero_src_for_rn = 13;
+        int zero_src_for_rm = 13;
+
         if (instr->imm_shift != 0 || instr->shift_type != A64_SHIFT_LSL || instr->set_flags)
             return A64_GEN_UNSUPPORTED;
 
+        // Logical shifted-register treats x31 as XZR, not SP. Materialize architectural
+        // zero in a temp register whenever an operand is x31 and the operation reads it.
+        // ORR with Rn==XZR is handled as MOV alias and does not read Rn.
+        if (src1_is_memory)
+            zero_src_for_rm = 14;
+        if (rn == 31 && instr->subtype != 1) {
+            ret = emit_gadget(state, gadget_mov_imm[zero_src_for_rn]);
+            if (ret != A64_GEN_OK)
+                return ret;
+            ret = emit_u64(state, 0);
+            if (ret != A64_GEN_OK)
+                return ret;
+            logical_rn = zero_src_for_rn;
+        }
+        if (rm == 31) {
+            ret = emit_gadget(state, gadget_mov_imm[zero_src_for_rm]);
+            if (ret != A64_GEN_OK)
+                return ret;
+            ret = emit_u64(state, 0);
+            if (ret != A64_GEN_OK)
+                return ret;
+            logical_rm = zero_src_for_rm;
+        }
+
         if (rn == 31 && instr->subtype == 1) {
-            gadget = gadget_mov_reg[eff_rd][eff_rm];
+            gadget = gadget_mov_reg[eff_rd][logical_rm];
         } else {
             switch (instr->subtype) {
             case 0:
-                gadget = gadget_and_reg[eff_rd][eff_rn][eff_rm];
+                gadget = gadget_and_reg[eff_rd][logical_rn][logical_rm];
                 break;
             case 1:
-                gadget = gadget_orr_reg[eff_rd][eff_rn][eff_rm];
+                gadget = gadget_orr_reg[eff_rd][logical_rn][logical_rm];
                 break;
             case 2:
-                gadget = gadget_eor_reg[eff_rd][eff_rn][eff_rm];
+                gadget = gadget_eor_reg[eff_rd][logical_rn][logical_rm];
                 break;
             default:
                 return A64_GEN_UNSUPPORTED;

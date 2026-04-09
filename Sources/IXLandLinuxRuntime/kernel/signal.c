@@ -226,6 +226,20 @@ void receive_signals(void)
         ixland_guest_trace_emit_int(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR,
                                     "guest.receive_signals.selected", "selected_sig", sig);
 
+        {
+            char sig_buf[16];
+            char pending_buf[32];
+            snprintf(sig_buf, sizeof(sig_buf), "%d", sig);
+            snprintf(pending_buf, sizeof(pending_buf), "0x%llx", (unsigned long long)task->pending);
+            ixland_instrumentation_attribute_t attrs[] = {
+                { .key = "signal", .value = sig_buf },
+                { .key = "pending_mask", .value = pending_buf },
+            };
+            ixland_guest_trace_emit_attrs(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR,
+                                          "guest.signal.handle", attrs,
+                                          sizeof(attrs) / sizeof(attrs[0]));
+        }
+
         // Clear this signal from pending set
         sigset_del(&task->pending, sig);
 

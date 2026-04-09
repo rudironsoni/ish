@@ -32,7 +32,7 @@ typedef struct a64_sysreg_spec {
 } a64_sysreg_spec_t;
 
 enum {
-    A64_SYSREG_NZCV = 0x1000,
+    A64_SYSREG_NZCV = 0x5A10,
     A64_SYSREG_DAIF = 0x1008,
     A64_SYSREG_CTR_EL0 = 0x5801,
     A64_SYSREG_DCZID_EL0 = 0x5807,
