@@ -8,7 +8,7 @@
  * 
  * Source of truth: tcti/aarch64/tcti-gadget-gen.py
  * Generator version: 1.0.0
- * Generation date: 2026-04-07 01:30:04
+ * Generation date: 2026-04-10 00:12:25
  * Generator hash: d3f6652c3b11a180
  * 
  * If you need to change gadget behavior:

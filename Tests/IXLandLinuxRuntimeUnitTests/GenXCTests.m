@@ -6,6 +6,7 @@ int gen_test_failed_count(void);
 const char *gen_test_failed_test_at(int idx);
 int gen_test_first_failed_line(void);
 int gen_test_failed_line_at(int idx);
+const char *gen_test_direct_results(void);
 
 @interface GenXCTests : XCTestCase
 @end
@@ -31,11 +32,15 @@ int gen_test_failed_line_at(int idx);
         }
     }
 
-    XCTAssertEqual(rc, 0, @"gen_test harness failed_count=%d first_failed=%@ first_failed_line=%d failed_tests=%@",
+    const char *directResultsRaw = gen_test_direct_results();
+    NSString *directResults = directResultsRaw ? [NSString stringWithUTF8String:directResultsRaw] : @"<none>";
+
+    XCTAssertEqual(rc, 0, @"gen_test harness failed_count=%d first_failed=%@ first_failed_line=%d failed_tests=%@ direct_results=%@",
                    failedCount,
                    firstFailedName,
                    failedLine,
-                   allFailed);
+                   allFailed,
+                   directResults);
 }
 
 @end

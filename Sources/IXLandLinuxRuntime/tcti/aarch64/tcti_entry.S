@@ -18,12 +18,6 @@
 
 .global _tcti_entry_block
 .global tcti_entry_block
-.extern _trace_emit_tcti_gadget6a640_load_sp_pre
-.extern _trace_emit_tcti_gadget6a640_load_sp_post
-.extern _trace_emit_tcti_gadget6a640_mov_imm_pre
-.extern _trace_emit_tcti_gadget6a640_mov_imm_post
-.extern _trace_emit_tcti_gadget6a640_add_reg_pre
-.extern _trace_emit_tcti_gadget6a640_add_reg_post
 _tcti_entry_block:
 tcti_entry_block:
     // Entry: x0 = gadget array, x1 = cpu_state
@@ -42,71 +36,6 @@ tcti_entry_block:
     // x0 still contains gadgets, x1 still contains cpu_state
     mov     x28, x0                 // x28 = bytecode pointer (gadget stream)
     mov     x29, x1                 // x29 = cpu state
-    
-    // =========================================================================
-    // TCTI ENTRY BOUNDARY TRACING - Spill-First Instrumentation
-    // =========================================================================
-    // Capture exact values at TCTI entry for forensic analysis
-    // 
-    // Register state at this point:
-    //   x0 = gadgets (bytecode stream base)
-    //   x1 = cpu_state pointer
-    //   x28 = bytecode pointer (copy of x0)
-    //   x29 = cpu_state (copy of x1)
-    //   x27 = undefined (will be loaded from bytecode)
-    //
-    // Trace sequence:
-    //   1. TCTI_ENTRY_X28_BEFORE: x28 value before any loads
-    //   2. TCTI_ENTRY_QWORD0: [x28] - first qword of bytecode
-    //   3. Load x27 from [x28], advance x28
-    //   4. TCTI_ENTRY_X27_AFTER: x27 after first load
-    //   5. TCTI_ENTRY_X28_AFTER: x28 after first load (bytecode advanced)
-    //   6. TCTI_ENTRY_QWORD1: [x28] - second qword of bytecode
-    //
-    // Note: x27 = gadget to execute, x28 advanced by 8
-    // =========================================================================
-    
-    // Save x28 only for pre-load tracing (x27 is undefined here, don't save it)
-    str     x28, [sp, #-16]!
-    
-    // Trace TCTI_ENTRY_X28_BEFORE
-    mov     x0, x28
-    bl      _trace_emit_tcti_entry_x28_before
-    
-    // Restore x28 after call
-    ldr     x28, [sp], #16
-    
-    // Trace qword0 from the current stream head
-    // Preserve x28 across this call too
-    str     x28, [sp, #-16]!
-    ldr     x0, [x28]
-    bl      _trace_emit_tcti_entry_qword0
-    ldr     x28, [sp], #16
-
-    // Load the real first gadget and advance the stream
-    ldr     x27, [x28], #8
-
-    // Save the real post-load dispatch state, not the undefined pre-load x27
-    stp     x27, x28, [sp, #-16]!
-
-    // Trace x27 after load
-    mov     x0, x27
-    bl      _trace_emit_tcti_entry_x27_after
-
-    // Trace x28 after load
-    mov     x0, x28
-    bl      _trace_emit_tcti_entry_x28_after
-
-    // Trace qword1 at the advanced stream head
-    ldr     x0, [x28]
-    bl      _trace_emit_tcti_entry_qword1
-
-    // Restore the real post-load dispatch state
-    ldp     x27, x28, [sp], #16
-    
-    // Restore NZCV after trace calls (may have clobbered flags)
-    ldr     x0, [x29, #CPU_OFFSET_pstate] // Restore saved NZCV/PSTATE flags
-    msr     nzcv, x0
     
     // Store stack canary using x0 (now safe to clobber)
     mov     x0, #0xABCD
@@ -133,9 +62,12 @@ tcti_entry_block:
     
     // Guest x15-x30 and SP stay in memory
 
+    // Load first gadget pointer after register restoration
+    ldr     x27, [x28], #8
+
     // Guard: Check if first gadget pointer is valid before jumping
     cbz     x27, tcti_bad_gadget    // If x27 is NULL, exit gracefully
-    // Jump to first gadget (already loaded into x27 during tracing)
+    // Jump to first gadget
     br      x27                     // Execute first gadget
 
 tcti_bad_gadget:

@@ -347,6 +347,17 @@ static void trace_str6a650_event(const char *name, const char *payload)
     g_str6a650_trace_budget--;
 }
 
+static void trace_str6a650_event_fields(const char *name, const ixland_guest_trace_field_t *fields,
+                                        uint32_t field_count)
+{
+    if (!name || !fields || field_count == 0 || g_str6a650_trace_budget <= 0)
+        return;
+
+    ixland_guest_trace_emit_structured(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR, name, fields,
+                                       field_count);
+    g_str6a650_trace_budget--;
+}
+
 static void trace_x7chain_event(const char *name, const char *payload)
 {
     if (!name || !payload || g_x7chain_trace_budget <= 0)
@@ -357,6 +368,17 @@ static void trace_x7chain_event(const char *name, const char *payload)
     };
     ixland_guest_trace_emit_attrs(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR, name, attrs,
                                   sizeof(attrs) / sizeof(attrs[0]));
+    g_x7chain_trace_budget--;
+}
+
+static void trace_x7chain_event_fields(const char *name, const ixland_guest_trace_field_t *fields,
+                                       uint32_t field_count)
+{
+    if (!name || !fields || field_count == 0 || g_x7chain_trace_budget <= 0)
+        return;
+
+    ixland_guest_trace_emit_structured(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR, name, fields,
+                                       field_count);
     g_x7chain_trace_budget--;
 }
 
@@ -373,19 +395,39 @@ static void trace_insn64_event(const char *name, const char *payload)
     g_insn64_trace_budget--;
 }
 
+#define TRACE_FIELD_STR(key_, value_)                                                              \
+    { .key = (key_), .kind = IXLAND_GUEST_TRACE_FIELD_STRING, .string_value = (value_) }
+#define TRACE_FIELD_I64(key_, value_)                                                              \
+    { .key = (key_), .kind = IXLAND_GUEST_TRACE_FIELD_I64_DEC, .i64_value = (int64_t)(value_) }
+#define TRACE_FIELD_U64_DEC(key_, value_)                                                          \
+    { .key = (key_), .kind = IXLAND_GUEST_TRACE_FIELD_U64_DEC, .u64_value = (uint64_t)(value_) }
+#define TRACE_FIELD_U64_HEX(key_, value_)                                                          \
+    { .key = (key_), .kind = IXLAND_GUEST_TRACE_FIELD_U64_HEX, .u64_value = (uint64_t)(value_) }
+
+static void trace_insn64_event_fields(const char *name, const ixland_guest_trace_field_t *fields,
+                                      uint32_t field_count)
+{
+    if (!name || !fields || field_count == 0 || g_insn64_trace_budget <= 0)
+        return;
+
+    ixland_guest_trace_emit_structured(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR, name, fields,
+                                       field_count);
+    g_insn64_trace_budget--;
+}
+
 static void trace_block6a640_bytecode(struct a64_block *block)
 {
     if (!block || block->start_pc != 0x6a640ULL || !block->gadgets)
         return;
 
-    char payload[384];
-    snprintf(payload, sizeof(payload),
-             "attempt:-1,guest_pid:%d,guest_pc:0x%llx,block_start:0x%llx,block_end:0x%llx,num_g"
-             "adgets:%zu",
-             current ? current->pid : -1, (unsigned long long)block->start_pc,
-             (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
-             block->num_gadgets);
-    trace_insn64_event("block6a640.bytecode.start", payload);
+    ixland_guest_trace_field_t start_fields[] = {
+        TRACE_FIELD_U64_HEX("guest_pc", block->start_pc),
+        TRACE_FIELD_U64_HEX("block_start", block->start_pc),
+        TRACE_FIELD_U64_HEX("block_end", block->end_pc),
+        TRACE_FIELD_U64_DEC("num_gadgets", block->num_gadgets),
+    };
+    trace_insn64_event_fields("block6a640.bytecode.start", start_fields,
+                              sizeof(start_fields) / sizeof(start_fields[0]));
 
     size_t max_items = block->num_gadgets < 16 ? block->num_gadgets : 16;
     for (size_t i = 0; i < max_items; i++) {
@@ -397,108 +439,36 @@ static void trace_block6a640_bytecode(struct a64_block *block)
 
         if (strstr(symbol, "gadget_mov_imm") != NULL && (i + 1) < block->num_gadgets) {
             uint64_t imm = (uint64_t)(uintptr_t)block->gadgets[i + 1];
-            snprintf(payload, sizeof(payload),
-                     "attempt:-1,guest_pid:%d,guest_pc:0x%llx,block_start:0x%llx,index:%zu,symbol"
-                     ":%s,inline_imm:0x%llx",
-                     current ? current->pid : -1, (unsigned long long)block->start_pc,
-                     (unsigned long long)block->start_pc, i, symbol, (unsigned long long)imm);
-            trace_insn64_event("block6a640.bytecode.imm", payload);
+            ixland_guest_trace_field_t imm_fields[] = {
+                TRACE_FIELD_U64_HEX("guest_pc", block->start_pc),
+                TRACE_FIELD_U64_HEX("block_start", block->start_pc),
+                TRACE_FIELD_U64_DEC("index", i),
+                TRACE_FIELD_STR("symbol", symbol),
+                TRACE_FIELD_U64_HEX("inline_imm", imm),
+            };
+            trace_insn64_event_fields("block6a640.bytecode.imm", imm_fields,
+                                      sizeof(imm_fields) / sizeof(imm_fields[0]));
         } else {
-            snprintf(payload, sizeof(payload),
-                     "attempt:-1,guest_pid:%d,guest_pc:0x%llx,block_start:0x%llx,index:%zu,symbol"
-                     ":%s,addr:%p",
-                     current ? current->pid : -1, (unsigned long long)block->start_pc,
-                     (unsigned long long)block->start_pc, i, symbol, entry);
-            trace_insn64_event("block6a640.bytecode.gadget", payload);
+            ixland_guest_trace_field_t gadget_fields[] = {
+                TRACE_FIELD_U64_HEX("guest_pc", block->start_pc),
+                TRACE_FIELD_U64_HEX("block_start", block->start_pc),
+                TRACE_FIELD_U64_DEC("index", i),
+                TRACE_FIELD_STR("symbol", symbol),
+                TRACE_FIELD_U64_HEX("addr", (uint64_t)(uintptr_t)entry),
+            };
+            trace_insn64_event_fields("block6a640.bytecode.gadget", gadget_fields,
+                                      sizeof(gadget_fields) / sizeof(gadget_fields[0]));
         }
     }
 
-    snprintf(payload, sizeof(payload),
-             "attempt:-1,guest_pid:%d,guest_pc:0x%llx,block_start:0x%llx,block_end:0x%llx,emitte"
-             "d_items:%zu",
-             current ? current->pid : -1, (unsigned long long)block->start_pc,
-             (unsigned long long)block->start_pc, (unsigned long long)block->end_pc, max_items);
-    trace_insn64_event("block6a640.bytecode.end", payload);
-}
-
-__attribute__((visibility("default"))) void
-trace_emit_tcti_gadget6a640_load_sp_pre(uint64_t x14, uint64_t sp, uint64_t pc)
-{
-    if (pc != 0x6a640ULL)
-        return;
-
-    char payload[256];
-    snprintf(payload, sizeof(payload),
-             "attempt:-1,guest_pid:%d,guest_pc:0x%llx,gadget:gadget_load_sp,temp_x14:0x%llx,cpu_"
-             "state.sp:0x%llx",
-             current ? current->pid : -1, (unsigned long long)pc, (unsigned long long)x14,
-             (unsigned long long)sp);
-    trace_insn64_event("gadget6a640.load_sp.pre", payload);
-}
-
-__attribute__((visibility("default"))) void
-trace_emit_tcti_gadget6a640_load_sp_post(uint64_t x14, uint64_t sp, uint64_t pc)
-{
-    if (pc != 0x6a640ULL)
-        return;
-
-    char payload[256];
-    snprintf(payload, sizeof(payload),
-             "attempt:-1,guest_pid:%d,guest_pc:0x%llx,gadget:gadget_load_sp,temp_x14:0x%llx,cpu_"
-             "state.sp:0x%llx,equal:%d",
-             current ? current->pid : -1, (unsigned long long)pc, (unsigned long long)x14,
-             (unsigned long long)sp, x14 == sp ? 1 : 0);
-    trace_insn64_event("gadget6a640.load_sp.post", payload);
-}
-
-__attribute__((visibility("default"))) void trace_emit_tcti_gadget6a640_mov_imm_pre(uint64_t x15,
-                                                                                    uint64_t imm)
-{
-    char payload[256];
-    snprintf(payload, sizeof(payload),
-             "attempt:-1,guest_pid:%d,guest_pc:0x6a640,gadget:gadget_mov_imm_14,temp_x15:0x%llx,i"
-             "mm:0x%llx",
-             current ? current->pid : -1, (unsigned long long)x15, (unsigned long long)imm);
-    trace_insn64_event("gadget6a640.mov_imm.pre", payload);
-}
-
-__attribute__((visibility("default"))) void trace_emit_tcti_gadget6a640_mov_imm_post(uint64_t x15,
-                                                                                     uint64_t imm)
-{
-    char payload[256];
-    snprintf(payload, sizeof(payload),
-             "attempt:-1,guest_pid:%d,guest_pc:0x6a640,gadget:gadget_mov_imm_14,temp_x15:0x%llx,i"
-             "mm:0x%llx,equal:%d",
-             current ? current->pid : -1, (unsigned long long)x15, (unsigned long long)imm,
-             x15 == imm ? 1 : 0);
-    trace_insn64_event("gadget6a640.mov_imm.post", payload);
-}
-
-__attribute__((visibility("default"))) void
-trace_emit_tcti_gadget6a640_add_reg_pre(uint64_t x14, uint64_t x15, uint64_t x8)
-{
-    char payload[320];
-    snprintf(payload, sizeof(payload),
-             "attempt:-1,guest_pid:%d,guest_pc:0x6a640,gadget:gadget_add_reg_7_13_14,src_x14:0x%l"
-             "lx,src_x15:0x%llx,dst_x8_before:0x%llx",
-             current ? current->pid : -1, (unsigned long long)x14, (unsigned long long)x15,
-             (unsigned long long)x8);
-    trace_insn64_event("gadget6a640.add_reg.pre", payload);
-}
-
-__attribute__((visibility("default"))) void
-trace_emit_tcti_gadget6a640_add_reg_post(uint64_t x14, uint64_t x15, uint64_t x8, uint64_t sp)
-{
-    char payload[384];
-    uint64_t expected = x14 + x15;
-    snprintf(payload, sizeof(payload),
-             "attempt:-1,guest_pid:%d,guest_pc:0x6a640,gadget:gadget_add_reg_7_13_14,src_x14:0x%l"
-             "lx,src_x15:0x%llx,dst_x8_after:0x%llx,expected_add:0x%llx,equal_add:%d,cpu_state.sp"
-             ":0x%llx,equal_sp_plus8:%d",
-             current ? current->pid : -1, (unsigned long long)x14, (unsigned long long)x15,
-             (unsigned long long)x8, (unsigned long long)expected, x8 == expected ? 1 : 0,
-             (unsigned long long)sp, x8 == (sp + 8ULL) ? 1 : 0);
-    trace_insn64_event("gadget6a640.add_reg.post", payload);
+    ixland_guest_trace_field_t end_fields[] = {
+        TRACE_FIELD_U64_HEX("guest_pc", block->start_pc),
+        TRACE_FIELD_U64_HEX("block_start", block->start_pc),
+        TRACE_FIELD_U64_HEX("block_end", block->end_pc),
+        TRACE_FIELD_U64_DEC("emitted_items", max_items),
+    };
+    trace_insn64_event_fields("block6a640.bytecode.end", end_fields,
+                              sizeof(end_fields) / sizeof(end_fields[0]));
 }
 
 static uint64_t trace_ldst_effective_address(struct cpu_state *cpu, uint32_t raw,
@@ -1322,44 +1292,45 @@ int a64_execute_block(struct cpu_state *cpu, struct a64_block *block)
             trace_x0chain_event("x0chain.pre_sync", payload);
         }
         if (block->start_pc == 0x6a650ULL) {
-            char payload[640];
-            snprintf(payload, sizeof(payload),
-                     "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:str,"
-                     "base_reg:2,base_val:0x%llx,src_reg:31,src_val:0x0,imm:unknown,idx_mode:"
-                     "unknown,guest_ea:unknown,host_probe:unknown,translation_fault:unknown,"
-                     "signal_follow_immediate:0",
-                     current ? current->pid : -1, (unsigned long long)cpu->pc,
-                     (unsigned)(cpu->pc == 0x6a650ULL ? 0xf800845fU : 0),
-                     (unsigned long long)cpu->x[2]);
-            trace_str6a650_event("str6a650.pre_sync", payload);
+            ixland_guest_trace_field_t fields[] = {
+                TRACE_FIELD_U64_HEX("guest_pc", cpu->pc),
+                TRACE_FIELD_U64_HEX("raw_opcode", cpu->pc == 0x6a650ULL ? 0xf800845fU : 0),
+                TRACE_FIELD_STR("mnemonic", "str"),
+                TRACE_FIELD_I64("base_reg", 2),
+                TRACE_FIELD_U64_HEX("base_val", cpu->x[2]),
+                TRACE_FIELD_I64("src_reg", 31),
+                TRACE_FIELD_U64_HEX("src_val", 0),
+                TRACE_FIELD_I64("signal_follow_immediate", 0),
+            };
+            trace_str6a650_event_fields("str6a650.pre_sync", fields,
+                                        sizeof(fields) / sizeof(fields[0]));
         }
         if (block->start_pc == 0x6a640ULL) {
-            char payload[1024];
-            snprintf(payload, sizeof(payload),
-                     "attempt:-1,guest_pid:%d,guest_pc:0x6a640,raw_opcode:0x910023e7,mnemonic:add "
-                     "x7,sp,#8,arch_sp:0x%llx,arch_x7:0x%llx,arch_x2:0x%llx,carrier_sp:0x%llx,"
-                     "carrier_x7:0x%llx,carrier_x2:0x%llx,cpu_state.sp:0x%llx,cpu_state.x7:0x%llx,"
-                     "cpu_state.x2:0x%llx,block_start:0x%llx,block_end:0x%llx",
-                     current ? current->pid : -1, (unsigned long long)cpu->sp,
-                     (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
-                     (unsigned long long)cpu->sp, (unsigned long long)cpu->x[7],
-                     (unsigned long long)cpu->x[2], (unsigned long long)cpu->sp,
-                     (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
-                     (unsigned long long)block->start_pc, (unsigned long long)block->end_pc);
-            trace_insn64_event("insn6a640.pre_sync", payload);
+            ixland_guest_trace_field_t fields[] = {
+                TRACE_FIELD_U64_HEX("guest_pc", 0x6a640ULL),
+                TRACE_FIELD_U64_HEX("raw_opcode", 0x910023e7ULL),
+                TRACE_FIELD_STR("mnemonic", "add x7,sp,#8"),
+                TRACE_FIELD_U64_HEX("sp", cpu->sp),
+                TRACE_FIELD_U64_HEX("x7", cpu->x[7]),
+                TRACE_FIELD_U64_HEX("x2", cpu->x[2]),
+                TRACE_FIELD_U64_HEX("block_start", block->start_pc),
+                TRACE_FIELD_U64_HEX("block_end", block->end_pc),
+            };
+            trace_insn64_event_fields("insn6a640.pre_sync", fields,
+                                      sizeof(fields) / sizeof(fields[0]));
         }
         if (block->start_pc == 0x6a64cULL) {
-            char payload[768];
-            snprintf(payload, sizeof(payload),
-                     "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:mov_"
-                     "x2_x7,x7_arch:0x%llx,x2_arch:0x%llx,carrier_x7:0x%llx,carrier_x2:0x%llx,"
-                     "cpu_slot_x7:0x%llx,cpu_slot_x2:0x%llx,block_start:0x%llx,block_end:0x%llx",
-                     current ? current->pid : -1, (unsigned long long)cpu->pc, 0xaa0703e2U,
-                     (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
-                     (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
-                     (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
-                     (unsigned long long)block->start_pc, (unsigned long long)block->end_pc);
-            trace_x7chain_event("mov6a64c.pre_sync", payload);
+            ixland_guest_trace_field_t fields[] = {
+                TRACE_FIELD_U64_HEX("guest_pc", cpu->pc),
+                TRACE_FIELD_U64_HEX("raw_opcode", 0xaa0703e2U),
+                TRACE_FIELD_STR("mnemonic", "mov_x2_x7"),
+                TRACE_FIELD_U64_HEX("x7", cpu->x[7]),
+                TRACE_FIELD_U64_HEX("x2", cpu->x[2]),
+                TRACE_FIELD_U64_HEX("block_start", block->start_pc),
+                TRACE_FIELD_U64_HEX("block_end", block->end_pc),
+            };
+            trace_x7chain_event_fields("mov6a64c.pre_sync", fields,
+                                       sizeof(fields) / sizeof(fields[0]));
         }
         tcti_entry_block(block->gadgets, cpu);
         if (block->start_pc == 0x6a628ULL) {
@@ -1387,46 +1358,47 @@ int a64_execute_block(struct cpu_state *cpu, struct a64_block *block)
             trace_x0chain_event("x0chain.post_sync", payload);
         }
         if (block->start_pc == 0x6a650ULL) {
-            char payload[640];
-            snprintf(payload, sizeof(payload),
-                     "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:str,"
-                     "base_reg:2,base_val:0x%llx,src_reg:31,src_val:0x0,imm:unknown,idx_mode:"
-                     "unknown,guest_ea:unknown,host_probe:unknown,translation_fault:%d,"
-                     "signal_follow_immediate:%d",
-                     current ? current->pid : -1, (unsigned long long)cpu->pc,
-                     (unsigned)(cpu->pc == 0x6a650ULL ? 0xf800845fU : 0),
-                     (unsigned long long)cpu->x[2],
-                     cpu->tcti_exit_reason == TCTI_EXIT_FAULT ? 1 : 0,
-                     cpu->tcti_exit_reason == TCTI_EXIT_FAULT ? 1 : 0);
-            trace_str6a650_event("str6a650.post_sync", payload);
+            ixland_guest_trace_field_t fields[] = {
+                TRACE_FIELD_U64_HEX("guest_pc", cpu->pc),
+                TRACE_FIELD_U64_HEX("raw_opcode", cpu->pc == 0x6a650ULL ? 0xf800845fU : 0),
+                TRACE_FIELD_STR("mnemonic", "str"),
+                TRACE_FIELD_I64("base_reg", 2),
+                TRACE_FIELD_U64_HEX("base_val", cpu->x[2]),
+                TRACE_FIELD_I64("src_reg", 31),
+                TRACE_FIELD_U64_HEX("src_val", 0),
+                TRACE_FIELD_I64("translation_fault", cpu->tcti_exit_reason == TCTI_EXIT_FAULT),
+                TRACE_FIELD_I64("signal_follow_immediate",
+                                cpu->tcti_exit_reason == TCTI_EXIT_FAULT),
+            };
+            trace_str6a650_event_fields("str6a650.post_sync", fields,
+                                        sizeof(fields) / sizeof(fields[0]));
         }
         if (block->start_pc == 0x6a640ULL) {
-            char payload[1024];
-            snprintf(payload, sizeof(payload),
-                     "attempt:-1,guest_pid:%d,guest_pc:0x6a640,raw_opcode:0x910023e7,mnemonic:add "
-                     "x7,sp,#8,arch_sp:0x%llx,arch_x7:0x%llx,arch_x2:0x%llx,carrier_sp:0x%llx,"
-                     "carrier_x7:0x%llx,carrier_x2:0x%llx,cpu_state.sp:0x%llx,cpu_state.x7:0x%llx,"
-                     "cpu_state.x2:0x%llx,block_start:0x%llx,block_end:0x%llx",
-                     current ? current->pid : -1, (unsigned long long)cpu->sp,
-                     (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
-                     (unsigned long long)cpu->sp, (unsigned long long)cpu->x[7],
-                     (unsigned long long)cpu->x[2], (unsigned long long)cpu->sp,
-                     (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
-                     (unsigned long long)block->start_pc, (unsigned long long)block->end_pc);
-            trace_insn64_event("insn6a640.post_sync", payload);
+            ixland_guest_trace_field_t fields[] = {
+                TRACE_FIELD_U64_HEX("guest_pc", 0x6a640ULL),
+                TRACE_FIELD_U64_HEX("raw_opcode", 0x910023e7ULL),
+                TRACE_FIELD_STR("mnemonic", "add x7,sp,#8"),
+                TRACE_FIELD_U64_HEX("sp", cpu->sp),
+                TRACE_FIELD_U64_HEX("x7", cpu->x[7]),
+                TRACE_FIELD_U64_HEX("x2", cpu->x[2]),
+                TRACE_FIELD_U64_HEX("block_start", block->start_pc),
+                TRACE_FIELD_U64_HEX("block_end", block->end_pc),
+            };
+            trace_insn64_event_fields("insn6a640.post_sync", fields,
+                                      sizeof(fields) / sizeof(fields[0]));
         }
         if (block->start_pc == 0x6a64cULL) {
-            char payload[768];
-            snprintf(payload, sizeof(payload),
-                     "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:mov_"
-                     "x2_x7,x7_arch:0x%llx,x2_arch:0x%llx,carrier_x7:0x%llx,carrier_x2:0x%llx,"
-                     "cpu_slot_x7:0x%llx,cpu_slot_x2:0x%llx,block_start:0x%llx,block_end:0x%llx",
-                     current ? current->pid : -1, (unsigned long long)cpu->pc, 0xaa0703e2U,
-                     (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
-                     (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
-                     (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
-                     (unsigned long long)block->start_pc, (unsigned long long)block->end_pc);
-            trace_x7chain_event("mov6a64c.post_sync", payload);
+            ixland_guest_trace_field_t fields[] = {
+                TRACE_FIELD_U64_HEX("guest_pc", cpu->pc),
+                TRACE_FIELD_U64_HEX("raw_opcode", 0xaa0703e2U),
+                TRACE_FIELD_STR("mnemonic", "mov_x2_x7"),
+                TRACE_FIELD_U64_HEX("x7", cpu->x[7]),
+                TRACE_FIELD_U64_HEX("x2", cpu->x[2]),
+                TRACE_FIELD_U64_HEX("block_start", block->start_pc),
+                TRACE_FIELD_U64_HEX("block_end", block->end_pc),
+            };
+            trace_x7chain_event_fields("mov6a64c.post_sync", fields,
+                                       sizeof(fields) / sizeof(fields[0]));
         }
     } else {
         // Fault containment path - signal was caught
@@ -2372,56 +2344,113 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb)
         if (a64_fetch_insn(cpu, cpu->tlb, pc_before_execute, &writer_raw) == 0 &&
             a64_decode(writer_raw, &writer_decoded) == 0) {
             if (pc_before_execute == 0x6a640ULL || pc_before_execute == 0x6a64cULL) {
-                char payload[1024];
                 const char *mnemonic =
                     pc_before_execute == 0x6a640ULL ? "add x7,sp,#8" : "orr x2,xzr,x7 (mov x2,x7)";
-                snprintf(
-                    payload, sizeof(payload),
-                    "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
-                    "arch_sp:0x%llx,arch_x7:0x%llx,arch_x2:0x%llx,carrier_sp:0x%llx,carrier_"
-                    "x7:0x%llx,carrier_x2:0x%llx,cpu_state.sp:0x%llx,cpu_state.x7:0x%llx,"
-                    "cpu_state.x2:0x%llx,block_start:0x%llx,block_end:0x%llx",
-                    current ? current->pid : -1, (unsigned long long)pc_before_execute, writer_raw,
-                    mnemonic, (unsigned long long)sp_before_execute,
-                    (unsigned long long)x7_before_execute, (unsigned long long)x2_before_execute,
-                    (unsigned long long)sp_before_execute, (unsigned long long)x7_before_execute,
-                    (unsigned long long)x2_before_execute, (unsigned long long)sp_before_execute,
-                    (unsigned long long)x7_before_execute, (unsigned long long)x2_before_execute,
-                    (unsigned long long)block->start_pc, (unsigned long long)block->end_pc);
-                trace_insn64_event(pc_before_execute == 0x6a640ULL ? "insn6a640.block_entry"
-                                                                   : "insn6a64c.block_entry",
-                                   payload);
+                const char *expected = pc_before_execute == 0x6a640ULL ? "x7=sp+imm" : "x2=x7";
+                const char *rn31_interp =
+                    (pc_before_execute == 0x6a640ULL && writer_decoded.Rn == 31) ? "SP" : "XZR";
 
-                snprintf(payload, sizeof(payload),
-                         "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
-                         "class:cat:%d_sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld,rn31_interp:%s,expected:"
-                         "%s",
-                         current ? current->pid : -1, (unsigned long long)pc_before_execute,
-                         writer_raw, mnemonic, (int)writer_decoded.cat, (int)writer_decoded.subtype,
-                         writer_decoded.Rd, writer_decoded.Rn, writer_decoded.Rm,
-                         (long long)writer_decoded.imm,
-                         (pc_before_execute == 0x6a640ULL && writer_decoded.Rn == 31) ? "SP"
-                                                                                      : "XZR",
-                         pc_before_execute == 0x6a640ULL ? "x7=sp+imm" : "x2=x7");
-                trace_insn64_event(pc_before_execute == 0x6a640ULL ? "insn6a640.decode"
-                                                                   : "insn6a64c.decode",
-                                   payload);
+                ixland_guest_trace_field_t entry_fields[] = {
+                    TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
+                    TRACE_FIELD_U64_HEX("raw_opcode", writer_raw),
+                    TRACE_FIELD_STR("mnemonic", mnemonic),
+                    TRACE_FIELD_U64_HEX("sp", sp_before_execute),
+                    TRACE_FIELD_U64_HEX("x7", x7_before_execute),
+                    TRACE_FIELD_U64_HEX("x2", x2_before_execute),
+                    TRACE_FIELD_U64_HEX("block_start", block->start_pc),
+                    TRACE_FIELD_U64_HEX("block_end", block->end_pc),
+                };
+                trace_insn64_event_fields(pc_before_execute == 0x6a640ULL ? "insn6a640.block_entry"
+                                                                          : "insn6a64c.block_entry",
+                                          entry_fields,
+                                          sizeof(entry_fields) / sizeof(entry_fields[0]));
 
-                snprintf(
-                    payload, sizeof(payload),
-                    "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
-                    "arch_sp:0x%llx,arch_x7:0x%llx,arch_x2:0x%llx,carrier_sp:0x%llx,carrier_"
-                    "x7:0x%llx,carrier_x2:0x%llx,cpu_state.sp:0x%llx,cpu_state.x7:0x%llx,"
-                    "cpu_state.x2:0x%llx",
-                    current ? current->pid : -1, (unsigned long long)pc_before_execute, writer_raw,
-                    mnemonic, (unsigned long long)sp_before_execute,
-                    (unsigned long long)x7_before_execute, (unsigned long long)x2_before_execute,
-                    (unsigned long long)sp_before_execute, (unsigned long long)x7_before_execute,
-                    (unsigned long long)x2_before_execute, (unsigned long long)sp_before_execute,
-                    (unsigned long long)x7_before_execute, (unsigned long long)x2_before_execute);
-                trace_insn64_event(pc_before_execute == 0x6a640ULL ? "insn6a640.pre_exec"
-                                                                   : "insn6a64c.pre_exec",
-                                   payload);
+                ixland_guest_trace_field_t decode_fields[] = {
+                    TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
+                    TRACE_FIELD_U64_HEX("raw_opcode", writer_raw),
+                    TRACE_FIELD_STR("mnemonic", mnemonic),
+                    TRACE_FIELD_I64("cat", writer_decoded.cat),
+                    TRACE_FIELD_I64("subtype", writer_decoded.subtype),
+                    TRACE_FIELD_I64("rd", writer_decoded.Rd),
+                    TRACE_FIELD_I64("rn", writer_decoded.Rn),
+                    TRACE_FIELD_I64("rm", writer_decoded.Rm),
+                    TRACE_FIELD_I64("imm", writer_decoded.imm),
+                    TRACE_FIELD_STR("rn31_interp", rn31_interp),
+                    TRACE_FIELD_STR("expected", expected),
+                };
+                trace_insn64_event_fields(
+                    pc_before_execute == 0x6a640ULL ? "insn6a640.decode" : "insn6a64c.decode",
+                    decode_fields, sizeof(decode_fields) / sizeof(decode_fields[0]));
+
+                ixland_guest_trace_field_t pre_exec_fields[] = {
+                    TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
+                    TRACE_FIELD_U64_HEX("raw_opcode", writer_raw),
+                    TRACE_FIELD_STR("mnemonic", mnemonic),
+                    TRACE_FIELD_U64_HEX("sp", sp_before_execute),
+                    TRACE_FIELD_U64_HEX("x7", x7_before_execute),
+                    TRACE_FIELD_U64_HEX("x2", x2_before_execute),
+                };
+                trace_insn64_event_fields(
+                    pc_before_execute == 0x6a640ULL ? "insn6a640.pre_exec" : "insn6a64c.pre_exec",
+                    pre_exec_fields, sizeof(pre_exec_fields) / sizeof(pre_exec_fields[0]));
+
+                if (pc_before_execute == 0x6a640ULL && block && block->gadgets &&
+                    block->num_gadgets >= 4) {
+                    uint64_t inline_imm = 0;
+                    Dl_info info;
+                    const char *sym = "unknown";
+                    const char *load_sp_sym = "unknown";
+                    if (dladdr((void *)block->gadgets[0], &info) != 0 && info.dli_sname)
+                        load_sp_sym = info.dli_sname;
+                    if (dladdr((void *)block->gadgets[1], &info) != 0 && info.dli_sname)
+                        sym = info.dli_sname;
+                    if (strstr(sym, "gadget_mov_imm_14") != NULL)
+                        inline_imm = (uint64_t)(uintptr_t)block->gadgets[2];
+
+                    uint64_t temp_x14_before = cpu->x[13];
+                    uint64_t temp_x15_before = cpu->x[14];
+                    ixland_guest_trace_field_t mov_pre_fields[] = {
+                        TRACE_FIELD_U64_HEX("guest_pc", 0x6a640ULL),
+                        TRACE_FIELD_STR("gadget", "gadget_mov_imm_14"),
+                        TRACE_FIELD_U64_HEX("temp_x15_before", temp_x15_before),
+                        TRACE_FIELD_U64_HEX("consumed_imm", inline_imm),
+                        TRACE_FIELD_U64_HEX("sp", cpu->sp),
+                        TRACE_FIELD_U64_HEX("x7", cpu->x[7]),
+                        TRACE_FIELD_U64_HEX("x2", cpu->x[2]),
+                    };
+                    trace_insn64_event_fields("gadget6a640.mov_imm.pre", mov_pre_fields,
+                                              sizeof(mov_pre_fields) / sizeof(mov_pre_fields[0]));
+
+                    ixland_guest_trace_field_t load_sp_post_fields[] = {
+                        TRACE_FIELD_U64_HEX("guest_pc", 0x6a640ULL),
+                        TRACE_FIELD_STR("gadget", load_sp_sym),
+                        TRACE_FIELD_U64_HEX("x14", temp_x14_before),
+                        TRACE_FIELD_U64_HEX("x15", temp_x15_before),
+                        TRACE_FIELD_U64_HEX("x8", x7_before_execute),
+                        TRACE_FIELD_U64_HEX("x7", cpu->x[7]),
+                        TRACE_FIELD_U64_HEX("x2", cpu->x[2]),
+                        TRACE_FIELD_U64_HEX("sp", cpu->sp),
+                        TRACE_FIELD_U64_HEX("cpu_state_x7", cpu->x[7]),
+                        TRACE_FIELD_U64_HEX("cpu_state_x2", cpu->x[2]),
+                        TRACE_FIELD_U64_HEX("cpu_state_sp", cpu->sp),
+                    };
+                    trace_insn64_event_fields("gadget6a640.load_sp.post", load_sp_post_fields,
+                                              sizeof(load_sp_post_fields) /
+                                                  sizeof(load_sp_post_fields[0]));
+
+                    ixland_guest_trace_field_t add_pre_fields[] = {
+                        TRACE_FIELD_U64_HEX("guest_pc", 0x6a640ULL),
+                        TRACE_FIELD_STR("gadget", "gadget_add_reg_7_13_14"),
+                        TRACE_FIELD_U64_HEX("src_x14", temp_x14_before),
+                        TRACE_FIELD_U64_HEX("src_x15", temp_x15_before),
+                        TRACE_FIELD_U64_HEX("dst_x8_before", x7_before_execute),
+                        TRACE_FIELD_U64_HEX("sp", cpu->sp),
+                        TRACE_FIELD_U64_HEX("x7", cpu->x[7]),
+                        TRACE_FIELD_U64_HEX("x2", cpu->x[2]),
+                    };
+                    trace_insn64_event_fields("gadget6a640.add_reg.pre", add_pre_fields,
+                                              sizeof(add_pre_fields) / sizeof(add_pre_fields[0]));
+                }
             }
             if (pc_before_execute == 0x6a628ULL) {
                 char pretty[192] = { 0 };
@@ -2538,161 +2567,199 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb)
                 const char *mnemonic = trace_ldst_mnemonic(bit(writer_raw, 22), writer_decoded.size,
                                                            writer_decoded.is_signed ? 1 : 0);
 
-                char payload[768];
-                snprintf(payload, sizeof(payload),
-                         "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
-                         "base_reg:%d,base_val:0x%llx,src_reg:%d,src_val:0x%llx,idx_reg:%d,idx_"
-                         "val:0x%llx,imm:%lld,idx_mode:%d,guest_ea:0x%llx,host_probe:pending,"
-                         "translation_fault:pending,signal_follow_immediate:0",
-                         current ? current->pid : -1, (unsigned long long)pc_before_execute,
-                         writer_raw, mnemonic, writer_decoded.Rn, (unsigned long long)base_val,
-                         writer_decoded.Rd, (unsigned long long)src_val, writer_decoded.Rm,
-                         (unsigned long long)idx_val, (long long)writer_decoded.imm,
-                         (int)writer_decoded.idx_mode, (unsigned long long)guest_ea);
-                trace_str6a650_event("str6a650.block_entry", payload);
+                ixland_guest_trace_field_t block_entry_fields[] = {
+                    TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
+                    TRACE_FIELD_U64_HEX("raw_opcode", writer_raw),
+                    TRACE_FIELD_STR("mnemonic", mnemonic),
+                    TRACE_FIELD_I64("base_reg", writer_decoded.Rn),
+                    TRACE_FIELD_U64_HEX("base_val", base_val),
+                    TRACE_FIELD_I64("src_reg", writer_decoded.Rd),
+                    TRACE_FIELD_U64_HEX("src_val", src_val),
+                    TRACE_FIELD_I64("idx_reg", writer_decoded.Rm),
+                    TRACE_FIELD_U64_HEX("idx_val", idx_val),
+                    TRACE_FIELD_I64("imm", writer_decoded.imm),
+                    TRACE_FIELD_I64("idx_mode", writer_decoded.idx_mode),
+                    TRACE_FIELD_U64_HEX("guest_ea", guest_ea),
+                    TRACE_FIELD_STR("host_probe", "pending"),
+                    TRACE_FIELD_STR("translation_fault", "pending"),
+                    TRACE_FIELD_I64("signal_follow_immediate", 0),
+                };
+                trace_str6a650_event_fields("str6a650.block_entry", block_entry_fields,
+                                            sizeof(block_entry_fields) /
+                                                sizeof(block_entry_fields[0]));
 
-                snprintf(payload, sizeof(payload),
-                         "attempt:-1,guest_pid:%d,guest_pc:0x6a650,raw_opcode:0x%08x,mnemonic:str,"
-                         "arch_sp:0x%llx,arch_x7:0x%llx,arch_x2:0x%llx,carrier_sp:0x%llx,carrier_"
-                         "x7:0x%llx,carrier_x2:0x%llx,cpu_state.sp:0x%llx,cpu_state.x7:0x%llx,"
-                         "cpu_state.x2:0x%llx,guest_ea:0x%llx",
-                         current ? current->pid : -1, writer_raw, (unsigned long long)cpu->sp,
-                         (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
-                         (unsigned long long)cpu->sp, (unsigned long long)cpu->x[7],
-                         (unsigned long long)cpu->x[2], (unsigned long long)cpu->sp,
-                         (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
-                         (unsigned long long)guest_ea);
-                trace_insn64_event("insn6a650.consumer", payload);
+                ixland_guest_trace_field_t consumer_fields[] = {
+                    TRACE_FIELD_U64_HEX("guest_pc", 0x6a650ULL),
+                    TRACE_FIELD_U64_HEX("raw_opcode", writer_raw),
+                    TRACE_FIELD_STR("mnemonic", "str"),
+                    TRACE_FIELD_U64_HEX("sp", cpu->sp),
+                    TRACE_FIELD_U64_HEX("x7", cpu->x[7]),
+                    TRACE_FIELD_U64_HEX("x2", cpu->x[2]),
+                    TRACE_FIELD_U64_HEX("guest_ea", guest_ea),
+                };
+                trace_insn64_event_fields("insn6a650.consumer", consumer_fields,
+                                          sizeof(consumer_fields) / sizeof(consumer_fields[0]));
 
-                snprintf(payload, sizeof(payload),
-                         "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
-                         "base_reg:%d,src_reg:%d,idx_reg:%d,imm:%lld,idx_mode:%d,is_load:%d,"
-                         "sequencing:access_before_writeback,writeback:%d",
-                         current ? current->pid : -1, (unsigned long long)pc_before_execute,
-                         writer_raw, mnemonic, writer_decoded.Rn, writer_decoded.Rd,
-                         writer_decoded.Rm, (long long)writer_decoded.imm,
-                         (int)writer_decoded.idx_mode, bit(writer_raw, 22) ? 1 : 0,
-                         (writer_decoded.idx_mode == A64_POST_INDEX ||
-                          writer_decoded.idx_mode == A64_PRE_INDEX)
-                             ? 1
-                             : 0);
-                trace_str6a650_event("str6a650.decode", payload);
+                ixland_guest_trace_field_t decode_fields[] = {
+                    TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
+                    TRACE_FIELD_U64_HEX("raw_opcode", writer_raw),
+                    TRACE_FIELD_STR("mnemonic", mnemonic),
+                    TRACE_FIELD_I64("base_reg", writer_decoded.Rn),
+                    TRACE_FIELD_I64("src_reg", writer_decoded.Rd),
+                    TRACE_FIELD_I64("idx_reg", writer_decoded.Rm),
+                    TRACE_FIELD_I64("imm", writer_decoded.imm),
+                    TRACE_FIELD_I64("idx_mode", writer_decoded.idx_mode),
+                    TRACE_FIELD_I64("is_load", bit(writer_raw, 22) ? 1 : 0),
+                    TRACE_FIELD_STR("sequencing", "access_before_writeback"),
+                    TRACE_FIELD_I64("writeback", (writer_decoded.idx_mode == A64_POST_INDEX ||
+                                                  writer_decoded.idx_mode == A64_PRE_INDEX)
+                                                     ? 1
+                                                     : 0),
+                };
+                trace_str6a650_event_fields("str6a650.decode", decode_fields,
+                                            sizeof(decode_fields) / sizeof(decode_fields[0]));
 
-                snprintf(payload, sizeof(payload),
-                         "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
-                         "base_reg:%d,base_val:0x%llx,src_reg:%d,src_val:0x%llx,idx_reg:%d,idx_"
-                         "val:0x%llx,imm:%lld,idx_mode:%d,guest_ea:0x%llx",
-                         current ? current->pid : -1, (unsigned long long)pc_before_execute,
-                         writer_raw, mnemonic, writer_decoded.Rn, (unsigned long long)base_val,
-                         writer_decoded.Rd, (unsigned long long)src_val, writer_decoded.Rm,
-                         (unsigned long long)idx_val, (long long)writer_decoded.imm,
-                         (int)writer_decoded.idx_mode, (unsigned long long)guest_ea);
-                trace_str6a650_event("str6a650.pre_access", payload);
+                ixland_guest_trace_field_t pre_access_fields[] = {
+                    TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
+                    TRACE_FIELD_U64_HEX("raw_opcode", writer_raw),
+                    TRACE_FIELD_STR("mnemonic", mnemonic),
+                    TRACE_FIELD_I64("base_reg", writer_decoded.Rn),
+                    TRACE_FIELD_U64_HEX("base_val", base_val),
+                    TRACE_FIELD_I64("src_reg", writer_decoded.Rd),
+                    TRACE_FIELD_U64_HEX("src_val", src_val),
+                    TRACE_FIELD_I64("idx_reg", writer_decoded.Rm),
+                    TRACE_FIELD_U64_HEX("idx_val", idx_val),
+                    TRACE_FIELD_I64("imm", writer_decoded.imm),
+                    TRACE_FIELD_I64("idx_mode", writer_decoded.idx_mode),
+                    TRACE_FIELD_U64_HEX("guest_ea", guest_ea),
+                };
+                trace_str6a650_event_fields("str6a650.pre_access", pre_access_fields,
+                                            sizeof(pre_access_fields) /
+                                                sizeof(pre_access_fields[0]));
 
                 if (g_str6a650_last_writer.valid) {
-                    snprintf(
-                        payload, sizeof(payload),
-                        "attempt:-1,guest_pid:%d,guest_pc:0x%llx,last_writer_pc:0x%llx,"
-                        "last_writer_raw:0x%08x,last_writer_mnemonic:%s,last_writer_rd:%d,"
-                        "last_writer_rn:%d,last_writer_rm:%d,last_writer_idx_mode:%d,"
-                        "last_writer_imm:%lld,block_start:0x%llx,block_end:0x%llx,x2_before:"
-                        "0x%llx,x2_after:0x%llx,is_zero_after:%d",
-                        current ? current->pid : -1, (unsigned long long)pc_before_execute,
-                        (unsigned long long)g_str6a650_last_writer.writer_pc,
-                        g_str6a650_last_writer.writer_raw, g_str6a650_last_writer.writer_mnemonic,
-                        g_str6a650_last_writer.writer_rd, g_str6a650_last_writer.writer_rn,
-                        g_str6a650_last_writer.writer_rm, g_str6a650_last_writer.writer_idx_mode,
-                        (long long)g_str6a650_last_writer.writer_imm,
-                        (unsigned long long)g_str6a650_last_writer.block_start,
-                        (unsigned long long)g_str6a650_last_writer.block_end,
-                        (unsigned long long)g_str6a650_last_writer.x2_before,
-                        (unsigned long long)g_str6a650_last_writer.x2_after,
-                        g_str6a650_last_writer.x2_after == 0 ? 1 : 0);
+                    ixland_guest_trace_field_t fields[] = {
+                        TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
+                        TRACE_FIELD_U64_HEX("last_writer_pc", g_str6a650_last_writer.writer_pc),
+                        TRACE_FIELD_U64_HEX("last_writer_raw", g_str6a650_last_writer.writer_raw),
+                        TRACE_FIELD_STR("last_writer_mnemonic",
+                                        g_str6a650_last_writer.writer_mnemonic),
+                        TRACE_FIELD_I64("last_writer_rd", g_str6a650_last_writer.writer_rd),
+                        TRACE_FIELD_I64("last_writer_rn", g_str6a650_last_writer.writer_rn),
+                        TRACE_FIELD_I64("last_writer_rm", g_str6a650_last_writer.writer_rm),
+                        TRACE_FIELD_I64("last_writer_idx_mode",
+                                        g_str6a650_last_writer.writer_idx_mode),
+                        TRACE_FIELD_I64("last_writer_imm", g_str6a650_last_writer.writer_imm),
+                        TRACE_FIELD_U64_HEX("block_start", g_str6a650_last_writer.block_start),
+                        TRACE_FIELD_U64_HEX("block_end", g_str6a650_last_writer.block_end),
+                        TRACE_FIELD_U64_HEX("x2_before", g_str6a650_last_writer.x2_before),
+                        TRACE_FIELD_U64_HEX("x2_after", g_str6a650_last_writer.x2_after),
+                        TRACE_FIELD_I64("is_zero_after",
+                                        g_str6a650_last_writer.x2_after == 0 ? 1 : 0),
+                    };
+                    trace_str6a650_event_fields("str6a650.last_base_writer", fields,
+                                                sizeof(fields) / sizeof(fields[0]));
                 } else {
-                    snprintf(payload, sizeof(payload),
-                             "attempt:-1,guest_pid:%d,guest_pc:0x%llx,last_writer_pc:none",
-                             current ? current->pid : -1, (unsigned long long)pc_before_execute);
+                    ixland_guest_trace_field_t fields[] = {
+                        TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
+                        TRACE_FIELD_STR("last_writer_pc", "none"),
+                    };
+                    trace_str6a650_event_fields("str6a650.last_base_writer", fields,
+                                                sizeof(fields) / sizeof(fields[0]));
                 }
-                trace_str6a650_event("str6a650.last_base_writer", payload);
 
                 if (g_x7chain_last_writer.valid) {
-                    snprintf(payload, sizeof(payload),
-                             "attempt:-1,guest_pid:%d,guest_pc:0x%llx,last_writer_pc:0x%llx,last_"
-                             "writer_raw:0x%08x,last_writer_mnemonic:%s,last_writer_rd:%d,last_"
-                             "writer_rn:%d,last_writer_rm:%d,last_writer_idx_mode:%d,last_writer_"
-                             "imm:%lld,block_start:0x%llx,block_end:0x%llx,x7_before:0x%llx,x7_"
-                             "after:0x%llx,is_one_after:%d,is_zero_after:%d",
-                             current ? current->pid : -1, (unsigned long long)pc_before_execute,
-                             (unsigned long long)g_x7chain_last_writer.writer_pc,
-                             g_x7chain_last_writer.writer_raw,
-                             g_x7chain_last_writer.writer_mnemonic, g_x7chain_last_writer.writer_rd,
-                             g_x7chain_last_writer.writer_rn, g_x7chain_last_writer.writer_rm,
-                             g_x7chain_last_writer.writer_idx_mode,
-                             (long long)g_x7chain_last_writer.writer_imm,
-                             (unsigned long long)g_x7chain_last_writer.block_start,
-                             (unsigned long long)g_x7chain_last_writer.block_end,
-                             (unsigned long long)g_x7chain_last_writer.x7_before,
-                             (unsigned long long)g_x7chain_last_writer.x7_after,
-                             g_x7chain_last_writer.x7_after == 1 ? 1 : 0,
-                             g_x7chain_last_writer.x7_after == 0 ? 1 : 0);
+                    ixland_guest_trace_field_t fields[] = {
+                        TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
+                        TRACE_FIELD_U64_HEX("last_writer_pc", g_x7chain_last_writer.writer_pc),
+                        TRACE_FIELD_U64_HEX("last_writer_raw", g_x7chain_last_writer.writer_raw),
+                        TRACE_FIELD_STR("last_writer_mnemonic",
+                                        g_x7chain_last_writer.writer_mnemonic),
+                        TRACE_FIELD_I64("last_writer_rd", g_x7chain_last_writer.writer_rd),
+                        TRACE_FIELD_I64("last_writer_rn", g_x7chain_last_writer.writer_rn),
+                        TRACE_FIELD_I64("last_writer_rm", g_x7chain_last_writer.writer_rm),
+                        TRACE_FIELD_I64("last_writer_idx_mode",
+                                        g_x7chain_last_writer.writer_idx_mode),
+                        TRACE_FIELD_I64("last_writer_imm", g_x7chain_last_writer.writer_imm),
+                        TRACE_FIELD_U64_HEX("block_start", g_x7chain_last_writer.block_start),
+                        TRACE_FIELD_U64_HEX("block_end", g_x7chain_last_writer.block_end),
+                        TRACE_FIELD_U64_HEX("x7_before", g_x7chain_last_writer.x7_before),
+                        TRACE_FIELD_U64_HEX("x7_after", g_x7chain_last_writer.x7_after),
+                        TRACE_FIELD_I64("is_one_after",
+                                        g_x7chain_last_writer.x7_after == 1 ? 1 : 0),
+                        TRACE_FIELD_I64("is_zero_after",
+                                        g_x7chain_last_writer.x7_after == 0 ? 1 : 0),
+                    };
+                    trace_x7chain_event_fields("x7chain.last_writer", fields,
+                                               sizeof(fields) / sizeof(fields[0]));
                 } else {
-                    snprintf(payload, sizeof(payload),
-                             "attempt:-1,guest_pid:%d,guest_pc:0x%llx,last_writer_pc:none",
-                             current ? current->pid : -1, (unsigned long long)pc_before_execute);
+                    ixland_guest_trace_field_t fields[] = {
+                        TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
+                        TRACE_FIELD_STR("last_writer_pc", "none"),
+                    };
+                    trace_x7chain_event_fields("x7chain.last_writer", fields,
+                                               sizeof(fields) / sizeof(fields[0]));
                 }
-                trace_x7chain_event("x7chain.last_writer", payload);
 
-                snprintf(payload, sizeof(payload),
-                         "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:"
-                         "mov_x2_x7,src_reg:7,dst_reg:2,x7_arch:0x%llx,x2_arch:0x%llx,carrier_x7:"
-                         "0x%llx,carrier_x2:0x%llx,cpu_slot_x7:0x%llx,cpu_slot_x2:0x%llx,"
-                         "block_start:0x%llx,block_end:0x%llx,is_x7_one:%d,is_x2_one:%d",
-                         current ? current->pid : -1, (unsigned long long)pc_before_execute,
-                         writer_raw, (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
-                         (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
-                         (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
-                         (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
-                         cpu->x[7] == 1 ? 1 : 0, cpu->x[2] == 1 ? 1 : 0);
-                trace_x7chain_event("x7chain.block_entry", payload);
+                ixland_guest_trace_field_t x7_block_entry_fields[] = {
+                    TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
+                    TRACE_FIELD_U64_HEX("raw_opcode", writer_raw),
+                    TRACE_FIELD_STR("mnemonic", "mov_x2_x7"),
+                    TRACE_FIELD_I64("src_reg", 7),
+                    TRACE_FIELD_I64("dst_reg", 2),
+                    TRACE_FIELD_U64_HEX("x7", cpu->x[7]),
+                    TRACE_FIELD_U64_HEX("x2", cpu->x[2]),
+                    TRACE_FIELD_U64_HEX("block_start", block->start_pc),
+                    TRACE_FIELD_U64_HEX("block_end", block->end_pc),
+                    TRACE_FIELD_I64("is_x7_one", cpu->x[7] == 1 ? 1 : 0),
+                    TRACE_FIELD_I64("is_x2_one", cpu->x[2] == 1 ? 1 : 0),
+                };
+                trace_x7chain_event_fields("x7chain.block_entry", x7_block_entry_fields,
+                                           sizeof(x7_block_entry_fields) /
+                                               sizeof(x7_block_entry_fields[0]));
 
                 if (writer_raw == 0xaa0703e2U) {
-                    snprintf(payload, sizeof(payload),
-                             "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:"
-                             "orr x2,xzr,x7 (mov x2,x7),src_reg:7,dst_reg:2,expected_result:x2_"
-                             "after_equals_x7_before",
-                             current ? current->pid : -1, (unsigned long long)pc_before_execute,
-                             writer_raw);
-                    trace_x7chain_event("mov6a64c.decode", payload);
+                    ixland_guest_trace_field_t decode_fields[] = {
+                        TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
+                        TRACE_FIELD_U64_HEX("raw_opcode", writer_raw),
+                        TRACE_FIELD_STR("mnemonic", "orr x2,xzr,x7 (mov x2,x7)"),
+                        TRACE_FIELD_I64("src_reg", 7),
+                        TRACE_FIELD_I64("dst_reg", 2),
+                        TRACE_FIELD_STR("expected_result", "x2_after_equals_x7_before"),
+                    };
+                    trace_x7chain_event_fields("mov6a64c.decode", decode_fields,
+                                               sizeof(decode_fields) / sizeof(decode_fields[0]));
 
-                    snprintf(payload, sizeof(payload),
-                             "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:"
-                             "mov_x2_x7,x7_arch:0x%llx,x2_arch:0x%llx,carrier_x7:0x%llx,carrier_x2:"
-                             "0x%llx,cpu_slot_x7:0x%llx,cpu_slot_x2:0x%llx,block_start:0x%llx,"
-                             "block_end:0x%llx",
-                             current ? current->pid : -1, (unsigned long long)pc_before_execute,
-                             writer_raw, (unsigned long long)x7_before_execute,
-                             (unsigned long long)x2_before_execute,
-                             (unsigned long long)x7_before_execute,
-                             (unsigned long long)x2_before_execute,
-                             (unsigned long long)x7_before_execute,
-                             (unsigned long long)x2_before_execute,
-                             (unsigned long long)block->start_pc,
-                             (unsigned long long)block->end_pc);
-                    trace_x7chain_event("mov6a64c.pre_exec", payload);
+                    ixland_guest_trace_field_t pre_exec_fields[] = {
+                        TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
+                        TRACE_FIELD_U64_HEX("raw_opcode", writer_raw),
+                        TRACE_FIELD_STR("mnemonic", "mov_x2_x7"),
+                        TRACE_FIELD_U64_HEX("x7_before", x7_before_execute),
+                        TRACE_FIELD_U64_HEX("x2_before", x2_before_execute),
+                        TRACE_FIELD_U64_HEX("block_start", block->start_pc),
+                        TRACE_FIELD_U64_HEX("block_end", block->end_pc),
+                    };
+                    trace_x7chain_event_fields("mov6a64c.pre_exec", pre_exec_fields,
+                                               sizeof(pre_exec_fields) /
+                                                   sizeof(pre_exec_fields[0]));
                 }
 
                 if (g_str6a650_last_writer.writer_pc == 0x6a64cULL &&
                     g_str6a650_last_writer.writer_raw == 0xaa0703e2U) {
-                    snprintf(payload, sizeof(payload),
-                             "attempt:-1,guest_pid:%d,guest_pc:0x6a650,raw_opcode:0xf800845f,"
-                             "mnemonic:str,x7_arch:0x%llx,x2_arch:0x%llx,x7_before_mov:0x%llx,"
-                             "x2_after_mov:0x%llx,x2_after_eq_x7_before:%d",
-                             current ? current->pid : -1, (unsigned long long)cpu->x[7],
-                             (unsigned long long)cpu->x[2],
-                             (unsigned long long)g_str6a650_last_writer.x2_after,
-                             (unsigned long long)g_str6a650_last_writer.x2_after,
-                             cpu->x[2] == g_str6a650_last_writer.x2_after ? 1 : 0);
-                    trace_x7chain_event("mov6a64c.consumer_at_6a650", payload);
+                    ixland_guest_trace_field_t consumer_fields[] = {
+                        TRACE_FIELD_U64_HEX("guest_pc", 0x6a650ULL),
+                        TRACE_FIELD_U64_HEX("raw_opcode", 0xf800845fULL),
+                        TRACE_FIELD_STR("mnemonic", "str"),
+                        TRACE_FIELD_U64_HEX("x7", cpu->x[7]),
+                        TRACE_FIELD_U64_HEX("x2", cpu->x[2]),
+                        TRACE_FIELD_U64_HEX("x7_before_mov", g_str6a650_last_writer.x2_after),
+                        TRACE_FIELD_U64_HEX("x2_after_mov", g_str6a650_last_writer.x2_after),
+                        TRACE_FIELD_I64("x2_after_eq_x7_before",
+                                        cpu->x[2] == g_str6a650_last_writer.x2_after ? 1 : 0),
+                    };
+                    trace_x7chain_event_fields("mov6a64c.consumer_at_6a650", consumer_fields,
+                                               sizeof(consumer_fields) /
+                                                   sizeof(consumer_fields[0]));
                 }
             }
 
@@ -2744,20 +2811,25 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb)
                 snprintf(pretty, sizeof(pretty), "cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld",
                          (int)writer_decoded.cat, (int)writer_decoded.subtype, writer_decoded.Rd,
                          writer_decoded.Rn, writer_decoded.Rm, (long long)writer_decoded.imm);
-                char payload[768];
-                snprintf(payload, sizeof(payload),
-                         "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
-                         "base_reg:2,base_val:0x%llx,src_reg:%d,src_val:0x%llx,idx_reg:%d,idx_"
-                         "val:0x%llx,imm:%lld,idx_mode:%d,guest_ea:na,host_probe:na,translation_"
-                         "fault:na,signal_follow_immediate:0",
-                         current ? current->pid : -1, (unsigned long long)pc_before_execute,
-                         writer_raw, pretty, (unsigned long long)x2_before_execute,
-                         writer_decoded.Rd,
-                         (unsigned long long)trace_ldst_reg_or_zr(cpu, writer_decoded.Rd),
-                         writer_decoded.Rm,
-                         (unsigned long long)trace_ldst_reg_or_zr(cpu, writer_decoded.Rm),
-                         (long long)writer_decoded.imm, (int)writer_decoded.idx_mode);
-                trace_str6a650_event("str6a650.pre_writer_regs", payload);
+                ixland_guest_trace_field_t fields[] = {
+                    TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
+                    TRACE_FIELD_U64_HEX("raw_opcode", writer_raw),
+                    TRACE_FIELD_STR("mnemonic", pretty),
+                    TRACE_FIELD_I64("base_reg", 2),
+                    TRACE_FIELD_U64_HEX("base_val", x2_before_execute),
+                    TRACE_FIELD_I64("src_reg", writer_decoded.Rd),
+                    TRACE_FIELD_U64_HEX("src_val", trace_ldst_reg_or_zr(cpu, writer_decoded.Rd)),
+                    TRACE_FIELD_I64("idx_reg", writer_decoded.Rm),
+                    TRACE_FIELD_U64_HEX("idx_val", trace_ldst_reg_or_zr(cpu, writer_decoded.Rm)),
+                    TRACE_FIELD_I64("imm", writer_decoded.imm),
+                    TRACE_FIELD_I64("idx_mode", writer_decoded.idx_mode),
+                    TRACE_FIELD_STR("guest_ea", "na"),
+                    TRACE_FIELD_STR("host_probe", "na"),
+                    TRACE_FIELD_STR("translation_fault", "na"),
+                    TRACE_FIELD_I64("signal_follow_immediate", 0),
+                };
+                trace_str6a650_event_fields("str6a650.pre_writer_regs", fields,
+                                            sizeof(fields) / sizeof(fields[0]));
             }
 
             if (trace_instr_writes_rd(&writer_decoded, writer_raw) && writer_decoded.Rd == 7 &&
@@ -2767,21 +2839,19 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb)
                 snprintf(pretty, sizeof(pretty), "cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld",
                          (int)writer_decoded.cat, (int)writer_decoded.subtype, writer_decoded.Rd,
                          writer_decoded.Rn, writer_decoded.Rm, (long long)writer_decoded.imm);
-                char payload[768];
-                snprintf(
-                    payload, sizeof(payload),
-                    "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
-                    "x7_arch:0x%llx,x2_arch:0x%llx,carrier_x7:0x%llx,carrier_x2:0x%llx,cpu_"
-                    "slot_x7:0x%llx,cpu_slot_x2:0x%llx,block_start:0x%llx,block_end:0x%llx,"
-                    "is_x7_one:%d,is_x7_zero:%d",
-                    current ? current->pid : -1, (unsigned long long)pc_before_execute, writer_raw,
-                    pretty, (unsigned long long)x7_before_execute,
-                    (unsigned long long)x2_before_execute, (unsigned long long)x7_before_execute,
-                    (unsigned long long)x2_before_execute, (unsigned long long)x7_before_execute,
-                    (unsigned long long)x2_before_execute, (unsigned long long)block->start_pc,
-                    (unsigned long long)block->end_pc, x7_before_execute == 1 ? 1 : 0,
-                    x7_before_execute == 0 ? 1 : 0);
-                trace_x7chain_event("x7chain.pre_writer_regs", payload);
+                ixland_guest_trace_field_t fields[] = {
+                    TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
+                    TRACE_FIELD_U64_HEX("raw_opcode", writer_raw),
+                    TRACE_FIELD_STR("mnemonic", pretty),
+                    TRACE_FIELD_U64_HEX("x7", x7_before_execute),
+                    TRACE_FIELD_U64_HEX("x2", x2_before_execute),
+                    TRACE_FIELD_U64_HEX("block_start", block->start_pc),
+                    TRACE_FIELD_U64_HEX("block_end", block->end_pc),
+                    TRACE_FIELD_I64("is_x7_one", x7_before_execute == 1 ? 1 : 0),
+                    TRACE_FIELD_I64("is_x7_zero", x7_before_execute == 0 ? 1 : 0),
+                };
+                trace_x7chain_event_fields("x7chain.pre_writer_regs", fields,
+                                           sizeof(fields) / sizeof(fields[0]));
             }
         }
         int exit_reason = a64_execute_block(cpu, block);
@@ -2790,24 +2860,102 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb)
         uint64_t x2_after_execute = cpu->x[2];
 
         if (pc_before_execute == 0x6a640ULL || pc_before_execute == 0x6a64cULL) {
-            char payload[1024];
             const char *mnemonic =
                 pc_before_execute == 0x6a640ULL ? "add x7,sp,#8" : "orr x2,xzr,x7 (mov x2,x7)";
-            snprintf(payload, sizeof(payload),
-                     "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
-                     "arch_sp:0x%llx,arch_x7:0x%llx,arch_x2:0x%llx,carrier_sp:0x%llx,carrier_x7:"
-                     "0x%llx,carrier_x2:0x%llx,cpu_state.sp:0x%llx,cpu_state.x7:0x%llx,cpu_state."
-                     "x2:0x%llx,x2_after_eq_x7_before:%d,exit_reason:%d",
-                     current ? current->pid : -1, (unsigned long long)pc_before_execute, writer_raw,
-                     mnemonic, (unsigned long long)sp_after_execute,
-                     (unsigned long long)x7_after_execute, (unsigned long long)x2_after_execute,
-                     (unsigned long long)sp_after_execute, (unsigned long long)x7_after_execute,
-                     (unsigned long long)x2_after_execute, (unsigned long long)sp_after_execute,
-                     (unsigned long long)x7_after_execute, (unsigned long long)x2_after_execute,
-                     x2_after_execute == x7_before_execute ? 1 : 0, exit_reason);
-            trace_insn64_event(pc_before_execute == 0x6a640ULL ? "insn6a640.post_exec"
-                                                               : "insn6a64c.post_exec",
-                               payload);
+            ixland_guest_trace_field_t post_exec_fields[] = {
+                TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
+                TRACE_FIELD_U64_HEX("raw_opcode", writer_raw),
+                TRACE_FIELD_STR("mnemonic", mnemonic),
+                TRACE_FIELD_U64_HEX("sp", sp_after_execute),
+                TRACE_FIELD_U64_HEX("x7", x7_after_execute),
+                TRACE_FIELD_U64_HEX("x2", x2_after_execute),
+                TRACE_FIELD_I64("x2_after_eq_x7_before", x2_after_execute == x7_before_execute),
+                TRACE_FIELD_I64("exit_reason", exit_reason),
+            };
+            trace_insn64_event_fields(
+                pc_before_execute == 0x6a640ULL ? "insn6a640.post_exec" : "insn6a64c.post_exec",
+                post_exec_fields, sizeof(post_exec_fields) / sizeof(post_exec_fields[0]));
+
+            if (pc_before_execute == 0x6a640ULL && block && block->gadgets &&
+                block->num_gadgets >= 4) {
+                uint64_t inline_imm = 0;
+                Dl_info info;
+                const char *sym = "unknown";
+                const char *next_sym = "unknown";
+                if (dladdr((void *)block->gadgets[1], &info) != 0 && info.dli_sname)
+                    sym = info.dli_sname;
+                if (block->num_gadgets >= 5 && dladdr((void *)block->gadgets[4], &info) != 0 &&
+                    info.dli_sname)
+                    next_sym = info.dli_sname;
+                if (strstr(sym, "gadget_mov_imm_14") != NULL)
+                    inline_imm = (uint64_t)(uintptr_t)block->gadgets[2];
+
+                uint64_t temp_x14_after = cpu->x[13];
+                uint64_t temp_x15_after = cpu->x[14];
+                uint64_t expected_add = temp_x14_after + temp_x15_after;
+
+                ixland_guest_trace_field_t mov_post_fields[] = {
+                    TRACE_FIELD_U64_HEX("guest_pc", 0x6a640ULL),
+                    TRACE_FIELD_STR("gadget", "gadget_mov_imm_14"),
+                    TRACE_FIELD_U64_HEX("temp_x15_after", temp_x15_after),
+                    TRACE_FIELD_U64_HEX("consumed_imm", inline_imm),
+                    TRACE_FIELD_I64("post_eq_imm", temp_x15_after == inline_imm),
+                    TRACE_FIELD_U64_HEX("sp", cpu->sp),
+                    TRACE_FIELD_U64_HEX("x7", cpu->x[7]),
+                    TRACE_FIELD_U64_HEX("x2", cpu->x[2]),
+                };
+                trace_insn64_event_fields("gadget6a640.mov_imm.post", mov_post_fields,
+                                          sizeof(mov_post_fields) / sizeof(mov_post_fields[0]));
+
+                ixland_guest_trace_field_t add_post_fields[] = {
+                    TRACE_FIELD_U64_HEX("guest_pc", 0x6a640ULL),
+                    TRACE_FIELD_STR("gadget", "gadget_add_reg_7_13_14"),
+                    TRACE_FIELD_U64_HEX("src_x14", temp_x14_after),
+                    TRACE_FIELD_U64_HEX("src_x15", temp_x15_after),
+                    TRACE_FIELD_U64_HEX("dst_x8_after", x7_after_execute),
+                    TRACE_FIELD_U64_HEX("expected_add", expected_add),
+                    TRACE_FIELD_I64("equal_add", x7_after_execute == expected_add),
+                    TRACE_FIELD_I64("equal_sp_plus8", x7_after_execute == (cpu->sp + 8ULL)),
+                    TRACE_FIELD_U64_HEX("sp", cpu->sp),
+                    TRACE_FIELD_U64_HEX("x7", cpu->x[7]),
+                    TRACE_FIELD_U64_HEX("x2", cpu->x[2]),
+                };
+                trace_insn64_event_fields("gadget6a640.add_reg.post", add_post_fields,
+                                          sizeof(add_post_fields) / sizeof(add_post_fields[0]));
+
+                ixland_guest_trace_field_t consistency_fields[] = {
+                    TRACE_FIELD_U64_HEX("guest_pc", 0x6a640ULL),
+                    TRACE_FIELD_U64_HEX("dst_x8_after", x7_after_execute),
+                    TRACE_FIELD_U64_HEX("arch_x7", cpu->x[7]),
+                    TRACE_FIELD_U64_HEX("carrier_x7", cpu->x[7]),
+                    TRACE_FIELD_U64_HEX("cpu_state_x7", cpu->x[7]),
+                    TRACE_FIELD_I64("all_equal", x7_after_execute == cpu->x[7]),
+                };
+                trace_insn64_event_fields("gadget6a640.consistency", consistency_fields,
+                                          sizeof(consistency_fields) /
+                                              sizeof(consistency_fields[0]));
+
+                ixland_guest_trace_field_t next_gadget_fields[] = {
+                    TRACE_FIELD_U64_HEX("guest_pc", 0x6a640ULL),
+                    TRACE_FIELD_STR("gadget", "gadget_add_reg_7_13_14"),
+                    TRACE_FIELD_STR("next_gadget", next_sym),
+                    TRACE_FIELD_U64_HEX("next_addr", block->num_gadgets >= 5
+                                                         ? (uint64_t)(uintptr_t)block->gadgets[4]
+                                                         : 0),
+                    TRACE_FIELD_U64_HEX("x14", temp_x14_after),
+                    TRACE_FIELD_U64_HEX("x15", temp_x15_after),
+                    TRACE_FIELD_U64_HEX("x8", x7_after_execute),
+                    TRACE_FIELD_U64_HEX("x7", cpu->x[7]),
+                    TRACE_FIELD_U64_HEX("x2", cpu->x[2]),
+                    TRACE_FIELD_U64_HEX("sp", cpu->sp),
+                    TRACE_FIELD_U64_HEX("cpu_state_x7", cpu->x[7]),
+                    TRACE_FIELD_U64_HEX("cpu_state_x2", cpu->x[2]),
+                    TRACE_FIELD_U64_HEX("cpu_state_sp", cpu->sp),
+                };
+                trace_insn64_event_fields("gadget6a640.next_gadget.pre", next_gadget_fields,
+                                          sizeof(next_gadget_fields) /
+                                              sizeof(next_gadget_fields[0]));
+            }
         }
 
         if (writer_candidate) {
@@ -2897,33 +3045,40 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb)
             g_str6a650_last_writer.block_start = block->start_pc;
             g_str6a650_last_writer.block_end = block->end_pc;
 
-            char payload[768];
-            snprintf(payload, sizeof(payload),
-                     "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
-                     "base_reg:2,base_val:0x%llx,src_reg:%d,src_val:0x%llx,idx_reg:%d,idx_val:"
-                     "0x%llx,imm:%lld,idx_mode:%d,guest_ea:na,host_probe:na,translation_fault:na,"
-                     "signal_follow_immediate:0",
-                     current ? current->pid : -1, (unsigned long long)pc_before_execute, writer_raw,
-                     pretty, (unsigned long long)cpu->x[2], writer_decoded.Rd,
-                     (unsigned long long)trace_ldst_reg_or_zr(cpu, writer_decoded.Rd),
-                     writer_decoded.Rm,
-                     (unsigned long long)trace_ldst_reg_or_zr(cpu, writer_decoded.Rm),
-                     (long long)writer_decoded.imm, (int)writer_decoded.idx_mode);
-            trace_str6a650_event("str6a650.post_writer_regs", payload);
+            ixland_guest_trace_field_t fields[] = {
+                TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
+                TRACE_FIELD_U64_HEX("raw_opcode", writer_raw),
+                TRACE_FIELD_STR("mnemonic", pretty),
+                TRACE_FIELD_I64("base_reg", 2),
+                TRACE_FIELD_U64_HEX("base_val", cpu->x[2]),
+                TRACE_FIELD_I64("src_reg", writer_decoded.Rd),
+                TRACE_FIELD_U64_HEX("src_val", trace_ldst_reg_or_zr(cpu, writer_decoded.Rd)),
+                TRACE_FIELD_I64("idx_reg", writer_decoded.Rm),
+                TRACE_FIELD_U64_HEX("idx_val", trace_ldst_reg_or_zr(cpu, writer_decoded.Rm)),
+                TRACE_FIELD_I64("imm", writer_decoded.imm),
+                TRACE_FIELD_I64("idx_mode", writer_decoded.idx_mode),
+                TRACE_FIELD_STR("guest_ea", "na"),
+                TRACE_FIELD_STR("host_probe", "na"),
+                TRACE_FIELD_STR("translation_fault", "na"),
+                TRACE_FIELD_I64("signal_follow_immediate", 0),
+            };
+            trace_str6a650_event_fields("str6a650.post_writer_regs", fields,
+                                        sizeof(fields) / sizeof(fields[0]));
 
             if (pc_before_execute == 0x6a64cULL && writer_raw == 0xaa0703e2U) {
-                snprintf(payload, sizeof(payload),
-                         "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:"
-                         "mov_x2_x7,x7_arch:0x%llx,x2_arch:0x%llx,carrier_x7:0x%llx,carrier_x2:"
-                         "0x%llx,cpu_slot_x7:0x%llx,cpu_slot_x2:0x%llx,x2_after_eq_x7_before:%d,"
-                         "block_start:0x%llx,block_end:0x%llx",
-                         current ? current->pid : -1, (unsigned long long)pc_before_execute,
-                         writer_raw, (unsigned long long)x7_before_execute,
-                         (unsigned long long)cpu->x[2], (unsigned long long)x7_before_execute,
-                         (unsigned long long)cpu->x[2], (unsigned long long)x7_before_execute,
-                         (unsigned long long)cpu->x[2], cpu->x[2] == x7_before_execute ? 1 : 0,
-                         (unsigned long long)block->start_pc, (unsigned long long)block->end_pc);
-                trace_x7chain_event("mov6a64c.post_exec", payload);
+                ixland_guest_trace_field_t fields[] = {
+                    TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
+                    TRACE_FIELD_U64_HEX("raw_opcode", writer_raw),
+                    TRACE_FIELD_STR("mnemonic", "mov_x2_x7"),
+                    TRACE_FIELD_U64_HEX("x7_before", x7_before_execute),
+                    TRACE_FIELD_U64_HEX("x2_after", cpu->x[2]),
+                    TRACE_FIELD_U64_HEX("block_start", block->start_pc),
+                    TRACE_FIELD_U64_HEX("block_end", block->end_pc),
+                    TRACE_FIELD_I64("x2_after_eq_x7_before",
+                                    cpu->x[2] == x7_before_execute ? 1 : 0),
+                };
+                trace_x7chain_event_fields("mov6a64c.post_exec", fields,
+                                           sizeof(fields) / sizeof(fields[0]));
             }
         }
 
@@ -2950,19 +3105,19 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb)
             g_x7chain_last_writer.block_start = block->start_pc;
             g_x7chain_last_writer.block_end = block->end_pc;
 
-            char payload[768];
-            snprintf(payload, sizeof(payload),
-                     "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,x7_"
-                     "arch:0x%llx,x2_arch:0x%llx,carrier_x7:0x%llx,carrier_x2:0x%llx,cpu_slot_x7:"
-                     "0x%llx,cpu_slot_x2:0x%llx,block_start:0x%llx,block_end:0x%llx,is_x7_one:%d,"
-                     "is_x7_zero:%d",
-                     current ? current->pid : -1, (unsigned long long)pc_before_execute, writer_raw,
-                     pretty, (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
-                     (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
-                     (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[2],
-                     (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
-                     cpu->x[7] == 1 ? 1 : 0, cpu->x[7] == 0 ? 1 : 0);
-            trace_x7chain_event("x7chain.post_writer_regs", payload);
+            ixland_guest_trace_field_t fields[] = {
+                TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
+                TRACE_FIELD_U64_HEX("raw_opcode", writer_raw),
+                TRACE_FIELD_STR("mnemonic", pretty),
+                TRACE_FIELD_U64_HEX("x7", cpu->x[7]),
+                TRACE_FIELD_U64_HEX("x2", cpu->x[2]),
+                TRACE_FIELD_U64_HEX("block_start", block->start_pc),
+                TRACE_FIELD_U64_HEX("block_end", block->end_pc),
+                TRACE_FIELD_I64("is_x7_one", cpu->x[7] == 1 ? 1 : 0),
+                TRACE_FIELD_I64("is_x7_zero", cpu->x[7] == 0 ? 1 : 0),
+            };
+            trace_x7chain_event_fields("x7chain.post_writer_regs", fields,
+                                       sizeof(fields) / sizeof(fields[0]));
         }
         trace_cpu_run_checkpoint("task.proof.a64_cpu_run.exit_reason_set", current, cpu,
                                  exit_reason);
@@ -3071,38 +3226,46 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb)
             trace_guest_first_fault_events();
 
             if (cpu->pc == 0x6a650ULL && g_guest_first_fault.seen) {
-                char payload[768];
                 const char *mnemonic = trace_guest_mnemonic(&g_guest_first_fault);
+                ixland_guest_trace_field_t pre_helper_fields[] = {
+                    TRACE_FIELD_U64_HEX("guest_pc", g_guest_first_fault.pc),
+                    TRACE_FIELD_U64_HEX("raw_opcode", g_guest_first_fault.raw),
+                    TRACE_FIELD_STR("mnemonic", mnemonic),
+                    TRACE_FIELD_I64("base_reg", g_guest_first_fault.rn),
+                    TRACE_FIELD_U64_HEX("base_val", g_guest_first_fault.rn_val),
+                    TRACE_FIELD_I64("src_reg", g_guest_first_fault.rd),
+                    TRACE_FIELD_U64_HEX("src_val", g_guest_first_fault.rt_val),
+                    TRACE_FIELD_I64("idx_reg", g_guest_first_fault.rm),
+                    TRACE_FIELD_U64_HEX("idx_val", g_guest_first_fault.rm_val),
+                    TRACE_FIELD_I64("idx_mode", g_guest_first_fault.idx_mode),
+                    TRACE_FIELD_U64_HEX("guest_ea", g_guest_first_fault.guest_ea),
+                    TRACE_FIELD_STR("host_probe", "pending"),
+                    TRACE_FIELD_STR("translation_fault", "pending"),
+                    TRACE_FIELD_I64("signal_follow_immediate", 1),
+                };
+                trace_str6a650_event_fields("str6a650.pre_helper", pre_helper_fields,
+                                            sizeof(pre_helper_fields) /
+                                                sizeof(pre_helper_fields[0]));
 
-                snprintf(payload, sizeof(payload),
-                         "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
-                         "base_reg:%d,base_val:0x%llx,src_reg:%d,src_val:0x%llx,idx_reg:%d,idx_"
-                         "val:0x%llx,imm:unknown,idx_mode:%d,guest_ea:0x%llx,host_probe:pending,"
-                         "translation_fault:pending,signal_follow_immediate:1",
-                         current ? current->pid : -1, (unsigned long long)g_guest_first_fault.pc,
-                         g_guest_first_fault.raw, mnemonic, g_guest_first_fault.rn,
-                         (unsigned long long)g_guest_first_fault.rn_val, g_guest_first_fault.rd,
-                         (unsigned long long)g_guest_first_fault.rt_val, g_guest_first_fault.rm,
-                         (unsigned long long)g_guest_first_fault.rm_val,
-                         g_guest_first_fault.idx_mode,
-                         (unsigned long long)g_guest_first_fault.guest_ea);
-                trace_str6a650_event("str6a650.pre_helper", payload);
-
-                snprintf(payload, sizeof(payload),
-                         "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
-                         "base_reg:%d,base_val:0x%llx,src_reg:%d,src_val:0x%llx,idx_reg:%d,idx_"
-                         "val:0x%llx,imm:unknown,idx_mode:%d,guest_ea:0x%llx,host_probe:0x%llx,"
-                         "translation_fault:%d,signal_follow_immediate:1",
-                         current ? current->pid : -1, (unsigned long long)g_guest_first_fault.pc,
-                         g_guest_first_fault.raw, mnemonic, g_guest_first_fault.rn,
-                         (unsigned long long)g_guest_first_fault.rn_val, g_guest_first_fault.rd,
-                         (unsigned long long)g_guest_first_fault.rt_val, g_guest_first_fault.rm,
-                         (unsigned long long)g_guest_first_fault.rm_val,
-                         g_guest_first_fault.idx_mode,
-                         (unsigned long long)g_guest_first_fault.guest_ea,
-                         (unsigned long long)g_guest_first_fault.host_ptr_probe,
-                         g_guest_first_fault.translation_fault);
-                trace_str6a650_event("str6a650.translation", payload);
+                ixland_guest_trace_field_t translation_fields[] = {
+                    TRACE_FIELD_U64_HEX("guest_pc", g_guest_first_fault.pc),
+                    TRACE_FIELD_U64_HEX("raw_opcode", g_guest_first_fault.raw),
+                    TRACE_FIELD_STR("mnemonic", mnemonic),
+                    TRACE_FIELD_I64("base_reg", g_guest_first_fault.rn),
+                    TRACE_FIELD_U64_HEX("base_val", g_guest_first_fault.rn_val),
+                    TRACE_FIELD_I64("src_reg", g_guest_first_fault.rd),
+                    TRACE_FIELD_U64_HEX("src_val", g_guest_first_fault.rt_val),
+                    TRACE_FIELD_I64("idx_reg", g_guest_first_fault.rm),
+                    TRACE_FIELD_U64_HEX("idx_val", g_guest_first_fault.rm_val),
+                    TRACE_FIELD_I64("idx_mode", g_guest_first_fault.idx_mode),
+                    TRACE_FIELD_U64_HEX("guest_ea", g_guest_first_fault.guest_ea),
+                    TRACE_FIELD_U64_HEX("host_probe", g_guest_first_fault.host_ptr_probe),
+                    TRACE_FIELD_I64("translation_fault", g_guest_first_fault.translation_fault),
+                    TRACE_FIELD_I64("signal_follow_immediate", 1),
+                };
+                trace_str6a650_event_fields("str6a650.translation", translation_fields,
+                                            sizeof(translation_fields) /
+                                                sizeof(translation_fields[0]));
             }
 
             // Mark context inactive before handling fault
@@ -3116,23 +3279,25 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb)
                                      exit_reason);
 
             if (pc_before_execute == 0x6a650ULL && g_guest_first_fault.seen) {
-                char payload[768];
                 const char *mnemonic = trace_guest_mnemonic(&g_guest_first_fault);
-                snprintf(payload, sizeof(payload),
-                         "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
-                         "base_reg:%d,base_val:0x%llx,src_reg:%d,src_val:0x%llx,idx_reg:%d,idx_"
-                         "val:0x%llx,imm:unknown,idx_mode:%d,guest_ea:0x%llx,host_probe:0x%llx,"
-                         "translation_fault:%d,signal_follow_immediate:1",
-                         current ? current->pid : -1, (unsigned long long)g_guest_first_fault.pc,
-                         g_guest_first_fault.raw, mnemonic, g_guest_first_fault.rn,
-                         (unsigned long long)g_guest_first_fault.rn_val, g_guest_first_fault.rd,
-                         (unsigned long long)g_guest_first_fault.rt_val, g_guest_first_fault.rm,
-                         (unsigned long long)g_guest_first_fault.rm_val,
-                         g_guest_first_fault.idx_mode,
-                         (unsigned long long)g_guest_first_fault.guest_ea,
-                         (unsigned long long)g_guest_first_fault.host_ptr_probe,
-                         g_guest_first_fault.translation_fault);
-                trace_str6a650_event("str6a650.exit", payload);
+                ixland_guest_trace_field_t exit_fields[] = {
+                    TRACE_FIELD_U64_HEX("guest_pc", g_guest_first_fault.pc),
+                    TRACE_FIELD_U64_HEX("raw_opcode", g_guest_first_fault.raw),
+                    TRACE_FIELD_STR("mnemonic", mnemonic),
+                    TRACE_FIELD_I64("base_reg", g_guest_first_fault.rn),
+                    TRACE_FIELD_U64_HEX("base_val", g_guest_first_fault.rn_val),
+                    TRACE_FIELD_I64("src_reg", g_guest_first_fault.rd),
+                    TRACE_FIELD_U64_HEX("src_val", g_guest_first_fault.rt_val),
+                    TRACE_FIELD_I64("idx_reg", g_guest_first_fault.rm),
+                    TRACE_FIELD_U64_HEX("idx_val", g_guest_first_fault.rm_val),
+                    TRACE_FIELD_I64("idx_mode", g_guest_first_fault.idx_mode),
+                    TRACE_FIELD_U64_HEX("guest_ea", g_guest_first_fault.guest_ea),
+                    TRACE_FIELD_U64_HEX("host_probe", g_guest_first_fault.host_ptr_probe),
+                    TRACE_FIELD_I64("translation_fault", g_guest_first_fault.translation_fault),
+                    TRACE_FIELD_I64("signal_follow_immediate", 1),
+                };
+                trace_str6a650_event_fields("str6a650.exit", exit_fields,
+                                            sizeof(exit_fields) / sizeof(exit_fields[0]));
             }
         } else if (exit_reason == TCTI_EXIT_SIGNAL) {
             trace_cpu_run_checkpoint("task.proof.a64_cpu_run.exit_signal", current, cpu,

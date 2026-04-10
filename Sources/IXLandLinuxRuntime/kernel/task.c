@@ -129,6 +129,48 @@ void ixland_guest_trace_emit_attrs(ixland_instrumentation_origin_t origin, const
     ixland_instrumentation_end_interval(interval, NULL, 0);
 }
 
+void ixland_guest_trace_emit_structured(ixland_instrumentation_origin_t origin,
+                                        const char *event_name,
+                                        const ixland_guest_trace_field_t *fields,
+                                        uint32_t field_count)
+{
+    if (!fields || field_count == 0) {
+        ixland_guest_trace_emit(origin, event_name);
+        return;
+    }
+
+    if (field_count > 24) {
+        field_count = 24;
+    }
+
+    char value_bufs[24][32];
+    ixland_instrumentation_attribute_t attrs[24];
+    for (uint32_t i = 0; i < field_count; i++) {
+        attrs[i].key = fields[i].key;
+        switch (fields[i].kind) {
+        case IXLAND_GUEST_TRACE_FIELD_STRING:
+            attrs[i].value = fields[i].string_value ? fields[i].string_value : "";
+            break;
+        case IXLAND_GUEST_TRACE_FIELD_I64_DEC:
+            snprintf(value_bufs[i], sizeof(value_bufs[i]), "%lld", (long long)fields[i].i64_value);
+            attrs[i].value = value_bufs[i];
+            break;
+        case IXLAND_GUEST_TRACE_FIELD_U64_DEC:
+            snprintf(value_bufs[i], sizeof(value_bufs[i]), "%llu",
+                     (unsigned long long)fields[i].u64_value);
+            attrs[i].value = value_bufs[i];
+            break;
+        case IXLAND_GUEST_TRACE_FIELD_U64_HEX:
+            snprintf(value_bufs[i], sizeof(value_bufs[i]), "0x%llx",
+                     (unsigned long long)fields[i].u64_value);
+            attrs[i].value = value_bufs[i];
+            break;
+        }
+    }
+
+    ixland_guest_trace_emit_attrs(origin, event_name, attrs, field_count);
+}
+
 /* Sidecar canary system for task handoff proof */
 #define TASK_CANARY_MAGIC 0xDEADBEEFCAFEBABEULL
 static _Atomic uint64_t task_canary_value = 0;

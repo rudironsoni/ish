@@ -1831,43 +1831,11 @@ __attribute__((naked)) void gadget_store_x30_impl(void)
 // These are the actual implementations matching header declarations
 __attribute__((naked)) void gadget_load_sp(void)
 {
-    asm volatile("stp x14, x15, [sp, #-16]!\n\t"
-                 "sub sp, sp, #32\n\t"
-                 "str x0, [sp, #0]\n\t"
-                 "str x1, [sp, #8]\n\t"
-                 "str x2, [sp, #16]\n\t"
-                 "str x3, [sp, #24]\n\t"
-                 "mov x0, x14\n\t"
-                 "ldr x1, [x29, %[off]]\n\t"
-                 "ldr x2, [x29, %[pc_off]]\n\t"
-                 "bl _trace_emit_tcti_gadget6a640_load_sp_pre\n\t"
-                 "ldr x0, [sp, #0]\n\t"
-                 "ldr x1, [sp, #8]\n\t"
-                 "ldr x2, [sp, #16]\n\t"
-                 "ldr x3, [sp, #24]\n\t"
-                 "add sp, sp, #32\n\t"
-                 "ldp x14, x15, [sp], #16\n\t"
-                 "ldr x14, [x29, %[off]]\n\t"
-                 "stp x14, x15, [sp, #-16]!\n\t"
-                 "sub sp, sp, #32\n\t"
-                 "str x0, [sp, #0]\n\t"
-                 "str x1, [sp, #8]\n\t"
-                 "str x2, [sp, #16]\n\t"
-                 "str x3, [sp, #24]\n\t"
-                 "mov x0, x14\n\t"
-                 "ldr x1, [x29, %[off]]\n\t"
-                 "ldr x2, [x29, %[pc_off]]\n\t"
-                 "bl _trace_emit_tcti_gadget6a640_load_sp_post\n\t"
-                 "ldr x0, [sp, #0]\n\t"
-                 "ldr x1, [sp, #8]\n\t"
-                 "ldr x2, [sp, #16]\n\t"
-                 "ldr x3, [sp, #24]\n\t"
-                 "add sp, sp, #32\n\t"
-                 "ldp x14, x15, [sp], #16\n\t"
+    asm volatile("ldr x14, [x29, %[off]]\n\t"
                  "ldr x27, [x28], #8\n\t"
                  "br x27\n\t"
                  :
-                 : [off] "i"(SP_OFFSET), [pc_off] "i"(PC_OFFSET));
+                 : [off] "i"(SP_OFFSET));
 }
 
 __attribute__((naked)) void gadget_store_sp(void)
