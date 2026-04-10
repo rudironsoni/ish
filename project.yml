@@ -80,6 +80,7 @@ targets:
           - "test-dp-reg.c"
           - "arm-reference.txt"
           - "*.md"
+      - path: Tests/Support/TCTITestHarness
     dependencies:
       - target: IXLandTerminal
       - target: IXLandLinuxRuntime
@@ -105,9 +106,8 @@ targets:
       - path: Tests/Support/IXLandLinuxRuntimeFunctionalHarnesses
         excludes:
           - "harness_runner.h"
-      - path: Tests/IXLandLinuxRuntimeEnd2EndTests/cases
-        type: folder
-        buildPhase: resources
+    resources:
+      - Tests/IXLandLinuxRuntimeEnd2EndTests/cases
     dependencies:
       - target: IXLandTerminal
       - target: IXLandLinuxRuntime

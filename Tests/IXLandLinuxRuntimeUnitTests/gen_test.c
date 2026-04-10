@@ -34,6 +34,7 @@ __asm__(".text\n"
         "mov x28, sp\n"
         "adr x22, 2f\n"
         "str x22, [x28]\n"
+        "str x20, [x28, #8]\n"
         "ldr x0, [x21, #0]\n"
         "ldr x1, [x21, #8]\n"
         "ldr x2, [x21, #16]\n"
@@ -367,8 +368,8 @@ TEST(exec_add_reg_0_1_2_direct)
     uint64_t out_regs[SNAPSHOT_REGS];
     setup_direct_inputs(in_regs);
 
-    in_regs[1] = 0x40ULL;
-    in_regs[2] = 0x2ULL;
+    in_regs[2] = 0x40ULL;
+    in_regs[3] = 0x2ULL;
     in_regs[8] = 0x3333333333333333ULL;
 
     run_single_gadget_snapshot(gadget_add_reg[0][1][2], in_regs, out_regs);

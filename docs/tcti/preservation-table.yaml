@@ -1,0 +1,40 @@
+version: 1
+source_files:
+  - Sources/IXLandLinuxRuntime/tcti/aarch64/tcti_entry.S
+  - Sources/IXLandLinuxRuntime/emu/aarch64/cpu.c
+preservation:
+  - boundary: entry_validation
+    fields:
+      - gadgets_non_null
+      - cpu_non_null
+      - first_gadget_non_null_when_present
+    proof:
+      - Sources/IXLandLinuxRuntime/emu/aarch64/cpu.c:1237-1250
+  - boundary: helper_call
+    fields:
+      - hot_guest_carriers
+      - x28_gadget_stream_pointer
+      - nzcv
+    proof:
+      - Sources/IXLandLinuxRuntime/tcti/aarch64/tcti_entry.S:86-128
+  - boundary: exit_flush
+    fields:
+      - tcti_exit_reason
+      - pstate
+      - guest_x0_to_x15
+    proof:
+      - Sources/IXLandLinuxRuntime/tcti/aarch64/tcti_entry.S:136-171
+  - boundary: memory_backed_state
+    fields:
+      - guest_x16_to_x30
+      - guest_sp
+    proof:
+      - Sources/IXLandLinuxRuntime/tcti/aarch64/tcti_entry.S:174-234
+      - Sources/IXLandLinuxRuntime/tcti/aarch64/gen.c:139-151
+  - boundary: host_fault_containment
+    fields:
+      - guest_fault_signal
+      - tcti_exit_fault_conversion
+    proof:
+      - Sources/IXLandLinuxRuntime/emu/aarch64/cpu.c:1252-1269
+      - Sources/IXLandLinuxRuntime/emu/aarch64/cpu.c:1403-1409

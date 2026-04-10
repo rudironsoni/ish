@@ -1082,8 +1082,8 @@ static test_vector_t dec011_vectors[] = {
       .expected_subtype = 5 }
 };
 
-/* Determine case ID from yaml path */
-static const char *detect_case_id(const char *yaml_path)
+/* Determine case ID from legacy yaml path */
+static const char *detect_case_id_from_yaml_path(const char *yaml_path)
 {
     if (strstr(yaml_path, "DEC-001")) {
         return "DEC-001";
@@ -1108,64 +1108,76 @@ static const char *detect_case_id(const char *yaml_path)
     } else if (strstr(yaml_path, "DEC-011")) {
         return "DEC-011";
     }
-    return "DEC-001"; /* Default fallback */
+    return NULL;
 }
 
 /* Get case configuration */
-static case_config_t get_case_config(const char *case_id)
+static int get_case_config(const char *case_id, case_config_t *config)
 {
-    case_config_t config;
-    config.case_id = case_id;
+    config->case_id = case_id;
 
     if (strcmp(case_id, "DEC-001") == 0) {
-        config.vectors = dec001_vectors;
-        config.num_vectors = sizeof(dec001_vectors) / sizeof(dec001_vectors[0]);
+        config->vectors = dec001_vectors;
+        config->num_vectors = sizeof(dec001_vectors) / sizeof(dec001_vectors[0]);
     } else if (strcmp(case_id, "DEC-002") == 0) {
-        config.vectors = dec002_vectors;
-        config.num_vectors = sizeof(dec002_vectors) / sizeof(dec002_vectors[0]);
+        config->vectors = dec002_vectors;
+        config->num_vectors = sizeof(dec002_vectors) / sizeof(dec002_vectors[0]);
     } else if (strcmp(case_id, "DEC-003") == 0) {
-        config.vectors = dec003_vectors;
-        config.num_vectors = sizeof(dec003_vectors) / sizeof(dec003_vectors[0]);
+        config->vectors = dec003_vectors;
+        config->num_vectors = sizeof(dec003_vectors) / sizeof(dec003_vectors[0]);
     } else if (strcmp(case_id, "DEC-004") == 0) {
-        config.vectors = dec004_vectors;
-        config.num_vectors = sizeof(dec004_vectors) / sizeof(dec004_vectors[0]);
+        config->vectors = dec004_vectors;
+        config->num_vectors = sizeof(dec004_vectors) / sizeof(dec004_vectors[0]);
     } else if (strcmp(case_id, "DEC-005") == 0) {
-        config.vectors = dec005_vectors;
-        config.num_vectors = sizeof(dec005_vectors) / sizeof(dec005_vectors[0]);
+        config->vectors = dec005_vectors;
+        config->num_vectors = sizeof(dec005_vectors) / sizeof(dec005_vectors[0]);
     } else if (strcmp(case_id, "DEC-006") == 0) {
-        config.vectors = dec006_vectors;
-        config.num_vectors = sizeof(dec006_vectors) / sizeof(dec006_vectors[0]);
+        config->vectors = dec006_vectors;
+        config->num_vectors = sizeof(dec006_vectors) / sizeof(dec006_vectors[0]);
     } else if (strcmp(case_id, "DEC-007") == 0) {
-        config.vectors = dec007_vectors;
-        config.num_vectors = sizeof(dec007_vectors) / sizeof(dec007_vectors[0]);
+        config->vectors = dec007_vectors;
+        config->num_vectors = sizeof(dec007_vectors) / sizeof(dec007_vectors[0]);
     } else if (strcmp(case_id, "DEC-008") == 0) {
-        config.vectors = dec008_vectors;
-        config.num_vectors = sizeof(dec008_vectors) / sizeof(dec008_vectors[0]);
+        config->vectors = dec008_vectors;
+        config->num_vectors = sizeof(dec008_vectors) / sizeof(dec008_vectors[0]);
     } else if (strcmp(case_id, "DEC-009") == 0) {
-        config.vectors = dec009_vectors;
-        config.num_vectors = sizeof(dec009_vectors) / sizeof(dec009_vectors[0]);
+        config->vectors = dec009_vectors;
+        config->num_vectors = sizeof(dec009_vectors) / sizeof(dec009_vectors[0]);
     } else if (strcmp(case_id, "DEC-010") == 0) {
-        config.vectors = dec010_vectors;
-        config.num_vectors = sizeof(dec010_vectors) / sizeof(dec010_vectors[0]);
+        config->vectors = dec010_vectors;
+        config->num_vectors = sizeof(dec010_vectors) / sizeof(dec010_vectors[0]);
     } else if (strcmp(case_id, "DEC-011") == 0) {
-        config.vectors = dec011_vectors;
-        config.num_vectors = sizeof(dec011_vectors) / sizeof(dec011_vectors[0]);
+        config->vectors = dec011_vectors;
+        config->num_vectors = sizeof(dec011_vectors) / sizeof(dec011_vectors[0]);
     } else {
-        config.vectors = dec001_vectors;
-        config.num_vectors = sizeof(dec001_vectors) / sizeof(dec001_vectors[0]);
+        return -1;
     }
 
-    return config;
+    return 0;
 }
+
+int run_decode_golden_case(const char *case_id, const char *artifact_dir);
 
 int run_decode_golden(const char *case_yaml, const char *artifact_dir)
 {
+    const char *case_id = detect_case_id_from_yaml_path(case_yaml);
+    if (!case_id) {
+        fprintf(stderr, "Error: Unable to map yaml path to decode case: %s\n", case_yaml);
+        return 1;
+    }
+    return run_decode_golden_case(case_id, artifact_dir);
+}
+
+int run_decode_golden_case(const char *case_id, const char *artifact_dir)
+{
     int passed = 1;
     const char *failure = NULL;
+    case_config_t config;
 
-    /* Detect which case we're running */
-    const char *case_id = detect_case_id(case_yaml);
-    case_config_t config = get_case_config(case_id);
+    if (get_case_config(case_id, &config) != 0) {
+        fprintf(stderr, "Error: Unknown decode case ID: %s\n", case_id);
+        return 1;
+    }
 
     printf("Decode Golden Harness\n");
     printf("Case: %s\n", case_id);
@@ -1177,11 +1189,19 @@ int run_decode_golden(const char *case_yaml, const char *artifact_dir)
 
     /* Make mutable copy of vectors for JSON output */
     test_vector_t *vectors = malloc(sizeof(test_vector_t) * config.num_vectors);
-    memcpy(vectors, config.vectors, sizeof(test_vector_t) * config.num_vectors);
-
-    a64_instr_t decoded[config.num_vectors];
-    int passed_flags[config.num_vectors];
+    a64_instr_t *decoded = malloc(sizeof(a64_instr_t) * config.num_vectors);
+    int *passed_flags = malloc(sizeof(int) * config.num_vectors);
     int fail_count = 0;
+
+    if (!vectors || !decoded || !passed_flags) {
+        fprintf(stderr, "Error: Failed to allocate decode buffers\n");
+        free(vectors);
+        free(decoded);
+        free(passed_flags);
+        return 1;
+    }
+
+    memcpy(vectors, config.vectors, sizeof(test_vector_t) * config.num_vectors);
 
     /* Decode each vector */
     for (size_t i = 0; i < config.num_vectors; i++) {
@@ -1291,10 +1311,14 @@ int run_decode_golden(const char *case_yaml, const char *artifact_dir)
     /* Write report */
     if (write_report(artifact_dir, case_id, "01-decode", "decode_golden", passed, failure) != 0) {
         free(vectors);
+        free(decoded);
+        free(passed_flags);
         return 1;
     }
 
     free(vectors);
+    free(decoded);
+    free(passed_flags);
     return passed ? 0 : 1;
 }
 

@@ -1,0 +1,49 @@
+version: 1
+owner: cpu_state
+source_files:
+  - Sources/IXLandLinuxRuntime/tcti/aarch64/tcti_entry.S
+  - Sources/IXLandLinuxRuntime/tcti/aarch64/gen.c
+  - Sources/IXLandLinuxRuntime/tcti/aarch64/gadgets_memory.c
+hot_carriers:
+  guest_x0: host_x1
+  guest_x1: host_x2
+  guest_x2: host_x3
+  guest_x3: host_x4
+  guest_x4: host_x5
+  guest_x5: host_x6
+  guest_x6: host_x7
+  guest_x7: host_x8
+  guest_x8: host_x9
+  guest_x9: host_x10
+  guest_x10: host_x11
+  guest_x11: host_x12
+  guest_x12: host_x13
+  guest_x13: host_x14
+  guest_x14: host_x15
+  guest_x15: host_x16
+memory_backed:
+  - guest_x16
+  - guest_x17
+  - guest_x18
+  - guest_x19
+  - guest_x20
+  - guest_x21
+  - guest_x22
+  - guest_x23
+  - guest_x24
+  - guest_x25
+  - guest_x26
+  - guest_x27
+  - guest_x28
+  - guest_x29
+  - guest_x30
+  - guest_sp
+special_roles:
+  host_x17: nzcv_preservation_and_memory_helper_temp
+  host_x19: sp_helper_temp
+  host_x27: next_gadget_target
+  host_x28: gadget_stream_pointer
+  host_x29: cpu_state_pointer
+notes:
+  - Exact entry and exit code currently prove guest x15 is still hot-carried via host x16.
+  - Legacy comments elsewhere may disagree; migration must trust exact code paths over stale comments.

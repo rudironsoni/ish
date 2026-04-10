@@ -98,9 +98,10 @@ static NSString *kDefaultRoot = @"Default Root";
 }
 
 - (void)syncFileProviderDomains {
-    // Skip File Provider for sideloaded/unsigned builds
-    // LiveContainer and sideloaded apps don't have proper File Provider entitlements
-    // Accessing documentStorageURL will throw an exception
+    if (NSProcessInfo.processInfo.environment[@"XCTestConfigurationFilePath"] != nil) {
+        return;
+    }
+
     static BOOL fileProviderAvailable = NO;
     static BOOL checked = NO;
     
@@ -110,14 +111,12 @@ static NSString *kDefaultRoot = @"Default Root";
             NSURL *testURL = [NSFileProviderManager defaultManager].documentStorageURL;
             fileProviderAvailable = (testURL != nil);
         }
-        @catch (NSException *exception) {
-            NSLog(@"[Roots] File Provider not available (exception: %@)", exception.name);
+        @catch (__unused NSException *exception) {
             fileProviderAvailable = NO;
         }
     }
     
     if (!fileProviderAvailable) {
-        NSLog(@"[Roots] Skipping File Provider sync - not available for sideloaded build");
         return;
     }
     

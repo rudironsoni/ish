@@ -3,7 +3,6 @@
  * Validates TCTI generator emits correct gadget sequences for ADD immediate.
  */
 
-#include <ctype.h>
 #include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -14,7 +13,6 @@
 #include <unistd.h>
 
 #define MAX_PATH 4096
-#define MAX_LINE 1024
 
 /* Stub kernel functions required by tcti/aarch64/gen.c */
 static void ish_printk(const char *msg, ...)
@@ -86,36 +84,30 @@ static int write_report(const char *artifact_dir, const char *case_id, const cha
     return 0;
 }
 
-/* Parse hex encoding from YAML */
-static int parse_hex_encoding_from_yaml(const char *yaml_path, char *out_hex, size_t out_size)
+typedef struct {
+    const char *case_id;
+    const char *encoding_hex_le;
+} generator_case_config_t;
+
+static int get_generator_case_config(const char *case_id, generator_case_config_t *config)
 {
-    FILE *fp = fopen(yaml_path, "r");
-    if (!fp) {
-        fprintf(stderr, "Error: Cannot open %s\n", yaml_path);
+    static const generator_case_config_t kConfigs[] = {
+        { "GEN-001", "20040091" }, { "GEN-002", "1f0400f1" }, { "GEN-003", "410400f8" },
+        { "GEN-004", "000800b4" }, { "GEN-005", "00080054" }, { "GEN-006", "e00b40a9" },
+        { "GEN-007", "800020d4" }, { "GEN-008", "20040091" },
+    };
+
+    if (!case_id || !config) {
         return -1;
     }
 
-    char line[MAX_LINE];
-    while (fgets(line, sizeof(line), fp)) {
-        char *key = strstr(line, "encoding_hex_le:");
-        if (key) {
-            char *value = key + strlen("encoding_hex_le:");
-            while (*value && isspace(*value))
-                value++;
-            if (*value == '"')
-                value++;
-            size_t len = strcspn(value, "\"\n");
-            if (len > 0 && len < out_size) {
-                strncpy(out_hex, value, len);
-                out_hex[len] = '\0';
-                fclose(fp);
-                return 0;
-            }
+    for (size_t i = 0; i < sizeof(kConfigs) / sizeof(kConfigs[0]); i++) {
+        if (strcmp(case_id, kConfigs[i].case_id) == 0) {
+            *config = kConfigs[i];
+            return 0;
         }
     }
 
-    fclose(fp);
-    fprintf(stderr, "Error: encoding_hex_le not found in YAML\n");
     return -1;
 }
 
@@ -265,27 +257,42 @@ static int write_emitted(const char *artifact_dir, const a64_instr_t *instr,
     return 0;
 }
 
-/* Detect case ID from yaml path */
-static const char *detect_case_id(const char *yaml_path)
-{
-    if (strstr(yaml_path, "GEN-002"))
-        return "GEN-002";
-    if (strstr(yaml_path, "GEN-003"))
-        return "GEN-003";
-    if (strstr(yaml_path, "GEN-004"))
-        return "GEN-004";
-    if (strstr(yaml_path, "GEN-005"))
-        return "GEN-005";
-    if (strstr(yaml_path, "GEN-006"))
-        return "GEN-006";
-    if (strstr(yaml_path, "GEN-007"))
-        return "GEN-007";
-    if (strstr(yaml_path, "GEN-008"))
-        return "GEN-008";
-    return "GEN-001"; /* default */
-}
+int run_generator_golden(const char *case_yaml, const char *artifact_dir);
+int run_generator_golden_case(const char *case_id, const char *artifact_dir);
 
 int run_generator_golden(const char *case_yaml, const char *artifact_dir)
+{
+    const char *case_id = NULL;
+
+    if (!case_yaml) {
+        return 1;
+    }
+
+    if (strstr(case_yaml, "GEN-001"))
+        case_id = "GEN-001";
+    else if (strstr(case_yaml, "GEN-002"))
+        case_id = "GEN-002";
+    else if (strstr(case_yaml, "GEN-003"))
+        case_id = "GEN-003";
+    else if (strstr(case_yaml, "GEN-004"))
+        case_id = "GEN-004";
+    else if (strstr(case_yaml, "GEN-005"))
+        case_id = "GEN-005";
+    else if (strstr(case_yaml, "GEN-006"))
+        case_id = "GEN-006";
+    else if (strstr(case_yaml, "GEN-007"))
+        case_id = "GEN-007";
+    else if (strstr(case_yaml, "GEN-008"))
+        case_id = "GEN-008";
+
+    if (!case_id) {
+        return 1;
+    }
+
+    return run_generator_golden_case(case_id, artifact_dir);
+}
+
+int run_generator_golden_case(const char *case_id, const char *artifact_dir)
 {
     int passed = 0;
     const char *failure_summary = NULL;
@@ -294,32 +301,18 @@ int run_generator_golden(const char *case_yaml, const char *artifact_dir)
         return 1;
     }
 
-    const char *case_id = detect_case_id(case_yaml);
-    printf("Generator Golden Harness - %s\n", case_id);
-
-    /* Step 1: Parse encoding from expected.yaml (which we read from the case dir) */
-    char expected_yaml[MAX_PATH];
-    strncpy(expected_yaml, case_yaml, sizeof(expected_yaml) - 1);
-    expected_yaml[sizeof(expected_yaml) - 1] = '\0';
-
-    /* Replace case.yaml with expected.yaml in path */
-    char *last_slash = strrchr(expected_yaml, '/');
-    if (last_slash) {
-        *(last_slash + 1) = '\0';
-        strncat(expected_yaml, "expected.yaml", sizeof(expected_yaml) - strlen(expected_yaml) - 1);
-    }
-
-    char hex_encoding[32];
-    if (parse_hex_encoding_from_yaml(expected_yaml, hex_encoding, sizeof(hex_encoding)) != 0) {
-        failure_summary = "failed to parse encoding_hex_le from expected.yaml";
+    generator_case_config_t config;
+    if (get_generator_case_config(case_id, &config) != 0) {
+        failure_summary = "unknown generator case id";
         goto cleanup;
     }
 
-    printf("  Input encoding (LE): %s\n", hex_encoding);
+    printf("Generator Golden Harness - %s\n", case_id);
+    printf("  Input encoding (LE): %s\n", config.encoding_hex_le);
 
     /* Step 2: Convert to uint32_t instruction word */
     uint32_t insn_word;
-    if (hex_to_u32(hex_encoding, &insn_word) != 0) {
+    if (hex_to_u32(config.encoding_hex_le, &insn_word) != 0) {
         failure_summary = "failed to convert hex encoding to instruction word";
         goto cleanup;
     }

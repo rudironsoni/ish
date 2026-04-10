@@ -1,0 +1,60 @@
+version: 1
+exit_reasons:
+  TCTI_EXIT_NORMAL:
+    value: 0
+    source: Sources/IXLandLinuxRuntime/tcti/gadgets_tcti.h:46
+  TCTI_EXIT_SYSCALL:
+    value: 1
+    source: Sources/IXLandLinuxRuntime/tcti/gadgets_tcti.h:47
+  TCTI_EXIT_SIGNAL:
+    value: 2
+    source: Sources/IXLandLinuxRuntime/tcti/gadgets_tcti.h:48
+  TCTI_EXIT_FAULT:
+    value: 3
+    source: Sources/IXLandLinuxRuntime/tcti/gadgets_tcti.h:49
+  TCTI_EXIT_COMPLEX:
+    value: 4
+    source: Sources/IXLandLinuxRuntime/tcti/gadgets_tcti.h:50
+  TCTI_EXIT_UNSUPPORTED_SYSREG:
+    value: 5
+    source: Sources/IXLandLinuxRuntime/emu/aarch64/sysreg.h:10
+boundary_fields:
+  entry:
+    - gadgets
+    - cpu_state
+    - first_gadget
+  dispatch:
+    - x27_next_gadget
+    - x28_gadget_stream
+    - guest_pc
+  helper:
+    - nzcv
+    - x28_gadget_stream
+    - hot_guest_carriers
+  exit:
+    - tcti_exit_reason
+    - pstate
+    - guest_x0_to_x15
+    - guest_x16_to_x30
+    - guest_sp
+  runtime:
+    - process_entry
+    - block_entry
+    - block_exit
+    - fault_addr
+    - fault_was_write
+existing_semantic_events:
+  - block.entry
+  - block.exit
+  - fault
+  - syscall
+  - process.entry
+  - guest.first_fault.pc
+  - guest.first_fault.regs
+  - guest.first_fault.exit
+  - guest.first_user_pc
+  - task.proof.*
+  - guest.run.entry
+notes:
+  - This file records repo-local boundary field names and exit-reason values to support explicit XCTest migration.
+  - It does not preserve legacy YAML case IDs or legacy phase directories as future authority.
