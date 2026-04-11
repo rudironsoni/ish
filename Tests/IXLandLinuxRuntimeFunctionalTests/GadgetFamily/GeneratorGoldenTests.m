@@ -69,9 +69,9 @@ static void assertGeneratorCase(XCTestCase *tc, const gen_case_t c)
     assertGeneratorCase(self, (gen_case_t){ .case_id = "GEN-006", .insn_word = 0xa9400be0, .expected_rd = 0, .expected_rn = 31, .expected_imm = 0, .expected_set_flags = 0, .expected_subtype = A64_LDST_PAIR });
 }
 
-- (void)testGEN007SystemRegisterEmission
+- (void)testGEN007SVCImmediateEmission
 {
-    assertGeneratorCase(self, (gen_case_t){ .case_id = "GEN-007", .insn_word = 0xd4200080, .expected_rd = 0, .expected_rn = 0, .expected_imm = 0, .expected_set_flags = 0, .expected_subtype = A64_EXCEPTION });
+    assertGeneratorCase(self, (gen_case_t){ .case_id = "GEN-007", .insn_word = 0xd4200080, .expected_rd = 0, .expected_rn = 0, .expected_imm = 128, .expected_set_flags = 0, .expected_subtype = 0 });
 }
 
 - (void)testGEN008BlockSidecarMap
