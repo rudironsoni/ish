@@ -25,10 +25,6 @@ extern "C" {
 int run_decode_golden(const char *case_yaml, const char *artifact_dir);
 int run_decode_golden_case(const char *case_id, const char *artifact_dir);
 
-/* Generator golden harness - validates TCTI gadget emission */
-int run_generator_golden(const char *case_yaml, const char *artifact_dir);
-int run_generator_golden_case(const char *case_id, const char *artifact_dir);
-
 /* Semantic micro harness - validates semantic execution through TCTI */
 int run_semantic_micro(const char *case_yaml, const char *artifact_dir);
 

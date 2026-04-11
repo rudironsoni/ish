@@ -103,8 +103,10 @@ targets:
           - "functional_test.c"
           - "integration_test_simple.c"
           - "integration_test.c"
+          - "IXLandLinuxRuntimeFunctionalTests.swift"
       - path: Tests/Support/IXLandLinuxRuntimeFunctionalHarnesses
         excludes:
+          - "generator_golden.c"
           - "harness_runner.h"
     dependencies:
       - target: IXLandTerminal
