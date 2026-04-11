@@ -119,10 +119,10 @@ static void assertSemanticExecCase(XCTestCase *tc, const semantic_exec_case_t c)
         XCTAssertEqual(cpu.x[i], c.expected_regs[i], @"Register x%d mismatch", i);
     }
 
-    XCTAssertEqual(cpu.n, c.expected_n);
-    XCTAssertEqual(cpu.z, c.expected_z);
-    XCTAssertEqual(cpu.c, c.expected_c);
-    XCTAssertEqual(cpu.v, c.expected_v);
+    XCTAssertEqual((int)cpu.n, c.expected_n);
+    XCTAssertEqual((int)cpu.z, c.expected_z);
+    XCTAssertEqual((int)cpu.c, c.expected_c);
+    XCTAssertEqual((int)cpu.v, c.expected_v);
 
     XCTAssertEqual(cpu.tcti_exit_reason, 0);
 }
