@@ -118,7 +118,9 @@
 		85E3301D9BE97C2E76A39AA8 /* DelayedUITask.m in Sources */ = {isa = PBXBuildFile; fileRef = A17624F5492FE375C9481480 /* DelayedUITask.m */; };
 		881A1563C4C294147061A29A /* gen_test.c in Sources */ = {isa = PBXBuildFile; fileRef = 3E5D614CA4DCB37FF54531EA /* gen_test.c */; };
 		8896807BAAA8CFE4B71683AF /* fchdir.c in Sources */ = {isa = PBXBuildFile; fileRef = E42290E5BC7734A9891F9523 /* fchdir.c */; };
+		8DC776C69EA18EF1853B9E02 /* SemanticMicroFunctionalTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 81D1F656B85997242690643E /* SemanticMicroFunctionalTests.m */; };
 		8DCAD47243639CDDE1A372A4 /* pipe.c in Sources */ = {isa = PBXBuildFile; fileRef = 41649A6F845DAB672C98138E /* pipe.c */; };
+		8E04031C643457D7BDB52C70 /* GeneratorGoldenTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 2A40B41B6CE27B70E67E3A3A /* GeneratorGoldenTests.m */; };
 		9150B17792D65FEC11EB0D2D /* time.c in Sources */ = {isa = PBXBuildFile; fileRef = E2A2C1CE801ACBF0FD8D8BFA /* time.c */; };
 		9264C7D921B7453D85F1C07B /* freeiosterminal.png in Resources */ = {isa = PBXBuildFile; fileRef = D0EBFD679F4BC3C899E473F7 /* freeiosterminal.png */; };
 		92F31B9728096B20A1C16EF8 /* Roots.m in Sources */ = {isa = PBXBuildFile; fileRef = EE2D0533230FDE158A949E97 /* Roots.m */; };
@@ -332,6 +334,7 @@
 		25256302BEA7C9B8D6F738F3 /* ExceptionExfiltrator.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ExceptionExfiltrator.m; sourceTree = "<group>"; };
 		278A12240E644B50F8856838 /* UpgradeRootViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = UpgradeRootViewController.h; sourceTree = "<group>"; };
 		278CD94D45A96786F18E17A2 /* Terminal.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Terminal.m; sourceTree = "<group>"; };
+		2A40B41B6CE27B70E67E3A3A /* GeneratorGoldenTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GeneratorGoldenTests.m; sourceTree = "<group>"; };
 		2A72EF3A789A8F0DE2CDC77C /* Settings.bundle */ = {isa = PBXFileReference; lastKnownFileType = wrapper.cfbundle; path = Settings.bundle; sourceTree = "<group>"; };
 		2AF4814FB31E82FF9873FB3A /* Aarch64DecoderTests.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = Aarch64DecoderTests.mm; sourceTree = "<group>"; };
 		2BE27EB8C25638F130864D5B /* icon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = icon.png; sourceTree = "<group>"; };
@@ -450,6 +453,7 @@
 		7FDADEDF12FDDC2681F52D22 /* ScrollbarView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ScrollbarView.h; sourceTree = "<group>"; };
 		80032F7FA60CEA26F93BC39F /* term.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = term.html; sourceTree = "<group>"; };
 		811128E064EC055089670308 /* BarButton.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = BarButton.m; sourceTree = "<group>"; };
+		81D1F656B85997242690643E /* SemanticMicroFunctionalTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SemanticMicroFunctionalTests.m; sourceTree = "<group>"; };
 		81FEC37655A0775E25919A6C /* IXLandLinuxRuntimeEnd2EndTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = IXLandLinuxRuntimeEnd2EndTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		8291F30E37ACDDE208700D54 /* LocationDevice.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LocationDevice.h; sourceTree = "<group>"; };
 		830DA05A2E1735AE19890C15 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/About.storyboard; sourceTree = "<group>"; };
@@ -1033,6 +1037,14 @@
 			path = Tests;
 			sourceTree = "<group>";
 		};
+		D46C78188C7099D3E5C6228E /* SemanticMicro */ = {
+			isa = PBXGroup;
+			children = (
+				81D1F656B85997242690643E /* SemanticMicroFunctionalTests.m */,
+			);
+			path = SemanticMicro;
+			sourceTree = "<group>";
+		};
 		D47D19DD98E92BF3B49A0DC1 /* fs */ = {
 			isa = PBXGroup;
 			children = (
@@ -1083,6 +1095,14 @@
 				E3D8341B282570E6D305701E /* tty.h */,
 			);
 			path = fs;
+			sourceTree = "<group>";
+		};
+		DA1CE436D3CFD2A351B20FBD /* GadgetFamily */ = {
+			isa = PBXGroup;
+			children = (
+				2A40B41B6CE27B70E67E3A3A /* GeneratorGoldenTests.m */,
+			);
+			path = GadgetFamily;
 			sourceTree = "<group>";
 		};
 		E3BED88D0375AE333298CDA2 /* IXLandTerminal */ = {
@@ -1289,6 +1309,8 @@
 		F7764F1CC9CA3CBA5C6BDA3A /* IXLandLinuxRuntimeFunctionalTests */ = {
 			isa = PBXGroup;
 			children = (
+				DA1CE436D3CFD2A351B20FBD /* GadgetFamily */,
+				D46C78188C7099D3E5C6228E /* SemanticMicro */,
 				8FB1AF73EB06A1ED1D7D52EB /* IXLandLinuxRuntimeFunctionalTests.swift */,
 			);
 			path = IXLandLinuxRuntimeFunctionalTests;
@@ -1668,7 +1690,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8E04031C643457D7BDB52C70 /* GeneratorGoldenTests.m in Sources */,
 				18FCC98C2E93C44A83FBED65 /* IXLandLinuxRuntimeFunctionalTests.swift in Sources */,
+				8DC776C69EA18EF1853B9E02 /* SemanticMicroFunctionalTests.m in Sources */,
 				5898D3C6A74DDEB0F8C5C40E /* abi_fixture.c in Sources */,
 				3841F4E0DC9819689571624C /* decode_golden.c in Sources */,
 				44F502DDFE7A98943AF32010 /* distro_fixture.c in Sources */,

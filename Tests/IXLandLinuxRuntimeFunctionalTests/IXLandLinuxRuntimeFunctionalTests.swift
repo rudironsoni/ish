@@ -6,9 +6,6 @@ private func run_decode_golden(_ case_yaml: UnsafePointer<CChar>, _ artifact_dir
 @_silgen_name("run_decode_golden_case")
 private func run_decode_golden_case(_ case_id: UnsafePointer<CChar>, _ artifact_dir: UnsafePointer<CChar>) -> Int32
 
-@_silgen_name("run_semantic_micro")
-private func run_semantic_micro(_ case_yaml: UnsafePointer<CChar>, _ artifact_dir: UnsafePointer<CChar>) -> Int32
-
 @_silgen_name("run_abi_fixture")
 private func run_abi_fixture(_ case_yaml: UnsafePointer<CChar>, _ artifact_dir: UnsafePointer<CChar>) -> Int32
 
@@ -52,12 +49,6 @@ final class IXLandLinuxRuntimeFunctionalTests: XCTestCase {
         CaseRecord(caseId: "DEC-010", phase: "01-decode", harnessType: "decode_golden", caseYamlRelativePath: "cases/01-decode/DEC-010-svc-brk-udf/case.yaml"),
         CaseRecord(caseId: "DEC-011", phase: "01-decode", harnessType: "decode_golden", caseYamlRelativePath: "cases/01-decode/DEC-011-fp-simd-core/case.yaml"),
         CaseRecord(caseId: "DEC-011", phase: "01-decode", harnessType: "decode_golden", caseYamlRelativePath: "cases/01-decode/DEC-011-system-and-barrier/case.yaml"),
-        CaseRecord(caseId: "EXEC-001", phase: "03-semantic-exec", harnessType: "semantic_micro", caseYamlRelativePath: "cases/03-semantic-exec/EXEC-001-single-alu/case.yaml"),
-        CaseRecord(caseId: "EXEC-002", phase: "03-semantic-exec", harnessType: "semantic_micro", caseYamlRelativePath: "cases/03-semantic-exec/EXEC-002-cmp-flags/case.yaml"),
-        CaseRecord(caseId: "EXEC-003", phase: "03-semantic-exec", harnessType: "semantic_micro", caseYamlRelativePath: "cases/03-semantic-exec/EXEC-003-str-postindex/case.yaml"),
-        CaseRecord(caseId: "EXEC-004", phase: "03-semantic-exec", harnessType: "semantic_micro", caseYamlRelativePath: "cases/03-semantic-exec/EXEC-004-ldr-postindex/case.yaml"),
-        CaseRecord(caseId: "EXEC-004", phase: "03-semantic-exec", harnessType: "semantic_micro", caseYamlRelativePath: "cases/03-semantic-exec/EXEC-004-str-cmp-bne-loop/case.yaml"),
-        CaseRecord(caseId: "EXEC-005", phase: "03-semantic-exec", harnessType: "semantic_micro", caseYamlRelativePath: "cases/03-semantic-exec/EXEC-005-hot-register-sync/case.yaml"),
         CaseRecord(caseId: "EXEC-006", phase: "03-semantic-exec", harnessType: "semantic_micro", caseYamlRelativePath: "cases/03-semantic-exec/EXEC-006-fast-vs-helper-equivalence/case.yaml"),
         CaseRecord(caseId: "EXEC-007", phase: "03-semantic-exec", harnessType: "semantic_micro", caseYamlRelativePath: "cases/03-semantic-exec/EXEC-007-block-save-restore/case.yaml"),
         CaseRecord(caseId: "EXEC-008", phase: "03-semantic-exec", harnessType: "semantic_micro", caseYamlRelativePath: "cases/03-semantic-exec/EXEC-008-next-pc-selection/case.yaml"),
@@ -188,8 +179,6 @@ final class IXLandLinuxRuntimeFunctionalTests: XCTestCase {
         switch record.harnessType {
         case "decode_golden":
             result = run_decode_golden_case(record.caseId, artifactDir)
-        case "semantic_micro":
-            result = run_semantic_micro(caseYaml, artifactDir)
         case "abi_fixture":
             result = run_abi_fixture(caseYaml, artifactDir)
         case "runtime_trace":

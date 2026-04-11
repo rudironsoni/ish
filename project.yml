@@ -106,8 +106,6 @@ targets:
       - path: Tests/Support/IXLandLinuxRuntimeFunctionalHarnesses
         excludes:
           - "harness_runner.h"
-    resources:
-      - Tests/IXLandLinuxRuntimeEnd2EndTests/cases
     dependencies:
       - target: IXLandTerminal
       - target: IXLandLinuxRuntime
