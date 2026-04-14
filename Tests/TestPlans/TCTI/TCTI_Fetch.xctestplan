@@ -1,0 +1,20 @@
+{
+  "configurations": [
+    {
+      "id": "TCTI_Fetch_Config",
+      "name": "TCTI.Fetch Configuration",
+      "options": {}
+    }
+  ],
+  "defaultOptions": {},
+  "testTargets": [
+    {
+      "target": {
+        "containerPath": "container:IXLand.xcodeproj",
+        "identifier": "IXLandLinuxRuntimeContractTests",
+        "name": "IXLandLinuxRuntimeContractTests"
+      }
+    }
+  ],
+  "version": 1
+}

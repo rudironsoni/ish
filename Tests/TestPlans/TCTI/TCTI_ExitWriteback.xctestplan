@@ -1,0 +1,33 @@
+{
+  "configurations" : [
+    {
+      "id" : "TCTI_ExitWriteback_Config",
+      "name" : "TCTI.ExitWriteback Configuration",
+      "options" : {
+        "testExecutionOrdering" : "random"
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "testExecutionOrdering" : "random",
+    "environmentVariableEntries" : [
+      {
+        "key" : "TCTI_CONTRACT_GROUP",
+        "value" : "TCTI.ExitWriteback"
+      }
+    ]
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:IXLand.xcodeproj",
+        "identifier" : "IXLandLinuxRuntimeContractTests",
+        "name" : "IXLandLinuxRuntimeContractTests"
+      },
+      "testClasses" : [
+        "TCTIExitWritebackTests"
+      ]
+    }
+  ],
+  "version" : 1
+}

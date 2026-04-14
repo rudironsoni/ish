@@ -1,0 +1,33 @@
+{
+  "configurations" : [
+    {
+      "id" : "TCTI_SemanticExecution_Config",
+      "name" : "TCTI.SemanticExecution Configuration",
+      "options" : {
+        "testExecutionOrdering" : "random"
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "testExecutionOrdering" : "random",
+    "environmentVariableEntries" : [
+      {
+        "key" : "TCTI_CONTRACT_GROUP",
+        "value" : "TCTI.SemanticExecution"
+      }
+    ]
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:IXLand.xcodeproj",
+        "identifier" : "IXLandLinuxRuntimeContractTests",
+        "name" : "IXLandLinuxRuntimeContractTests"
+      },
+      "testClasses" : [
+        "TCTISemanticExecutionTests"
+      ]
+    }
+  ],
+  "version" : 1
+}

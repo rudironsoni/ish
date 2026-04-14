@@ -1,0 +1,33 @@
+{
+  "configurations" : [
+    {
+      "id" : "TCTI_Lowering_Config",
+      "name" : "TCTI.Lowering Configuration",
+      "options" : {
+        "testExecutionOrdering" : "random"
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "testExecutionOrdering" : "random",
+    "environmentVariableEntries" : [
+      {
+        "key" : "TCTI_CONTRACT_GROUP",
+        "value" : "TCTI.Lowering"
+      }
+    ]
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:IXLand.xcodeproj",
+        "identifier" : "IXLandLinuxRuntimeContractTests",
+        "name" : "IXLandLinuxRuntimeContractTests"
+      },
+      "testClasses" : [
+        "TCTILoweringTests"
+      ]
+    }
+  ],
+  "version" : 1
+}

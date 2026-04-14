@@ -19,6 +19,7 @@
 extern const tcti_gadget_t gadget_tbz_reg[16];
 extern const tcti_gadget_t gadget_tbnz_reg[16];
 extern tcti_gadget_t gadget_sysreg_unsupported;
+extern tcti_gadget_t gadget_pc_advance;
 
 // Map guest registers 0-15 to our pre-generated gadget tables
 // Registers 16-30 and sp are handled differently (in memory)
@@ -1464,6 +1465,19 @@ int a64_gen_instruction(a64_gen_state_t *state, uint32_t insn, uint64_t pc)
         if (decoded.cat == A64_LD_ST && decoded.subtype == A64_LDST_SINGLE &&
             (decoded.idx_mode == A64_PRE_INDEX || decoded.idx_mode == A64_POST_INDEX)) {
             state->is_complete = 1;
+        }
+
+        // Non-terminal instructions need PC advancement to reflect fallthrough
+        // execution. Emit pc_advance gadget to update cpu->pc to next instruction.
+        if (!state->is_complete) {
+            int pc_ret = emit_gadget(state, gadget_pc_advance);
+            if (pc_ret != A64_GEN_OK) {
+                return pc_ret;
+            }
+            pc_ret = emit_u64(state, state->guest_pc + 4);
+            if (pc_ret != A64_GEN_OK) {
+                return pc_ret;
+            }
         }
     }
 

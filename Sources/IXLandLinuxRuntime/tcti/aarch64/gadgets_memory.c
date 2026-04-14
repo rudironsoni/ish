@@ -3170,6 +3170,16 @@ __attribute__((naked)) void gadget_nop_impl(void)
 
 tcti_gadget_t gadget_nop = gadget_nop_impl;
 
+__attribute__((naked)) void gadget_pc_advance_impl(void)
+{
+    asm volatile("ldr x0, [x28], #8\n\t"
+                 "str x0, [x29, #272]\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
+tcti_gadget_t gadget_pc_advance = gadget_pc_advance_impl;
+
 __attribute__((naked)) void gadget_sysreg_unsupported_impl(void)
 {
     asm volatile("mov x0, #5\n\t"

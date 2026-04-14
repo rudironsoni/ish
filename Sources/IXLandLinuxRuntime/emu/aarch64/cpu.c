@@ -7,6 +7,7 @@
 #import <IXLandInstrumentationTracing/trace.h>
 #import <IXLandLinuxRuntime/emu/aarch64/block-cache.h>
 #import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
+#import <IXLandLinuxRuntime/emu/aarch64/fetch.h>
 #import <IXLandLinuxRuntime/emu/aarch64/memory.h>
 #import <IXLandLinuxRuntime/emu/aarch64/sysreg.h>
 #import <IXLandLinuxRuntime/emu/interrupt.h>
@@ -1066,30 +1067,7 @@ void a64_cpu_init(struct task *task, struct cpu_state *cpu, int err)
 
 void a64_cpu_init_probe(struct task *task, struct cpu_state *cpu, int err)
 {
-    trace_cpu_layout_checkpoint("task.proof.cpu.layout_at_probe_entry", task, cpu, err);
     trace_cpu_init_checkpoint("task.proof.a64_cpu_init_probe.entry", task, cpu, err);
-}
-
-/*
- * Fetch an instruction from guest memory using TLB
- * Returns 0 on success, -EFAULT on fault
- */
-int a64_fetch_insn(struct cpu_state *cpu, struct tlb *tlb, uint64_t pc, uint32_t *insn)
-{
-    // Use iSH's TLB for fast lookup
-    void *ptr = __tlb_read_ptr(tlb, pc);
-    if (ptr == NULL) {
-        // TLB miss - use slow path
-        ptr = tlb_handle_miss(tlb, pc, MEM_READ);
-        if (ptr == NULL) {
-            cpu->fault_addr = tlb->segfault_addr;
-            cpu->fault_was_write = 0;
-            return -EFAULT;
-        }
-    }
-
-    *insn = *(uint32_t *)ptr;
-    return 0;
 }
 
 /*

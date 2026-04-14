@@ -44,9 +44,9 @@
             parallelizable = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "19499F623F5EDC6C8CC1DE44"
-               BuildableName = "IXLandLinuxRuntimeUnitTests.xctest"
-               BlueprintName = "IXLandLinuxRuntimeUnitTests"
+               BlueprintIdentifier = "0FD7BE69CB0D9F25F29530F8"
+               BuildableName = "IXLandLinuxRuntimeContractTests.xctest"
+               BlueprintName = "IXLandLinuxRuntimeContractTests"
                ReferencedContainer = "container:IXLand.xcodeproj">
             </BuildableReference>
          </TestableReference>
@@ -55,9 +55,20 @@
             parallelizable = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "F6A23F287C95BD4D82ECA577"
-               BuildableName = "IXLandLinuxRuntimeFunctionalTests.xctest"
-               BlueprintName = "IXLandLinuxRuntimeFunctionalTests"
+               BlueprintIdentifier = "0C2FDD307143694F1619D143"
+               BuildableName = "IXLandLinuxRuntimeSystemTests.xctest"
+               BlueprintName = "IXLandLinuxRuntimeSystemTests"
+               ReferencedContainer = "container:IXLand.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "C4D7C070C3B997D534A19472"
+               BuildableName = "IXLandLinuxRuntimePerfTests.xctest"
+               BlueprintName = "IXLandLinuxRuntimePerfTests"
                ReferencedContainer = "container:IXLand.xcodeproj">
             </BuildableReference>
          </TestableReference>

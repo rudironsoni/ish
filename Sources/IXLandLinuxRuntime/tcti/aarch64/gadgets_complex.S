@@ -325,8 +325,23 @@ gadget_svc:
 .global _gadget_nop
 gadget_nop:
     // Just continue to next gadget
-    ldr     x27, [x28], #8          // Load next gadget
-    br      x27
+    ldr x27, [x28], #8     // Load next gadget
+    br x27
+
+/* ============================================================================
+ * PC Advance - Updates cpu->pc for fallthrough execution
+ * ============================================================================
+ */
+// PC advance - Store next PC to cpu_state for fallthrough
+.global _gadget_pc_advance
+gadget_pc_advance:
+    // Load next PC from bytecode
+    ldr x0, [x28], #8      // x0 = next PC
+    // Store to cpu->pc via cpu state pointer in x29
+    str x0, [x29, #CPU_OFFSET_pc]  // cpu->pc = next PC
+    // Continue to next gadget
+    ldr x27, [x28], #8     // Load next gadget
+    br x27
 
 /* ============================================================================
  * Branch
