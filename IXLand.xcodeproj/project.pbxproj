@@ -41,6 +41,7 @@
 		25A0EA5C1CA800D0005B20A8 /* libIXLandLinuxRuntime.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CB26B1B5D3A91542EDE0757A /* libIXLandLinuxRuntime.a */; };
 		2754921613B72C42CD6337A6 /* libIXLandLinuxRuntime.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CB26B1B5D3A91542EDE0757A /* libIXLandLinuxRuntime.a */; };
 		29098D015A1688CA881B2A44 /* IXLandInstrumentation in Frameworks */ = {isa = PBXBuildFile; productRef = 51ABDCFF20FABF291742442A /* IXLandInstrumentation */; };
+		2E464A6E6EF763006B977050 /* GuestTerminalRuntimeTests.m in Sources */ = {isa = PBXBuildFile; fileRef = FF34CA2F59C85D5329FA2CC8 /* GuestTerminalRuntimeTests.m */; };
 		2FF4836EB2A5D6B224F2E739 /* gadgets_ldst_tlb.S in Sources */ = {isa = PBXBuildFile; fileRef = 0ABD252C58B06EBB0A44685E /* gadgets_ldst_tlb.S */; };
 		349CAD64E052A89D88BCD6AD /* iOSFS.m in Sources */ = {isa = PBXBuildFile; fileRef = 8C7F3B2F81D97B00FCA35891 /* iOSFS.m */; };
 		34E2C4F599549773088CA806 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = E536189B8FE196208B1A772A /* main.m */; };
@@ -49,6 +50,7 @@
 		357DB3802EC50FC5AD72F6CC /* fs.c in Sources */ = {isa = PBXBuildFile; fileRef = 3FC5DBFFCF2F7D4493A751AE /* fs.c */; };
 		35BE05C89CA975E90648A942 /* memory.c in Sources */ = {isa = PBXBuildFile; fileRef = 37B7E26866AA9B0AE347F5B8 /* memory.c */; };
 		37660A320C4BDBD526589610 /* adhoc.c in Sources */ = {isa = PBXBuildFile; fileRef = A699BC2960CA0766BD29C702 /* adhoc.c */; };
+		3872CD1835B680EFCA34A729 /* GuestThreadSignalTLSTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 7E061597EF45CAE188F61A0C /* GuestThreadSignalTLSTests.m */; };
 		3A1C699418F41B2C7B4BD960 /* ishcolontildehash.png in Resources */ = {isa = PBXBuildFile; fileRef = 32A99C6158148B709A2DD058 /* ishcolontildehash.png */; };
 		3E08B4BD4F7E24DE96DCFE71 /* sock.c in Sources */ = {isa = PBXBuildFile; fileRef = 57C2B41AFEC474EF9AEC19A2 /* sock.c */; };
 		403A61853C4046D018835B53 /* CoreLocation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9FBB7D21DA87786D58E5402F /* CoreLocation.framework */; };
@@ -92,6 +94,7 @@
 		68EE93A11AD3E0E962DDE1CC /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 6199E2A7384AD50646ECEDB7 /* libsqlite3.tbd */; };
 		6B808C5BDB151118C6ADE852 /* tcti-gadget-gen.py in Resources */ = {isa = PBXBuildFile; fileRef = 5A02DDF741ABBA22A1306ACD /* tcti-gadget-gen.py */; };
 		6C28F4635D408CCDF343AA6B /* ThemesViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 60F0620B6217DE91ECBFDAC6 /* ThemesViewController.m */; };
+		6DDD59ED1A15E30C8F122CCA /* GuestBringupMatrixTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 824D0F0A36DB5D3AB0C57BF6 /* GuestBringupMatrixTests.m */; };
 		70CCFC9B74E85B77BCAC2085 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BAE7DCC2F0AA9AA9DB7546E0 /* QuartzCore.framework */; };
 		7223850AA78E03D1EBB572D8 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 247C3F63C3770461EE0BB1BE /* WebKit.framework */; };
 		72E9FCA6521EF25F9FD47233 /* dyndev.c in Sources */ = {isa = PBXBuildFile; fileRef = D75F368F8A0B728AC875CC5A /* dyndev.c */; };
@@ -135,9 +138,11 @@
 		A5BDE70A2253718759EE70F7 /* UIViewController+Extras.m in Sources */ = {isa = PBXBuildFile; fileRef = 933EE1B812B704FE74231B36 /* UIViewController+Extras.m */; };
 		A689CC9959E5F1EEC8C1DEF0 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 428D8399AF8590DECB1DF3B1 /* README.md */; };
 		A6B563469FA7DB3880AE61F6 /* NSObject+SaneKVO.m in Sources */ = {isa = PBXBuildFile; fileRef = 7BF14D608C61DA216F6F4A28 /* NSObject+SaneKVO.m */; };
+		A6EB7DD632F945356C81FF98 /* GuestSyscallCoreTests.m in Sources */ = {isa = PBXBuildFile; fileRef = BB49CF9022D8112828446972 /* GuestSyscallCoreTests.m */; };
 		A815532DA928492646AF456A /* gadgets_tcti_impl.c in Sources */ = {isa = PBXBuildFile; fileRef = 35A16CBCB50B9696548B010A /* gadgets_tcti_impl.c */; };
 		A93778A3BA5562FC346A1735 /* PassthroughView.m in Sources */ = {isa = PBXBuildFile; fileRef = 47BCAADCC74D0397C2433CD9 /* PassthroughView.m */; };
 		A963003A2E39E6AAAA6B0559 /* TCTIHostCarrierTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 4A161659EBE436443B6A8A8D /* TCTIHostCarrierTests.m */; };
+		A9846D19742F5361CB43E6D2 /* GuestELFLoaderTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 5F8F1A234A09E55DBE066430 /* GuestELFLoaderTests.m */; };
 		AA34A6208B301B37B4FB9550 /* UITests.m in Sources */ = {isa = PBXBuildFile; fileRef = 7358D27FA7157FF1189DC202 /* UITests.m */; };
 		ACACAE2059522BF1051AB26C /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F64D9183658D2C2D3837F3B9 /* SystemConfiguration.framework */; };
 		AF3DACB19C4A4118708BC7B0 /* AboutNavigationController.m in Sources */ = {isa = PBXBuildFile; fileRef = EBE4395D43C34109EC461B3A /* AboutNavigationController.m */; };
@@ -163,6 +168,7 @@
 		C692C13CD307DB6827DE7A20 /* libarchive in Frameworks */ = {isa = PBXBuildFile; productRef = E7B0164E5350C8A5A4E0CE8B /* libarchive */; };
 		C97D688F340BEFFE552AE015 /* sysreg.c in Sources */ = {isa = PBXBuildFile; fileRef = 724BCE40498A7A29DF9E8AC1 /* sysreg.c */; };
 		CAC77D6223909682311F17E0 /* libresolv.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 8C804D8247F78845E3D03ADD /* libresolv.tbd */; };
+		CBBF7D9620910717A9D4878D /* GuestMemoryManagementTests.m in Sources */ = {isa = PBXBuildFile; fileRef = F797CE4B570CD522D3CDDE8B /* GuestMemoryManagementTests.m */; };
 		D0D6E9415551716BAFDF25BE /* darwin.c in Sources */ = {isa = PBXBuildFile; fileRef = 3FA2BEE2C204898B61FE4816 /* darwin.c */; };
 		D1AF25DB734DA206F8EE7114 /* eventfd.c in Sources */ = {isa = PBXBuildFile; fileRef = BB2A17AB54E7A646C8EFB3BB /* eventfd.c */; };
 		D2818B23FE9C87387747111C /* icon1337.png in Resources */ = {isa = PBXBuildFile; fileRef = 1314314FBFDF7FC8667E46AA /* icon1337.png */; };
@@ -407,6 +413,7 @@
 		5B491135813C82A2C92C1917 /* platform.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = platform.h; sourceTree = "<group>"; };
 		5C39803043F7347FFBA6C203 /* tcti_boundary_probe.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = tcti_boundary_probe.c; sourceTree = "<group>"; };
 		5DD6DF9A14627C8C2413E737 /* IXLandLinuxRuntime.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = IXLandLinuxRuntime.h; sourceTree = "<group>"; };
+		5F8F1A234A09E55DBE066430 /* GuestELFLoaderTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GuestELFLoaderTests.m; sourceTree = "<group>"; };
 		60F0620B6217DE91ECBFDAC6 /* ThemesViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ThemesViewController.m; sourceTree = "<group>"; };
 		6199E2A7384AD50646ECEDB7 /* libsqlite3.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
 		635BB7DB72A3060241C6F274 /* misc.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = misc.c; sourceTree = "<group>"; };
@@ -444,6 +451,7 @@
 		7BF14D608C61DA216F6F4A28 /* NSObject+SaneKVO.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "NSObject+SaneKVO.m"; sourceTree = "<group>"; };
 		7CC3867965E1B9B8C230A57C /* sqlutil.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sqlutil.h; sourceTree = "<group>"; };
 		7D14A7C99EC4C3ACF56D2AC2 /* sockrestart.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sockrestart.h; sourceTree = "<group>"; };
+		7E061597EF45CAE188F61A0C /* GuestThreadSignalTLSTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GuestThreadSignalTLSTests.m; sourceTree = "<group>"; };
 		7E674FFD8F4C0650AD92A235 /* path.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = path.h; sourceTree = "<group>"; };
 		7F77411DE54BB02C07EC592F /* tmp.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = tmp.c; sourceTree = "<group>"; };
 		7F9028DFBDF40C43347C5929 /* XcodeDebug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = XcodeDebug.xcconfig; sourceTree = "<group>"; };
@@ -451,6 +459,7 @@
 		7FDADEDF12FDDC2681F52D22 /* ScrollbarView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ScrollbarView.h; sourceTree = "<group>"; };
 		80032F7FA60CEA26F93BC39F /* term.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = term.html; sourceTree = "<group>"; };
 		811128E064EC055089670308 /* BarButton.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = BarButton.m; sourceTree = "<group>"; };
+		824D0F0A36DB5D3AB0C57BF6 /* GuestBringupMatrixTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GuestBringupMatrixTests.m; sourceTree = "<group>"; };
 		8291F30E37ACDDE208700D54 /* LocationDevice.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LocationDevice.h; sourceTree = "<group>"; };
 		830DA05A2E1735AE19890C15 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/About.storyboard; sourceTree = "<group>"; };
 		83761A8A3485CCEC3F5D4C4E /* fifo.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = fifo.c; sourceTree = "<group>"; };
@@ -519,6 +528,7 @@
 		BAEE24164A75A310F3CC4695 /* tcti_harness_truth.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = tcti_harness_truth.h; sourceTree = "<group>"; };
 		BB2A17AB54E7A646C8EFB3BB /* eventfd.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = eventfd.c; sourceTree = "<group>"; };
 		BB40886A40C02DBBD8ECDC3F /* poll.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = poll.c; sourceTree = "<group>"; };
+		BB49CF9022D8112828446972 /* GuestSyscallCoreTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GuestSyscallCoreTests.m; sourceTree = "<group>"; };
 		BB7E10F4B69FF7DB6BE84BC1 /* pydann2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = pydann2.png; sourceTree = "<group>"; };
 		BC12150720F8E6493A5B64A5 /* metal.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = metal.png; sourceTree = "<group>"; };
 		BC4FE679CEA25BF16AD93090 /* AboutViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AboutViewController.h; sourceTree = "<group>"; };
@@ -596,6 +606,7 @@
 		F637857258CE41565C8AB73E /* bits.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bits.h; sourceTree = "<group>"; };
 		F64D9183658D2C2D3837F3B9 /* SystemConfiguration.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SystemConfiguration.framework; path = System/Library/Frameworks/SystemConfiguration.framework; sourceTree = SDKROOT; };
 		F750F2779D767FDFC95D0E91 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		F797CE4B570CD522D3CDDE8B /* GuestMemoryManagementTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GuestMemoryManagementTests.m; sourceTree = "<group>"; };
 		F8129C873ACA260836E6AB8F /* idollarhash.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = idollarhash.png; sourceTree = "<group>"; };
 		F8760D68042E99F1896897F3 /* group.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = group.c; sourceTree = "<group>"; };
 		F8B91D5887EEBACADD3B5C44 /* fake.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = fake.c; sourceTree = "<group>"; };
@@ -605,6 +616,7 @@
 		FC5918DF7B26FC6631033835 /* init.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = init.h; sourceTree = "<group>"; };
 		FCBAA3B6AA42972686C4067A /* DelayedUITask.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DelayedUITask.h; sourceTree = "<group>"; };
 		FCD544804580CD35D651EA38 /* gadgets_tcti.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = gadgets_tcti.h; sourceTree = "<group>"; };
+		FF34CA2F59C85D5329FA2CC8 /* GuestTerminalRuntimeTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GuestTerminalRuntimeTests.m; sourceTree = "<group>"; };
 		FF53D06DA3033A39B3BBED14 /* entry.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = entry.c; sourceTree = "<group>"; };
 		FF8F7C1032044941E97B4D9A /* fake.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = fake.h; sourceTree = "<group>"; };
 		FFE04D53E24F27B22AEED942 /* page_map.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = page_map.c; sourceTree = "<group>"; };
@@ -829,6 +841,7 @@
 		57F7DA23B3A89E1BE7EBA8F1 /* MemoryManagement */ = {
 			isa = PBXGroup;
 			children = (
+				F797CE4B570CD522D3CDDE8B /* GuestMemoryManagementTests.m */,
 			);
 			path = MemoryManagement;
 			sourceTree = "<group>";
@@ -1051,6 +1064,7 @@
 		AC74213F865C49AB257F685A /* SyscallCore */ = {
 			isa = PBXGroup;
 			children = (
+				BB49CF9022D8112828446972 /* GuestSyscallCoreTests.m */,
 			);
 			path = SyscallCore;
 			sourceTree = "<group>";
@@ -1089,6 +1103,7 @@
 		C9F45681F1A6D50F7C0CD5F1 /* TerminalRuntime */ = {
 			isa = PBXGroup;
 			children = (
+				FF34CA2F59C85D5329FA2CC8 /* GuestTerminalRuntimeTests.m */,
 			);
 			path = TerminalRuntime;
 			sourceTree = "<group>";
@@ -1350,6 +1365,7 @@
 		EC0C5B82721C02F60281C6D3 /* ThreadSignalTLS */ = {
 			isa = PBXGroup;
 			children = (
+				7E061597EF45CAE188F61A0C /* GuestThreadSignalTLSTests.m */,
 			);
 			path = ThreadSignalTLS;
 			sourceTree = "<group>";
@@ -1384,6 +1400,7 @@
 		F2930539F4C11084D41A4056 /* BringupMatrix */ = {
 			isa = PBXGroup;
 			children = (
+				824D0F0A36DB5D3AB0C57BF6 /* GuestBringupMatrixTests.m */,
 			);
 			path = BringupMatrix;
 			sourceTree = "<group>";
@@ -1406,6 +1423,7 @@
 		F9535807942D3C230335039B /* ELFLoader */ = {
 			isa = PBXGroup;
 			children = (
+				5F8F1A234A09E55DBE066430 /* GuestELFLoaderTests.m */,
 			);
 			path = ELFLoader;
 			sourceTree = "<group>";
@@ -1776,7 +1794,13 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6DDD59ED1A15E30C8F122CCA /* GuestBringupMatrixTests.m in Sources */,
+				A9846D19742F5361CB43E6D2 /* GuestELFLoaderTests.m in Sources */,
+				CBBF7D9620910717A9D4878D /* GuestMemoryManagementTests.m in Sources */,
 				429084F7E08EEA3ED2214991 /* GuestProcessABITests.m in Sources */,
+				A6EB7DD632F945356C81FF98 /* GuestSyscallCoreTests.m in Sources */,
+				2E464A6E6EF763006B977050 /* GuestTerminalRuntimeTests.m in Sources */,
+				3872CD1835B680EFCA34A729 /* GuestThreadSignalTLSTests.m in Sources */,
 				B32F44444F0F310FCB1CE62A /* tcti_boundary_probe.S in Sources */,
 				EECAE29A6A5651F66010F060 /* tcti_boundary_probe.c in Sources */,
 			);
