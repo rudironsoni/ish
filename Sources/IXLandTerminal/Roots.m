@@ -16,7 +16,13 @@ static NSURL *RootsDir(void) {
     static NSURL *rootsDir;
     static dispatch_once_t token;
     dispatch_once(&token, ^{
-        rootsDir = [ContainerURL() URLByAppendingPathComponent:@"roots"];
+        NSURL *containerURL = ContainerURL();
+        if (containerURL == nil) {
+            // ContainerURL() returns nil in simulator test environment without app group
+            rootsDir = nil;
+            return;
+        }
+        rootsDir = [containerURL URLByAppendingPathComponent:@"roots"];
         NSFileManager *manager = [NSFileManager defaultManager];
         [manager createDirectoryAtURL:rootsDir
           withIntermediateDirectories:YES
@@ -39,11 +45,18 @@ static NSString *kDefaultRoot = @"Default Root";
 
 - (instancetype)init {
     if (self = [super init]) {
+        NSURL *rootsDir = RootsDir();
+        if (rootsDir == nil) {
+            // ContainerURL() returned nil (simulator test environment) - create empty roots list
+            self.roots = [NSMutableOrderedSet orderedSet];
+            return self;
+        }
+        
         NSError *error = nil;
-        NSArray<NSString *> *rootNames = [NSFileManager.defaultManager contentsOfDirectoryAtPath:RootsDir().path error:&error];
+        NSArray<NSString *> *rootNames = [NSFileManager.defaultManager contentsOfDirectoryAtPath:rootsDir.path error:&error];
         NSAssert(error == nil, @"couldn't list roots: %@", error);
         self.roots = [rootNames mutableCopy];
-        
+
         if (!self.roots.count) {
             // import default root
             NSError *error;

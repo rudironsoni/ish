@@ -29,116 +29,126 @@ targetTemplates:
       PRODUCT_BUNDLE_IDENTIFIER: app.ixland.linuxruntime
       PRODUCT_NAME: IXLandLinuxRuntime
       HEADER_SEARCH_PATHS:
-        - "$(SRCROOT)/Sources"
-        - "$(SRCROOT)"
-        - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentation/include"
-        - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include"
+      - "$(SRCROOT)/Sources"
+      - "$(SRCROOT)"
+      - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentation/include"
+      - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include"
       GCC_PREPROCESSOR_DEFINITIONS:
-        - "IXLAND_LINUX_RUNTIME=1"
-        - "ISH_PLATFORM_IOS=1"
+      - "IXLAND_LINUX_RUNTIME=1"
+      - "ISH_PLATFORM_IOS=1"
 
 targets:
   # MARK: - Product Target
   IXLandLinuxRuntime:
     templates:
-      - LinuxRuntimeBase
+    - LinuxRuntimeBase
     type: library.static
     platform: iOS
     sources:
-      - path: Sources/IXLandLinuxRuntime
-        headerVisibility: project
-        excludes:
-          - "platform/linux.c"
-          - "kernel/calls.c"
-          - "trace/**"
+    - path: Sources/IXLandLinuxRuntime
+      headerVisibility: project
+      excludes:
+      - "platform/linux.c"
+      - "kernel/calls.c"
+      - "trace/**"
     dependencies:
-      - package: IXLandInstrumentation
-        product: IXLandInstrumentation
-      - package: IXLandInstrumentation
-        product: IXLandInstrumentationTracing
-      - package: libarchive-for-swift
-        product: libarchive
+    - package: IXLandInstrumentation
+      product: IXLandInstrumentation
+    - package: IXLandInstrumentation
+      product: IXLandInstrumentationTracing
+    - package: libarchive-for-swift
+      product: libarchive
     settings:
       ENABLE_CODE_COVERAGE: false
     scheme:
       testTargets:
-        - IXLandLinuxRuntimeContractTests
-        - IXLandLinuxRuntimeSystemTests
-        - IXLandLinuxRuntimePerfTests
+      - IXLandLinuxRuntimeContractTests
+      - IXLandLinuxRuntimeSystemTests
+      - IXLandLinuxRuntimePerfTests
 
   # MARK: - Contract Test Target
   IXLandLinuxRuntimeContractTests:
     type: bundle.unit-test
     platform: iOS
     sources:
-      - path: Tests/IXLandLinuxRuntimeContractTests
-        excludes:
-          - "**/DISABLED/**"
-          - "*.md"
-      - path: Tests/Support/TCTITestHarness
-        excludes:
-          - "tcti_four_boundary.c"
-          - "tcti_harness_truth.c"
+    - path: Tests/IXLandLinuxRuntimeContractTests
+      excludes:
+      - "**/DISABLED/**"
+      - "*.md"
+    - path: Tests/Support/TCTITestHarness
+      excludes:
+      - "tcti_four_boundary.c"
+      - "tcti_harness_truth.c"
     dependencies:
-      - target: IXLandTerminal
-      - target: IXLandLinuxRuntime
+    - target: IXLandTerminal
+    - target: IXLandLinuxRuntime
     settings:
       GENERATE_INFOPLIST_FILE: true
       TEST_HOST: "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal"
       BUNDLE_LOADER: "$(TEST_HOST)"
       HEADER_SEARCH_PATHS:
-        - "$(SRCROOT)/Sources"
-        - "$(SRCROOT)"
+      - "$(SRCROOT)/Sources"
+      - "$(SRCROOT)"
 
   # MARK: - System Test Target
   IXLandLinuxRuntimeSystemTests:
     type: bundle.unit-test
     platform: iOS
     sources:
-      - path: Tests/IXLandLinuxRuntimeSystemTests
-        excludes:
-          - "**/DISABLED/**"
-          - "*.md"
-      - path: Tests/Support/TCTITestHarness
-        excludes:
-          - "tcti_four_boundary.c"
-          - "tcti_harness_truth.c"
+    - path: Tests/IXLandLinuxRuntimeSystemTests
+      excludes:
+      - "**/DISABLED/**"
+      - "*.md"
+    - path: Tests/Support/TCTITestHarness
+      excludes:
+      - "tcti_four_boundary.c"
+      - "tcti_harness_truth.c"
+    resources:
+    - path: Tests/Fixtures/ELF
+      includes:
+      - "*.elf"
+      - "*.bin"
     dependencies:
-      - target: IXLandTerminal
-      - target: IXLandLinuxRuntime
-      - package: IXLandInstrumentation
-        product: IXLandInstrumentationTracing
+    - target: IXLandTerminal
+    - target: IXLandLinuxRuntime
+    - package: IXLandInstrumentation
+      product: IXLandInstrumentationTracing
     settings:
       GENERATE_INFOPLIST_FILE: true
       TEST_HOST: "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal"
       BUNDLE_LOADER: "$(TEST_HOST)"
       HEADER_SEARCH_PATHS:
-        - "$(SRCROOT)/Sources"
-        - "$(SRCROOT)"
-        - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include"
+      - "$(SRCROOT)/Sources"
+      - "$(SRCROOT)"
+      - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include"
 
   # MARK: - Performance Test Target
   IXLandLinuxRuntimePerfTests:
     type: bundle.unit-test
     platform: iOS
     sources:
-      - path: Tests/IXLandLinuxRuntimePerfTests
-        excludes:
-          - "**/DISABLED/**"
-          - "*.md"
+    - path: Tests/IXLandLinuxRuntimePerfTests
+      excludes:
+      - "**/DISABLED/**"
+      - "*.md"
+    resources:
+    - path: Tests/Fixtures/ELF
+      includes:
+      - "*.elf"
+      - "*.bin"
     dependencies:
-      - target: IXLandTerminal
-      - target: IXLandLinuxRuntime
-      - package: IXLandInstrumentation
-        product: IXLandInstrumentationTracing
+    - target: IXLandTerminal
+    - target: IXLandLinuxRuntime
+    - package: IXLandInstrumentation
+      product: IXLandInstrumentationTracing
     settings:
       GENERATE_INFOPLIST_FILE: true
       TEST_HOST: "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal"
       BUNDLE_LOADER: "$(TEST_HOST)"
       HEADER_SEARCH_PATHS:
-        - "$(SRCROOT)/Sources"
-        - "$(SRCROOT)"
-        - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include"
+      - "$(SRCROOT)/Sources"
+      - "$(SRCROOT)"
+      - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include"
 
   # MARK: - Terminal App
   IXLandTerminal:
@@ -146,54 +156,54 @@ targets:
     platform: iOS
     deploymentTarget: "16.0"
     sources:
-      - path: Sources/IXLandTerminal
-        excludes:
-          - "Tests/**"
-          - "UITests/**"
-          - "targets/**"
-          - "xcode-ninja.sh"
-          - "PasteboardDeviceLinux.c"
-          - "LinuxTTY.c"
-          - "LinuxPTY.c"
-          - "LinuxInterop.c"
-          - "LinuxInterop.h"
-          - "LinuxRoot.c"
-      - path: tools
-        headerVisibility: project
-        includes:
-          - "fakefs.h"
-          - "fakefs.c"
-      - path: $(DERIVED_FILE_DIR)/mach_excServer.c
-        optional: true
+    - path: Sources/IXLandTerminal
+      excludes:
+      - "Tests/**"
+      - "UITests/**"
+      - "targets/**"
+      - "xcode-ninja.sh"
+      - "PasteboardDeviceLinux.c"
+      - "LinuxTTY.c"
+      - "LinuxPTY.c"
+      - "LinuxInterop.c"
+      - "LinuxInterop.h"
+      - "LinuxRoot.c"
+    - path: tools
+      headerVisibility: project
+      includes:
+      - "fakefs.h"
+      - "fakefs.c"
+    - path: $(DERIVED_FILE_DIR)/mach_excServer.c
+      optional: true
     preBuildScripts:
-      - name: Generate mach_excServer
-        script: |
-          set -x
-          cd "$DERIVED_FILE_DIR"
-          mig -sheader "$DERIVED_FILE_DIR/mach_excServer.h" -server "$DERIVED_FILE_DIR/mach_excServer.c" -Wno-incompatible-sysroot -isysroot "$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk" "$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/mach/mach_exc.defs"
-        basedOnDependencyAnalysis: false
-        outputFiles:
-          - "$(DERIVED_FILE_DIR)/mach_excServer.h"
-          - "$(DERIVED_FILE_DIR)/mach_excServer.c"
-      - name: Provision bundled rootfs
-        script: |
-          set -eu
-          ROOTFS_OUT="${DERIVED_FILE_DIR}/root.tar.gz"
-          TMP_OUT="${ROOTFS_OUT}.tmp"
-          ROOTFS_SOURCE_URL="${ROOTFS_URL:-https://dl-cdn.alpinelinux.org/alpine/v3.23/releases/aarch64/alpine-minirootfs-3.23.3-aarch64.tar.gz}"
-          if [ -s "$ROOTFS_OUT" ]; then
+    - name: Generate mach_excServer
+      script: |
+        set -x
+        cd "$DERIVED_FILE_DIR"
+        mig -sheader "$DERIVED_FILE_DIR/mach_excServer.h" -server "$DERIVED_FILE_DIR/mach_excServer.c" -Wno-incompatible-sysroot -isysroot "$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk" "$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/mach/mach_exc.defs"
+      basedOnDependencyAnalysis: false
+      outputFiles:
+      - "$(DERIVED_FILE_DIR)/mach_excServer.h"
+      - "$(DERIVED_FILE_DIR)/mach_excServer.c"
+    - name: Provision bundled rootfs
+      script: |
+        set -eu
+        ROOTFS_OUT="${DERIVED_FILE_DIR}/root.tar.gz"
+        TMP_OUT="${ROOTFS_OUT}.tmp"
+        ROOTFS_SOURCE_URL="${ROOTFS_URL:-https://dl-cdn.alpinelinux.org/alpine/v3.23/releases/aarch64/alpine-minirootfs-3.23.3-aarch64.tar.gz}"
+        if [ -s "$ROOTFS_OUT" ]; then
             gzip -t "$ROOTFS_OUT"
-          else
+        else
             rm -f "$TMP_OUT"
             curl --fail --location --silent --show-error "$ROOTFS_SOURCE_URL" --output "$TMP_OUT"
             gzip -t "$TMP_OUT"
             mv "$TMP_OUT" "$ROOTFS_OUT"
-          fi
-          cp -f "$ROOTFS_OUT" "${TARGET_BUILD_DIR}/${WRAPPER_NAME}/root.tar.gz"
-        basedOnDependencyAnalysis: false
-        outputFiles:
-          - "$(DERIVED_FILE_DIR)/root.tar.gz"
-          - "$(TARGET_BUILD_DIR)/$(WRAPPER_NAME)/root.tar.gz"
+        fi
+        cp -f "$ROOTFS_OUT" "${TARGET_BUILD_DIR}/${WRAPPER_NAME}/root.tar.gz"
+      basedOnDependencyAnalysis: false
+      outputFiles:
+      - "$(DERIVED_FILE_DIR)/root.tar.gz"
+      - "$(TARGET_BUILD_DIR)/$(WRAPPER_NAME)/root.tar.gz"
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: app.ixland.terminal
       PRODUCT_NAME: IXLandTerminal
@@ -201,68 +211,68 @@ targets:
       CODE_SIGN_ENTITLEMENTS: Sources/IXLandTerminal/iSH.entitlements
       ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
       HEADER_SEARCH_PATHS:
-        - "$(SRCROOT)/Sources/IXLandTerminal"
-        - "$(DERIVED_FILE_DIR)"
-        - "$(SRCROOT)/Sources"
-        - "$(SRCROOT)/tools"
-        - "$(SDKROOT)/usr/include/libxml2"
-        - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentation/include"
-        - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationBridge"
-        - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include"
+      - "$(SRCROOT)/Sources/IXLandTerminal"
+      - "$(DERIVED_FILE_DIR)"
+      - "$(SRCROOT)/Sources"
+      - "$(SRCROOT)/tools"
+      - "$(SDKROOT)/usr/include/libxml2"
+      - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentation/include"
+      - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationBridge"
+      - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include"
     dependencies:
-      - target: IXLandLinuxRuntime
-      - package: IXLandInstrumentation
-        product: IXLandInstrumentation
-      - package: IXLandInstrumentation
-        product: IXLandInstrumentationTracing
-      - package: IXLandInstrumentation
-        product: IXLandInstrumentationBridge
-      - package: libarchive-for-swift
-        product: libarchive
-      - sdk: CoreLocation.framework
-      - sdk: UIKit.framework
-      - sdk: WebKit.framework
-      - sdk: SystemConfiguration.framework
-      - sdk: CoreGraphics.framework
-      - sdk: QuartzCore.framework
-      - sdk: AudioToolbox.framework
-      - sdk: libsqlite3.tbd
-      - sdk: libxml2.tbd
-      - sdk: libresolv.tbd
-      - sdk: libiconv.tbd
-      - sdk: UniformTypeIdentifiers.framework
+    - target: IXLandLinuxRuntime
+    - package: IXLandInstrumentation
+      product: IXLandInstrumentation
+    - package: IXLandInstrumentation
+      product: IXLandInstrumentationTracing
+    - package: IXLandInstrumentation
+      product: IXLandInstrumentationBridge
+    - package: libarchive-for-swift
+      product: libarchive
+    - sdk: CoreLocation.framework
+    - sdk: UIKit.framework
+    - sdk: WebKit.framework
+    - sdk: SystemConfiguration.framework
+    - sdk: CoreGraphics.framework
+    - sdk: QuartzCore.framework
+    - sdk: AudioToolbox.framework
+    - sdk: libsqlite3.tbd
+    - sdk: libxml2.tbd
+    - sdk: libresolv.tbd
+    - sdk: libiconv.tbd
+    - sdk: UniformTypeIdentifiers.framework
 
   # MARK: - Terminal Unit Tests
   IXLandTerminalUnitTests:
     type: bundle.unit-test
     platform: iOS
     sources:
-      - Tests/IXLandTerminalUnitTests
+    - Tests/IXLandTerminalUnitTests
     dependencies:
-      - target: IXLandTerminal
-      - target: IXLandLinuxRuntime
+    - target: IXLandTerminal
+    - target: IXLandLinuxRuntime
     settings:
       GENERATE_INFOPLIST_FILE: true
       TEST_HOST: "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal"
       BUNDLE_LOADER: "$(TEST_HOST)"
       HEADER_SEARCH_PATHS:
-        - "$(SRCROOT)/Sources"
-        - "$(SRCROOT)"
+      - "$(SRCROOT)/Sources"
+      - "$(SRCROOT)"
 
   # MARK: - Terminal End-to-End Tests
   IXLandTerminalEnd2EndTests:
     type: bundle.ui-testing
     platform: iOS
     sources:
-      - path: Tests/IXLandTerminalEnd2EndTests
-        excludes:
-          - "cases/**"
-          - "Info.plist"
-          - "Screenshots.m"
+    - path: Tests/IXLandTerminalEnd2EndTests
+      excludes:
+      - "cases/**"
+      - "Info.plist"
+      - "Screenshots.m"
     resources:
-      - Tests/IXLandTerminalEnd2EndTests/cases
+    - Tests/IXLandTerminalEnd2EndTests/cases
     dependencies:
-      - target: IXLandTerminal
+    - target: IXLandTerminal
     settings:
       GENERATE_INFOPLIST_FILE: true
 
@@ -289,8 +299,8 @@ schemes:
       config: Debug
       gatherCoverageData: false
       targets:
-        - name: IXLandLinuxRuntimeContractTests
-          parallelizable: false
+      - name: IXLandLinuxRuntimeContractTests
+        parallelizable: false
 
   # Guest Runtime System Tests - Black-box guest behavior
   IXLandGuestRuntime:
@@ -303,8 +313,8 @@ schemes:
       config: Debug
       gatherCoverageData: false
       targets:
-        - name: IXLandLinuxRuntimeSystemTests
-          parallelizable: false
+      - name: IXLandLinuxRuntimeSystemTests
+        parallelizable: false
 
   # Performance Tests
   IXLandRuntimePerf:
@@ -317,5 +327,5 @@ schemes:
       config: Debug
       gatherCoverageData: false
       targets:
-        - name: IXLandLinuxRuntimePerfTests
-          parallelizable: false
+      - name: IXLandLinuxRuntimePerfTests
+        parallelizable: false

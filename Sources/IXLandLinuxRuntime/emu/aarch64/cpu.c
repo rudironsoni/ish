@@ -2061,6 +2061,16 @@ static void trace_interpreter_nzcv_chain_checkpoint(const char *name, uint64_t b
  */
 void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb)
 {
+    a64_cpu_run_limited(cpu, tlb, 0); // 0 = unlimited
+}
+
+/*
+ * Run the CPU with optional iteration limit
+ * max_iterations: 0 = unlimited, N = return after N blocks
+ * This is used for testing/proof scenarios
+ */
+void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterations)
+{
     trace_cpu_run_checkpoint("task.proof.a64_cpu_run.entry", current, cpu, 0);
 
     if (!cpu || !tlb || !cpu->mmu) {
@@ -2156,7 +2166,10 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb)
         g_guest_first_user_pc_emitted = 1;
     }
 
-    while (1) {
+    int iteration_count = 0;
+    while (max_iterations == 0 || iteration_count < max_iterations) {
+        iteration_count++;
+
         // Reacquire context if it was marked inactive (e.g., after interrupt return)
         if (!ctx->active) {
             ctx = fiber_exec_ctx_get(cpu);

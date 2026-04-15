@@ -3,7 +3,6 @@
 
 #import <IXLandLinuxRuntime/emu/aarch64/decode.h>
 #import <IXLandLinuxRuntime/emu/mmu.h>
-
 #import <IXLandLinuxRuntime/util/misc.h>
 
 #ifdef __KERNEL__
@@ -22,6 +21,7 @@ void cpu_poke(struct cpu_state *cpu);
 void a64_cpu_init(struct task *task, struct cpu_state *cpu, int err);
 void a64_cpu_init_probe(struct task *task, struct cpu_state *cpu, int err);
 void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb);
+void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterations);
 void a64_cpu_dump(struct cpu_state *cpu);
 void a64_cpu_dump_stats(struct cpu_state *cpu);
 int a64_execute_ldst(struct cpu_state *cpu, struct tlb *tlb, const a64_instr_t *instr);

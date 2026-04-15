@@ -61,6 +61,7 @@
 		44D70F202953D103F126C0E3 /* fake-rebuild.c in Sources */ = {isa = PBXBuildFile; fileRef = D470AFC0C8F201EDE54EDE83 /* fake-rebuild.c */; };
 		46FE92A11FFCA930F634BCDD /* lock.c in Sources */ = {isa = PBXBuildFile; fileRef = 2DAD7F4348E51CEA7064F262 /* lock.c */; };
 		475047D753FD8A132243D984 /* IXLandInstrumentationTracing in Frameworks */ = {isa = PBXBuildFile; productRef = CD998729280EC05E6FD303D0 /* IXLandInstrumentationTracing */; };
+		49A961AC130225BF1ED2F64D /* GuestELFLoaderFixtureTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 6E958AE23214162DB59253CF /* GuestELFLoaderFixtureTests.m */; };
 		4BCB0D6CFB18E5FD8FB40D72 /* exit.c in Sources */ = {isa = PBXBuildFile; fileRef = 9DC949EAB5EAC64F57A0E876 /* exit.c */; };
 		4C7E26053929925E39EEC595 /* poll.c in Sources */ = {isa = PBXBuildFile; fileRef = BB40886A40C02DBBD8ECDC3F /* poll.c */; };
 		52D101C59A127ACCB52FCFA8 /* ihash1.png in Resources */ = {isa = PBXBuildFile; fileRef = 181F5CC1923CABB296BBEB8D /* ihash1.png */; };
@@ -83,6 +84,7 @@
 		606F58FB819923C5EB0094A5 /* ipc.c in Sources */ = {isa = PBXBuildFile; fileRef = BF249005260B7A21629F8543 /* ipc.c */; };
 		61CECF4AAD49D9527CC94A9E /* term.js in Resources */ = {isa = PBXBuildFile; fileRef = 563C027415F57AB6BE3EB3A3 /* term.js */; };
 		623247850DA3106995546CDD /* pydann2.png in Resources */ = {isa = PBXBuildFile; fileRef = BB7E10F4B69FF7DB6BE84BC1 /* pydann2.png */; };
+		62D925E0339D28DAE02378D5 /* GuestRuntimeCorePerfTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 024F148C3D410A1A69FB197B /* GuestRuntimeCorePerfTests.m */; };
 		63FDDB6410B1D6F630C044B7 /* RootsTableViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = EBB123B65035BE96FBFA6716 /* RootsTableViewController.m */; };
 		6466465152B2C57DF3479690 /* gadgets_arith.c in Sources */ = {isa = PBXBuildFile; fileRef = BD7B6B38ADD8B8687CBB2278 /* gadgets_arith.c */; };
 		64CCBF7018666E49859616A4 /* resource.c in Sources */ = {isa = PBXBuildFile; fileRef = 6F2AF854AD7F8B71BED49E91 /* resource.c */; };
@@ -130,6 +132,7 @@
 		9A484D79B7C199BB8AC67A0E /* errno.c in Sources */ = {isa = PBXBuildFile; fileRef = A5C527798E327D1F32130E95 /* errno.c */; };
 		9A6623EA2C81893FA34A25C4 /* libiconv.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = B50E7F30AF8D91087F69B216 /* libiconv.tbd */; };
 		9BD5BA5FBD58040AE3717D79 /* About.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = D49326651FBA5F0FD9721A18 /* About.storyboard */; };
+		9C51BAD704D80346D90DDE7D /* GuestStaticELFExecutionBoundary.m in Sources */ = {isa = PBXBuildFile; fileRef = 41B7C6E98AAE5F0F682C8F33 /* GuestStaticELFExecutionBoundary.m */; };
 		9E7879EE4A78764E40A02E64 /* stat.c in Sources */ = {isa = PBXBuildFile; fileRef = 153A4C55FAE1DFF8060B8434 /* stat.c */; };
 		9FEE4A14412BA339868CED7C /* sockrestart.c in Sources */ = {isa = PBXBuildFile; fileRef = 2D8403306F7321F6B8F9488F /* sockrestart.c */; };
 		A01AB558E7151389C4AD72C3 /* Aarch64EmulatorTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 413013AD1B96BB4B80FE5BD6 /* Aarch64EmulatorTests.m */; };
@@ -152,9 +155,11 @@
 		B1D8D387C0AE2908ACD99092 /* TCTIDispatchPreservationTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 59D30BBBC7E7B8CA0A7CA398 /* TCTIDispatchPreservationTests.m */; };
 		B26C30CBD487898F0FBB2FFA /* prof.c in Sources */ = {isa = PBXBuildFile; fileRef = 1AA27F556BDBEFEDF25D866A /* prof.c */; };
 		B32F44444F0F310FCB1CE62A /* tcti_boundary_probe.S in Sources */ = {isa = PBXBuildFile; fileRef = 068AA8F977A265267A8A0DE6 /* tcti_boundary_probe.S */; };
+		B3F437920C4F4F38432CB6B1 /* GuestStaticELFExecutionTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 78CA2A1EB924CE37C7E7967F /* GuestStaticELFExecutionTests.m */; };
 		B681F436AF8AC491EC0CF985 /* TCTIDecodeTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 9260880B995F6DCF3C495BAB /* TCTIDecodeTests.m */; };
 		BB1E301BAA9164551A4972F1 /* fake-migrate.c in Sources */ = {isa = PBXBuildFile; fileRef = 66B55278A6F455CD86FA1E30 /* fake-migrate.c */; };
 		BBACE404D1EB0BA0188FA07A /* Terminal.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = DEB92121576D4AEDE60387FE /* Terminal.storyboard */; };
+		BCF6BA81CA3AFC77DEC386CB /* TCTIHotPathPerfTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 54DD0FE05BEB4DA03DBD0492 /* TCTIHotPathPerfTests.m */; };
 		BE1A7829E45C3A907B2A6EEC /* epoll.c in Sources */ = {isa = PBXBuildFile; fileRef = EA49A5BFC07A8BD335EB6A3B /* epoll.c */; };
 		BF594D91E673D17AAE09FA60 /* gadgets_math.c in Sources */ = {isa = PBXBuildFile; fileRef = A9413345D0262B3D60508916 /* gadgets_math.c */; };
 		C0786A0B9A7798EC0C3A7F1C /* tls.c in Sources */ = {isa = PBXBuildFile; fileRef = 327D2604BFC3ABFFF1B4AD50 /* tls.c */; };
@@ -193,6 +198,7 @@
 		E6334925F3EA702CDF9CD266 /* mount.c in Sources */ = {isa = PBXBuildFile; fileRef = 1BAC36C3E8433F56993940C3 /* mount.c */; };
 		E69D8222686D054968EFEDAB /* dollarblock1.png in Resources */ = {isa = PBXBuildFile; fileRef = 0C4448FC15BAC204BDE6ECE7 /* dollarblock1.png */; };
 		E7AEE886630E687B86A51225 /* UpgradeRootViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = EBE33B72E729E5528AC3593C /* UpgradeRootViewController.m */; };
+		E848C05CFDC98D16CBE0349D /* TerminalIOPerfTests.m in Sources */ = {isa = PBXBuildFile; fileRef = CF96A3EACFB49BC1204323DC /* TerminalIOPerfTests.m */; };
 		E8EEF2D28C799AA16EE4712C /* generic.c in Sources */ = {isa = PBXBuildFile; fileRef = FB729DB1B9FB41A3F3BDD112 /* generic.c */; };
 		E93CDE0D5A8A21FB18C48959 /* README.generated.md in Resources */ = {isa = PBXBuildFile; fileRef = C7FB05C896D845C6AA5F1398 /* README.generated.md */; };
 		EE0AF117E54170777216140B /* timer.c in Sources */ = {isa = PBXBuildFile; fileRef = E1491C7C24DA49C49F35F53E /* timer.c */; };
@@ -206,6 +212,7 @@
 		F5F212C3FBB09FF7692BABA6 /* CurrentRoot.m in Sources */ = {isa = PBXBuildFile; fileRef = 66E044EE446656D301B91678 /* CurrentRoot.m */; };
 		F652BA3371C9B1F933E4C591 /* fetch.c in Sources */ = {isa = PBXBuildFile; fileRef = E1B7A6EBCCDC6B4EAC856FA8 /* fetch.c */; };
 		F914C3E7ADAD7D8C48668623 /* task.c in Sources */ = {isa = PBXBuildFile; fileRef = 59A2E8A5B12BEC93A911DDCA /* task.c */; };
+		F960C579FD8B13A685D3BFF5 /* GuestELFHeaderTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 9463A1DBA325E8C92B937FBD /* GuestELFHeaderTests.m */; };
 		F96C854DF31BCCCA15BDE4F3 /* init.c in Sources */ = {isa = PBXBuildFile; fileRef = 7331A2AFB857A36FE4667A3D /* init.c */; };
 		FB78987CD8E43BCEF1AA9E22 /* IXLandInstrumentationBridge in Frameworks */ = {isa = PBXBuildFile; productRef = AB6645A8D5048403595F3FAB /* IXLandInstrumentationBridge */; };
 		FBDDA0C2616761F657EE6907 /* libIXLandLinuxRuntime.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CB26B1B5D3A91542EDE0757A /* libIXLandLinuxRuntime.a */; };
@@ -293,6 +300,7 @@
 		00E247A1AF5565D32D1F693C /* mem_object.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = mem_object.c; sourceTree = "<group>"; };
 		0199A4C9D9A66E0808DEC9F9 /* elf.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = elf.h; sourceTree = "<group>"; };
 		024636658B35E9B5A01BA876 /* ViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ViewController.h; sourceTree = "<group>"; };
+		024F148C3D410A1A69FB197B /* GuestRuntimeCorePerfTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GuestRuntimeCorePerfTests.m; sourceTree = "<group>"; };
 		02DFAE52B46760351A2F6BF3 /* root.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = root.c; sourceTree = "<group>"; };
 		048313195AEDB16A566122F3 /* reworked.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = reworked.png; sourceTree = "<group>"; };
 		04DA2D6ED191BA50AC921EF9 /* ArrowBarButton.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ArrowBarButton.m; sourceTree = "<group>"; };
@@ -378,6 +386,7 @@
 		413013AD1B96BB4B80FE5BD6 /* Aarch64EmulatorTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Aarch64EmulatorTests.m; sourceTree = "<group>"; };
 		41649A6F845DAB672C98138E /* pipe.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = pipe.c; sourceTree = "<group>"; };
 		41B77713EFE053335D828EF9 /* UserPreferences.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = UserPreferences.h; sourceTree = "<group>"; };
+		41B7C6E98AAE5F0F682C8F33 /* GuestStaticELFExecutionBoundary.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GuestStaticELFExecutionBoundary.m; sourceTree = "<group>"; };
 		41C916EF6FD504EBE1ADDBB2 /* frame.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = frame.c; sourceTree = "<group>"; };
 		428D8399AF8590DECB1DF3B1 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		428F3DBBCE27053693473529 /* Terminal.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Terminal.h; sourceTree = "<group>"; };
@@ -397,6 +406,7 @@
 		522555FC14ED380F4FEEF320 /* TCTILoweringTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TCTILoweringTests.m; sourceTree = "<group>"; };
 		5241603834241B17080250AE /* fakefs.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = fakefs.c; sourceTree = "<group>"; };
 		535EB74BF370B42A897D0996 /* tcti_boundary_probe.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = tcti_boundary_probe.h; sourceTree = "<group>"; };
+		54DD0FE05BEB4DA03DBD0492 /* TCTIHotPathPerfTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TCTIHotPathPerfTests.m; sourceTree = "<group>"; };
 		5512387FF24FE4EA299BAAD0 /* uname.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = uname.c; sourceTree = "<group>"; };
 		563C027415F57AB6BE3EB3A3 /* term.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = term.js; sourceTree = "<group>"; };
 		57A2FBD22A8A181950AED401 /* SceneDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SceneDelegate.m; sourceTree = "<group>"; };
@@ -433,6 +443,7 @@
 		6C91A4FC557D58529C3598BA /* Icons.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Icons.plist; sourceTree = "<group>"; };
 		6D20515B229501D151828731 /* errno.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = errno.h; sourceTree = "<group>"; };
 		6DA67ABA20A219DAC9E10E86 /* page_map.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = page_map.h; sourceTree = "<group>"; };
+		6E958AE23214162DB59253CF /* GuestELFLoaderFixtureTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GuestELFLoaderFixtureTests.m; sourceTree = "<group>"; };
 		6F2AF854AD7F8B71BED49E91 /* resource.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = resource.c; sourceTree = "<group>"; };
 		6F7505C93FB34163BAF32949 /* cpu.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = cpu.h; sourceTree = "<group>"; };
 		70022BEE8187389F8A5E5755 /* AppGroup.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppGroup.h; sourceTree = "<group>"; };
@@ -442,6 +453,7 @@
 		7411CFB551DB123C72DAC0C8 /* mmu.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = mmu.h; sourceTree = "<group>"; };
 		74E556C02DC6EE1130DE6E5C /* vdso.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = vdso.c; sourceTree = "<group>"; };
 		76C2387C73F32CB995484DD4 /* exec.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = exec.c; sourceTree = "<group>"; };
+		78CA2A1EB924CE37C7E7967F /* GuestStaticELFExecutionTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GuestStaticELFExecutionTests.m; sourceTree = "<group>"; };
 		78E9321F3DA991E1C76868BA /* Project.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Project.xcconfig; sourceTree = "<group>"; };
 		79402FD2B1A05AFE140A4C65 /* ish.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ish.h; sourceTree = "<group>"; };
 		7953E9394978DAA5A6AF04BD /* TerminalView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TerminalView.m; sourceTree = "<group>"; };
@@ -483,6 +495,7 @@
 		9260880B995F6DCF3C495BAB /* TCTIDecodeTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TCTIDecodeTests.m; sourceTree = "<group>"; };
 		92C08C746BF95B04C3730337 /* gen.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = gen.h; sourceTree = "<group>"; };
 		933EE1B812B704FE74231B36 /* UIViewController+Extras.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "UIViewController+Extras.m"; sourceTree = "<group>"; };
+		9463A1DBA325E8C92B937FBD /* GuestELFHeaderTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GuestELFHeaderTests.m; sourceTree = "<group>"; };
 		954C8EF99EE722854A1164D5 /* iOSFS.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = iOSFS.h; sourceTree = "<group>"; };
 		96E2E9417EEA0EDE1B4050C2 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
 		97DB252437E128B0AC5E308F /* fd.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = fd.c; sourceTree = "<group>"; };
@@ -546,6 +559,7 @@
 		CA643CDA4E6818A13394D374 /* PasteboardDevice.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PasteboardDevice.h; sourceTree = "<group>"; };
 		CB26B1B5D3A91542EDE0757A /* libIXLandLinuxRuntime.a */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = archive.ar; path = libIXLandLinuxRuntime.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		CC4088DCE54E3E3181972999 /* vma.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = vma.c; sourceTree = "<group>"; };
+		CF96A3EACFB49BC1204323DC /* TerminalIOPerfTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TerminalIOPerfTests.m; sourceTree = "<group>"; };
 		D0EBFD679F4BC3C899E473F7 /* freeiosterminal.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = freeiosterminal.png; sourceTree = "<group>"; };
 		D470AFC0C8F201EDE54EDE83 /* fake-rebuild.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "fake-rebuild.c"; sourceTree = "<group>"; };
 		D4C87D76E80D8DE18E470588 /* UserPreferences.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = UserPreferences.m; sourceTree = "<group>"; };
@@ -834,6 +848,7 @@
 		57B5AC6714138C65B93C4E63 /* TCTIHotPath */ = {
 			isa = PBXGroup;
 			children = (
+				54DD0FE05BEB4DA03DBD0492 /* TCTIHotPathPerfTests.m */,
 			);
 			path = TCTIHotPath;
 			sourceTree = "<group>";
@@ -899,6 +914,7 @@
 		663C505D2F457D72F927D739 /* TerminalIO */ = {
 			isa = PBXGroup;
 			children = (
+				CF96A3EACFB49BC1204323DC /* TerminalIOPerfTests.m */,
 			);
 			path = TerminalIO;
 			sourceTree = "<group>";
@@ -1011,6 +1027,15 @@
 				69D8BC8A36592730277BA6D5 /* timer.h */,
 			);
 			path = util;
+			sourceTree = "<group>";
+		};
+		9C58A6E3D3124B878054DA4B /* Execution */ = {
+			isa = PBXGroup;
+			children = (
+				41B7C6E98AAE5F0F682C8F33 /* GuestStaticELFExecutionBoundary.m */,
+				78CA2A1EB924CE37C7E7967F /* GuestStaticELFExecutionTests.m */,
+			);
+			path = Execution;
 			sourceTree = "<group>";
 		};
 		A2DBD5E39D5115818F6C5AB2 /* Decode */ = {
@@ -1339,6 +1364,7 @@
 			children = (
 				F2930539F4C11084D41A4056 /* BringupMatrix */,
 				F9535807942D3C230335039B /* ELFLoader */,
+				9C58A6E3D3124B878054DA4B /* Execution */,
 				57F7DA23B3A89E1BE7EBA8F1 /* MemoryManagement */,
 				A50DD3F22D4CFF341B10957E /* ProcessABI */,
 				AC74213F865C49AB257F685A /* SyscallCore */,
@@ -1423,6 +1449,8 @@
 		F9535807942D3C230335039B /* ELFLoader */ = {
 			isa = PBXGroup;
 			children = (
+				9463A1DBA325E8C92B937FBD /* GuestELFHeaderTests.m */,
+				6E958AE23214162DB59253CF /* GuestELFLoaderFixtureTests.m */,
 				5F8F1A234A09E55DBE066430 /* GuestELFLoaderTests.m */,
 			);
 			path = ELFLoader;
@@ -1439,6 +1467,7 @@
 		FFC3FADDD1AEDC051B80C86C /* GuestRuntimeCore */ = {
 			isa = PBXGroup;
 			children = (
+				024F148C3D410A1A69FB197B /* GuestRuntimeCorePerfTests.m */,
 			);
 			path = GuestRuntimeCore;
 			sourceTree = "<group>";
@@ -1719,7 +1748,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -eu\nROOTFS_OUT=\"${DERIVED_FILE_DIR}/root.tar.gz\"\nTMP_OUT=\"${ROOTFS_OUT}.tmp\"\nROOTFS_SOURCE_URL=\"${ROOTFS_URL:-https://dl-cdn.alpinelinux.org/alpine/v3.23/releases/aarch64/alpine-minirootfs-3.23.3-aarch64.tar.gz}\"\nif [ -s \"$ROOTFS_OUT\" ]; then\n  gzip -t \"$ROOTFS_OUT\"\nelse\n  rm -f \"$TMP_OUT\"\n  curl --fail --location --silent --show-error \"$ROOTFS_SOURCE_URL\" --output \"$TMP_OUT\"\n  gzip -t \"$TMP_OUT\"\n  mv \"$TMP_OUT\" \"$ROOTFS_OUT\"\nfi\ncp -f \"$ROOTFS_OUT\" \"${TARGET_BUILD_DIR}/${WRAPPER_NAME}/root.tar.gz\"\n";
+			shellScript = "set -eu\nROOTFS_OUT=\"${DERIVED_FILE_DIR}/root.tar.gz\"\nTMP_OUT=\"${ROOTFS_OUT}.tmp\"\nROOTFS_SOURCE_URL=\"${ROOTFS_URL:-https://dl-cdn.alpinelinux.org/alpine/v3.23/releases/aarch64/alpine-minirootfs-3.23.3-aarch64.tar.gz}\"\nif [ -s \"$ROOTFS_OUT\" ]; then\n    gzip -t \"$ROOTFS_OUT\"\nelse\n    rm -f \"$TMP_OUT\"\n    curl --fail --location --silent --show-error \"$ROOTFS_SOURCE_URL\" --output \"$TMP_OUT\"\n    gzip -t \"$TMP_OUT\"\n    mv \"$TMP_OUT\" \"$ROOTFS_OUT\"\nfi\ncp -f \"$ROOTFS_OUT\" \"${TARGET_BUILD_DIR}/${WRAPPER_NAME}/root.tar.gz\"\n";
 		};
 		7493D492729D3A602B5D2E1B /* Generate mach_excServer */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -1795,9 +1824,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				6DDD59ED1A15E30C8F122CCA /* GuestBringupMatrixTests.m in Sources */,
+				F960C579FD8B13A685D3BFF5 /* GuestELFHeaderTests.m in Sources */,
+				49A961AC130225BF1ED2F64D /* GuestELFLoaderFixtureTests.m in Sources */,
 				A9846D19742F5361CB43E6D2 /* GuestELFLoaderTests.m in Sources */,
 				CBBF7D9620910717A9D4878D /* GuestMemoryManagementTests.m in Sources */,
 				429084F7E08EEA3ED2214991 /* GuestProcessABITests.m in Sources */,
+				9C51BAD704D80346D90DDE7D /* GuestStaticELFExecutionBoundary.m in Sources */,
+				B3F437920C4F4F38432CB6B1 /* GuestStaticELFExecutionTests.m in Sources */,
 				A6EB7DD632F945356C81FF98 /* GuestSyscallCoreTests.m in Sources */,
 				2E464A6E6EF763006B977050 /* GuestTerminalRuntimeTests.m in Sources */,
 				3872CD1835B680EFCA34A729 /* GuestThreadSignalTLSTests.m in Sources */,
@@ -1939,6 +1972,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				62D925E0339D28DAE02378D5 /* GuestRuntimeCorePerfTests.m in Sources */,
+				BCF6BA81CA3AFC77DEC386CB /* TCTIHotPathPerfTests.m in Sources */,
+				E848C05CFDC98D16CBE0349D /* TerminalIOPerfTests.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
