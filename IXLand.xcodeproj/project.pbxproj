@@ -192,7 +192,6 @@
 		D9DD89DAC927540EAD917D3E /* exec.c in Sources */ = {isa = PBXBuildFile; fileRef = 76C2387C73F32CB995484DD4 /* exec.c */; };
 		DB4F1B4864F9809782F01447 /* mem.c in Sources */ = {isa = PBXBuildFile; fileRef = 384D4E240AC5A70AAA5746C3 /* mem.c */; };
 		DB8C167C778EF8F00BDC7ADD /* hook.c in Sources */ = {isa = PBXBuildFile; fileRef = 38178F3DC3959DE00848B27E /* hook.c */; };
-		DBB09BADC519437C6C92DC52 /* dynamic_ptinterp_sample.elf in Resources */ = {isa = PBXBuildFile; fileRef = 2EBCAC10E6D11D00C50C0223 /* dynamic_ptinterp_sample.elf */; };
 		DC52F78BE94B3399F9531EAC /* proc.c in Sources */ = {isa = PBXBuildFile; fileRef = 1FBED050A43F65C2FBD47ABC /* proc.c */; };
 		DC5B93CA8FEBCD41F381A18D /* TerminalView.m in Sources */ = {isa = PBXBuildFile; fileRef = 7953E9394978DAA5A6AF04BD /* TerminalView.m */; };
 		DC72CFDDFF7EA7BE384F1BE1 /* pydann1.png in Resources */ = {isa = PBXBuildFile; fileRef = 3E160898B980B2A313FD013C /* pydann1.png */; };
@@ -203,7 +202,6 @@
 		E1EBA5566F786ED0F099FAE1 /* BarButton.m in Sources */ = {isa = PBXBuildFile; fileRef = 811128E064EC055089670308 /* BarButton.m */; };
 		E1FC566C26CC43062EA69330 /* libxml2.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 8A02C624D84627F688438977 /* libxml2.tbd */; };
 		E237B6C521C0261694F9FE1E /* signal.c in Sources */ = {isa = PBXBuildFile; fileRef = 2D9B042769BC68C96065E897 /* signal.c */; };
-		E34E3E87A4531B858D3A57A8 /* dynamic_ptinterp_sample.elf in Resources */ = {isa = PBXBuildFile; fileRef = 2EBCAC10E6D11D00C50C0223 /* dynamic_ptinterp_sample.elf */; };
 		E3A367FD55D16DF346C24CB1 /* inode.c in Sources */ = {isa = PBXBuildFile; fileRef = 17BDD7720CA57F72AA94E121 /* inode.c */; };
 		E6334925F3EA702CDF9CD266 /* mount.c in Sources */ = {isa = PBXBuildFile; fileRef = 1BAC36C3E8433F56993940C3 /* mount.c */; };
 		E69D8222686D054968EFEDAB /* dollarblock1.png in Resources */ = {isa = PBXBuildFile; fileRef = 0C4448FC15BAC204BDE6ECE7 /* dollarblock1.png */; };
@@ -367,7 +365,6 @@
 		2D8403306F7321F6B8F9488F /* sockrestart.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sockrestart.c; sourceTree = "<group>"; };
 		2D9B042769BC68C96065E897 /* signal.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = signal.c; sourceTree = "<group>"; };
 		2DAD7F4348E51CEA7064F262 /* lock.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = lock.c; sourceTree = "<group>"; };
-		2EBCAC10E6D11D00C50C0223 /* dynamic_ptinterp_sample.elf */ = {isa = PBXFileReference; path = dynamic_ptinterp_sample.elf; sourceTree = "<group>"; };
 		2F6A8ED59E9711A7419B40E7 /* cpu.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = cpu.h; sourceTree = "<group>"; };
 		3095D128D0AC3C9D4251A2C2 /* RootsTableViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RootsTableViewController.h; sourceTree = "<group>"; };
 		3192ECDE55742AD4A5FB6D27 /* fd.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = fd.h; sourceTree = "<group>"; };
@@ -961,7 +958,6 @@
 		7C25A85C7D22B3976756CD40 /* ELF */ = {
 			isa = PBXGroup;
 			children = (
-				2EBCAC10E6D11D00C50C0223 /* dynamic_ptinterp_sample.elf */,
 				66269EDDFB1D201581D064CC /* static_bad_magic.bin */,
 				D463CED677710E2BE949EEDE /* static_minimal_aarch64_ok.elf */,
 				40C2A88B267444A581024B5D /* static_minimal_exec_ok.elf */,
@@ -1713,7 +1709,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				DBB09BADC519437C6C92DC52 /* dynamic_ptinterp_sample.elf in Resources */,
 				805105CE480CB3EE78F3038F /* static_bad_magic.bin in Resources */,
 				46E72D9D8D981A2A03825706 /* static_minimal_aarch64_ok.elf in Resources */,
 				6863A1EF0D3229412533A989 /* static_minimal_exec_ok.elf in Resources */,
@@ -1772,7 +1767,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E34E3E87A4531B858D3A57A8 /* dynamic_ptinterp_sample.elf in Resources */,
 				1E457A02883EE586EE059D42 /* static_bad_magic.bin in Resources */,
 				E1D138AE8FCC50606A199DE9 /* static_minimal_aarch64_ok.elf in Resources */,
 				5948FDB22A372F569528B0DC /* static_minimal_exec_ok.elf in Resources */,
