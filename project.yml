@@ -103,11 +103,11 @@ targets:
       excludes:
       - "tcti_four_boundary.c"
       - "tcti_harness_truth.c"
-    resources:
     - path: Tests/Fixtures/ELF
       includes:
       - "*.elf"
       - "*.bin"
+      buildPhase: resources
     dependencies:
     - target: IXLandTerminal
     - target: IXLandLinuxRuntime
@@ -131,11 +131,11 @@ targets:
       excludes:
       - "**/DISABLED/**"
       - "*.md"
-    resources:
     - path: Tests/Fixtures/ELF
       includes:
       - "*.elf"
       - "*.bin"
+      buildPhase: resources
     dependencies:
     - target: IXLandTerminal
     - target: IXLandLinuxRuntime
