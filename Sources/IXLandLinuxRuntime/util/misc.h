@@ -99,29 +99,31 @@ static inline void __use(int dummy __attribute__((unused)), ...) {}
 // AArch64 Linux guest address type - always 64-bit
 typedef uint64_t addr_t;
 
-// Legacy width aliases replaced with explicit fixed-width types for AArch64
+// Signed 64-bit for Linux syscall return values (used internally)
 typedef int64_t sqword_t;
+
+// Legacy width aliases - kept for backward compatibility during migration
+// New code should use explicit uint64_t/int64_t/uint32_t/int32_t directly
 typedef uint64_t qword_t;
 typedef uint32_t dword_t;
 typedef int32_t sdword_t;
 typedef uint16_t word_t;
 typedef uint8_t byte_t;
-
 typedef uint64_t uint_t;
 typedef int64_t int_t;
 
 // AArch64 Linux ABI typedefs for guest-visible boundaries
-// Linux AArch64: pid_t is int32_t
+// Linux AArch64 LP64: pid_t is int32_t
 typedef int32_t pid_t_;
-// Linux AArch64: uid_t is uint32_t
+// Linux AArch64 LP64: uid_t is uint32_t
 typedef uint32_t uid_t_;
-// Linux AArch64: mode_t is uint32_t
+// Linux AArch64 LP64: mode_t is uint32_t
 typedef uint32_t mode_t_;
-// Linux AArch64: off_t is signed 64-bit
+// Linux AArch64 LP64: off_t is signed 64-bit
 typedef int64_t off_t_;
-// Linux AArch64: time_t is signed 64-bit (time_t is 64-bit on AArch64 LP64)
+// Linux AArch64 LP64: time_t is signed 64-bit
 typedef int64_t time_t_;
-// Linux AArch64: clock_t is unsigned 64-bit
+// Linux AArch64 LP64: clock_t is unsigned 64-bit
 typedef uint64_t clock_t_;
 
 #define uint(size) glue3(uint, size, _t)
