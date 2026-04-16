@@ -18,7 +18,9 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface Roots : NSObject
 
-+ (instancetype)instance;
+// Factory methods
++ (instancetype)instance; // Production: uses App Group container
++ (instancetype)instanceWithRootsDirectory:(NSURL *)rootsDirectory; // Test: inject local path
 
 @property (readonly) NSOrderedSet<NSString *> *roots;
 @property NSString *defaultRoot;
