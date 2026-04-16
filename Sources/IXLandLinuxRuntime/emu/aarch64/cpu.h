@@ -40,10 +40,10 @@ int a64_execute_ldst(struct cpu_state *cpu, struct tlb *tlb, const a64_instr_t *
 //   bN: 8-bit (byte)
 union vec_reg {
     __int128 q;
-    qword_t d[2];
-    dword_t s[4];
-    word_t h[8];
-    byte_t b[16];
+    uint64_t d[2];
+    uint32_t s[4];
+    uint16_t h[8];
+    uint8_t b[16];
     float f32[4];
     double f64[2];
 };
@@ -56,18 +56,18 @@ struct cpu_state {
 
     // 31 general-purpose registers (x0-x30)
     // Note: x31 is not a real register (it's either SP or XZR depending on context)
-    qword_t x[31];
+    uint64_t x[31];
 
     // Stack pointer - can be different from x31 accesses
-    qword_t sp;
+    uint64_t sp;
 
     // Program counter
-    qword_t pc;
+    uint64_t pc;
 
     // Processor State (PSTATE) - condition flags and other state
     // N, Z, C, V flags are in bits 31:28 of PSTATE when viewed as CPSR
     union {
-        qword_t pstate;
+        uint64_t pstate;
         struct {
             // Bits 0-27: Various control bits, mostly unused in user space
             bitfield _pad0 : 28;
@@ -90,15 +90,15 @@ struct cpu_state {
 
     // Floating Point Control Register (FPCR)
     // Controls FP rounding mode, exceptions, etc.
-    dword_t fpcr;
+    uint32_t fpcr;
 
     // Floating Point Status Register (FPSR)
     // Records FP exceptions and condition flags
-    dword_t fpsr;
+    uint32_t fpsr;
 
     // Thread Local Storage register
     // TPIDR_EL0 - holds thread pointer for user space
-    qword_t tpidr_el0;
+    uint64_t tpidr_el0;
 
     // Memory access info for page faults
     addr_t fault_addr;
@@ -323,30 +323,30 @@ static inline const char *reg64_name(enum reg64 reg)
 }
 
 // Helper to get/set xN or wN (32-bit view of register)
-static inline qword_t get_xn(struct cpu_state *cpu, int n)
+static inline uint64_t get_xn(struct cpu_state *cpu, int n)
 {
     if (n >= 0 && n < 31)
         return cpu->x[n];
     return 0;
 }
 
-static inline void set_xn(struct cpu_state *cpu, int n, qword_t val)
+static inline void set_xn(struct cpu_state *cpu, int n, uint64_t val)
 {
     if (n >= 0 && n < 31)
         cpu->x[n] = val;
 }
 
-static inline dword_t get_wn(struct cpu_state *cpu, int n)
+static inline uint32_t get_wn(struct cpu_state *cpu, int n)
 {
     if (n >= 0 && n < 31)
-        return (dword_t)cpu->x[n];
+        return (uint32_t)cpu->x[n];
     return 0;
 }
 
-static inline void set_wn(struct cpu_state *cpu, int n, dword_t val)
+static inline void set_wn(struct cpu_state *cpu, int n, uint32_t val)
 {
     if (n >= 0 && n < 31)
-        cpu->x[n] = (qword_t)val; // Zero extend to 64-bit
+        cpu->x[n] = (uint64_t)val; // Zero extend to 64-bit
 }
 
 // Condition flag helpers matching NZCV layout
@@ -356,14 +356,14 @@ static inline void set_wn(struct cpu_state *cpu, int n, dword_t val)
 #define A64_V (cpu->v)
 
 // Update all flags from result
-static inline void set_nzcv(struct cpu_state *cpu, qword_t result, int is_64bit)
+static inline void set_nzcv(struct cpu_state *cpu, uint64_t result, int is_64bit)
 {
     cpu->z = (result == 0);
     cpu->n = is_64bit ? (result >> 63) & 1 : (result >> 31) & 1;
 }
 
 // Set flags for logical operations (N, Z from result, C/V unchanged)
-static inline void set_nz_logical(struct cpu_state *cpu, qword_t result, int is_64bit)
+static inline void set_nz_logical(struct cpu_state *cpu, uint64_t result, int is_64bit)
 {
     cpu->z = (result == 0);
     cpu->n = is_64bit ? (result >> 63) & 1 : (result >> 31) & 1;
@@ -371,8 +371,8 @@ static inline void set_nz_logical(struct cpu_state *cpu, qword_t result, int is_
 }
 
 // Set flags for arithmetic operations
-static inline void set_nzcv_arith(struct cpu_state *cpu, qword_t result, qword_t op1, qword_t op2,
-                                  int is_add, int is_64bit)
+static inline void set_nzcv_arith(struct cpu_state *cpu, uint64_t result, uint64_t op1,
+                                  uint64_t op2, int is_add, int is_64bit)
 {
     cpu->z = (result == 0);
     cpu->n = is_64bit ? (result >> 63) & 1 : (result >> 31) & 1;
@@ -389,9 +389,9 @@ static inline void set_nzcv_arith(struct cpu_state *cpu, qword_t result, qword_t
         }
     } else {
         // 32-bit operations
-        dword_t r32 = (dword_t)result;
-        dword_t a32 = (dword_t)op1;
-        dword_t b32 = (dword_t)op2;
+        uint32_t r32 = (uint32_t)result;
+        uint32_t a32 = (uint32_t)op1;
+        uint32_t b32 = (uint32_t)op2;
         if (is_add) {
             cpu->c = (r32 < a32);
             cpu->v = ((~(a32 ^ b32) & (a32 ^ r32)) >> 31) & 1;

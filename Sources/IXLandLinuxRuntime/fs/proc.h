@@ -10,7 +10,7 @@ struct proc_entry {
     char **child_names;
     char *name;
     pid_t_ pid;
-    sdword_t fd; // typedef might not have been read yet
+    int32_t fd;
 };
 
 struct proc_data {
@@ -22,25 +22,25 @@ struct proc_data {
 struct proc_dir_entry {
     const char *name;
     mode_t_ mode;
-    
+
     // file with dynamic name
     void (*getname)(struct proc_entry *entry, char *buf);
 
     // file with custom show data function
     int (*show)(struct proc_entry *entry, struct proc_data *data);
-    
+
     // file with a custom write function
     int (*update)(struct proc_entry *entry, struct proc_data *data);
-    
+
     // file with custom pread functionality
     ssize_t (*pread)(struct proc_entry *entry, struct proc_data *data, off_t off);
-    
+
     // file with custom pwrite functionality
     ssize_t (*pwrite)(struct proc_entry *entry, struct proc_data *data, off_t off);
 
     // symlink
     int (*readlink)(struct proc_entry *entry, char *buf);
-    
+
     // remove
     int (*unlink)(struct proc_entry *entry);
 
@@ -59,7 +59,9 @@ struct proc_children {
     struct proc_dir_entry entries[];
 };
 
-#define PROC_CHILDREN(...) { .count = sizeof((struct proc_dir_entry[])__VA_ARGS__) / sizeof(struct proc_dir_entry), .entries = __VA_ARGS__ }
+#define PROC_CHILDREN(...)                                                                         \
+    { .count = sizeof((struct proc_dir_entry[])__VA_ARGS__) / sizeof(struct proc_dir_entry),       \
+      .entries = __VA_ARGS__ }
 
 extern struct proc_dir_entry proc_root;
 extern struct proc_dir_entry proc_pid;

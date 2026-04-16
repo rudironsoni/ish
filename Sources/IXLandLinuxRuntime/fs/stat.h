@@ -4,78 +4,78 @@
 #import <IXLandLinuxRuntime/util/misc.h>
 
 struct statbuf {
-    qword_t dev;
-    qword_t inode;
-    dword_t mode;
-    dword_t nlink;
-    dword_t uid;
-    dword_t gid;
-    qword_t rdev;
-    qword_t size;
-    dword_t blksize;
-    qword_t blocks;
-    dword_t atime;
-    dword_t atime_nsec;
-    dword_t mtime;
-    dword_t mtime_nsec;
-    dword_t ctime;
-    dword_t ctime_nsec;
+    uint64_t dev;
+    uint64_t inode;
+    uint32_t mode;
+    uint32_t nlink;
+    uint32_t uid;
+    uint32_t gid;
+    uint64_t rdev;
+    uint64_t size;
+    uint32_t blksize;
+    uint64_t blocks;
+    uint32_t atime;
+    uint32_t atime_nsec;
+    uint32_t mtime;
+    uint32_t mtime_nsec;
+    uint32_t ctime;
+    uint32_t ctime_nsec;
 };
 
 struct oldstat {
-    word_t dev;
-    word_t ino;
-    word_t mode;
-    word_t nlink;
-    word_t uid;
-    word_t gid;
-    word_t rdev;
-    uint_t size;
-    uint_t atime;
-    uint_t mtime;
-    uint_t ctime;
+    uint16_t dev;
+    uint16_t ino;
+    uint16_t mode;
+    uint16_t nlink;
+    uint16_t uid;
+    uint16_t gid;
+    uint16_t rdev;
+    uint64_t size;
+    uint64_t atime;
+    uint64_t mtime;
+    uint64_t ctime;
 };
 
 struct newstat {
-    dword_t dev;
-    dword_t ino;
-    word_t mode;
-    word_t nlink;
-    word_t uid;
-    word_t gid;
-    dword_t rdev;
-    dword_t size;
-    dword_t blksize;
-    dword_t blocks;
-    dword_t atime;
-    dword_t atime_nsec;
-    dword_t mtime;
-    dword_t mtime_nsec;
-    dword_t ctime;
-    dword_t ctime_nsec;
+    uint32_t dev;
+    uint32_t ino;
+    uint16_t mode;
+    uint16_t nlink;
+    uint16_t uid;
+    uint16_t gid;
+    uint32_t rdev;
+    uint32_t size;
+    uint32_t blksize;
+    uint32_t blocks;
+    uint32_t atime;
+    uint32_t atime_nsec;
+    uint32_t mtime;
+    uint32_t mtime_nsec;
+    uint32_t ctime;
+    uint32_t ctime_nsec;
     char pad[8];
 };
 
 struct newstat64 {
-    qword_t dev;
-    dword_t _pad1;
-    dword_t fucked_ino;
-    dword_t mode;
-    dword_t nlink;
-    dword_t uid;
-    dword_t gid;
-    qword_t rdev;
-    dword_t _pad2;
-    qword_t size;
-    dword_t blksize;
-    qword_t blocks;
-    dword_t atime;
-    dword_t atime_nsec;
-    dword_t mtime;
-    dword_t mtime_nsec;
-    dword_t ctime;
-    dword_t ctime_nsec;
-    qword_t ino;
+    uint64_t dev;
+    uint32_t _pad1;
+    uint32_t fucked_ino;
+    uint32_t mode;
+    uint32_t nlink;
+    uint32_t uid;
+    uint32_t gid;
+    uint64_t rdev;
+    uint32_t _pad2;
+    uint64_t size;
+    uint32_t blksize;
+    uint64_t blocks;
+    uint32_t atime;
+    uint32_t atime_nsec;
+    uint32_t mtime;
+    uint32_t mtime_nsec;
+    uint32_t ctime;
+    uint32_t ctime_nsec;
+    uint64_t ino;
 } __attribute__((packed));
 
 struct statfsbuf {
@@ -94,33 +94,33 @@ struct statfsbuf {
 };
 
 struct statfs_ {
-    uint_t type;
-    uint_t bsize;
-    uint_t blocks;
-    uint_t bfree;
-    uint_t bavail;
-    uint_t files;
-    uint_t ffree;
-    uint64_t fsid;
-    uint_t namelen;
-    uint_t frsize;
-    uint_t flags;
-    uint_t spare[4];
-} __attribute__((packed));
-
-struct statfs64_ {
-    uint_t type;
-    uint_t bsize;
+    uint64_t type;
+    uint64_t bsize;
     uint64_t blocks;
     uint64_t bfree;
     uint64_t bavail;
     uint64_t files;
     uint64_t ffree;
     uint64_t fsid;
-    uint_t namelen;
-    uint_t frsize;
-    uint_t flags;
-    uint_t pad[4];
+    uint64_t namelen;
+    uint64_t frsize;
+    uint64_t flags;
+    uint64_t spare[4];
+} __attribute__((packed));
+
+struct statfs64_ {
+    uint64_t type;
+    uint64_t bsize;
+    uint64_t blocks;
+    uint64_t bfree;
+    uint64_t bavail;
+    uint64_t files;
+    uint64_t ffree;
+    uint64_t fsid;
+    uint64_t namelen;
+    uint64_t frsize;
+    uint64_t flags;
+    uint64_t pad[4];
 } __attribute__((packed));
 
 struct statx_timestamp_ {

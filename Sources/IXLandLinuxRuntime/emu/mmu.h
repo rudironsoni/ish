@@ -24,8 +24,8 @@
 #define PAGE_ROUND_UP(bytes) (PAGE((bytes) + PAGE_SIZE - 1))
 
 /* Page and address types - all 64-bit */
-typedef qword_t page_t;
-typedef qword_t pages_t; /* Was dword_t (uint32_t) -- widened for 64-bit */
+typedef uint64_t page_t;
+typedef uint64_t pages_t;
 
 /* Sentinel for "no page found" -- outside valid VA range */
 #define BAD_PAGE ((page_t)~0ULL)

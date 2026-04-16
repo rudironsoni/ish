@@ -92,27 +92,14 @@
 static inline void __use(int dummy __attribute__((unused)), ...) {}
 #define use(...) __use(0, ##__VA_ARGS__)
 
-#if defined(__x86_64__)
-#define rdtsc()                                                                                    \
-    ({                                                                                             \
-        uint32_t low, high;                                                                        \
-        __asm__ volatile("rdtsc" : "=a"(high), "=d"(low));                                         \
-        ((uint64_t)high) << 32 | low;                                                              \
-    })
-#elif defined(__arm64__) || defined(__aarch64__)
-#define rdtsc()                                                                                    \
-    ({                                                                                             \
-        uint64_t tsc;                                                                              \
-        __asm__ volatile("mrs %0, PMCCNTR_EL0" : "=r"(tsc));                                       \
-        tsc;                                                                                       \
-    })
-#endif
-
 #ifndef __KERNEL__
 #define array_size(arr) (sizeof(arr) / sizeof((arr)[0]))
 #endif
 
-// types
+// AArch64 Linux guest address type - always 64-bit
+typedef uint64_t addr_t;
+
+// Legacy width aliases replaced with explicit fixed-width types for AArch64
 typedef int64_t sqword_t;
 typedef uint64_t qword_t;
 typedef uint32_t dword_t;
@@ -120,16 +107,22 @@ typedef int32_t sdword_t;
 typedef uint16_t word_t;
 typedef uint8_t byte_t;
 
-typedef qword_t addr_t;
-typedef qword_t uint_t;
-typedef sqword_t int_t;
+typedef uint64_t uint_t;
+typedef int64_t int_t;
 
-typedef sdword_t pid_t_;
-typedef dword_t uid_t_;
-typedef word_t mode_t_;
-typedef sqword_t off_t_;
-typedef dword_t time_t_;
-typedef dword_t clock_t_;
+// AArch64 Linux ABI typedefs for guest-visible boundaries
+// Linux AArch64: pid_t is int32_t
+typedef int32_t pid_t_;
+// Linux AArch64: uid_t is uint32_t
+typedef uint32_t uid_t_;
+// Linux AArch64: mode_t is uint32_t
+typedef uint32_t mode_t_;
+// Linux AArch64: off_t is signed 64-bit
+typedef int64_t off_t_;
+// Linux AArch64: time_t is signed 64-bit (time_t is 64-bit on AArch64 LP64)
+typedef int64_t time_t_;
+// Linux AArch64: clock_t is unsigned 64-bit
+typedef uint64_t clock_t_;
 
 #define uint(size) glue3(uint, size, _t)
 #define sint(size) glue3(int, size, _t)

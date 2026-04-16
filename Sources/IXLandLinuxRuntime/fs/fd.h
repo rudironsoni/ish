@@ -1,15 +1,16 @@
 #ifndef FD_H
 #define FD_H
-#include <dirent.h>
-#import <IXLandLinuxRuntime/kernel/memory.h>
-#import <IXLandLinuxRuntime/util/list.h>
-#import <IXLandLinuxRuntime/util/sync.h>
-#import <IXLandLinuxRuntime/util/bits.h>
-#import <IXLandLinuxRuntime/fs/stat.h>
 #import <IXLandLinuxRuntime/fs/proc.h>
 #import <IXLandLinuxRuntime/fs/sockrestart.h>
+#import <IXLandLinuxRuntime/fs/stat.h>
+#import <IXLandLinuxRuntime/kernel/memory.h>
+#import <IXLandLinuxRuntime/util/bits.h>
+#import <IXLandLinuxRuntime/util/list.h>
+#import <IXLandLinuxRuntime/util/sync.h>
+#include <dirent.h>
 
-// FIXME almost everything that uses the structs in this file does so without any kind of sane locking
+// FIXME almost everything that uses the structs in this file does so without any kind of sane
+// locking
 
 struct fd {
     atomic_uint refcount;
@@ -67,7 +68,7 @@ struct fd {
             // UIPasteboard.changeCount
             uint64_t generation;
             // Buffer for written data
-            void* buffer;
+            void *buffer;
             // its capacity
             size_t buffer_cap;
             // length of actual data stored in the buffer
@@ -96,11 +97,12 @@ struct fd {
 
     // fs/inode data
     struct mount *mount;
-    int real_fd; // seeks on this fd require the lock TODO think about making a special lock just for that
+    int real_fd; // seeks on this fd require the lock TODO think about making a special lock just
+                 // for that
     DIR *dir;
     struct inode_data *inode;
     ino_t fake_inode;
-    struct statbuf stat; // for adhoc fs
+    struct statbuf stat;               // for adhoc fs
     struct fd_sockrestart sockrestart; // argh
 
     // these are used for a variety of things related to the fd
@@ -108,7 +110,7 @@ struct fd {
     cond_t cond;
 };
 
-typedef sdword_t fd_t;
+typedef int32_t fd_t;
 #define AT_FDCWD_ -100
 
 struct fd *fd_create(const struct fd_ops *ops);
@@ -120,7 +122,7 @@ int fd_setflags(struct fd *fd, int flags);
 
 #define NAME_MAX 255
 struct dir_entry {
-    qword_t inode;
+    uint64_t inode;
     char name[NAME_MAX + 1];
 };
 
@@ -148,7 +150,8 @@ struct fd_ops {
     void (*seekdir)(struct fd *fd, unsigned long ptr);
 
     // map the file
-    int (*mmap)(struct fd *fd, struct mem *mem, page_t start, pages_t pages, off_t offset, int prot, int flags);
+    int (*mmap)(struct fd *fd, struct mem *mem, page_t start, pages_t pages, off_t offset, int prot,
+                int flags);
 
     // returns a bitmask of operations that won't block
     int (*poll)(struct fd *fd);
@@ -165,7 +168,7 @@ struct fd_ops {
     // handle F_GETFL, i.e. return open flags for this fd
     int (*getflags)(struct fd *fd);
     // handle F_SETFL, i.e. set O_NONBLOCK
-    int (*setflags)(struct fd *fd, dword_t arg);
+    int (*setflags)(struct fd *fd, uint32_t arg);
 };
 
 struct fdtable {
