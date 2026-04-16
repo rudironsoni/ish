@@ -13,12 +13,10 @@
 // Performance: TTY input buffer processing
 // Owner: fs/tty.c:tty_input
 - (void)testTTYInput_BufferProcessing {
-    char input[TTY_BUF_SIZE];
-    memset(input, 'A', sizeof(input));
-    
     [self measureBlock:^{
+        char input[TTY_BUF_SIZE];
+        memset(input, 'A', sizeof(input));
         for (int i = 0; i < 100; i++) {
-            // Simulate TTY input processing
             size_t processed = 0;
             for (size_t j = 0; j < TTY_BUF_SIZE; j++) {
                 if (input[j] != '\0') {
@@ -74,17 +72,13 @@
 // Performance: PTY master/slave data transfer
 // Owner: fs/pty.c
 - (void)testPTYBilateral_DataTransfer {
-    char buf[512];
-    memset(buf, 0, sizeof(buf));
-    
     [self measureBlock:^{
+        char buf[512];
+        memset(buf, 0, sizeof(buf));
         for (int i = 0; i < 500; i++) {
-            // Simulate PTY data transfer
             for (size_t j = 0; j < sizeof(buf); j++) {
                 buf[j] = (char)(i % 256);
             }
-            
-            // Simulate reading back
             size_t read = 0;
             for (size_t j = 0; j < sizeof(buf); j++) {
                 if (buf[j] != 0) {

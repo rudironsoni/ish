@@ -1,11 +1,11 @@
-#include <sys/stat.h>
-#include <string.h>
-#import <IXLandLinuxRuntime/kernel/task.h>
+#import <IXLandLinuxRuntime/fs/path.h>
 #import <IXLandLinuxRuntime/kernel/errno.h>
 #import <IXLandLinuxRuntime/kernel/fs.h>
-#import <IXLandLinuxRuntime/fs/path.h>
-#import <IXLandLinuxRuntime/util/refcount.h>
+#import <IXLandLinuxRuntime/kernel/task.h>
 #import <IXLandLinuxRuntime/util/debug.h>
+#import <IXLandLinuxRuntime/util/refcount.h>
+#include <string.h>
+#include <sys/stat.h>
 
 // ========================
 // ======== INODES ========
@@ -18,18 +18,19 @@ struct tmp_inode {
     struct statbuf stat;
     union {
         void *file_data;
-        //char *symlink_data;
+        // char *symlink_data;
     };
 };
 
-static struct tmp_inode *tmp_inode_new(mode_t_ mode) {
+static struct tmp_inode *tmp_inode_new(mode_t_ mode)
+{
     struct tmp_inode *node = malloc(sizeof(struct tmp_inode));
     if (node == NULL)
         return NULL;
     refcount_init(node);
     lock_init(&node->lock);
 
-    node->stat = (struct statbuf) {};
+    node->stat = (struct statbuf){};
     static _Atomic ino_t next_inode = 1;
     node->stat.inode = next_inode++;
 
@@ -48,7 +49,8 @@ static struct tmp_inode *tmp_inode_new(mode_t_ mode) {
 
 DEFINE_REFCOUNT_STATIC(tmp_inode)
 
-static void tmp_inode_cleanup(struct tmp_inode *inode) {
+static void tmp_inode_cleanup(struct tmp_inode *inode)
+{
     if (S_ISREG(inode->stat.mode)) {
         free(inode->file_data);
     }
@@ -75,22 +77,26 @@ struct tmp_dirent {
 
 DEFINE_REFCOUNT_STATIC(tmp_dirent)
 
-static void tmp_dirent_cleanup(struct tmp_dirent *dirent) {
+static void tmp_dirent_cleanup(struct tmp_dirent *dirent)
+{
     list_remove(&dirent->dir); // TODO locking thinking emoji
     tmp_inode_release(dirent->inode);
     free(dirent);
 }
 
-static void tmp_dirent_init(struct tmp_dirent *dirent) {
+static void tmp_dirent_init(struct tmp_dirent *dirent)
+{
     refcount_init(dirent);
     list_init(&dirent->children);
     dirent->next_index = 0;
     lock_init(&dirent->lock);
 }
 
-// Frees the child inode on failure, so you don't need to! But be careful you don't free it yourself.
-// In other words: Takes ownership of `child`
-static int tmpfs_dir_link(struct tmp_dirent *dir, const char *name, struct tmp_inode *child, struct tmp_dirent **dirent_out) {
+// Frees the child inode on failure, so you don't need to! But be careful you don't free it
+// yourself. In other words: Takes ownership of `child`
+static int tmpfs_dir_link(struct tmp_dirent *dir, const char *name, struct tmp_inode *child,
+                          struct tmp_dirent **dirent_out)
+{
     if (!S_ISDIR(dir->inode->stat.mode)) {
         tmp_inode_release(child);
         return _ENOTDIR;
@@ -113,7 +119,8 @@ static int tmpfs_dir_link(struct tmp_dirent *dir, const char *name, struct tmp_i
     return 0;
 }
 
-static void tmpfs_fd_seekdir(struct fd *fd, struct tmp_dirent *dirent) {
+static void tmpfs_fd_seekdir(struct fd *fd, struct tmp_dirent *dirent)
+{
     if (dirent != NULL)
         tmp_dirent_retain(dirent);
     if (fd->tmpfs.dir_pos != NULL)
@@ -121,12 +128,13 @@ static void tmpfs_fd_seekdir(struct fd *fd, struct tmp_dirent *dirent) {
     fd->tmpfs.dir_pos = dirent;
 }
 
-static struct tmp_dirent *tmpfs_dir_lookup(struct tmp_dirent *dir, const char *name) {
+static struct tmp_dirent *tmpfs_dir_lookup(struct tmp_dirent *dir, const char *name)
+{
     if (!S_ISDIR(dir->inode->stat.mode))
         return ERR_PTR(_ENOTDIR);
     struct tmp_dirent *dirent = NULL;
     struct tmp_dirent *d;
-    list_for_each_entry(&dir->children, d, dir) {
+    list_for_each_entry (&dir->children, d, dir) {
         if (d->inode == NULL)
             continue;
         if (strcmp(d->name, name) == 0) {
@@ -140,7 +148,8 @@ static struct tmp_dirent *tmpfs_dir_lookup(struct tmp_dirent *dir, const char *n
 }
 
 // TODO: should this function even exist? can't tmpfs_dir_link check for existence?
-static int tmpfs_dir_lookup_existence(struct tmp_dirent *dir, const char *name) {
+static int tmpfs_dir_lookup_existence(struct tmp_dirent *dir, const char *name)
+{
     struct tmp_dirent *dirent = tmpfs_dir_lookup(dir, name);
     if (dirent == ERR_PTR(_ENOENT))
         return 0;
@@ -150,7 +159,9 @@ static int tmpfs_dir_lookup_existence(struct tmp_dirent *dir, const char *name) 
     return _EEXIST;
 }
 
-static struct tmp_dirent *__tmpfs_lookup(struct mount *mount, const char *path, bool parent, const char **filename_out) {
+static struct tmp_dirent *__tmpfs_lookup(struct mount *mount, const char *path, bool parent,
+                                         const char **filename_out)
+{
     struct tmp_dirent *root = mount->data;
     struct tmp_dirent *dirent = tmp_dirent_retain(root); // strong reference
 
@@ -177,16 +188,20 @@ static struct tmp_dirent *__tmpfs_lookup(struct mount *mount, const char *path, 
         return ERR_PTR(err);
     return dirent;
 }
-static struct tmp_dirent *tmpfs_lookup(struct mount *mount, const char *path) {
+static struct tmp_dirent *tmpfs_lookup(struct mount *mount, const char *path)
+{
     return __tmpfs_lookup(mount, path, false, NULL);
 }
-static struct tmp_dirent *tmpfs_lookup_parent(struct mount *mount, const char *path, const char **filename_out) {
+static struct tmp_dirent *tmpfs_lookup_parent(struct mount *mount, const char *path,
+                                              const char **filename_out)
+{
     if (strcmp(path, "/") == 0)
         return NULL;
     return __tmpfs_lookup(mount, path, true, filename_out);
 }
 
-static int tmpfs_file_resize(struct tmp_inode *file, size_t size) {
+static int tmpfs_file_resize(struct tmp_inode *file, size_t size)
+{
     assert(S_ISREG(file->stat.mode));
     size_t old_size = file->stat.size;
     void *new_data = realloc(file->file_data, size);
@@ -194,7 +209,7 @@ static int tmpfs_file_resize(struct tmp_inode *file, size_t size) {
         return _ENOMEM;
     file->file_data = new_data;
     file->stat.size = size;
-    memset((char *) file->file_data + old_size, 0, file->stat.size - old_size);
+    memset((char *)file->file_data + old_size, 0, file->stat.size - old_size);
     return 0;
 }
 
@@ -204,7 +219,8 @@ static int tmpfs_file_resize(struct tmp_inode *file, size_t size) {
 
 extern const struct fd_ops tmpfs_fdops;
 
-static int tmpfs_mount(struct mount *mount) {
+static int tmpfs_mount(struct mount *mount)
+{
     struct tmp_inode *root_inode = tmp_inode_new(S_IFDIR | 0777);
     if (root_inode == NULL)
         return _ENOMEM;
@@ -240,7 +256,8 @@ static void tmpfs_unmount_tree(struct tmp_inode *tree) {
 }
 #endif
 
-static int tmpfs_umount(struct mount *UNUSED(mount)) {
+static int tmpfs_umount(struct mount *UNUSED(mount))
+{
     // big fat fuckin TODO
     // struct tmp_inode *root = mount->data;
     // tmpfs_unmount_tree(root);
@@ -248,7 +265,8 @@ static int tmpfs_umount(struct mount *UNUSED(mount)) {
     return 0;
 }
 
-static struct fd *tmpfs_open(struct mount *mount, const char *path, int flags, int mode) {
+static struct fd *tmpfs_open(struct mount *mount, const char *path, int flags, int mode)
+{
     struct tmp_dirent *dirent;
     if (flags & O_CREAT_) {
         // FIXME: will create a file when given a path that ends with a slash
@@ -307,7 +325,8 @@ out_creat:
     return fd;
 }
 
-static int tmpfs_stat(struct mount *mount, const char *path, struct statbuf *stat) {
+static int tmpfs_stat(struct mount *mount, const char *path, struct statbuf *stat)
+{
     struct tmp_dirent *dirent = tmpfs_lookup(mount, path);
     if (IS_ERR(dirent))
         return PTR_ERR(dirent);
@@ -319,14 +338,16 @@ static int tmpfs_stat(struct mount *mount, const char *path, struct statbuf *sta
     return 0;
 }
 
-static int tmpfs_close(struct fd *fd) {
+static int tmpfs_close(struct fd *fd)
+{
     // shouldn't need locking as this is the last reference to the fd
     tmp_dirent_release(fd->tmpfs.dirent);
     fd->tmpfs.dirent = NULL;
     return 0;
 }
 
-static int tmpfs_mkdir(struct mount *mount, const char *path, mode_t_ mode) {
+static int tmpfs_mkdir(struct mount *mount, const char *path, mode_t_ mode)
+{
     const char *filename;
     struct tmp_dirent *parent = tmpfs_lookup_parent(mount, path, &filename);
     if (IS_ERR(parent))
@@ -353,11 +374,13 @@ out:
 // ======== FD OPS ========
 // ========================
 
-static struct tmp_inode *tmpfs_fd_inode(struct fd *fd) {
+static struct tmp_inode *tmpfs_fd_inode(struct fd *fd)
+{
     return fd->tmpfs.dirent->inode;
 }
 
-static int tmpfs_getpath(struct fd *fd, char *buf) {
+static int tmpfs_getpath(struct fd *fd, char *buf)
+{
     struct tmp_dirent *dirent = fd->tmpfs.dirent;
     struct tmp_dirent *root_dirent = fd->mount->data;
     char *p = buf + MAX_PATH - 1;
@@ -374,7 +397,8 @@ static int tmpfs_getpath(struct fd *fd, char *buf) {
     return 0;
 }
 
-static int tmpfs_fstat(struct fd *fd, struct statbuf *stat) {
+static int tmpfs_fstat(struct fd *fd, struct statbuf *stat)
+{
     struct tmp_inode *inode = tmpfs_fd_inode(fd);
     lock(&inode->lock);
     *stat = inode->stat;
@@ -382,7 +406,8 @@ static int tmpfs_fstat(struct fd *fd, struct statbuf *stat) {
     return 0;
 }
 
-static ssize_t tmpfs_read(struct fd *fd, void *buf, size_t bufsize) {
+static ssize_t tmpfs_read(struct fd *fd, void *buf, size_t bufsize)
+{
     ssize_t res;
     struct tmp_inode *inode = tmpfs_fd_inode(fd);
     lock(&inode->lock);
@@ -405,7 +430,8 @@ out:
     return res;
 }
 
-static ssize_t tmpfs_write(struct fd *fd, const void *buf, size_t bufsize) {
+static ssize_t tmpfs_write(struct fd *fd, const void *buf, size_t bufsize)
+{
     ssize_t res;
     struct tmp_inode *inode = tmpfs_fd_inode(fd);
     lock(&inode->lock);
@@ -428,8 +454,9 @@ out:
     return res;
 }
 
-static off_t_ tmpfs_lseek(struct fd *fd, off_t_ off, int whence) {
-    qword_t size = 0;
+static off_t_ tmpfs_lseek(struct fd *fd, off_t_ off, int whence)
+{
+    uint64_t size = 0;
     if (whence == LSEEK_END) {
         struct tmp_inode *inode = tmpfs_fd_inode(fd);
         lock(&inode->lock);
@@ -444,7 +471,8 @@ static off_t_ tmpfs_lseek(struct fd *fd, off_t_ off, int whence) {
     return fd->offset;
 }
 
-static int tmpfs_readdir(struct fd *fd, struct dir_entry *entry) {
+static int tmpfs_readdir(struct fd *fd, struct dir_entry *entry)
+{
     struct tmp_dirent *parent = fd->tmpfs.dirent;
     int res = _ENOTDIR;
     if (!S_ISDIR(parent->inode->stat.mode))
@@ -472,18 +500,20 @@ out:
     return res;
 }
 
-static unsigned long tmpfs_telldir(struct fd *fd) {
+static unsigned long tmpfs_telldir(struct fd *fd)
+{
     if (fd->tmpfs.dir_pos == NULL)
-        return (unsigned long) -1;
+        return (unsigned long)-1;
     return fd->tmpfs.dir_pos->index;
 }
 
-static void tmpfs_seekdir(struct fd *fd, unsigned long ptr) {
+static void tmpfs_seekdir(struct fd *fd, unsigned long ptr)
+{
     struct tmp_dirent *dir = fd->tmpfs.dirent;
     lock(&dir->lock);
     assert(S_ISDIR(dir->inode->stat.mode));
     struct tmp_dirent *child;
-    list_for_each_entry(&dir->children, child, dir) {
+    list_for_each_entry (&dir->children, child, dir) {
         if (child->index >= ptr)
             break;
     }
@@ -494,7 +524,8 @@ static void tmpfs_seekdir(struct fd *fd, unsigned long ptr) {
 }
 
 const struct fs_ops tmpfs = {
-    .name = "tmpfs", .magic = 0x01021994,
+    .name = "tmpfs",
+    .magic = 0x01021994,
     .mount = tmpfs_mount,
     .umount = tmpfs_umount,
     .open = tmpfs_open,

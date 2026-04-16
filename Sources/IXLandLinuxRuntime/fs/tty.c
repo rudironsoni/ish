@@ -281,8 +281,8 @@ ssize_t tty_input(struct tty *tty, const char *input, size_t size, bool blocking
     sigset_t_ queue = 0; // to prevent having to lock tty->lock and pids_lock at the same time
 
     lock(&tty->lock);
-    dword_t lflags = tty->termios.lflags;
-    dword_t iflags = tty->termios.iflags;
+    uint32_t lflags = tty->termios.lflags;
+    uint32_t iflags = tty->termios.iflags;
     unsigned char *cc = tty->termios.cc;
 
 #define SHOULD_ECHOCTL(ch)                                                                         \

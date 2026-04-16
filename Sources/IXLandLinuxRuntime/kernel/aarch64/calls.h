@@ -6,7 +6,7 @@
 // Maximum syscall number for aarch64
 #define A64_SYS_MAX 1100
 
-typedef qword_t (*a64_syscall_t)(qword_t, qword_t, qword_t, qword_t, qword_t, qword_t);
+typedef uint64_t (*a64_syscall_t)(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
 
 // aarch64 Linux syscall numbers
 // Reference: arch/arm64/include/uapi/asm/unistd.h
@@ -235,6 +235,6 @@ struct syscall_info {
 extern struct syscall_info a64_syscall_table[];
 extern a64_syscall_t syscall_table_a64[A64_SYS_MAX];
 int a64_max_syscall(void);
-const char *a64_syscall_name(qword_t num);
+const char *a64_syscall_name(uint64_t num);
 
 #endif

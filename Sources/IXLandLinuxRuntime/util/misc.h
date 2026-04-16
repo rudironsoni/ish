@@ -99,19 +99,6 @@ static inline void __use(int dummy __attribute__((unused)), ...) {}
 // AArch64 Linux guest address type - always 64-bit
 typedef uint64_t addr_t;
 
-// Signed 64-bit for Linux syscall return values (used internally)
-typedef int64_t sqword_t;
-
-// Legacy width aliases - kept for backward compatibility during migration
-// New code should use explicit uint64_t/int64_t/uint32_t/int32_t directly
-typedef uint64_t qword_t;
-typedef uint32_t dword_t;
-typedef int32_t sdword_t;
-typedef uint16_t word_t;
-typedef uint8_t byte_t;
-typedef uint64_t uint_t;
-typedef int64_t int_t;
-
 // AArch64 Linux ABI typedefs for guest-visible boundaries
 // Linux AArch64 LP64: pid_t is int32_t
 typedef int32_t pid_t_;

@@ -125,7 +125,7 @@ static void trace_exec_layout_checkpoint(const char *name, struct task *task, in
 
 static inline addr_t align_stack(addr_t sp);
 static inline ssize_t user_strlen(addr_t p);
-static inline int user_memset(addr_t start, byte_t val, addr_t len);
+static inline int user_memset(addr_t start, uint8_t val, addr_t len);
 static inline addr_t copy_string(addr_t sp, const char *string);
 static inline addr_t args_copy(addr_t sp, struct exec_args args);
 static size_t args_size(struct exec_args args);
@@ -205,7 +205,7 @@ static const char *trace_mem_object_kind_name(enum mem_object_kind kind)
     }
 }
 
-static bool trace_read_guest_bytes_locked(addr_t guest_addr, byte_t *out, size_t len)
+static bool trace_read_guest_bytes_locked(addr_t guest_addr, uint8_t *out, size_t len)
 {
     if (current == NULL || current->mem == NULL || out == NULL)
         return false;
@@ -220,7 +220,7 @@ static bool trace_read_guest_bytes_locked(addr_t guest_addr, byte_t *out, size_t
         if (host_off >= desc->obj->host_size)
             return false;
 
-        const byte_t *host = (const byte_t *)desc->obj->host_base;
+        const uint8_t *host = (const uint8_t *)desc->obj->host_base;
         out[i] = host[host_off];
     }
     return true;
@@ -231,7 +231,7 @@ static void trace_loader_page_zero_locked(const char *name)
     struct page_desc *desc0 = NULL;
     struct mem_object *obj0 = NULL;
     bool mapped = false;
-    byte_t bytes[32] = { 0 };
+    uint8_t bytes[32] = { 0 };
     bool have_bytes = false;
 
     if (current && current->mem) {
@@ -307,7 +307,7 @@ static void trace_loader_page_zero_locked(const char *name)
     char ev[320];
     void *host_ptr0 = NULL;
     if (obj0 && obj0->host_base && desc0 && desc0->offset < obj0->host_size)
-        host_ptr0 = (void *)((byte_t *)obj0->host_base + desc0->offset);
+        host_ptr0 = (void *)((uint8_t *)obj0->host_base + desc0->offset);
 
     snprintf(ev, sizeof(ev), "loader.page0.mapped=mapped:%s,guest_page:0x0,host_ptr:%p",
              mapped ? "yes" : "no", host_ptr0);
@@ -381,7 +381,7 @@ static void trace_loader_bias_checkpoint(const char *name, addr_t main_bias, add
         return;
 
     char ev[320];
-    dword_t persona = (current && current->group) ? current->group->personality : 0;
+    uint32_t persona = (current && current->group) ? current->group->personality : 0;
 
     snprintf(ev, sizeof(ev),
              "loader.main_load_bias=bias:0x%llx,first_pt_load_vaddr:0x%llx,first_pt_load_file_off:"
@@ -653,12 +653,12 @@ static int load_entry(struct prg_header ph, addr_t bias, struct fd *fd)
 
     if (memsize > filesize) {
         // put zeroes between addr + filesize and addr + memsize, call that bss
-        dword_t bss_size = memsize - filesize;
+        uint32_t bss_size = memsize - filesize;
 
         // first zero the tail from the end of the file mapping to the end
         // of the load entry or the end of the page, whichever comes first
         addr_t file_end = addr + filesize;
-        dword_t tail_size = PAGE_SIZE - PGOFFSET(file_end);
+        uint32_t tail_size = PAGE_SIZE - PGOFFSET(file_end);
         if (tail_size == PAGE_SIZE)
             // if you can calculate tail_size better and not have to do this please let me know
             tail_size = 0;
@@ -1512,7 +1512,7 @@ static inline ssize_t user_strlen(addr_t p)
     return i - 1;
 }
 
-static inline int user_memset(addr_t start, byte_t val, addr_t len)
+static inline int user_memset(addr_t start, uint8_t val, addr_t len)
 {
     while (len--)
         if (user_put(start++, val))
@@ -1902,7 +1902,7 @@ static ssize_t user_read_string_array(addr_t addr, char *buf, size_t max)
     return i;
 }
 
-dword_t sys_execve(addr_t filename_addr, addr_t argv_addr, addr_t envp_addr)
+uint32_t sys_execve(addr_t filename_addr, addr_t argv_addr, addr_t envp_addr)
 {
     char filename[MAX_PATH];
     if (user_read_string(filename_addr, filename, sizeof(filename)))

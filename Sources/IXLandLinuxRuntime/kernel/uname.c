@@ -1,6 +1,5 @@
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/platform/platform.h>
-
 #include <string.h>
 #include <sys/sysctl.h>
 #include <sys/utsname.h>
@@ -25,7 +24,7 @@ void do_uname(struct uname *uts)
     strcpy(uts->domain, "(none)");
 }
 
-dword_t sys_uname(addr_t uts_addr)
+uint32_t sys_uname(addr_t uts_addr)
 {
     struct uname uts;
     do_uname(&uts);
@@ -34,7 +33,7 @@ dword_t sys_uname(addr_t uts_addr)
     return 0;
 }
 
-dword_t sys_sethostname(addr_t UNUSED(hostname_addr), dword_t UNUSED(hostname_len))
+uint32_t sys_sethostname(addr_t UNUSED(hostname_addr), uint32_t UNUSED(hostname_len))
 {
     return _EPERM;
 }
@@ -51,7 +50,7 @@ static void sysinfo_specific(struct sys_info *info)
     // TODO: everything else
 }
 
-dword_t sys_sysinfo(addr_t info_addr)
+uint32_t sys_sysinfo(addr_t info_addr)
 {
     struct sys_info info = { 0 };
     struct uptime_info uptime = get_uptime();

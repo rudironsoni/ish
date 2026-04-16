@@ -10,11 +10,11 @@
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/kernel/errno.h>
 #import <IXLandLinuxRuntime/kernel/signal.h>
-
 #include <stddef.h>
 
 // Stub for unimplemented syscalls
-static qword_t sys_enosys_stub(qword_t a, qword_t b, qword_t c, qword_t d, qword_t e, qword_t f)
+static uint64_t sys_enosys_stub(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e,
+                                uint64_t f)
 {
     (void)a;
     (void)b;
@@ -26,10 +26,10 @@ static qword_t sys_enosys_stub(qword_t a, qword_t b, qword_t c, qword_t d, qword
 }
 
 // Forward declarations for syscalls referenced in table but not in standard headers
-extern dword_t sys_newfstatat(fd_t, addr_t, addr_t, int_t);
-extern dword_t sys_pselect6(fd_t, addr_t, addr_t, addr_t, addr_t, addr_t);
-extern dword_t sys_execveat(fd_t, addr_t, addr_t, addr_t, int_t);
-extern dword_t sys_rt_sigreturn_aarch64(void);
+extern uint32_t sys_newfstatat(fd_t, addr_t, addr_t, int64_t);
+extern uint32_t sys_pselect6(fd_t, addr_t, addr_t, addr_t, addr_t, addr_t);
+extern uint32_t sys_execveat(fd_t, addr_t, addr_t, addr_t, int64_t);
+extern uint32_t sys_rt_sigreturn_aarch64(void);
 
 
 // ============================================================================
@@ -38,7 +38,7 @@ extern dword_t sys_rt_sigreturn_aarch64(void);
 // ============================================================================
 
 // TODO: STUB - sys_execveat needs proper implementation for AArch64 bring-up
-dword_t sys_execveat(fd_t dirfd, addr_t pathname, addr_t argv, addr_t envp, int_t flags)
+uint32_t sys_execveat(fd_t dirfd, addr_t pathname, addr_t argv, addr_t envp, int64_t flags)
 {
     (void)dirfd;
     (void)pathname;
@@ -50,7 +50,7 @@ dword_t sys_execveat(fd_t dirfd, addr_t pathname, addr_t argv, addr_t envp, int_
 }
 
 // TODO: STUB - sys_newfstatat needs proper implementation for AArch64 bring-up
-dword_t sys_newfstatat(fd_t dirfd, addr_t pathname, addr_t statbuf, int_t flags)
+uint32_t sys_newfstatat(fd_t dirfd, addr_t pathname, addr_t statbuf, int64_t flags)
 {
     (void)dirfd;
     (void)pathname;
@@ -61,8 +61,8 @@ dword_t sys_newfstatat(fd_t dirfd, addr_t pathname, addr_t statbuf, int_t flags)
 }
 
 // TODO: STUB - sys_pselect6 needs proper implementation for AArch64 bring-up
-dword_t sys_pselect6(fd_t nfds, addr_t readfds, addr_t writefds, addr_t exceptfds,
-                     addr_t timeout, addr_t sigmask)
+uint32_t sys_pselect6(fd_t nfds, addr_t readfds, addr_t writefds, addr_t exceptfds, addr_t timeout,
+                      addr_t sigmask)
 {
     (void)nfds;
     (void)readfds;
@@ -74,103 +74,103 @@ dword_t sys_pselect6(fd_t nfds, addr_t readfds, addr_t writefds, addr_t exceptfd
     return _ENOSYS;
 }
 
-#define A64_RET_S32(expr) ((qword_t) (sqword_t) (sdword_t) (expr))
-#define A64_RET_S64(expr) ((qword_t) (sqword_t) (expr))
-#define A64_RET_U64(expr) ((qword_t) (expr))
+#define A64_RET_S32(expr) ((uint64_t)(int64_t)(int32_t)(expr))
+#define A64_RET_S64(expr) ((uint64_t)(int64_t)(expr))
+#define A64_RET_U64(expr) ((uint64_t)(expr))
 
-#define A64_WRAP0(name, retcast)                                                                  \
-    static qword_t a64_wrap_##name(qword_t a0, qword_t a1, qword_t a2, qword_t a3, qword_t a4,  \
-                                   qword_t a5)                                                    \
-    {                                                                                             \
-        (void) a0;                                                                                \
-        (void) a1;                                                                                \
-        (void) a2;                                                                                \
-        (void) a3;                                                                                \
-        (void) a4;                                                                                \
-        (void) a5;                                                                                \
-        return retcast(name());                                                                   \
+#define A64_WRAP0(name, retcast)                                                                   \
+    static uint64_t a64_wrap_##name(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3,            \
+                                    uint64_t a4, uint64_t a5)                                      \
+    {                                                                                              \
+        (void)a0;                                                                                  \
+        (void)a1;                                                                                  \
+        (void)a2;                                                                                  \
+        (void)a3;                                                                                  \
+        (void)a4;                                                                                  \
+        (void)a5;                                                                                  \
+        return retcast(name());                                                                    \
     }
-#define A64_WRAP1(name, retcast, t1)                                                              \
-    static qword_t a64_wrap_##name(qword_t a0, qword_t a1, qword_t a2, qword_t a3, qword_t a4,  \
-                                   qword_t a5)                                                    \
-    {                                                                                             \
-        (void) a1;                                                                                \
-        (void) a2;                                                                                \
-        (void) a3;                                                                                \
-        (void) a4;                                                                                \
-        (void) a5;                                                                                \
-        return retcast(name((t1) a0));                                                            \
+#define A64_WRAP1(name, retcast, t1)                                                               \
+    static uint64_t a64_wrap_##name(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3,            \
+                                    uint64_t a4, uint64_t a5)                                      \
+    {                                                                                              \
+        (void)a1;                                                                                  \
+        (void)a2;                                                                                  \
+        (void)a3;                                                                                  \
+        (void)a4;                                                                                  \
+        (void)a5;                                                                                  \
+        return retcast(name((t1)a0));                                                              \
     }
-#define A64_WRAP2(name, retcast, t1, t2)                                                          \
-    static qword_t a64_wrap_##name(qword_t a0, qword_t a1, qword_t a2, qword_t a3, qword_t a4,  \
-                                   qword_t a5)                                                    \
-    {                                                                                             \
-        (void) a2;                                                                                \
-        (void) a3;                                                                                \
-        (void) a4;                                                                                \
-        (void) a5;                                                                                \
-        return retcast(name((t1) a0, (t2) a1));                                                   \
+#define A64_WRAP2(name, retcast, t1, t2)                                                           \
+    static uint64_t a64_wrap_##name(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3,            \
+                                    uint64_t a4, uint64_t a5)                                      \
+    {                                                                                              \
+        (void)a2;                                                                                  \
+        (void)a3;                                                                                  \
+        (void)a4;                                                                                  \
+        (void)a5;                                                                                  \
+        return retcast(name((t1)a0, (t2)a1));                                                      \
     }
-#define A64_WRAP3(name, retcast, t1, t2, t3)                                                      \
-    static qword_t a64_wrap_##name(qword_t a0, qword_t a1, qword_t a2, qword_t a3, qword_t a4,  \
-                                   qword_t a5)                                                    \
-    {                                                                                             \
-        (void) a3;                                                                                \
-        (void) a4;                                                                                \
-        (void) a5;                                                                                \
-        return retcast(name((t1) a0, (t2) a1, (t3) a2));                                          \
+#define A64_WRAP3(name, retcast, t1, t2, t3)                                                       \
+    static uint64_t a64_wrap_##name(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3,            \
+                                    uint64_t a4, uint64_t a5)                                      \
+    {                                                                                              \
+        (void)a3;                                                                                  \
+        (void)a4;                                                                                  \
+        (void)a5;                                                                                  \
+        return retcast(name((t1)a0, (t2)a1, (t3)a2));                                              \
     }
-#define A64_WRAP4(name, retcast, t1, t2, t3, t4)                                                  \
-    static qword_t a64_wrap_##name(qword_t a0, qword_t a1, qword_t a2, qword_t a3, qword_t a4,  \
-                                   qword_t a5)                                                    \
-    {                                                                                             \
-        (void) a4;                                                                                \
-        (void) a5;                                                                                \
-        return retcast(name((t1) a0, (t2) a1, (t3) a2, (t4) a3));                                 \
+#define A64_WRAP4(name, retcast, t1, t2, t3, t4)                                                   \
+    static uint64_t a64_wrap_##name(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3,            \
+                                    uint64_t a4, uint64_t a5)                                      \
+    {                                                                                              \
+        (void)a4;                                                                                  \
+        (void)a5;                                                                                  \
+        return retcast(name((t1)a0, (t2)a1, (t3)a2, (t4)a3));                                      \
     }
-#define A64_WRAP5(name, retcast, t1, t2, t3, t4, t5)                                              \
-    static qword_t a64_wrap_##name(qword_t a0, qword_t a1, qword_t a2, qword_t a3, qword_t a4,  \
-                                   qword_t a5)                                                    \
-    {                                                                                             \
-        (void) a5;                                                                                \
-        return retcast(name((t1) a0, (t2) a1, (t3) a2, (t4) a3, (t5) a4));                       \
+#define A64_WRAP5(name, retcast, t1, t2, t3, t4, t5)                                               \
+    static uint64_t a64_wrap_##name(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3,            \
+                                    uint64_t a4, uint64_t a5)                                      \
+    {                                                                                              \
+        (void)a5;                                                                                  \
+        return retcast(name((t1)a0, (t2)a1, (t3)a2, (t4)a3, (t5)a4));                              \
     }
-#define A64_WRAP6(name, retcast, t1, t2, t3, t4, t5, t6)                                          \
-    static qword_t a64_wrap_##name(qword_t a0, qword_t a1, qword_t a2, qword_t a3, qword_t a4,  \
-                                   qword_t a5)                                                    \
-    {                                                                                             \
-        return retcast(name((t1) a0, (t2) a1, (t3) a2, (t4) a3, (t5) a4, (t6) a5));             \
+#define A64_WRAP6(name, retcast, t1, t2, t3, t4, t5, t6)                                           \
+    static uint64_t a64_wrap_##name(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3,            \
+                                    uint64_t a4, uint64_t a5)                                      \
+    {                                                                                              \
+        return retcast(name((t1)a0, (t2)a1, (t3)a2, (t4)a3, (t5)a4, (t6)a5));                      \
     }
 
-A64_WRAP3(sys_read, A64_RET_S32, fd_t, addr_t, dword_t)
-A64_WRAP3(sys_write, A64_RET_S32, fd_t, addr_t, dword_t)
-A64_WRAP4(sys_openat, A64_RET_S32, fd_t, addr_t, dword_t, mode_t_)
+A64_WRAP3(sys_read, A64_RET_S32, fd_t, addr_t, uint32_t)
+A64_WRAP3(sys_write, A64_RET_S32, fd_t, addr_t, uint32_t)
+A64_WRAP4(sys_openat, A64_RET_S32, fd_t, addr_t, uint32_t, mode_t_)
 A64_WRAP1(sys_close, A64_RET_S32, fd_t)
-A64_WRAP3(sys_lseek, A64_RET_S32, fd_t, dword_t, dword_t)
-A64_WRAP3(sys_ioctl, A64_RET_S32, fd_t, dword_t, dword_t)
-A64_WRAP3(sys_fcntl, A64_RET_S32, fd_t, dword_t, dword_t)
+A64_WRAP3(sys_lseek, A64_RET_S32, fd_t, uint32_t, uint32_t)
+A64_WRAP3(sys_ioctl, A64_RET_S32, fd_t, uint32_t, uint32_t)
+A64_WRAP3(sys_fcntl, A64_RET_S32, fd_t, uint32_t, uint32_t)
 A64_WRAP1(sys_dup, A64_RET_S32, fd_t)
-A64_WRAP3(sys_dup3, A64_RET_S32, fd_t, fd_t, int_t)
+A64_WRAP3(sys_dup3, A64_RET_S32, fd_t, fd_t, int64_t)
 A64_WRAP1(sys_fsync, A64_RET_S32, fd_t)
-A64_WRAP2(sys_flock, A64_RET_S32, fd_t, dword_t)
-A64_WRAP3(sys_readv, A64_RET_S32, fd_t, addr_t, dword_t)
-A64_WRAP3(sys_writev, A64_RET_S32, fd_t, addr_t, dword_t)
-A64_WRAP4(sys_pread, A64_RET_S32, fd_t, addr_t, dword_t, off_t_)
-A64_WRAP4(sys_pwrite, A64_RET_S32, fd_t, addr_t, dword_t, off_t_)
-A64_WRAP6(sys_mmap_native, A64_RET_U64, addr_t, dword_t, dword_t, dword_t, fd_t, off_t_)
+A64_WRAP2(sys_flock, A64_RET_S32, fd_t, uint32_t)
+A64_WRAP3(sys_readv, A64_RET_S32, fd_t, addr_t, uint32_t)
+A64_WRAP3(sys_writev, A64_RET_S32, fd_t, addr_t, uint32_t)
+A64_WRAP4(sys_pread, A64_RET_S32, fd_t, addr_t, uint32_t, off_t_)
+A64_WRAP4(sys_pwrite, A64_RET_S32, fd_t, addr_t, uint32_t, off_t_)
+A64_WRAP6(sys_mmap_native, A64_RET_U64, addr_t, uint32_t, uint32_t, uint32_t, fd_t, off_t_)
 A64_WRAP1(sys_brk, A64_RET_U64, addr_t)
-A64_WRAP3(sys_mprotect, A64_RET_S64, addr_t, uint_t, int_t)
-A64_WRAP2(sys_munmap, A64_RET_S64, addr_t, uint_t)
-A64_WRAP4(sys_mremap, A64_RET_S64, addr_t, dword_t, dword_t, dword_t)
-A64_WRAP3(sys_madvise, A64_RET_S32, addr_t, dword_t, dword_t)
-A64_WRAP5(sys_clone, A64_RET_S32, dword_t, addr_t, addr_t, addr_t, addr_t)
+A64_WRAP3(sys_mprotect, A64_RET_S64, addr_t, uint64_t, int64_t)
+A64_WRAP2(sys_munmap, A64_RET_S64, addr_t, uint64_t)
+A64_WRAP4(sys_mremap, A64_RET_S64, addr_t, uint32_t, uint32_t, uint32_t)
+A64_WRAP3(sys_madvise, A64_RET_S32, addr_t, uint32_t, uint32_t)
+A64_WRAP5(sys_clone, A64_RET_S32, uint32_t, addr_t, addr_t, addr_t, addr_t)
 A64_WRAP0(sys_fork, A64_RET_S32)
 A64_WRAP0(sys_vfork, A64_RET_S32)
-A64_WRAP1(sys_exit, A64_RET_S32, dword_t)
-A64_WRAP1(sys_exit_group, A64_RET_S32, dword_t)
-A64_WRAP4(sys_wait4, A64_RET_S32, pid_t_, addr_t, dword_t, addr_t)
+A64_WRAP1(sys_exit, A64_RET_S32, uint32_t)
+A64_WRAP1(sys_exit_group, A64_RET_S32, uint32_t)
+A64_WRAP4(sys_wait4, A64_RET_S32, pid_t_, addr_t, uint32_t, addr_t)
 A64_WRAP3(sys_execve, A64_RET_S32, addr_t, addr_t, addr_t)
-A64_WRAP5(sys_execveat, A64_RET_S32, fd_t, addr_t, addr_t, addr_t, int_t)
+A64_WRAP5(sys_execveat, A64_RET_S32, fd_t, addr_t, addr_t, addr_t, int64_t)
 A64_WRAP0(sys_getpid, A64_RET_S32)
 A64_WRAP0(sys_getppid, A64_RET_S32)
 A64_WRAP1(sys_getpgid, A64_RET_S32, pid_t_)
@@ -180,26 +180,26 @@ A64_WRAP0(sys_setsid, A64_RET_S32)
 A64_WRAP0(sys_gettid, A64_RET_S32)
 A64_WRAP1(sys_set_tid_address, A64_RET_S32, addr_t)
 A64_WRAP2(sys_nanosleep, A64_RET_S32, addr_t, addr_t)
-A64_WRAP2(sys_getrusage, A64_RET_S32, dword_t, addr_t)
+A64_WRAP2(sys_getrusage, A64_RET_S32, uint32_t, addr_t)
 A64_WRAP0(sys_sched_yield, A64_RET_S64)
-static qword_t a64_wrap_sys_getrlimit(qword_t a0, qword_t a1, qword_t a2, qword_t a3, qword_t a4,
-                                      qword_t a5)
+static uint64_t a64_wrap_sys_getrlimit(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3,
+                                       uint64_t a4, uint64_t a5)
 {
-    (void) a2;
-    (void) a3;
-    (void) a4;
-    (void) a5;
-    return A64_RET_S32(sys_prlimit64(0, (dword_t) a0, 0, (addr_t) a1));
+    (void)a2;
+    (void)a3;
+    (void)a4;
+    (void)a5;
+    return A64_RET_S32(sys_prlimit64(0, (uint32_t)a0, 0, (addr_t)a1));
 }
 
-static qword_t a64_wrap_sys_setrlimit(qword_t a0, qword_t a1, qword_t a2, qword_t a3, qword_t a4,
-                                      qword_t a5)
+static uint64_t a64_wrap_sys_setrlimit(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3,
+                                       uint64_t a4, uint64_t a5)
 {
-    (void) a2;
-    (void) a3;
-    (void) a4;
-    (void) a5;
-    return A64_RET_S32(sys_prlimit64(0, (dword_t) a0, (addr_t) a1, 0));
+    (void)a2;
+    (void)a3;
+    (void)a4;
+    (void)a5;
+    return A64_RET_S32(sys_prlimit64(0, (uint32_t)a0, (addr_t)a1, 0));
 }
 A64_WRAP2(sys_gettimeofday, A64_RET_S32, addr_t, addr_t)
 A64_WRAP2(sys_settimeofday, A64_RET_S32, addr_t, addr_t)
@@ -216,65 +216,65 @@ A64_WRAP3(sys_setresuid, A64_RET_S32, uid_t_, uid_t_, uid_t_)
 A64_WRAP3(sys_getresuid, A64_RET_S64, addr_t, addr_t, addr_t)
 A64_WRAP3(sys_setresgid, A64_RET_S32, uid_t_, uid_t_, uid_t_)
 A64_WRAP3(sys_getresgid, A64_RET_S64, addr_t, addr_t, addr_t)
-A64_WRAP2(sys_setgroups, A64_RET_S64, dword_t, addr_t)
-A64_WRAP2(sys_getgroups, A64_RET_S64, dword_t, addr_t)
-A64_WRAP2(sys_kill, A64_RET_S32, pid_t_, dword_t)
-A64_WRAP2(sys_tkill, A64_RET_S32, pid_t_, dword_t)
-A64_WRAP3(sys_tgkill, A64_RET_S32, pid_t_, pid_t_, dword_t)
+A64_WRAP2(sys_setgroups, A64_RET_S64, uint32_t, addr_t)
+A64_WRAP2(sys_getgroups, A64_RET_S64, uint32_t, addr_t)
+A64_WRAP2(sys_kill, A64_RET_S32, pid_t_, uint32_t)
+A64_WRAP2(sys_tkill, A64_RET_S32, pid_t_, uint32_t)
+A64_WRAP3(sys_tgkill, A64_RET_S32, pid_t_, pid_t_, uint32_t)
 A64_WRAP2(sys_sigaltstack, A64_RET_S32, addr_t, addr_t)
-A64_WRAP4(sys_rt_sigaction, A64_RET_S32, dword_t, addr_t, addr_t, dword_t)
-A64_WRAP4(sys_rt_sigprocmask, A64_RET_S32, dword_t, addr_t, addr_t, dword_t)
+A64_WRAP4(sys_rt_sigaction, A64_RET_S32, uint32_t, addr_t, addr_t, uint32_t)
+A64_WRAP4(sys_rt_sigprocmask, A64_RET_S32, uint32_t, addr_t, addr_t, uint32_t)
 A64_WRAP0(sys_rt_sigreturn_aarch64, A64_RET_S32)
-A64_WRAP2(sys_rt_sigsuspend, A64_RET_S64, addr_t, uint_t)
+A64_WRAP2(sys_rt_sigsuspend, A64_RET_S64, addr_t, uint64_t)
 A64_WRAP1(sys_rt_sigpending, A64_RET_S64, addr_t)
 A64_WRAP3(sys_mkdirat, A64_RET_S32, fd_t, addr_t, mode_t_)
 A64_WRAP4(sys_mknodat, A64_RET_S32, fd_t, addr_t, mode_t_, dev_t_)
-A64_WRAP3(sys_unlinkat, A64_RET_S32, fd_t, addr_t, int_t)
+A64_WRAP3(sys_unlinkat, A64_RET_S32, fd_t, addr_t, int64_t)
 A64_WRAP3(sys_symlinkat, A64_RET_S32, addr_t, fd_t, addr_t)
 A64_WRAP4(sys_linkat, A64_RET_S32, fd_t, addr_t, fd_t, addr_t)
 A64_WRAP4(sys_renameat, A64_RET_S32, fd_t, addr_t, fd_t, addr_t)
-A64_WRAP5(sys_renameat2, A64_RET_S32, fd_t, addr_t, fd_t, addr_t, int_t)
-A64_WRAP5(sys_fchownat, A64_RET_S32, fd_t, addr_t, dword_t, dword_t, int)
-A64_WRAP4(sys_faccessat, A64_RET_S32, fd_t, addr_t, mode_t_, dword_t)
-A64_WRAP4(sys_readlinkat, A64_RET_S32, fd_t, addr_t, addr_t, dword_t)
-A64_WRAP4(sys_newfstatat, A64_RET_S32, fd_t, addr_t, addr_t, int_t)
+A64_WRAP5(sys_renameat2, A64_RET_S32, fd_t, addr_t, fd_t, addr_t, int64_t)
+A64_WRAP5(sys_fchownat, A64_RET_S32, fd_t, addr_t, uint32_t, uint32_t, int)
+A64_WRAP4(sys_faccessat, A64_RET_S32, fd_t, addr_t, mode_t_, uint32_t)
+A64_WRAP4(sys_readlinkat, A64_RET_S32, fd_t, addr_t, addr_t, uint32_t)
+A64_WRAP4(sys_newfstatat, A64_RET_S32, fd_t, addr_t, addr_t, int64_t)
 A64_WRAP2(sys_fstat64, A64_RET_S32, fd_t, addr_t)
 A64_WRAP2(sys_fstatfs, A64_RET_S32, fd_t, addr_t)
-A64_WRAP4(sys_utimensat, A64_RET_S32, fd_t, addr_t, addr_t, dword_t)
-A64_WRAP3(sys_fchmodat, A64_RET_S32, fd_t, addr_t, dword_t)
+A64_WRAP4(sys_utimensat, A64_RET_S32, fd_t, addr_t, addr_t, uint32_t)
+A64_WRAP3(sys_fchmodat, A64_RET_S32, fd_t, addr_t, uint32_t)
 A64_WRAP1(sys_fchdir, A64_RET_S32, fd_t)
-A64_WRAP2(sys_getcwd, A64_RET_S32, addr_t, dword_t)
+A64_WRAP2(sys_getcwd, A64_RET_S32, addr_t, uint32_t)
 A64_WRAP1(sys_chdir, A64_RET_S32, addr_t)
 A64_WRAP1(sys_chroot, A64_RET_S32, addr_t)
 A64_WRAP2(sys_statfs, A64_RET_S32, addr_t, addr_t)
-A64_WRAP2(sys_pipe2, A64_RET_S64, addr_t, int_t)
-A64_WRAP1(sys_epoll_create, A64_RET_S64, int_t)
-A64_WRAP4(sys_epoll_ctl, A64_RET_S64, fd_t, int_t, fd_t, addr_t)
-A64_WRAP6(sys_epoll_pwait, A64_RET_S64, fd_t, addr_t, int_t, int_t, addr_t, dword_t)
-A64_WRAP3(sys_socket, A64_RET_S64, dword_t, dword_t, dword_t)
-A64_WRAP4(sys_socketpair, A64_RET_S64, dword_t, dword_t, dword_t, addr_t)
-A64_WRAP3(sys_bind, A64_RET_S64, fd_t, addr_t, uint_t)
-A64_WRAP3(sys_connect, A64_RET_S64, fd_t, addr_t, uint_t)
-A64_WRAP2(sys_listen, A64_RET_S64, fd_t, int_t)
+A64_WRAP2(sys_pipe2, A64_RET_S64, addr_t, int64_t)
+A64_WRAP1(sys_epoll_create, A64_RET_S64, int64_t)
+A64_WRAP4(sys_epoll_ctl, A64_RET_S64, fd_t, int64_t, fd_t, addr_t)
+A64_WRAP6(sys_epoll_pwait, A64_RET_S64, fd_t, addr_t, int64_t, int64_t, addr_t, uint32_t)
+A64_WRAP3(sys_socket, A64_RET_S64, uint32_t, uint32_t, uint32_t)
+A64_WRAP4(sys_socketpair, A64_RET_S64, uint32_t, uint32_t, uint32_t, addr_t)
+A64_WRAP3(sys_bind, A64_RET_S64, fd_t, addr_t, uint64_t)
+A64_WRAP3(sys_connect, A64_RET_S64, fd_t, addr_t, uint64_t)
+A64_WRAP2(sys_listen, A64_RET_S64, fd_t, int64_t)
 A64_WRAP3(sys_accept, A64_RET_S64, fd_t, addr_t, addr_t)
-A64_WRAP4(sys_accept4, A64_RET_S64, fd_t, addr_t, addr_t, int_t)
+A64_WRAP4(sys_accept4, A64_RET_S64, fd_t, addr_t, addr_t, int64_t)
 A64_WRAP3(sys_getsockname, A64_RET_S64, fd_t, addr_t, addr_t)
 A64_WRAP3(sys_getpeername, A64_RET_S64, fd_t, addr_t, addr_t)
-A64_WRAP6(sys_sendto, A64_RET_S64, fd_t, addr_t, dword_t, dword_t, addr_t, dword_t)
-A64_WRAP6(sys_recvfrom, A64_RET_S64, fd_t, addr_t, dword_t, dword_t, addr_t, addr_t)
-A64_WRAP3(sys_sendmsg, A64_RET_S64, fd_t, addr_t, int_t)
-A64_WRAP3(sys_recvmsg, A64_RET_S64, fd_t, addr_t, int_t)
-A64_WRAP2(sys_shutdown, A64_RET_S64, fd_t, dword_t)
-A64_WRAP5(sys_setsockopt, A64_RET_S64, fd_t, dword_t, dword_t, addr_t, dword_t)
-A64_WRAP5(sys_getsockopt, A64_RET_S64, fd_t, dword_t, dword_t, addr_t, dword_t)
-A64_WRAP5(sys_ppoll, A64_RET_S32, addr_t, dword_t, addr_t, addr_t, dword_t)
+A64_WRAP6(sys_sendto, A64_RET_S64, fd_t, addr_t, uint32_t, uint32_t, addr_t, uint32_t)
+A64_WRAP6(sys_recvfrom, A64_RET_S64, fd_t, addr_t, uint32_t, uint32_t, addr_t, addr_t)
+A64_WRAP3(sys_sendmsg, A64_RET_S64, fd_t, addr_t, int64_t)
+A64_WRAP3(sys_recvmsg, A64_RET_S64, fd_t, addr_t, int64_t)
+A64_WRAP2(sys_shutdown, A64_RET_S64, fd_t, uint32_t)
+A64_WRAP5(sys_setsockopt, A64_RET_S64, fd_t, uint32_t, uint32_t, addr_t, uint32_t)
+A64_WRAP5(sys_getsockopt, A64_RET_S64, fd_t, uint32_t, uint32_t, addr_t, uint32_t)
+A64_WRAP5(sys_ppoll, A64_RET_S32, addr_t, uint32_t, addr_t, addr_t, uint32_t)
 A64_WRAP6(sys_pselect6, A64_RET_S32, fd_t, addr_t, addr_t, addr_t, addr_t, addr_t)
-A64_WRAP3(sys_getrandom, A64_RET_S32, addr_t, dword_t, dword_t)
+A64_WRAP3(sys_getrandom, A64_RET_S32, addr_t, uint32_t, uint32_t)
 A64_WRAP1(sys_uname, A64_RET_S32, addr_t)
-A64_WRAP2(sys_sethostname, A64_RET_S32, addr_t, dword_t)
+A64_WRAP2(sys_sethostname, A64_RET_S32, addr_t, uint32_t)
 A64_WRAP1(sys_sysinfo, A64_RET_S32, addr_t)
-A64_WRAP5(sys_prctl, A64_RET_S64, dword_t, uint_t, uint_t, uint_t, uint_t)
-A64_WRAP3(sys_reboot, A64_RET_S64, int_t, int_t, int_t)
+A64_WRAP5(sys_prctl, A64_RET_S64, uint32_t, uint64_t, uint64_t, uint64_t, uint64_t)
+A64_WRAP3(sys_reboot, A64_RET_S64, int64_t, int64_t, int64_t)
 
 #define A64_WRAP(name) a64_wrap_##name
 

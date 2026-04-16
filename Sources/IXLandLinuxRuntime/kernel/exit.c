@@ -257,13 +257,13 @@ static void halt_system(void)
     unlock(&mounts_lock);
 }
 
-dword_t sys_exit(dword_t status)
+uint32_t sys_exit(uint32_t status)
 {
     STRACE("exit(%d)\n", status);
     do_exit(status << 8);
 }
 
-dword_t sys_exit_group(dword_t status)
+uint32_t sys_exit_group(uint32_t status)
 {
     STRACE("exit_group(%d)\n", status);
     do_exit_group(status << 8);
@@ -288,7 +288,7 @@ static bool reap_if_zombie(struct task *task, struct siginfo_ *info_out, struct 
         return false;
     lock(&task->group->lock);
 
-    dword_t exit_code = task->exit_code;
+    uint32_t exit_code = task->exit_code;
     if (task->group->doing_group_exit)
         exit_code = task->group->group_exit_code;
     info_out->child.status = exit_code;
@@ -325,7 +325,7 @@ static bool notify_if_stopped(struct task *task, struct siginfo_ *info_out)
     unlock(&task->group->lock);
     if (!stopped || task->group->group_exit_code == 0)
         return false;
-    dword_t exit_code = task->group->group_exit_code;
+    uint32_t exit_code = task->group->group_exit_code;
     task->group->group_exit_code = 0;
     info_out->child.status = exit_code;
     return true;
@@ -430,7 +430,7 @@ error:
     return err;
 }
 
-dword_t sys_waitid(int_t idtype, pid_t_ id, addr_t info_addr, int_t options)
+uint32_t sys_waitid(int_t idtype, pid_t_ id, addr_t info_addr, int_t options)
 {
     STRACE("waitid(%d, %d, %#x, %#x)", idtype, id, info_addr, options);
     struct siginfo_ info = {};
@@ -442,7 +442,7 @@ dword_t sys_waitid(int_t idtype, pid_t_ id, addr_t info_addr, int_t options)
     return 0;
 }
 
-dword_t sys_wait4(pid_t_ id, addr_t status_addr, dword_t options, addr_t rusage_addr)
+uint32_t sys_wait4(pid_t_ id, addr_t status_addr, uint32_t options, addr_t rusage_addr)
 {
     STRACE("wait4(%d, %#x, %#x, %#x)", id, status_addr, options, rusage_addr);
     if (options & WNOWAIT_)
@@ -473,7 +473,7 @@ dword_t sys_wait4(pid_t_ id, addr_t status_addr, dword_t options, addr_t rusage_
     return info.child.pid;
 }
 
-dword_t sys_waitpid(pid_t_ pid, addr_t status_addr, dword_t options)
+uint32_t sys_waitpid(pid_t_ pid, addr_t status_addr, uint32_t options)
 {
     return sys_wait4(pid, status_addr, options, 0);
 }

@@ -1,9 +1,11 @@
 #ifndef PATH_H
 #define PATH_H
 
-#define AT_PWD (struct fd *) -2
+#include <stdbool.h>
 
-#define N_SYMLINK_FOLLOW 1
+#define AT_PWD (struct fd *)-2
+
+#define N_SYMLINK_FOLLOW   1
 #define N_SYMLINK_NOFOLLOW 2
 #define N_PARENT_DIR_WRITE 4
 

@@ -70,7 +70,7 @@ struct task {
     addr_t robust_list;
 
     // locked by pids_lock
-    dword_t exit_code;
+    uint32_t exit_code;
     bool zombie;
     bool exiting;
 
@@ -134,10 +134,10 @@ void task_leave_session(struct task *task);
 
 struct posix_timer {
     struct timer *timer;
-    int_t timer_id;
+    int64_t timer_id;
     struct tgroup *tgroup;
     pid_t_ thread_pid;
-    int_t signal;
+    int64_t signal;
     union sigval_ sig_value;
 };
 
@@ -173,12 +173,12 @@ struct tgroup {
     //
     // TODO locking
     bool doing_group_exit;
-    dword_t group_exit_code;
+    uint32_t group_exit_code;
 
     struct rusage_ children_rusage;
     cond_t child_exit;
 
-    dword_t personality;
+    uint32_t personality;
 
     // for everything in this struct not locked by something else
     lock_t lock;
@@ -190,7 +190,7 @@ static inline bool task_is_leader(struct task *task)
 }
 
 struct pid {
-    dword_t id;
+    uint32_t id;
     struct task *task;
     struct list session;
     struct list pgroup;
@@ -199,9 +199,9 @@ struct pid {
 // synchronizes obtaining a pointer to a task and freeing that task
 extern lock_t pids_lock;
 // these functions must be called with pids_lock
-struct pid *pid_get(dword_t pid);
-struct task *pid_get_task(dword_t pid);
-struct task *pid_get_task_zombie(dword_t id); // don't return null if the task exists as a zombie
+struct pid *pid_get(uint32_t pid);
+struct task *pid_get_task(uint32_t pid);
+struct task *pid_get_task_zombie(uint32_t id); // don't return null if the task exists as a zombie
 
 #define MAX_PID (1 << 15) // oughta be enough
 

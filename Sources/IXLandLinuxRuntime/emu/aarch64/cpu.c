@@ -573,7 +573,7 @@ static void trace_mm_page0_state_runtime(const char *name, struct cpu_state *cpu
     if (obj && obj->host_base != NULL && desc) {
         size_t host_off = desc->offset + PGOFFSET(guest_ea);
         if (host_off < obj->host_size)
-            host_ptr_from_map = (void *)((byte_t *)obj->host_base + host_off);
+            host_ptr_from_map = (void *)((uint8_t *)obj->host_base + host_off);
     }
 
     char ev[768];

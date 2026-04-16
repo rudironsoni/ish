@@ -19,8 +19,10 @@
 #import <IXLandLinuxRuntime/kernel/init.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/fs/real.h>
+#import <IXLandLinuxRuntime/fs/fd.h>
 #import <IXLandLinuxRuntime/emu/tlb.h>
 #import <IXLandLinuxRuntime/emu/mmu.h>
+#import <IXLandLinuxRuntime/util/misc.h>
 
 @interface GuestDynamicELFExecutionTests : XCTestCase
 @property (nonatomic, strong) NSBundle *bundle;
@@ -243,6 +245,99 @@
                       @"B1: Must resolve to real dynamic loader (observed: %@)", interpPathStr);
     }
 
+    guest_execution_trace_sink_set_completion_callback(NULL);
+}
+
+// D1.6.a: Probe - Can generic_open resolve guest absolute path /lib/ld-musl-aarch64.so.1 outside exec?
+// This is a narrow diagnostic to determine if path resolution works at all in mounted root context
+- (void)testDynamicELF_D1_6a_InterpreterPath_ResolvesViaMountedRoot {
+    // B0 prerequisite
+    XCTAssertNotNil(self.testRoots, @"B0: Roots bootstrap must complete");
+    NSURL *rootURL = [self.testRoots rootUrl:self.testRoots.defaultRoot];
+    NSString *rootPath = [rootURL path];
+    NSString *dataRootPath = [rootPath stringByAppendingPathComponent:@"data"];
+    
+    // Mount the root like the harness does
+    int mountErr = mount_root(&realfs, [dataRootPath UTF8String]);
+    XCTAssertTrue(mountErr == 0 || mountErr == -16, @"D1.6.a: Root mount must succeed, got %d", mountErr);
+    
+    // Now attempt to open interpreter via guest absolute path - same path PT_INTERP would contain
+    // This simulates what happens at exec.c:753 but without the full exec path
+    struct fd *interp_fd = generic_open("/lib/ld-musl-aarch64.so.1", O_RDONLY, 0);
+    
+    if (interp_fd != NULL && !IS_ERR(interp_fd)) {
+        // D1.6.a PASS: Path resolution works, interpreter opens successfully
+        NSLog(@"D1.6.a PASS: generic_open(\"/lib/ld-musl-aarch64.so.1\") succeeded, fd=%p", interp_fd);
+        fd_close(interp_fd);
+        XCTAssertTrue(true, @"D1.6.a: Interpreter path resolves via mounted root");
+    } else {
+        // D1.6.a FAIL: Path resolution broken at mount/root level
+        int err = interp_fd != NULL ? PTR_ERR(interp_fd) : -1;
+        NSLog(@"D1.6.a FAIL: generic_open(\"/lib/ld-musl-aarch64.so.1\") failed, err=%d", err);
+        XCTAssertTrue(interp_fd != NULL && !IS_ERR(interp_fd), @"D1.6.a FAIL: generic_open failed for guest absolute path, err=%d", err);
+    }
+}
+
+// D2: Interpreter load subpath inside elf_exec - prove each sub-boundary
+// D2.0: generic_open(interp_name) returns valid interp_fd (proven via B1 failing, path works)
+// D2.1: read_header(interp_fd, &interp_header) succeeds - proven by loader.interp_elf.header event
+// D2.2: read_prg_headers(interp_fd, interp_header, &interp_ph) succeeds - proven by loader.interp.bias.compute event  
+// D2.3: interpreter PT_LOAD loop begins - proven by loader.interp.pt_load.map event
+// D2.4: first interpreter PT_LOAD mapping succeeds - proven by subsequent loader events
+- (void)testDynamicELF_D2_InterpreterSubpath_ProvesD2Boundaries {
+    // B0 prerequisite
+    XCTAssertNotNil(self.testRoots, @"B0: Roots bootstrap must complete");
+    NSURL *rootURL = [self.testRoots rootUrl:self.testRoots.defaultRoot];
+    NSString *rootPath = [rootURL path];
+    NSString *dataRootPath = [rootPath stringByAppendingPathComponent:@"data"];
+    NSString *busyboxRelativePath = @"bin/busybox";
+    NSString *busyboxFullPath = [dataRootPath stringByAppendingPathComponent:busyboxRelativePath];
+    XCTAssertTrue([[NSFileManager defaultManager] fileExistsAtPath:busyboxFullPath],
+                  @"B0: busybox must exist at %@", busyboxFullPath);
+    
+    XCTestExpectation *boundaryExpectation = [self expectationWithDescription:@"D2 boundary observed"];
+    __block BOOL callbackFired = NO;
+    
+    guest_execution_trace_sink_reset();
+    guest_execution_trace_sink_set_completion_callback(^(BOOL exit_observed, int exit_code) {
+        // D2.1: Check if interpreter header was loaded (loader.interp_elf.header or loader.interp.bias.compute)
+        // D2.3: Check if interpreter mappings exist (loader.interp.pt_load.map)
+        BOOL interpHeaderLoaded = guest_execution_trace_sink_interp_header_loaded();
+        BOOL interpMappingsExist = guest_execution_trace_sink_interp_mappings_exist();
+        
+        if (!callbackFired && (interpHeaderLoaded || interpMappingsExist || exit_observed)) {
+            callbackFired = YES;
+            [boundaryExpectation fulfill];
+        }
+    });
+    
+    dispatch_async(self.harness.executionQueue, ^{
+        [self.harness runExecutableAtRootPath:dataRootPath executablePath:busyboxRelativePath];
+    });
+    
+    [self waitForExpectations:@[boundaryExpectation] timeout:60.0];
+    
+    // D2.1: Check interpreter header loaded event
+    BOOL interpHeaderLoaded = guest_execution_trace_sink_interp_header_loaded();
+    const char *lastEvent = guest_execution_trace_sink_get_last_loader_event();
+    NSLog(@"D2-DIAG: interp_header_loaded=%d, last_event='%s'", interpHeaderLoaded, lastEvent);
+    
+    // D2.1 classification
+    XCTAssertTrue(interpHeaderLoaded, 
+                  @"D2.1: Interp header loaded event must be observed (loader.interp_elf.header or loader.interp.bias.compute). "
+                  @"This proves read_header(interp_fd, &interp_header) succeeded. "
+                  @"Last loader event: %s", lastEvent);
+    
+    // D2.3: Check interpreter mappings exist
+    BOOL interpMappingsExist = guest_execution_trace_sink_interp_mappings_exist();
+    NSLog(@"D2-DIAG: interp_mappings_exist=%d", interpMappingsExist);
+    
+    // D2.3 classification  
+    XCTAssertTrue(interpMappingsExist,
+                   @"D2.3: Interp mappings must exist (loader.interp.pt_load.map). "
+                   @"This proves interpreter PT_LOAD loop ran. "
+                   @"Last loader event: %s", lastEvent);
+    
     guest_execution_trace_sink_set_completion_callback(NULL);
 }
 

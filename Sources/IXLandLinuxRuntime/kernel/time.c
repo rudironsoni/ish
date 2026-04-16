@@ -1,17 +1,14 @@
-#import <IXLandLinuxRuntime/kernel/time.h>
-
 #import <IXLandLinuxRuntime/fs/poll.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/kernel/errno.h>
 #import <IXLandLinuxRuntime/kernel/resource.h>
-
+#import <IXLandLinuxRuntime/kernel/time.h>
 #import <IXLandLinuxRuntime/util/debug.h>
-
 #include <signal.h>
 #include <sys/time.h>
 #include <time.h>
 
-static int clockid_to_real(uint_t clock, clockid_t *real)
+static int clockid_to_real(uint64_t clock, clockid_t *real)
 {
     switch (clock) {
     case CLOCK_REALTIME_:
@@ -49,21 +46,21 @@ static struct itimerspec_ timer_spec_from_real(struct timer_spec spec)
     return itspec;
 };
 
-dword_t sys_time(addr_t time_out)
+int32_t sys_time(addr_t time_out)
 {
-    dword_t now = time(NULL);
+    int32_t now = time(NULL);
     if (time_out != 0)
         if (user_put(time_out, now))
             return _EFAULT;
     return now;
 }
 
-dword_t sys_stime(addr_t UNUSED(time))
+int32_t sys_stime(addr_t UNUSED(time))
 {
     return _EPERM;
 }
 
-dword_t sys_clock_gettime(dword_t clock, addr_t tp)
+int32_t sys_clock_gettime(int32_t clock, addr_t tp)
 {
     STRACE("clock_gettime(%d, 0x%x)", clock, tp);
 
@@ -90,7 +87,7 @@ dword_t sys_clock_gettime(dword_t clock, addr_t tp)
     return 0;
 }
 
-dword_t sys_clock_getres(dword_t clock, addr_t res_addr)
+int32_t sys_clock_getres(int32_t clock, addr_t res_addr)
 {
     STRACE("clock_getres(%d, %#x)", clock, res_addr);
     clockid_t clock_id;
@@ -109,7 +106,7 @@ dword_t sys_clock_getres(dword_t clock, addr_t res_addr)
     return 0;
 }
 
-dword_t sys_clock_settime(dword_t UNUSED(clock), addr_t UNUSED(tp))
+int32_t sys_clock_settime(int32_t UNUSED(clock), addr_t UNUSED(tp))
 {
     return _EPERM;
 }
@@ -140,7 +137,7 @@ static int itimer_set(struct tgroup *group, int which, struct timer_spec spec,
     return timer_set(group->itimer, spec, old_spec);
 }
 
-int_t sys_setitimer(int_t which, addr_t new_val_addr, addr_t old_val_addr)
+int64_t sys_setitimer(int64_t which, addr_t new_val_addr, addr_t old_val_addr)
 {
     struct itimerval_ val;
     if (user_get(new_val_addr, val))
@@ -176,7 +173,7 @@ int_t sys_setitimer(int_t which, addr_t new_val_addr, addr_t old_val_addr)
     return 0;
 }
 
-uint_t sys_alarm(uint_t seconds)
+uint64_t sys_alarm(uint64_t seconds)
 {
     STRACE("alarm(%d)", seconds);
     struct timer_spec spec = {
@@ -200,7 +197,7 @@ uint_t sys_alarm(uint_t seconds)
     return seconds;
 }
 
-dword_t sys_nanosleep(addr_t req_addr, addr_t rem_addr)
+int32_t sys_nanosleep(addr_t req_addr, addr_t rem_addr)
 {
     struct timespec_ req_ts;
     if (user_get(req_addr, req_ts))
@@ -222,7 +219,7 @@ dword_t sys_nanosleep(addr_t req_addr, addr_t rem_addr)
     return 0;
 }
 
-dword_t sys_times(addr_t tbuf)
+int32_t sys_times(addr_t tbuf)
 {
     STRACE("times(0x%x)", tbuf);
     if (tbuf) {
@@ -238,7 +235,7 @@ dword_t sys_times(addr_t tbuf)
     return 0;
 }
 
-dword_t sys_gettimeofday(addr_t tv, addr_t tz)
+int32_t sys_gettimeofday(addr_t tv, addr_t tz)
 {
     STRACE("gettimeofday(0x%x, 0x%x)", tv, tz);
     struct timeval timeval;
@@ -258,7 +255,7 @@ dword_t sys_gettimeofday(addr_t tv, addr_t tz)
     return 0;
 }
 
-dword_t sys_settimeofday(addr_t UNUSED(tv), addr_t UNUSED(tz))
+int32_t sys_settimeofday(addr_t UNUSED(tv), addr_t UNUSED(tz))
 {
     return _EPERM;
 }
@@ -287,7 +284,7 @@ static void posix_timer_callback(struct posix_timer *timer)
 #define SIGEV_NONE_      1
 #define SIGEV_THREAD_ID_ 4
 
-int_t sys_timer_create(dword_t clock, addr_t sigevent_addr, addr_t timer_addr)
+int64_t sys_timer_create(int32_t clock, addr_t sigevent_addr, addr_t timer_addr)
 {
     STRACE("timer_create(%d, %#x, %#x)", clock, sigevent_addr, timer_addr);
     clockid_t real_clockid;
@@ -342,24 +339,25 @@ int_t sys_timer_create(dword_t clock, addr_t sigevent_addr, addr_t timer_addr)
 
 #define TIMER_ABSTIME_ (1 << 0)
 
-int_t sys_timer_settime(dword_t timer_id, int_t flags, addr_t new_value_addr, addr_t old_value_addr)
+int64_t sys_timer_settime(int32_t timer, int64_t flags, addr_t new_value_addr,
+                          addr_t old_value_addr)
 {
-    STRACE("timer_settime(%d, %d, %#x, %#x)", timer_id, flags, new_value_addr, old_value_addr);
+    STRACE("timer_settime(%d, %d, %#x, %#x)", timer, flags, new_value_addr, old_value_addr);
     struct itimerspec_ value;
     if (user_get(new_value_addr, value))
         return _EFAULT;
-    if (timer_id > TIMERS_MAX)
+    if ((uint32_t)timer > TIMERS_MAX)
         return _EINVAL;
 
     lock(&current->group->lock);
-    struct posix_timer *timer = &current->group->posix_timers[timer_id];
+    struct posix_timer *ptimer = &current->group->posix_timers[(uint32_t)timer];
     struct timer_spec spec = timer_spec_to_real(value);
     struct timer_spec old_spec;
     if (flags & TIMER_ABSTIME_) {
-        struct timespec now = timespec_now(timer->timer->clockid);
+        struct timespec now = timespec_now(ptimer->timer->clockid);
         spec.value = timespec_subtract(spec.value, now);
     }
-    int err = timer_set(timer->timer, spec, &old_spec);
+    int err = timer_set(ptimer->timer, spec, &old_spec);
     unlock(&current->group->lock);
     if (err < 0)
         return err;
@@ -372,11 +370,11 @@ int_t sys_timer_settime(dword_t timer_id, int_t flags, addr_t new_value_addr, ad
     return 0;
 }
 
-int_t sys_timer_delete(dword_t timer_id)
+int64_t sys_timer_delete(int32_t timer_id)
 {
     STRACE("timer_delete(%d)\n", timer_id);
     lock(&current->group->lock);
-    struct posix_timer *timer = &current->group->posix_timers[timer_id];
+    struct posix_timer *timer = &current->group->posix_timers[(uint32_t)timer_id];
     if (timer->timer == NULL) {
         unlock(&current->group->lock);
         return _EINVAL;
@@ -398,7 +396,7 @@ static void timerfd_callback(struct fd *fd)
     poll_wakeup(fd, POLL_READ);
 }
 
-fd_t sys_timerfd_create(int_t clockid, int_t flags)
+int32_t sys_timerfd_create(int32_t clockid, int32_t flags)
 {
     STRACE("timerfd_create(%d, %#x)", clockid, flags);
     clockid_t real_clockid;
@@ -413,7 +411,7 @@ fd_t sys_timerfd_create(int_t clockid, int_t flags)
     return f_install(fd, flags);
 }
 
-int_t sys_timerfd_settime(fd_t f, int_t flags, addr_t new_value_addr, addr_t old_value_addr)
+int64_t sys_timerfd_settime(int32_t f, int32_t flags, addr_t new_value_addr, addr_t old_value_addr)
 {
     STRACE("timerfd_settime(%d, %d, %#x, %#x)", f, flags, new_value_addr, old_value_addr);
     if (flags & ~(TIMER_ABSTIME_))
