@@ -30,6 +30,11 @@ static bool auxv_initialized = false;
 static char resolved_interp_path[256] = { 0 };
 static char last_loader_event[256] = { 0 };
 
+// D2.0: Interp open state tracking
+static bool interp_open_attempted = false;
+static bool interp_open_succeeded = false;
+static int interp_open_errno = 0;
+
 // Forward declaration
 static void test_sink_record_event(ixland_instrumentation_origin_t origin, const char *event_name);
 static uint64_t test_sink_begin_interval(ixland_instrumentation_origin_t origin,
@@ -88,7 +93,20 @@ static void test_sink_record_event(ixland_instrumentation_origin_t origin, const
     }
     // D2.0: Interp open result (emitted at exec.c:754 after generic_open attempt)
     else if (strstr(event_name, "loader.interp.open.result") != NULL) {
+        interp_open_attempted = true;
         strncpy(last_loader_event, event_name, sizeof(last_loader_event) - 1);
+        // Parse err:X from event to classify open result
+        const char *err_str = strstr(event_name, "err:");
+        if (err_str) {
+            int err_val = atoi(err_str + 4);
+            if (err_val == 0) {
+                interp_open_succeeded = true;
+                interp_open_errno = 0;
+            } else {
+                interp_open_succeeded = false;
+                interp_open_errno = err_val;
+            }
+        }
     }
     // Milestone B: Interp header loaded (emitted after read_header succeeds)
     else if (strstr(event_name, "loader.interp_elf.header") != NULL) {
@@ -191,6 +209,9 @@ void guest_execution_trace_sink_reset(void)
     auxv_initialized = false;
     resolved_interp_path[0] = '\0';
     last_loader_event[0] = '\0';
+    interp_open_attempted = false;
+    interp_open_succeeded = false;
+    interp_open_errno = 0;
 }
 
 // Milestone B: Dynamic ELF observation API
@@ -227,4 +248,20 @@ const char *guest_execution_trace_sink_get_interp_path(void)
 const char *guest_execution_trace_sink_get_last_loader_event(void)
 {
     return last_loader_event;
+}
+
+// D2.0: Interp open state accessors
+bool guest_execution_trace_sink_interp_open_attempted(void)
+{
+    return interp_open_attempted;
+}
+
+bool guest_execution_trace_sink_interp_open_succeeded(void)
+{
+    return interp_open_succeeded;
+}
+
+int guest_execution_trace_sink_interp_open_errno(void)
+{
+    return interp_open_errno;
 }
