@@ -1,6 +1,5 @@
 // pull in thread_info and friends
 #import <IXLandLinuxRuntime/kernel/calls.h>
-
 #include <limits.h>
 #include <mach/mach.h>
 #include <string.h>
@@ -54,7 +53,7 @@ static int do_getrlimit32(int resource, struct rlimit32_ *rlimit32)
     return 0;
 }
 
-dword_t sys_getrlimit32(dword_t resource, addr_t rlim_addr)
+int32_t sys_getrlimit32(int32_t resource, addr_t rlim_addr)
 {
     struct rlimit32_ rlimit;
     int err = do_getrlimit32(resource, &rlimit);
@@ -65,7 +64,7 @@ dword_t sys_getrlimit32(dword_t resource, addr_t rlim_addr)
     return 0;
 }
 
-dword_t sys_old_getrlimit32(dword_t resource, addr_t rlim_addr)
+int32_t sys_old_getrlimit32(int32_t resource, addr_t rlim_addr)
 {
     struct rlimit32_ rlimit;
     int err = do_getrlimit32(resource, &rlimit);
@@ -97,7 +96,7 @@ static int check_setrlimit(int resource, struct rlimit_ new_limit)
     return 0;
 }
 
-dword_t sys_setrlimit32(dword_t resource, addr_t rlim_addr)
+int32_t sys_setrlimit32(int32_t resource, addr_t rlim_addr)
 {
     struct rlimit_ rlimit;
     if (user_get(rlim_addr, rlimit))
@@ -109,7 +108,7 @@ dword_t sys_setrlimit32(dword_t resource, addr_t rlim_addr)
     return rlimit_set(current, resource, rlimit);
 }
 
-dword_t sys_prlimit64(pid_t_ pid, dword_t resource, addr_t new_limit_addr, addr_t old_limit_addr)
+int32_t sys_prlimit64(pid_t_ pid, int32_t resource, addr_t new_limit_addr, addr_t old_limit_addr)
 {
     STRACE("prlimit64(%d, %d)", pid, resource);
     if (pid != 0)
@@ -168,7 +167,7 @@ void rusage_add(struct rusage_ *dst, struct rusage_ *src)
     timeval_add(&dst->stime, &src->stime);
 }
 
-dword_t sys_getrusage(dword_t who, addr_t rusage_addr)
+int32_t sys_getrusage(int32_t who, addr_t rusage_addr)
 {
     struct rusage_ rusage;
     switch (who) {
@@ -188,7 +187,7 @@ dword_t sys_getrusage(dword_t who, addr_t rusage_addr)
     return 0;
 }
 
-int_t sys_sched_getaffinity(pid_t_ pid, dword_t cpusetsize, addr_t cpuset_addr)
+int64_t sys_sched_getaffinity(pid_t_ pid, uint32_t cpusetsize, addr_t cpuset_addr)
 {
     STRACE("sched_getaffinity(%d, %d, %#x)", pid, cpusetsize, cpuset_addr);
     if (pid != 0) {
@@ -211,34 +210,34 @@ int_t sys_sched_getaffinity(pid_t_ pid, dword_t cpusetsize, addr_t cpuset_addr)
     // return the number of bytes written
     return sizeof(cpuset);
 }
-int_t sys_sched_setaffinity(pid_t_ UNUSED(pid), dword_t UNUSED(cpusetsize),
-                            addr_t UNUSED(cpuset_addr))
+int64_t sys_sched_setaffinity(pid_t_ UNUSED(pid), uint32_t UNUSED(cpusetsize),
+                              addr_t UNUSED(cpuset_addr))
 {
     // meh
     return 0;
 }
 
-int_t sys_getpriority(int_t which, pid_t_ who)
+int64_t sys_getpriority(int32_t which, pid_t_ who)
 {
     STRACE("getpriority(%d, %d)", which, who);
     return 20;
 }
-int_t sys_setpriority(int_t which, pid_t_ who, int_t prio)
+int64_t sys_setpriority(int32_t which, pid_t_ who, int32_t prio)
 {
     STRACE("setpriority(%d, %d, %d)", which, who, prio);
     return 0;
 }
 
 // realtime scheduling stubs
-int_t sys_sched_getparam(pid_t_ UNUSED(pid), addr_t param_addr)
+int64_t sys_sched_getparam(pid_t_ UNUSED(pid), addr_t param_addr)
 {
-    int_t sched_priority = 0;
+    int32_t sched_priority = 0;
     if (user_put(param_addr, sched_priority))
         return _EFAULT;
     return 0;
 }
 #define SCHED_OTHER_ 0
-int_t sys_sched_getscheduler(pid_t_ UNUSED(pid))
+int64_t sys_sched_getscheduler(pid_t_ UNUSED(pid))
 {
     return SCHED_OTHER_;
 }

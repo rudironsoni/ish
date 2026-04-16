@@ -34,10 +34,10 @@ struct rlimit32_ {
 #define RLIMIT_RTTIME_     15
 #define RLIMIT_NLIMITS_    16
 
-uint32_t sys_getrlimit32(uint32_t resource, addr_t rlim_addr);
-uint32_t sys_setrlimit32(uint32_t resource, addr_t rlim_addr);
-uint32_t sys_prlimit64(pid_t_ pid, uint32_t resource, addr_t new_limit_addr, addr_t old_limit_addr);
-uint32_t sys_old_getrlimit32(uint32_t resource, addr_t rlim_addr);
+int32_t sys_getrlimit32(int32_t resource, addr_t rlim_addr);
+int32_t sys_setrlimit32(int32_t resource, addr_t rlim_addr);
+int32_t sys_prlimit64(pid_t_ pid, int32_t resource, addr_t new_limit_addr, addr_t old_limit_addr);
+int32_t sys_old_getrlimit32(int32_t resource, addr_t rlim_addr);
 
 rlim_t_ rlimit(int resource);
 
@@ -64,12 +64,12 @@ struct rusage_ rusage_get_current(void);
 void rusage_add(struct rusage_ *dst, struct rusage_ *src);
 #define RUSAGE_SELF_     0
 #define RUSAGE_CHILDREN_ -1
-uint32_t sys_getrusage(uint32_t who, addr_t rusage_addr);
+int32_t sys_getrusage(int32_t who, addr_t rusage_addr);
 
 int64_t sys_sched_getaffinity(pid_t_ pid, uint32_t cpusetsize, addr_t cpuset_addr);
 int64_t sys_sched_setaffinity(pid_t_ pid, uint32_t cpusetsize, addr_t cpuset_addr);
-int64_t sys_getpriority(int64_t which, pid_t_ who);
-int64_t sys_setpriority(int64_t which, pid_t_ who, int64_t prio);
+int64_t sys_getpriority(int32_t which, pid_t_ who);
+int64_t sys_setpriority(int32_t which, pid_t_ who, int32_t prio);
 
 int64_t sys_sched_getparam(pid_t_ pid, addr_t param_addr);
 int64_t sys_sched_getscheduler(pid_t_ UNUSED(pid));
