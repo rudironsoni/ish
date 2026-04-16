@@ -12,8 +12,8 @@
 int64_t sys_socketcall(uint32_t call_num, addr_t args_addr);
 
 int64_t sys_socket(uint32_t domain, uint32_t type, uint32_t protocol);
-int64_t sys_bind(fd_t sock_fd, addr_t sockaddr_addr, uint64_t sockaddr_len);
-int64_t sys_connect(fd_t sock_fd, addr_t sockaddr_addr, uint64_t sockaddr_len);
+int64_t sys_bind(fd_t sock_fd, addr_t sockaddr_addr, uint32_t sockaddr_len);
+int64_t sys_connect(fd_t sock_fd, addr_t sockaddr_addr, uint32_t sockaddr_len);
 int64_t sys_listen(fd_t sock_fd, int64_t backlog);
 int64_t sys_accept(fd_t sock_fd, addr_t sockaddr_addr, addr_t sockaddr_len_addr);
 int64_t sys_getsockname(fd_t sock_fd, addr_t sockaddr_addr, addr_t sockaddr_len_addr);

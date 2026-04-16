@@ -1,9 +1,9 @@
 #ifndef FS_INODE_H
 #define FS_INODE_H
-#include <sys/types.h>
-#import <IXLandLinuxRuntime/util/misc.h>
 #import <IXLandLinuxRuntime/util/list.h>
+#import <IXLandLinuxRuntime/util/misc.h>
 #import <IXLandLinuxRuntime/util/sync.h>
+#include <sys/types.h>
 struct mount;
 struct fd;
 
@@ -54,17 +54,17 @@ struct file_lock {
 };
 
 struct flock_ {
-    word_t type;
-    word_t whence;
+    uint16_t type;
+    uint16_t whence;
     off_t_ start;
     off_t_ len;
     pid_t_ pid;
 } __attribute__((packed));
 struct flock32_ {
-    word_t type;
-    word_t whence;
-    dword_t start;
-    dword_t len;
+    uint16_t type;
+    uint16_t whence;
+    uint32_t start;
+    uint32_t len;
     pid_t_ pid;
 } __attribute__((packed));
 

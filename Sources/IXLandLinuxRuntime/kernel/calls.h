@@ -136,10 +136,10 @@ uint32_t sys_readlink(addr_t path, addr_t buf, uint32_t bufsize);
 uint32_t sys_readlinkat(fd_t at_f, addr_t path, addr_t buf, uint32_t bufsize);
 int64_t sys_getdents(fd_t f, addr_t dirents, uint64_t count);
 int64_t sys_getdents64(fd_t f, addr_t dirents, uint64_t count);
-uint32_t sys_stat64(addr_t path_addr, addr_t statbuf_addr);
-uint32_t sys_lstat64(addr_t path_addr, addr_t statbuf_addr);
-uint32_t sys_fstat64(fd_t fd_no, addr_t statbuf_addr);
-uint32_t sys_fstatat64(fd_t at, addr_t path_addr, addr_t statbuf_addr, uint32_t flags);
+int32_t sys_stat64(addr_t path_addr, addr_t statbuf_addr);
+int32_t sys_lstat64(addr_t path_addr, addr_t statbuf_addr);
+int32_t sys_fstat64(fd_t fd_no, addr_t statbuf_addr);
+int32_t sys_fstatat64(fd_t at, addr_t path_addr, addr_t statbuf_addr, int32_t flags);
 uint32_t sys_fchmod(fd_t f, uint32_t mode);
 uint32_t sys_fchmodat(fd_t at_f, addr_t path_addr, uint32_t mode);
 uint32_t sys_chmod(addr_t path_addr, uint32_t mode);
@@ -170,7 +170,7 @@ uint32_t sys_statfs(addr_t path_addr, addr_t buf_addr);
 uint32_t sys_statfs64(addr_t path_addr, uint32_t buf_size, addr_t buf_addr);
 uint32_t sys_fstatfs(fd_t f, addr_t buf_addr);
 uint32_t sys_fstatfs64(fd_t f, addr_t buf_addr);
-uint32_t sys_statx(fd_t at_f, addr_t path_addr, int64_t flags, uint64_t mask, addr_t statx_addr);
+int32_t sys_statx(fd_t at_f, addr_t path_addr, int32_t flags, uint32_t mask, addr_t statx_addr);
 
 #define MS_READONLY_ (1 << 0)
 #define MS_NOSUID_   (1 << 1)
@@ -266,7 +266,7 @@ int64_t sys_set_robust_list(addr_t robust_list, uint32_t len);
 int64_t sys_get_robust_list(pid_t_ pid, addr_t robust_list_ptr, addr_t len_ptr);
 
 // misc
-uint32_t sys_getrandom(addr_t buf_addr, uint32_t len, uint32_t flags);
+int32_t sys_getrandom(addr_t buf_addr, uint32_t len, uint32_t flags);
 int64_t sys_syslog(int64_t type, addr_t buf_addr, int64_t len);
 int64_t sys_ipc(uint64_t call, int64_t first, int64_t second, int64_t third, addr_t ptr,
                 int64_t fifth);

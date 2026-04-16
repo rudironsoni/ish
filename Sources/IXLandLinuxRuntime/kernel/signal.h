@@ -151,7 +151,7 @@ struct sighand *sighand_copy(struct sighand *sighand);
 void sighand_release(struct sighand *sighand);
 
 int32_t sys_rt_sigaction(int32_t signum, addr_t action_addr, addr_t oldaction_addr,
-                         int32_t sigset_size);
+                         uint32_t sigset_size);
 int32_t sys_sigaction(int32_t signum, addr_t action_addr, addr_t oldaction_addr);
 int32_t sys_rt_sigreturn(void);
 int32_t sys_sigreturn(void);
@@ -160,7 +160,7 @@ int32_t sys_sigreturn(void);
 #define SIG_UNBLOCK_ 1
 #define SIG_SETMASK_ 2
 typedef uint64_t sigset_t_;
-int32_t sys_rt_sigprocmask(int32_t how, addr_t set, addr_t oldset, int32_t size);
+int32_t sys_rt_sigprocmask(int32_t how, addr_t set, addr_t oldset, uint32_t size);
 int64_t sys_rt_sigpending(addr_t set_addr);
 
 static inline sigset_t_ sig_mask(int sig)
@@ -192,7 +192,7 @@ struct stack_t_ {
 #define MINSIGSTKSZ_ 2048
 int32_t sys_sigaltstack(addr_t ss, addr_t old_ss);
 
-int64_t sys_rt_sigsuspend(addr_t mask_addr, uint64_t size);
+int64_t sys_rt_sigsuspend(addr_t mask_addr, uint32_t size);
 int64_t sys_pause(void);
 int64_t sys_rt_sigtimedwait(addr_t set_addr, addr_t info_addr, addr_t timeout_addr,
                             uint64_t set_size);

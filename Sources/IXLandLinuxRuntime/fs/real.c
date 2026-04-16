@@ -1,14 +1,11 @@
-#import <IXLandLinuxRuntime/fs/real.h>
-
 #import <IXLandLinuxRuntime/fs/dev.h>
+#import <IXLandLinuxRuntime/fs/real.h>
 #import <IXLandLinuxRuntime/fs/tty.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/kernel/errno.h>
 #import <IXLandLinuxRuntime/kernel/fs.h>
-#import <IXLandLinuxRuntime/util/fchdir.h>
-
 #import <IXLandLinuxRuntime/util/debug.h>
-
+#import <IXLandLinuxRuntime/util/fchdir.h>
 #include <dirent.h>
 #include <fcntl.h>
 #include <poll.h>
@@ -510,7 +507,7 @@ int realfs_getflags(struct fd *fd)
     return open_flags_fake_from_real(flags);
 }
 
-int realfs_setflags(struct fd *fd, dword_t flags)
+int realfs_setflags(struct fd *fd, uint32_t flags)
 {
     int ret = fcntl(fd->real_fd, F_SETFL, open_flags_real_from_fake(flags));
     if (ret < 0)
@@ -521,7 +518,7 @@ int realfs_setflags(struct fd *fd, dword_t flags)
 ssize_t realfs_ioctl_size(int cmd)
 {
     if (cmd == FIONREAD_)
-        return sizeof(dword_t);
+        return sizeof(uint32_t);
     return -1;
 }
 
@@ -534,7 +531,7 @@ int realfs_ioctl(struct fd *fd, int cmd, void *arg)
         err = ioctl(fd->real_fd, FIONREAD, &nread);
         if (err < 0)
             return errno_map();
-        *(dword_t *)arg = nread;
+        *(uint32_t *)arg = nread;
         return 0;
     }
     return _ENOTTY;

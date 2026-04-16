@@ -25,7 +25,8 @@ int realfs_fsetattr(struct fd *fd, struct attr attr);
 int realfs_mkdir(struct mount *mount, const char *path, mode_t_ mode);
 
 int realfs_truncate(struct mount *mount, const char *path, off_t_ size);
-int realfs_utime(struct mount *mount, const char *path, struct timespec atime, struct timespec mtime);
+int realfs_utime(struct mount *mount, const char *path, struct timespec atime,
+                 struct timespec mtime);
 
 int realfs_statfs(struct mount *mount, struct statfsbuf *stat);
 int realfs_flock(struct fd *fd, int operation);
@@ -40,10 +41,11 @@ void realfs_seekdir(struct fd *fd, unsigned long ptr);
 off_t realfs_lseek(struct fd *fd, off_t offset, int whence);
 
 int realfs_poll(struct fd *fd);
-int realfs_mmap(struct fd *fd, struct mem *mem, page_t start, pages_t pages, off_t offset, int prot, int flags);
+int realfs_mmap(struct fd *fd, struct mem *mem, page_t start, pages_t pages, off_t offset, int prot,
+                int flags);
 int realfs_fsync(struct fd *fd);
 int realfs_getflags(struct fd *fd);
-int realfs_setflags(struct fd *fd, dword_t arg);
+int realfs_setflags(struct fd *fd, uint32_t arg);
 ssize_t realfs_ioctl_size(int cmd);
 int realfs_ioctl(struct fd *fd, int cmd, void *arg);
 int realfs_close(struct fd *fd);

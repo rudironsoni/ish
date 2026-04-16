@@ -1,16 +1,17 @@
-#include <fcntl.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
+#include <fcntl.h>
 
 #ifdef __APPLE__
 #include <CommonCrypto/CommonCrypto.h>
 #include <CommonCrypto/CommonRandom.h>
 #else
-#include <unistd.h>
-#include <sys/syscall.h>
 #include <linux/random.h>
+#include <sys/syscall.h>
+#include <unistd.h>
 #endif
 
-int get_random(char *buf, size_t len) {
+int get_random(char *buf, size_t len)
+{
 #ifdef __APPLE__
     return CCRandomGenerateBytes(buf, len) != kCCSuccess;
 #else
@@ -18,7 +19,8 @@ int get_random(char *buf, size_t len) {
 #endif
 }
 
-dword_t sys_getrandom(addr_t buf_addr, dword_t len, dword_t UNUSED(flags)) {
+int32_t sys_getrandom(addr_t buf_addr, uint32_t len, uint32_t UNUSED(flags))
+{
     if (len > 1 << 20)
         return _EIO;
     char *buf = malloc(len);

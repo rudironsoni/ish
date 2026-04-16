@@ -518,8 +518,8 @@ static ssize_t tty_read(struct fd *fd, void *buf, size_t bufsize)
         if (bufsize > canon_size)
             bufsize = canon_size;
     } else {
-        dword_t min = tty->termios.cc[VMIN_];
-        dword_t time = tty->termios.cc[VTIME_];
+        uint32_t min = tty->termios.cc[VMIN_];
+        uint32_t time = tty->termios.cc[VTIME_];
 
         struct timespec timeout;
         // time is in tenths of a second
@@ -572,7 +572,7 @@ static ssize_t tty_write(struct fd *fd, const void *buf, size_t bufsize)
     }
 
     bool blocking = !(fd->flags & O_NONBLOCK_);
-    dword_t oflags = tty->termios.oflags;
+    uint32_t oflags = tty->termios.oflags;
     // we have to unlock it now to avoid lock ordering problems with ptys
     // the code below is safe because it only accesses tty->driver which is immutable
     // I reviewed real driver and ios driver and they're safe
@@ -646,7 +646,7 @@ static ssize_t tty_ioctl_size(int cmd)
     case TIOCPKT_:
     case TIOCGPKT_:
     case FIONREAD_:
-        return sizeof(dword_t);
+        return sizeof(uint32_t);
     case TCFLSH_:
     case TIOCSCTTY_:
         return 0;
@@ -808,12 +808,12 @@ static int tty_ioctl(struct fd *fd, int cmd, void *arg)
             break;
         }
         // TODO group must be in the right session
-        tty->fg_group = *(dword_t *)arg;
+        tty->fg_group = *(uint32_t *)arg;
         STRACE("tty group set to = %d\n", tty->fg_group);
         break;
 
     case FIONREAD_:
-        *(dword_t *)arg = tty->bufsize;
+        *(uint32_t *)arg = tty->bufsize;
         break;
 
     default:

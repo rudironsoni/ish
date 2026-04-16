@@ -129,7 +129,7 @@ bool try_self_signal(int sig)
 /*
  * Send a signal to all processes in a process group
  */
-int send_group_signal(dword_t pgid, int sig, struct siginfo_ info)
+int send_group_signal(uint32_t pgid, int sig, struct siginfo_ info)
 {
     (void)pgid;
     (void)sig;
@@ -319,7 +319,7 @@ void sigmask_set_temp(sigset_t_ mask)
  */
 
 // sys_kill - Send signal to process
-dword_t sys_kill(pid_t_ pid, dword_t sig)
+int32_t sys_kill(pid_t_ pid, int32_t sig)
 {
     (void)pid;
     // Minimal implementation - just return success
@@ -331,7 +331,7 @@ dword_t sys_kill(pid_t_ pid, dword_t sig)
 }
 
 // sys_tkill - Send signal to thread
-dword_t sys_tkill(pid_t_ tid, dword_t sig)
+int32_t sys_tkill(pid_t_ tid, int32_t sig)
 {
     (void)tid;
     // Minimal implementation
@@ -342,7 +342,7 @@ dword_t sys_tkill(pid_t_ tid, dword_t sig)
 }
 
 // sys_tgkill - Send signal to thread group
-dword_t sys_tgkill(pid_t_ tgid, pid_t_ tid, dword_t sig)
+int32_t sys_tgkill(pid_t_ tgid, pid_t_ tid, int32_t sig)
 {
     (void)tgid;
     (void)tid;
@@ -354,8 +354,8 @@ dword_t sys_tgkill(pid_t_ tgid, pid_t_ tid, dword_t sig)
 }
 
 // sys_rt_sigaction - Examine and change signal action
-dword_t sys_rt_sigaction(dword_t signum, addr_t action_addr, addr_t oldaction_addr,
-                         dword_t sigset_size)
+int32_t sys_rt_sigaction(int32_t signum, addr_t action_addr, addr_t oldaction_addr,
+                         uint32_t sigset_size)
 {
     // Minimal implementation - just return success
     (void)signum;
@@ -366,7 +366,7 @@ dword_t sys_rt_sigaction(dword_t signum, addr_t action_addr, addr_t oldaction_ad
 }
 
 // sys_rt_sigprocmask - Examine and change blocked signals
-dword_t sys_rt_sigprocmask(dword_t how, addr_t set, addr_t oldset, dword_t size)
+int32_t sys_rt_sigprocmask(int32_t how, addr_t set, addr_t oldset, uint32_t size)
 {
     // Minimal implementation
     (void)how;
@@ -377,7 +377,7 @@ dword_t sys_rt_sigprocmask(dword_t how, addr_t set, addr_t oldset, dword_t size)
 }
 
 // sys_rt_sigreturn - Return from signal handler
-dword_t sys_rt_sigreturn(void)
+int32_t sys_rt_sigreturn(void)
 {
     // Should be handled by signal frame setup
     // This stub should not be reached in normal execution
@@ -385,7 +385,7 @@ dword_t sys_rt_sigreturn(void)
 }
 
 // sys_rt_sigsuspend - Wait for signal
-int_t sys_rt_sigsuspend(addr_t mask_addr, uint_t size)
+int64_t sys_rt_sigsuspend(addr_t mask_addr, uint32_t size)
 {
     (void)mask_addr;
     (void)size;
@@ -394,7 +394,7 @@ int_t sys_rt_sigsuspend(addr_t mask_addr, uint_t size)
 }
 
 // sys_sigaltstack - Set/get signal stack context
-dword_t sys_sigaltstack(addr_t ss, addr_t old_ss)
+int32_t sys_sigaltstack(addr_t ss, addr_t old_ss)
 {
     (void)ss;
     (void)old_ss;
@@ -402,7 +402,7 @@ dword_t sys_sigaltstack(addr_t ss, addr_t old_ss)
 }
 
 // sys_rt_sigpending - Examine pending signals
-int_t sys_rt_sigpending(addr_t set_addr)
+int64_t sys_rt_sigpending(addr_t set_addr)
 {
     (void)set_addr;
     return _ENOSYS;

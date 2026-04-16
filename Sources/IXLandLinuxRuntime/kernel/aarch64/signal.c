@@ -2,12 +2,10 @@
  * aarch64 signal handling implementation
  */
 
-#import <IXLandLinuxRuntime/kernel/aarch64/signal.h>
-
 #import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
+#import <IXLandLinuxRuntime/kernel/aarch64/signal.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
-
 #include <string.h>
 
 // From UTM's signal.c - Linux syscall number for rt_sigreturn on aarch64
@@ -284,7 +282,7 @@ int a64_handle_sigreturn(struct cpu_state *cpu)
 /*
  * Handle rt_sigreturn syscall entry point
  */
-dword_t sys_rt_sigreturn_aarch64(void)
+int32_t sys_rt_sigreturn_aarch64(void)
 {
     struct task *task = current;
     struct cpu_state *cpu = &task->cpu;

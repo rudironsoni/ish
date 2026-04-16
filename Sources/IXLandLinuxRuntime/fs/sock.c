@@ -1,13 +1,10 @@
-#import <IXLandLinuxRuntime/fs/sock.h>
-
 #import <IXLandLinuxRuntime/fs/fd.h>
 #import <IXLandLinuxRuntime/fs/inode.h>
 #import <IXLandLinuxRuntime/fs/path.h>
 #import <IXLandLinuxRuntime/fs/real.h>
+#import <IXLandLinuxRuntime/fs/sock.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
-
 #import <IXLandLinuxRuntime/util/debug.h>
-
 #include <fcntl.h>
 #include <netinet/tcp.h>
 #include <string.h>
@@ -38,7 +35,7 @@ static fd_t sock_fd_create(int sock_fd, int domain, int type, int protocol)
     return f_install(fd, type & ~SOCKET_TYPE_MASK);
 }
 
-int_t sys_socket(dword_t domain, dword_t type, dword_t protocol)
+int64_t sys_socket(uint32_t domain, uint32_t type, uint32_t protocol)
 {
     STRACE("socket(%d, %d, %d)", domain, type, protocol);
     int real_domain = sock_family_to_real(domain);
@@ -235,7 +232,7 @@ static void unix_abstract_release(struct unix_abstract *name)
 
 const char *sock_tmp_prefix = "/tmp/ishsock";
 
-static int sockaddr_read_bind(addr_t sockaddr_addr, void *sockaddr, dword_t *sockaddr_len,
+static int sockaddr_read_bind(addr_t sockaddr_addr, void *sockaddr, uint32_t *sockaddr_len,
                               struct fd *bind_fd)
 {
     // Make sure we can read things without overflowing buffers
@@ -303,7 +300,7 @@ static int sockaddr_read_bind(addr_t sockaddr_addr, void *sockaddr, dword_t *soc
     return 0;
 }
 
-static int sockaddr_read(addr_t sockaddr_addr, void *sockaddr, dword_t *sockaddr_len)
+static int sockaddr_read(addr_t sockaddr_addr, void *sockaddr, uint32_t *sockaddr_len)
 {
     struct inode_data *inode = NULL;
     int err = sockaddr_read_bind(sockaddr_addr, sockaddr, sockaddr_len, NULL);
@@ -311,8 +308,8 @@ static int sockaddr_read(addr_t sockaddr_addr, void *sockaddr, dword_t *sockaddr
     return err;
 }
 
-static int sockaddr_write(addr_t sockaddr_addr, void *sockaddr, dword_t buffer_len,
-                          dword_t *sockaddr_len)
+static int sockaddr_write(addr_t sockaddr_addr, void *sockaddr, uint32_t buffer_len,
+                          uint32_t *sockaddr_len)
 {
     struct sockaddr *real_addr = sockaddr;
     struct sockaddr_ *fake_addr = sockaddr;
@@ -343,7 +340,7 @@ static int sockaddr_write(addr_t sockaddr_addr, void *sockaddr, dword_t buffer_l
     return 0;
 }
 
-int_t sys_bind(fd_t sock_fd, addr_t sockaddr_addr, uint_t sockaddr_len)
+int64_t sys_bind(fd_t sock_fd, addr_t sockaddr_addr, uint32_t sockaddr_len)
 {
     STRACE("bind(%d, 0x%x, %d)", sock_fd, sockaddr_addr, sockaddr_len);
     struct fd *sock = sock_getfd(sock_fd);
@@ -351,7 +348,7 @@ int_t sys_bind(fd_t sock_fd, addr_t sockaddr_addr, uint_t sockaddr_len)
         return _EBADF;
     struct sockaddr_max_ sockaddr;
     struct inode_data *inode = NULL;
-    dword_t sockaddr_len_dword = sockaddr_len;
+    uint32_t sockaddr_len_dword = sockaddr_len;
     int err = sockaddr_read_bind(sockaddr_addr, &sockaddr, &sockaddr_len_dword, sock);
     if (err < 0)
         return err;
@@ -374,14 +371,14 @@ static void fill_cred(struct ucred_ *cred)
     cred->gid = current->egid;
 }
 
-int_t sys_connect(fd_t sock_fd, addr_t sockaddr_addr, uint_t sockaddr_len)
+int64_t sys_connect(fd_t sock_fd, addr_t sockaddr_addr, uint32_t sockaddr_len)
 {
     STRACE("connect(%d, 0x%x, %d)", sock_fd, sockaddr_addr, sockaddr_len);
     struct fd *sock = sock_getfd(sock_fd);
     if (sock == NULL)
         return _EBADF;
     struct sockaddr_max_ sockaddr;
-    dword_t sockaddr_len_dword = sockaddr_len;
+    uint32_t sockaddr_len_dword = sockaddr_len;
     int err = sockaddr_read(sockaddr_addr, &sockaddr, &sockaddr_len_dword);
     if (err < 0)
         return err;
@@ -407,7 +404,7 @@ int_t sys_connect(fd_t sock_fd, addr_t sockaddr_addr, uint_t sockaddr_len)
     return err;
 }
 
-int_t sys_listen(fd_t sock_fd, int_t backlog)
+int64_t sys_listen(fd_t sock_fd, int64_t backlog)
 {
     STRACE("listen(%d, %d)", sock_fd, backlog);
     struct fd *sock = sock_getfd(sock_fd);
@@ -420,13 +417,13 @@ int_t sys_listen(fd_t sock_fd, int_t backlog)
     return err;
 }
 
-int_t sys_accept(fd_t sock_fd, addr_t sockaddr_addr, addr_t sockaddr_len_addr)
+int64_t sys_accept(fd_t sock_fd, addr_t sockaddr_addr, addr_t sockaddr_len_addr)
 {
     STRACE("accept(%d, 0x%x, 0x%x)", sock_fd, sockaddr_addr, sockaddr_len_addr);
     struct fd *sock = sock_getfd(sock_fd);
     if (sock == NULL)
         return _EBADF;
-    dword_t sockaddr_len = 0;
+    uint32_t sockaddr_len = 0;
     if (sockaddr_addr != 0) {
         if (user_get(sockaddr_len_addr, sockaddr_len))
             return _EFAULT;
@@ -1281,48 +1278,47 @@ int_t sys_socketcall(dword_t call_num, addr_t args_addr)
     case 1:
         return sys_socket(args[0], args[1], args[2]);
     case 2:
-        return sys_bind((fd_t) args[0], (addr_t) args[1], args[2]);
+        return sys_bind((fd_t)args[0], (addr_t)args[1], args[2]);
     case 3:
-        return sys_connect((fd_t) args[0], (addr_t) args[1], args[2]);
+        return sys_connect((fd_t)args[0], (addr_t)args[1], args[2]);
     case 4:
-        return sys_listen((fd_t) args[0], (int_t) (sdword_t) args[1]);
+        return sys_listen((fd_t)args[0], (int_t)(sdword_t)args[1]);
     case 5:
-        return sys_accept((fd_t) args[0], (addr_t) args[1], (addr_t) args[2]);
+        return sys_accept((fd_t)args[0], (addr_t)args[1], (addr_t)args[2]);
     case 6:
-        return sys_getsockname((fd_t) args[0], (addr_t) args[1], (addr_t) args[2]);
+        return sys_getsockname((fd_t)args[0], (addr_t)args[1], (addr_t)args[2]);
     case 7:
-        return sys_getpeername((fd_t) args[0], (addr_t) args[1], (addr_t) args[2]);
+        return sys_getpeername((fd_t)args[0], (addr_t)args[1], (addr_t)args[2]);
     case 8:
-        return sys_socketpair(args[0], args[1], args[2], (addr_t) args[3]);
+        return sys_socketpair(args[0], args[1], args[2], (addr_t)args[3]);
     case 9:
-        return sys_send((fd_t) args[0], (addr_t) args[1], args[2], (int_t) (sdword_t) args[3]);
+        return sys_send((fd_t)args[0], (addr_t)args[1], args[2], (int_t)(sdword_t)args[3]);
     case 10:
-        return sys_recv((fd_t) args[0], (addr_t) args[1], args[2], (int_t) (sdword_t) args[3]);
+        return sys_recv((fd_t)args[0], (addr_t)args[1], args[2], (int_t)(sdword_t)args[3]);
     case 11:
-        return sys_sendto((fd_t) args[0], (addr_t) args[1], args[2], args[3], (addr_t) args[4],
+        return sys_sendto((fd_t)args[0], (addr_t)args[1], args[2], args[3], (addr_t)args[4],
                           args[5]);
     case 12:
-        return sys_recvfrom((fd_t) args[0], (addr_t) args[1], args[2], args[3], (addr_t) args[4],
-                            (addr_t) args[5]);
+        return sys_recvfrom((fd_t)args[0], (addr_t)args[1], args[2], args[3], (addr_t)args[4],
+                            (addr_t)args[5]);
     case 13:
-        return sys_shutdown((fd_t) args[0], args[1]);
+        return sys_shutdown((fd_t)args[0], args[1]);
     case 14:
-        return sys_setsockopt((fd_t) args[0], args[1], args[2], (addr_t) args[3], args[4]);
+        return sys_setsockopt((fd_t)args[0], args[1], args[2], (addr_t)args[3], args[4]);
     case 15:
-        return sys_getsockopt((fd_t) args[0], args[1], args[2], (addr_t) args[3], args[4]);
+        return sys_getsockopt((fd_t)args[0], args[1], args[2], (addr_t)args[3], args[4]);
     case 16:
-        return sys_sendmsg((fd_t) args[0], (addr_t) args[1], (int_t) (sdword_t) args[2]);
+        return sys_sendmsg((fd_t)args[0], (addr_t)args[1], (int_t)(sdword_t)args[2]);
     case 17:
-        return sys_recvmsg((fd_t) args[0], (addr_t) args[1], (int_t) (sdword_t) args[2]);
+        return sys_recvmsg((fd_t)args[0], (addr_t)args[1], (int_t)(sdword_t)args[2]);
     case 18:
-        return sys_accept4((fd_t) args[0], (addr_t) args[1], (addr_t) args[2],
-                           (int_t) (sdword_t) args[3]);
+        return sys_accept4((fd_t)args[0], (addr_t)args[1], (addr_t)args[2],
+                           (int_t)(sdword_t)args[3]);
     case 19:
-        return sys_recvmmsg((fd_t) args[0], (addr_t) args[1], args[2],
-                            (int_t) (sdword_t) args[3], (addr_t) args[4]);
+        return sys_recvmmsg((fd_t)args[0], (addr_t)args[1], args[2], (int_t)(sdword_t)args[3],
+                            (addr_t)args[4]);
     case 20:
-        return sys_sendmmsg((fd_t) args[0], (addr_t) args[1], args[2],
-                            (int_t) (sdword_t) args[3]);
+        return sys_sendmmsg((fd_t)args[0], (addr_t)args[1], args[2], (int_t)(sdword_t)args[3]);
     default:
         FIXME("socketcall %d", call_num);
         return _ENOSYS;

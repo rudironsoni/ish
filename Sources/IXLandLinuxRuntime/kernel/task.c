@@ -288,7 +288,7 @@ static bool pid_empty(struct pid *pid)
     return pid->task == NULL && list_empty(&pid->session) && list_empty(&pid->pgroup);
 }
 
-struct pid *pid_get(dword_t id)
+struct pid *pid_get(uint32_t id)
 {
     if (id > sizeof(pids) / sizeof(pids[0]))
         return NULL;
@@ -298,7 +298,7 @@ struct pid *pid_get(dword_t id)
     return pid;
 }
 
-struct task *pid_get_task_zombie(dword_t id)
+struct task *pid_get_task_zombie(uint32_t id)
 {
     struct pid *pid = pid_get(id);
     if (pid == NULL)
@@ -307,7 +307,7 @@ struct task *pid_get_task_zombie(dword_t id)
     return task;
 }
 
-struct task *pid_get_task(dword_t id)
+struct task *pid_get_task(uint32_t id)
 {
     struct task *task = pid_get_task_zombie(id);
     if (task != NULL && task->zombie)
@@ -717,7 +717,7 @@ void task_start(struct task *task)
     task_start_validation_checkpoint_with_pthread("task.proof.after_pthread", task, pthread_err);
 }
 
-int_t sys_sched_yield()
+int64_t sys_sched_yield()
 {
     STRACE("sched_yield()");
     sched_yield();
