@@ -86,7 +86,16 @@ static void test_sink_record_event(ixland_instrumentation_origin_t origin, const
         auxv_initialized = true;
         strncpy(last_loader_event, event_name, sizeof(last_loader_event) - 1);
     }
-    // Milestone B: Interp header loaded
+    // D2.0: Interp open result (emitted at exec.c:754 after generic_open attempt)
+    else if (strstr(event_name, "loader.interp.open.result") != NULL) {
+        strncpy(last_loader_event, event_name, sizeof(last_loader_event) - 1);
+    }
+    // Milestone B: Interp header loaded (emitted after read_header succeeds)
+    else if (strstr(event_name, "loader.interp_elf.header") != NULL) {
+        interp_header_loaded = true;
+        strncpy(last_loader_event, event_name, sizeof(last_loader_event) - 1);
+    }
+    // Milestone B: Interp bias compute (emitted during interpreter mapping phase, after D2.1/D2.2)
     else if (strstr(event_name, "loader.interp.bias.compute") != NULL) {
         interp_header_loaded = true;
         strncpy(last_loader_event, event_name, sizeof(last_loader_event) - 1);

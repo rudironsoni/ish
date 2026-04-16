@@ -751,6 +751,17 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
 
         // open interpreter and read headers
         interp_fd = generic_open(interp_name, O_RDONLY, 0);
+        {
+            static int budget = 1;
+            if (budget > 0) {
+                char ev[256];
+                int open_err = IS_ERR(interp_fd) ? PTR_ERR(interp_fd) : 0;
+                snprintf(ev, sizeof(ev), "loader.interp.open.result=err:%d,path:%s,present:1",
+                         open_err, interp_name ? interp_name : "none");
+                trace_record_event(TRACE_ORIGIN_KERNEL, ev);
+                budget--;
+            }
+        }
         if (IS_ERR(interp_fd)) {
             err = PTR_ERR(interp_fd);
             goto out_free_interp;
