@@ -20,7 +20,7 @@ void do_uname(struct uname *uts)
     strcpy(uts->hostname, hostname);
     strcpy(uts->release, "4.20.69-ish");
     snprintf(uts->version, sizeof(uts->version), "%s %s %s", uname_version, __DATE__, __TIME__);
-    strcpy(uts->arch, "i686");
+    strcpy(uts->arch, "aarch64");
     strcpy(uts->domain, "(none)");
 }
 

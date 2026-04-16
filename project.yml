@@ -48,7 +48,6 @@ targets:
     - path: Sources/IXLandLinuxRuntime
       headerVisibility: project
       excludes:
-      - "platform/linux.c"
       - "trace/**"
     dependencies:
     - package: IXLandInstrumentation
