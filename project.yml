@@ -103,6 +103,7 @@ targets:
       excludes:
       - "tcti_four_boundary.c"
       - "tcti_harness_truth.c"
+    - path: Tests/Support/GuestExecutionHarness
     - path: Tests/Fixtures/ELF
       includes:
       - "*.elf"

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		013DE0F5829BEFD601D8535F /* GuestExecutionTraceSink.c in Sources */ = {isa = PBXBuildFile; fileRef = 0C17788D257256FE99D7540D /* GuestExecutionTraceSink.c */; };
 		0180CB5CBBC09EEF1C15DE22 /* UIApplication+OpenURL.m in Sources */ = {isa = PBXBuildFile; fileRef = 1DAB174BD1F4233E89D024E0 /* UIApplication+OpenURL.m */; };
 		01F5164B620DA4E518B0E76D /* libIXLandLinuxRuntime.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CB26B1B5D3A91542EDE0757A /* libIXLandLinuxRuntime.a */; };
 		029640A72DDF6EE7F4798DF5 /* ProgressReportViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = E516F4936121FB17E17C35AD /* ProgressReportViewController.m */; };
@@ -108,6 +109,7 @@
 		72E9FCA6521EF25F9FD47233 /* dyndev.c in Sources */ = {isa = PBXBuildFile; fileRef = D75F368F8A0B728AC875CC5A /* dyndev.c */; };
 		74FCDE5FDC2EC4268377C4D6 /* ish.c in Sources */ = {isa = PBXBuildFile; fileRef = 15AF3057431E43D0FA701DA0 /* ish.c */; };
 		7702A0CC5EB8A8D292E42529 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E52C4CDCEE5CD1F9912BF659 /* UIKit.framework */; };
+		77CFF76E58478E7D721212CB /* GuestExecutionProbe.c in Sources */ = {isa = PBXBuildFile; fileRef = A4A0C76DA5479614279F0295 /* GuestExecutionProbe.c */; };
 		79079A468765DFD62E66F6A6 /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A72627E301437AE08899AB40 /* UniformTypeIdentifiers.framework */; };
 		7937BE911BE8253CD48B0200 /* memory.c in Sources */ = {isa = PBXBuildFile; fileRef = 33F48F0FFF7A981F3B71C461 /* memory.c */; };
 		79DA0AE247C897E4CB4F8AC1 /* signal.c in Sources */ = {isa = PBXBuildFile; fileRef = 4BC805FD8F00FF19FAB1BDE8 /* signal.c */; };
@@ -119,6 +121,7 @@
 		7EA9B487DDD9AA0AAA918986 /* vma.c in Sources */ = {isa = PBXBuildFile; fileRef = CC4088DCE54E3E3181972999 /* vma.c */; };
 		805105CE480CB3EE78F3038F /* static_bad_magic.bin in Resources */ = {isa = PBXBuildFile; fileRef = 66269EDDFB1D201581D064CC /* static_bad_magic.bin */; };
 		81B54BB1D36413EB9B3B09A2 /* tty-real.c in Sources */ = {isa = PBXBuildFile; fileRef = E08BDE3EF4B2E3E3289BC97C /* tty-real.c */; };
+		81BFECCE6DD2F63577B5C19F /* GuestDynamicELFExecutionTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 6F75E6E9C3786EDA3B84A49C /* GuestDynamicELFExecutionTests.m */; };
 		81CAACA325880AC4EC6CEB59 /* root.c in Sources */ = {isa = PBXBuildFile; fileRef = 02DFAE52B46760351A2F6BF3 /* root.c */; };
 		83129F6338CFBEEB30AC3D39 /* IXLandInstrumentationTracing in Frameworks */ = {isa = PBXBuildFile; productRef = 6605FDD9408096D8EA566BA4 /* IXLandInstrumentationTracing */; };
 		83803EC8EA3ACBD1F681051B /* colontildehash.png in Resources */ = {isa = PBXBuildFile; fileRef = 7A21715B57BF12F66CDEDCE3 /* colontildehash.png */; };
@@ -181,6 +184,7 @@
 		C97D688F340BEFFE552AE015 /* sysreg.c in Sources */ = {isa = PBXBuildFile; fileRef = 724BCE40498A7A29DF9E8AC1 /* sysreg.c */; };
 		CAC77D6223909682311F17E0 /* libresolv.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 8C804D8247F78845E3D03ADD /* libresolv.tbd */; };
 		CBBF7D9620910717A9D4878D /* GuestMemoryManagementTests.m in Sources */ = {isa = PBXBuildFile; fileRef = F797CE4B570CD522D3CDDE8B /* GuestMemoryManagementTests.m */; };
+		CC6900C26B71E214CCB0BAF8 /* GuestExecutionHarness.m in Sources */ = {isa = PBXBuildFile; fileRef = 6F7BF1C608C67712928D15B5 /* GuestExecutionHarness.m */; };
 		D0D6E9415551716BAFDF25BE /* darwin.c in Sources */ = {isa = PBXBuildFile; fileRef = 3FA2BEE2C204898B61FE4816 /* darwin.c */; };
 		D1AF25DB734DA206F8EE7114 /* eventfd.c in Sources */ = {isa = PBXBuildFile; fileRef = BB2A17AB54E7A646C8EFB3BB /* eventfd.c */; };
 		D2818B23FE9C87387747111C /* icon1337.png in Resources */ = {isa = PBXBuildFile; fileRef = 1314314FBFDF7FC8667E46AA /* icon1337.png */; };
@@ -321,6 +325,7 @@
 		0ABD252C58B06EBB0A44685E /* gadgets_ldst_tlb.S */ = {isa = PBXFileReference; path = gadgets_ldst_tlb.S; sourceTree = "<group>"; };
 		0AC1B83590E454B5EA6EE834 /* memory.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = memory.h; sourceTree = "<group>"; };
 		0C11C9F3B7BEFB840AE17D07 /* sync.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sync.h; sourceTree = "<group>"; };
+		0C17788D257256FE99D7540D /* GuestExecutionTraceSink.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = GuestExecutionTraceSink.c; sourceTree = "<group>"; };
 		0C4448FC15BAC204BDE6ECE7 /* dollarblock1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = dollarblock1.png; sourceTree = "<group>"; };
 		0E8EEFF817ABCC943BEEB6BC /* real.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = real.h; sourceTree = "<group>"; };
 		0F7232C20762126236329A48 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -391,6 +396,7 @@
 		3F1D4570D05A458BBD6E88EC /* misc.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = misc.h; sourceTree = "<group>"; };
 		3FA2BEE2C204898B61FE4816 /* darwin.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = darwin.c; sourceTree = "<group>"; };
 		3FC5DBFFCF2F7D4493A751AE /* fs.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = fs.c; sourceTree = "<group>"; };
+		408D70EDE1CFF72662FE2A64 /* GuestExecutionTraceSink.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GuestExecutionTraceSink.h; sourceTree = "<group>"; };
 		40C2A88B267444A581024B5D /* static_minimal_exec_ok.elf */ = {isa = PBXFileReference; path = static_minimal_exec_ok.elf; sourceTree = "<group>"; };
 		413013AD1B96BB4B80FE5BD6 /* Aarch64EmulatorTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Aarch64EmulatorTests.m; sourceTree = "<group>"; };
 		41649A6F845DAB672C98138E /* pipe.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = pipe.c; sourceTree = "<group>"; };
@@ -430,6 +436,7 @@
 		5B265EB70C50718759C8939A /* SceneDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SceneDelegate.h; sourceTree = "<group>"; };
 		5B47FEBE11BD649BB6682684 /* TerminalViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TerminalViewController.m; sourceTree = "<group>"; };
 		5B491135813C82A2C92C1917 /* platform.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = platform.h; sourceTree = "<group>"; };
+		5BC26E71AB2DD6C3995AEE18 /* GuestExecutionProbe.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GuestExecutionProbe.h; sourceTree = "<group>"; };
 		5C39803043F7347FFBA6C203 /* tcti_boundary_probe.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = tcti_boundary_probe.c; sourceTree = "<group>"; };
 		5DD6DF9A14627C8C2413E737 /* IXLandLinuxRuntime.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = IXLandLinuxRuntime.h; sourceTree = "<group>"; };
 		5F8F1A234A09E55DBE066430 /* GuestELFLoaderTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GuestELFLoaderTests.m; sourceTree = "<group>"; };
@@ -439,6 +446,7 @@
 		635C885E6F70D63434EDE188 /* NSObject+SaneKVO.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "NSObject+SaneKVO.h"; sourceTree = "<group>"; };
 		642FB10A327A8D7E53E28213 /* ScrollbarView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ScrollbarView.m; sourceTree = "<group>"; };
 		6439235DDD202499039542E7 /* mmap.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = mmap.c; sourceTree = "<group>"; };
+		64A658B954DE24CEBC1CD6F9 /* GuestExecutionHarness.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GuestExecutionHarness.h; sourceTree = "<group>"; };
 		65BBCC97992920C87C54284C /* mm.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = mm.h; sourceTree = "<group>"; };
 		65E79AB17A4E1E196C29511F /* FontPickerViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FontPickerViewController.h; sourceTree = "<group>"; };
 		66269EDDFB1D201581D064CC /* static_bad_magic.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = static_bad_magic.bin; sourceTree = "<group>"; };
@@ -456,6 +464,8 @@
 		6E958AE23214162DB59253CF /* GuestELFLoaderFixtureTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GuestELFLoaderFixtureTests.m; sourceTree = "<group>"; };
 		6F2AF854AD7F8B71BED49E91 /* resource.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = resource.c; sourceTree = "<group>"; };
 		6F7505C93FB34163BAF32949 /* cpu.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = cpu.h; sourceTree = "<group>"; };
+		6F75E6E9C3786EDA3B84A49C /* GuestDynamicELFExecutionTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GuestDynamicELFExecutionTests.m; sourceTree = "<group>"; };
+		6F7BF1C608C67712928D15B5 /* GuestExecutionHarness.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GuestExecutionHarness.m; sourceTree = "<group>"; };
 		70022BEE8187389F8A5E5755 /* AppGroup.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppGroup.h; sourceTree = "<group>"; };
 		724BCE40498A7A29DF9E8AC1 /* sysreg.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sysreg.c; sourceTree = "<group>"; };
 		7331A2AFB857A36FE4667A3D /* init.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = init.c; sourceTree = "<group>"; };
@@ -522,6 +532,7 @@
 		A03BB81FBD69CF3D1D303402 /* prof.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = prof.h; sourceTree = "<group>"; };
 		A17624F5492FE375C9481480 /* DelayedUITask.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = DelayedUITask.m; sourceTree = "<group>"; };
 		A216E71F0F89C382829E98CE /* tls.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = tls.h; sourceTree = "<group>"; };
+		A4A0C76DA5479614279F0295 /* GuestExecutionProbe.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = GuestExecutionProbe.c; sourceTree = "<group>"; };
 		A5C527798E327D1F32130E95 /* errno.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = errno.c; sourceTree = "<group>"; };
 		A64FD3CDB2FC351AD188D0A3 /* GuestProcessABITests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GuestProcessABITests.m; sourceTree = "<group>"; };
 		A699BC2960CA0766BD29C702 /* adhoc.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = adhoc.c; sourceTree = "<group>"; };
@@ -812,6 +823,19 @@
 			path = proc;
 			sourceTree = "<group>";
 		};
+		39C5448D56A68194D3C3166B /* GuestExecutionHarness */ = {
+			isa = PBXGroup;
+			children = (
+				64A658B954DE24CEBC1CD6F9 /* GuestExecutionHarness.h */,
+				6F7BF1C608C67712928D15B5 /* GuestExecutionHarness.m */,
+				A4A0C76DA5479614279F0295 /* GuestExecutionProbe.c */,
+				5BC26E71AB2DD6C3995AEE18 /* GuestExecutionProbe.h */,
+				0C17788D257256FE99D7540D /* GuestExecutionTraceSink.c */,
+				408D70EDE1CFF72662FE2A64 /* GuestExecutionTraceSink.h */,
+			);
+			path = GuestExecutionHarness;
+			sourceTree = "<group>";
+		};
 		4635C6BE01E2AFDFB305B3B7 /* Packages */ = {
 			isa = PBXGroup;
 			children = (
@@ -1032,6 +1056,7 @@
 		96564D0C286DF4E06DE70503 /* Support */ = {
 			isa = PBXGroup;
 			children = (
+				39C5448D56A68194D3C3166B /* GuestExecutionHarness */,
 				2DE414BF1C2E449E9BADD36C /* TCTITestHarness */,
 			);
 			path = Support;
@@ -1063,6 +1088,7 @@
 		9C58A6E3D3124B878054DA4B /* Execution */ = {
 			isa = PBXGroup;
 			children = (
+				6F75E6E9C3786EDA3B84A49C /* GuestDynamicELFExecutionTests.m */,
 				41B7C6E98AAE5F0F682C8F33 /* GuestStaticELFExecutionBoundary.m */,
 				78CA2A1EB924CE37C7E7967F /* GuestStaticELFExecutionTests.m */,
 			);
@@ -1880,9 +1906,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				6DDD59ED1A15E30C8F122CCA /* GuestBringupMatrixTests.m in Sources */,
+				81BFECCE6DD2F63577B5C19F /* GuestDynamicELFExecutionTests.m in Sources */,
 				F960C579FD8B13A685D3BFF5 /* GuestELFHeaderTests.m in Sources */,
 				49A961AC130225BF1ED2F64D /* GuestELFLoaderFixtureTests.m in Sources */,
 				A9846D19742F5361CB43E6D2 /* GuestELFLoaderTests.m in Sources */,
+				CC6900C26B71E214CCB0BAF8 /* GuestExecutionHarness.m in Sources */,
+				77CFF76E58478E7D721212CB /* GuestExecutionProbe.c in Sources */,
+				013DE0F5829BEFD601D8535F /* GuestExecutionTraceSink.c in Sources */,
 				CBBF7D9620910717A9D4878D /* GuestMemoryManagementTests.m in Sources */,
 				429084F7E08EEA3ED2214991 /* GuestProcessABITests.m in Sources */,
 				9C51BAD704D80346D90DDE7D /* GuestStaticELFExecutionBoundary.m in Sources */,
