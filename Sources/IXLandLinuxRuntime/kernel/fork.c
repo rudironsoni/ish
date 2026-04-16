@@ -4,7 +4,6 @@
 #import <IXLandLinuxRuntime/kernel/mm.h>
 #import <IXLandLinuxRuntime/kernel/ptrace.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
-
 #import <IXLandLinuxRuntime/util/debug.h>
 
 #define CSIGNAL_              0x000000ff
@@ -57,7 +56,7 @@ static struct tgroup *tgroup_copy(struct tgroup *old_group)
     return group;
 }
 
-static int copy_task(struct task *task, dword_t flags, addr_t stack, addr_t ptid_addr,
+static int copy_task(struct task *task, uint32_t flags, addr_t stack, addr_t ptid_addr,
                      addr_t tls_addr, addr_t ctid_addr)
 {
     task->vfork = NULL;
@@ -154,7 +153,7 @@ fail_free_mem:
     return err;
 }
 
-dword_t sys_clone(dword_t flags, addr_t stack, addr_t ptid, addr_t tls, addr_t ctid)
+uint32_t sys_clone(uint32_t flags, addr_t stack, addr_t ptid, addr_t tls, addr_t ctid)
 {
     STRACE("clone(0x%x, 0x%x, 0x%x, 0x%x, 0x%x)", flags, stack, ptid, tls, ctid);
     if (flags & ~CSIGNAL_ & ~IMPLEMENTED_FLAGS) {
@@ -215,12 +214,12 @@ dword_t sys_clone(dword_t flags, addr_t stack, addr_t ptid, addr_t tls, addr_t c
     return pid;
 }
 
-dword_t sys_fork()
+uint32_t sys_fork()
 {
     return sys_clone(SIGCHLD_, 0, 0, 0, 0);
 }
 
-dword_t sys_vfork()
+uint32_t sys_vfork()
 {
     return sys_clone(CLONE_VFORK_ | CLONE_VM_ | SIGCHLD_, 0, 0, 0, 0);
 }

@@ -88,7 +88,7 @@ static os_log_t log_for_message(const char *msg)
 #define SYSLOG_ACTION_SIZE_UNREAD_   9
 #define SYSLOG_ACTION_SIZE_BUFFER_   10
 
-static int syslog_read(addr_t buf_addr, int_t len, int flags)
+static int syslog_read(addr_t buf_addr, int64_t len, int flags)
 {
     if (len < 0)
         return _EINVAL;
@@ -108,7 +108,7 @@ static int syslog_read(addr_t buf_addr, int_t len, int flags)
     return len;
 }
 
-static int do_syslog(int type, addr_t buf_addr, int_t len)
+static int do_syslog(int type, addr_t buf_addr, int64_t len)
 {
     int res;
     switch (type) {
@@ -141,7 +141,7 @@ static int do_syslog(int type, addr_t buf_addr, int_t len)
         return _EINVAL;
     }
 }
-int_t sys_syslog(int_t type, addr_t buf_addr, int_t len)
+int64_t sys_syslog(int64_t type, addr_t buf_addr, int64_t len)
 {
     lock(&log_lock);
     int retval = do_syslog(type, buf_addr, len);

@@ -274,7 +274,7 @@ void a64_syscall_init(void)
 /*
  * Get syscall name for debugging
  */
-const char *a64_syscall_name(qword_t num)
+const char *a64_syscall_name(uint64_t num)
 {
     if (num >= A64_SYS_MAX)
         return "unknown";

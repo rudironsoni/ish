@@ -1,12 +1,13 @@
+#import <IXLandLinuxRuntime/fs/poll.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/kernel/fs.h>
-#import <IXLandLinuxRuntime/fs/poll.h>
 
 static struct fd_ops eventfd_ops;
 
-int_t sys_eventfd2(uint_t initval, int_t flags) {
+int64_t sys_eventfd2(uint64_t initval, int64_t flags)
+{
     STRACE("eventfd(%d, %#x)", initval, flags);
-    if (flags & ~(O_CLOEXEC_|O_NONBLOCK_))
+    if (flags & ~(O_CLOEXEC_ | O_NONBLOCK_))
         return _EINVAL;
 
     struct fd *fd = adhoc_fd_create(&eventfd_ops);
@@ -15,11 +16,13 @@ int_t sys_eventfd2(uint_t initval, int_t flags) {
     fd->eventfd.val = initval;
     return f_install(fd, flags);
 }
-int_t sys_eventfd(uint_t initval) {
+int64_t sys_eventfd(uint64_t initval)
+{
     return sys_eventfd2(initval, 0);
 }
 
-static ssize_t eventfd_read(struct fd *fd, void *buf, size_t bufsize) {
+static ssize_t eventfd_read(struct fd *fd, void *buf, size_t bufsize)
+{
     if (bufsize < sizeof(uint64_t))
         return _EINVAL;
 
@@ -35,7 +38,7 @@ static ssize_t eventfd_read(struct fd *fd, void *buf, size_t bufsize) {
         }
     }
 
-    *(uint64_t *) buf = fd->eventfd.val;
+    *(uint64_t *)buf = fd->eventfd.val;
     fd->eventfd.val = 0;
     notify(&fd->cond);
     unlock(&fd->lock);
@@ -43,10 +46,11 @@ static ssize_t eventfd_read(struct fd *fd, void *buf, size_t bufsize) {
     return sizeof(uint64_t);
 }
 
-static ssize_t eventfd_write(struct fd *fd, const void *buf, size_t bufsize) {
+static ssize_t eventfd_write(struct fd *fd, const void *buf, size_t bufsize)
+{
     if (bufsize < sizeof(uint64_t))
         return _EINVAL;
-    uint64_t increment = *(uint64_t *) buf;
+    uint64_t increment = *(uint64_t *)buf;
     if (increment == UINT64_MAX)
         return _EINVAL;
 
@@ -69,7 +73,8 @@ static ssize_t eventfd_write(struct fd *fd, const void *buf, size_t bufsize) {
     return sizeof(uint64_t);
 }
 
-static int eventfd_poll(struct fd *fd) {
+static int eventfd_poll(struct fd *fd)
+{
     lock(&fd->lock);
     int types = 0;
     if (fd->eventfd.val > 0)

@@ -34,21 +34,21 @@
 // Contract: Endianness must be LITTLEENDIAN (1)
 // Owner: kernel/exec.c:501
 - (void)testELFHeaderContract_EndianLittleOnly {
-    byte_t endian = ELF_LITTLEENDIAN;
+    uint8_t endian = ELF_LITTLEENDIAN;
     XCTAssertEqual(endian, ELF_LITTLEENDIAN, "Only little-endian supported");
 }
 
 // Contract: ELF version must be 1
 // Owner: kernel/exec.c:504
 - (void)testELFHeaderContract_VersionOne {
-    byte_t version = 1;
+    uint8_t version = 1;
     XCTAssertEqual(version, 1, "ELF version must be 1");
 }
 
 // Contract: Bitness must be 64-bit (2)
 // Owner: kernel/exec.c:509
 - (void)testELFHeaderContract_Bitness64Bit {
-    byte_t bitness = ELF_64BIT;
+    uint8_t bitness = ELF_64BIT;
     XCTAssertEqual(bitness, ELF_64BIT, "Only 64-bit ELF supported");
 }
 

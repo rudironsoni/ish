@@ -1,9 +1,10 @@
-#import <IXLandLinuxRuntime/util/list.h>
+#import <IXLandLinuxRuntime/fs/tty.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
-#import <IXLandLinuxRuntime/fs/tty.h>
+#import <IXLandLinuxRuntime/util/list.h>
 
-dword_t sys_setpgid(pid_t_ id, pid_t_ pgid) {
+uint32_t sys_setpgid(pid_t_ id, pid_t_ pgid)
+{
     STRACE("setpgid(%d, %d)", id, pgid);
     int err;
     if (id == 0)
@@ -27,7 +28,8 @@ dword_t sys_setpgid(pid_t_ id, pid_t_ pgid) {
         struct pid *group_pid = pid_get(pgid);
         if (group_pid == NULL || list_empty(&group_pid->pgroup))
             goto out;
-        struct tgroup *group_first_tgroup = list_first_entry(&group_pid->pgroup, struct tgroup, pgroup);
+        struct tgroup *group_first_tgroup =
+            list_first_entry(&group_pid->pgroup, struct tgroup, pgroup);
         if (tgroup->sid != group_first_tgroup->sid)
             goto out;
     }
@@ -55,11 +57,13 @@ out:
     return err;
 }
 
-dword_t sys_setpgrp() {
+uint32_t sys_setpgrp()
+{
     return sys_setpgid(0, 0);
 }
 
-pid_t_ sys_getpgid(pid_t_ pid) {
+pid_t_ sys_getpgid(pid_t_ pid)
+{
     STRACE("getpgid(%d)", pid);
     lock(&pids_lock);
     struct task *task = current;
@@ -73,12 +77,14 @@ pid_t_ sys_getpgid(pid_t_ pid) {
     unlock(&pids_lock);
     return pid;
 }
-pid_t_ sys_getpgrp() {
+pid_t_ sys_getpgrp()
+{
     return sys_getpgid(0);
 }
 
 // Must lock pids_lock and task->group->lock
-void task_leave_session(struct task *task) {
+void task_leave_session(struct task *task)
+{
     struct tgroup *group = task->group;
     list_remove_safe(&group->session);
     if (group->tty) {
@@ -94,7 +100,8 @@ void task_leave_session(struct task *task) {
     }
 }
 
-pid_t_ task_setsid(struct task *task) {
+pid_t_ task_setsid(struct task *task)
+{
     lock(&pids_lock);
     struct tgroup *group = task->group;
     pid_t_ new_sid = group->leader->pid;
@@ -116,16 +123,17 @@ pid_t_ task_setsid(struct task *task) {
     return new_sid;
 }
 
-dword_t sys_setsid() {
+uint32_t sys_setsid()
+{
     STRACE("setsid()");
     return task_setsid(current);
 }
 
-dword_t sys_getsid() {
+uint32_t sys_getsid()
+{
     STRACE("getsid()");
     lock(&pids_lock);
     pid_t_ sid = current->group->sid;
     unlock(&pids_lock);
     return sid;
 }
-

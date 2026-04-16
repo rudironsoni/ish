@@ -90,7 +90,7 @@ uint32_t sys_close(fd_t fd);
 uint32_t sys_fsync(fd_t f);
 uint32_t sys_flock(fd_t fd, uint32_t operation);
 int64_t sys_pipe(addr_t pipe_addr);
-int64_t sys_pipe2(addr_t pipe_addr, int64_t flags);
+int64_t sys_pipe2(addr_t pipe_addr, int32_t flags);
 struct pollfd_ {
     fd_t fd;
     uint16_t events;

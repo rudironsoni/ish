@@ -777,14 +777,14 @@ int64_t sys_getsockopt(fd_t sock_fd, int32_t level, int32_t option, addr_t value
         }
         unlock(&peer_lock);
     } else if (level == SOL_SOCKET_ && option == SO_ERROR_) {
-        if (value_len != sizeof(dword_t))
+        if (value_len != sizeof(int32_t))
             return _EINVAL;
         int real_error;
         socklen_t real_error_len = sizeof(real_error);
         int err = getsockopt(sock->real_fd, SOL_SOCKET, SO_ERROR, &real_error, &real_error_len);
         if (err < 0)
             return errno_map();
-        *(dword_t *)value = real_error == 0 ? 0 : -err_map(real_error);
+        *(int32_t *)value = real_error == 0 ? 0 : -err_map(real_error);
     } else if (level == IPPROTO_TCP && option == TCP_CONGESTION_) {
         value_len = strlen(DEFAULT_TCP_CONGESTION);
         memcpy(value, DEFAULT_TCP_CONGESTION, value_len);
@@ -863,7 +863,7 @@ static void scm_free(struct scm *scm)
     free(scm);
 }
 
-int_t sys_sendmsg(fd_t sock_fd, addr_t msghdr_addr, int_t flags)
+int64_t sys_sendmsg(fd_t sock_fd, addr_t msghdr_addr, int64_t flags)
 {
     int err;
     STRACE("sendmsg(%d, %#x, %d)", sock_fd, msghdr_addr, flags);
@@ -879,7 +879,7 @@ int_t sys_sendmsg(fd_t sock_fd, addr_t msghdr_addr, int_t flags)
     // msg_name
     struct sockaddr_max_ msg_name;
     if (msg_fake.msg_name != 0) {
-        dword_t msg_name_len = msg_fake.msg_namelen;
+        uint32_t msg_name_len = msg_fake.msg_namelen;
         int err = sockaddr_read(msg_fake.msg_name, &msg_name, &msg_name_len);
         if (err < 0)
             return err;
@@ -1016,7 +1016,7 @@ out_free_iov:
     return err;
 }
 
-int_t sys_recvmsg(fd_t sock_fd, addr_t msghdr_addr, int_t flags)
+int64_t sys_recvmsg(fd_t sock_fd, addr_t msghdr_addr, int64_t flags)
 {
     STRACE("recvmsg(%d, %#x, %d)", sock_fd, msghdr_addr, flags);
     struct fd *sock = sock_getfd(sock_fd);
@@ -1142,13 +1142,12 @@ int_t sys_recvmsg(fd_t sock_fd, addr_t msghdr_addr, int_t flags)
 }
 
 struct mmsghdr_ {
-    struct msghdr_ hdr;
-    uint_t len;
+    uint32_t len;
 };
 
 // TODO: STUB - sys_accept4 needs proper implementation for AArch64 bring-up
 // This stub is intentionally verbose to prevent silent failures
-int_t sys_accept4(fd_t fd, addr_t addr, addr_t addrlen, int_t flags)
+int64_t sys_accept4(fd_t fd, addr_t addr, addr_t addrlen, int64_t flags)
 {
     (void)fd;
     (void)addr;
@@ -1160,8 +1159,8 @@ int_t sys_accept4(fd_t fd, addr_t addr, addr_t addrlen, int_t flags)
 
 // TODO: STUB - sys_recvmmsg needs proper implementation for AArch64 bring-up
 // This stub is intentionally verbose to prevent silent failures
-int_t sys_recvmmsg(fd_t sock_fd, addr_t msgvec_addr, uint_t msgvec_len, int_t flags,
-                   addr_t timeout_addr)
+int64_t sys_recvmmsg(fd_t sock_fd, addr_t msgvec_addr, uint64_t msgvec_len, int64_t flags,
+                     addr_t timeout_addr)
 {
     (void)sock_fd;
     (void)msgvec_addr;
@@ -1174,12 +1173,12 @@ int_t sys_recvmmsg(fd_t sock_fd, addr_t msgvec_addr, uint_t msgvec_len, int_t fl
 
 // END OF FILE - ALL STUBS DEFINED ABOVE
 
-int_t sys_sendmmsg(fd_t sock_fd, addr_t msg_vec, uint_t vec_len, int_t flags)
+int64_t sys_sendmmsg(fd_t sock_fd, addr_t msg_vec, uint64_t vec_len, int64_t flags)
 {
     int num_sent = 0;
-    for (unsigned i = 0; i < vec_len; i++) {
+    for (uint64_t i = 0; i < vec_len; i++) {
         addr_t msghdr = msg_vec + i * sizeof(struct mmsghdr_);
-        int_t res = sys_sendmsg(sock_fd, msghdr, flags);
+        int64_t res = sys_sendmsg(sock_fd, msghdr, flags);
         if (res >= 0) {
             addr_t msg_len_addr = msghdr + offsetof(struct mmsghdr_, len);
             if (user_put(msg_len_addr, res))
@@ -1267,10 +1266,10 @@ const struct fd_ops socket_fdops = {
     .ioctl = realfs_ioctl,
 };
 
-int_t sys_socketcall(dword_t call_num, addr_t args_addr)
+int64_t sys_socketcall(uint32_t call_num, addr_t args_addr)
 {
     STRACE("%d ", call_num);
-    dword_t args[6];
+    uint32_t args[6];
     if (user_read(args_addr, args, sizeof(args)))
         return _EFAULT;
 
@@ -1282,7 +1281,7 @@ int_t sys_socketcall(dword_t call_num, addr_t args_addr)
     case 3:
         return sys_connect((fd_t)args[0], (addr_t)args[1], args[2]);
     case 4:
-        return sys_listen((fd_t)args[0], (int_t)(sdword_t)args[1]);
+        return sys_listen((fd_t)args[0], (int64_t)(int32_t)args[1]);
     case 5:
         return sys_accept((fd_t)args[0], (addr_t)args[1], (addr_t)args[2]);
     case 6:
@@ -1292,9 +1291,9 @@ int_t sys_socketcall(dword_t call_num, addr_t args_addr)
     case 8:
         return sys_socketpair(args[0], args[1], args[2], (addr_t)args[3]);
     case 9:
-        return sys_send((fd_t)args[0], (addr_t)args[1], args[2], (int_t)(sdword_t)args[3]);
+        return sys_send((fd_t)args[0], (addr_t)args[1], args[2], (int64_t)(int32_t)args[3]);
     case 10:
-        return sys_recv((fd_t)args[0], (addr_t)args[1], args[2], (int_t)(sdword_t)args[3]);
+        return sys_recv((fd_t)args[0], (addr_t)args[1], args[2], (int64_t)(int32_t)args[3]);
     case 11:
         return sys_sendto((fd_t)args[0], (addr_t)args[1], args[2], args[3], (addr_t)args[4],
                           args[5]);
@@ -1308,17 +1307,17 @@ int_t sys_socketcall(dword_t call_num, addr_t args_addr)
     case 15:
         return sys_getsockopt((fd_t)args[0], args[1], args[2], (addr_t)args[3], args[4]);
     case 16:
-        return sys_sendmsg((fd_t)args[0], (addr_t)args[1], (int_t)(sdword_t)args[2]);
+        return sys_sendmsg((fd_t)args[0], (addr_t)args[1], (int64_t)(int32_t)args[2]);
     case 17:
-        return sys_recvmsg((fd_t)args[0], (addr_t)args[1], (int_t)(sdword_t)args[2]);
+        return sys_recvmsg((fd_t)args[0], (addr_t)args[1], (int64_t)(int32_t)args[2]);
     case 18:
         return sys_accept4((fd_t)args[0], (addr_t)args[1], (addr_t)args[2],
-                           (int_t)(sdword_t)args[3]);
+                           (int64_t)(int32_t)args[3]);
     case 19:
-        return sys_recvmmsg((fd_t)args[0], (addr_t)args[1], args[2], (int_t)(sdword_t)args[3],
+        return sys_recvmmsg((fd_t)args[0], (addr_t)args[1], args[2], (int64_t)(int32_t)args[3],
                             (addr_t)args[4]);
     case 20:
-        return sys_sendmmsg((fd_t)args[0], (addr_t)args[1], args[2], (int_t)(sdword_t)args[3]);
+        return sys_sendmmsg((fd_t)args[0], (addr_t)args[1], args[2], (int64_t)(int32_t)args[3]);
     default:
         FIXME("socketcall %d", call_num);
         return _ENOSYS;

@@ -97,7 +97,7 @@ static void trace_page0_translation_identity(struct cpu_state *cpu, addr_t addr,
     if (obj && obj->host_base != NULL) {
         size_t host_off = desc->offset + PGOFFSET(addr);
         if (host_off < obj->host_size)
-            host_ptr_from_map = (void *)((byte_t *)obj->host_base + host_off);
+            host_ptr_from_map = (void *)((uint8_t *)obj->host_base + host_off);
     }
 
     struct tlb_entry tlb_snapshot = { 0 };
