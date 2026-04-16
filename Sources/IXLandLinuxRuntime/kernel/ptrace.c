@@ -87,7 +87,7 @@ int32_t sys_ptrace(int32_t request, int32_t pid, addr_t addr, int32_t data)
 
     case PTRACE_PEEKUSER_: {
         STRACE("ptrace(PTRACE_PEEKUSER, %d, %#x, %#x)", pid, addr, data);
-        dword_t peek;
+        uint32_t peek;
         struct task *child = find_child(pid);
         if (!child)
             return _EPERM;

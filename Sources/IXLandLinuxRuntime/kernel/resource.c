@@ -241,11 +241,11 @@ int64_t sys_sched_getscheduler(pid_t_ UNUSED(pid))
 {
     return SCHED_OTHER_;
 }
-int_t sys_sched_setscheduler(pid_t_ UNUSED(pid), int_t policy, addr_t param_addr)
+int64_t sys_sched_setscheduler(pid_t_ UNUSED(pid), int32_t policy, addr_t param_addr)
 {
     if (policy != SCHED_OTHER_)
         return _EINVAL;
-    int_t sched_priority;
+    int32_t sched_priority;
     if (user_get(param_addr, sched_priority))
         return _EFAULT;
     if (sched_priority != 0)
@@ -253,7 +253,7 @@ int_t sys_sched_setscheduler(pid_t_ UNUSED(pid), int_t policy, addr_t param_addr
     return 0;
 }
 
-int_t sys_sched_get_priority_max(int_t policy)
+int64_t sys_sched_get_priority_max(int32_t policy)
 {
     STRACE("sched_get_priority_max(%d)", policy);
     if (policy == 0)
@@ -261,11 +261,11 @@ int_t sys_sched_get_priority_max(int_t policy)
     return _EINVAL;
 }
 
-int_t sys_ioprio_get(int_t UNUSED(which), int_t UNUSED(who), int_t UNUSED(ioprio))
+int64_t sys_ioprio_get(int32_t UNUSED(which), int32_t UNUSED(who), int32_t UNUSED(ioprio))
 {
     return 0;
 }
-int_t sys_ioprio_set(int_t UNUSED(which), int_t UNUSED(who), int_t UNUSED(ioprio))
+int64_t sys_ioprio_set(int32_t UNUSED(which), int32_t UNUSED(who), int32_t UNUSED(ioprio))
 {
     return 0;
 }

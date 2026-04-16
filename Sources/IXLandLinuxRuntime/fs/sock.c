@@ -671,17 +671,17 @@ int64_t sys_recvfrom(fd_t sock_fd, addr_t buffer_addr, uint32_t len, uint32_t fl
     return res;
 }
 
-int_t sys_send(fd_t sock_fd, addr_t buf, dword_t len, int_t flags)
+int64_t sys_send(fd_t sock_fd, addr_t buf, uint32_t len, int32_t flags)
 {
     return sys_sendto(sock_fd, buf, len, flags, 0, 0);
 }
 
-int_t sys_recv(fd_t sock_fd, addr_t buf, dword_t len, int_t flags)
+int64_t sys_recv(fd_t sock_fd, addr_t buf, uint32_t len, int32_t flags)
 {
     return sys_recvfrom(sock_fd, buf, len, flags, 0, 0);
 }
 
-int_t sys_shutdown(fd_t sock_fd, dword_t how)
+int64_t sys_shutdown(fd_t sock_fd, int32_t how)
 {
     STRACE("shutdown(%d, %d)", sock_fd, how);
     struct fd *sock = sock_getfd(sock_fd);
@@ -695,8 +695,8 @@ int_t sys_shutdown(fd_t sock_fd, dword_t how)
 
 #define DEFAULT_TCP_CONGESTION "cubic"
 
-int_t sys_setsockopt(fd_t sock_fd, dword_t level, dword_t option, addr_t value_addr,
-                     dword_t value_len)
+int64_t sys_setsockopt(fd_t sock_fd, int32_t level, int32_t option, addr_t value_addr,
+                       int32_t value_len)
 {
     STRACE("setsockopt(%d, %d, %d, 0x%x, %d)", sock_fd, level, option, value_addr, value_len);
     struct fd *sock = sock_getfd(sock_fd);
@@ -739,14 +739,14 @@ int_t sys_setsockopt(fd_t sock_fd, dword_t level, dword_t option, addr_t value_a
     return 0;
 }
 
-int_t sys_getsockopt(fd_t sock_fd, dword_t level, dword_t option, addr_t value_addr,
-                     dword_t len_addr)
+int64_t sys_getsockopt(fd_t sock_fd, int32_t level, int32_t option, addr_t value_addr,
+                       int32_t len_addr)
 {
     STRACE("getsockopt(%d, %d, %d, %#x, %#x)", sock_fd, level, option, value_addr, len_addr);
     struct fd *sock = sock_getfd(sock_fd);
     if (sock == NULL)
         return _EBADF;
-    dword_t value_len;
+    int32_t value_len;
     if (user_get(len_addr, value_len))
         return _EFAULT;
     char value[value_len];
@@ -755,7 +755,7 @@ int_t sys_getsockopt(fd_t sock_fd, dword_t level, dword_t option, addr_t value_a
 
     if (level == SOL_SOCKET_ &&
         (option == SO_DOMAIN_ || option == SO_TYPE_ || option == SO_PROTOCOL_)) {
-        dword_t *value_p = (dword_t *)value;
+        int32_t *value_p = (int32_t *)value;
         if (value_len != sizeof(*value_p))
             return _EINVAL;
         if (option == SO_DOMAIN_)

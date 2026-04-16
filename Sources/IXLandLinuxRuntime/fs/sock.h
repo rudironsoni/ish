@@ -23,11 +23,11 @@ int64_t sys_sendto(fd_t sock_fd, addr_t buffer_addr, uint32_t len, uint32_t flag
                    addr_t sockaddr_addr, uint32_t sockaddr_len);
 int64_t sys_recvfrom(fd_t sock_fd, addr_t buffer_addr, uint32_t len, uint32_t flags,
                      addr_t sockaddr_addr, addr_t sockaddr_len_addr);
-int64_t sys_shutdown(fd_t sock_fd, uint32_t how);
-int64_t sys_setsockopt(fd_t sock_fd, uint32_t level, uint32_t option, addr_t value_addr,
-                       uint32_t value_len);
-int64_t sys_getsockopt(fd_t sock_fd, uint32_t level, uint32_t option, addr_t value_addr,
-                       uint32_t len_addr);
+int64_t sys_shutdown(fd_t sock_fd, int32_t how);
+int64_t sys_setsockopt(fd_t sock_fd, int32_t level, int32_t option, addr_t value_addr,
+                       int32_t value_len);
+int64_t sys_getsockopt(fd_t sock_fd, int32_t level, int32_t option, addr_t value_addr,
+                       int32_t len_addr);
 int64_t sys_sendmsg(fd_t sock_fd, addr_t msghdr_addr, int64_t flags);
 int64_t sys_recvmsg(fd_t sock_fd, addr_t msghdr_addr, int64_t flags);
 int64_t sys_sendmmsg(fd_t sock_fd, addr_t msgvec_addr, uint64_t msgvec_len, int64_t flags);

@@ -1,11 +1,12 @@
-#include <sys/stat.h>
-#include <unistd.h>
-#import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/fs/fd.h>
 #import <IXLandLinuxRuntime/fs/real.h>
+#import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/util/debug.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
-static fd_t pipe_f_create(int pipe_fd, int flags) {
+static fd_t pipe_f_create(int pipe_fd, int flags)
+{
     struct fd *fd = adhoc_fd_create(&realfs_fdops);
     if (fd == NULL)
         return _ENOMEM;
@@ -16,9 +17,10 @@ static fd_t pipe_f_create(int pipe_fd, int flags) {
     return f_install(fd, flags);
 }
 
-int_t sys_pipe2(addr_t pipe_addr, int_t flags) {
+int64_t sys_pipe2(addr_t pipe_addr, int32_t flags)
+{
     STRACE("pipe2(%#x, %#x)", pipe_addr, flags);
-    if (flags & ~(O_CLOEXEC_|O_NONBLOCK_)) {
+    if (flags & ~(O_CLOEXEC_ | O_NONBLOCK_)) {
         FIXME("unsupported pipe2 flags");
         return _EINVAL;
     }
@@ -52,6 +54,7 @@ close_pipe:
     return err;
 }
 
-int_t sys_pipe(addr_t pipe_addr) {
+int64_t sys_pipe(addr_t pipe_addr)
+{
     return sys_pipe2(pipe_addr, 0);
 }

@@ -95,16 +95,16 @@ static int pty_master_ioctl(struct tty *tty, int cmd, void *arg)
     struct tty *slave = tty->pty.other;
     switch (cmd) {
     case TIOCSPTLCK_:
-        slave->pty.locked = !!*(dword_t *)arg;
+        slave->pty.locked = !!*(uint32_t *)arg;
         break;
     case TIOCGPTN_:
-        *(dword_t *)arg = slave->num;
+        *(uint32_t *)arg = slave->num;
         break;
     case TIOCPKT_:
-        tty->pty.packet_mode = !!*(dword_t *)arg;
+        tty->pty.packet_mode = !!*(uint32_t *)arg;
         break;
     case TIOCGPKT_:
-        *(dword_t *)arg = tty->pty.packet_mode;
+        *(uint32_t *)arg = tty->pty.packet_mode;
         break;
     default:
         return _ENOTTY;

@@ -73,10 +73,10 @@ int64_t sys_setpriority(int32_t which, pid_t_ who, int32_t prio);
 
 int64_t sys_sched_getparam(pid_t_ pid, addr_t param_addr);
 int64_t sys_sched_getscheduler(pid_t_ UNUSED(pid));
-int64_t sys_sched_setscheduler(pid_t_ UNUSED(pid), int64_t policy, addr_t param_addr);
-int64_t sys_sched_get_priority_max(int64_t policy);
+int64_t sys_sched_setscheduler(pid_t_ UNUSED(pid), int32_t policy, addr_t param_addr);
+int64_t sys_sched_get_priority_max(int32_t policy);
 
-int64_t sys_ioprio_set(int64_t UNUSED(which), int64_t UNUSED(who), int64_t UNUSED(ioprio));
-int64_t sys_ioprio_get(int64_t UNUSED(which), int64_t UNUSED(who), int64_t UNUSED(ioprio));
+int64_t sys_ioprio_set(int32_t UNUSED(which), int32_t UNUSED(who), int32_t UNUSED(ioprio));
+int64_t sys_ioprio_get(int32_t UNUSED(which), int32_t UNUSED(who), int32_t UNUSED(ioprio));
 
 #endif
