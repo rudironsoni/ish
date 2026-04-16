@@ -21,7 +21,6 @@
 extern syscall_t syscall_table[];
 
 // Number of arguments for each syscall (for proper argument marshalling)
-// This mirrors the x86 syscall_arg_count in kernel/calls.c
 // Initialized at runtime to avoid initializer override warnings
 static uint8_t syscall_arg_count_a64[A64_SYS_MAX + 1];
 
