@@ -321,7 +321,6 @@
 		0856887DA7211FC09A6528B9 /* vdso.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = vdso.c; sourceTree = "<group>"; };
 		09C808061069D7850E71415B /* dollarblock2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = dollarblock2.png; sourceTree = "<group>"; };
 		09EE68A06E398E12AE4CDF39 /* fs.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = fs.h; sourceTree = "<group>"; };
-		0A901CDCCC6A49A3B3BAD3EF /* gadgets-generic.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "gadgets-generic.h"; sourceTree = "<group>"; };
 		0ABD252C58B06EBB0A44685E /* gadgets_ldst_tlb.S */ = {isa = PBXFileReference; path = gadgets_ldst_tlb.S; sourceTree = "<group>"; };
 		0AC1B83590E454B5EA6EE834 /* memory.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = memory.h; sourceTree = "<group>"; };
 		0C11C9F3B7BEFB840AE17D07 /* sync.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sync.h; sourceTree = "<group>"; };
@@ -386,7 +385,6 @@
 		36E4F78DF1271206F4EC6F81 /* AboutAppearanceViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AboutAppearanceViewController.m; sourceTree = "<group>"; };
 		37AF23C33F9F0AFAEB7325D9 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		37B7E26866AA9B0AE347F5B8 /* memory.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = memory.c; sourceTree = "<group>"; };
-		37C2EA1E3B69D21400702B5A /* cpu-offsets.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "cpu-offsets.h"; sourceTree = "<group>"; };
 		38178F3DC3959DE00848B27E /* hook.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = hook.c; sourceTree = "<group>"; };
 		38214852B98C342F21C4945A /* sysreg.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sysreg.h; sourceTree = "<group>"; };
 		384D4E240AC5A70AAA5746C3 /* mem.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = mem.c; sourceTree = "<group>"; };
@@ -1065,7 +1063,6 @@
 			isa = PBXGroup;
 			children = (
 				F637857258CE41565C8AB73E /* bits.h */,
-				37C2EA1E3B69D21400702B5A /* cpu-offsets.h */,
 				DAC1C3D5E64BD10C05E08814 /* debug.h */,
 				E42290E5BC7734A9891F9523 /* fchdir.c */,
 				EAE0FEE16507CF2B47F1CEC7 /* fchdir.h */,
@@ -1128,7 +1125,6 @@
 				8624F7CE994E5B1C6A238B17 /* frame.h */,
 				35A16CBCB50B9696548B010A /* gadgets_tcti_impl.c */,
 				FCD544804580CD35D651EA38 /* gadgets_tcti.h */,
-				0A901CDCCC6A49A3B3BAD3EF /* gadgets-generic.h */,
 			);
 			path = tcti;
 			sourceTree = "<group>";

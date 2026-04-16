@@ -64,7 +64,6 @@
 // MARK: - TCTI API
 #import <IXLandLinuxRuntime/tcti/cpu-offsets.h>
 #import <IXLandLinuxRuntime/tcti/frame.h>
-#import <IXLandLinuxRuntime/tcti/gadgets-generic.h>
 
 // MARK: - TCTI aarch64
 #import <IXLandLinuxRuntime/tcti/aarch64/cpu-offsets.h>
@@ -78,7 +77,6 @@
 
 // MARK: - Utilities
 #import <IXLandLinuxRuntime/util/bits.h>
-#import <IXLandLinuxRuntime/util/cpu-offsets.h>
 #import <IXLandLinuxRuntime/util/debug.h>
 #import <IXLandLinuxRuntime/util/fchdir.h>
 #import <IXLandLinuxRuntime/util/fifo.h>
