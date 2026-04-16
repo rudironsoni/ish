@@ -235,7 +235,7 @@ struct uname {
     char hostname[UNAME_LENGTH]; // my-compotar
     char release[UNAME_LENGTH];  // 1.2.3-ish
     char version[UNAME_LENGTH];  // SUPER AWESOME
-    char arch[UNAME_LENGTH];     // i686
+    char arch[UNAME_LENGTH];     // aarch64
     char domain[UNAME_LENGTH];   // lol
 };
 void do_uname(struct uname *uts);
