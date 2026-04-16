@@ -456,7 +456,6 @@
 		66E044EE446656D301B91678 /* CurrentRoot.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = CurrentRoot.m; sourceTree = "<group>"; };
 		672261DCB87AF71046DAEC52 /* IXLandInstrumentation */ = {isa = PBXFileReference; lastKnownFileType = folder; name = IXLandInstrumentation; path = Packages/IXLandInstrumentation; sourceTree = SOURCE_ROOT; };
 		683A3ABC2733C702F5B6BED5 /* decode.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = decode.h; sourceTree = "<group>"; };
-		687E13DDA72E96707043F62A /* syscall_wrappers.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = syscall_wrappers.h; sourceTree = "<group>"; };
 		69D8BC8A36592730277BA6D5 /* timer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = timer.h; sourceTree = "<group>"; };
 		6C91A4FC557D58529C3598BA /* Icons.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Icons.plist; sourceTree = "<group>"; };
 		6D20515B229501D151828731 /* errno.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = errno.h; sourceTree = "<group>"; };
@@ -1400,7 +1399,6 @@
 				D7DFCE0294CDAE8A397E5ED6 /* resource.h */,
 				4BC805FD8F00FF19FAB1BDE8 /* signal.c */,
 				251F13D3F44BD8FB605524B0 /* signal.h */,
-				687E13DDA72E96707043F62A /* syscall_wrappers.h */,
 				59A2E8A5B12BEC93A911DDCA /* task.c */,
 				B40D30873DDBECA46494DEBF /* task.h */,
 				E2A2C1CE801ACBF0FD8D8BFA /* time.c */,

@@ -17,7 +17,6 @@
 #import <IXLandLinuxRuntime/kernel/random.h>
 #import <IXLandLinuxRuntime/kernel/resource.h>
 #import <IXLandLinuxRuntime/kernel/signal.h>
-#import <IXLandLinuxRuntime/kernel/syscall_wrappers.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
 #import <IXLandLinuxRuntime/kernel/time.h>
 #import <IXLandLinuxRuntime/kernel/vdso.h>

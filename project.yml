@@ -49,7 +49,6 @@ targets:
       headerVisibility: project
       excludes:
       - "platform/linux.c"
-      - "kernel/calls.c"
       - "trace/**"
     dependencies:
     - package: IXLandInstrumentation
