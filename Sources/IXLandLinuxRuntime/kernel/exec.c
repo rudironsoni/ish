@@ -376,7 +376,7 @@ static void trace_loader_bias_checkpoint(const char *name, addr_t main_bias, add
 
     (void)trace_begin_interval(TRACE_ORIGIN_KERNEL, name, attrs, sizeof(attrs) / sizeof(attrs[0]));
 
-    static int budget = 1;
+    static int budget = 4;
     if (budget <= 0)
         return;
 
