@@ -195,6 +195,7 @@
     BOOL interpPathResolved = NO;
     BOOL elfExecReached = NO;
     BOOL exitObserved = NO;
+    const char *lastEvent = "";
     while ([[NSDate date] timeIntervalSinceDate:startTime] < 60.0) {
         if (guest_execution_trace_sink_interp_path_resolved()) {
             interpPathResolved = YES;
@@ -204,6 +205,7 @@
             // Guest exited before interp path resolved - capture diagnostic state
             elfExecReached = guest_execution_trace_sink_elf_exec_reached();
             exitObserved = YES;
+            lastEvent = guest_execution_trace_sink_get_last_loader_event();
             break;
         }
         [NSThread sleepForTimeInterval:0.1];
@@ -215,7 +217,9 @@
     XCTAssertTrue(interpPathResolved, 
                   @"B1: loader.interpreter_path=path: event must be observed. "
                   @"This proves PT_INTERP was parsed and the interpreter path was resolved. "
-                  @"If this fails, either elf_exec was not called or the loader event was not emitted.");
+                  @"If this fails, either elf_exec was not called or the loader event was not emitted. "
+                  @"Diagnostic: exit_observed=%d, elf_exec_reached=%d, last_event='%s'",
+                  exitObserved, elfExecReached, lastEvent);
 
     if (interpPathResolved) {
         const char *interpPath = guest_execution_trace_sink_get_interp_path();

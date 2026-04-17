@@ -200,6 +200,26 @@ static uint64_t test_sink_begin_interval(ixland_instrumentation_origin_t origin,
                 }
             }
         }
+    } else if (strcmp(interval_name, "task.proof.loader.biases") == 0) {
+        // Non-budgeted stable loader checkpoint - fires unconditionally
+        // Contains interp_path attribute with resolved interpreter path
+        for (uint32_t i = 0; i < attr_count; i++) {
+            if (attrs[i].key && strcmp(attrs[i].key, "interp_path") == 0 && attrs[i].value) {
+                // Only count real interpreter paths, not "none"
+                if (strncmp(attrs[i].value, "none", 4) != 0) {
+                    interp_path_resolved = true;
+                    strncpy(resolved_interp_path, attrs[i].value, sizeof(resolved_interp_path) - 1);
+                    strncpy(last_loader_event, "task.proof.loader.biases:interp_path_resolved",
+                            sizeof(last_loader_event) - 1);
+                    // Invoke callback for loader boundary - interp path resolved via stable
+                    // interval
+                    if (completion_callback) {
+                        completion_callback(false, -1);
+                    }
+                }
+                break;
+            }
+        }
     }
 
     return 0;
