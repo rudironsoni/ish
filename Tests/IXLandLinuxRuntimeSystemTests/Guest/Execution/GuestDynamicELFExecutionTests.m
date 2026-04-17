@@ -159,6 +159,8 @@
 // FIXED: Use direct sink state polling instead of callback-driven exit observation.
 // The callback design was conflating loader boundary (interp_path_resolved) with exit observation.
 // Now we poll the sink directly to observe the actual loader boundary.
+//
+// Harness classification ladder H0-H4 asserted before X0-X2.
 - (void)testDynamicELF_B1_InterpreterPath_IsResolvedThroughRealExec {
     // B0-B1 prerequisite: Ensure real rootfs bootstrap completed with material provisioning
     [self testDynamicELF_B0_RootfsBootstrap_InvokesAppOwnedPath];
@@ -180,48 +182,63 @@
     unsigned long long fileSize = [attrs fileSize];
     XCTAssertGreaterThan(fileSize, 1000, @"B1.4: busybox must be real extracted payload, not placeholder");
     
-    // B1 behavioral: Execute and poll for interpreter path resolution
+    // B1 behavioral: Execute and observe interpreter path resolution
     // B1 requires PROVING interp path was RESOLVED, not just that execution succeeded
-    // We poll sink state directly to observe the actual loader boundary event
+    // Use async execution with polling to avoid blocking
     guest_execution_trace_sink_reset();
     
+    __block GuestExecutionResult *result = nil;
     dispatch_async(self.harness.executionQueue, ^{
-        [self.harness runExecutableAtRootPath:dataRootPath executablePath:busyboxRelativePath];
+        result = [self.harness runExecutableAtRootPath:dataRootPath executablePath:busyboxRelativePath];
     });
     
-    // Poll for loader boundary: interpreter path resolved
-    // This is the EXTERNALLY OBSERVABLE LOADER BOUNDARY for B1
+    // Poll for classification checkpoints or timeout
+    // X0 (do_execve entered) is the critical signal that runtime processing began
+    // We poll for either X0 observed OR exit observed to classify even if guest hangs
     NSDate *startTime = [NSDate date];
-    BOOL interpPathResolved = NO;
-    BOOL exitObserved = NO;
-    // Pre-elf_exec diagnostic ladder
-    BOOL doExecveEntered = NO;
-    BOOL formatExecEntered = NO;
-    BOOL elfExecEntered = NO;
-    const char *lastEvent = "";
-    while ([[NSDate date] timeIntervalSinceDate:startTime] < 60.0) {
-        if (guest_execution_trace_sink_interp_path_resolved()) {
-            interpPathResolved = YES;
+    BOOL x0Observed = NO;
+    BOOL completed = NO;
+    while (!completed && [[NSDate date] timeIntervalSinceDate:startTime] < 30.0) {
+        x0Observed = guest_execution_trace_sink_do_execve_entered();
+        if ((x0Observed || guest_execution_trace_sink_exit_observed()) && result != nil) {
+            completed = YES;
             break;
         }
-        if (guest_execution_trace_sink_exit_observed()) {
-            exitObserved = YES;
-            // Capture diagnostic ladder
-            doExecveEntered = guest_execution_trace_sink_do_execve_entered();
-            formatExecEntered = guest_execution_trace_sink_format_exec_entered();
-            elfExecEntered = guest_execution_trace_sink_elf_exec_entered();
-            lastEvent = guest_execution_trace_sink_get_last_loader_event();
-            break;
-        }
-        [NSThread sleepForTimeInterval:0.1];
+        [NSThread sleepForTimeInterval:0.05];
+    }
+    
+    // Assert harness classification ladder H0-H4
+    XCTAssertTrue(result.harnessEntered, @"H0: runExecutableAtRootPath must be entered");
+    XCTAssertTrue(result.mountRootCalled, @"H1: mount_root must be called");
+    XCTAssertTrue(result.becomeFirstProcessCalled, @"H2: become_first_process must be called");
+    XCTAssertTrue(result.doExecveReached, @"H3: do_execve must be reached");
+    XCTAssertTrue(result.doExecveCalled, @"H4: do_execve must be called");
+    XCTAssertEqual(result.doExecveReturnValue, 0, @"H4: do_execve must return 0 (success), got %d", result.doExecveReturnValue);
+    
+    // Assert X0-X2 sink state - classify exactly where we stopped
+    BOOL doExecveEntered = guest_execution_trace_sink_do_execve_entered();
+    BOOL formatExecEntered = guest_execution_trace_sink_format_exec_entered();
+    BOOL elfExecEntered = guest_execution_trace_sink_elf_exec_entered();
+    const char *lastEvent = guest_execution_trace_sink_get_last_loader_event();
+
+    XCTAssertTrue(doExecveEntered, @"X0: task.proof.do_execve.entry NOT observed - runtime never reached do_execve entry");
+    if (doExecveEntered) {
+        XCTAssertTrue(formatExecEntered, @"X1: task.proof.do_execve.before_format_exec NOT observed - runtime entered do_execve but never reached format_exec");
+    }
+    if (formatExecEntered) {
+        XCTAssertTrue(elfExecEntered, @"X2: task.proof.elf_exec.after_return_to_caller NOT observed - runtime entered format_exec but elf_exec never returned");
     }
     
     // B1 primary: interp_path must be resolved (proves PT_INTERP was processed)
+    BOOL interpPathResolved = guest_execution_trace_sink_interp_path_resolved();
     XCTAssertTrue(interpPathResolved, 
                   @"B1: loader.interpreter_path=path: event must be observed. "
-                  @"Diagnostic ladder: X0(do_execve)=%d, X1(format_exec)=%d, X2(elf_exec)=%d, "
-                  @"last_event='%s', exit_observed=%d",
-                  doExecveEntered, formatExecEntered, elfExecEntered, lastEvent, exitObserved);
+                  @"H0=%d H1=%d H2=%d H3=%d H4=%d "
+                  @"X0=%d X1=%d X2=%d "
+                  @"last_event='%s'",
+                  result.harnessEntered, result.mountRootCalled, result.becomeFirstProcessCalled,
+                  result.doExecveReached, result.doExecveCalled,
+                  doExecveEntered, formatExecEntered, elfExecEntered, lastEvent);
 
     if (interpPathResolved) {
         const char *interpPath = guest_execution_trace_sink_get_interp_path();
