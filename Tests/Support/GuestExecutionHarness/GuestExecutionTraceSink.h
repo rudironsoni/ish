@@ -61,4 +61,9 @@ bool guest_execution_trace_sink_interp_open_attempted(void);
 bool guest_execution_trace_sink_interp_open_succeeded(void);
 int guest_execution_trace_sink_interp_open_errno(void);
 
+// Pre-elf_exec diagnostic ladder accessors (X0, X1, X2)
+bool guest_execution_trace_sink_do_execve_entered(void);
+bool guest_execution_trace_sink_format_exec_entered(void);
+bool guest_execution_trace_sink_elf_exec_entered(void);
+
 #endif // GUEST_EXECUTION_TRACE_SINK_H

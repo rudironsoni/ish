@@ -193,8 +193,11 @@
     // This is the EXTERNALLY OBSERVABLE LOADER BOUNDARY for B1
     NSDate *startTime = [NSDate date];
     BOOL interpPathResolved = NO;
-    BOOL elfExecReached = NO;
     BOOL exitObserved = NO;
+    // Pre-elf_exec diagnostic ladder
+    BOOL doExecveEntered = NO;
+    BOOL formatExecEntered = NO;
+    BOOL elfExecEntered = NO;
     const char *lastEvent = "";
     while ([[NSDate date] timeIntervalSinceDate:startTime] < 60.0) {
         if (guest_execution_trace_sink_interp_path_resolved()) {
@@ -202,24 +205,23 @@
             break;
         }
         if (guest_execution_trace_sink_exit_observed()) {
-            // Guest exited before interp path resolved - capture diagnostic state
-            elfExecReached = guest_execution_trace_sink_elf_exec_reached();
             exitObserved = YES;
+            // Capture diagnostic ladder
+            doExecveEntered = guest_execution_trace_sink_do_execve_entered();
+            formatExecEntered = guest_execution_trace_sink_format_exec_entered();
+            elfExecEntered = guest_execution_trace_sink_elf_exec_entered();
             lastEvent = guest_execution_trace_sink_get_last_loader_event();
             break;
         }
         [NSThread sleepForTimeInterval:0.1];
     }
     
-
-    
     // B1 primary: interp_path must be resolved (proves PT_INTERP was processed)
     XCTAssertTrue(interpPathResolved, 
                   @"B1: loader.interpreter_path=path: event must be observed. "
-                  @"This proves PT_INTERP was parsed and the interpreter path was resolved. "
-                  @"If this fails, either elf_exec was not called or the loader event was not emitted. "
-                  @"Diagnostic: exit_observed=%d, elf_exec_reached=%d, last_event='%s'",
-                  exitObserved, elfExecReached, lastEvent);
+                  @"Diagnostic ladder: X0(do_execve)=%d, X1(format_exec)=%d, X2(elf_exec)=%d, "
+                  @"last_event='%s', exit_observed=%d",
+                  doExecveEntered, formatExecEntered, elfExecEntered, lastEvent, exitObserved);
 
     if (interpPathResolved) {
         const char *interpPath = guest_execution_trace_sink_get_interp_path();
