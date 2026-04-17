@@ -182,47 +182,31 @@
     unsigned long long fileSize = [attrs fileSize];
     XCTAssertGreaterThan(fileSize, 1000, @"B1.4: busybox must be real extracted payload, not placeholder");
     
-    // B1 behavioral: Execute and observe interpreter path resolution
-    // B1 requires PROVING interp path was RESOLVED, not just that execution succeeded
-    // Use async execution with polling to avoid blocking
+    // B1 behavioral: classify through do_execve / elf_exec without entering guest CPU execution
     guest_execution_trace_sink_reset();
+    GuestExecutionResult *result = [self.harness classifyExecutableAtRootPath:dataRootPath
+                                                               executablePath:busyboxRelativePath];
     
-    __block GuestExecutionResult *result = nil;
-    dispatch_async(self.harness.executionQueue, ^{
-        result = [self.harness runExecutableAtRootPath:dataRootPath executablePath:busyboxRelativePath];
-    });
-    
-    // Poll for classification checkpoints or timeout
-    // X0 (do_execve entered) is the critical signal that runtime processing began
-    // We poll for either X0 observed OR exit observed to classify even if guest hangs
-    NSDate *startTime = [NSDate date];
-    BOOL x0Observed = NO;
-    BOOL completed = NO;
-    while (!completed && [[NSDate date] timeIntervalSinceDate:startTime] < 30.0) {
-        x0Observed = guest_execution_trace_sink_do_execve_entered();
-        if ((x0Observed || guest_execution_trace_sink_exit_observed()) && result != nil) {
-            completed = YES;
-            break;
-        }
-        [NSThread sleepForTimeInterval:0.05];
-    }
-    
-    // Assert harness classification ladder H0-H4
+    // CLASSIFICATION LADDER H0-H4: Harness seam before runtime
     XCTAssertTrue(result.harnessEntered, @"H0: runExecutableAtRootPath must be entered");
     XCTAssertTrue(result.mountRootCalled, @"H1: mount_root must be called");
+    XCTAssertTrue(result.mountRootReturnValue == 0 || result.mountRootReturnValue == -16, 
+                  @"H1: mount_root must return 0 or -16, got %d", result.mountRootReturnValue);
     XCTAssertTrue(result.becomeFirstProcessCalled, @"H2: become_first_process must be called");
+    XCTAssertTrue(result.becomeFirstProcessReturnValue == 0 || result.becomeFirstProcessReturnValue == -17,
+                  @"H2: become_first_process must return 0 or -17, got %d", result.becomeFirstProcessReturnValue);
     XCTAssertTrue(result.doExecveReached, @"H3: do_execve must be reached");
     XCTAssertTrue(result.doExecveCalled, @"H4: do_execve must be called");
     XCTAssertEqual(result.doExecveReturnValue, 0, @"H4: do_execve must return 0 (success), got %d", result.doExecveReturnValue);
     
-    // Assert X0-X3 sink state - classify exactly where we stopped
+    // CLASSIFICATION LADDER X0-X3: Runtime pre-elf_exec checkpoints (sink events)
     BOOL doExecveEntered = guest_execution_trace_sink_do_execve_entered();
     BOOL formatExecEntered = guest_execution_trace_sink_format_exec_entered();
     BOOL beforeElfExecEntered = guest_execution_trace_sink_before_elf_exec_entered();
     BOOL elfExecEntered = guest_execution_trace_sink_elf_exec_entered();
     const char *lastEvent = guest_execution_trace_sink_get_last_loader_event();
 
-    XCTAssertTrue(doExecveEntered, @"X0: task.proof.do_execve.entry NOT observed - oracle classification gap, not runtime proof");
+    XCTAssertTrue(doExecveEntered, @"X0: task.proof.do_execve.entry NOT observed - oracle classification gap");
     if (doExecveEntered) {
         XCTAssertTrue(formatExecEntered, @"X1: task.proof.do_execve.before_format_exec NOT observed - oracle classification gap");
     }
@@ -233,16 +217,31 @@
         XCTAssertTrue(elfExecEntered, @"X3: task.proof.elf_exec.after_return_to_caller NOT observed - oracle classification gap");
     }
     
-    // B1 primary: interp_path must be resolved (proves PT_INTERP was processed)
+    // CLASSIFICATION M1: Main ELF header accepted (only after X2 proves elf_exec processing)
+    BOOL mainElfHeaderAccepted = guest_execution_trace_sink_main_elf_header_accepted();
+    if (beforeElfExecEntered) {
+        XCTAssertTrue(mainElfHeaderAccepted, @"M1: task.proof.loader.elf_header:role=main NOT observed - main ELF header not accepted");
+    }
+    
+    // CLASSIFICATION D2.0: Interpreter open attempted (only after M1 proves header acceptance)
+    BOOL interpOpenAttempted = guest_execution_trace_sink_interp_open_attempted();
+    if (mainElfHeaderAccepted) {
+        XCTAssertTrue(interpOpenAttempted, @"D2.0: loader.interp.open.result NOT observed - interpreter open not attempted");
+    }
+    
+    // B1 PRIMARY: Interpreter path resolved (proves PT_INTERP was processed)
     BOOL interpPathResolved = guest_execution_trace_sink_interp_path_resolved();
     XCTAssertTrue(interpPathResolved,
-                  @"B1: loader.interpreter_path=path: event must be observed. "
-                  @"H0=%d H1=%d H2=%d H3=%d H4=%d "
+                  @"B1: loader.interpreter_path NOT resolved. "
+                  @"H0=%d H1=%d(rv=%d) H2=%d(rv=%d) H3=%d H4=%d(rv=%d) "
                   @"X0=%d X1=%d X2=%d X3=%d "
+                  @"M1=%d D2.0=%d "
                   @"last_event='%s'",
-                  result.harnessEntered, result.mountRootCalled, result.becomeFirstProcessCalled,
-                  result.doExecveReached, result.doExecveCalled,
+                  result.harnessEntered, result.mountRootCalled, result.mountRootReturnValue,
+                  result.becomeFirstProcessCalled, result.becomeFirstProcessReturnValue,
+                  result.doExecveReached, result.doExecveCalled, result.doExecveReturnValue,
                   doExecveEntered, formatExecEntered, beforeElfExecEntered, elfExecEntered,
+                  mainElfHeaderAccepted, interpOpenAttempted,
                   lastEvent);
 
     if (interpPathResolved) {

@@ -21,6 +21,8 @@
 - (NSString *)materializeFixture:(NSString *)name extension:(NSString *)ext bundle:(NSBundle *)bundle;
 - (BOOL)setupRuntimeWithPath:(NSString *)tempPath;
 - (void)executeGuestOnBackgroundThread:(NSString *)tempPath;
+- (GuestExecutionResult *)prepareExecutableAtRootPath:(NSString *)rootPath
+                                       executablePath:(NSString *)executablePath;
 @end
 
 @implementation GuestExecutionResult
@@ -261,18 +263,14 @@
 // sink state directly to observe loader boundaries.
 //
 // Harness classification ladder H0-H4 captured in probe state.
-- (GuestExecutionResult *)runExecutableAtRootPath:(NSString *)rootPath
- executablePath:(NSString *)executablePath {
+- (GuestExecutionResult *)prepareExecutableAtRootPath:(NSString *)rootPath
+                                       executablePath:(NSString *)executablePath {
     probe_reset();
-    // Re-register test sink before each execution - Apple bridge may have overwriten it
     guest_execution_trace_sink_init();
     probe_begin_fixture([executablePath UTF8String]);
     
-    // H0: Harness entered
     probe_get_result()->harness_entered = true;
     
-    // Mount the rootfs root directory
-    // H1: mount_root called
     probe_get_result()->mount_root_called = true;
     int mountErr = mount_root(&realfs, [rootPath UTF8String]);
     probe_get_result()->mount_root_return_value = mountErr;
@@ -282,7 +280,6 @@
         return [GuestExecutionResult resultFromProbe:probe_get_result()];
     }
     
-    // H2: become_first_process called
     probe_get_result()->become_first_process_called = true;
     int initErr = become_first_process();
     probe_get_result()->become_first_process_return_value = initErr;
@@ -292,10 +289,7 @@
         return [GuestExecutionResult resultFromProbe:probe_get_result()];
     }
     
-    // Execute the binary relative to the mounted root
-    // H3: do_execve reached
     probe_get_result()->do_execve_reached = true;
-    // H4: do_execve called and returned
     int execErr = do_execve([executablePath UTF8String], 0, "\0", "\0");
     probe_get_result()->do_execve_called = true;
     probe_get_result()->do_execve_return_value = execErr;
@@ -306,6 +300,27 @@
     }
     
     probe_get_result()->load_ok = true;
+    return nil;
+}
+
+- (GuestExecutionResult *)classifyExecutableAtRootPath:(NSString *)rootPath
+                                        executablePath:(NSString *)executablePath {
+    GuestExecutionResult *earlyResult = [self prepareExecutableAtRootPath:rootPath
+                                                           executablePath:executablePath];
+    if (earlyResult != nil) {
+        return earlyResult;
+    }
+    probe_set_completed(true);
+    return [GuestExecutionResult resultFromProbe:probe_get_result()];
+}
+
+- (GuestExecutionResult *)runExecutableAtRootPath:(NSString *)rootPath
+                                   executablePath:(NSString *)executablePath {
+    GuestExecutionResult *earlyResult = [self prepareExecutableAtRootPath:rootPath
+                                                           executablePath:executablePath];
+    if (earlyResult != nil) {
+        return earlyResult;
+    }
     
     struct cpu_state *cpu = &current->cpu;
     uint64_t pc_before = cpu->pc;
@@ -314,13 +329,7 @@
     struct tlb exec_tlb = {};
     tlb_refresh(&exec_tlb, cpu->mmu);
     
-    // Run with high iteration limit to reach exit syscall
-    // Sink events (not harness state inspection) track externally observable boundaries
     a64_cpu_run_limited(cpu, &exec_tlb, 10000);
-    
-    // DO NOT dereference cpu->pc or any current->cpu state after guest exit.
-    // The sink tracks loader boundaries via events - tests poll sink state directly.
-    // Post-exit cpu/memory state is invalid due to mm_release.
     
     probe_get_result()->task_exit_observed = guest_execution_trace_sink_exit_observed();
     probe_get_result()->exit_code = guest_execution_trace_sink_get_exit_code();

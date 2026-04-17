@@ -260,10 +260,8 @@ static void test_sink_end_interval(uint64_t interval_id,
 // Public API
 void guest_execution_trace_sink_init(void)
 {
-    if (!sink_registered) {
-        ixland_instrumentation_register_sink(&test_sink);
-        sink_registered = true;
-    }
+    ixland_instrumentation_register_sink(&test_sink);
+    sink_registered = true;
 }
 
 bool guest_execution_trace_sink_exit_observed(void)

@@ -72,6 +72,10 @@ struct tlb;
 - (GuestExecutionResult *)runExecutableAtRootPath:(NSString *)rootPath
                                    executablePath:(NSString *)executablePath;
 
+// Run executable through do_execve only, without entering guest CPU execution
+- (GuestExecutionResult *)classifyExecutableAtRootPath:(NSString *)rootPath
+                                        executablePath:(NSString *)executablePath;
+
 @end
 
 // Trace sink observation API
