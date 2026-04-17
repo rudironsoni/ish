@@ -49,4 +49,10 @@ const char *guest_execution_trace_sink_get_interp_path(void);
 // Get the last loader event observed (for debugging)
 const char *guest_execution_trace_sink_get_last_loader_event(void);
 
+// D2.0: Interp open state accessors
+// These provide explicit D2.0 boundary classification (interpreter open attempt)
+bool guest_execution_trace_sink_interp_open_attempted(void);
+bool guest_execution_trace_sink_interp_open_succeeded(void);
+int guest_execution_trace_sink_interp_open_errno(void);
+
 #endif // GUEST_EXECUTION_TRACE_SINK_H

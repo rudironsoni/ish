@@ -300,12 +300,14 @@
     
     guest_execution_trace_sink_reset();
     guest_execution_trace_sink_set_completion_callback(^(BOOL exit_observed, int exit_code) {
+        // D2.0: Check if interpreter open was attempted (loader.interp.open.result)
         // D2.1: Check if interpreter header was loaded (loader.interp_elf.header or loader.interp.bias.compute)
         // D2.3: Check if interpreter mappings exist (loader.interp.pt_load.map)
+        BOOL interpOpenAttempted = guest_execution_trace_sink_interp_open_attempted();
         BOOL interpHeaderLoaded = guest_execution_trace_sink_interp_header_loaded();
         BOOL interpMappingsExist = guest_execution_trace_sink_interp_mappings_exist();
         
-        if (!callbackFired && (interpHeaderLoaded || interpMappingsExist || exit_observed)) {
+        if (!callbackFired && (interpOpenAttempted || interpHeaderLoaded || interpMappingsExist || exit_observed)) {
             callbackFired = YES;
             [boundaryExpectation fulfill];
         }
@@ -317,10 +319,24 @@
     
     [self waitForExpectations:@[boundaryExpectation] timeout:60.0];
     
+    // D2.0: Check interpreter open attempt event
+    BOOL interpOpenAttempted = guest_execution_trace_sink_interp_open_attempted();
+    BOOL interpOpenSucceeded = guest_execution_trace_sink_interp_open_succeeded();
+    int interpOpenErrno = guest_execution_trace_sink_interp_open_errno();
+    const char *lastEvent = guest_execution_trace_sink_get_last_loader_event();
+    NSLog(@"D2-DIAG: interp_open_attempted=%d, interp_open_succeeded=%d, interp_open_errno=%d, last_event='%s'",
+          interpOpenAttempted, interpOpenSucceeded, interpOpenErrno, lastEvent);
+    
+    // D2.0 classification: generic_open(interp_name) must be called
+    XCTAssertTrue(interpOpenAttempted,
+                  @"D2.0: Interp open event (loader.interp.open.result) must be observed. "
+                  @"This proves generic_open(interp_name) was called. "
+                  @"If this fails, the PT_INTERP segment exists but interpreter open failed. "
+                  @"interp_open_errno=%d, last_event='%s'", interpOpenErrno, lastEvent);
+    
     // D2.1: Check interpreter header loaded event
     BOOL interpHeaderLoaded = guest_execution_trace_sink_interp_header_loaded();
-    const char *lastEvent = guest_execution_trace_sink_get_last_loader_event();
-    NSLog(@"D2-DIAG: interp_header_loaded=%d, last_event='%s'", interpHeaderLoaded, lastEvent);
+    NSLog(@"D2-DIAG: interp_header_loaded=%d", interpHeaderLoaded);
     
     // D2.1 classification
     XCTAssertTrue(interpHeaderLoaded, 
