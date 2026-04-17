@@ -245,6 +245,11 @@
 // Run executable at arbitrary path (e.g., from extracted rootfs)
 // NOTE: rootPath should be the fakefs root (e.g., .../roots/default/data/)
 // executablePath is the relative path within the rootfs (e.g., "bin/busybox")
+//
+// FIXED: Removed post-exit ownership hazard. The harness no longer captures
+// cpu = &current->cpu before guest run and dereferences cpu->pc after exit.
+// Instead, sink events track externally observable boundaries. Tests poll
+// sink state directly to observe loader boundaries.
 - (GuestExecutionResult *)runExecutableAtRootPath:(NSString *)rootPath
                                    executablePath:(NSString *)executablePath {
     probe_reset();
@@ -282,24 +287,16 @@
     struct tlb exec_tlb = {};
     tlb_refresh(&exec_tlb, cpu->mmu);
     
-    uint64_t pc_after = 0;
-    int exit_code = -1;
-    bool exited = false;
-    
     // Run with high iteration limit to reach exit syscall
-    // After guest exit, current->cpu state may be invalid - capture what we need before guest runs
+    // Sink events (not harness state inspection) track externally observable boundaries
     a64_cpu_run_limited(cpu, &exec_tlb, 10000);
     
-    // Only capture post-exit state if current is still valid
-    // After mm_release during exit, task-owned state may be invalidated
-    if (current != NULL) {
-        pc_after = cpu->pc;
-        exited = true;
-    }
+    // DO NOT dereference cpu->pc or any current->cpu state after guest exit.
+    // The sink tracks loader boundaries via events - tests poll sink state directly.
+    // Post-exit cpu/memory state is invalid due to mm_release.
     
-    probe_capture_pc_after(pc_after);
-    probe_get_result()->exit_code = exit_code;
-    probe_get_result()->task_exit_observed = exited;
+    probe_get_result()->task_exit_observed = guest_execution_trace_sink_exit_observed();
+    probe_get_result()->exit_code = guest_execution_trace_sink_get_exit_code();
     probe_set_completed(true);
     
     return [GuestExecutionResult resultFromProbe:probe_get_result()];

@@ -155,6 +155,10 @@
 
 // B1: Real interpreter path resolved through exec
 // Must prove: PT_INTERP path is resolved as part of execution, not just parsed
+//
+// FIXED: Use direct sink state polling instead of callback-driven exit observation.
+// The callback design was conflating loader boundary (interp_path_resolved) with exit observation.
+// Now we poll the sink directly to observe the actual loader boundary.
 - (void)testDynamicELF_B1_InterpreterPath_IsResolvedThroughRealExec {
     // B0-B1 prerequisite: Ensure real rootfs bootstrap completed with material provisioning
     [self testDynamicELF_B0_RootfsBootstrap_InvokesAppOwnedPath];
@@ -164,76 +168,54 @@
     NSString *rootPath = [rootURL path];
     XCTAssertNotNil(rootPath, @"B0: Root path must exist");
     
-    // Log what exists in rootfs for debugging
-    NSError *listError = nil;
-    NSArray *rootContents = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:rootPath error:&listError];
-    NSLog(@"B1: Root contents: %@, error: %@", rootContents, listError);
-    
     // B1.1-B1.4: Verify busybox exists with real content
     NSString *dataRootPath = [rootPath stringByAppendingPathComponent:@"data"];
     NSString *busyboxRelativePath = @"bin/busybox";
     NSString *busyboxFullPath = [dataRootPath stringByAppendingPathComponent:busyboxRelativePath];
     BOOL busyboxExists = [[NSFileManager defaultManager] fileExistsAtPath:busyboxFullPath];
-    
-    // If busybox doesn't exist, report what we found
-    if (!busyboxExists) {
-        // Check if data/bin exists
-        NSString *dataBinPath = [dataRootPath stringByAppendingPathComponent:@"bin"];
-        BOOL dataBinExists = [[NSFileManager defaultManager] fileExistsAtPath:dataBinPath];
-        NSArray *dataBinContents = dataBinExists ? [[NSFileManager defaultManager] contentsOfDirectoryAtPath:dataBinPath error:nil] : @[];
-        NSLog(@"B1: data/bin exists: %@, contents: %@", dataBinExists ? @"YES" : @"NO", dataBinContents);
-    }
-    
     XCTAssertTrue(busyboxExists,
                   @"B1: /data/bin/busybox must exist after rootfs bootstrap (root: %@)", rootPath);
     
-    // B1.4: Material assertion - file must have real content
     NSDictionary *attrs = [[NSFileManager defaultManager] attributesOfItemAtPath:busyboxFullPath error:nil];
     unsigned long long fileSize = [attrs fileSize];
     XCTAssertGreaterThan(fileSize, 1000, @"B1.4: busybox must be real extracted payload, not placeholder");
     
-    // B1 behavioral: Execute and observe interpreter path resolution
-    // NOTE: We observe ANY execution boundary (exit OR fault OR interp resolution)
-    // Dynamic loader may fault on first instruction if TLS or memory is wrong
-    // B1 only requires proving interp path was RESOLVED, not that execution succeeds
-    XCTestExpectation *boundaryExpectation = [self expectationWithDescription:@"Execution boundary observed"];
-    __block BOOL callbackFired = NO;
-    __block BOOL interpResolved = NO;
-    __block BOOL sawExit = NO;
-    __block BOOL sawFault = NO;
-    __block int capturedExitCode = -1;
-    
+    // B1 behavioral: Execute and poll for interpreter path resolution
+    // B1 requires PROVING interp path was RESOLVED, not just that execution succeeded
+    // We poll sink state directly to observe the actual loader boundary event
     guest_execution_trace_sink_reset();
-    guest_execution_trace_sink_set_completion_callback(^(BOOL exit_observed, int exit_code) {
-        if (!callbackFired) {
-            // Capture all boundary conditions
-            interpResolved = guest_execution_trace_sink_interp_path_resolved();
-            sawExit = exit_observed;
-            sawFault = NO; // Fault detection would need separate callback
-            capturedExitCode = exit_code;
-            
-            // For B1: we accept interp resolution OR exit/fault as proof of reaching exec
-            if (interpResolved || exit_observed) {
-                callbackFired = YES;
-                [boundaryExpectation fulfill];
-            }
-        }
-    });
     
     dispatch_async(self.harness.executionQueue, ^{
         [self.harness runExecutableAtRootPath:dataRootPath executablePath:busyboxRelativePath];
     });
     
-    [self waitForExpectations:@[boundaryExpectation] timeout:60.0];
+    // Poll for loader boundary: interpreter path resolved
+    // This is the EXTERNALLY OBSERVABLE LOADER BOUNDARY for B1
+    NSDate *startTime = [NSDate date];
+    BOOL interpPathResolved = NO;
+    BOOL elfExecReached = NO;
+    BOOL exitObserved = NO;
+    while ([[NSDate date] timeIntervalSinceDate:startTime] < 60.0) {
+        if (guest_execution_trace_sink_interp_path_resolved()) {
+            interpPathResolved = YES;
+            break;
+        }
+        if (guest_execution_trace_sink_exit_observed()) {
+            // Guest exited before interp path resolved - capture diagnostic state
+            elfExecReached = guest_execution_trace_sink_elf_exec_reached();
+            exitObserved = YES;
+            break;
+        }
+        [NSThread sleepForTimeInterval:0.1];
+    }
     
-    // B1 assertions: Real interpreter path resolved through exec
-    // B1 behavioral: PT_INTERP path is resolved as part of real exec path
-    XCTAssertTrue(callbackFired, @"B1: Trace sink must observe execution boundary");
 
-    // B1 primary: interp_path must be resolved (BROKEN: missing struct member in trace context)
-    // This will verify that the runtime actually extracted PT_INTERP during dynamic ELF loading
-    BOOL interpPathResolved = guest_execution_trace_sink_interp_path_resolved();
-    XCTAssertTrue(interpPathResolved, @"B1: interp_path must be resolved via real exec path");
+    
+    // B1 primary: interp_path must be resolved (proves PT_INTERP was processed)
+    XCTAssertTrue(interpPathResolved, 
+                  @"B1: loader.interpreter_path=path: event must be observed. "
+                  @"This proves PT_INTERP was parsed and the interpreter path was resolved. "
+                  @"If this fails, either elf_exec was not called or the loader event was not emitted.");
 
     if (interpPathResolved) {
         const char *interpPath = guest_execution_trace_sink_get_interp_path();
@@ -244,8 +226,6 @@
                       [interpPathStr containsString:@"ld-musl"],
                       @"B1: Must resolve to real dynamic loader (observed: %@)", interpPathStr);
     }
-
-    guest_execution_trace_sink_set_completion_callback(NULL);
 }
 
 // D1.6.a: Probe - Can generic_open resolve guest absolute path /lib/ld-musl-aarch64.so.1 outside exec?
@@ -375,6 +355,10 @@
 }
 
 // B2: Real interpreter and main image mappings materialized by runtime
+//
+// FIXED: Use direct sink state polling instead of callback-driven exit observation.
+// B2 requires proving interpreter AND main image mappings are materialized by runtime,
+// not that execution succeeded (exit observation).
 - (void)testDynamicELF_B2_InterpreterAndMainImages_AreMaterializedByRuntime {
     // B0 prerequisite - use testRoots from setUp
     XCTAssertNotNil(self.testRoots, @"B0: Roots bootstrap must complete");
@@ -386,35 +370,44 @@
     XCTAssertTrue([[NSFileManager defaultManager] fileExistsAtPath:busyboxFullPath],
                   @"B0: /bin/busybox must exist");
     
-    XCTestExpectation *mappingsExpectation = [self expectationWithDescription:@"Mappings materialized"];
-    __block BOOL callbackFired = NO;
-    
+    // B2 behavioral: Poll for interpreter and main image mappings
+    // These are EXTERNALLY OBSERVABLE LOADER BOUNDARIES for B2
     guest_execution_trace_sink_reset();
-    guest_execution_trace_sink_set_completion_callback(^(BOOL exit_observed, int exit_code) {
-        if (!callbackFired &&
-            guest_execution_trace_sink_interp_mappings_exist() &&
-            guest_execution_trace_sink_main_image_loaded()) {
-            callbackFired = YES;
-            [mappingsExpectation fulfill];
-        }
-    });
     
     dispatch_async(self.harness.executionQueue, ^{
         [self.harness runExecutableAtRootPath:dataRootPath executablePath:busyboxRelativePath];
     });
     
-    [self waitForExpectations:@[mappingsExpectation] timeout:60.0];
+    // Poll for loader boundary: interpreter mappings + main image loaded
+    NSDate *startTime = [NSDate date];
+    BOOL interpMappingsExist = NO;
+    BOOL mainImageLoaded = NO;
+    while ([[NSDate date] timeIntervalSinceDate:startTime] < 60.0) {
+        interpMappingsExist = guest_execution_trace_sink_interp_mappings_exist();
+        mainImageLoaded = guest_execution_trace_sink_main_image_loaded();
+        if (interpMappingsExist && mainImageLoaded) {
+            break;
+        }
+        if (guest_execution_trace_sink_exit_observed()) {
+            // Guest exited before mappings materialized - B2 fails
+            break;
+        }
+        [NSThread sleepForTimeInterval:0.1];
+    }
     
-    XCTAssertTrue(callbackFired, @"B2: Trace sink must observe mappings");
-    XCTAssertTrue(guest_execution_trace_sink_interp_mappings_exist(),
-                  @"B2: Interpreter mappings must materialize in runtime");
-    XCTAssertTrue(guest_execution_trace_sink_main_image_loaded(),
-                  @"B2: Main image must load and reach entry point");
-    
-    guest_execution_trace_sink_set_completion_callback(NULL);
+    XCTAssertTrue(interpMappingsExist,
+                  @"B2: Interpreter mappings (loader.interp.pt_load.map) must materialize. "
+                  @"This proves the interpreter PT_LOAD segments were mapped into guest memory.");
+    XCTAssertTrue(mainImageLoaded,
+                  @"B2: Main image must load and reach entry point (task.proof.exec.load_entry.reached). "
+                  @"This proves the main ELF was loaded and execution reached the entry point.");
 }
 
 // B3: Initial dynamic userspace state is valid
+//
+// FIXED: Use direct sink state polling instead of callback-driven exit observation.
+// B3 requires proving auxv was initialized with AT_BASE for dynamic execution,
+// not that execution succeeded (exit observation).
 - (void)testDynamicELF_B3_InitialDynamicUserspaceState_IsValid {
     XCTAssertNotNil(self.testRoots, @"B0: Roots bootstrap must complete");
     NSURL *rootURL = [self.testRoots rootUrl:self.testRoots.defaultRoot];
@@ -425,28 +418,33 @@
     XCTAssertTrue([[NSFileManager defaultManager] fileExistsAtPath:busyboxFullPath],
                   @"B0: /data/bin/busybox must exist");
     
-    XCTestExpectation *auxvExpectation = [self expectationWithDescription:@"AuxV initialized"];
-    __block BOOL callbackFired = NO;
-    
+    // B3 behavioral: Poll for auxv initialization
+    // This is an EXTERNALLY OBSERVABLE LOADER BOUNDARY for B3
     guest_execution_trace_sink_reset();
-    guest_execution_trace_sink_set_completion_callback(^(BOOL exit_observed, int exit_code) {
-        if (!callbackFired && guest_execution_trace_sink_auxv_initialized()) {
-            callbackFired = YES;
-            [auxvExpectation fulfill];
-        }
-    });
     
     dispatch_async(self.harness.executionQueue, ^{
         [self.harness runExecutableAtRootPath:dataRootPath executablePath:busyboxRelativePath];
     });
     
-    [self waitForExpectations:@[auxvExpectation] timeout:60.0];
+    // Poll for loader boundary: auxv initialized with AT_BASE
+    NSDate *startTime = [NSDate date];
+    BOOL auxvInitialized = NO;
+    while ([[NSDate date] timeIntervalSinceDate:startTime] < 60.0) {
+        if (guest_execution_trace_sink_auxv_initialized()) {
+            auxvInitialized = YES;
+            break;
+        }
+        if (guest_execution_trace_sink_exit_observed()) {
+            // Guest exited before auxv initialized - B3 fails
+            break;
+        }
+        [NSThread sleepForTimeInterval:0.1];
+    }
     
-    XCTAssertTrue(callbackFired, @"B3: Trace sink must observe auxv init");
-    XCTAssertTrue(guest_execution_trace_sink_auxv_initialized(),
-                  @"B3: auxv must be initialized with AT_BASE for dynamic execution");
-    
-    guest_execution_trace_sink_set_completion_callback(NULL);
+    XCTAssertTrue(auxvInitialized,
+                  @"B3: auxv must be initialized with AT_BASE for dynamic execution "
+                  @"(loader.auxv.at_base.write event). "
+                  @"This proves the dynamic linker base address was written to auxv.");
 }
 
 // B4: Real dynamic execution boundary reached
