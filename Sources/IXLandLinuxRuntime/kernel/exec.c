@@ -706,6 +706,9 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     int err = 0;
     trace_exec_checkpoint("task.proof.do_execve.before_elf_exec", err);
 
+    // DIAGNOSTIC: Confirm elf_exec is reached
+    trace_record_event(TRACE_ORIGIN_KERNEL, "loader.elf_exec.reached");
+
     // Trace: Entry to elf_exec (POINT 4 - elf_exec_entry)
     trace_emit_exec_path_boundary((uint64_t)current, current->pid, (uint64_t)current->mm,
                                   (uint64_t)current->mem, EXEC_PATH_ELF_EXEC_ENTRY, 0);
@@ -716,6 +719,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
         return err;
     }
     trace_elf_header_role_checkpoint("task.proof.loader.elf_header", "main", &header);
+    trace_record_event(TRACE_ORIGIN_KERNEL, "loader.main_elf.header=accepted:1");
 
     struct prg_header *ph;
     if ((err = read_prg_headers(fd, header, &ph)) < 0) {
@@ -1524,6 +1528,10 @@ static int format_exec(struct fd *fd, const char *file, struct exec_args argv,
                        struct exec_args envp)
 {
     trace_exec_checkpoint("task.proof.do_execve.before_format_exec", 0);
+    // DIAGNOSTIC: Confirm format_exec is reached and calling elf_exec
+    trace_record_event(TRACE_ORIGIN_KERNEL, "loader.format_exec.called");
+    // DIAGNOSTIC: Confirm format_exec is calling elf_exec
+    trace_record_event(TRACE_ORIGIN_KERNEL, "loader.format_exec.calling_elf_exec");
     int err = elf_exec(fd, file, argv, envp);
     trace_exec_checkpoint("task.proof.elf_exec.after_return_to_caller", err);
     trace_exec_checkpoint("task.proof.do_execve.after_format_exec", err);
@@ -1689,6 +1697,8 @@ static int shebang_exec(struct fd *fd, const char *file, struct exec_args argv,
 
 int __do_execve(const char *file, struct exec_args argv, struct exec_args envp)
 {
+    // DIAGNOSTIC: Confirm __do_execve is reached
+    trace_record_event(TRACE_ORIGIN_KERNEL, "loader.__do_execve.reached");
     // TRACE[1]: __do_execve_entry
     trace_emit_exec_path_boundary(
         (uint64_t)current, current ? current->pid : 0, (uint64_t)(current ? current->mm : NULL),

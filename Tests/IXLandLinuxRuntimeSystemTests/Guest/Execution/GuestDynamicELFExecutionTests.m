@@ -300,14 +300,17 @@
     
     guest_execution_trace_sink_reset();
     guest_execution_trace_sink_set_completion_callback(^(BOOL exit_observed, int exit_code) {
+        // DIAGNOSTIC: Check if elf_exec was reached
         // D2.0: Check if interpreter open was attempted (loader.interp.open.result)
         // D2.1: Check if interpreter header was loaded (loader.interp_elf.header or loader.interp.bias.compute)
         // D2.3: Check if interpreter mappings exist (loader.interp.pt_load.map)
+        BOOL elfExecReached = guest_execution_trace_sink_elf_exec_reached();
+        BOOL mainElfHeaderAccepted = guest_execution_trace_sink_main_elf_header_accepted();
         BOOL interpOpenAttempted = guest_execution_trace_sink_interp_open_attempted();
         BOOL interpHeaderLoaded = guest_execution_trace_sink_interp_header_loaded();
         BOOL interpMappingsExist = guest_execution_trace_sink_interp_mappings_exist();
         
-        if (!callbackFired && (interpOpenAttempted || interpHeaderLoaded || interpMappingsExist || exit_observed)) {
+        if (!callbackFired && (elfExecReached || mainElfHeaderAccepted || interpOpenAttempted || interpHeaderLoaded || interpMappingsExist || exit_observed)) {
             callbackFired = YES;
             [boundaryExpectation fulfill];
         }
@@ -319,11 +322,25 @@
     
     [self waitForExpectations:@[boundaryExpectation] timeout:60.0];
     
+    // DIAGNOSTIC: Check if elf_exec was reached
+    BOOL elfExecReached = guest_execution_trace_sink_elf_exec_reached();
+    
+    // M1: Check main ELF header accepted event
+    BOOL mainElfHeaderAccepted = guest_execution_trace_sink_main_elf_header_accepted();
+    const char *lastEvent = guest_execution_trace_sink_get_last_loader_event();
+    NSLog(@"D2-DIAG: elf_exec_reached=%d, main_elf_header_accepted=%d, last_event='%s'", elfExecReached, mainElfHeaderAccepted, lastEvent);
+    
+    // M1 classification: read_header(main_fd, &header) must succeed
+    XCTAssertTrue(mainElfHeaderAccepted,
+                  @"M1: Main ELF header accepted event (loader.main_elf.header) must be observed. "
+                  @"This proves read_header(main_fd, &header) succeeded. "
+                  @"If this fails, elf_exec failed before or during main ELF header validation. "
+                  @"last_event='%s'", lastEvent);
+    
     // D2.0: Check interpreter open attempt event
     BOOL interpOpenAttempted = guest_execution_trace_sink_interp_open_attempted();
     BOOL interpOpenSucceeded = guest_execution_trace_sink_interp_open_succeeded();
     int interpOpenErrno = guest_execution_trace_sink_interp_open_errno();
-    const char *lastEvent = guest_execution_trace_sink_get_last_loader_event();
     NSLog(@"D2-DIAG: interp_open_attempted=%d, interp_open_succeeded=%d, interp_open_errno=%d, last_event='%s'",
           interpOpenAttempted, interpOpenSucceeded, interpOpenErrno, lastEvent);
     
@@ -331,7 +348,7 @@
     XCTAssertTrue(interpOpenAttempted,
                   @"D2.0: Interp open event (loader.interp.open.result) must be observed. "
                   @"This proves generic_open(interp_name) was called. "
-                  @"If this fails, the PT_INTERP segment exists but interpreter open failed. "
+                  @"If this fails, PT_INTERP loop was entered but interpreter open failed. "
                   @"interp_open_errno=%d, last_event='%s'", interpOpenErrno, lastEvent);
     
     // D2.1: Check interpreter header loaded event

@@ -23,6 +23,8 @@ static guest_execution_trace_sink_callback_t completion_callback = NULL;
 
 // Milestone B: Dynamic ELF loader state
 static bool interp_path_resolved = false;
+static bool elf_exec_reached = false;
+static bool main_elf_header_accepted = false;
 static bool interp_header_loaded = false;
 static bool interp_mappings_exist = false;
 static bool main_image_loaded = false;
@@ -78,8 +80,26 @@ static void test_sink_record_event(ixland_instrumentation_origin_t origin, const
                 interp_path_resolved = true;
                 strncpy(resolved_interp_path, path_start, sizeof(resolved_interp_path) - 1);
                 strncpy(last_loader_event, event_name, sizeof(last_loader_event) - 1);
+                // Invoke callback for loader boundary - interp path resolved
+                if (completion_callback) {
+                    completion_callback(false, -1);
+                }
             }
         }
+    }
+    // DIAGNOSTIC: format_exec was called
+    else if (strstr(event_name, "loader.format_exec.called") != NULL) {
+        strncpy(last_loader_event, event_name, sizeof(last_loader_event) - 1);
+    }
+    // DIAGNOSTIC: elf_exec was reached
+    else if (strstr(event_name, "loader.elf_exec.reached") != NULL) {
+        elf_exec_reached = true;
+        strncpy(last_loader_event, event_name, sizeof(last_loader_event) - 1);
+    }
+    // M1: Main ELF header accepted (emitted after read_header succeeds for main binary)
+    else if (strstr(event_name, "loader.main_elf.header") != NULL) {
+        main_elf_header_accepted = true;
+        strncpy(last_loader_event, event_name, sizeof(last_loader_event) - 1);
     }
     // Milestone B: Interp pt_load mapping
     else if (strstr(event_name, "loader.interp.pt_load.map") != NULL) {
@@ -161,6 +181,25 @@ static uint64_t test_sink_begin_interval(ixland_instrumentation_origin_t origin,
         }
     } else if (strcmp(interval_name, "guest.first_fault.exit") == 0) {
         probe_capture_boundary(PROBE_BOUNDARY_FAULT);
+    } else if (strcmp(interval_name, "task.proof.loader.elf_header") == 0) {
+        // M1: Main ELF header checkpoint - this interval fires regardless of record_event budget
+        // Check if role attribute is "main" (indicates elf_exec processing main binary)
+        // D2.1: Interpreter ELF header checkpoint - same interval name, role="interp"
+        for (uint32_t i = 0; i < attr_count; i++) {
+            if (attrs[i].key && strcmp(attrs[i].key, "role") == 0 && attrs[i].value) {
+                if (strcmp(attrs[i].value, "main") == 0) {
+                    main_elf_header_accepted = true;
+                    strncpy(last_loader_event, "task.proof.loader.elf_header:role=main",
+                            sizeof(last_loader_event) - 1);
+                    break;
+                } else if (strcmp(attrs[i].value, "interp") == 0) {
+                    interp_header_loaded = true;
+                    strncpy(last_loader_event, "task.proof.loader.elf_header:role=interp",
+                            sizeof(last_loader_event) - 1);
+                    break;
+                }
+            }
+        }
     }
 
     return 0;
@@ -203,6 +242,8 @@ void guest_execution_trace_sink_reset(void)
     last_exit_code = -1;
     completion_callback = NULL;
     interp_path_resolved = false;
+    elf_exec_reached = false;
+    main_elf_header_accepted = false;
     interp_header_loaded = false;
     interp_mappings_exist = false;
     main_image_loaded = false;
@@ -218,6 +259,18 @@ void guest_execution_trace_sink_reset(void)
 bool guest_execution_trace_sink_interp_path_resolved(void)
 {
     return interp_path_resolved;
+}
+
+// DIAGNOSTIC: elf_exec was reached
+bool guest_execution_trace_sink_elf_exec_reached(void)
+{
+    return elf_exec_reached;
+}
+
+// M1: Main ELF header accepted (emitted after read_header succeeds for main binary)
+bool guest_execution_trace_sink_main_elf_header_accepted(void)
+{
+    return main_elf_header_accepted;
 }
 
 bool guest_execution_trace_sink_interp_header_loaded(void)

@@ -31,6 +31,12 @@ void guest_execution_trace_sink_reset(void);
 // B1: PT_INTERP path resolved (interpreter string read from ELF)
 bool guest_execution_trace_sink_interp_path_resolved(void);
 
+// M1: Main ELF header accepted (emitted after read_header succeeds for main binary)
+bool guest_execution_trace_sink_main_elf_header_accepted(void);
+
+// DIAGNOSTIC: elf_exec was reached
+bool guest_execution_trace_sink_elf_exec_reached(void);
+
 // B1: Interpreter header loaded and validated
 bool guest_execution_trace_sink_interp_header_loaded(void);
 

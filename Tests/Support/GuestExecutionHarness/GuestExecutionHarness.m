@@ -6,6 +6,7 @@
 #import "GuestExecutionProbe.h"
 #import "GuestExecutionTraceSink.h"
 #import <XCTest/XCTest.h>
+#import <IXLandInstrumentation/IXLandInstrumentation.h>
 
 #import <IXLandLinuxRuntime/kernel/task.h>
 #import <IXLandLinuxRuntime/kernel/init.h>
@@ -55,6 +56,7 @@
     self = [super init];
     if (self) {
         guest_execution_trace_sink_init();
+        ixland_instrumentation_activate();
         _executionQueue = dispatch_queue_create("com.ixland.guestexecution", DISPATCH_QUEUE_SERIAL);
     }
     return self;
@@ -83,19 +85,36 @@
     }
     
     struct cpu_state *cpu = &current->cpu;
-    probe_capture_pc_before(cpu->pc);
-    probe_get_result()->sp_before = cpu->sp;
+    uint64_t pc_before = cpu->pc;
+    uint64_t sp_before = cpu->sp;
+    probe_capture_pc_before(pc_before);
+    probe_get_result()->sp_before = sp_before;
     
     struct tlb exec_tlb = {};
     tlb_refresh(&exec_tlb, cpu->mmu);
     
+    // Capture values before guest run - after guest exit, cpu state may be invalid
     a64_cpu_run_limited(cpu, &exec_tlb, 1);
     
-    probe_capture_pc_after(cpu->pc);
-    probe_get_result()->sp_after = cpu->sp;
-    probe_get_result()->x0_after = cpu->x[0];
-    probe_get_result()->x8_after = cpu->x[8];
-    probe_get_result()->block_executed = (cpu->pc != probe_get_result()->pc_before);
+    uint64_t pc_after = 0;
+    uint64_t sp_after = 0;
+    uint64_t x0_after = 0;
+    uint64_t x8_after = 0;
+    
+    // Only capture post-exit state if current is still valid
+    // After mm_release during exit, task-owned state may be invalidated
+    if (current != NULL) {
+        pc_after = cpu->pc;
+        sp_after = cpu->sp;
+        x0_after = cpu->x[0];
+        x8_after = cpu->x[8];
+    }
+    
+    probe_capture_pc_after(pc_after);
+    probe_get_result()->sp_after = sp_after;
+    probe_get_result()->x0_after = x0_after;
+    probe_get_result()->x8_after = x8_after;
+    probe_get_result()->block_executed = (pc_after != pc_before);
     
     probe_set_completed(true);
     probe_get_result()->returned_to_harness = true;
@@ -168,16 +187,25 @@
     }
     
     struct cpu_state *cpu = &current->cpu;
-    probe_capture_pc_before(cpu->pc);
+    uint64_t pc_before = cpu->pc;
+    probe_capture_pc_before(pc_before);
     
     struct tlb exec_tlb = {};
     tlb_refresh(&exec_tlb, cpu->mmu);
+    
+    // Capture value before guest run - after exit, cpu state may be invalid
+    uint64_t pc_after = 0;
     
     // Run with high iteration limit to reach exit syscall
     // For A2: we need to run until guest.do_exit_group.entry fires
     a64_cpu_run_limited(cpu, &exec_tlb, 10000);
     
-    probe_capture_pc_after(cpu->pc);
+    // Only capture post-exit state if current is still valid
+    if (current != NULL) {
+        pc_after = cpu->pc;
+    }
+    
+    probe_capture_pc_after(pc_after);
     probe_set_completed(true);
     
     return [GuestExecutionResult resultFromProbe:probe_get_result()];
@@ -248,15 +276,30 @@
     probe_get_result()->load_ok = true;
     
     struct cpu_state *cpu = &current->cpu;
-    probe_capture_pc_before(cpu->pc);
+    uint64_t pc_before = cpu->pc;
+    probe_capture_pc_before(pc_before);
     
     struct tlb exec_tlb = {};
     tlb_refresh(&exec_tlb, cpu->mmu);
     
+    uint64_t pc_after = 0;
+    int exit_code = -1;
+    bool exited = false;
+    
     // Run with high iteration limit to reach exit syscall
+    // After guest exit, current->cpu state may be invalid - capture what we need before guest runs
     a64_cpu_run_limited(cpu, &exec_tlb, 10000);
     
-    probe_capture_pc_after(cpu->pc);
+    // Only capture post-exit state if current is still valid
+    // After mm_release during exit, task-owned state may be invalidated
+    if (current != NULL) {
+        pc_after = cpu->pc;
+        exited = true;
+    }
+    
+    probe_capture_pc_after(pc_after);
+    probe_get_result()->exit_code = exit_code;
+    probe_get_result()->task_exit_observed = exited;
     probe_set_completed(true);
     
     return [GuestExecutionResult resultFromProbe:probe_get_result()];
