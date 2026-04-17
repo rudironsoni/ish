@@ -39,6 +39,15 @@ typedef struct {
     bool returned_to_harness;
     bool completed;
     const char *error_message;
+    // Harness classification ladder H0-H4
+    bool harness_entered;
+    int mount_root_return_value;
+    bool mount_root_called;
+    int become_first_process_return_value;
+    bool become_first_process_called;
+    bool do_execve_reached;
+    int do_execve_return_value;
+    bool do_execve_called;
 } guest_execution_probe_result_t;
 
 // Probe API - called from harness

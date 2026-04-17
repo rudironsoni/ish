@@ -45,6 +45,15 @@
     result.returnedToHarness = probe->returned_to_harness;
     result.completed = probe->completed;
     result.errorMessage = probe->error_message ? [NSString stringWithUTF8String:probe->error_message] : nil;
+    // Harness classification ladder H0-H4
+    result.harnessEntered = probe->harness_entered;
+    result.mountRootCalled = probe->mount_root_called;
+    result.mountRootReturnValue = probe->mount_root_return_value;
+    result.becomeFirstProcessCalled = probe->become_first_process_called;
+    result.becomeFirstProcessReturnValue = probe->become_first_process_return_value;
+    result.doExecveReached = probe->do_execve_reached;
+    result.doExecveCalled = probe->do_execve_called;
+    result.doExecveReturnValue = probe->do_execve_return_value;
     return result;
 }
 
@@ -250,20 +259,33 @@
 // cpu = &current->cpu before guest run and dereferences cpu->pc after exit.
 // Instead, sink events track externally observable boundaries. Tests poll
 // sink state directly to observe loader boundaries.
+//
+// Harness classification ladder H0-H4 captured in probe state.
 - (GuestExecutionResult *)runExecutableAtRootPath:(NSString *)rootPath
-                                   executablePath:(NSString *)executablePath {
+ executablePath:(NSString *)executablePath {
     probe_reset();
+    // Re-register test sink before each execution - Apple bridge may have overwriten it
+    guest_execution_trace_sink_init();
     probe_begin_fixture([executablePath UTF8String]);
     
+    // H0: Harness entered
+    probe_get_result()->harness_entered = true;
+    
     // Mount the rootfs root directory
+    // H1: mount_root called
+    probe_get_result()->mount_root_called = true;
     int mountErr = mount_root(&realfs, [rootPath UTF8String]);
+    probe_get_result()->mount_root_return_value = mountErr;
     if (mountErr != 0 && mountErr != -16) {
         probe_set_error("Failed to mount rootfs");
         probe_set_completed(true);
         return [GuestExecutionResult resultFromProbe:probe_get_result()];
     }
     
+    // H2: become_first_process called
+    probe_get_result()->become_first_process_called = true;
     int initErr = become_first_process();
+    probe_get_result()->become_first_process_return_value = initErr;
     if (initErr != 0 && initErr != -17) {
         probe_set_error("Failed to become first process");
         probe_set_completed(true);
@@ -271,7 +293,12 @@
     }
     
     // Execute the binary relative to the mounted root
+    // H3: do_execve reached
+    probe_get_result()->do_execve_reached = true;
+    // H4: do_execve called and returned
     int execErr = do_execve([executablePath UTF8String], 0, "\0", "\0");
+    probe_get_result()->do_execve_called = true;
+    probe_get_result()->do_execve_return_value = execErr;
     if (execErr != 0) {
         probe_set_error("Failed to execve");
         probe_set_completed(true);

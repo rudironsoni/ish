@@ -10,6 +10,7 @@
 #include <IXLandInstrumentation/IXLandInstrumentation.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -37,10 +38,11 @@ static bool interp_open_attempted = false;
 static bool interp_open_succeeded = false;
 static int interp_open_errno = 0;
 
-// Pre-elf_exec diagnostic ladder (X0-X2)
+// Pre-elf_exec diagnostic ladder (X0-X3)
 static bool do_execve_entered = false;
 static bool format_exec_entered = false;
-static bool elf_exec_entered = false;
+static bool before_elf_exec_entered = false; // X2
+static bool elf_exec_entered = false;        // X3 (elf_exec returned)
 
 // Forward declaration
 static void test_sink_record_event(ixland_instrumentation_origin_t origin, const char *event_name);
@@ -228,17 +230,22 @@ static uint64_t test_sink_begin_interval(ixland_instrumentation_origin_t origin,
     } else if (strcmp(interval_name, "task.proof.do_execve.entry") == 0) {
         // X0: do_execve entry checkpoint
         do_execve_entered = true;
-        strncpy(last_loader_event, "task.proof.do_execve.entry", sizeof(last_loader_event) - 1);
+        snprintf(last_loader_event, sizeof(last_loader_event), "task.proof.do_execve.entry");
     } else if (strcmp(interval_name, "task.proof.do_execve.before_format_exec") == 0) {
         // X1: before format_exec - proves transition into format_exec
         format_exec_entered = true;
-        strncpy(last_loader_event, "task.proof.do_execve.before_format_exec",
-                sizeof(last_loader_event) - 1);
+        snprintf(last_loader_event, sizeof(last_loader_event),
+                 "task.proof.do_execve.before_format_exec");
+    } else if (strcmp(interval_name, "task.proof.do_execve.before_elf_exec") == 0) {
+        // X2: before elf_exec - proves transition from format_exec to elf_exec
+        before_elf_exec_entered = true;
+        snprintf(last_loader_event, sizeof(last_loader_event),
+                 "task.proof.do_execve.before_elf_exec");
     } else if (strcmp(interval_name, "task.proof.elf_exec.after_return_to_caller") == 0) {
-        // X2: elf_exec returned to caller - proves elf_exec was entered
+        // X3: elf_exec returned to caller - proves elf_exec was entered
         elf_exec_entered = true;
-        strncpy(last_loader_event, "task.proof.elf_exec.after_return_to_caller",
-                sizeof(last_loader_event) - 1);
+        snprintf(last_loader_event, sizeof(last_loader_event),
+                 "task.proof.elf_exec.after_return_to_caller");
     }
 
     return 0;
@@ -294,6 +301,7 @@ void guest_execution_trace_sink_reset(void)
     interp_open_errno = 0;
     do_execve_entered = false;
     format_exec_entered = false;
+    before_elf_exec_entered = false;
     elf_exec_entered = false;
 }
 
@@ -370,6 +378,11 @@ bool guest_execution_trace_sink_do_execve_entered(void)
 bool guest_execution_trace_sink_format_exec_entered(void)
 {
     return format_exec_entered;
+}
+
+bool guest_execution_trace_sink_before_elf_exec_entered(void)
+{
+    return before_elf_exec_entered;
 }
 
 bool guest_execution_trace_sink_elf_exec_entered(void)

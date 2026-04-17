@@ -215,30 +215,35 @@
     XCTAssertTrue(result.doExecveCalled, @"H4: do_execve must be called");
     XCTAssertEqual(result.doExecveReturnValue, 0, @"H4: do_execve must return 0 (success), got %d", result.doExecveReturnValue);
     
-    // Assert X0-X2 sink state - classify exactly where we stopped
+    // Assert X0-X3 sink state - classify exactly where we stopped
     BOOL doExecveEntered = guest_execution_trace_sink_do_execve_entered();
     BOOL formatExecEntered = guest_execution_trace_sink_format_exec_entered();
+    BOOL beforeElfExecEntered = guest_execution_trace_sink_before_elf_exec_entered();
     BOOL elfExecEntered = guest_execution_trace_sink_elf_exec_entered();
     const char *lastEvent = guest_execution_trace_sink_get_last_loader_event();
 
-    XCTAssertTrue(doExecveEntered, @"X0: task.proof.do_execve.entry NOT observed - runtime never reached do_execve entry");
+    XCTAssertTrue(doExecveEntered, @"X0: task.proof.do_execve.entry NOT observed - oracle classification gap, not runtime proof");
     if (doExecveEntered) {
-        XCTAssertTrue(formatExecEntered, @"X1: task.proof.do_execve.before_format_exec NOT observed - runtime entered do_execve but never reached format_exec");
+        XCTAssertTrue(formatExecEntered, @"X1: task.proof.do_execve.before_format_exec NOT observed - oracle classification gap");
     }
     if (formatExecEntered) {
-        XCTAssertTrue(elfExecEntered, @"X2: task.proof.elf_exec.after_return_to_caller NOT observed - runtime entered format_exec but elf_exec never returned");
+        XCTAssertTrue(beforeElfExecEntered, @"X2: task.proof.do_execve.before_elf_exec NOT observed - oracle classification gap");
+    }
+    if (beforeElfExecEntered) {
+        XCTAssertTrue(elfExecEntered, @"X3: task.proof.elf_exec.after_return_to_caller NOT observed - oracle classification gap");
     }
     
     // B1 primary: interp_path must be resolved (proves PT_INTERP was processed)
     BOOL interpPathResolved = guest_execution_trace_sink_interp_path_resolved();
-    XCTAssertTrue(interpPathResolved, 
+    XCTAssertTrue(interpPathResolved,
                   @"B1: loader.interpreter_path=path: event must be observed. "
                   @"H0=%d H1=%d H2=%d H3=%d H4=%d "
-                  @"X0=%d X1=%d X2=%d "
+                  @"X0=%d X1=%d X2=%d X3=%d "
                   @"last_event='%s'",
                   result.harnessEntered, result.mountRootCalled, result.becomeFirstProcessCalled,
                   result.doExecveReached, result.doExecveCalled,
-                  doExecveEntered, formatExecEntered, elfExecEntered, lastEvent);
+                  doExecveEntered, formatExecEntered, beforeElfExecEntered, elfExecEntered,
+                  lastEvent);
 
     if (interpPathResolved) {
         const char *interpPath = guest_execution_trace_sink_get_interp_path();

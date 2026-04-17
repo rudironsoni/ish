@@ -40,6 +40,15 @@ struct tlb;
 @property (nonatomic, assign) BOOL returnedToHarness;
 @property (nonatomic, assign) BOOL completed;
 @property (nonatomic, strong) NSString *errorMessage;
+// Harness classification ladder H0-H4
+@property (nonatomic, assign) BOOL harnessEntered;
+@property (nonatomic, assign) BOOL mountRootCalled;
+@property (nonatomic, assign) int mountRootReturnValue;
+@property (nonatomic, assign) BOOL becomeFirstProcessCalled;
+@property (nonatomic, assign) int becomeFirstProcessReturnValue;
+@property (nonatomic, assign) BOOL doExecveReached;
+@property (nonatomic, assign) BOOL doExecveCalled;
+@property (nonatomic, assign) int doExecveReturnValue;
 @end
 
 @interface GuestExecutionHarness : NSObject
