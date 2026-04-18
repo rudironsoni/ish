@@ -1595,11 +1595,11 @@ static int text_interpreter_exec(struct fd *fd, const char *file, struct exec_ar
     char new_argv_buf[ARGV_MAX];
     struct exec_args new_argv = { .args = new_argv_buf };
 
-    strcpy(new_argv_buf, interpreter);
+    snprintf(new_argv_buf, sizeof(new_argv_buf), "%s", interpreter);
     new_argv.count = 1;
     size_t n = strlen(interpreter) + 1;
 
-    strcpy(new_argv_buf + n, file);
+    snprintf(new_argv_buf + n, sizeof(new_argv_buf) - n, "%s", file);
     n += strlen(file) + 1;
     new_argv.count++;
 
@@ -1672,16 +1672,17 @@ static int shebang_exec(struct fd *fd, const char *file, struct exec_args argv,
 
     char new_argv_buf[ARGV_MAX];
     struct exec_args new_argv = { .args = new_argv_buf };
-    size_t n = 0;
-    strcpy(new_argv_buf, interpreter);
-    new_argv.count++;
-    n += strlen(interpreter) + 1;
+    size_t interp_len = strlen(interpreter);
+    snprintf(new_argv_buf, sizeof(new_argv_buf), "%s", interpreter);
+    new_argv.count = 1;
+    size_t n = interp_len + 1;
     if (argument) {
-        strcpy(new_argv_buf + n, argument);
+        size_t arg_len = strlen(argument);
+        snprintf(new_argv_buf + n, sizeof(new_argv_buf) - n, "%s", argument);
         new_argv.count++;
-        n += strlen(argument) + 1;
+        n += arg_len + 1;
     }
-    strcpy(new_argv_buf + n, file);
+    snprintf(new_argv_buf + n, sizeof(new_argv_buf) - n, "%s", file);
     n += strlen(file) + 1;
     new_argv.count++;
     memcpy(new_argv_buf + n, argv_rest.args, args_rest_size);
@@ -1765,7 +1766,13 @@ int __do_execve(const char *file, struct exec_args argv, struct exec_args envp)
         basename = file;
     else
         basename++;
-    strncpy(current->comm, basename, sizeof(current->comm));
+    // Safe copy without strncpy - compute length manually
+    size_t bnlen = 0;
+    while (basename[bnlen] && bnlen < sizeof(current->comm) - 1) {
+        bnlen++;
+    }
+    memcpy(current->comm, basename, bnlen);
+    current->comm[bnlen] = '\0';
     unlock(&current->general_lock);
 
     update_thread_name();
