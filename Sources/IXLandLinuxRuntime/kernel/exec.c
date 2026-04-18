@@ -935,8 +935,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
         char ph_memsize_buf[32];
         char flags_buf[32];
 
-        strncpy(path_buf, file, sizeof(path_buf) - 1);
-        path_buf[sizeof(path_buf) - 1] = '\0';
+        snprintf(path_buf, sizeof(path_buf), "%s", file);
         snprintf(data_buf, sizeof(data_buf), "%p",
                  (void *)page_map_lookup(&current->mem->pages, PAGE(bias + ph[i].vaddr)));
         snprintf(fd_buf, sizeof(fd_buf), "%p", (void *)fd);
@@ -1053,8 +1052,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
             char ph_memsize_buf[32];
             char flags_buf[32];
 
-            strncpy(path_buf, interp_name, sizeof(path_buf) - 1);
-            path_buf[sizeof(path_buf) - 1] = '\0';
+            snprintf(path_buf, sizeof(path_buf), "%s", interp_name);
             snprintf(data_buf, sizeof(data_buf), "%p",
                      (void *)page_map_lookup(&current->mem->pages,
                                              PAGE(interp_base + interp_ph[i].vaddr)));
@@ -1099,8 +1097,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
         char interp_base_buf[32];
         char interp_entry_buf[32];
 
-        strncpy(interp_name_buf, interp_name, sizeof(interp_name_buf) - 1);
-        interp_name_buf[sizeof(interp_name_buf) - 1] = '\0';
+        snprintf(interp_name_buf, sizeof(interp_name_buf), "%s", interp_name);
         snprintf(interp_base_buf, sizeof(interp_base_buf), "0x%lx", (unsigned long)interp_base);
         snprintf(interp_entry_buf, sizeof(interp_entry_buf), "0x%lx", (unsigned long)entry);
 
