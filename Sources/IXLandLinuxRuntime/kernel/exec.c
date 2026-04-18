@@ -629,6 +629,8 @@ static int load_entry(struct prg_header ph, addr_t bias, struct fd *fd)
     int flags = P_READ;
     if (ph.flags & PH_W)
         flags |= P_WRITE;
+    if (ph.flags & PH_X)
+        flags |= P_EXEC;
 
     pages_t map_pages = PAGE_ROUND_UP(filesize + PGOFFSET(addr));
     page_t start_page = PAGE(addr);
