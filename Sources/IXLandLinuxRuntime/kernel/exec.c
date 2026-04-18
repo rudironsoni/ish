@@ -740,7 +740,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
             goto out_free_interp;
         }
 
-        interp_name = malloc(ph[i].filesize);
+        interp_name = malloc(ph[i].filesize + 1);
         if (interp_name == NULL) {
             err = _ENOMEM;
             goto out_free_ph;
@@ -752,6 +752,9 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
             goto out_free_interp;
         if ((elf_off_t)fd->ops->read(fd, interp_name, ph[i].filesize) != ph[i].filesize)
             goto out_free_interp;
+        // Defensive terminator: ensure interp_name is always a valid C string
+        // PT_INTERP spec requires null-terminated path; this handles malformed ELF gracefully
+        interp_name[ph[i].filesize] = '\0';
 
         // open interpreter and read headers
         interp_fd = generic_open(interp_name, O_RDONLY, 0);
@@ -923,7 +926,6 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
 
         // Trace PT_LOAD mapping for APPSIM-004 diagnosis (main executable)
         char role_buf[32] = "main";
-        char path_buf[256];
         char data_buf[32];
         char fd_buf[32];
         char map_start_buf[32];
@@ -935,8 +937,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
         char ph_memsize_buf[32];
         char flags_buf[32];
 
-        strncpy(path_buf, file, sizeof(path_buf) - 1);
-        path_buf[sizeof(path_buf) - 1] = '\0';
+        // file is already a valid path string; pass directly to trace attributes
         snprintf(data_buf, sizeof(data_buf), "%p",
                  (void *)page_map_lookup(&current->mem->pages, PAGE(bias + ph[i].vaddr)));
         snprintf(fd_buf, sizeof(fd_buf), "%p", (void *)fd);
@@ -954,7 +955,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
 
         trace_attribute_t load_attrs[] = {
             { "role", role_buf },
-            { "path", path_buf },
+            { "path", file },
             { "data", data_buf },
             { "fd", fd_buf },
             { "map_start", map_start_buf },
@@ -1041,7 +1042,6 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
 
             // Trace PT_LOAD mapping for APPSIM-004 diagnosis (interpreter)
             char role_buf[32] = "interpreter";
-            char path_buf[256];
             char data_buf[32];
             char fd_buf[32];
             char map_start_buf[32];
@@ -1053,8 +1053,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
             char ph_memsize_buf[32];
             char flags_buf[32];
 
-            strncpy(path_buf, interp_name, sizeof(path_buf) - 1);
-            path_buf[sizeof(path_buf) - 1] = '\0';
+            // interp_name is now a valid runtime-owned string; pass directly
             snprintf(data_buf, sizeof(data_buf), "%p",
                      (void *)page_map_lookup(&current->mem->pages,
                                              PAGE(interp_base + interp_ph[i].vaddr)));
@@ -1077,7 +1076,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
 
             trace_attribute_t load_attrs[] = {
                 { "role", role_buf },
-                { "path", path_buf },
+                { "path", interp_name },
                 { "data", data_buf },
                 { "fd", fd_buf },
                 { "map_start", map_start_buf },
@@ -1095,17 +1094,15 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
         entry = interp_base + interp_header.entry_point;
 
         // Trace interpreter mapping for APPSIM-004 diagnosis
-        char interp_name_buf[128];
         char interp_base_buf[32];
         char interp_entry_buf[32];
 
-        strncpy(interp_name_buf, interp_name, sizeof(interp_name_buf) - 1);
-        interp_name_buf[sizeof(interp_name_buf) - 1] = '\0';
+        // interp_name is already a valid runtime-owned string; pass directly
         snprintf(interp_base_buf, sizeof(interp_base_buf), "0x%lx", (unsigned long)interp_base);
         snprintf(interp_entry_buf, sizeof(interp_entry_buf), "0x%lx", (unsigned long)entry);
 
         trace_attribute_t interp_attrs[] = {
-            { "name", interp_name_buf },
+            { "name", interp_name },
             { "base", interp_base_buf },
             { "entry", interp_entry_buf },
         };
