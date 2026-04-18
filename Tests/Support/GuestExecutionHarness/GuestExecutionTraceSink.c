@@ -85,8 +85,8 @@ static void test_sink_record_event(ixland_instrumentation_origin_t origin, const
             // Only count if it's not "none" - real dynamic ELF must have a real interpreter
             if (strncmp(path_start, "none", 4) != 0) {
                 interp_path_resolved = true;
-                strncpy(resolved_interp_path, path_start, sizeof(resolved_interp_path) - 1);
-                strncpy(last_loader_event, event_name, sizeof(last_loader_event) - 1);
+                snprintf(resolved_interp_path, sizeof(resolved_interp_path), "%s", path_start);
+                snprintf(last_loader_event, sizeof(last_loader_event), "%s", event_name);
                 // Invoke callback for loader boundary - interp path resolved
                 if (completion_callback) {
                     completion_callback(false, -1);
@@ -96,32 +96,32 @@ static void test_sink_record_event(ixland_instrumentation_origin_t origin, const
     }
     // DIAGNOSTIC: format_exec was called
     else if (strstr(event_name, "loader.format_exec.called") != NULL) {
-        strncpy(last_loader_event, event_name, sizeof(last_loader_event) - 1);
+        snprintf(last_loader_event, sizeof(last_loader_event), "%s", event_name);
     }
     // DIAGNOSTIC: elf_exec was reached
     else if (strstr(event_name, "loader.elf_exec.reached") != NULL) {
         elf_exec_reached = true;
-        strncpy(last_loader_event, event_name, sizeof(last_loader_event) - 1);
+        snprintf(last_loader_event, sizeof(last_loader_event), "%s", event_name);
     }
     // M1: Main ELF header accepted (emitted after read_header succeeds for main binary)
     else if (strstr(event_name, "loader.main_elf.header") != NULL) {
         main_elf_header_accepted = true;
-        strncpy(last_loader_event, event_name, sizeof(last_loader_event) - 1);
+        snprintf(last_loader_event, sizeof(last_loader_event), "%s", event_name);
     }
     // Milestone B: Interp pt_load mapping
     else if (strstr(event_name, "loader.interp.pt_load.map") != NULL) {
         interp_mappings_exist = true;
-        strncpy(last_loader_event, event_name, sizeof(last_loader_event) - 1);
+        snprintf(last_loader_event, sizeof(last_loader_event), "%s", event_name);
     }
     // Milestone B: Auxv initialized with AT_BASE
     else if (strstr(event_name, "loader.auxv.at_base.write") != NULL) {
         auxv_initialized = true;
-        strncpy(last_loader_event, event_name, sizeof(last_loader_event) - 1);
+        snprintf(last_loader_event, sizeof(last_loader_event), "%s", event_name);
     }
     // D2.0: Interp open result (emitted at exec.c:754 after generic_open attempt)
     else if (strstr(event_name, "loader.interp.open.result") != NULL) {
         interp_open_attempted = true;
-        strncpy(last_loader_event, event_name, sizeof(last_loader_event) - 1);
+        snprintf(last_loader_event, sizeof(last_loader_event), "%s", event_name);
         // Parse err:X from event to classify open result
         const char *err_str = strstr(event_name, "err:");
         if (err_str) {
@@ -138,17 +138,17 @@ static void test_sink_record_event(ixland_instrumentation_origin_t origin, const
     // Milestone B: Interp header loaded (emitted after read_header succeeds)
     else if (strstr(event_name, "loader.interp_elf.header") != NULL) {
         interp_header_loaded = true;
-        strncpy(last_loader_event, event_name, sizeof(last_loader_event) - 1);
+        snprintf(last_loader_event, sizeof(last_loader_event), "%s", event_name);
     }
     // Milestone B: Interp bias compute (emitted during interpreter mapping phase, after D2.1/D2.2)
     else if (strstr(event_name, "loader.interp.bias.compute") != NULL) {
         interp_header_loaded = true;
-        strncpy(last_loader_event, event_name, sizeof(last_loader_event) - 1);
+        snprintf(last_loader_event, sizeof(last_loader_event), "%s", event_name);
     }
     // Milestone B: Main image loaded
     else if (strstr(event_name, "task.proof.exec.load_entry.reached") != NULL) {
         main_image_loaded = true;
-        strncpy(last_loader_event, event_name, sizeof(last_loader_event) - 1);
+        snprintf(last_loader_event, sizeof(last_loader_event), "%s", event_name);
     }
 }
 
@@ -196,13 +196,13 @@ static uint64_t test_sink_begin_interval(ixland_instrumentation_origin_t origin,
             if (attrs[i].key && strcmp(attrs[i].key, "role") == 0 && attrs[i].value) {
                 if (strcmp(attrs[i].value, "main") == 0) {
                     main_elf_header_accepted = true;
-                    strncpy(last_loader_event, "task.proof.loader.elf_header:role=main",
-                            sizeof(last_loader_event) - 1);
+                    snprintf(last_loader_event, sizeof(last_loader_event),
+                             "task.proof.loader.elf_header:role=main");
                     break;
                 } else if (strcmp(attrs[i].value, "interp") == 0) {
                     interp_header_loaded = true;
-                    strncpy(last_loader_event, "task.proof.loader.elf_header:role=interp",
-                            sizeof(last_loader_event) - 1);
+                    snprintf(last_loader_event, sizeof(last_loader_event),
+                             "task.proof.loader.elf_header:role=interp");
                     break;
                 }
             }
@@ -215,9 +215,10 @@ static uint64_t test_sink_begin_interval(ixland_instrumentation_origin_t origin,
                 // Only count real interpreter paths, not "none"
                 if (strncmp(attrs[i].value, "none", 4) != 0) {
                     interp_path_resolved = true;
-                    strncpy(resolved_interp_path, attrs[i].value, sizeof(resolved_interp_path) - 1);
-                    strncpy(last_loader_event, "task.proof.loader.biases:interp_path_resolved",
-                            sizeof(last_loader_event) - 1);
+                    snprintf(resolved_interp_path, sizeof(resolved_interp_path), "%s",
+                             attrs[i].value);
+                    snprintf(last_loader_event, sizeof(last_loader_event),
+                             "task.proof.loader.biases:interp_path_resolved");
                     // Invoke callback for loader boundary - interp path resolved via stable
                     // interval
                     if (completion_callback) {

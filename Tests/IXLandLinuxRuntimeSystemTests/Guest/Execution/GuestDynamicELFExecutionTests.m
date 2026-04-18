@@ -100,26 +100,10 @@
     NSString *rootPath = [rootURL path];
     XCTAssertNotNil(rootPath, @"B1.1: Root path must resolve");
     
-    // Log the actual root path and check existence (diagnostic info-keeping)
-    NSLog(@"B0-DIAG: Root URL: %@, path: %@", rootURL, rootPath);
-    NSLog(@"B0-DIAG: Root exists: %@", 
-          [[NSFileManager defaultManager] fileExistsAtPath:rootPath] ? @"YES" : @"NO");
-    
-    // Check rootfs contents - THIS IS THE REAL PROOF
+    // Check rootfs contents - REAL PROOF via assertions, not logs
     NSError *dirError = nil;
     NSArray *contents = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:rootPath error:&dirError];
     NSUInteger rootEntryCount = contents ? contents.count : 0;
-    NSLog(@"B0-DIAG: Root contents: %@, count: %lu", contents, (unsigned long)rootEntryCount);
-    
-    // B0-DIAG: Check data directory contents
-    NSString *dataPath = [rootPath stringByAppendingPathComponent:@"data"];
-    NSArray *dataContents = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:dataPath error:nil];
-    NSLog(@"B0-DIAG: Data directory contents: %@, count: %lu", dataContents, (unsigned long)(dataContents ? dataContents.count : 0));
-    
-    // B0-DIAG: Check SQLite database for extracted paths
-    NSString *dbPath = [rootPath stringByAppendingPathComponent:@"meta.db"];
-    NSData *dbData = [NSData dataWithContentsOfFile:dbPath];
-    NSLog(@"B0-DIAG: meta.db exists: %@, size: %lu bytes", dbData ? @"YES" : @"NO", (unsigned long)(dbData ? dbData.length : 0));
     
     // B1 MATERIAL ASSERTIONS: /data/bin/busybox MUST exist with real content
     NSString *dataRootPath = [rootPath stringByAppendingPathComponent:@"data"];
@@ -141,7 +125,6 @@
         unsigned long long fileSize = [attrs fileSize];
         XCTAssertGreaterThan(fileSize, 0, @"B1.3: /data/bin/busybox must have nonzero size (was %llu bytes)", fileSize);
         XCTAssertGreaterThan(fileSize, 1000, @"B1.3: /data/bin/busybox must be real payload (size %llu seems too small)", fileSize);
-        NSLog(@"B0-B1 PASS: busybox exists at %@ with size %llu bytes", busyboxFullPath, fileSize);
     }
     
     // HARD FAIL if root is empty - this proves bootstrap actually failed
@@ -274,13 +257,11 @@
     
     if (interp_fd != NULL && !IS_ERR(interp_fd)) {
         // D1.6.a PASS: Path resolution works, interpreter opens successfully
-        NSLog(@"D1.6.a PASS: generic_open(\"/lib/ld-musl-aarch64.so.1\") succeeded, fd=%p", interp_fd);
         fd_close(interp_fd);
         XCTAssertTrue(true, @"D1.6.a: Interpreter path resolves via mounted root");
     } else {
         // D1.6.a FAIL: Path resolution broken at mount/root level
         int err = interp_fd != NULL ? PTR_ERR(interp_fd) : -1;
-        NSLog(@"D1.6.a FAIL: generic_open(\"/lib/ld-musl-aarch64.so.1\") failed, err=%d", err);
         XCTAssertTrue(interp_fd != NULL && !IS_ERR(interp_fd), @"D1.6.a FAIL: generic_open failed for guest absolute path, err=%d", err);
     }
 }
@@ -335,7 +316,6 @@
     // M1: Check main ELF header accepted event
     BOOL mainElfHeaderAccepted = guest_execution_trace_sink_main_elf_header_accepted();
     const char *lastEvent = guest_execution_trace_sink_get_last_loader_event();
-    NSLog(@"D2-DIAG: elf_exec_reached=%d, main_elf_header_accepted=%d, last_event='%s'", elfExecReached, mainElfHeaderAccepted, lastEvent);
     
     // M1 classification: read_header(main_fd, &header) must succeed
     XCTAssertTrue(mainElfHeaderAccepted,
@@ -348,8 +328,6 @@
     BOOL interpOpenAttempted = guest_execution_trace_sink_interp_open_attempted();
     BOOL interpOpenSucceeded = guest_execution_trace_sink_interp_open_succeeded();
     int interpOpenErrno = guest_execution_trace_sink_interp_open_errno();
-    NSLog(@"D2-DIAG: interp_open_attempted=%d, interp_open_succeeded=%d, interp_open_errno=%d, last_event='%s'",
-          interpOpenAttempted, interpOpenSucceeded, interpOpenErrno, lastEvent);
     
     // D2.0 classification: generic_open(interp_name) must be called
     XCTAssertTrue(interpOpenAttempted,
@@ -360,7 +338,6 @@
     
     // D2.1: Check interpreter header loaded event
     BOOL interpHeaderLoaded = guest_execution_trace_sink_interp_header_loaded();
-    NSLog(@"D2-DIAG: interp_header_loaded=%d", interpHeaderLoaded);
     
     // D2.1 classification
     XCTAssertTrue(interpHeaderLoaded, 
@@ -370,7 +347,6 @@
     
     // D2.3: Check interpreter mappings exist
     BOOL interpMappingsExist = guest_execution_trace_sink_interp_mappings_exist();
-    NSLog(@"D2-DIAG: interp_mappings_exist=%d", interpMappingsExist);
     
     // D2.3 classification  
     XCTAssertTrue(interpMappingsExist,
