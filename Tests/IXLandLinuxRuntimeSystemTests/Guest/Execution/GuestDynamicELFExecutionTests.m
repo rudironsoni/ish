@@ -211,6 +211,12 @@
     if (mainElfHeaderAccepted) {
         XCTAssertTrue(interpOpenAttempted, @"D2.0: loader.interp.open.result NOT observed - interpreter open not attempted");
     }
+
+    // CLASSIFICATION D2.1: Interpreter header accepted (only after D2.0 proves open attempt)
+    BOOL interpHeaderLoaded = guest_execution_trace_sink_interp_header_loaded();
+    if (interpOpenAttempted) {
+        XCTAssertTrue(interpHeaderLoaded, @"D2.1: loader.interp_elf.header or loader.interp.bias.compute NOT observed - interpreter header not accepted");
+    }
     
     // B1 PRIMARY: Interpreter path resolved (proves PT_INTERP was processed)
     BOOL interpPathResolved = guest_execution_trace_sink_interp_path_resolved();
@@ -218,13 +224,13 @@
                   @"B1: loader.interpreter_path NOT resolved. "
                   @"H0=%d H1=%d(rv=%d) H2=%d(rv=%d) H3=%d H4=%d(rv=%d) "
                   @"X0=%d X1=%d X2=%d X3=%d "
-                  @"M1=%d D2.0=%d "
+                  @"M1=%d D2.0=%d D2.1=%d "
                   @"last_event='%s'",
                   result.harnessEntered, result.mountRootCalled, result.mountRootReturnValue,
                   result.becomeFirstProcessCalled, result.becomeFirstProcessReturnValue,
                   result.doExecveReached, result.doExecveCalled, result.doExecveReturnValue,
                   doExecveEntered, formatExecEntered, beforeElfExecEntered, elfExecEntered,
-                  mainElfHeaderAccepted, interpOpenAttempted,
+                  mainElfHeaderAccepted, interpOpenAttempted, interpHeaderLoaded,
                   lastEvent);
 
     if (interpPathResolved) {
