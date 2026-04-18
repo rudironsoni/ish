@@ -1143,14 +1143,10 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
             }
         }
 
-        // For dynamically linked executables, x1 must point to loader's _DYNAMIC
-        dynamic_addr = 0;
-        for (int i = 0; i < interp_header.phent_count; i++) {
-            if (interp_ph[i].type == PT_DYNAMIC) {
-                dynamic_addr = interp_base + interp_ph[i].vaddr;
-                break;
-            }
-        }
+        // For dynamically linked executables, x1 must point to main executable's _DYNAMIC
+        // (not interpreter's _DYNAMIC). The interpreter needs the main program's dynamic
+        // section to perform relocations. dynamic_addr was already set from main's PT_DYNAMIC
+        // at lines 1011-1017, so do not overwrite it here.
 
         {
             struct page_desc *page0_desc = page_map_lookup(&current->mem->pages, 0);
