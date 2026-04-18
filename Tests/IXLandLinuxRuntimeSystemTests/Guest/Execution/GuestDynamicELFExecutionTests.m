@@ -165,10 +165,10 @@
     unsigned long long fileSize = [attrs fileSize];
     XCTAssertGreaterThan(fileSize, 1000, @"B1.4: busybox must be real extracted payload, not placeholder");
     
-    // B1 behavioral: classify through do_execve / elf_exec without entering guest CPU execution
+    // B1 behavioral: run executable to drive runtime checkpoints
     guest_execution_trace_sink_reset();
-    GuestExecutionResult *result = [self.harness classifyExecutableAtRootPath:dataRootPath
-                                                               executablePath:busyboxRelativePath];
+    GuestExecutionResult *result = [self.harness runExecutableAtRootPath:dataRootPath
+                                                         executablePath:busyboxRelativePath];
     
     // CLASSIFICATION LADDER H0-H4: Harness seam before runtime
     XCTAssertTrue(result.harnessEntered, @"H0: runExecutableAtRootPath must be entered");
@@ -182,6 +182,11 @@
     XCTAssertTrue(result.doExecveCalled, @"H4: do_execve must be called");
     XCTAssertEqual(result.doExecveReturnValue, 0, @"H4: do_execve must return 0 (success), got %d", result.doExecveReturnValue);
     
+    // CLASSIFICATION S0: Sink receiving callbacks (diagnostic - proves instrumentation is wired)
+    uint64_t beginIntervalCalls = guest_execution_trace_sink_begin_interval_calls_count();
+    BOOL anyIntervalReceived = guest_execution_trace_sink_any_interval_received();
+    XCTAssertTrue(anyIntervalReceived, @"S0: sink not receiving any begin_interval callbacks - instrumentation seam broken");
+
     // CLASSIFICATION LADDER X0-X3: Runtime pre-elf_exec checkpoints (sink events)
     BOOL doExecveEntered = guest_execution_trace_sink_do_execve_entered();
     BOOL formatExecEntered = guest_execution_trace_sink_format_exec_entered();

@@ -22,6 +22,11 @@ static bool exit_event_received = false;
 static int last_exit_code = -1;
 static guest_execution_trace_sink_callback_t completion_callback = NULL;
 
+// S0: Sink Diagnostic - proves callbacks are being invoked
+static uint64_t begin_interval_calls_count = 0;
+static uint64_t last_begin_interval_id = 0;
+static bool any_interval_received = false;
+
 // Milestone B: Dynamic ELF loader state
 static bool interp_path_resolved = false;
 static bool elf_exec_reached = false;
@@ -53,11 +58,12 @@ static uint64_t test_sink_begin_interval(ixland_instrumentation_origin_t origin,
 static void test_sink_end_interval(uint64_t interval_id,
                                    const ixland_instrumentation_attribute_t *attrs,
                                    uint32_t attr_count);
+static bool test_sink_is_active(void);
 
 // Test sink implementation - captures events from runtime
 static ixland_instrumentation_sink_t test_sink = { .bootstrap = NULL,
                                                    .activate = NULL,
-                                                   .is_active = NULL,
+                                                   .is_active = test_sink_is_active,
                                                    .record_event = test_sink_record_event,
                                                    .begin_interval = test_sink_begin_interval,
                                                    .end_interval = test_sink_end_interval };
@@ -157,6 +163,10 @@ static uint64_t test_sink_begin_interval(ixland_instrumentation_origin_t origin,
                                          const ixland_instrumentation_attribute_t *attrs,
                                          uint32_t attr_count)
 {
+    // S0: Diagnostic - track that begin_interval is actually being called
+    begin_interval_calls_count++;
+    any_interval_received = true;
+
     if (!interval_name)
         return 0;
 
@@ -258,6 +268,12 @@ static void test_sink_end_interval(uint64_t interval_id,
 {
 }
 
+// Test sink is always active in test context - instrumentation only works when a sink is registered
+static bool test_sink_is_active(void)
+{
+    return true;
+}
+
 // Public API
 void guest_execution_trace_sink_init(void)
 {
@@ -302,6 +318,9 @@ void guest_execution_trace_sink_reset(void)
     format_exec_entered = false;
     before_elf_exec_entered = false;
     elf_exec_entered = false;
+    // S0: Reset callback tracking
+    begin_interval_calls_count = 0;
+    any_interval_received = false;
 }
 
 // Milestone B: Dynamic ELF observation API
@@ -387,4 +406,16 @@ bool guest_execution_trace_sink_before_elf_exec_entered(void)
 bool guest_execution_trace_sink_elf_exec_entered(void)
 {
     return elf_exec_entered;
+}
+
+
+// S0: Diagnostic accessors - prove sink is receiving callbacks
+uint64_t guest_execution_trace_sink_begin_interval_calls_count(void)
+{
+    return begin_interval_calls_count;
+}
+
+bool guest_execution_trace_sink_any_interval_received(void)
+{
+    return any_interval_received;
 }

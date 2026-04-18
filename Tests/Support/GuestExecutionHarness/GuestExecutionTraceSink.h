@@ -67,4 +67,8 @@ bool guest_execution_trace_sink_format_exec_entered(void);
 bool guest_execution_trace_sink_before_elf_exec_entered(void);
 bool guest_execution_trace_sink_elf_exec_entered(void);
 
+// S0: Sink diagnostic accessors - prove callbacks are being invoked
+uint64_t guest_execution_trace_sink_begin_interval_calls_count(void);
+bool guest_execution_trace_sink_any_interval_received(void);
+
 #endif // GUEST_EXECUTION_TRACE_SINK_H
