@@ -752,8 +752,23 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
             goto out_free_interp;
         if ((elf_off_t)fd->ops->read(fd, interp_name, ph[i].filesize) != ph[i].filesize)
             goto out_free_interp;
-        // Defensive terminator: ensure interp_name is always a valid C string
-        // PT_INTERP spec requires null-terminated path; this handles malformed ELF gracefully
+
+        // PT_INTERP semantic validation: path must be null-terminated within p_filesz bytes per
+        // Linux ELF spec
+        size_t term_idx = ph[i].filesize;
+        for (size_t j = 0; j < ph[i].filesize; j++) {
+            if (interp_name[j] == '\0') {
+                term_idx = j;
+                break;
+            }
+        }
+        if (term_idx == ph[i].filesize) {
+            // No null terminator found within PT_INTERP payload - malformed ELF
+            err = _EINVAL;
+            goto out_free_interp;
+        }
+
+        // Defensive terminator at p_filesz boundary (already null-terminated per validation above)
         interp_name[ph[i].filesize] = '\0';
 
         // open interpreter and read headers
