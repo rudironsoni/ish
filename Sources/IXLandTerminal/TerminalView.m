@@ -50,6 +50,10 @@ struct rowcol {
 
 @end
 
+- (BOOL)canBecomeFirstResponder {
+    return YES;
+}
+
 @implementation TerminalView
 @synthesize inputDelegate;
 @synthesize tokenizer;
@@ -232,16 +236,12 @@ static NSString *const HANDLERS[] = {@"syncFocus", @"focus", @"newScrollHeight",
 }
 
 - (BOOL)becomeFirstResponder {
-    if (!self.window || !self.window.isKeyWindow) {
-        return NO;
-    }
     BOOL focused = [super becomeFirstResponder];
     _terminalFocused = focused;
     if (focused && self.terminal) {
         [self.terminal focusEditableSurface];
     }
     [self reloadInputViews];
-    NSLog(@"TerminalView becomeFirstResponder: %d", focused);
     return focused;
 }
 - (BOOL)resignFirstResponder {
