@@ -23,6 +23,9 @@ struct tty;
 
 - (int)sendOutput:(const void *)buf length:(int)len;
 - (void)sendInput:(NSData *)input;
+- (BOOL)becomeInputResponder;
+- (BOOL)requestFocus;
+- (BOOL)focusEditableSurface;
 
 - (NSString *)arrow:(char)direction;
 

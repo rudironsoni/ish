@@ -283,9 +283,16 @@ schemes:
       targets:
         IXLandLinuxRuntime: all
         IXLandTerminal: all
+        IXLandTerminalEnd2EndTests: [build-for-testing]
     run:
       config: Debug
       executable: IXLandTerminal
+    test:
+      config: Debug
+      gatherCoverageData: false
+      targets:
+      - name: IXLandTerminalEnd2EndTests
+        parallelizable: false
 
   # TCTI Contract Tests - Stage contracts for fetch/decode/lowering/entry/exit
   IXLandTCTIContracts:

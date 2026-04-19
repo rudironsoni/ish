@@ -19,6 +19,8 @@ enum OverrideAppearance {
 @property (nonatomic) CGFloat overrideFontSize;
 @property (readonly) CGFloat effectiveFontSize;
 @property (nonatomic) enum OverrideAppearance overrideAppearance;
+@property (nonatomic, strong) UIAccessibilityElement *terminalAccessibilityProxy;
+
 
 @property (nonatomic) UIKeyboardAppearance keyboardAppearance;
 
