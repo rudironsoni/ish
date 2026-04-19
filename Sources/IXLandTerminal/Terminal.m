@@ -43,11 +43,15 @@ typedef struct tty *tty_t;
 @interface CustomWebView : WKWebView
 @end
 @implementation CustomWebView
+- (BOOL)canBecomeFirstResponder {
+    return YES;
+}
+
 - (BOOL)becomeFirstResponder {
-    if (@available(iOS 13.4, *)) {
-        return [super becomeFirstResponder];
+    if (self.window == nil || !self.window.isKeyWindow) {
+        return NO;
     }
-    return NO;
+    return [super becomeFirstResponder];
 }
 
 - (BOOL)canPerformAction:(SEL)action withSender:(id)sender {
@@ -152,6 +156,19 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
         tty_set_winsize(self.tty, (struct winsize_) {.col = cols, .row = rows});
         unlock(&self.tty->lock);
     }];
+}
+
+- (BOOL)focusEditableSurface {
+    if (!self.webView || !self.webView.window) {
+        return NO;
+    }
+    NSString *script = @"term.focus();";
+    [self.webView evaluateJavaScript:script completionHandler:^(id result, NSError *error) {
+        if (error) {
+            NSLog(@"JS focus error: %@", error);
+        }
+    }];
+    return YES;
 }
 
 - (void)setEnableVoiceOverAnnounce:(BOOL)enableVoiceOverAnnounce {

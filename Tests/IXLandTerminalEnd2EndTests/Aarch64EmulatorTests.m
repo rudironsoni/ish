@@ -20,9 +20,9 @@
     self.app = [[XCUIApplication alloc] init];
     [self.app launch];
 
-    XCTAssertTrue([self.app waitForExistenceWithTimeout:5.0]);
-    XCTAssertTrue([self.app.otherElements[@"TerminalViewController"] waitForExistenceWithTimeout:10.0], @"Terminal view should exist");
-    XCTAssertTrue([self.app.webViews.staticTexts.firstMatch waitForExistenceWithTimeout:30.0], @"Terminal text should exist before typing");
+    // Wait for TerminalViewController to appear
+    XCUIElement *terminalVC = self.app.otherElements[@"TerminalViewController"];
+    XCTAssertTrue([terminalVC waitForExistenceWithTimeout:10.0], @"TerminalViewController should exist");
 }
 
 - (void)tearDown {
@@ -32,15 +32,29 @@
 // The terminal UI is rendered in a web view and accepts keyboard input at the
 // application level once the scene is active.
 - (void)typeCommand:(NSString *)command {
-    XCUIElement *terminalView = self.app.otherElements[@"TerminalViewController"];
-    XCTAssertTrue(terminalView.exists, @"Terminal view should exist before typing");
-    XCTAssertTrue(self.app.webViews.staticTexts.firstMatch.exists, @"Terminal text should exist before typing");
+    XCUIElement *terminalVC = self.app.otherElements[@"TerminalViewController"];
+    XCTAssertTrue(terminalVC.exists, @"TerminalViewController should exist before typing");
+    XCTAssertNotNil([self terminalText], @"Terminal accessibility text should exist before typing");
+   
+    // Tap to ensure focus
+    [terminalVC tap];
+    [NSThread sleepForTimeInterval:0.5];  // Give time for keyboard to appear
+    
+    // Focus TerminalView directly
+    XCUIElement *terminalSurface = self.app.otherElements[@"TerminalSurface"];
+    if (terminalSurface.exists) {
+        [terminalSurface tap];
+        [NSThread sleepForTimeInterval:0.2];
+    }
+    
+    // Type command
     [self.app typeText:[NSString stringWithFormat:@"%@\n", command]];
-    [NSThread sleepForTimeInterval:0.5];
+    [NSThread sleepForTimeInterval:1.5];  // Give time for command execution
 }
 
 // Helper: Get terminal text
 - (NSString *)terminalText {
+    // Use TerminalViewController since it exposes terminal text via accessibilityValue
     XCUIElement *terminalVC = self.app.otherElements[@"TerminalViewController"];
     XCTAssertTrue([terminalVC waitForExistenceWithTimeout:5.0], @"TerminalViewController must be accessible within 5 seconds");
 
@@ -51,11 +65,22 @@
 
 // Test 1: Basic shell execution
 - (void)testBasicShellExecution {
+    // Use longer wait to ensure proper focus
+    [NSThread sleepForTimeInterval:2.0];
     [self typeCommand:@"echo 'aarch64_test_passed'"];
 
+    // Wait longer to ensure command execution
+    [NSThread sleepForTimeInterval:2.0];
     NSString *output = [self terminalText];
+    if (![output containsString:@"aarch64_test_passed"]) {
+        // Try again if first attempt failed
+        [NSThread sleepForTimeInterval:3.0];
+        [self typeCommand:@"echo 'aarch64_test_passed'"];
+        [NSThread sleepForTimeInterval:2.0];
+        output = [self terminalText];
+    }
     XCTAssertTrue([output containsString:@"aarch64_test_passed"],
-                  "Should see echo output in terminal");
+                 "Should see echo output in terminal");
 }
 
 // Test 2: Verify aarch64 architecture

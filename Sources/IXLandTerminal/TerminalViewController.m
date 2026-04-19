@@ -233,10 +233,6 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.postPTYRestartBudget = 1;
-    
-    // Ensure UI test surface is accessibility-exposed
-    self.view.isAccessibilityElement = YES;
-    self.view.accessibilityIdentifier = @"TerminalViewController";
 
     int bootError = [AppDelegate bootError];
     if (bootError < 0) {
@@ -248,7 +244,15 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
     }
 
     self.terminal = self.terminal;
-    [self.termView becomeFirstResponder];
+    
+    // Ensure consistent accessibility identifier for UI tests
+    self.view.isAccessibilityElement = YES;
+    self.view.accessibilityIdentifier = @"TerminalViewController";
+    
+    self.tapRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleTerminalTap:)];
+    self.tapRecognizer.delegate = self;
+    self.tapRecognizer.cancelsTouchesInView = NO;
+    [self.view addGestureRecognizer:self.tapRecognizer];
 
     NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
     [center addObserver:self
@@ -315,6 +319,24 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 
 - (void)viewDidAppear:(BOOL)animated {
     [super viewDidAppear:animated];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        BOOL success = [self.termView becomeFirstResponder];
+        NSLog(@"TerminalView becomeFirstResponder: %d", success);
+        if (!success) {
+            // Fallback to tap-based focus
+            [self.termView performSelector:@selector(becomeFirstResponder) withObject:nil afterDelay:0.3];
+        }
+    });
+}
+
+- (void)handleTerminalTap:(UITapGestureRecognizer *)recognizer {
+    if (recognizer.state == UIGestureRecognizerStateEnded) {
+        BOOL success = [self.termView becomeFirstResponder];
+        NSLog(@"Tap focus: %d", success);
+        if (success) {
+            [NSThread sleepForTimeInterval:0.5];  // Give time for keyboard to appear
+        }
+    }
 }
 
 - (void)startNewSession {
@@ -937,12 +959,24 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 
 // Override accessibilityValue to expose terminal text for UI test queries
 - (NSString *)accessibilityValue {
-    // Return terminal screen text if available, otherwise fall back to default
     NSString *terminalText = [self.terminal screenTextForTesting];
+    if (!terminalText) {
+        terminalText = [self.termView.terminal screenTextForTesting];
+    }
     if (terminalText.length > 0) {
         return terminalText;
     }
     return [super accessibilityValue];
+}
+
+- (BOOL)accessibilityActivate {
+    BOOL success = [self.termView becomeFirstResponder];
+    NSLog(@"Controller accessibilityActivate: %d", success);
+    return success;
+}
+
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch {
+    return YES;
 }
 
 @end

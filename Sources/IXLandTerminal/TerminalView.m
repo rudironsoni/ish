@@ -46,12 +46,17 @@ struct rowcol {
 @property CGSize floatingCursorSensitivity;
 @property CGSize actualFloatingCursorSensitivity;
 
+@property (nonatomic) UIAccessibilityElement *terminalAccessibilityElement;
+
 @end
 
 @implementation TerminalView
 @synthesize inputDelegate;
 @synthesize tokenizer;
-@synthesize canBecomeFirstResponder;
+
+- (BOOL)canBecomeFirstResponder {
+    return YES;
+}
 
 - (void)awakeFromNib {
     [super awakeFromNib];
@@ -80,6 +85,12 @@ struct rowcol {
 
     self.markedRange = [UITextRange new];
     self.selectedRange = [UITextRange new];
+    
+    self.terminalAccessibilityElement = [[UIAccessibilityElement alloc] initWithAccessibilityContainer:self];
+    self.terminalAccessibilityElement.accessibilityIdentifier = @"TerminalSurface";
+    self.terminalAccessibilityElement.accessibilityLabel = @"Terminal";
+    self.terminalAccessibilityElement.accessibilityTraits = UIAccessibilityTraitAllowsDirectInteraction;
+    self.terminalAccessibilityElement.accessibilityFrameInContainerSpace = self.bounds;
 }
 
 - (void)dealloc {
@@ -221,9 +232,17 @@ static NSString *const HANDLERS[] = {@"syncFocus", @"focus", @"newScrollHeight",
 }
 
 - (BOOL)becomeFirstResponder {
-    self.terminalFocused = YES;
+    if (!self.window || !self.window.isKeyWindow) {
+        return NO;
+    }
+    BOOL focused = [super becomeFirstResponder];
+    _terminalFocused = focused;
+    if (focused && self.terminal) {
+        [self.terminal focusEditableSurface];
+    }
     [self reloadInputViews];
-    return [super becomeFirstResponder];
+    NSLog(@"TerminalView becomeFirstResponder: %d", focused);
+    return focused;
 }
 - (BOOL)resignFirstResponder {
     self.terminalFocused = NO;
@@ -647,7 +666,15 @@ static const char *metaKeys = "abcdefghijklmnopqrstuvwxyz0123456789-=[]\\;',./";
 - (nonnull NSArray<UITextSelectionRect *> *)selectionRectsForRange:(nonnull UITextRange *)range { LogStub(); return @[]; }
 - (nullable UITextRange *)textRangeFromPosition:(nonnull UITextPosition *)fromPosition toPosition:(nonnull UITextPosition *)toPosition { LogStub(); return nil; }
 
-// conforming to UITextInput makes this view default to being an accessibility element, which blocks selecting anything in it
-- (BOOL)isAccessibilityElement { return NO; }
+- (BOOL)isAccessibilityElement { 
+    return NO;
+}
+
+- (NSArray *)accessibilityElements {
+    if (self.terminalAccessibilityElement) {
+        return @[self.terminalAccessibilityElement];
+    }
+    return nil;
+}
 
 @end
