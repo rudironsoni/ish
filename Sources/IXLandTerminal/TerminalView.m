@@ -95,6 +95,8 @@ struct rowcol {
     self.terminalAccessibilityElement.accessibilityLabel = @"Terminal";
     self.terminalAccessibilityElement.accessibilityTraits = UIAccessibilityTraitAllowsDirectInteraction;
     self.terminalAccessibilityElement.accessibilityFrameInContainerSpace = self.bounds;
+    // Set empty value until terminal content arrives
+    self.terminalAccessibilityElement.accessibilityValue = @"No terminal output";
 }
 
 - (void)dealloc {
@@ -117,6 +119,9 @@ static NSString *const HANDLERS[] = {@"syncFocus", @"focus", @"newScrollHeight",
         [_terminal removeObserver:self forKeyPath:@"loaded"];
         [self uninstallTerminalView];
     }
+    // Update accessibilityValue when terminal content changes
+    NSString *terminalText = terminal ? [terminal screenTextForTesting] : nil;
+    self.terminalAccessibilityElement.accessibilityValue = terminalText.length > 0 ? terminalText : @"No terminal output";
 
     _terminal = terminal;
 

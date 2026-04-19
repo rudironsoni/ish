@@ -245,7 +245,7 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 
     self.terminal = self.terminal;
     
-    // Ensure consistent accessibility identifier for UI tests
+    // Ensure controller view is an accessibility container for TerminalSurface
     self.view.isAccessibilityElement = YES;
     self.view.accessibilityIdentifier = @"TerminalViewController";
     
@@ -319,23 +319,12 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 
 - (void)viewDidAppear:(BOOL)animated {
     [super viewDidAppear:animated];
-    dispatch_async(dispatch_get_main_queue(), ^{
-        BOOL success = [self.termView becomeFirstResponder];
-        NSLog(@"TerminalView becomeFirstResponder: %d", success);
-        if (!success) {
-            // Fallback to tap-based focus
-            [self.termView performSelector:@selector(becomeFirstResponder) withObject:nil afterDelay:0.3];
-        }
-    });
+    [self.termView becomeFirstResponder];
 }
 
 - (void)handleTerminalTap:(UITapGestureRecognizer *)recognizer {
     if (recognizer.state == UIGestureRecognizerStateEnded) {
-        BOOL success = [self.termView becomeFirstResponder];
-        NSLog(@"Tap focus: %d", success);
-        if (success) {
-            [NSThread sleepForTimeInterval:0.5];  // Give time for keyboard to appear
-        }
+        [self.termView becomeFirstResponder];
     }
 }
 
@@ -958,21 +947,18 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 }
 
 // Override accessibilityValue to expose terminal text for UI test queries
-- (NSString *)accessibilityValue {
-    NSString *terminalText = [self.terminal screenTextForTesting];
-    if (!terminalText) {
-        terminalText = [self.termView.terminal screenTextForTesting];
-    }
-    if (terminalText.length > 0) {
-        return terminalText;
-    }
-    return [super accessibilityValue];
+- (NSArray *)accessibilityElements {
+    // Expose TerminalSurface proxy as the sole accessibility element
+    return @[self.termView.terminalAccessibilityElement];
+}
+
+- (BOOL)isAccessibilityElement {
+    // Controller is NOT an accessibility element; delegate to TerminalSurface
+    return NO;
 }
 
 - (BOOL)accessibilityActivate {
-    BOOL success = [self.termView becomeFirstResponder];
-    NSLog(@"Controller accessibilityActivate: %d", success);
-    return success;
+    return [self.termView becomeFirstResponder];
 }
 
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch {
