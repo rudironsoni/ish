@@ -829,7 +829,8 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
     int trace_ldr69634 = (is_load && fault_pc == 0x69634ULL && ldr69634_trace_budget > 0);
 
     static int str_helper_trace_budget = 0;
-    int trace_str_helper = (!is_load && fault_pc == 0x69650ULL && str_helper_trace_budget < 8);
+    int trace_str_helper = (!is_load && (fault_pc == 0x69650ULL || fault_pc == 0x6d1a4ULL) &&
+                            str_helper_trace_budget < 8);
     uint32_t helper_raw_opcode = 0;
     int helper_mem_result = A64_MEM_FAULT;
     void *helper_host_ptr_probe = NULL;

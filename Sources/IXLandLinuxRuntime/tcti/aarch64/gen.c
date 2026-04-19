@@ -20,6 +20,10 @@ extern const tcti_gadget_t gadget_tbz_reg[16];
 extern const tcti_gadget_t gadget_tbnz_reg[16];
 extern tcti_gadget_t gadget_sysreg_unsupported;
 extern tcti_gadget_t gadget_pc_advance;
+extern void gadget_csel_eq_0_1_2(void);
+extern void gadget_csel_ne_0_1_2(void);
+extern void gadget_csel_cs_0_1_2(void);
+extern void gadget_csel_cc_0_1_2(void);
 
 // Map guest registers 0-15 to our pre-generated gadget tables
 // Registers 16-30 and sp are handled differently (in memory)
@@ -697,6 +701,125 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr)
                 return A64_GEN_UNSUPPORTED;
             }
         }
+    } else if (instr->cat == A64_DP_IMM2 && op2 >= 4 && op2 <= 7) {
+        int ret;
+        tcti_gadget_t cond_gadget = NULL;
+        int logical_rn = eff_rn;
+        int logical_rm = eff_rm;
+        int zero_src_for_rn = 13;
+        int zero_src_for_rm = 14;
+
+        if (instr->set_flags)
+            return A64_GEN_UNSUPPORTED;
+        if (instr->subtype > 0)
+            return A64_GEN_UNSUPPORTED;
+
+        if (rn == 31) {
+            ret = emit_gadget(state, gadget_mov_imm[zero_src_for_rn]);
+            if (ret != A64_GEN_OK)
+                return ret;
+            ret = emit_u64(state, 0);
+            if (ret != A64_GEN_OK)
+                return ret;
+            logical_rn = zero_src_for_rn;
+        }
+        if (rm == 31) {
+            ret = emit_gadget(state, gadget_mov_imm[zero_src_for_rm]);
+            if (ret != A64_GEN_OK)
+                return ret;
+            ret = emit_u64(state, 0);
+            if (ret != A64_GEN_OK)
+                return ret;
+            logical_rm = zero_src_for_rm;
+        }
+
+        switch (instr->cond & 0xf) {
+        case A64_EQ:
+            cond_gadget = gadget_csel_eq_0_1_2;
+            break;
+        case A64_NE:
+            cond_gadget = gadget_csel_ne_0_1_2;
+            break;
+        case A64_CS:
+            cond_gadget = gadget_csel_cs_0_1_2;
+            break;
+        case A64_CC:
+            cond_gadget = gadget_csel_cc_0_1_2;
+            break;
+        default:
+            return A64_GEN_UNSUPPORTED;
+        }
+
+        if (src1_is_memory) {
+            int load_idx = rn - 16;
+            if (load_idx < 0 || load_idx > 14)
+                return A64_GEN_UNSUPPORTED;
+            ret = emit_gadget(state, gadget_load_xreg_16_to_30[load_idx]);
+            if (ret != A64_GEN_OK)
+                return ret;
+            if (logical_rn != 13) {
+                ret = emit_gadget(state, gadget_mov_reg[logical_rn][13]);
+                if (ret != A64_GEN_OK)
+                    return ret;
+            }
+        }
+
+        if (src2_is_memory) {
+            int load_idx = rm - 16;
+            if (load_idx < 0 || load_idx > 14)
+                return A64_GEN_UNSUPPORTED;
+            ret = emit_gadget(state, gadget_load_xreg_16_to_30[load_idx]);
+            if (ret != A64_GEN_OK)
+                return ret;
+            if (logical_rm != 13) {
+                ret = emit_gadget(state, gadget_mov_reg[logical_rm][13]);
+                if (ret != A64_GEN_OK)
+                    return ret;
+            }
+        }
+
+        if (eff_rd != 0) {
+            ret = emit_gadget(state, gadget_mov_reg[0][eff_rd]);
+            if (ret != A64_GEN_OK)
+                return ret;
+        }
+        if (logical_rn != 1) {
+            ret = emit_gadget(state, gadget_mov_reg[1][logical_rn]);
+            if (ret != A64_GEN_OK)
+                return ret;
+        }
+        if (logical_rm != 2) {
+            ret = emit_gadget(state, gadget_mov_reg[2][logical_rm]);
+            if (ret != A64_GEN_OK)
+                return ret;
+        }
+
+        ret = emit_gadget(state, cond_gadget);
+        if (ret != A64_GEN_OK)
+            return ret;
+
+        if (eff_rd != 0) {
+            ret = emit_gadget(state, gadget_mov_reg[eff_rd][0]);
+            if (ret != A64_GEN_OK)
+                return ret;
+        }
+
+        if (dst_is_memory) {
+            int store_idx = rd - 16;
+            if (store_idx < 0 || store_idx > 14)
+                return A64_GEN_UNSUPPORTED;
+            ret = emit_gadget(state, gadget_store_xreg_16_to_30[store_idx]);
+            if (ret != A64_GEN_OK)
+                return ret;
+        }
+
+        if (dst_is_sp) {
+            ret = emit_gadget(state, (tcti_gadget_t)gadget_store_sp);
+            if (ret != A64_GEN_OK)
+                return ret;
+        }
+
+        return A64_GEN_OK;
     } else if (op2 >= 4 && op2 <= 7) {
         if (instr->imm_shift != 0) {
             int ret;
@@ -1321,10 +1444,10 @@ int a64_gen_ldst(a64_gen_state_t *state, const a64_instr_t *instr)
         return A64_GEN_OK;
     }
 
-    int ret =
-        a64_emit_ldst_single(state, state->guest_pc, instr->Rd, instr->Rn, instr->imm, instr->size,
-                             instr->idx_mode, instr->is_signed, instr->Rm, instr->extend_type,
-                             instr->imm_shift, bits(instr->raw, 11, 10) == 2, bit(instr->raw, 22));
+    int ret = a64_emit_ldst_single(
+        state, state->guest_pc, instr->Rd, instr->Rn, instr->imm, instr->size, instr->idx_mode,
+        instr->is_signed, instr->Rm, instr->extend_type, instr->imm_shift,
+        !bit(instr->raw, 24) && bits(instr->raw, 11, 10) == 2, bit(instr->raw, 22));
     if (ret != A64_GEN_OK)
         return ret;
 
@@ -1417,8 +1540,8 @@ int a64_gen_instruction(a64_gen_state_t *state, uint32_t insn, uint64_t pc)
         ret = a64_gen_dp_imm(state, &decoded);
         break;
 
-    case A64_DP_IMM2: // cat=13 is also DP_IMM
-        ret = a64_gen_dp_imm(state, &decoded);
+    case A64_DP_IMM2: // cat=13 is DP_REG-style (ADC/SBC, CSEL, CCMP)
+        ret = a64_gen_dp_reg(state, &decoded);
         break;
 
     case A64_DP_REG:

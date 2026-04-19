@@ -257,6 +257,20 @@ int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out)
     // Standard DP_REG processing based on op2 = bits 24:21
     int op2 = bits(insn, 24, 21);
 
+    if (cat == A64_DP_IMM2 && op2 >= 4 && op2 <= 7) {
+        int op = bit(insn, 30); // 0=CSEL/CSINC, 1=CSINV/CSNEG
+        int S = bit(insn, 29);  // 0 for conditional select
+        int cond = bits(insn, 15, 12);
+        int o2 = bit(insn, 10); // 0 for CSEL/CSINV, 1 for CSINC/CSNEG
+        out->Rd = bits(insn, 4, 0);
+        out->Rn = bits(insn, 9, 5);
+        out->Rm = bits(insn, 20, 16);
+        out->cond = cond;
+        out->set_flags = S;
+        out->subtype = (op << 1) | o2;
+        return 0;
+    }
+
     switch (op2) {
     case 0: // Logical shifted register
     case 1:
@@ -593,7 +607,7 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out)
     }
 
     // Load/store register (register offset)
-    if (op4 == 2) {
+    if (!bit(insn, 24) && op4 == 2) {
         int S = bit(insn, 12);
         int opt = bits(insn, 15, 13);
         out->Rd = bits(insn, 4, 0);
