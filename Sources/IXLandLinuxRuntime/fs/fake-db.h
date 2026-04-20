@@ -1,9 +1,11 @@
 #ifndef FS_FAKEFS_API_H
 #define FS_FAKEFS_API_H
 
+#import "../util/misc.h"
+#import "fix_path.h"
+
 #include <sqlite3.h>
-#import <IXLandLinuxRuntime/fs/fix_path.h>
-#import <IXLandLinuxRuntime/util/misc.h>
+#import <stdint.h>
 
 struct fakefs_db {
     sqlite3 *db;

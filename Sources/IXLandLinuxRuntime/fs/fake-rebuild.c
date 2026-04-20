@@ -1,12 +1,16 @@
+#import "../util/debug.h"
+#import "../util/list.h"
+#import "fake-db.h"
+#import "fix_path.h"
+#import "sqlutil.h"
+
+#import <IXLandLinuxRuntime/kernel/errno.h>
+#include <sqlite3.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#import <IXLandLinuxRuntime/fs/sqlutil.h>
-#import <IXLandLinuxRuntime/fs/fake-db.h>
-#import <IXLandLinuxRuntime/kernel/errno.h>
-#import <IXLandLinuxRuntime/util/list.h>
-#import <IXLandLinuxRuntime/util/debug.h>
 
 // rebuild process in pseudocode:
 //
@@ -23,13 +27,14 @@
 //     new_db['stat ' + real_inode] = stat
 
 // ad hoc hashtable
-struct entry {
+struct fakefs_entry {
     ino_t inode;
     char *path;
     struct list chain;
 };
 
-int fakefs_rebuild(struct fakefs_db *fs, int root_fd) {
+int fakefs_rebuild(struct fakefs_db *fs, int root_fd)
+{
     sqlite3 *db = fs->db;
     int err;
 
@@ -46,12 +51,12 @@ int fakefs_rebuild(struct fakefs_db *fs, int root_fd) {
     sqlite3_stmt *write_stat = PREPARE("replace into stats (inode, stat) values (?, ?)");
 
     struct list hashtable[2000];
-#define HASH_SIZE (sizeof(hashtable)/sizeof(hashtable[0]))
+#define HASH_SIZE (sizeof(hashtable) / sizeof(hashtable[0]))
     for (unsigned i = 0; i < HASH_SIZE; i++)
         list_init(&hashtable[i]);
 
     while (STEP(get_paths)) {
-        const char *path = (const char *) sqlite3_column_text(get_paths, 0);
+        const char *path = (const char *)sqlite3_column_text(get_paths, 0);
         ino_t inode = sqlite3_column_int64(get_paths, 1);
 
         // grab real inode
@@ -63,9 +68,9 @@ int fakefs_rebuild(struct fakefs_db *fs, int root_fd) {
 
         // restore hardlinks
         struct list *bucket = &hashtable[inode % HASH_SIZE];
-        struct entry *entry;
+        struct fakefs_entry *entry;
         bool found = false;
-        list_for_each_entry(bucket, entry, chain) {
+        list_for_each_entry (bucket, entry, chain) {
             if (entry->inode == inode) {
                 unlinkat(root_fd, fix_path(path), 0);
                 linkat(root_fd, fix_path(entry->path), root_fd, fix_path(path), 0);
@@ -74,14 +79,15 @@ int fakefs_rebuild(struct fakefs_db *fs, int root_fd) {
             }
         }
         if (!found) {
-            entry = malloc(sizeof(struct entry));
+            entry = malloc(sizeof(struct fakefs_entry));
             entry->inode = inode;
             entry->path = strdup(path);
             list_add(bucket, &entry->chain);
         }
 
         // extract the stat so we can copy it
-        err = sqlite3_bind_int64(read_stat, 1, inode); CHECK_ERR();
+        err = sqlite3_bind_int64(read_stat, 1, inode);
+        CHECK_ERR();
         if (STEP(read_stat) == false) {
             RESET(read_stat);
             continue;
@@ -90,12 +96,16 @@ int fakefs_rebuild(struct fakefs_db *fs, int root_fd) {
         size_t stat_data_size = sqlite3_column_bytes(read_stat, 0);
 
         // store all the information in the new database
-        err = sqlite3_bind_int64(write_stat, 1, real_inode); CHECK_ERR();
-        err = sqlite3_bind_blob(write_stat, 2, stat_data, stat_data_size, SQLITE_TRANSIENT); CHECK_ERR();
+        err = sqlite3_bind_int64(write_stat, 1, real_inode);
+        CHECK_ERR();
+        err = sqlite3_bind_blob(write_stat, 2, stat_data, stat_data_size, SQLITE_TRANSIENT);
+        CHECK_ERR();
         STEP(write_stat);
         RESET(write_stat);
-        err = sqlite3_bind_blob(write_path, 1, path, strlen(path), SQLITE_TRANSIENT); CHECK_ERR();
-        err = sqlite3_bind_int64(write_path, 2, real_inode); CHECK_ERR();
+        err = sqlite3_bind_blob(write_path, 1, path, strlen(path), SQLITE_TRANSIENT);
+        CHECK_ERR();
+        err = sqlite3_bind_int64(write_path, 2, real_inode);
+        CHECK_ERR();
         STEP(write_path);
         RESET(write_path);
 
@@ -103,8 +113,9 @@ int fakefs_rebuild(struct fakefs_db *fs, int root_fd) {
     }
 
     for (unsigned i = 0; i < HASH_SIZE; i++) {
-        struct entry *entry, *tmp;
-        list_for_each_entry_safe(&hashtable[i], entry, tmp, chain) {
+        struct fakefs_entry *entry, *tmp;
+        list_for_each_entry_safe(&hashtable[i], entry, tmp, chain)
+        {
             list_remove(&entry->chain);
             free(entry->path);
             free(entry);

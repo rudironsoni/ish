@@ -5,20 +5,17 @@
 //  Created by Theodore Dubois on 11/3/17.
 //
 
-#import "ScrollbarView.h"
-#import "TerminalView.h"
-#import "UserPreferences.h"
-#import "UIApplication+OpenURL.h"
-#import "NSObject+SaneKVO.h"
+#pragma mark Accessibility
 
-struct rowcol {
-    int row;
-    int col;
-};
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    if (self.terminalAccessibilityElement) {
+        self.terminalAccessibilityElement.accessibilityFrameInContainerSpace = self.bounds;
+    }
+}
 
-@interface WeakScriptMessageHandler : NSObject <WKScriptMessageHandler>
-@property (weak) id <WKScriptMessageHandler> handler;
 @end
+
 @implementation WeakScriptMessageHandler
 - (instancetype)initWithHandler:(id <WKScriptMessageHandler>)handler {
     if (self = [super init]) {
@@ -33,6 +30,7 @@ struct rowcol {
 
 @interface TerminalView ()
 
+@property UITapGestureRecognizer *tapRecognizer;
 @property (nonatomic) NSMutableArray<UIKeyCommand *> *keyCommands;
 @property ScrollbarView *scrollbarView;
 @property (nonatomic) BOOL terminalFocused;
@@ -46,9 +44,27 @@ struct rowcol {
 @property CGSize floatingCursorSensitivity;
 @property CGSize actualFloatingCursorSensitivity;
 
-@property (nonatomic) UIAccessibilityElement *terminalAccessibilityElement;
-
 @end
+
+@implementation TerminalView {
+    UIAccessibilityElement *_terminalAccessibilityElement;
+}
+
+- (UIAccessibilityElement *)terminalAccessibilityElement {
+    if (!_terminalAccessibilityElement) {
+        _terminalAccessibilityElement = [[UIAccessibilityElement alloc] initWithAccessibilityContainer:self];
+        _terminalAccessibilityElement.accessibilityIdentifier = @"TerminalSurface";
+        _terminalAccessibilityElement.accessibilityLabel = @"Terminal";
+        _terminalAccessibilityElement.accessibilityTraits = UIAccessibilityTraitAllowsDirectInteraction;
+        _terminalAccessibilityElement.accessibilityFrameInContainerSpace = self.bounds;
+        _terminalAccessibilityElement.accessibilityValue = @"No terminal output";
+    }
+    return _terminalAccessibilityElement;
+}
+
+- (void)setTerminalAccessibilityElement:(UIAccessibilityElement *)terminalAccessibilityElement {
+    _terminalAccessibilityElement = terminalAccessibilityElement;
+}
 
 - (BOOL)canBecomeFirstResponder {
     return YES;
@@ -90,13 +106,7 @@ struct rowcol {
     self.markedRange = [UITextRange new];
     self.selectedRange = [UITextRange new];
     
-    self.terminalAccessibilityElement = [[UIAccessibilityElement alloc] initWithAccessibilityContainer:self];
-    self.terminalAccessibilityElement.accessibilityIdentifier = @"TerminalSurface";
-    self.terminalAccessibilityElement.accessibilityLabel = @"Terminal";
-    self.terminalAccessibilityElement.accessibilityTraits = UIAccessibilityTraitAllowsDirectInteraction;
-    self.terminalAccessibilityElement.accessibilityFrameInContainerSpace = self.bounds;
-    // Set empty value until terminal content arrives
-    self.terminalAccessibilityElement.accessibilityValue = @"No terminal output";
+    self.terminalAccessibilityElement = nil; // Explicit: nil until first terminal content
 }
 
 - (void)dealloc {
@@ -105,9 +115,15 @@ struct rowcol {
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary<NSKeyValueChangeKey,id> *)change context:(void *)context {
     if (object == _terminal) {
-        if (_terminal.loaded) {
-            [self installTerminalView];
-            [self _updateStyle];
+        if ([keyPath isEqualToString:@"loaded"]) {
+            if (_terminal.loaded) {
+                [self installTerminalView];
+                [self _updateStyle];
+            }
+        } else if ([keyPath isEqualToString:@"contentChange"]) {
+            // Update accessibilityValue when terminal content changes
+            NSString *terminalText = _terminal.loaded ? [_terminal screenTextForTesting] : nil;
+            self.terminalAccessibilityElement.accessibilityValue = terminalText.length > 0 ? terminalText : @"No terminal output";
         }
     }
 }
@@ -119,11 +135,22 @@ static NSString *const HANDLERS[] = {@"syncFocus", @"focus", @"newScrollHeight",
         [_terminal removeObserver:self forKeyPath:@"loaded"];
         [self uninstallTerminalView];
     }
-    // Update accessibilityValue when terminal content changes
+    _terminal = terminal;
+
+    if (_terminal) {
+        [_terminal addObserver:self forKeyPath:@"contentChange" options:NSKeyValueObservingOptionNew context:nil];
+    }
+    // Initialize or update accessibility proxy
+    if (!self.terminalAccessibilityElement) {
+        self.terminalAccessibilityElement = [[UIAccessibilityElement alloc] initWithAccessibilityContainer:self];
+        self.terminalAccessibilityElement.accessibilityIdentifier = @"TerminalSurface";
+        self.terminalAccessibilityElement.accessibilityLabel = @"Terminal";
+        self.terminalAccessibilityElement.accessibilityTraits = UIAccessibilityTraitAllowsDirectInteraction;
+        self.terminalAccessibilityElement.accessibilityFrameInContainerSpace = self.bounds;
+    }
+    // Update value from terminal content
     NSString *terminalText = terminal ? [terminal screenTextForTesting] : nil;
     self.terminalAccessibilityElement.accessibilityValue = terminalText.length > 0 ? terminalText : @"No terminal output";
-
-    _terminal = terminal;
 
     // Handle nil terminal (shell-only mode) - skip all terminal setup
     if (_terminal == nil) {

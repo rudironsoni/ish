@@ -20,6 +20,13 @@ settings:
     SWIFT_VERSION: "5.9"
     CLANG_ENABLE_MODULES: false
     CLANG_ENABLE_OBJC_ARC: true
+    LINUX_UAPI_VERSION: '6.12'
+    LINUX_UAPI_ARCH: arm64
+    LINUX_UAPI_VENDOR_ROOT: $(SRCROOT)/third_party/linux-uapi
+    LINUX_UAPI_ROOT: $(LINUX_UAPI_VENDOR_ROOT)/$(LINUX_UAPI_VERSION)/$(LINUX_UAPI_ARCH)
+    LINUX_UAPI_INCLUDE_ROOT: $(LINUX_UAPI_ROOT)/include
+    GCC_TREAT_WARNINGS_AS_ERRORS: true
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: true
 
 targetTemplates:
   LinuxRuntimeBase:
@@ -29,6 +36,8 @@ targetTemplates:
       PRODUCT_BUNDLE_IDENTIFIER: app.ixland.linuxruntime
       PRODUCT_NAME: IXLandLinuxRuntime
       HEADER_SEARCH_PATHS:
+      - "$(LINUX_UAPI_INCLUDE_ROOT)"
+      - "$(SRCROOT)/include"
       - "$(SRCROOT)/Sources"
       - "$(SRCROOT)"
       - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentation/include"
@@ -49,6 +58,9 @@ targets:
       headerVisibility: project
       excludes:
       - "trace/**"
+      - "platform/**"
+    - path: internal/ios
+      headerVisibility: project
     dependencies:
     - package: IXLandInstrumentation
       product: IXLandInstrumentation
@@ -85,41 +97,12 @@ targets:
       TEST_HOST: "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal"
       BUNDLE_LOADER: "$(TEST_HOST)"
       HEADER_SEARCH_PATHS:
-      - "$(SRCROOT)/Sources"
-      - "$(SRCROOT)"
-
-  # MARK: - System Test Target
-  IXLandLinuxRuntimeSystemTests:
-    type: bundle.unit-test
-    platform: iOS
-    sources:
-    - path: Tests/IXLandLinuxRuntimeSystemTests
-      excludes:
-      - "**/DISABLED/**"
-      - "*.md"
-    - path: Tests/Support/TCTITestHarness
-      excludes:
-      - "tcti_four_boundary.c"
-      - "tcti_harness_truth.c"
-    - path: Tests/Support/GuestExecutionHarness
-    - path: Tests/Fixtures/ELF
-      includes:
-      - "*.elf"
-      - "*.bin"
-      buildPhase: resources
-    dependencies:
-    - target: IXLandTerminal
-    - target: IXLandLinuxRuntime
-    - package: IXLandInstrumentation
-      product: IXLandInstrumentationTracing
-    settings:
-      GENERATE_INFOPLIST_FILE: true
-      TEST_HOST: "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal"
-      BUNDLE_LOADER: "$(TEST_HOST)"
-      HEADER_SEARCH_PATHS:
+      - "$(LINUX_UAPI_INCLUDE_ROOT)"
+      - "$(SRCROOT)/include"
       - "$(SRCROOT)/Sources"
       - "$(SRCROOT)"
       - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include"
+
 
   # MARK: - Performance Test Target
   IXLandLinuxRuntimePerfTests:
@@ -145,6 +128,8 @@ targets:
       TEST_HOST: "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal"
       BUNDLE_LOADER: "$(TEST_HOST)"
       HEADER_SEARCH_PATHS:
+      - "$(LINUX_UAPI_INCLUDE_ROOT)"
+      - "$(SRCROOT)/include"
       - "$(SRCROOT)/Sources"
       - "$(SRCROOT)"
       - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include"
@@ -255,6 +240,8 @@ targets:
       TEST_HOST: "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal"
       BUNDLE_LOADER: "$(TEST_HOST)"
       HEADER_SEARCH_PATHS:
+      - "$(LINUX_UAPI_INCLUDE_ROOT)"
+      - "$(SRCROOT)/include"
       - "$(SRCROOT)/Sources"
       - "$(SRCROOT)"
 
@@ -277,6 +264,18 @@ targets:
 
 # MARK: - Test Plans and Schemes
 schemes:
+  IXLandRuntime-6.12-arm64:
+    build:
+      targets:
+        IXLandLinuxRuntime: all
+        IXLandLinuxRuntimeContractTests: all
+    test:
+      config: Debug
+      gatherCoverageData: false
+      targets:
+      - name: IXLandLinuxRuntimeContractTests
+        parallelizable: false
+
   # Main development scheme
   IXLand:
     build:

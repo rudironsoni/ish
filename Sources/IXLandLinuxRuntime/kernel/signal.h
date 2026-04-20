@@ -1,9 +1,15 @@
 #ifndef SIGNAL_H
 #define SIGNAL_H
 
-#import <IXLandLinuxRuntime/util/list.h>
-#import <IXLandLinuxRuntime/util/misc.h>
-#import <IXLandLinuxRuntime/util/sync.h>
+#include "../include/linux_types.h"
+#import "../util/list.h"
+#import "../util/sync.h"
+
+#import "misc.h"
+
+#include <assert.h>
+#include <stdatomic.h>
+#include <stdint.h>
 struct task;
 
 // Linux AArch64 sigset_t is 64-bit

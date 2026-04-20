@@ -71,10 +71,6 @@
 #import <IXLandLinuxRuntime/tcti/aarch64/gadgets_complex.h>
 #import <IXLandLinuxRuntime/tcti/aarch64/gen.h>
 
-// MARK: - Platform API
-#import <IXLandLinuxRuntime/platform/ios/timing.h>
-#import <IXLandLinuxRuntime/platform/platform.h>
-
 // MARK: - Utilities
 #import <IXLandLinuxRuntime/util/bits.h>
 #import <IXLandLinuxRuntime/util/debug.h>
