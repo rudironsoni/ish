@@ -1,6 +1,5 @@
-#include "platform.h"
-
 #include <assert.h>
+#include <ixland/host_bridge.h>
 #include <mach/mach.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>

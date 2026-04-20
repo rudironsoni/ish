@@ -1,8 +1,7 @@
-#include "../../../internal/ios/platform/platform.h"
-
 #import <IXLandLinuxRuntime/fs/proc.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #include <inttypes.h>
+#include <ixland/host_bridge.h>
 #include <string.h>
 #include <sys/stat.h>
 

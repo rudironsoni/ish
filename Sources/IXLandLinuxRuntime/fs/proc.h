@@ -33,10 +33,10 @@ struct proc_dir_entry {
     int (*update)(struct proc_entry *entry, struct proc_data *data);
 
     // file with custom pread functionality
-    ssize_t (*pread)(struct proc_entry *entry, struct proc_data *data, off_t off);
+    ssize_t (*pread)(struct proc_entry *entry, struct proc_data *data, off_t_ off);
 
     // file with custom pwrite functionality
-    ssize_t (*pwrite)(struct proc_entry *entry, struct proc_data *data, off_t off);
+    ssize_t (*pwrite)(struct proc_entry *entry, struct proc_data *data, off_t_ off);
 
     // symlink
     int (*readlink)(struct proc_entry *entry, char *buf);

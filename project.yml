@@ -61,6 +61,8 @@ targets:
       - "platform/**"
     - path: internal/ios
       headerVisibility: project
+    - path: include/ixland
+      headerVisibility: project
     dependencies:
     - package: IXLandInstrumentation
       product: IXLandInstrumentation
@@ -103,6 +105,28 @@ targets:
       - "$(SRCROOT)"
       - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include"
 
+  # MARK: - System Test Target
+  IXLandLinuxRuntimeSystemTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+    - path: Tests/IXLandLinuxRuntimeSystemTests
+      excludes:
+      - "**/DISABLED/**"
+      - "*.md"
+    dependencies:
+    - target: IXLandTerminal
+    - target: IXLandLinuxRuntime
+    settings:
+      GENERATE_INFOPLIST_FILE: true
+      TEST_HOST: "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal"
+      BUNDLE_LOADER: "$(TEST_HOST)"
+      HEADER_SEARCH_PATHS:
+      - "$(LINUX_UAPI_INCLUDE_ROOT)"
+      - "$(SRCROOT)/include"
+      - "$(SRCROOT)/Sources"
+      - "$(SRCROOT)"
+      - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include"
 
   # MARK: - Performance Test Target
   IXLandLinuxRuntimePerfTests:

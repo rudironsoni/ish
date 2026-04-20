@@ -1,7 +1,5 @@
-#include "../../../internal/ios/platform/platform.h"
-#include "internal/ios/platform/platform.h"
-
 #import <IXLandLinuxRuntime/kernel/calls.h>
+#include <ixland/host_bridge.h>
 #include <string.h>
 #include <sys/sysctl.h>
 #include <sys/utsname.h>

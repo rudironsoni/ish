@@ -2,14 +2,13 @@
 #define DEV_H
 
 #import <IXLandLinuxRuntime/fs/fd.h>
-
 #include <sys/types.h>
 
 // a dev_t is encoded like this in hex, where M is major and m is minor:
 // mmmMMMmm
 // (legacy I guess)
 
-typedef uint32_t dev_t_;
+// dev_t_ already defined in linux_types.h
 
 static inline dev_t_ dev_make(int major, int minor)
 {
