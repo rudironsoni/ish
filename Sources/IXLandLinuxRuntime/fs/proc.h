@@ -3,6 +3,7 @@
 
 #import <IXLandLinuxRuntime/fs/stat.h>
 #import <IXLandLinuxRuntime/util/misc.h>
+#include <sys/types.h>
 
 struct proc_entry {
     struct proc_dir_entry *meta;

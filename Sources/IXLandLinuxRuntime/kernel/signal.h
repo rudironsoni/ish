@@ -1,13 +1,13 @@
 #ifndef SIGNAL_H
 #define SIGNAL_H
 
-#include "../include/linux_types.h"
 #import "../util/list.h"
 #import "../util/sync.h"
 
 #import "misc.h"
 
 #include <assert.h>
+#include <ixland/linux_types.h>
 #include <stdatomic.h>
 #include <stdint.h>
 struct task;

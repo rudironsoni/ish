@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define glue(a, b) a##b
+
 void ish_printk(const char *msg, ...);
 void ish_vprintk(const char *msg, va_list args);
 #undef printk
@@ -58,21 +60,28 @@ void ish_vprintk(const char *msg, va_list args);
 
 #ifdef LOG_OVERRIDE
 extern int log_override;
-#define TRACE__NOP(msg, ...) if (log_override) { TRACE__(msg, ##__VA_ARGS__); }
+#define TRACE__NOP(msg, ...)                                                                       \
+    if (log_override) {                                                                            \
+        TRACE__(msg, ##__VA_ARGS__);                                                               \
+    }
 #else
 #define TRACE__NOP(msg, ...) use(__VA_ARGS__)
 #endif
 #define TRACE__(msg, ...) printk(msg, ##__VA_ARGS__)
 
 #define TRACE_(chan, msg, ...) glue(TRACE_, chan)(msg, ##__VA_ARGS__)
-#define TRACE(msg, ...) TRACE_(DEFAULT_CHANNEL, msg, ##__VA_ARGS__)
+#define TRACE(msg, ...)        TRACE_(DEFAULT_CHANNEL, msg, ##__VA_ARGS__)
 #ifndef DEFAULT_CHANNEL
 #define DEFAULT_CHANNEL verbose
 #endif
 
-#define TODO(msg, ...) die("TODO: " msg, ##__VA_ARGS__)
+#define TODO(msg, ...)  die("TODO: " msg, ##__VA_ARGS__)
 #define FIXME(msg, ...) printk("FIXME " msg "\n", ##__VA_ARGS__)
-#define ERRNO_DIE(msg) { perror(msg); abort(); }
+#define ERRNO_DIE(msg)                                                                             \
+    {                                                                                              \
+        perror(msg);                                                                               \
+        abort();                                                                                   \
+    }
 extern void (*die_handler)(const char *msg);
 _Noreturn void die(const char *msg, ...);
 
