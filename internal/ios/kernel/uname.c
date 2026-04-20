@@ -33,10 +33,8 @@ uint32_t sys_uname(addr_t uts_addr)
     return 0;
 }
 
-uint32_t sys_sethostname(addr_t hostname_addr, uint32_t hostname_len)
+uint32_t sys_sethostname(addr_t UNUSED(hostname_addr), uint32_t UNUSED(hostname_len))
 {
-    UNUSED(hostname_addr);
-    UNUSED(hostname_len);
     return _EPERM;
 }
 

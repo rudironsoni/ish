@@ -191,7 +191,7 @@ static int tty_device_open(int major, int minor, struct fd *fd)
         assert(driver != NULL);
         tty = tty_get(driver, major, minor);
         if (IS_ERR(tty))
-            return PTR_ERR(tty);
+            return (int)PTR_ERR(tty);
     }
 
     if (tty->driver->ops->open) {

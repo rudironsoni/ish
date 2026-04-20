@@ -92,8 +92,6 @@ static inline void __use(int dummy __attribute__((unused)), ...) {}
 
 #define array_size(arr) (sizeof(arr) / sizeof((arr)[0]))
 
-typedef uint64_t addr_t;
-
 typedef int64_t sqword_t;
 typedef uint64_t qword_t;
 typedef uint32_t dword_t;
@@ -102,13 +100,6 @@ typedef uint16_t word_t;
 typedef uint8_t byte_t;
 typedef uint64_t uint_t;
 typedef int64_t int_t;
-
-typedef int32_t pid_t_;
-typedef uint32_t uid_t_;
-typedef uint32_t mode_t_;
-typedef int64_t off_t_;
-typedef int64_t time_t_;
-typedef uint64_t clock_t_;
 
 #define uint(size) glue3(uint, size, _t)
 #define sint(size) glue3(int, size, _t)

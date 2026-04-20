@@ -107,10 +107,6 @@ void cond_destroy(cond_t *cond);
 // Returns _EINTR if waiting stopped because the thread received a signal,
 // _ETIMEDOUT if waiting stopped because the timout expired, 0 otherwise.
 // Will never return _ETIMEDOUT if timeout is NULL.
-#ifndef must_check
-#define must_check __attribute__((warn_unused_result))
-#endif
-
 #define wait_for(...) must_check wait_for(__VA_ARGS__)
 int must_check wait_for(cond_t *cond, lock_t *lock, struct timespec *timeout);
 // Same as wait_for, except it will never return _EINTR

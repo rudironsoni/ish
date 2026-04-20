@@ -106,10 +106,8 @@ int32_t sys_clock_getres(int32_t clock, addr_t res_addr)
     return 0;
 }
 
-int32_t sys_clock_settime(int32_t clock, addr_t tp)
+int32_t sys_clock_settime(int32_t UNUSED(clock), addr_t UNUSED(tp))
 {
-    UNUSED(clock);
-    UNUSED(tp);
     return _EPERM;
 }
 
@@ -257,10 +255,8 @@ int32_t sys_gettimeofday(addr_t tv, addr_t tz)
     return 0;
 }
 
-int32_t sys_settimeofday(addr_t tv, addr_t tz)
+int32_t sys_settimeofday(addr_t UNUSED(tv), addr_t UNUSED(tz))
 {
-    UNUSED(tv);
-    UNUSED(tz);
     return _EPERM;
 }
 

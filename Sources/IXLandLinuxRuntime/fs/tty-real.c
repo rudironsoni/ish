@@ -120,9 +120,8 @@ notty:
     return 0;
 }
 
-static int real_tty_write(struct tty *tty, const void *buf, size_t len, bool blocking)
+static int real_tty_write(struct tty *tty, const void *buf, size_t len, bool UNUSED(blocking))
 {
-    UNUSED(blocking);
     if (tty->num != REAL_TTY_NUM)
         return (int)len;
     return (int)write(STDOUT_FILENO, buf, len);
