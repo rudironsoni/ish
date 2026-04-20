@@ -3,6 +3,8 @@
 
 #include <stdbool.h>
 
+struct fd;
+
 #define AT_PWD (struct fd *)-2
 
 #define N_SYMLINK_FOLLOW   1

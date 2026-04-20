@@ -1,25 +1,25 @@
+#import <IXLandLinuxRuntime/fs/devices.h>
+#import <IXLandLinuxRuntime/fs/tty.h>
+#import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/util/debug.h>
-#include <string.h>
-#include <unistd.h>
-#include <termios.h>
-#include <sys/ioctl.h>
 #include <pthread.h>
 #include <signal.h>
-
-#import <IXLandLinuxRuntime/kernel/calls.h>
-#import <IXLandLinuxRuntime/fs/tty.h>
-#import <IXLandLinuxRuntime/fs/devices.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <termios.h>
+#include <unistd.h>
 
 // Only /dev/tty1 will be connected, the rest will go to a black hole.
 #define REAL_TTY_NUM 1
 
 void real_tty_reset_term(void);
 
-static void *real_tty_read_thread(void *_tty) {
+static void *real_tty_read_thread(void *_tty)
+{
     struct tty *tty = _tty;
     char ch;
     for (;;) {
-        int err = read(STDIN_FILENO, &ch, 1);
+        int err = (int)read(STDIN_FILENO, &ch, 1);
         if (err != 1) {
             printk("tty read returned %d\n", err);
             if (err < 0)
@@ -36,11 +36,12 @@ static void *real_tty_read_thread(void *_tty) {
     return NULL;
 }
 
-static struct termios_ termios_from_real(struct termios real) {
+static struct termios_ termios_from_real(struct termios real)
+{
     struct termios_ fake = {};
-#define FLAG(t, x) \
-    if (real.c_##t##flag & x) \
-        fake.t##flags |= x##_
+#define FLAG(t, x)                                                                                 \
+    if (real.c_##t##flag & x)                                                                      \
+    fake.t##flags |= x##_
     FLAG(o, OPOST);
     FLAG(o, ONLCR);
     FLAG(o, OCRNL);
@@ -58,8 +59,7 @@ static struct termios_ termios_from_real(struct termios real) {
     FLAG(l, ECHOCTL);
 #undef FLAG
 
-#define CC(x) \
-    fake.cc[V##x##_] = real.c_cc[V##x]
+#define CC(x) fake.cc[V##x##_] = real.c_cc[V##x]
     CC(INTR);
     CC(QUIT);
     CC(ERASE);
@@ -82,7 +82,8 @@ static struct termios_ termios_from_real(struct termios real) {
 
 static struct termios old_termios;
 static bool real_tty_is_open;
-static int real_tty_init(struct tty *tty) {
+static int real_tty_init(struct tty *tty)
+{
     if (tty->num != REAL_TTY_NUM)
         return 0;
 
@@ -111,7 +112,7 @@ static int real_tty_init(struct tty *tty) {
         ERRNO_DIE("failed to set terminal to raw mode");
 notty:
 
-    if (pthread_create(&tty->thread, NULL,  real_tty_read_thread, tty) < 0)
+    if (pthread_create(&tty->thread, NULL, real_tty_read_thread, tty) < 0)
         // ok if this actually happened it would be weird AF
         return _EIO;
     pthread_detach(tty->thread);
@@ -119,21 +120,26 @@ notty:
     return 0;
 }
 
-static int real_tty_write(struct tty *tty, const void *buf, size_t len, bool UNUSED(blocking)) {
+static int real_tty_write(struct tty *tty, const void *buf, size_t len, bool blocking)
+{
+    UNUSED(blocking);
     if (tty->num != REAL_TTY_NUM)
-        return len;
-    return write(STDOUT_FILENO, buf, len);
+        return (int)len;
+    return (int)write(STDOUT_FILENO, buf, len);
 }
 
-void real_tty_reset_term() {
-    if (!real_tty_is_open) return;
+void real_tty_reset_term(void)
+{
+    if (!real_tty_is_open)
+        return;
     if (tcsetattr(STDIN_FILENO, TCSANOW, &old_termios) < 0 && errno != ENOTTY) {
         printk("failed to reset terminal: %s\n", strerror(errno));
         abort();
     }
 }
 
-static void real_tty_cleanup(struct tty *tty) {
+static void real_tty_cleanup(struct tty *tty)
+{
     if (tty->num != REAL_TTY_NUM)
         return;
     real_tty_reset_term();

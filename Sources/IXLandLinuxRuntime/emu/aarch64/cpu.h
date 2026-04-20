@@ -47,7 +47,7 @@ union vec_reg {
     float f32[4];
     double f64[2];
 };
-static_assert(sizeof(union vec_reg) == 16, "vec_reg size");
+_Static_assert(sizeof(union vec_reg) == 16, "vec_reg size");
 
 // aarch64 CPU state
 struct cpu_state {
@@ -70,17 +70,17 @@ struct cpu_state {
         uint64_t pstate;
         struct {
             // Bits 0-27: Various control bits, mostly unused in user space
-            bitfield _pad0 : 28;
+            unsigned int _pad0 : 28;
             // Bit 28: V (overflow) flag
-            bitfield v : 1;
+            unsigned int v : 1;
             // Bit 29: C (carry) flag
-            bitfield c : 1;
+            unsigned int c : 1;
             // Bit 30: Z (zero) flag
-            bitfield z : 1;
+            unsigned int z : 1;
             // Bit 31: N (negative) flag
-            bitfield n : 1;
+            unsigned int n : 1;
             // Bits 32+: Mode bits and other EL0 state
-            bitfield _pad1 : 32;
+            unsigned int _pad1 : 32;
         };
     };
 
@@ -209,8 +209,8 @@ enum tcti_fallback_reason {
 #define STAT_STR_FALLBACK_NOTLB_OFFSET   1040
 
 // Verify struct layout assumptions
-static_assert(CPU_OFFSET(x[0]) == offsetof(struct cpu_state, x), "x array offset");
-static_assert(sizeof(struct cpu_state) < 0xffff, "cpu struct is too big for gadgets");
+_Static_assert(CPU_OFFSET(x[0]) == offsetof(struct cpu_state, x), "x array offset");
+_Static_assert(sizeof(struct cpu_state) < 0xffff, "cpu struct is too big for gadgets");
 
 // Register name enums for debugging
 enum reg64 {

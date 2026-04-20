@@ -4,6 +4,8 @@
 #include <stdlib.h>
 
 #define glue(a, b) a##b
+#define UNUSED(x)  ((void)(x))
+#define use(...)   ((void)(0))
 
 void ish_printk(const char *msg, ...);
 void ish_vprintk(const char *msg, va_list args);

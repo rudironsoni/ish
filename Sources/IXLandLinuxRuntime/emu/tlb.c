@@ -1,6 +1,7 @@
 #import <IXLandLinuxRuntime/emu/cpu.h>
 #import <IXLandLinuxRuntime/emu/tlb.h>
 #import <IXLandLinuxRuntime/tcti/frame.h>
+#include <assert.h>
 
 void tlb_refresh(struct tlb *tlb, struct mmu *mmu)
 {
