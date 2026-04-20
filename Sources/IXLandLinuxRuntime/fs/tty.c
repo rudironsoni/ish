@@ -310,7 +310,7 @@ ssize_t tty_input(struct tty *tty, const char *input, size_t size, bool blocking
                 // ECHOKE enables erasing the line instead of echoing the kill char and outputting a
                 // newline
                 echo = lflags & ECHOK_;
-                int count = tty->bufsize;
+                int count = (int)tty->bufsize;
                 if (ch == cc[VERASE_] && tty->bufsize > 0) {
                     echo = lflags & ECHOE_;
                     count = 1;
@@ -789,7 +789,7 @@ static int tty_ioctl(struct fd *fd, int cmd, void *arg)
         break;
 
     case TIOCSCTTY_:
-        err = tiocsctty(tty, (uintptr_t)arg);
+        err = tiocsctty(tty, (int)(uintptr_t)arg);
         break;
 
     case TIOCGPGRP_:
@@ -813,7 +813,7 @@ static int tty_ioctl(struct fd *fd, int cmd, void *arg)
         break;
 
     case FIONREAD_:
-        *(uint32_t *)arg = tty->bufsize;
+        *(uint32_t *)arg = (uint32_t)tty->bufsize;
         break;
 
     default:

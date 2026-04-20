@@ -11,7 +11,7 @@ struct newstat64 stat_convert_newstat64(struct statbuf stat)
 {
     struct newstat64 newstat;
     newstat.dev = stat.dev;
-    newstat.fucked_ino = stat.inode;
+    newstat.fucked_ino = (uint32_t)stat.inode;
     newstat.ino = stat.inode;
     newstat.mode = stat.mode;
     newstat.nlink = stat.nlink;

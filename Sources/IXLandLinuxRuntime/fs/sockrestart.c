@@ -1,17 +1,18 @@
-#include <string.h>
-#include <signal.h>
-#include <pthread.h>
-#import <IXLandLinuxRuntime/fs/sockrestart.h>
 #import <IXLandLinuxRuntime/fs/fd.h>
 #import <IXLandLinuxRuntime/fs/sock.h>
+#import <IXLandLinuxRuntime/fs/sockrestart.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
 #import <IXLandLinuxRuntime/util/list.h>
+#include <pthread.h>
+#include <signal.h>
+#include <string.h>
 extern const struct fd_ops socket_fdops;
 
 static lock_t sockrestart_lock = LOCK_INITIALIZER;
 static struct list listen_fds = LIST_INITIALIZER(listen_fds);
 
-void sockrestart_begin_listen(struct fd *sock) {
+void sockrestart_begin_listen(struct fd *sock)
+{
     if (sock->ops != &socket_fdops)
         return;
     lock(&sockrestart_lock);
@@ -19,7 +20,8 @@ void sockrestart_begin_listen(struct fd *sock) {
     unlock(&sockrestart_lock);
 }
 
-void sockrestart_end_listen(struct fd *sock) {
+void sockrestart_end_listen(struct fd *sock)
+{
     if (sock->ops != &socket_fdops)
         return;
     lock(&sockrestart_lock);
@@ -29,7 +31,8 @@ void sockrestart_end_listen(struct fd *sock) {
 
 static struct list listen_tasks = LIST_INITIALIZER(listen_tasks);
 
-void sockrestart_begin_listen_wait(struct fd *sock) {
+void sockrestart_begin_listen_wait(struct fd *sock)
+{
     if (sock->ops != &socket_fdops)
         return;
     lock(&sockrestart_lock);
@@ -39,7 +42,8 @@ void sockrestart_begin_listen_wait(struct fd *sock) {
     unlock(&sockrestart_lock);
 }
 
-void sockrestart_end_listen_wait(struct fd *sock) {
+void sockrestart_end_listen_wait(struct fd *sock)
+{
     if (sock->ops != &socket_fdops)
         return;
     lock(&sockrestart_lock);
@@ -49,7 +53,8 @@ void sockrestart_end_listen_wait(struct fd *sock) {
     unlock(&sockrestart_lock);
 }
 
-bool sockrestart_should_restart_listen_wait() {
+bool sockrestart_should_restart_listen_wait(void)
+{
     lock(&sockrestart_lock);
     bool punt = current->sockrestart.punt;
     current->sockrestart.punt = false;
@@ -71,13 +76,15 @@ struct saved_socket {
 
 static struct list saved_sockets = LIST_INITIALIZER(saved_sockets);
 
-// these should only be called from the main thread, but it's easiest to just lock for the whole time
+// these should only be called from the main thread, but it's easiest to just lock for the whole
+// time
 
-void sockrestart_on_suspend() {
+void sockrestart_on_suspend(void)
+{
     lock(&sockrestart_lock);
     assert(list_empty(&saved_sockets));
     struct fd *sock;
-    list_for_each_entry(&listen_fds, sock, sockrestart.listen) {
+    list_for_each_entry (&listen_fds, sock, sockrestart.listen) {
         struct saved_socket *saved = malloc(sizeof(struct saved_socket));
         if (saved == NULL)
             continue; // better than a crash
@@ -87,24 +94,26 @@ void sockrestart_on_suspend() {
         getsockopt(sock->real_fd, SOL_SOCKET, SO_TYPE, &saved->type, &size);
         assert(size == sizeof(saved->type));
         saved->name_len = sizeof(saved->name);
-        getsockname(sock->real_fd, (struct sockaddr *) &saved->name, &saved->name_len);
+        getsockname(sock->real_fd, (struct sockaddr *)&saved->name, &saved->name_len);
         list_add(&saved_sockets, &saved->saved);
     }
     unlock(&sockrestart_lock);
 }
 
-void sockrestart_on_resume() {
+void sockrestart_on_resume(void)
+{
     lock(&sockrestart_lock);
     struct saved_socket *saved, *tmp;
-    list_for_each_entry_safe(&saved_sockets, saved, tmp, saved) {
+    list_for_each_entry_safe(&saved_sockets, saved, tmp, saved)
+    {
         list_remove(&saved->saved);
         int new_sock = socket(saved->name_addr.sa_family, saved->type, saved->proto);
         if (new_sock < 0) {
-            printk("restarting socket(%d, %d, %d) failed: %s\n",
-                    saved->name_addr.sa_family, saved->type, saved->proto, strerror(errno));
+            printk("restarting socket(%d, %d, %d) failed: %s\n", saved->name_addr.sa_family,
+                   saved->type, saved->proto, strerror(errno));
             goto thank_u_next;
         }
-        if (bind(new_sock, (struct sockaddr *) &saved->name, saved->name_len) < 0) {
+        if (bind(new_sock, (struct sockaddr *)&saved->name, saved->name_len) < 0) {
             printk("rebinding socket failed: %s\n", strerror(errno));
             goto thank_u_next;
         }
@@ -114,7 +123,7 @@ thank_u_next:
         fd_close(saved->sock);
     }
     struct task *task;
-    list_for_each_entry(&listen_tasks, task, sockrestart.listen) {
+    list_for_each_entry (&listen_tasks, task, sockrestart.listen) {
         task->sockrestart.punt = true;
         pthread_kill(task->thread, SIGUSR1);
     }

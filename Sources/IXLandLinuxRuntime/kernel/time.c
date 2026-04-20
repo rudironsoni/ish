@@ -48,7 +48,7 @@ static struct itimerspec_ timer_spec_from_real(struct timer_spec spec)
 
 int32_t sys_time(addr_t time_out)
 {
-    int32_t now = time(NULL);
+    int32_t now = (int32_t)time(NULL);
     if (time_out != 0)
         if (user_put(time_out, now))
             return _EFAULT;
@@ -130,7 +130,7 @@ static int itimer_set(struct tgroup *group, int which, struct timer_spec spec,
     if (!group->itimer) {
         struct timer *timer = timer_new(CLOCK_REALTIME, (timer_callback_t)itimer_notify, current);
         if (IS_ERR(timer))
-            return PTR_ERR(timer);
+            return (int)PTR_ERR(timer);
         group->itimer = timer;
     }
 
@@ -155,7 +155,7 @@ int64_t sys_setitimer(int64_t which, addr_t new_val_addr, addr_t old_val_addr)
 
     struct tgroup *group = current->group;
     lock(&group->lock);
-    int err = itimer_set(group, which, spec, &old_spec);
+    int err = itimer_set(group, (int)which, spec, &old_spec);
     unlock(&group->lock);
     if (err < 0)
         return err;
@@ -276,7 +276,7 @@ static void posix_timer_callback(struct posix_timer *timer)
     // task *. pids get reused. task struct pointers get freed on exit or reap. need a third option
     // for cases like this, like a refcount layer.
     if (thread != NULL)
-        send_signal(thread, timer->signal, info);
+        send_signal(thread, (int)timer->signal, info);
     unlock(&pids_lock);
 }
 

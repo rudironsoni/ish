@@ -486,7 +486,7 @@ void task_destroy(struct task *task)
     free(task);
 }
 
-void task_run_current()
+void task_run_current(void)
 {
     // DIAGNOSTIC: First executable line inside task_run_current
     trace_emit_task_proof_point(TASK_PROOF_TASK_RUN_CURRENT_ENTRY, current ? current->pid : 0);
@@ -650,7 +650,7 @@ static void *task_thread(void *task)
 }
 
 static pthread_attr_t task_thread_attr;
-__attribute__((constructor)) static void create_attr()
+__attribute__((constructor)) static void create_attr(void)
 {
     pthread_attr_init(&task_thread_attr);
     pthread_attr_setdetachstate(&task_thread_attr, PTHREAD_CREATE_DETACHED);
@@ -717,14 +717,14 @@ void task_start(struct task *task)
     task_start_validation_checkpoint_with_pthread("task.proof.after_pthread", task, pthread_err);
 }
 
-int64_t sys_sched_yield()
+int64_t sys_sched_yield(void)
 {
     STRACE("sched_yield()");
     sched_yield();
     return 0;
 }
 
-void update_thread_name()
+void update_thread_name(void)
 {
     char name[16]; // As long as Linux will let us make this
     snprintf(name, sizeof(name), "-%d", current->pid);

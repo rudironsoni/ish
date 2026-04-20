@@ -144,6 +144,7 @@
 		A3D2928F3F417585ADC954FD /* TCTIExitWritebackTests.m in Sources */ = {isa = PBXBuildFile; fileRef = F5C6E5D94B2A8DB13FB05E25 /* TCTIExitWritebackTests.m */; };
 		A4E4F3FC7FAF3FBA742D5D62 /* dollarblock2.png in Resources */ = {isa = PBXBuildFile; fileRef = 09C808061069D7850E71415B /* dollarblock2.png */; };
 		A5BDE70A2253718759EE70F7 /* UIViewController+Extras.m in Sources */ = {isa = PBXBuildFile; fileRef = 933EE1B812B704FE74231B36 /* UIViewController+Extras.m */; };
+		A5D6BF285A794A2777312C6B /* sock_bridge.c in Sources */ = {isa = PBXBuildFile; fileRef = FE3E2C19351BACE9A7E0C543 /* sock_bridge.c */; };
 		A689CC9959E5F1EEC8C1DEF0 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 428D8399AF8590DECB1DF3B1 /* README.md */; };
 		A6B563469FA7DB3880AE61F6 /* NSObject+SaneKVO.m in Sources */ = {isa = PBXBuildFile; fileRef = 7BF14D608C61DA216F6F4A28 /* NSObject+SaneKVO.m */; };
 		A6EB7DD632F945356C81FF98 /* GuestSyscallCoreTests.m in Sources */ = {isa = PBXBuildFile; fileRef = BB49CF9022D8112828446972 /* GuestSyscallCoreTests.m */; };
@@ -159,6 +160,7 @@
 		B14B9463B79C1D9F672F8AAB /* rgb.png in Resources */ = {isa = PBXBuildFile; fileRef = 49221EC885A4808B10523534 /* rgb.png */; };
 		B1D8D387C0AE2908ACD99092 /* TCTIDispatchPreservationTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 59D30BBBC7E7B8CA0A7CA398 /* TCTIDispatchPreservationTests.m */; };
 		B26C30CBD487898F0FBB2FFA /* prof.c in Sources */ = {isa = PBXBuildFile; fileRef = 1AA27F556BDBEFEDF25D866A /* prof.c */; };
+		B2DD93B2EF57D316FFDAB5C5 /* log_bridge.c in Sources */ = {isa = PBXBuildFile; fileRef = 34634EF4340D8942E3B56CC2 /* log_bridge.c */; };
 		B3F437920C4F4F38432CB6B1 /* GuestStaticELFExecutionTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 78CA2A1EB924CE37C7E7967F /* GuestStaticELFExecutionTests.m */; };
 		B681F436AF8AC491EC0CF985 /* TCTIDecodeTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 9260880B995F6DCF3C495BAB /* TCTIDecodeTests.m */; };
 		BB1E301BAA9164551A4972F1 /* fake-migrate.c in Sources */ = {isa = PBXBuildFile; fileRef = 66B55278A6F455CD86FA1E30 /* fake-migrate.c */; };
@@ -369,6 +371,7 @@
 		33A2DE2552AFCCFA1C7A230B /* fs_info.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = fs_info.c; sourceTree = "<group>"; };
 		33D058D3511AEC693FCC7A51 /* AccessibilityFixes.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AccessibilityFixes.m; sourceTree = "<group>"; };
 		33F48F0FFF7A981F3B71C461 /* memory.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = memory.c; sourceTree = "<group>"; };
+		34634EF4340D8942E3B56CC2 /* log_bridge.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = log_bridge.c; sourceTree = "<group>"; };
 		356551F13676FF4D1D41675F /* mem_object.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = mem_object.h; sourceTree = "<group>"; };
 		35A16CBCB50B9696548B010A /* gadgets_tcti_impl.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = gadgets_tcti_impl.c; sourceTree = "<group>"; };
 		3688691810382C4E3C86F1BC /* Theme.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Theme.m; sourceTree = "<group>"; };
@@ -402,6 +405,7 @@
 		4ABCC14B96D4CF458BE5211D /* PasteboardDevice.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = PasteboardDevice.m; sourceTree = "<group>"; };
 		4BC805FD8F00FF19FAB1BDE8 /* signal.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = signal.c; sourceTree = "<group>"; };
 		4D526958EA5CE79135703843 /* LocationDevice.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = LocationDevice.m; sourceTree = "<group>"; };
+		4D5458B07BDF4AC2994AD335 /* log_bridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = log_bridge.h; sourceTree = "<group>"; };
 		4E218C6EF34F8B4F4E422C55 /* iSH.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = iSH.entitlements; sourceTree = "<group>"; };
 		4F6E1EE004BC5A6910E26A2E /* fifo.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = fifo.h; sourceTree = "<group>"; };
 		51677136CF8E4A316AC4DF7E /* gadgets.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = gadgets.h; sourceTree = "<group>"; };
@@ -616,6 +620,7 @@
 		EBE4395D43C34109EC461B3A /* AboutNavigationController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AboutNavigationController.m; sourceTree = "<group>"; };
 		ED05A59CCCC5EB245D540593 /* iOS.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = iOS.xcconfig; sourceTree = "<group>"; };
 		EE2D0533230FDE158A949E97 /* Roots.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Roots.m; sourceTree = "<group>"; };
+		EFD522DB0380FDCDEC22B79A /* sock_bridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sock_bridge.h; sourceTree = "<group>"; };
 		F0C48F59FD94FD171DC0B549 /* ptrace.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ptrace.c; sourceTree = "<group>"; };
 		F11E497D8AFD0AE4678BC62C /* mach_excServer.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = mach_excServer.c; sourceTree = "<group>"; };
 		F1F263FDD453F7B292BE667F /* user.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = user.c; sourceTree = "<group>"; };
@@ -639,6 +644,7 @@
 		FCBAA3B6AA42972686C4067A /* DelayedUITask.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DelayedUITask.h; sourceTree = "<group>"; };
 		FCD544804580CD35D651EA38 /* gadgets_tcti.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = gadgets_tcti.h; sourceTree = "<group>"; };
 		FD58558ADB6A07FB74BA202E /* platform.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = platform.h; sourceTree = "<group>"; };
+		FE3E2C19351BACE9A7E0C543 /* sock_bridge.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sock_bridge.c; sourceTree = "<group>"; };
 		FF34CA2F59C85D5329FA2CC8 /* GuestTerminalRuntimeTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GuestTerminalRuntimeTests.m; sourceTree = "<group>"; };
 		FF53D06DA3033A39B3BBED14 /* entry.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = entry.c; sourceTree = "<group>"; };
 		FF8F7C1032044941E97B4D9A /* fake.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = fake.h; sourceTree = "<group>"; };
@@ -767,6 +773,15 @@
 				7C25A85C7D22B3976756CD40 /* ELF */,
 			);
 			path = Fixtures;
+			sourceTree = "<group>";
+		};
+		2A5ADDE2FD8F60AEB37A307A /* fs */ = {
+			isa = PBXGroup;
+			children = (
+				FE3E2C19351BACE9A7E0C543 /* sock_bridge.c */,
+				EFD522DB0380FDCDEC22B79A /* sock_bridge.h */,
+			);
+			path = fs;
 			sourceTree = "<group>";
 		};
 		2DE414BF1C2E449E9BADD36C /* TCTITestHarness */ = {
@@ -940,6 +955,7 @@
 		64C299699F2CFE9DCF1BEE92 /* ios */ = {
 			isa = PBXGroup;
 			children = (
+				2A5ADDE2FD8F60AEB37A307A /* fs */,
 				D1DBC54E282A977A17EDDDF5 /* kernel */,
 				671A335B0A22927B96AA11FE /* platform */,
 			);
@@ -1197,6 +1213,8 @@
 		D1DBC54E282A977A17EDDDF5 /* kernel */ = {
 			isa = PBXGroup;
 			children = (
+				34634EF4340D8942E3B56CC2 /* log_bridge.c */,
+				4D5458B07BDF4AC2994AD335 /* log_bridge.h */,
 				683857C797B0C2E327254A77 /* resource.c */,
 				B6E7E5183B898A2C841902B6 /* uname.c */,
 			);
@@ -1967,6 +1985,7 @@
 				74FCDE5FDC2EC4268377C4D6 /* ish.c in Sources */,
 				46FE92A11FFCA930F634BCDD /* lock.c in Sources */,
 				0A771B0127F910E4945AA9D6 /* log.c in Sources */,
+				B2DD93B2EF57D316FFDAB5C5 /* log_bridge.c in Sources */,
 				DB4F1B4864F9809782F01447 /* mem.c in Sources */,
 				5D62456BCF1A1E772090D70D /* mem_object.c in Sources */,
 				35BE05C89CA975E90648A942 /* memory.c in Sources */,
@@ -1993,6 +2012,7 @@
 				79DA0AE247C897E4CB4F8AC1 /* signal.c in Sources */,
 				E237B6C521C0261694F9FE1E /* signal.c in Sources */,
 				3E08B4BD4F7E24DE96DCFE71 /* sock.c in Sources */,
+				A5D6BF285A794A2777312C6B /* sock_bridge.c in Sources */,
 				9FEE4A14412BA339868CED7C /* sockrestart.c in Sources */,
 				9E7879EE4A78764E40A02E64 /* stat.c in Sources */,
 				2316DF8A131C1F54408AF528 /* sync.c in Sources */,

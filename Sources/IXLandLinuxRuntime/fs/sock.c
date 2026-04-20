@@ -5,12 +5,12 @@
 #import <IXLandLinuxRuntime/fs/sock.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/util/debug.h>
+#include <errno.h>
 #include <fcntl.h>
-#include <netinet/tcp.h>
+#include <ixland/sock_bridge.h>
 #include <string.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
-#include <sys/un.h>
+#include <unistd.h>
 
 #define SOCKET_TYPE_MASK 0xf
 
@@ -35,6 +35,15 @@ static fd_t sock_fd_create(int sock_fd, int domain, int type, int protocol)
     return f_install(fd, type & ~SOCKET_TYPE_MASK);
 }
 
+static int bridge_err(int ret)
+{
+    if (ret < 0) {
+        errno = -ret;
+        return errno_map();
+    }
+    return ret;
+}
+
 int64_t sys_socket(uint32_t domain, uint32_t type, uint32_t protocol)
 {
     STRACE("socket(%d, %d, %d)", domain, type, protocol);
@@ -45,22 +54,16 @@ int64_t sys_socket(uint32_t domain, uint32_t type, uint32_t protocol)
     if (real_type < 0)
         return _EINVAL;
 
-    // this hack makes mtr work
     if (type == SOCK_RAW_ && protocol == IPPROTO_RAW)
         protocol = IPPROTO_ICMP;
 
-    int sock = socket(real_domain, real_type, protocol);
+    int32_t sock = host_socket(real_domain, real_type, protocol);
     if (sock < 0)
-        return errno_map();
+        return bridge_err(sock);
 
-#ifdef __APPLE__
     if (domain == AF_INET_ && type == SOCK_DGRAM_) {
-        // in some cases, such as ICMP, datagram sockets on mac can default to
-        // including the IP header like raw sockets
-        int one = 1;
-        setsockopt(sock, IPPROTO_IP, IP_STRIPHDR, &one, sizeof(one));
+        host_setsockopt_strip(sock);
     }
-#endif
 
     fd_t f = sock_fd_create(sock, domain, type, protocol);
     if (f < 0)
@@ -82,7 +85,7 @@ static struct fd *sock_getfd(fd_t sock_fd)
     return sock;
 }
 
-static uint32_t unix_socket_next_id()
+static uint32_t unix_socket_next_id(void)
 {
     static uint32_t next_id = 0;
     static lock_t next_id_lock = LOCK_INITIALIZER;
@@ -102,14 +105,11 @@ static int unix_socket_get(const char *path_raw, struct fd *bind_fd, uint32_t *s
     struct statbuf stat;
     err = mount->fs->stat(mount, path, &stat);
 
-    // If bind was called, there are some funny semantics.
     if (bind_fd != NULL) {
-        // If the file exists, fail.
         if (err == 0) {
             err = _EADDRINUSE;
             goto out;
         }
-        // If the file can't be found, try to create it as a socket.
         if (err < 0) {
             mode_t_ mode = 0777;
             struct fs_info *fs = current->fs;
@@ -125,8 +125,6 @@ static int unix_socket_get(const char *path_raw, struct fd *bind_fd, uint32_t *s
         }
     }
 
-    // If something other than bind was called, just do the obvious thing and
-    // fail if stat failed.
     if (bind_fd == NULL && err < 0)
         goto out;
 
@@ -135,7 +133,6 @@ static int unix_socket_get(const char *path_raw, struct fd *bind_fd, uint32_t *s
         goto out;
     }
 
-    // Look up the socket ID for the inode number.
     struct inode_data *inode = inode_get(mount, stat.inode);
     lock(&inode->lock);
     if (inode->socket_id == 0)
@@ -155,7 +152,6 @@ out:
     return err;
 }
 
-// Dan Bernstein's simple and decently effective hash function
 static uint32_t str_hash(const char *str)
 {
     uint32_t hash = 5381;
@@ -164,10 +160,6 @@ static uint32_t str_hash(const char *str)
     }
     return hash;
 }
-
-// The abstract socket namespace is a lot simpler than it sounds: if the first
-// byte of the path is a null byte, then it gets looked up in this hashtable
-// instead of the filesystem.
 
 struct unix_abstract {
     unsigned refcount;
@@ -235,7 +227,6 @@ const char *sock_tmp_prefix = "/tmp/ishsock";
 static int sockaddr_read_bind(addr_t sockaddr_addr, void *sockaddr, uint32_t *sockaddr_len,
                               struct fd *bind_fd)
 {
-    // Make sure we can read things without overflowing buffers
     if (*sockaddr_len < 2)
         return _EINVAL;
     if (*sockaddr_len > sizeof(struct sockaddr_max_))
@@ -243,24 +234,35 @@ static int sockaddr_read_bind(addr_t sockaddr_addr, void *sockaddr, uint32_t *so
 
     if (user_read(sockaddr_addr, sockaddr, *sockaddr_len))
         return _EFAULT;
-    struct sockaddr *real_addr = sockaddr;
     struct sockaddr_ *fake_addr = sockaddr;
-    real_addr->sa_family = sock_family_to_real(fake_addr->family);
+    int real_family = sock_family_to_real(fake_addr->family);
 
-    switch (real_addr->sa_family) {
-    case PF_INET:
-        if (*sockaddr_len < sizeof(struct sockaddr_in))
+    switch (real_family) {
+    case -1:
+        return _EINVAL;
+    default:
+        break;
+    }
+
+    host_sockaddr_set_family(sockaddr, real_family);
+
+    int host_family = host_sockaddr_get_family(sockaddr);
+    switch (host_family) {
+    case 2: {
+        uint32_t inet_size = host_sockaddr_inet_size();
+        if (*sockaddr_len < inet_size)
             return _EINVAL;
         break;
-    case PF_INET6:
-        if (*sockaddr_len < sizeof(struct sockaddr_in6))
+    }
+    case 10: {
+        uint32_t inet6_size = host_sockaddr_inet6_size();
+        if (*sockaddr_len < inet6_size)
             return _EINVAL;
         break;
-
-    case PF_LOCAL: {
-        // First pull out the path, being careful to not overflow anything.
+    }
+    case 1: {
         char path[SOCKADDR_DATA_MAX + 1];
-        size_t path_size = *sockaddr_len - offsetof(struct sockaddr_, data);
+        size_t path_size = *sockaddr_len - (uint32_t)offsetof(struct sockaddr_, data);
         memcpy(path, fake_addr->data, path_size);
         path[path_size] = '\0';
 
@@ -282,16 +284,13 @@ static int sockaddr_read_bind(addr_t sockaddr_addr, void *sockaddr, uint32_t *so
             memcpy(bind_fd->socket.unix_name, path, path_size);
         }
 
-        struct sockaddr_un *real_addr_un = sockaddr;
-        size_t path_len =
-            sprintf(real_addr_un->sun_path, "%s%d.%u", sock_tmp_prefix, getpid(), socket_id);
-        // The call to real bind will fail if the backing socket already
-        // exists from a previous run or something. We already checked that
-        // the fake file doesn't exist in unix_socket_get, so try a simple
-        // solution.
+        uint32_t out_len = host_sockaddr_un_fill_path(sockaddr, *sockaddr_len, sock_tmp_prefix,
+                                                      getpid(), socket_id);
+        if (out_len == 0)
+            return _EINVAL;
         if (bind_fd != NULL)
-            unlink(real_addr_un->sun_path);
-        *sockaddr_len = offsetof(struct sockaddr_un, sun_path) + path_len;
+            host_sockaddr_un_unlink(sockaddr);
+        *sockaddr_len = out_len;
         break;
     }
     default:
@@ -311,14 +310,12 @@ static int sockaddr_read(addr_t sockaddr_addr, void *sockaddr, uint32_t *sockadd
 static int sockaddr_write(addr_t sockaddr_addr, void *sockaddr, uint32_t buffer_len,
                           uint32_t *sockaddr_len)
 {
-    struct sockaddr *real_addr = sockaddr;
+    int real_family = host_sockaddr_get_family(sockaddr);
+    int fake_family = sock_family_from_real(real_family);
     struct sockaddr_ *fake_addr = sockaddr;
-    fake_addr->family = sock_family_from_real(real_addr->sa_family);
-    switch (fake_addr->family) {
+    fake_addr->family = (uint16_t)fake_family;
+    switch (fake_family) {
     case PF_LOCAL_: {
-        // Most callers of sockaddr_write use it to return a peer name, and
-        // since we don't know the peer name in this case, just return the
-        // default peer name, which is the null address.
         static struct sockaddr_ unix_domain_null = { .family = PF_LOCAL_ };
         sockaddr = &unix_domain_null;
         *sockaddr_len = sizeof(unix_domain_null);
@@ -333,8 +330,6 @@ static int sockaddr_write(addr_t sockaddr_addr, void *sockaddr, uint32_t buffer_
 
     if (buffer_len > *sockaddr_len)
         buffer_len = *sockaddr_len;
-    // The address is supposed to be truncated if the specified length is too
-    // short, instead of returning an error.
     if (user_write(sockaddr_addr, sockaddr, buffer_len))
         return _EFAULT;
     return 0;
@@ -353,12 +348,12 @@ int64_t sys_bind(fd_t sock_fd, addr_t sockaddr_addr, uint32_t sockaddr_len)
     if (err < 0)
         return err;
 
-    err = bind(sock->real_fd, (void *)&sockaddr, sockaddr_len_dword);
-    if (err < 0) {
+    int32_t ret = host_bind(sock->real_fd, &sockaddr, sockaddr_len_dword);
+    if (ret < 0) {
         inode_release_if_exist(sock->socket.unix_name_inode);
         if (sock->socket.unix_name_abstract != NULL)
             unix_abstract_release(sock->socket.unix_name_abstract);
-        return errno_map();
+        return bridge_err(ret);
     }
     sock->socket.unix_name_inode = inode;
     return 0;
@@ -383,17 +378,15 @@ int64_t sys_connect(fd_t sock_fd, addr_t sockaddr_addr, uint32_t sockaddr_len)
     if (err < 0)
         return err;
 
-    err = connect(sock->real_fd, (void *)&sockaddr, sockaddr_len);
-    if (err < 0)
-        return errno_map();
+    int32_t ret = host_connect(sock->real_fd, &sockaddr, sockaddr_len);
+    if (ret < 0)
+        return bridge_err(ret);
 
     if (sock->socket.domain == AF_LOCAL_) {
         fill_cred(&sock->socket.unix_cred);
         assert(sock->socket.unix_peer == NULL);
-        // Send a pointer to ourselves to the other end so they can set up the peer pointers.
         ssize_t res = write(sock->real_fd, &sock, sizeof(struct fd *));
         if (res == sizeof(struct fd *)) {
-            // Wait for acknowledgement that it happened.
             lock(&peer_lock);
             while (sock->socket.unix_peer == NULL)
                 wait_for_ignore_signals(&sock->socket.unix_got_peer, &peer_lock, NULL);
@@ -401,7 +394,7 @@ int64_t sys_connect(fd_t sock_fd, addr_t sockaddr_addr, uint32_t sockaddr_len)
         }
     }
 
-    return err;
+    return 0;
 }
 
 int64_t sys_listen(fd_t sock_fd, int64_t backlog)
@@ -410,11 +403,11 @@ int64_t sys_listen(fd_t sock_fd, int64_t backlog)
     struct fd *sock = sock_getfd(sock_fd);
     if (sock == NULL)
         return _EBADF;
-    int err = listen(sock->real_fd, backlog);
-    if (err < 0)
-        return errno_map();
+    int32_t ret = host_listen(sock->real_fd, (int32_t)backlog);
+    if (ret < 0)
+        return bridge_err(ret);
     sockrestart_begin_listen(sock);
-    return err;
+    return 0;
 }
 
 int64_t sys_accept(fd_t sock_fd, addr_t sockaddr_addr, addr_t sockaddr_len_addr)
@@ -434,15 +427,17 @@ int64_t sys_accept(fd_t sock_fd, addr_t sockaddr_addr, addr_t sockaddr_len_addr)
     do {
         sockrestart_begin_listen_wait(sock);
         errno = 0;
-        client = accept(sock->real_fd, sockaddr_addr != 0 ? (void *)sockaddr : NULL,
-                        sockaddr_addr != 0 ? &sockaddr_len : NULL);
+        int32_t ret = host_accept(sock->real_fd, sockaddr_addr != 0 ? (void *)sockaddr : NULL,
+                                  sockaddr_addr != 0 ? &sockaddr_len : NULL);
+        client = ret;
         sockrestart_end_listen_wait(sock);
     } while (sockrestart_should_restart_listen_wait() && errno == EINTR);
     if (client < 0)
         return errno_map();
 
     if (sockaddr_addr != 0) {
-        int err = sockaddr_write(sockaddr_addr, sockaddr, sizeof(sockaddr), &sockaddr_len);
+        int err =
+            sockaddr_write(sockaddr_addr, sockaddr, (uint32_t)sizeof(sockaddr), &sockaddr_len);
         if (err < 0)
             return client;
         if (user_put(sockaddr_len_addr, sockaddr_len))
@@ -476,13 +471,13 @@ static void copy_unix_name(char *sockaddr, uint32_t *sockaddr_len, struct fd *so
     struct sockaddr_ *fake_addr = (void *)sockaddr;
     fake_addr->family = PF_LOCAL_;
 
-    size_t data_len = *sockaddr_len - offsetof(struct sockaddr_, data);
+    size_t data_len = *sockaddr_len - (uint32_t)offsetof(struct sockaddr_, data);
     size_t name_len = sock->socket.unix_name_len;
     if (name_len > data_len)
         name_len = data_len;
     memset(fake_addr->data, 0, data_len);
     memcpy(fake_addr->data, sock->socket.unix_name, name_len);
-    *sockaddr_len = offsetof(struct sockaddr_, data) + name_len;
+    *sockaddr_len = (uint32_t)(offsetof(struct sockaddr_, data) + name_len);
 }
 
 int64_t sys_getsockname(fd_t sock_fd, addr_t sockaddr_addr, addr_t sockaddr_len_addr)
@@ -496,7 +491,6 @@ int64_t sys_getsockname(fd_t sock_fd, addr_t sockaddr_addr, addr_t sockaddr_len_
         return _EFAULT;
     char sockaddr[sockaddr_len];
 
-    // if this is a unix socket, return the same string passed to bind
     if (sock->socket.domain == PF_LOCAL_) {
         copy_unix_name(sockaddr, &sockaddr_len, sock);
         if (user_write(sockaddr_addr, sockaddr, sizeof(sockaddr)))
@@ -506,16 +500,17 @@ int64_t sys_getsockname(fd_t sock_fd, addr_t sockaddr_addr, addr_t sockaddr_len_
         return 0;
     }
 
-    int res = getsockname(sock->real_fd, (void *)sockaddr, &sockaddr_len);
-    if (res < 0)
-        return errno_map();
+    struct host_sockaddr_result res = host_getsockname(sock->real_fd, sockaddr, sockaddr_len);
+    if (res.ret < 0)
+        return bridge_err(res.ret);
 
-    int err = sockaddr_write(sockaddr_addr, sockaddr, sizeof(sockaddr), &sockaddr_len);
+    sockaddr_len = res.addr_len;
+    int err = sockaddr_write(sockaddr_addr, sockaddr, (uint32_t)sizeof(sockaddr), &sockaddr_len);
     if (err < 0)
         return err;
     if (user_put(sockaddr_len_addr, sockaddr_len))
         return _EFAULT;
-    return res;
+    return 0;
 }
 
 int64_t sys_getpeername(fd_t sock_fd, addr_t sockaddr_addr, addr_t sockaddr_len_addr)
@@ -528,20 +523,18 @@ int64_t sys_getpeername(fd_t sock_fd, addr_t sockaddr_addr, addr_t sockaddr_len_
     if (user_get(sockaddr_len_addr, sockaddr_len))
         return _EFAULT;
 
-    // TODO if this is a unix socket, return the same string the peer passed to
-    // bind once the peer pointer is available
-
     char sockaddr[sockaddr_len];
-    int res = getpeername(sock->real_fd, (void *)sockaddr, &sockaddr_len);
-    if (res < 0)
-        return errno_map();
+    struct host_sockaddr_result res = host_getpeername(sock->real_fd, sockaddr, sockaddr_len);
+    if (res.ret < 0)
+        return bridge_err(res.ret);
 
-    int err = sockaddr_write(sockaddr_addr, sockaddr, sizeof(sockaddr), &sockaddr_len);
+    sockaddr_len = res.addr_len;
+    int err = sockaddr_write(sockaddr_addr, sockaddr, (uint32_t)sizeof(sockaddr), &sockaddr_len);
     if (err < 0)
         return err;
     if (user_put(sockaddr_len_addr, sockaddr_len))
         return _EFAULT;
-    return res;
+    return 0;
 }
 
 int64_t sys_socketpair(uint32_t domain, uint32_t type, uint32_t protocol, addr_t sockets_addr)
@@ -554,10 +547,10 @@ int64_t sys_socketpair(uint32_t domain, uint32_t type, uint32_t protocol, addr_t
     if (real_type < 0)
         return _EINVAL;
 
-    int sockets[2];
-    int err = socketpair(domain, type, protocol, sockets);
+    int32_t sockets[2];
+    int32_t err = host_socketpair(real_domain, real_type, protocol, sockets);
     if (err < 0)
-        return errno_map();
+        return bridge_err(err);
 
     lock(&peer_lock);
     int fake_sockets[2];
@@ -617,11 +610,11 @@ int64_t sys_sendto(fd_t sock_fd, addr_t buffer_addr, uint32_t len, uint32_t flag
             goto error;
     }
 
-    ssize_t res = sendto(sock->real_fd, buffer, len, real_flags,
-                         sockaddr_addr ? (void *)&sockaddr : NULL, sockaddr_len);
+    int64_t res = host_sendto(sock->real_fd, buffer, len, real_flags,
+                              sockaddr_addr ? (void *)&sockaddr : NULL, sockaddr_len);
     free(buffer);
     if (res < 0)
-        return errno_map();
+        return bridge_err((int32_t)res);
     return res;
 
 error:
@@ -647,12 +640,12 @@ int64_t sys_recvfrom(fd_t sock_fd, addr_t buffer_addr, uint32_t len, uint32_t fl
 
     char *buffer = malloc(len);
     char sockaddr[sockaddr_len];
-    ssize_t res = recvfrom(sock->real_fd, buffer, len, real_flags,
-                           sockaddr_addr != 0 ? (void *)sockaddr : NULL,
-                           sockaddr_len_addr != 0 ? &sockaddr_len : NULL);
+    int64_t res = host_recvfrom(sock->real_fd, buffer, len, real_flags,
+                                sockaddr_addr != 0 ? (void *)sockaddr : NULL,
+                                sockaddr_len_addr != 0 ? &sockaddr_len : NULL);
     if (res < 0) {
         free(buffer);
-        return errno_map();
+        return bridge_err((int32_t)res);
     }
 
     if (user_write(buffer_addr, buffer, len)) {
@@ -661,7 +654,8 @@ int64_t sys_recvfrom(fd_t sock_fd, addr_t buffer_addr, uint32_t len, uint32_t fl
     }
     free(buffer);
     if (sockaddr_addr != 0) {
-        int err = sockaddr_write(sockaddr_addr, sockaddr, sizeof(sockaddr), &sockaddr_len);
+        int err =
+            sockaddr_write(sockaddr_addr, sockaddr, (uint32_t)sizeof(sockaddr), &sockaddr_len);
         if (err < 0)
             return err;
     }
@@ -687,9 +681,9 @@ int64_t sys_shutdown(fd_t sock_fd, int32_t how)
     struct fd *sock = sock_getfd(sock_fd);
     if (sock == NULL)
         return _EBADF;
-    int err = shutdown(sock->real_fd, how);
-    if (err < 0)
-        return errno_map();
+    int32_t ret = host_shutdown(sock->real_fd, how);
+    if (ret < 0)
+        return bridge_err(ret);
     return 0;
 }
 
@@ -706,20 +700,15 @@ int64_t sys_setsockopt(fd_t sock_fd, int32_t level, int32_t option, addr_t value
     if (user_read(value_addr, value, value_len))
         return _EFAULT;
 
-    // ICMP6_FILTER can only be set on real SOCK_RAW
     if (level == IPPROTO_ICMPV6 && option == ICMP6_FILTER_)
         return 0;
-    // IP_MTU_DISCOVER has no equivalent on Darwin
     if (level == IPPROTO_IP && option == IP_MTU_DISCOVER_)
         return 0;
-    // TCP_CONGESTION also has no equivalent on Darwin
-#if defined(__APPLE__)
     if (level == IPPROTO_TCP && option == TCP_CONGESTION_) {
         if (strncmp(value, DEFAULT_TCP_CONGESTION, sizeof(value)) == 0)
             return 0;
         return _ENOENT;
     }
-#endif
 
     int real_opt = sock_opt_to_real(option, level);
     if (real_opt < 0)
@@ -728,14 +717,12 @@ int64_t sys_setsockopt(fd_t sock_fd, int32_t level, int32_t option, addr_t value
     if (real_level < 0)
         return _EINVAL;
 
-    // 0 means the option is not implemented, but things rely on it, so we
-    // should just ignore attempts to set it.
     if (real_opt == 0)
         return 0;
 
-    int err = setsockopt(sock->real_fd, real_level, real_opt, value, value_len);
-    if (err < 0)
-        return errno_map();
+    int32_t ret = host_setsockopt(sock->real_fd, real_level, real_opt, value, value_len);
+    if (ret < 0)
+        return bridge_err(ret);
     return 0;
 }
 
@@ -779,63 +766,33 @@ int64_t sys_getsockopt(fd_t sock_fd, int32_t level, int32_t option, addr_t value
     } else if (level == SOL_SOCKET_ && option == SO_ERROR_) {
         if (value_len != sizeof(int32_t))
             return _EINVAL;
-        int real_error;
-        socklen_t real_error_len = sizeof(real_error);
-        int err = getsockopt(sock->real_fd, SOL_SOCKET, SO_ERROR, &real_error, &real_error_len);
-        if (err < 0)
-            return errno_map();
+        int32_t real_error = host_get_so_error(sock->real_fd);
+        if (real_error < 0)
+            return bridge_err(real_error);
         *(int32_t *)value = real_error == 0 ? 0 : -err_map(real_error);
     } else if (level == IPPROTO_TCP && option == TCP_CONGESTION_) {
         value_len = strlen(DEFAULT_TCP_CONGESTION);
         memcpy(value, DEFAULT_TCP_CONGESTION, value_len);
-#if defined(__APPLE__)
     } else if (level == IPPROTO_TCP && option == TCP_INFO_) {
-        // This one's fun. On Linux, the struct is not ABI dependent, so no
-        // special handling is needed. On Darwin, the struct is completely
-        // different and has a different sockopt name.
-        struct tcp_connection_info conn_info;
-        socklen_t conn_info_size = sizeof(conn_info);
-        int err = getsockopt(sock->real_fd, IPPROTO_TCP, TCP_CONNECTION_INFO, &conn_info,
-                             &conn_info_size);
-        if (err < 0)
-            return errno_map();
-
-        // The possible keys for this table are in netinet/tcp_fsm.h, but that
-        // header isn't available on iOS, only macOS.
-        static const uint8_t tcp_state_table[] = {
-            7,  // TCPS_CLOSED
-            10, // TCPS_LISTEN
-            2,  // TCPS_SYN_SENT
-            3,  // TCPS_SYN_RECEIVED
-            1,  // TCPS_ESTABLISHED
-            8,  // TCPS_CLOSE_WAIT
-            4,  // TCPS_FIN_WAIT_1
-            11, // TCPS_CLOSING
-            9,  // TCPS_LAST_ACK
-            5,  // TCPS_FIN_WAIT_2
-            6,  // TCPS_TIME_WAIT
-        };
+        struct host_tcp_info_result ti = host_get_tcp_info(sock->real_fd);
+        if (ti.ret < 0)
+            return bridge_err(ti.ret);
         struct tcp_info_ info = {
-            .state = tcp_state_table[conn_info.tcpi_state],
-            .options = conn_info.tcpi_options,
-            .snd_wscale = conn_info.tcpi_snd_wscale,
-            .rcv_wscale = conn_info.tcpi_rcv_wscale,
-
-            .rto = conn_info.tcpi_rto * 1000,
-            .snd_mss = conn_info.tcpi_maxseg,
-
-            .rtt = conn_info.tcpi_srtt * 1000,
-            .rttvar = conn_info.tcpi_rttvar * 1000,
-            .snd_ssthresh = conn_info.tcpi_snd_ssthresh,
-            .snd_cwnd = conn_info.tcpi_snd_cwnd / conn_info.tcpi_maxseg,
-
-            // https://lkml.org/lkml/2017/4/24/923
-            .total_retrans = conn_info.tcpi_txretransmitpackets,
+            .state = ti.state,
+            .options = ti.options,
+            .snd_wscale = ti.snd_wscale,
+            .rcv_wscale = ti.rcv_wscale,
+            .rto = ti.rto,
+            .snd_mss = ti.snd_mss,
+            .rtt = ti.rtt,
+            .rttvar = ti.rttvar,
+            .snd_ssthresh = ti.snd_ssthresh,
+            .snd_cwnd = ti.snd_cwnd,
+            .total_retrans = ti.total_retrans,
         };
-        if (value_len > sizeof(struct tcp_info_))
-            value_len = sizeof(struct tcp_info_);
+        if (value_len > (int32_t)sizeof(struct tcp_info_))
+            value_len = (int32_t)sizeof(struct tcp_info_);
         memcpy(value, &info, value_len);
-#endif
     } else {
         int real_opt = sock_opt_to_real(option, level);
         if (real_opt < 0)
@@ -844,9 +801,9 @@ int64_t sys_getsockopt(fd_t sock_fd, int32_t level, int32_t option, addr_t value
         if (real_level < 0)
             return _EINVAL;
 
-        int err = getsockopt(sock->real_fd, real_level, real_opt, value, &value_len);
-        if (err < 0)
-            return errno_map();
+        int32_t ret = host_getsockopt(sock->real_fd, real_level, real_opt, value, &value_len);
+        if (ret < 0)
+            return bridge_err(ret);
     }
 
     if (user_put(len_addr, value_len))
@@ -876,11 +833,10 @@ int64_t sys_sendmsg(fd_t sock_fd, addr_t msghdr_addr, int64_t flags)
     if (user_get(msghdr_addr, msg_fake))
         return _EFAULT;
 
-    // msg_name
     struct sockaddr_max_ msg_name;
     if (msg_fake.msg_name != 0) {
-        uint32_t msg_name_len = msg_fake.msg_namelen;
-        int err = sockaddr_read(msg_fake.msg_name, &msg_name, &msg_name_len);
+        uint32_t msg_name_len = (uint32_t)msg_fake.msg_namelen;
+        err = sockaddr_read(msg_fake.msg_name, &msg_name, &msg_name_len);
         if (err < 0)
             return err;
         msg.msg_name = &msg_name;
@@ -889,7 +845,6 @@ int64_t sys_sendmsg(fd_t sock_fd, addr_t msghdr_addr, int64_t flags)
         msg.msg_name = NULL;
     }
 
-    // msg_iovec
     struct iovec_ msg_iov_fake[msg_fake.msg_iovlen];
     if (user_get(msg_fake.msg_iov, msg_iov_fake))
         return _EFAULT;
@@ -905,7 +860,6 @@ int64_t sys_sendmsg(fd_t sock_fd, addr_t msghdr_addr, int64_t flags)
             goto out_free_iov;
     }
 
-    // msg_control
     uint8_t msg_control_buf[2048];
     uint8_t *msg_control = NULL;
     if (msg_fake.msg_control != 0) {
@@ -922,10 +876,9 @@ int64_t sys_sendmsg(fd_t sock_fd, addr_t msghdr_addr, int64_t flags)
     msg.msg_controllen = 0;
 
     struct scm *scm = NULL;
-    char real_msg_control[CMSG_SPACE(sizeof(int))]; // only used if actually sending an fd
+    char real_msg_control[host_cmsg_space(sizeof(int))];
     if (sock->socket.domain == AF_LOCAL_ && msg_control != NULL &&
         msg_fake.msg_controllen >= sizeof(struct cmsghdr_)) {
-        // figure out how many file descriptors we're sending
         uint8_t *mhdr_end = msg_control + msg_fake.msg_controllen;
         unsigned num_fds = 0;
         struct cmsghdr_ *cmsg;
@@ -936,11 +889,10 @@ int64_t sys_sendmsg(fd_t sock_fd, addr_t msghdr_addr, int64_t flags)
                 return _EINVAL;
             num_fds += (cmsg->len - sizeof(struct cmsghdr_)) / sizeof(fd_t);
         }
-        if (num_fds > 253) // *magic*
+        if (num_fds > 253)
             return _EINVAL;
 
         if (num_fds > 0) {
-            // send one (1) real fd and put the rest in a struct scm
             static int real_fd = -1;
             if (real_fd == -1) {
                 real_fd = open(".", O_RDONLY);
@@ -949,11 +901,7 @@ int64_t sys_sendmsg(fd_t sock_fd, addr_t msghdr_addr, int64_t flags)
             }
             msg.msg_control = real_msg_control;
             msg.msg_controllen = sizeof(real_msg_control);
-            struct cmsghdr *real_cmsg = CMSG_FIRSTHDR(&msg);
-            real_cmsg->cmsg_level = SOL_SOCKET;
-            real_cmsg->cmsg_type = SCM_RIGHTS;
-            real_cmsg->cmsg_len = CMSG_LEN(sizeof(real_fd));
-            memcpy(CMSG_DATA(real_cmsg), &real_fd, sizeof(real_fd));
+            host_cmsg_fill_first(&msg, real_fd);
 
             scm = malloc(sizeof(struct scm) + num_fds * sizeof(struct fd *));
             list_init(&scm->queue);
@@ -991,11 +939,12 @@ int64_t sys_sendmsg(fd_t sock_fd, addr_t msghdr_addr, int64_t flags)
     if (real_flags < 0)
         goto out_free_scm;
 
-    err = sendmsg(sock->real_fd, &msg, real_flags);
-    if (err < 0) {
-        err = errno_map();
+    int64_t res = host_sendmsg(sock->real_fd, &msg, real_flags);
+    if (res < 0) {
+        err = bridge_err((int32_t)res);
         goto out_free_scm;
     }
+    err = (int)res;
     goto out_free_iov;
 
 out_free_scm:
@@ -1028,7 +977,6 @@ int64_t sys_recvmsg(fd_t sock_fd, addr_t msghdr_addr, int64_t flags)
     if (user_get(msghdr_addr, msg_fake))
         return _EFAULT;
 
-    // msg_name
     char msg_name[msg_fake.msg_namelen];
     if (msg_fake.msg_name != 0) {
         msg.msg_name = msg_name;
@@ -1038,9 +986,8 @@ int64_t sys_recvmsg(fd_t sock_fd, addr_t msghdr_addr, int64_t flags)
         msg.msg_namelen = 0;
     }
 
-    char real_msg_control[CMSG_SPACE(sizeof(int))] = {}; // only used if needed
+    char real_msg_control[host_cmsg_space(sizeof(int))] = {};
     if (msg_fake.msg_controllen != 0) {
-        // msg_control, include room for one (1) fd
         msg.msg_control = real_msg_control;
         msg.msg_controllen = sizeof(real_msg_control);
     } else {
@@ -1052,7 +999,6 @@ int64_t sys_recvmsg(fd_t sock_fd, addr_t msghdr_addr, int64_t flags)
     if (real_flags < 0)
         return _EINVAL;
 
-    // msg_iovec (no initial content)
     struct iovec_ msg_iov_fake[msg_fake.msg_iovlen];
     if (user_get(msg_fake.msg_iov, msg_iov_fake))
         return _EFAULT;
@@ -1064,14 +1010,11 @@ int64_t sys_recvmsg(fd_t sock_fd, addr_t msghdr_addr, int64_t flags)
         msg_iov[i].iov_base = malloc(msg_iov_fake[i].len);
     }
 
-    ssize_t res = recvmsg(sock->real_fd, &msg, real_flags);
+    int64_t res = host_recvmsg(sock->real_fd, &msg, real_flags);
     int err = 0;
     if (res < 0)
-        err = errno_map();
-    // don't return err quite yet, there are outstanding mallocs
+        err = bridge_err((int32_t)res);
 
-    // msg_iovec (changed)
-    // copy as many bytes as were received, according to the return value
     size_t n = res;
     if (res < 0)
         n = 0;
@@ -1086,12 +1029,9 @@ int64_t sys_recvmsg(fd_t sock_fd, addr_t msghdr_addr, int64_t flags)
         free(msg_iov[i].iov_base);
     }
 
-    // msg_control (changed)
     msg_fake.msg_controllen = 0;
-    struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
-    if (sock->socket.domain == AF_LOCAL_ && cmsg != NULL && cmsg->cmsg_level == SOL_SOCKET &&
-        cmsg->cmsg_type == SCM_RIGHTS) {
-        int dummy_fd = ((int *)CMSG_DATA(cmsg))[0];
+    if (sock->socket.domain == AF_LOCAL_ && host_cmsg_is_scm_rights(&msg)) {
+        int dummy_fd = host_cmsg_get_first_fd(&msg);
         close(dummy_fd);
 
         lock(&sock->lock);
@@ -1120,11 +1060,9 @@ int64_t sys_recvmsg(fd_t sock_fd, addr_t msghdr_addr, int64_t flags)
         msg_fake.msg_controllen = msg.msg_controllen;
     }
 
-    // by now the iovecs and scm have been freed so we can return
     if (res < 0)
         return err;
 
-    // msg_name (changed)
     if (msg.msg_name != 0) {
         int err =
             sockaddr_write(msg_fake.msg_name, msg.msg_name, sizeof(msg_name), &msg.msg_namelen);
@@ -1133,7 +1071,6 @@ int64_t sys_recvmsg(fd_t sock_fd, addr_t msghdr_addr, int64_t flags)
     }
     msg_fake.msg_namelen = msg.msg_namelen;
 
-    // msg_flags (changed)
     msg_fake.msg_flags = sock_flags_from_real(msg.msg_flags);
 
     if (user_put(msghdr_addr, msg_fake))
@@ -1145,8 +1082,6 @@ struct mmsghdr_ {
     uint32_t len;
 };
 
-// TODO: STUB - sys_accept4 needs proper implementation for AArch64 bring-up
-// This stub is intentionally verbose to prevent silent failures
 int64_t sys_accept4(fd_t fd, addr_t addr, addr_t addrlen, int64_t flags)
 {
     (void)fd;
@@ -1157,8 +1092,6 @@ int64_t sys_accept4(fd_t fd, addr_t addr, addr_t addrlen, int64_t flags)
     return _ENOSYS;
 }
 
-// TODO: STUB - sys_recvmmsg needs proper implementation for AArch64 bring-up
-// This stub is intentionally verbose to prevent silent failures
 int64_t sys_recvmmsg(fd_t sock_fd, addr_t msgvec_addr, uint64_t msgvec_len, int64_t flags,
                      addr_t timeout_addr)
 {
@@ -1170,8 +1103,6 @@ int64_t sys_recvmmsg(fd_t sock_fd, addr_t msgvec_addr, uint64_t msgvec_len, int6
     FIXME("TODO: sys_recvmmsg NOT IMPLEMENTED - NEEDS PROPER AARCH64 SOCKET SUPPORT");
     return _ENOSYS;
 }
-
-// END OF FILE - ALL STUBS DEFINED ABOVE
 
 int64_t sys_sendmmsg(fd_t sock_fd, addr_t msg_vec, uint64_t vec_len, int64_t flags)
 {
@@ -1185,17 +1116,12 @@ int64_t sys_sendmmsg(fd_t sock_fd, addr_t msg_vec, uint64_t vec_len, int64_t fla
                 res = _EFAULT;
         }
         if (res < 0) {
-            // From the man page:
-            // If an error occurs after at least one message has been sent, the
-            // call succeeds, and returns the number of messages sent.  The
-            // error code is lost.
             if (num_sent > 0)
                 break;
             return res;
         }
         num_sent++;
         if (res == 0) {
-            // This means the socket is non-blocking and can't be written to anymore.
             break;
         }
     }
@@ -1204,13 +1130,9 @@ int64_t sys_sendmmsg(fd_t sock_fd, addr_t msg_vec, uint64_t vec_len, int64_t fla
 
 static void sock_translate_err(struct fd *fd, int *err)
 {
-    // on ios, when the device goes to sleep, all connected sockets are killed.
-    // reads/writes return ENOTCONN, which I'm pretty sure is a violation of
-    // posix. so instead, detect this and return ECONNRESET.
     if (*err == _ENOTCONN) {
-        struct sockaddr addr;
-        socklen_t len = sizeof(addr);
-        if (getpeername(fd->real_fd, &addr, &len) < 0 && errno == EINVAL) {
+        struct host_sockaddr_result res = host_getpeername(fd->real_fd, NULL, 0);
+        if (res.ret < 0 && errno == EINVAL) {
             *err = _ECONNRESET;
         }
     }
@@ -1233,7 +1155,6 @@ static ssize_t sock_write(struct fd *fd, const void *buf, size_t size)
 static int sock_close(struct fd *fd)
 {
     sockrestart_end_listen(fd);
-    // FIXME next 3 lines should go in a function like release_unix_names
     inode_release_if_exist(fd->socket.unix_name_inode);
     if (fd->socket.unix_name_abstract != NULL)
         unix_abstract_release(fd->socket.unix_name_abstract);

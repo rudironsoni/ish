@@ -11,13 +11,14 @@
 ---
 # Linux-owner paths: C-only, host-agnostic
 If:
-  PathMatch:
-    - ^Sources/IXLandLinuxRuntime/fs/.*\.(c|h)$
-    - ^Sources/IXLandLinuxRuntime/kernel/.*\.(c|h)$
-    - ^Sources/IXLandLinuxRuntime/emu/.*\.(c|h)$
-    - ^Sources/IXLandLinuxRuntime/tcti/.*\.(c|h)$
-    - ^Sources/IXLandLinuxRuntime/util/.*\.(c|h)$
-    - ^Sources/IXLandLinuxRuntime/include/.*\.h$
+PathMatch:
+- ^Sources/IXLandLinuxRuntime/fs/.*\.(c|h)$
+- ^Sources/IXLandLinuxRuntime/kernel/.*\.(c|h)$
+- ^Sources/IXLandLinuxRuntime/emu/.*\.(c|h)$
+- ^Sources/IXLandLinuxRuntime/tcti/.*\.(c|h)$
+- ^Sources/IXLandLinuxRuntime/util/.*\.(c|h)$
+- ^Sources/IXLandLinuxRuntime/include/.*\.h$
+- ^include/ixland/.*\.h$
   PathExclude:
     - ^internal/ios/.*$
     - ^Tests/.*$
@@ -39,11 +40,15 @@ If:
 # Private iOS bridge paths
 If:
   PathMatch:
-    - ^internal/ios/.*\.(c|h|m|mm)$
-  CompileFlags:
-    Add:
-      - -DIXLAND_HOST_BRIDGE_FILE=1
-      - -std=gnu11
+  - ^internal/ios/.*\.(c|h|m|mm)$
+CompileFlags:
+  Add:
+  - -DIXLAND_HOST_BRIDGE_FILE=1
+  - -std=gnu11
+  - -Ithird_party/linux-uapi/6.12/arm64/include
+  - -Iinclude
+  - -ISources
+  - -I.
 
 ---
 # Private iOS Objective-C

@@ -154,7 +154,7 @@ static int tmpfs_dir_lookup_existence(struct tmp_dirent *dir, const char *name)
     if (dirent == ERR_PTR(_ENOENT))
         return 0;
     if (IS_ERR(dirent))
-        return PTR_ERR(dirent);
+        return (int)PTR_ERR(dirent);
     tmp_dirent_release(dirent);
     return _EEXIST;
 }
@@ -329,7 +329,7 @@ static int tmpfs_stat(struct mount *mount, const char *path, struct statbuf *sta
 {
     struct tmp_dirent *dirent = tmpfs_lookup(mount, path);
     if (IS_ERR(dirent))
-        return PTR_ERR(dirent);
+        return (int)PTR_ERR(dirent);
     struct tmp_inode *inode = dirent->inode;
     lock(&inode->lock);
     *stat = dirent->inode->stat;
@@ -351,7 +351,7 @@ static int tmpfs_mkdir(struct mount *mount, const char *path, mode_t_ mode)
     const char *filename;
     struct tmp_dirent *parent = tmpfs_lookup_parent(mount, path, &filename);
     if (IS_ERR(parent))
-        return PTR_ERR(parent);
+        return (int)PTR_ERR(parent);
     lock(&parent->lock);
 
     int err = tmpfs_dir_lookup_existence(parent, filename);
