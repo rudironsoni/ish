@@ -5,15 +5,14 @@
 //  Created by Theodore Dubois on 11/3/17.
 //
 
-#pragma mark Accessibility
+#import "TerminalView.h"
+#import <WebKit/WebKit.h>
+#import "UserPreferences.h"
+#import "ScrollbarView.h"
+#import "NSObject+SaneKVO.h"
 
-- (void)layoutSubviews {
-    [super layoutSubviews];
-    if (self.terminalAccessibilityElement) {
-        self.terminalAccessibilityElement.accessibilityFrameInContainerSpace = self.bounds;
-    }
-}
-
+@interface WeakScriptMessageHandler : NSObject <WKScriptMessageHandler>
+@property (weak) id <WKScriptMessageHandler> handler;
 @end
 
 @implementation WeakScriptMessageHandler
@@ -27,6 +26,11 @@
     [self.handler userContentController:userContentController didReceiveScriptMessage:message];
 }
 @end
+
+struct rowcol {
+    int row;
+    int col;
+};
 
 @interface TerminalView ()
 
@@ -66,13 +70,15 @@
     _terminalAccessibilityElement = terminalAccessibilityElement;
 }
 
-- (BOOL)canBecomeFirstResponder {
-    return YES;
-}
-
-@implementation TerminalView
 @synthesize inputDelegate;
 @synthesize tokenizer;
+
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    if (self.terminalAccessibilityElement) {
+        self.terminalAccessibilityElement.accessibilityFrameInContainerSpace = self.bounds;
+    }
+}
 
 - (BOOL)canBecomeFirstResponder {
     return YES;
@@ -328,7 +334,10 @@ static NSString *const HANDLERS[] = {@"syncFocus", @"focus", @"newScrollHeight",
             return;
         [self.scrollbarView setContentOffset:CGPointMake(0, newOffset) animated:NO];
     } else if ([message.name isEqualToString:@"openLink"]) {
-        [UIApplication openURL:message.body];
+        NSURL *url = [NSURL URLWithString:message.body];
+        if (url) {
+            [[UIApplication sharedApplication] openURL:url options:@{} completionHandler:nil];
+        }
     }
 }
 

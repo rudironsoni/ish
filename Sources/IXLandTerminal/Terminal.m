@@ -158,6 +158,14 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
     }];
 }
 
+- (BOOL)becomeInputResponder {
+    return [self focusEditableSurface];
+}
+
+- (BOOL)requestFocus {
+    return [self focusEditableSurface];
+}
+
 - (BOOL)focusEditableSurface {
     if (!self.webView || !self.webView.window) {
         return NO;

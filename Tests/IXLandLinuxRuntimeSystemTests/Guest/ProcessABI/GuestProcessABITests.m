@@ -73,8 +73,8 @@
     // System: aarch64 musl startup convention
     // x0 = sp (pointer to argc on stack)
     // x1 = _DYNAMIC (address of PT_DYNAMIC)
-    uint64_t expected_x0_role = 0; // Placeholder: should be sp value
-    uint64_t expected_x1_role = 0; // Placeholder: should be dynamic_addr
+    // Placeholder: requires execve execution to verify
+    (void)_cpu; // Suppress unused warning
     
     // This test documents the contract that cpu->x[0] and cpu->x[1]
     // must be set before first instruction executes

@@ -114,6 +114,7 @@ targets:
       excludes:
       - "**/DISABLED/**"
       - "*.md"
+    - path: Tests/Support/GuestExecutionHarness
     dependencies:
     - target: IXLandTerminal
     - target: IXLandLinuxRuntime
@@ -126,6 +127,7 @@ targets:
       - "$(SRCROOT)/include"
       - "$(SRCROOT)/Sources"
       - "$(SRCROOT)"
+      - "$(SRCROOT)/Tests/Support"
       - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include"
 
   # MARK: - Performance Test Target

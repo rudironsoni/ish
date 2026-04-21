@@ -21,14 +21,14 @@ enum OverrideAppearance {
 @property (nonatomic) CGFloat overrideFontSize;
 @property (readonly) CGFloat effectiveFontSize;
 @property (nonatomic) enum OverrideAppearance overrideAppearance;
-@property (nonatomic, strong) UIAccessibilityElement *terminalAccessibilityElement;
+@property (nonatomic, strong, nullable) UIAccessibilityElement *terminalAccessibilityElement;
 
 @property (nonatomic) UIKeyboardAppearance keyboardAppearance;
 
-@property (weak, nonatomic) IBOutlet UIInputView *inputAccessoryView;
-@property (weak, nonatomic) IBOutlet UIButton *controlKey;
+@property (weak, nonatomic, nullable) IBOutlet UIInputView *inputAccessoryView;
+@property (weak, nonatomic, nullable) IBOutlet UIButton *controlKey;
 
-@property (nonatomic) Terminal *terminal;
+@property (nonatomic, nullable) Terminal *terminal;
 
 // UITextInput required methods
 - (UITextPosition *)beginningOfDocument;
@@ -47,8 +47,8 @@ enum OverrideAppearance {
 - (nullable UITextRange *)markedTextRange;
 - (void)setMarkedTextStyle:(nullable NSDictionary<NSAttributedStringKey,id> *)markedTextStyle;
 - (nullable NSDictionary<NSAttributedStringKey,id> *)markedTextStyle;
-- (UITextRange *)selectedTextRange;
-- (void)setSelectedTextRange:(UITextRange *)selectedTextRange;
+- (nullable UITextRange *)selectedTextRange;
+- (void)setSelectedTextRange:(nullable UITextRange *)selectedTextRange;
 - (NSString *)textInRange:(UITextRange *)range;
 - (void)replaceRange:(UITextRange *)range withText:(NSString *)text;
 - (NSInteger)offsetFromPosition:(UITextPosition *)from toPosition:(UITextPosition *)toPosition;
