@@ -183,7 +183,6 @@
     XCTAssertEqual(result.doExecveReturnValue, 0, @"H4: do_execve must return 0 (success), got %d", result.doExecveReturnValue);
     
     // CLASSIFICATION S0: Sink receiving callbacks (diagnostic - proves instrumentation is wired)
-    uint64_t beginIntervalCalls = guest_execution_trace_sink_begin_interval_calls_count();
     BOOL anyIntervalReceived = guest_execution_trace_sink_any_interval_received();
     XCTAssertTrue(anyIntervalReceived, @"S0: sink not receiving any begin_interval callbacks - instrumentation seam broken");
 
@@ -272,8 +271,8 @@
         XCTAssertTrue(true, @"D1.6.a: Interpreter path resolves via mounted root");
     } else {
         // D1.6.a FAIL: Path resolution broken at mount/root level
-        int err = interp_fd != NULL ? PTR_ERR(interp_fd) : -1;
-        XCTAssertTrue(interp_fd != NULL && !IS_ERR(interp_fd), @"D1.6.a FAIL: generic_open failed for guest absolute path, err=%d", err);
+        intptr_t err = interp_fd != NULL ? PTR_ERR(interp_fd) : -1;
+        XCTAssertTrue(interp_fd != NULL && !IS_ERR(interp_fd), @"D1.6.a FAIL: generic_open failed for guest absolute path, err=%ld", (long)err);
     }
 }
 
@@ -323,6 +322,7 @@
     
     // DIAGNOSTIC: Check if elf_exec was reached
     BOOL elfExecReached = guest_execution_trace_sink_elf_exec_reached();
+    (void)elfExecReached; // suppress unused warning
     
     // M1: Check main ELF header accepted event
     BOOL mainElfHeaderAccepted = guest_execution_trace_sink_main_elf_header_accepted();
@@ -337,15 +337,13 @@
     
     // D2.0: Check interpreter open attempt event
     BOOL interpOpenAttempted = guest_execution_trace_sink_interp_open_attempted();
-    BOOL interpOpenSucceeded = guest_execution_trace_sink_interp_open_succeeded();
-    int interpOpenErrno = guest_execution_trace_sink_interp_open_errno();
     
     // D2.0 classification: generic_open(interp_name) must be called
     XCTAssertTrue(interpOpenAttempted,
                   @"D2.0: Interp open event (loader.interp.open.result) must be observed. "
                   @"This proves generic_open(interp_name) was called. "
                   @"If this fails, PT_INTERP loop was entered but interpreter open failed. "
-                  @"interp_open_errno=%d, last_event='%s'", interpOpenErrno, lastEvent);
+                  @"last_event='%s'", lastEvent);
     
     // D2.1: Check interpreter header loaded event
     BOOL interpHeaderLoaded = guest_execution_trace_sink_interp_header_loaded();

@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>logFormatVersion</key>
+	<integer>12</integer>
+	<key>logs</key>
+	<dict>
+		<key>2446AEF1-1BFD-415E-A603-7898EFFA7707</key>
+		<dict>
+			<key>className</key>
+			<string>IDESchemeActionsInvocationRecord</string>
+			<key>documentTypeString</key>
+			<string>&lt;nil&gt;</string>
+			<key>domainType</key>
+			<string>com.apple.dt.unit.cocoaUnitTest</string>
+			<key>fileName</key>
+			<string>Test-IXLandGuestRuntime-2026.04.21_22-06-41-+0200.xcresult</string>
+			<key>hasPrimaryLog</key>
+			<true/>
+			<key>primaryObservable</key>
+			<dict>
+				<key>highLevelStatus</key>
+				<string>S</string>
+				<key>totalNumberOfAnalyzerIssues</key>
+				<integer>0</integer>
+				<key>totalNumberOfErrors</key>
+				<integer>0</integer>
+				<key>totalNumberOfTestFailures</key>
+				<integer>0</integer>
+				<key>totalNumberOfWarnings</key>
+				<integer>0</integer>
+			</dict>
+			<key>schemeIdentifier-containerName</key>
+			<string>IXLand project</string>
+			<key>schemeIdentifier-schemeName</key>
+			<string>IXLandGuestRuntime</string>
+			<key>schemeIdentifier-sharedScheme</key>
+			<integer>1</integer>
+			<key>signature</key>
+			<string>Test IXLandGuestRuntime</string>
+			<key>timeStartedRecording</key>
+			<real>798494801.35358405</real>
+			<key>timeStoppedRecording</key>
+			<real>798494833.85214698</real>
+			<key>title</key>
+			<string>Test IXLandGuestRuntime</string>
+			<key>uniqueIdentifier</key>
+			<string>2446AEF1-1BFD-415E-A603-7898EFFA7707</string>
+		</dict>
+		<key>89EB513A-679E-4B99-A779-91B1AAE45855</key>
+		<dict>
+			<key>className</key>
+			<string>IDESchemeActionsInvocationRecord</string>
+			<key>documentTypeString</key>
+			<string>&lt;nil&gt;</string>
+			<key>domainType</key>
+			<string>com.apple.dt.unit.cocoaUnitTest</string>
+			<key>fileName</key>
+			<string>Test-IXLandGuestRuntime-2026.04.21_22-05-39-+0200.xcresult</string>
+			<key>hasPrimaryLog</key>
+			<true/>
+			<key>primaryObservable</key>
+			<dict>
+				<key>highLevelStatus</key>
+				<string>S</string>
+				<key>totalNumberOfAnalyzerIssues</key>
+				<integer>0</integer>
+				<key>totalNumberOfErrors</key>
+				<integer>0</integer>
+				<key>totalNumberOfTestFailures</key>
+				<integer>0</integer>
+				<key>totalNumberOfWarnings</key>
+				<integer>0</integer>
+			</dict>
+			<key>schemeIdentifier-containerName</key>
+			<string>IXLand project</string>
+			<key>schemeIdentifier-schemeName</key>
+			<string>IXLandGuestRuntime</string>
+			<key>schemeIdentifier-sharedScheme</key>
+			<integer>1</integer>
+			<key>signature</key>
+			<string>Test IXLandGuestRuntime</string>
+			<key>timeStartedRecording</key>
+			<real>798494739.36510098</real>
+			<key>timeStoppedRecording</key>
+			<real>798494772.19818401</real>
+			<key>title</key>
+			<string>Test IXLandGuestRuntime</string>
+			<key>uniqueIdentifier</key>
+			<string>89EB513A-679E-4B99-A779-91B1AAE45855</string>
+		</dict>
+		<key>B59EFA80-3BCD-4ACA-AAE7-2352AA2BB76D</key>
+		<dict>
+			<key>className</key>
+			<string>IDESchemeActionsInvocationRecord</string>
+			<key>documentTypeString</key>
+			<string>&lt;nil&gt;</string>
+			<key>domainType</key>
+			<string>com.apple.dt.unit.cocoaUnitTest</string>
+			<key>fileName</key>
+			<string>Test-IXLandGuestRuntime-2026.04.21_22-07-37-+0200.xcresult</string>
+			<key>hasPrimaryLog</key>
+			<true/>
+			<key>primaryObservable</key>
+			<dict>
+				<key>highLevelStatus</key>
+				<string>T</string>
+				<key>totalNumberOfAnalyzerIssues</key>
+				<integer>0</integer>
+				<key>totalNumberOfErrors</key>
+				<integer>0</integer>
+				<key>totalNumberOfTestFailures</key>
+				<integer>7</integer>
+				<key>totalNumberOfWarnings</key>
+				<integer>0</integer>
+			</dict>
+			<key>schemeIdentifier-containerName</key>
+			<string>IXLand project</string>
+			<key>schemeIdentifier-schemeName</key>
+			<string>IXLandGuestRuntime</string>
+			<key>schemeIdentifier-sharedScheme</key>
+			<integer>1</integer>
+			<key>signature</key>
+			<string>Test IXLandGuestRuntime</string>
+			<key>timeStartedRecording</key>
+			<real>798494857.22698104</real>
+			<key>timeStoppedRecording</key>
+			<real>798494938.959288</real>
+			<key>title</key>
+			<string>Test IXLandGuestRuntime</string>
+			<key>uniqueIdentifier</key>
+			<string>B59EFA80-3BCD-4ACA-AAE7-2352AA2BB76D</string>
+		</dict>
+	</dict>
+</dict>
+</plist>

@@ -20,9 +20,8 @@
 @property (nonatomic, strong) dispatch_queue_t executionQueue;
 - (NSString *)materializeFixture:(NSString *)name extension:(NSString *)ext bundle:(NSBundle *)bundle;
 - (BOOL)setupRuntimeWithPath:(NSString *)tempPath;
-- (void)executeGuestOnBackgroundThread:(NSString *)tempPath;
 - (GuestExecutionResult *)prepareExecutableAtRootPath:(NSString *)rootPath
-                                       executablePath:(NSString *)executablePath;
+                      executablePath:(NSString *)executablePath;
 @end
 
 @implementation GuestExecutionResult
@@ -105,7 +104,7 @@
     tlb_refresh(&exec_tlb, cpu->mmu);
     
     // Capture values before guest run - after guest exit, cpu state may be invalid
-    a64_cpu_run_limited(cpu, &exec_tlb, 1);
+    a64_cpu_run_limited(cpu, (struct tlb *)&exec_tlb, 1);
     
     uint64_t pc_after = 0;
     uint64_t sp_after = 0;
@@ -168,7 +167,7 @@
     // Execute on background queue - trace sink captures exit event
     // When trace sink sees guest.do_exit_group.entry, it fulfills expectation
     dispatch_async(self.executionQueue, ^{
-        a64_cpu_run_limited(cpu, &exec_tlb, 100);
+        a64_cpu_run_limited(cpu, (struct tlb *)&exec_tlb, 100);
     });
     
     return [GuestExecutionResult resultFromProbe:probe_get_result()];
@@ -209,7 +208,7 @@
     
     // Run with high iteration limit to reach exit syscall
     // For A2: we need to run until guest.do_exit_group.entry fires
-    a64_cpu_run_limited(cpu, &exec_tlb, 10000);
+    a64_cpu_run_limited(cpu, (struct tlb *)&exec_tlb, 10000);
     
     // Only capture post-exit state if current is still valid
     if (current != NULL) {

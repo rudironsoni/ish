@@ -170,7 +170,7 @@
     header.header_size = sizeof(struct elf_header);
     
     // Validate all fields match expected values
-    XCTAssertEqual(memcmp(&header.magic, ELF_MAGIC, 4), 0, "Magic must match");
+    XCTAssertTrue(memcmp(&header.magic, ELF_MAGIC, 4) == 0, "Magic must match");
     XCTAssertEqual(header.bitness, ELF_64BIT, "Must be 64-bit");
     XCTAssertEqual(header.endian, ELF_LITTLEENDIAN, "Must be little-endian");
     XCTAssertEqual(header.elfversion1, 1, "ELF version must be 1");
@@ -264,8 +264,9 @@
     // Then: auxv array (variable)
     // Then: strings
     
-    size_t argc = 2;  // program name + NULL
-    size_t envc = 1;  // minimal env
+    size_t argc = 2; // program name + NULL
+    size_t envc = 1; // minimal env
+    (void)envc; // suppress unused warning
     
     // Calculate offsets from stack top
     size_t argc_offset = 0;

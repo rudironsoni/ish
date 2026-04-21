@@ -24,7 +24,6 @@ static guest_execution_trace_sink_callback_t completion_callback = NULL;
 
 // S0: Sink Diagnostic - proves callbacks are being invoked
 static uint64_t begin_interval_calls_count = 0;
-static uint64_t last_begin_interval_id = 0;
 static bool any_interval_received = false;
 
 // Milestone B: Dynamic ELF loader state
