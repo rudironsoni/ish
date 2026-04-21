@@ -247,7 +247,8 @@
     if (initErr != 0 && initErr != -17) return NO;
     
     NSString *fileName = [tempPath lastPathComponent];
-    int execErr = do_execve([fileName UTF8String], 0, "\0", "\0");
+    NSString *execPath = [@"/" stringByAppendingString:fileName];
+    int execErr = do_execve([execPath UTF8String], 0, "\0", "\0");
     
     return (execErr == 0);
 }
