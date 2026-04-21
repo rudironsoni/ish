@@ -80,6 +80,10 @@ __no_instrument void *tlb_handle_miss(struct tlb *tlb, addr_t addr, int type)
      * if a concurrent mutation happens AFTER install, the next lookup
      * will miss and re-resolve.
      */
+    if (tlb->mmu == NULL) {
+        tlb->segfault_addr = addr;
+        return NULL;
+    }
     mem_generation_t gen_before = tlb->mmu->generation;
 
     char *ptr = mmu_translate(tlb->mmu, TLB_PAGE(addr), type);
