@@ -1147,7 +1147,6 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr)
  */
 int a64_gen_branch(a64_gen_state_t *state, const a64_instr_t *instr)
 {
-    tcti_gadget_t gadget = NULL;
     int ret = A64_GEN_OK;
 
     switch (instr->subtype) {
@@ -1259,22 +1258,6 @@ int a64_gen_branch(a64_gen_state_t *state, const a64_instr_t *instr)
     default:
         return A64_GEN_UNSUPPORTED;
     }
-
-    if (!gadget)
-        return A64_GEN_UNSUPPORTED;
-
-    // Emit the branch gadget
-    ret = emit_gadget(state, gadget);
-    if (ret != A64_GEN_OK)
-        return ret;
-
-    // Emit target PC (current PC + offset from instruction)
-    uint64_t target_pc = state->guest_pc + instr->imm;
-    ret = emit_u64(state, target_pc);
-    if (ret != A64_GEN_OK)
-        return ret;
-
-    return A64_GEN_OK;
 }
 
 /* ============================================================================

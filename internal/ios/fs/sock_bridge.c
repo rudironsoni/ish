@@ -1,16 +1,59 @@
 #include "sock_bridge.h"
 
-#import <IXLandLinuxRuntime/fs/sock.h>
-#import <IXLandLinuxRuntime/util/debug.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+
+#define PF_LOCAL_          1
+#define PF_INET_           2
+#define PF_INET6_          10
+#define SOCK_STREAM_       1
+#define SOCK_DGRAM_        2
+#define SOCK_RAW_          3
+#define MSG_OOB_           0x1
+#define MSG_PEEK_          0x2
+#define MSG_CTRUNC_        0x8
+#define MSG_TRUNC_         0x20
+#define MSG_DONTWAIT_      0x40
+#define MSG_EOR_           0x80
+#define MSG_WAITALL_       0x100
+#define SOL_SOCKET_        1
+#define SO_REUSEADDR_      2
+#define SO_TYPE_           3
+#define SO_ERROR_          4
+#define SO_BROADCAST_      6
+#define SO_SNDBUF_         7
+#define SO_RCVBUF_         8
+#define SO_KEEPALIVE_      9
+#define SO_LINGER_         13
+#define SO_TIMESTAMP_      29
+#define SO_RCVTIMEO_       66
+#define SO_SNDTIMEO_       67
+#define IP_TOS_            1
+#define IP_TTL_            2
+#define IP_HDRINCL_        3
+#define IP_RETOPTS_        7
+#define IP_RECVTTL_        12
+#define IP_RECVTOS_        13
+#define TCP_NODELAY_       1
+#define TCP_DEFER_ACCEPT_  9
+#define TCP_INFO_          11
+#define TCP_CONGESTION_    13
+#define IPV6_UNICAST_HOPS_ 16
+#define IPV6_V6ONLY_       26
+#define IPV6_TCLASS_       67
+
+static void TRACE(const char *fmt, ...)
+{
+    (void)fmt;
+}
 
 int32_t socket_impl(int32_t domain, int32_t type, int32_t protocol)
 {
@@ -133,29 +176,29 @@ int64_t recvfrom_impl(int32_t sockfd, void *buf, uint32_t len, int32_t flags, vo
     return (int64_t)ret;
 }
 
-static void translate_msghdr_to_darwin(struct host_msghdr *src, struct msghdr *dst)
+static void translate_msghdr_to_darwin(struct bridge_msghdr *src, struct msghdr *dst)
 {
     dst->msg_name = src->msg_name;
     dst->msg_namelen = src->msg_namelen;
-    dst->msg_iov = src->msg_iov;
+    dst->msg_iov = (struct iovec *)src->msg_iov;
     dst->msg_iovlen = (int)src->msg_iovlen;
     dst->msg_control = src->msg_control;
     dst->msg_controllen = (socklen_t)src->msg_controllen;
     dst->msg_flags = src->msg_flags;
 }
 
-static void translate_msghdr_from_darwin(struct msghdr *src, struct host_msghdr *dst)
+static void translate_msghdr_from_darwin(struct msghdr *src, struct bridge_msghdr *dst)
 {
     dst->msg_name = src->msg_name;
     dst->msg_namelen = src->msg_namelen;
-    dst->msg_iov = src->msg_iov;
+    dst->msg_iov = (struct bridge_iovec *)src->msg_iov;
     dst->msg_iovlen = (size_t)src->msg_iovlen;
     dst->msg_control = src->msg_control;
     dst->msg_controllen = (size_t)src->msg_controllen;
     dst->msg_flags = src->msg_flags;
 }
 
-int64_t sendmsg_impl(int32_t sockfd, struct host_msghdr *msg, int32_t flags)
+int64_t sendmsg_impl(int32_t sockfd, struct bridge_msghdr *msg, int32_t flags)
 {
     struct msghdr darwin_msg;
     translate_msghdr_to_darwin(msg, &darwin_msg);
@@ -165,7 +208,7 @@ int64_t sendmsg_impl(int32_t sockfd, struct host_msghdr *msg, int32_t flags)
     return (int64_t)ret;
 }
 
-int64_t recvmsg_impl(int32_t sockfd, struct host_msghdr *msg, int32_t flags)
+int64_t recvmsg_impl(int32_t sockfd, struct bridge_msghdr *msg, int32_t flags)
 {
     struct msghdr darwin_msg;
     translate_msghdr_to_darwin(msg, &darwin_msg);
@@ -446,4 +489,49 @@ int sock_level_to_real(int fake)
     if (fake == SOL_SOCKET_)
         return SOL_SOCKET;
     return fake;
+}
+
+uint32_t cmsg_space_impl(uint32_t len)
+{
+    return (uint32_t)CMSG_SPACE(len);
+}
+
+void cmsg_fill_first_impl(struct bridge_msghdr *msg, int fd)
+{
+    struct msghdr darwin_msg;
+    translate_msghdr_to_darwin(msg, &darwin_msg);
+
+    struct cmsghdr *cmsg = CMSG_FIRSTHDR(&darwin_msg);
+    if (cmsg) {
+        cmsg->cmsg_len = CMSG_LEN(sizeof(int));
+        cmsg->cmsg_level = SOL_SOCKET;
+        cmsg->cmsg_type = SCM_RIGHTS;
+        *((int *)CMSG_DATA(cmsg)) = fd;
+    }
+
+    translate_msghdr_from_darwin(&darwin_msg, msg);
+}
+
+int cmsg_is_scm_rights_impl(struct bridge_msghdr *msg)
+{
+    struct msghdr darwin_msg;
+    translate_msghdr_to_darwin(msg, &darwin_msg);
+
+    struct cmsghdr *cmsg = CMSG_FIRSTHDR(&darwin_msg);
+    if (cmsg && cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SCM_RIGHTS) {
+        return 1;
+    }
+    return 0;
+}
+
+int cmsg_get_first_fd_impl(struct bridge_msghdr *msg)
+{
+    struct msghdr darwin_msg;
+    translate_msghdr_to_darwin(msg, &darwin_msg);
+
+    struct cmsghdr *cmsg = CMSG_FIRSTHDR(&darwin_msg);
+    if (cmsg && cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SCM_RIGHTS) {
+        return *((int *)CMSG_DATA(cmsg));
+    }
+    return -1;
 }

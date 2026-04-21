@@ -86,8 +86,8 @@ fd_t sys_openat(fd_t at_f, addr_t path_addr, uint32_t flags, mode_t_ mode)
         return _EBADF;
     struct fd *fd = generic_openat(at, path, flags, mode);
     if (IS_ERR(fd))
-        return PTR_ERR(fd);
-    return f_install(fd, flags);
+        return (fd_t)PTR_ERR(fd);
+    return (fd_t)f_install(fd, flags);
 }
 
 fd_t sys_open(addr_t path_addr, uint32_t flags, mode_t_ mode)
@@ -107,11 +107,11 @@ uint32_t sys_readlinkat(fd_t at_f, addr_t path_addr, addr_t buf_addr, uint32_t b
     char buf[bufsize];
     ssize_t size = generic_readlinkat(at, path, buf, bufsize);
     if (size >= 0) {
-        STRACE(" \"%.*s\"", size, buf);
+        STRACE(" \"%.*s\"", (int)size, buf);
         if (user_write(buf_addr, buf, size))
             return _EFAULT;
     }
-    return size;
+    return (uint32_t)size;
 }
 
 uint32_t sys_readlink(addr_t path_addr, addr_t buf_addr, uint32_t bufsize)
@@ -289,7 +289,7 @@ uint32_t sys_read(fd_t fd_no, addr_t buf_addr, uint32_t size)
             res = _EFAULT;
     }
     free(buf);
-    return res;
+    return (uint32_t)res;
 }
 
 static ssize_t sys_write_buf(fd_t fd_no, void *buf, size_t size)
@@ -347,16 +347,18 @@ uint32_t sys_write(fd_t fd_no, addr_t buf_addr, uint32_t size)
     size_t print_size = size;
     if (print_size > 100)
         print_size = 100;
-    STRACE("write(%d, \"%.*s\", %d)", fd_no, print_size, buf, size);
+    STRACE("write(%d, \"%.*s\", %d)", fd_no, (int)print_size, buf, (int)size);
 
-    res = sys_write_buf(fd_no, buf, size);
+    res = (uint32_t)sys_write_buf(fd_no, buf, size);
 out:
     // APPSIM-004 Stage 3A: Write return value
-    snprintf(return_buf, sizeof(return_buf), "%d", res);
+    snprintf(return_buf, sizeof(return_buf), "%d", (int)res);
     (void)trace_begin_interval(TRACE_ORIGIN_KERNEL, "task.proof.guest.write.return", return_attrs,
                                sizeof(return_attrs) / sizeof(return_attrs[0]));
+    (void)trace_end_interval(TRACE_ORIGIN_KERNEL, NULL, 0);
+
     free(buf);
-    return res;
+    return (uint32_t)res;
 }
 
 // The vector operations work by flattening the vector into a malloc buffer.
@@ -389,10 +391,10 @@ static ssize_t iovec_size(struct iovec_ *iovec, unsigned iovec_count)
 
 uint32_t sys_readv(fd_t fd_no, addr_t iovec_addr, uint32_t iovec_count)
 {
-    STRACE("readv(%d, %#x, %d)", fd_no, iovec_addr, iovec_count);
+    STRACE("readv(%d, %#x, %d)", fd_no, iovec_addr, (int)iovec_count);
     struct iovec_ *iovec = read_iovec(iovec_addr, iovec_count);
     if (IS_ERR(iovec))
-        return PTR_ERR(iovec);
+        return (uint32_t)PTR_ERR(iovec);
     size_t io_size = iovec_size(iovec, iovec_count);
     char *buf = malloc(io_size);
     if (buf == NULL) {
@@ -420,7 +422,7 @@ uint32_t sys_readv(fd_t fd_no, addr_t iovec_addr, uint32_t iovec_count)
 error:
     free(buf);
     free(iovec);
-    return res;
+    return (uint32_t)res;
 }
 
 uint32_t sys_writev(fd_t fd_no, addr_t iovec_addr, uint32_t iovec_count)
@@ -444,7 +446,7 @@ uint32_t sys_writev(fd_t fd_no, addr_t iovec_addr, uint32_t iovec_count)
 
     struct iovec_ *iovec = read_iovec(iovec_addr, iovec_count);
     if (IS_ERR(iovec))
-        return PTR_ERR(iovec);
+        return (uint32_t)PTR_ERR(iovec);
     size_t io_size = iovec_size(iovec, iovec_count);
     char *buf = malloc(io_size);
     if (buf == NULL) {
@@ -471,7 +473,7 @@ uint32_t sys_writev(fd_t fd_no, addr_t iovec_addr, uint32_t iovec_count)
 error:
     free(buf);
     free(iovec);
-    return res;
+    return (uint32_t)res;
 }
 
 uint32_t sys__llseek(fd_t f, uint32_t off_high, uint32_t off_low, addr_t res_addr, uint32_t whence)
@@ -488,7 +490,7 @@ uint32_t sys__llseek(fd_t f, uint32_t off_high, uint32_t off_low, addr_t res_add
     STRACE(" -> %lu", res);
     unlock(&fd->lock);
     if (res < 0)
-        return res;
+        return (uint32_t)res;
     if (user_put(res_addr, res))
         return _EFAULT;
     return 0;
@@ -506,7 +508,7 @@ uint32_t sys_lseek(fd_t f, uint32_t off, uint32_t whence)
     unlock(&fd->lock);
     if ((uint32_t)res != res)
         return _EOVERFLOW;
-    return res;
+    return (uint32_t)res;
 }
 
 uint32_t sys_pread(fd_t f, addr_t buf_addr, uint32_t size, off_t_ off)
@@ -545,7 +547,7 @@ uint32_t sys_pread(fd_t f, addr_t buf_addr, uint32_t size, off_t_ off)
 out:
     unlock(&fd->lock);
     free(buf);
-    return res;
+    return (uint32_t)res;
 }
 
 uint32_t sys_pwrite(fd_t f, addr_t buf_addr, uint32_t size, off_t_ off)
@@ -578,7 +580,7 @@ uint32_t sys_pwrite(fd_t f, addr_t buf_addr, uint32_t size, off_t_ off)
     }
     unlock(&fd->lock);
     free(buf);
-    return res;
+    return (uint32_t)res;
 }
 
 static int fd_ioctl(struct fd *fd, uint32_t cmd, uint32_t arg)
@@ -665,7 +667,7 @@ uint32_t sys_getcwd(addr_t buf_addr, uint32_t size)
 
     if (strlen(pwd) + 1 > size)
         return _ERANGE;
-    size = strlen(pwd) + 1;
+    size = (uint32_t)(strlen(pwd) + 1);
     char *buf = malloc(size);
     if (buf == NULL)
         return _ENOMEM;
@@ -707,7 +709,7 @@ uint32_t sys_chdir(addr_t path_addr)
 
     struct fd *dir = open_dir(path);
     if (IS_ERR(dir))
-        return PTR_ERR(dir);
+        return (uint32_t)PTR_ERR(dir);
     fs_chdir(current->fs, dir);
     return 0;
 }
@@ -732,7 +734,7 @@ uint32_t sys_chroot(addr_t path_addr)
 
     struct fd *dir = open_dir(path);
     if (IS_ERR(dir))
-        return PTR_ERR(dir);
+        return (uint32_t)PTR_ERR(dir);
     lock(&current->fs->lock);
     fd_close(current->fs->root);
     current->fs->root = dir;
@@ -820,7 +822,7 @@ uint32_t sys_statfs(addr_t path_addr, addr_t buf_addr)
     if (err < 0)
         return err;
     struct mount *mount = mount_find(path);
-    err = statfs_mount(mount, buf_addr);
+    err = (int)statfs_mount(mount, buf_addr);
     mount_release(mount);
     return err;
 }
@@ -838,19 +840,19 @@ uint32_t sys_statfs64(addr_t path_addr, uint32_t buf_size, addr_t buf_addr)
     if (err < 0)
         return err;
     struct mount *mount = mount_find(path);
-    err = statfs64_mount(mount, buf_addr);
+    err = (int)statfs64_mount(mount, buf_addr);
     mount_release(mount);
     return err;
 }
 
 uint32_t sys_fstatfs(fd_t f, addr_t buf_addr)
 {
-    return statfs_mount(f_get(f)->mount, buf_addr);
+    return (uint32_t)statfs_mount(f_get(f)->mount, buf_addr);
 }
 
 uint32_t sys_fstatfs64(fd_t f, addr_t buf_addr)
 {
-    return statfs64_mount(f_get(f)->mount, buf_addr);
+    return (uint32_t)statfs64_mount(f_get(f)->mount, buf_addr);
 }
 
 uint32_t sys_flock(fd_t f, uint32_t operation)

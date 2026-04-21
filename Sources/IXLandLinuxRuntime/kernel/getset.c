@@ -2,17 +2,17 @@
 #import <IXLandLinuxRuntime/kernel/personality.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
 
-pid_t_ sys_getpid()
+pid_t_ sys_getpid(void)
 {
     STRACE("getpid()");
     return current->tgid;
 }
-pid_t_ sys_gettid()
+pid_t_ sys_gettid(void)
 {
     STRACE("gettid()");
     return current->pid;
 }
-pid_t_ sys_getppid()
+pid_t_ sys_getppid(void)
 {
     STRACE("getppid()");
     pid_t_ ppid;
@@ -25,23 +25,23 @@ pid_t_ sys_getppid()
     return ppid;
 }
 
-uid_t_ sys_getuid32()
+uid_t_ sys_getuid32(void)
 {
     STRACE("getuid32()");
     return current->uid;
 }
-uid_t_ sys_getuid()
+uid_t_ sys_getuid(void)
 {
     STRACE("getuid()");
     return current->uid & 0xffff;
 }
 
-uid_t_ sys_geteuid32()
+uid_t_ sys_geteuid32(void)
 {
     STRACE("geteuid32()");
     return current->euid;
 }
-uid_t_ sys_geteuid()
+uid_t_ sys_geteuid(void)
 {
     STRACE("geteuid()");
     return current->euid & 0xffff;
@@ -101,23 +101,23 @@ int64_t sys_setreuid(uid_t_ ruid, uid_t_ euid)
     return sys_setresuid(ruid, euid, -1);
 }
 
-uid_t_ sys_getgid32()
+uid_t_ sys_getgid32(void)
 {
     STRACE("getgid32()");
     return current->gid;
 }
-uid_t_ sys_getgid()
+uid_t_ sys_getgid(void)
 {
     STRACE("getgid()");
     return current->gid & 0xffff;
 }
 
-uid_t_ sys_getegid32()
+uid_t_ sys_getegid32(void)
 {
     STRACE("getegid32()");
     return current->egid;
 }
-uid_t_ sys_getegid()
+uid_t_ sys_getegid(void)
 {
     STRACE("getegid()");
     return current->egid & 0xffff;

@@ -169,7 +169,7 @@ static fd_t f_install_start(struct fd *fd, fd_t start)
 {
     assert(start >= 0);
     struct fdtable *table = current->files;
-    unsigned size = rlimit(RLIMIT_NOFILE_);
+    unsigned size = (unsigned)rlimit(RLIMIT_NOFILE_);
     if (size > table->size)
         size = table->size;
 
@@ -361,8 +361,8 @@ uint32_t sys_fcntl(fd_t f, uint32_t cmd, uint32_t arg)
         if (err >= 0) {
             flock32.type = flock.type;
             flock32.whence = flock.whence;
-            flock32.start = flock.start;
-            flock32.len = flock.len;
+            flock32.start = (uint32_t)flock.start;
+            flock32.len = (uint32_t)flock.len;
             flock32.pid = flock.pid;
             if (user_write(arg, &flock32, sizeof(flock32)))
                 return _EFAULT;

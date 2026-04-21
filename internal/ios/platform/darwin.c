@@ -1,10 +1,10 @@
 #include <assert.h>
-#include <ixland/host_bridge.h>
+#include <ixland/platform_bridge.h>
 #include <mach/mach.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
 
-struct cpu_usage get_cpu_usage()
+struct cpu_usage get_cpu_usage(void)
 {
     host_cpu_load_info_data_t load;
     mach_msg_type_number_t fuck = HOST_CPU_LOAD_INFO_COUNT;
@@ -17,7 +17,7 @@ struct cpu_usage get_cpu_usage()
     return usage;
 }
 
-struct mem_usage get_mem_usage()
+struct mem_usage get_mem_usage(void)
 {
     host_basic_info_data_t basic = {};
     mach_msg_type_number_t fuck = HOST_BASIC_INFO_COUNT;
@@ -36,7 +36,7 @@ struct mem_usage get_mem_usage()
     return usage;
 }
 
-struct uptime_info get_uptime()
+struct uptime_info get_uptime(void)
 {
     uint64_t kern_boottime[2];
     size_t size = sizeof(kern_boottime);

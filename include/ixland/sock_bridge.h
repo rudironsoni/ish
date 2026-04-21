@@ -1,24 +1,10 @@
-#ifndef IXLAND_SOCK_BRIDGE_INTERNAL_H
-#define IXLAND_SOCK_BRIDGE_INTERNAL_H
+#ifndef IXLAND_SOCK_BRIDGE_H
+#define IXLAND_SOCK_BRIDGE_H
 
+#include <ixland/linux_types.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/types.h>
-
-struct bridge_iovec {
-    void *iov_base;
-    size_t iov_len;
-};
-
-struct bridge_msghdr {
-    void *msg_name;
-    uint32_t msg_namelen;
-    struct bridge_iovec *msg_iov;
-    size_t msg_iovlen;
-    void *msg_control;
-    size_t msg_controllen;
-    int msg_flags;
-};
 
 struct sockaddr_result {
     int32_t ret;
@@ -38,6 +24,21 @@ struct tcp_info_result {
     uint32_t snd_ssthresh;
     uint32_t snd_cwnd;
     uint32_t total_retrans;
+};
+
+struct bridge_iovec {
+    void *iov_base;
+    size_t iov_len;
+};
+
+struct bridge_msghdr {
+    void *msg_name;
+    uint32_t msg_namelen;
+    struct bridge_iovec *msg_iov;
+    size_t msg_iovlen;
+    void *msg_control;
+    size_t msg_controllen;
+    int msg_flags;
 };
 
 int32_t socket_impl(int32_t domain, int32_t type, int32_t protocol);

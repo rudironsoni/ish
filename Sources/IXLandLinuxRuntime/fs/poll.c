@@ -1,15 +1,12 @@
-#import <IXLandLinuxRuntime/fs/poll.h>
-
 #import <IXLandLinuxRuntime/fs/fd.h>
+#import <IXLandLinuxRuntime/fs/poll.h>
 #import <IXLandLinuxRuntime/fs/real.h>
 #import <IXLandLinuxRuntime/fs/sockrestart.h>
 #import <IXLandLinuxRuntime/kernel/errno.h>
 #import <IXLandLinuxRuntime/kernel/fs.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
 #import <IXLandLinuxRuntime/util/list.h>
-
 #import <IXLandLinuxRuntime/util/misc.h>
-
 #include <fcntl.h>
 #include <limits.h>
 #include <poll.h>
@@ -30,7 +27,7 @@ static int real_poll_update(struct real_poll *real, int fd, int types, void *dat
 
 // lock order: fd, then poll
 
-struct poll *poll_create()
+struct poll *poll_create(void)
 {
     struct poll *poll = malloc(sizeof(struct poll));
     if (poll == NULL)

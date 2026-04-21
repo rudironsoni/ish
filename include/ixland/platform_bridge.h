@@ -1,5 +1,5 @@
-#ifndef IXLAND_HOST_BRIDGE_H
-#define IXLAND_HOST_BRIDGE_H
+#ifndef IXLAND_PLATFORM_BRIDGE_H
+#define IXLAND_PLATFORM_BRIDGE_H
 
 #include <stdint.h>
 

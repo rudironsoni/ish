@@ -1,7 +1,8 @@
-#import <IXLandLinuxRuntime/kernel/fs.h>
 #import <IXLandLinuxRuntime/fs/fd.h>
+#import <IXLandLinuxRuntime/kernel/fs.h>
 
-struct fs_info *fs_info_new() {
+struct fs_info *fs_info_new(void)
+{
     struct fs_info *fs = malloc(sizeof(struct fs_info));
     if (fs == NULL)
         return NULL;
@@ -12,7 +13,8 @@ struct fs_info *fs_info_new() {
     return fs;
 }
 
-struct fs_info *fs_info_copy(struct fs_info *fs) {
+struct fs_info *fs_info_copy(struct fs_info *fs)
+{
     struct fs_info *new_fs = fs_info_new();
     new_fs->umask = fs->umask;
     new_fs->pwd = fd_retain(fs->pwd);
@@ -20,7 +22,8 @@ struct fs_info *fs_info_copy(struct fs_info *fs) {
     return new_fs;
 }
 
-void fs_info_release(struct fs_info *fs) {
+void fs_info_release(struct fs_info *fs)
+{
     if (--fs->refcount == 0) {
         fd_close(fs->pwd);
         fd_close(fs->root);

@@ -46,8 +46,8 @@ static int do_getrlimit32(int resource, struct rlimit32_ *rlimit32)
         return err;
     STRACE(" {cur=%#x, max=%#x}", rlimit.cur, rlimit.max);
 
-    rlimit32->max = rlimit.max;
-    rlimit32->cur = rlimit.cur;
+    rlimit32->max = (rlim32_t_)rlimit.max;
+    rlimit32->cur = (rlim32_t_)rlimit.cur;
     return 0;
 }
 
@@ -183,7 +183,7 @@ int64_t sys_sched_getaffinity(pid_t_ pid, uint32_t cpusetsize, addr_t cpuset_add
             return _ESRCH;
     }
 
-    unsigned cpus = sysconf(_SC_NPROCESSORS_ONLN);
+    unsigned cpus = (unsigned)sysconf(_SC_NPROCESSORS_ONLN);
     char cpuset[cpus / 8 + 1];
     if (cpusetsize < sizeof(cpuset))
         return _EINVAL;

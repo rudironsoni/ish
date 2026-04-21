@@ -8,6 +8,8 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <ixland/sock_bridge.h>
+#include <linux/in.h>
+#include <linux/in6.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -57,12 +59,12 @@ int64_t sys_socket(uint32_t domain, uint32_t type, uint32_t protocol)
     if (type == SOCK_RAW_ && protocol == IPPROTO_RAW)
         protocol = IPPROTO_ICMP;
 
-    int32_t sock = host_socket(real_domain, real_type, protocol);
+    int32_t sock = socket_impl(real_domain, real_type, protocol);
     if (sock < 0)
         return bridge_err(sock);
 
     if (domain == AF_INET_ && type == SOCK_DGRAM_) {
-        host_setsockopt_strip(sock);
+        setsockopt_strip_impl(sock);
     }
 
     fd_t f = sock_fd_create(sock, domain, type, protocol);
@@ -244,18 +246,18 @@ static int sockaddr_read_bind(addr_t sockaddr_addr, void *sockaddr, uint32_t *so
         break;
     }
 
-    host_sockaddr_set_family(sockaddr, real_family);
+    sockaddr_set_family_impl(sockaddr, real_family);
 
-    int host_family = host_sockaddr_get_family(sockaddr);
-    switch (host_family) {
+    int translated_family = sockaddr_get_family_impl(sockaddr);
+    switch (translated_family) {
     case 2: {
-        uint32_t inet_size = host_sockaddr_inet_size();
+        uint32_t inet_size = sockaddr_inet_size_impl();
         if (*sockaddr_len < inet_size)
             return _EINVAL;
         break;
     }
     case 10: {
-        uint32_t inet6_size = host_sockaddr_inet6_size();
+        uint32_t inet6_size = sockaddr_inet6_size_impl();
         if (*sockaddr_len < inet6_size)
             return _EINVAL;
         break;
@@ -284,12 +286,12 @@ static int sockaddr_read_bind(addr_t sockaddr_addr, void *sockaddr, uint32_t *so
             memcpy(bind_fd->socket.unix_name, path, path_size);
         }
 
-        uint32_t out_len = host_sockaddr_un_fill_path(sockaddr, *sockaddr_len, sock_tmp_prefix,
+        uint32_t out_len = sockaddr_un_fill_path_impl(sockaddr, *sockaddr_len, sock_tmp_prefix,
                                                       getpid(), socket_id);
         if (out_len == 0)
             return _EINVAL;
         if (bind_fd != NULL)
-            host_sockaddr_un_unlink(sockaddr);
+            sockaddr_un_unlink_impl(sockaddr);
         *sockaddr_len = out_len;
         break;
     }
@@ -310,7 +312,7 @@ static int sockaddr_read(addr_t sockaddr_addr, void *sockaddr, uint32_t *sockadd
 static int sockaddr_write(addr_t sockaddr_addr, void *sockaddr, uint32_t buffer_len,
                           uint32_t *sockaddr_len)
 {
-    int real_family = host_sockaddr_get_family(sockaddr);
+    int real_family = sockaddr_get_family_impl(sockaddr);
     int fake_family = sock_family_from_real(real_family);
     struct sockaddr_ *fake_addr = sockaddr;
     fake_addr->family = (uint16_t)fake_family;
@@ -348,7 +350,7 @@ int64_t sys_bind(fd_t sock_fd, addr_t sockaddr_addr, uint32_t sockaddr_len)
     if (err < 0)
         return err;
 
-    int32_t ret = host_bind(sock->real_fd, &sockaddr, sockaddr_len_dword);
+    int32_t ret = bind_impl(sock->real_fd, &sockaddr, sockaddr_len_dword);
     if (ret < 0) {
         inode_release_if_exist(sock->socket.unix_name_inode);
         if (sock->socket.unix_name_abstract != NULL)
@@ -378,7 +380,7 @@ int64_t sys_connect(fd_t sock_fd, addr_t sockaddr_addr, uint32_t sockaddr_len)
     if (err < 0)
         return err;
 
-    int32_t ret = host_connect(sock->real_fd, &sockaddr, sockaddr_len);
+    int32_t ret = connect_impl(sock->real_fd, &sockaddr, sockaddr_len);
     if (ret < 0)
         return bridge_err(ret);
 
@@ -403,7 +405,7 @@ int64_t sys_listen(fd_t sock_fd, int64_t backlog)
     struct fd *sock = sock_getfd(sock_fd);
     if (sock == NULL)
         return _EBADF;
-    int32_t ret = host_listen(sock->real_fd, (int32_t)backlog);
+    int32_t ret = listen_impl(sock->real_fd, (int32_t)backlog);
     if (ret < 0)
         return bridge_err(ret);
     sockrestart_begin_listen(sock);
@@ -427,7 +429,7 @@ int64_t sys_accept(fd_t sock_fd, addr_t sockaddr_addr, addr_t sockaddr_len_addr)
     do {
         sockrestart_begin_listen_wait(sock);
         errno = 0;
-        int32_t ret = host_accept(sock->real_fd, sockaddr_addr != 0 ? (void *)sockaddr : NULL,
+        int32_t ret = accept_impl(sock->real_fd, sockaddr_addr != 0 ? (void *)sockaddr : NULL,
                                   sockaddr_addr != 0 ? &sockaddr_len : NULL);
         client = ret;
         sockrestart_end_listen_wait(sock);
@@ -500,7 +502,7 @@ int64_t sys_getsockname(fd_t sock_fd, addr_t sockaddr_addr, addr_t sockaddr_len_
         return 0;
     }
 
-    struct host_sockaddr_result res = host_getsockname(sock->real_fd, sockaddr, sockaddr_len);
+    struct sockaddr_result res = getsockname_impl(sock->real_fd, sockaddr, sockaddr_len);
     if (res.ret < 0)
         return bridge_err(res.ret);
 
@@ -524,7 +526,7 @@ int64_t sys_getpeername(fd_t sock_fd, addr_t sockaddr_addr, addr_t sockaddr_len_
         return _EFAULT;
 
     char sockaddr[sockaddr_len];
-    struct host_sockaddr_result res = host_getpeername(sock->real_fd, sockaddr, sockaddr_len);
+    struct sockaddr_result res = getpeername_impl(sock->real_fd, sockaddr, sockaddr_len);
     if (res.ret < 0)
         return bridge_err(res.ret);
 
@@ -548,7 +550,7 @@ int64_t sys_socketpair(uint32_t domain, uint32_t type, uint32_t protocol, addr_t
         return _EINVAL;
 
     int32_t sockets[2];
-    int32_t err = host_socketpair(real_domain, real_type, protocol, sockets);
+    int32_t err = socketpair_impl(real_domain, real_type, protocol, sockets);
     if (err < 0)
         return bridge_err(err);
 
@@ -610,7 +612,7 @@ int64_t sys_sendto(fd_t sock_fd, addr_t buffer_addr, uint32_t len, uint32_t flag
             goto error;
     }
 
-    int64_t res = host_sendto(sock->real_fd, buffer, len, real_flags,
+    int64_t res = sendto_impl(sock->real_fd, buffer, len, real_flags,
                               sockaddr_addr ? (void *)&sockaddr : NULL, sockaddr_len);
     free(buffer);
     if (res < 0)
@@ -640,7 +642,7 @@ int64_t sys_recvfrom(fd_t sock_fd, addr_t buffer_addr, uint32_t len, uint32_t fl
 
     char *buffer = malloc(len);
     char sockaddr[sockaddr_len];
-    int64_t res = host_recvfrom(sock->real_fd, buffer, len, real_flags,
+    int64_t res = recvfrom_impl(sock->real_fd, buffer, len, real_flags,
                                 sockaddr_addr != 0 ? (void *)sockaddr : NULL,
                                 sockaddr_len_addr != 0 ? &sockaddr_len : NULL);
     if (res < 0) {
@@ -681,7 +683,7 @@ int64_t sys_shutdown(fd_t sock_fd, int32_t how)
     struct fd *sock = sock_getfd(sock_fd);
     if (sock == NULL)
         return _EBADF;
-    int32_t ret = host_shutdown(sock->real_fd, how);
+    int32_t ret = shutdown_impl(sock->real_fd, how);
     if (ret < 0)
         return bridge_err(ret);
     return 0;
@@ -720,7 +722,7 @@ int64_t sys_setsockopt(fd_t sock_fd, int32_t level, int32_t option, addr_t value
     if (real_opt == 0)
         return 0;
 
-    int32_t ret = host_setsockopt(sock->real_fd, real_level, real_opt, value, value_len);
+    int32_t ret = setsockopt_impl(sock->real_fd, real_level, real_opt, value, value_len);
     if (ret < 0)
         return bridge_err(ret);
     return 0;
@@ -766,7 +768,7 @@ int64_t sys_getsockopt(fd_t sock_fd, int32_t level, int32_t option, addr_t value
     } else if (level == SOL_SOCKET_ && option == SO_ERROR_) {
         if (value_len != sizeof(int32_t))
             return _EINVAL;
-        int32_t real_error = host_get_so_error(sock->real_fd);
+        int32_t real_error = get_so_error_impl(sock->real_fd);
         if (real_error < 0)
             return bridge_err(real_error);
         *(int32_t *)value = real_error == 0 ? 0 : -err_map(real_error);
@@ -774,7 +776,7 @@ int64_t sys_getsockopt(fd_t sock_fd, int32_t level, int32_t option, addr_t value
         value_len = strlen(DEFAULT_TCP_CONGESTION);
         memcpy(value, DEFAULT_TCP_CONGESTION, value_len);
     } else if (level == IPPROTO_TCP && option == TCP_INFO_) {
-        struct host_tcp_info_result ti = host_get_tcp_info(sock->real_fd);
+        struct tcp_info_result ti = get_tcp_info_impl(sock->real_fd);
         if (ti.ret < 0)
             return bridge_err(ti.ret);
         struct tcp_info_ info = {
@@ -801,7 +803,7 @@ int64_t sys_getsockopt(fd_t sock_fd, int32_t level, int32_t option, addr_t value
         if (real_level < 0)
             return _EINVAL;
 
-        int32_t ret = host_getsockopt(sock->real_fd, real_level, real_opt, value, &value_len);
+        int32_t ret = getsockopt_impl(sock->real_fd, real_level, real_opt, value, &value_len);
         if (ret < 0)
             return bridge_err(ret);
     }
@@ -828,31 +830,25 @@ int64_t sys_sendmsg(fd_t sock_fd, addr_t msghdr_addr, int64_t flags)
     if (sock == NULL)
         return _EBADF;
 
-    struct msghdr msg;
     struct msghdr_ msg_fake;
     if (user_get(msghdr_addr, msg_fake))
         return _EFAULT;
 
     struct sockaddr_max_ msg_name;
+    uint32_t msg_namelen = 0;
     if (msg_fake.msg_name != 0) {
-        uint32_t msg_name_len = (uint32_t)msg_fake.msg_namelen;
-        err = sockaddr_read(msg_fake.msg_name, &msg_name, &msg_name_len);
+        msg_namelen = (uint32_t)msg_fake.msg_namelen;
+        err = sockaddr_read(msg_fake.msg_name, &msg_name, &msg_namelen);
         if (err < 0)
             return err;
-        msg.msg_name = &msg_name;
-        msg.msg_namelen = msg_name_len;
-    } else {
-        msg.msg_name = NULL;
     }
 
     struct iovec_ msg_iov_fake[msg_fake.msg_iovlen];
     if (user_get(msg_fake.msg_iov, msg_iov_fake))
         return _EFAULT;
-    struct iovec msg_iov[msg_fake.msg_iovlen];
+    struct bridge_iovec msg_iov[msg_fake.msg_iovlen];
     memset(msg_iov, 0, sizeof(msg_iov));
-    msg.msg_iov = msg_iov;
-    msg.msg_iovlen = sizeof(msg_iov) / sizeof(msg_iov[0]);
-    for (size_t i = 0; i < (size_t)msg.msg_iovlen; i++) {
+    for (size_t i = 0; i < msg_fake.msg_iovlen; i++) {
         msg_iov[i].iov_len = msg_iov_fake[i].len;
         msg_iov[i].iov_base = malloc(msg_iov_fake[i].len);
         err = _EFAULT;
@@ -862,6 +858,9 @@ int64_t sys_sendmsg(fd_t sock_fd, addr_t msghdr_addr, int64_t flags)
 
     uint8_t msg_control_buf[2048];
     uint8_t *msg_control = NULL;
+    uint8_t real_msg_control_buf[2048];
+    struct scm *scm = NULL;
+
     if (msg_fake.msg_control != 0) {
         if (msg_fake.msg_controllen > sizeof(msg_control_buf)) {
             err = _EINVAL;
@@ -872,11 +871,17 @@ int64_t sys_sendmsg(fd_t sock_fd, addr_t msghdr_addr, int64_t flags)
         if (user_read(msg_fake.msg_control, msg_control, msg_fake.msg_controllen))
             goto out_free_iov;
     }
-    msg.msg_control = NULL;
-    msg.msg_controllen = 0;
 
-    struct scm *scm = NULL;
-    char real_msg_control[host_cmsg_space(sizeof(int))];
+    struct bridge_msghdr bridge_msg = {
+        .msg_name = msg_fake.msg_name != 0 ? &msg_name : NULL,
+        .msg_namelen = msg_namelen,
+        .msg_iov = msg_iov,
+        .msg_iovlen = msg_fake.msg_iovlen,
+        .msg_control = NULL,
+        .msg_controllen = 0,
+        .msg_flags = 0,
+    };
+
     if (sock->socket.domain == AF_LOCAL_ && msg_control != NULL &&
         msg_fake.msg_controllen >= sizeof(struct cmsghdr_)) {
         uint8_t *mhdr_end = msg_control + msg_fake.msg_controllen;
@@ -899,9 +904,9 @@ int64_t sys_sendmsg(fd_t sock_fd, addr_t msghdr_addr, int64_t flags)
                 if (real_fd < 0)
                     ERRNO_DIE("no");
             }
-            msg.msg_control = real_msg_control;
-            msg.msg_controllen = sizeof(real_msg_control);
-            host_cmsg_fill_first(&msg, real_fd);
+            bridge_msg.msg_control = real_msg_control_buf;
+            bridge_msg.msg_controllen = sizeof(real_msg_control_buf);
+            cmsg_fill_first_impl(&bridge_msg, real_fd);
 
             scm = malloc(sizeof(struct scm) + num_fds * sizeof(struct fd *));
             list_init(&scm->queue);
@@ -931,15 +936,15 @@ int64_t sys_sendmsg(fd_t sock_fd, addr_t msghdr_addr, int64_t flags)
         }
     }
 
-    msg.msg_flags = sock_flags_to_real(msg_fake.msg_flags);
+    bridge_msg.msg_flags = sock_flags_to_real((int)msg_fake.msg_flags);
     err = _EINVAL;
-    if (msg.msg_flags < 0)
+    if (bridge_msg.msg_flags < 0)
         goto out_free_scm;
-    int real_flags = sock_flags_to_real(flags);
+    int real_flags = sock_flags_to_real((int)flags);
     if (real_flags < 0)
         goto out_free_scm;
 
-    int64_t res = host_sendmsg(sock->real_fd, &msg, real_flags);
+    int64_t res = sendmsg_impl(sock->real_fd, &bridge_msg, real_flags);
     if (res < 0) {
         err = bridge_err((int32_t)res);
         goto out_free_scm;
@@ -960,7 +965,7 @@ out_free_scm:
         scm_free(scm);
     }
 out_free_iov:
-    for (size_t i = 0; i < (size_t)msg.msg_iovlen; i++)
+    for (size_t i = 0; i < msg_fake.msg_iovlen; i++)
         free(msg_iov[i].iov_base);
     return err;
 }
@@ -972,106 +977,110 @@ int64_t sys_recvmsg(fd_t sock_fd, addr_t msghdr_addr, int64_t flags)
     if (sock == NULL)
         return _EBADF;
 
-    struct msghdr msg;
     struct msghdr_ msg_fake;
     if (user_get(msghdr_addr, msg_fake))
         return _EFAULT;
 
-    char msg_name[msg_fake.msg_namelen];
+    char msg_name_buf[128];
+    uint32_t msg_namelen = 0;
     if (msg_fake.msg_name != 0) {
-        msg.msg_name = msg_name;
-        msg.msg_namelen = sizeof(msg_name);
-    } else {
-        msg.msg_name = NULL;
-        msg.msg_namelen = 0;
+        msg_namelen = (uint32_t)msg_fake.msg_namelen;
+        if (msg_namelen > sizeof(msg_name_buf))
+            msg_namelen = (uint32_t)sizeof(msg_name_buf);
     }
 
-    char real_msg_control[host_cmsg_space(sizeof(int))] = {};
-    if (msg_fake.msg_controllen != 0) {
-        msg.msg_control = real_msg_control;
-        msg.msg_controllen = sizeof(real_msg_control);
-    } else {
-        msg.msg_control = NULL;
-        msg.msg_controllen = 0;
-    }
-
-    int real_flags = sock_flags_to_real(flags);
-    if (real_flags < 0)
-        return _EINVAL;
-
+    uint8_t real_msg_control_buf[2048];
     struct iovec_ msg_iov_fake[msg_fake.msg_iovlen];
     if (user_get(msg_fake.msg_iov, msg_iov_fake))
         return _EFAULT;
-    struct iovec msg_iov[msg_fake.msg_iovlen];
-    msg.msg_iov = msg_iov;
-    msg.msg_iovlen = sizeof(msg_iov) / sizeof(msg_iov[0]);
-    for (size_t i = 0; i < (size_t)msg.msg_iovlen; i++) {
+    struct bridge_iovec msg_iov[msg_fake.msg_iovlen];
+    for (size_t i = 0; i < msg_fake.msg_iovlen; i++) {
         msg_iov[i].iov_len = msg_iov_fake[i].len;
         msg_iov[i].iov_base = malloc(msg_iov_fake[i].len);
     }
 
-    int64_t res = host_recvmsg(sock->real_fd, &msg, real_flags);
+    struct bridge_msghdr bridge_msg = {
+        .msg_name = msg_fake.msg_name != 0 ? msg_name_buf : NULL,
+        .msg_namelen = msg_namelen,
+        .msg_iov = msg_iov,
+        .msg_iovlen = msg_fake.msg_iovlen,
+        .msg_control = msg_fake.msg_controllen != 0 ? real_msg_control_buf : NULL,
+        .msg_controllen = msg_fake.msg_controllen != 0 ? sizeof(real_msg_control_buf) : 0,
+        .msg_flags = 0,
+    };
+
+    int real_flags = sock_flags_to_real((int)flags);
+    if (real_flags < 0) {
+        for (size_t i = 0; i < msg_fake.msg_iovlen; i++)
+            free(msg_iov[i].iov_base);
+        return _EINVAL;
+    }
+
+    int64_t res = recvmsg_impl(sock->real_fd, &bridge_msg, real_flags);
     int err = 0;
     if (res < 0)
         err = bridge_err((int32_t)res);
 
-    size_t n = res;
-    if (res < 0)
-        n = 0;
-    for (size_t i = 0; i < (size_t)msg.msg_iovlen; i++) {
+    size_t n = res > 0 ? (size_t)res : 0;
+    for (size_t i = 0; i < bridge_msg.msg_iovlen; i++) {
         size_t chunk_size = msg_iov[i].iov_len;
         if (chunk_size > n)
             chunk_size = n;
         if (chunk_size > 0)
             if (user_write(msg_iov_fake[i].base, msg_iov[i].iov_base, chunk_size))
-                return _EFAULT;
+                err = _EFAULT;
         n -= chunk_size;
         free(msg_iov[i].iov_base);
     }
 
     msg_fake.msg_controllen = 0;
-    if (sock->socket.domain == AF_LOCAL_ && host_cmsg_is_scm_rights(&msg)) {
-        int dummy_fd = host_cmsg_get_first_fd(&msg);
-        close(dummy_fd);
+    if (sock->socket.domain == AF_LOCAL_ && bridge_msg.msg_control != NULL) {
+        if (cmsg_is_scm_rights_impl(&bridge_msg)) {
+            int dummy_fd = cmsg_get_first_fd_impl(&bridge_msg);
+            close(dummy_fd);
 
-        lock(&sock->lock);
-        assert(!list_empty(&sock->socket.unix_scm));
-        struct scm *scm = list_first_entry(&sock->socket.unix_scm, struct scm, queue);
-        list_remove(&scm->queue);
-        unlock(&sock->lock);
+            lock(&sock->lock);
+            assert(!list_empty(&sock->socket.unix_scm));
+            struct scm *scm = list_first_entry(&sock->socket.unix_scm, struct scm, queue);
+            list_remove(&scm->queue);
+            unlock(&sock->lock);
 
-        if (res < 0) {
-            scm_free(scm);
-            return err;
+            if (res < 0) {
+                scm_free(scm);
+                return err;
+            }
+
+            uint8_t msg_control[sizeof(struct cmsghdr_) + scm->num_fds * sizeof(fd_t)];
+            struct cmsghdr_ *cmsg = (void *)msg_control;
+            cmsg->len = (uint32_t)sizeof(msg_control);
+            cmsg->level = SOL_SOCKET_;
+            cmsg->type = SCM_RIGHTS_;
+            fd_t *fds = (void *)cmsg->data;
+            for (unsigned i = 0; i < scm->num_fds; i++) {
+                fds[i] = f_install(scm->fds[i], 0);
+                STRACE(" receiving fd %d", fds[i]);
+            }
+            if (user_write(msg_fake.msg_control, cmsg, cmsg->len))
+                return _EFAULT;
+            msg_fake.msg_controllen = (uint64_t)bridge_msg.msg_controllen;
         }
-
-        uint8_t msg_control[sizeof(struct cmsghdr_) + scm->num_fds * sizeof(fd_t)];
-        struct cmsghdr_ *cmsg = (void *)msg_control;
-        cmsg->len = sizeof(msg_control);
-        cmsg->level = SOL_SOCKET_;
-        cmsg->type = SCM_RIGHTS_;
-        fd_t *fds = (void *)cmsg->data;
-        for (unsigned i = 0; i < scm->num_fds; i++) {
-            fds[i] = f_install(scm->fds[i], 0);
-            STRACE(" receiving fd %d", fds[i]);
-        }
-        if (user_write(msg_fake.msg_control, cmsg, cmsg->len))
-            return _EFAULT;
-        msg_fake.msg_controllen = msg.msg_controllen;
     }
 
     if (res < 0)
         return err;
 
-    if (msg.msg_name != 0) {
-        int err =
-            sockaddr_write(msg_fake.msg_name, msg.msg_name, sizeof(msg_name), &msg.msg_namelen);
-        if (err < 0)
-            return err;
+    if (msg_fake.msg_name != 0 && bridge_msg.msg_namelen > 0) {
+        uint32_t out_namelen = bridge_msg.msg_namelen;
+        int sa_err = sockaddr_write(msg_fake.msg_name, msg_name_buf, (uint32_t)sizeof(msg_name_buf),
+                                    &out_namelen);
+        if (sa_err < 0)
+            return sa_err;
+        msg_fake.msg_namelen = out_namelen;
+    } else {
+        msg_fake.msg_namelen = bridge_msg.msg_namelen;
     }
-    msg_fake.msg_namelen = msg.msg_namelen;
 
-    msg_fake.msg_flags = sock_flags_from_real(msg.msg_flags);
+    msg_fake.msg_flags = (int64_t)sock_flags_from_real(bridge_msg.msg_flags);
 
     if (user_put(msghdr_addr, msg_fake))
         return _EFAULT;
@@ -1131,7 +1140,7 @@ int64_t sys_sendmmsg(fd_t sock_fd, addr_t msg_vec, uint64_t vec_len, int64_t fla
 static void sock_translate_err(struct fd *fd, int *err)
 {
     if (*err == _ENOTCONN) {
-        struct host_sockaddr_result res = host_getpeername(fd->real_fd, NULL, 0);
+        struct sockaddr_result res = getpeername_impl(fd->real_fd, NULL, 0);
         if (res.ret < 0 && errno == EINVAL) {
             *err = _ECONNRESET;
         }
@@ -1140,16 +1149,18 @@ static void sock_translate_err(struct fd *fd, int *err)
 
 static ssize_t sock_read(struct fd *fd, void *buf, size_t size)
 {
-    int err = realfs_read(fd, buf, size);
-    sock_translate_err(fd, &err);
-    return err;
+    ssize_t err = realfs_read(fd, buf, size);
+    int err_int = (int)err;
+    sock_translate_err(fd, &err_int);
+    return err_int;
 }
 
 static ssize_t sock_write(struct fd *fd, const void *buf, size_t size)
 {
-    int err = realfs_write(fd, buf, size);
-    sock_translate_err(fd, &err);
-    return err;
+    ssize_t err = realfs_write(fd, buf, size);
+    int err_int = (int)err;
+    sock_translate_err(fd, &err_int);
+    return err_int;
 }
 
 static int sock_close(struct fd *fd)
@@ -1212,9 +1223,9 @@ int64_t sys_socketcall(uint32_t call_num, addr_t args_addr)
     case 8:
         return sys_socketpair(args[0], args[1], args[2], (addr_t)args[3]);
     case 9:
-        return sys_send((fd_t)args[0], (addr_t)args[1], args[2], (int64_t)(int32_t)args[3]);
+        return sys_send((fd_t)args[0], (addr_t)args[1], args[2], (int32_t)args[3]);
     case 10:
-        return sys_recv((fd_t)args[0], (addr_t)args[1], args[2], (int64_t)(int32_t)args[3]);
+        return sys_recv((fd_t)args[0], (addr_t)args[1], args[2], (int32_t)args[3]);
     case 11:
         return sys_sendto((fd_t)args[0], (addr_t)args[1], args[2], args[3], (addr_t)args[4],
                           args[5]);

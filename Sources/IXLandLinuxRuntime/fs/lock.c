@@ -1,13 +1,15 @@
-#include <limits.h>
+#import <IXLandLinuxRuntime/fs/inode.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/kernel/fs.h>
-#import <IXLandLinuxRuntime/fs/inode.h>
+#include <limits.h>
 
-static bool file_locks_overlap(struct file_lock *a, struct file_lock *b) {
+static bool file_locks_overlap(struct file_lock *a, struct file_lock *b)
+{
     return a->end >= b->start && b->end >= a->start;
 }
 
-static bool file_locks_conflict(struct file_lock *a, struct file_lock *b) {
+static bool file_locks_conflict(struct file_lock *a, struct file_lock *b)
+{
     if (a->owner == b->owner)
         return false;
     if (!file_locks_overlap(a, b))
@@ -18,20 +20,23 @@ static bool file_locks_conflict(struct file_lock *a, struct file_lock *b) {
     return false;
 }
 
-static bool file_locks_adjacent(struct file_lock *a, struct file_lock *b) {
+static bool file_locks_adjacent(struct file_lock *a, struct file_lock *b)
+{
     return a->end == b->start - 1 || b->end == a->start - 1;
 }
 
-static struct file_lock *file_lock_test(struct inode_data *inode, struct file_lock *request) {
+static struct file_lock *file_lock_test(struct inode_data *inode, struct file_lock *request)
+{
     struct file_lock *lock;
-    list_for_each_entry(&inode->posix_locks, lock, locks) {
+    list_for_each_entry (&inode->posix_locks, lock, locks) {
         if (file_locks_conflict(lock, request))
             return lock;
     }
     return NULL;
 }
 
-static struct file_lock *file_lock_copy(struct file_lock *request) {
+static struct file_lock *file_lock_copy(struct file_lock *request)
+{
     struct file_lock *lock = malloc(sizeof(struct file_lock));
     lock->start = request->start;
     lock->end = request->end;
@@ -42,16 +47,18 @@ static struct file_lock *file_lock_copy(struct file_lock *request) {
     return lock;
 }
 
-static void file_lock_delete(struct file_lock *lock) {
+static void file_lock_delete(struct file_lock *lock)
+{
     list_remove(&lock->locks);
     free(lock);
 }
 
-static int file_lock_acquire(struct inode_data *inode, struct file_lock *request) {
+static int file_lock_acquire(struct inode_data *inode, struct file_lock *request)
+{
     struct file_lock *lock;
 
     if (request->type != F_UNLCK_) {
-        list_for_each_entry(&inode->posix_locks, lock, locks) {
+        list_for_each_entry (&inode->posix_locks, lock, locks) {
             if (file_locks_conflict(lock, request))
                 return _EAGAIN;
             // TODO check for deadlocks
@@ -68,7 +75,8 @@ static int file_lock_acquire(struct inode_data *inode, struct file_lock *request
 
     bool found_our_locks = false;
     struct file_lock *tmp;
-    list_for_each_entry_safe(&inode->posix_locks, lock, tmp, locks) {
+    list_for_each_entry_safe(&inode->posix_locks, lock, tmp, locks)
+    {
         // To speed up looping over all of our locks, the locks are grouped by owner.
         if (!found_our_locks) {
             if (lock->owner != request->owner)
@@ -117,12 +125,14 @@ static int file_lock_acquire(struct inode_data *inode, struct file_lock *request
             } else if (lock->start < request->start) {
                 // lock sticks out on the start, so move the end down
                 assert(lock->end >= request->start);
-                // subtract can't overflow since the comparison above would fail if request->start is 0
+                // subtract can't overflow since the comparison above would fail if request->start
+                // is 0
                 lock->end = request->start - 1;
             } else if (lock->end > request->end) {
                 // lock sticks out on the end, so move the start up
                 assert(lock->start <= request->end);
-                // add can't overflow since the comparison above would fail if request->start is OFF_T_MAX
+                // add can't overflow since the comparison above would fail if request->start is
+                // OFF_T_MAX
                 lock->start = request->end + 1;
             }
         }
@@ -137,33 +147,34 @@ static int file_lock_acquire(struct inode_data *inode, struct file_lock *request
 
 #define OFF_T_MAX ~(1l << (sizeof(off_t) * 8 - 1))
 
-static int file_lock_from_flock(struct fd *fd, struct flock_ *flock, struct file_lock *lock) {
+static int file_lock_from_flock(struct fd *fd, struct flock_ *flock, struct file_lock *lock)
+{
     off_t_ offset;
     switch (flock->whence) {
-        case LSEEK_SET:
+    case LSEEK_SET:
+        offset = 0;
+        break;
+    case LSEEK_CUR:
+        if (!fd->ops->lseek) {
             offset = 0;
-            break;
-        case LSEEK_CUR:
-            if (!fd->ops->lseek) {
-                offset = 0;
-            } else {
-                lock(&fd->lock);
-                offset = fd->ops->lseek(fd, 0, LSEEK_CUR);
-                unlock(&fd->lock);
-                if (offset < 0)
-                    return offset;
-            }
-            break;
-        case LSEEK_END: {
-            struct statbuf stat;
-            int err = fd->mount->fs->fstat(fd, &stat);
-            if (err < 0)
-                return err;
-            offset = stat.size;
-            break;
+        } else {
+            lock(&fd->lock);
+            offset = fd->ops->lseek(fd, 0, LSEEK_CUR);
+            unlock(&fd->lock);
+            if (offset < 0)
+                return (int)offset;
         }
-        default:
-            return _EINVAL;
+        break;
+    case LSEEK_END: {
+        struct statbuf stat;
+        int err = fd->mount->fs->fstat(fd, &stat);
+        if (err < 0)
+            return err;
+        offset = stat.size;
+        break;
+    }
+    default:
+        return _EINVAL;
     }
 
     lock->start = flock->start + offset;
@@ -181,7 +192,8 @@ static int file_lock_from_flock(struct fd *fd, struct flock_ *flock, struct file
     return 0;
 }
 
-static int flock_from_file_lock(struct file_lock *lock, struct flock_ *flock) {
+static int flock_from_file_lock(struct file_lock *lock, struct flock_ *flock)
+{
     flock->type = lock->type;
     flock->whence = LSEEK_SET;
     flock->start = lock->start;
@@ -193,7 +205,8 @@ static int flock_from_file_lock(struct file_lock *lock, struct flock_ *flock) {
     return 0;
 }
 
-int fcntl_getlk(struct fd *fd, struct flock_ *flock) {
+int fcntl_getlk(struct fd *fd, struct flock_ *flock)
+{
     if (flock->type != F_RDLCK_ && flock->type != F_WRLCK_)
         return _EINVAL;
     struct inode_data *inode = fd->inode;
@@ -214,7 +227,8 @@ out:
     return err;
 }
 
-int fcntl_setlk(struct fd *fd, struct flock_ *flock, bool blocking) {
+int fcntl_setlk(struct fd *fd, struct flock_ *flock, bool blocking)
+{
     if (flock->type != F_RDLCK_ && flock->type != F_WRLCK_ && flock->type != F_UNLCK_)
         return _EINVAL;
     int fd_mode = fd_getflags(fd) & O_ACCMODE_;
@@ -242,11 +256,13 @@ out:
     return err;
 }
 
-void file_lock_remove_owned_by(struct fd *fd, void *owner) {
+void file_lock_remove_owned_by(struct fd *fd, void *owner)
+{
     struct inode_data *inode = fd->inode;
     lock(&inode->lock);
     struct file_lock *lock, *tmp;
-    list_for_each_entry_safe(&inode->posix_locks, lock, tmp, locks) {
+    list_for_each_entry_safe(&inode->posix_locks, lock, tmp, locks)
+    {
         if (lock->owner == owner)
             file_lock_delete(lock);
     }

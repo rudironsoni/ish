@@ -57,7 +57,7 @@ out:
     return err;
 }
 
-uint32_t sys_setpgrp()
+uint32_t sys_setpgrp(void)
 {
     return sys_setpgid(0, 0);
 }
@@ -77,7 +77,7 @@ pid_t_ sys_getpgid(pid_t_ pid)
     unlock(&pids_lock);
     return pid;
 }
-pid_t_ sys_getpgrp()
+pid_t_ sys_getpgrp(void)
 {
     return sys_getpgid(0);
 }
@@ -123,13 +123,13 @@ pid_t_ task_setsid(struct task *task)
     return new_sid;
 }
 
-uint32_t sys_setsid()
+uint32_t sys_setsid(void)
 {
     STRACE("setsid()");
     return task_setsid(current);
 }
 
-uint32_t sys_getsid()
+uint32_t sys_getsid(void)
 {
     STRACE("getsid()");
     lock(&pids_lock);

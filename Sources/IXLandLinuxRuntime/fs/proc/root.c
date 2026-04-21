@@ -1,7 +1,7 @@
 #import <IXLandLinuxRuntime/fs/proc.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #include <inttypes.h>
-#include <ixland/host_bridge.h>
+#include <ixland/platform_bridge.h>
 #include <string.h>
 #include <sys/stat.h>
 
@@ -31,7 +31,7 @@ static int proc_show_stat(struct proc_entry *UNUSED(entry), struct proc_data *bu
 
 static int proc_show_cpuinfo(struct proc_entry *UNUSED(entry), struct proc_data *buf)
 {
-    unsigned cpus = sysconf(_SC_NPROCESSORS_ONLN);
+    unsigned cpus = (unsigned)sysconf(_SC_NPROCESSORS_ONLN);
     for (unsigned i = 0; i < cpus; i++) {
         proc_printf(buf, "processor\t: %u\n", i);
         proc_printf(buf, "vendor_id\t: iSH\n");
@@ -149,7 +149,7 @@ static bool proc_root_readdir(struct proc_entry *UNUSED(entry), unsigned long *i
         return true;
     }
 
-    pid_t_ pid = *index - PROC_ROOT_LEN;
+    pid_t_ pid = (pid_t_)(*index - PROC_ROOT_LEN);
     if (pid <= MAX_PID) {
         lock(&pids_lock);
         do {

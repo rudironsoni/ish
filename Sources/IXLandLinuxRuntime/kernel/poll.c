@@ -56,7 +56,7 @@ static int32_t select_common(fd_t nfds, addr_t readfds_addr, addr_t writefds_add
 
     struct poll *poll = poll_create();
     if (IS_ERR(poll))
-        return PTR_ERR(poll);
+        return (int32_t)PTR_ERR(poll);
 
     for (fd_t i = 0; i < nfds; i++) {
         int events = 0;
@@ -150,7 +150,7 @@ uint32_t sys_poll(addr_t fds, uint32_t nfds, int64_t timeout)
             return _EFAULT;
     struct poll *poll = poll_create();
     if (IS_ERR(poll))
-        return PTR_ERR(poll);
+        return (uint32_t)PTR_ERR(poll);
 
     for (unsigned i = 0; i < nfds; i++)
         STRACE(" {%d, %#x}", polls[i].fd, polls[i].events);
@@ -260,7 +260,7 @@ uint32_t sys_ppoll(addr_t fds, uint32_t nfds, addr_t timeout_addr, addr_t sigmas
         struct timespec_ timeout_timespec;
         if (user_get(timeout_addr, timeout_timespec))
             return _EFAULT;
-        timeout = timeout_timespec.sec * 1000 + timeout_timespec.nsec / 1000000;
+        timeout = (int)(timeout_timespec.sec * 1000 + timeout_timespec.nsec / 1000000);
     }
 
     sigset_t_ mask;

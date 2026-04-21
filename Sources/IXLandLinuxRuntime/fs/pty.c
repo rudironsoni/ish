@@ -135,7 +135,7 @@ static int pty_write(struct tty *tty, const void *buf, size_t len, bool blocking
         (void)trace_begin_interval(TRACE_ORIGIN_TASK, "task.proof.pty.slave.write", pty_attrs, 2);
     }
 
-    int result = tty_input(tty->pty.other, buf, len, blocking);
+    int result = (int)tty_input(tty->pty.other, buf, len, blocking);
 
     // Trace read side after input completes
     char result_buf[16];
@@ -180,7 +180,7 @@ const struct tty_driver_ops pty_slave_ops = {
 };
 DEFINE_TTY_DRIVER(pty_slave, &pty_slave_ops, TTY_PSEUDO_SLAVE_MAJOR, MAX_PTYS);
 
-static int pty_reserve_next()
+static int pty_reserve_next(void)
 {
     int pty_num;
     lock(&ttys_lock);
@@ -200,7 +200,7 @@ int ptmx_open(struct fd *fd)
         return _ENOSPC;
     struct tty *master = tty_get(&pty_master, TTY_PSEUDO_MASTER_MAJOR, pty_num);
     if (IS_ERR(master))
-        return PTR_ERR(master);
+        return (int)PTR_ERR(master);
     return tty_open(master, fd);
 }
 
@@ -328,6 +328,8 @@ static int devpts_setattr_num(int pty_num, struct attr attr)
     case attr_mode:
         tty->pty.perms = attr.mode;
         break;
+    case attr_size:
+        break;
     }
 
     unlock(&tty->lock);
@@ -369,7 +371,7 @@ static int devpts_readdir(struct fd *fd, struct dir_entry *entry)
 {
     assert(fd->devpts.num == -1); // there shouldn't be anything to list but the root
 
-    int pty_num = fd->offset;
+    int pty_num = (int)fd->offset;
     while (pty_num < MAX_PTYS && !devpts_pty_exists(pty_num))
         pty_num++;
     if (pty_num >= MAX_PTYS)

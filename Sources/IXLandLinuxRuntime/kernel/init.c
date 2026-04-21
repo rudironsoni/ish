@@ -21,7 +21,7 @@ int mount_root(const struct fs_ops *fs, const char *source)
     return 0;
 }
 
-static void establish_signal_handlers()
+static void establish_signal_handlers(void)
 {
     extern void sigusr1_handler(int sig);
     struct sigaction sigact;
@@ -102,7 +102,7 @@ static struct task *construct_task(struct task *parent)
     current = task;
     task->fs->root = generic_open("/", O_RDONLY_, 0);
     if (IS_ERR(task->fs->root)) {
-        int err = PTR_ERR(task->fs->root);
+        int err = (int)PTR_ERR(task->fs->root);
         printk("ERROR: construct_task: generic_open(/) failed with %d\n", err);
         return ERR_PTR(err);
     }
@@ -119,7 +119,7 @@ static struct task *construct_task(struct task *parent)
     return task;
 }
 
-int become_first_process()
+int become_first_process(void)
 {
     printk("become_first_process: ENTRY\n");
 
@@ -136,7 +136,7 @@ int become_first_process()
 
     if (IS_ERR(task)) {
         printk("ERROR: become_first_process: construct_task failed with %d\n", PTR_ERR(task));
-        return PTR_ERR(task);
+        return (int)PTR_ERR(task);
     }
 
     printk(
@@ -148,7 +148,7 @@ int become_first_process()
     return 0;
 }
 
-int become_new_init_child()
+int become_new_init_child(void)
 {
     // CONTRACT: PID 1 must exist before any session can be started
     struct task *init = pid_get_task(1);
@@ -160,7 +160,7 @@ int become_new_init_child()
 
     struct task *task = construct_task(init);
     if (IS_ERR(task))
-        return PTR_ERR(task);
+        return (int)PTR_ERR(task);
 
     // these are things we definitely don't want to inherit
     task->clear_tid = 0;
@@ -224,7 +224,7 @@ static struct fd *open_fd_from_actual_fd(int fd_no)
     return fd;
 }
 
-int create_piped_stdio()
+int create_piped_stdio(void)
 {
     if (!(current->files->files[0] = open_fd_from_actual_fd(STDIN_FILENO))) {
         return -1;

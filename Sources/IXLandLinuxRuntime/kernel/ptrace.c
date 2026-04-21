@@ -28,17 +28,17 @@ found:
 static void get_user_regs(struct cpu_state *cpu, struct user_regs_struct_ *user_regs_)
 {
     // Map aarch64 x[0-5] to x86 ebx,ecx,edx,esi,edi for compatibility
-    user_regs_->ebx = cpu->x[0];
-    user_regs_->ecx = cpu->x[1];
-    user_regs_->edx = cpu->x[2];
-    user_regs_->esi = cpu->x[3];
-    user_regs_->edi = cpu->x[4];
-    user_regs_->ebp = cpu->x[5];
-    user_regs_->eax = cpu->x[6];
-    user_regs_->orig_eax = cpu->x[6];
-    user_regs_->eip = cpu->pc;
-    user_regs_->eflags = 0; // aarch64 doesn't have eflags
-    user_regs_->esp = cpu->sp;
+    user_regs_->ebx = (uint32_t)cpu->x[0];
+    user_regs_->ecx = (uint32_t)cpu->x[1];
+    user_regs_->edx = (uint32_t)cpu->x[2];
+    user_regs_->esi = (uint32_t)cpu->x[3];
+    user_regs_->edi = (uint32_t)cpu->x[4];
+    user_regs_->ebp = (uint32_t)cpu->x[5];
+    user_regs_->eax = (uint32_t)cpu->x[6];
+    user_regs_->orig_eax = (uint32_t)cpu->x[6];
+    user_regs_->eip = (uint32_t)cpu->pc;
+    user_regs_->eflags = 0;
+    user_regs_->esp = (uint32_t)cpu->sp;
 }
 
 // Ensure stopped, ptrace locked, etc. before calling this

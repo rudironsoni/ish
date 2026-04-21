@@ -559,7 +559,7 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out)
             break;
         }
 
-        out->pair_offset = sign_extend(imm7, 7)
+        out->pair_offset = (int)sign_extend(imm7, 7)
                            << (out->is_vector ? (2 + out->size) : (2 + (op0 >> 1)));
         return 0;
     }

@@ -1,16 +1,13 @@
-#include <fcntl.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <string.h>
-#include <sys/uio.h>
-
-// Single authoritative external sink: OSLog
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
 #import <IXLandLinuxRuntime/util/fifo.h>
 #import <IXLandLinuxRuntime/util/misc.h>
 #import <IXLandLinuxRuntime/util/sync.h>
-#include <os/log.h>
+#include <fcntl.h>
+#include <ixland/log_bridge.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
 
 #define LOG_BUF_SHIFT 20
 static char log_buffer[1 << LOG_BUF_SHIFT];
@@ -18,62 +15,33 @@ static struct fifo log_buf = FIFO_INIT(log_buffer);
 static size_t log_max_since_clear = 0;
 static lock_t log_lock = LOCK_INITIALIZER;
 
-// MARK: - OSLog Integration
-// Single authoritative external sink for normal runtime observability
-
-static os_log_t g_log_kernel;
-static os_log_t g_log_emulator;
-static os_log_t g_log_crash;
-static const char *const kISHOSLogSubsystem = "app.ixland.terminal";
-
-__attribute__((constructor)) static void init_os_log(void)
-{
-    g_log_kernel = os_log_create(kISHOSLogSubsystem, "kernel");
-    g_log_emulator = os_log_create(kISHOSLogSubsystem, "emulator");
-    g_log_crash = os_log_create(kISHOSLogSubsystem, "crash");
-}
-
-// Determine appropriate log level based on message content
-static os_log_type_t log_level_for_message(const char *msg)
+static enum log_level log_level_for_message(const char *msg)
 {
     if (!msg)
-        return OS_LOG_TYPE_DEFAULT;
-
-    // Check for error/fault indicators
+        return LOG_DEFAULT;
     if (strstr(msg, "FATAL") || strstr(msg, "CRASH") || strstr(msg, "fault:") ||
-        strstr(msg, "Assertion failed")) {
-        return OS_LOG_TYPE_FAULT;
-    }
+        strstr(msg, "Assertion failed"))
+        return LOG_FAULT;
     if (strstr(msg, "ERROR") || strstr(msg, "error:") || strstr(msg, "failed") ||
-        strstr(msg, "Failed")) {
-        return OS_LOG_TYPE_ERROR;
-    }
-    if (strstr(msg, "WARNING") || strstr(msg, "warn:")) {
-        return OS_LOG_TYPE_DEFAULT; // OSLog doesn't have warning, use default
-    }
-    if (strstr(msg, "DEBUG") || strstr(msg, "debug:")) {
-        return OS_LOG_TYPE_DEBUG;
-    }
+        strstr(msg, "Failed"))
+        return LOG_ERROR;
+    if (strstr(msg, "WARNING") || strstr(msg, "warn:"))
+        return LOG_DEFAULT;
+    if (strstr(msg, "DEBUG") || strstr(msg, "debug:"))
+        return LOG_DEBUG;
     if (strstr(msg, "ENTRY") || strstr(msg, "EXIT") || strstr(msg, "ready") ||
-        strstr(msg, "complete")) {
-        return OS_LOG_TYPE_INFO;
-    }
-    return OS_LOG_TYPE_DEFAULT;
+        strstr(msg, "complete"))
+        return LOG_INFO;
+    return LOG_DEFAULT;
 }
 
-// Explicit category routing for printk compatibility shim
-// All printk output goes to kernel category by default
-// Crash category is used only for explicit fatal/error paths
-static os_log_t log_for_message(const char *msg)
+static const char *log_category_for_message(const char *msg)
 {
     if (!msg)
-        return g_log_kernel;
-
-    // Crash category only for fatal/emergency paths
-    if (strstr(msg, "FATAL") || strstr(msg, "CRASH")) {
-        return g_log_crash;
-    }
-    return g_log_kernel;
+        return "kernel";
+    if (strstr(msg, "FATAL") || strstr(msg, "CRASH"))
+        return "crash";
+    return "kernel";
 }
 
 #define SYSLOG_ACTION_CLOSE_         0
@@ -105,7 +73,7 @@ static int syslog_read(addr_t buf_addr, int64_t len, int flags)
     free(buf);
     if (fail)
         return _EFAULT;
-    return len;
+    return (int)len;
 }
 
 static int do_syslog(int type, addr_t buf_addr, int64_t len)
@@ -127,9 +95,9 @@ static int do_syslog(int type, addr_t buf_addr, int64_t len)
         return 0;
 
     case SYSLOG_ACTION_SIZE_UNREAD_:
-        return fifo_size(&log_buf);
+        return (int)fifo_size(&log_buf);
     case SYSLOG_ACTION_SIZE_BUFFER_:
-        return fifo_capacity(&log_buf);
+        return (int)fifo_capacity(&log_buf);
 
     case SYSLOG_ACTION_CLOSE_:
     case SYSLOG_ACTION_OPEN_:
@@ -144,7 +112,7 @@ static int do_syslog(int type, addr_t buf_addr, int64_t len)
 int64_t sys_syslog(int64_t type, addr_t buf_addr, int64_t len)
 {
     lock(&log_lock);
-    int retval = do_syslog(type, buf_addr, len);
+    int retval = do_syslog((int)type, buf_addr, len);
     unlock(&log_lock);
     return retval;
 }
@@ -157,54 +125,26 @@ static void log_buf_append(const char *msg)
         log_max_since_clear = fifo_capacity(&log_buf);
 }
 
-// MARK: - Unified log_line implementation
-// Single path to OSLog with proper subsystem, category, and level
-
 static void log_line(const char *line)
 {
-    os_log_t log = log_for_message(line);
-    os_log_type_t type = log_level_for_message(line);
-
-    switch (type) {
-    case OS_LOG_TYPE_DEBUG:
-        os_log_debug(log, "%{public}s", line);
-        break;
-    case OS_LOG_TYPE_INFO:
-        os_log_info(log, "%{public}s", line);
-        break;
-    case OS_LOG_TYPE_DEFAULT:
-        os_log(log, "%{public}s", line);
-        break;
-    case OS_LOG_TYPE_ERROR:
-        os_log_error(log, "%{public}s", line);
-        break;
-    case OS_LOG_TYPE_FAULT:
-        os_log_fault(log, "%{public}s", line);
-        break;
-    default:
-        os_log(log, "%{public}s", line);
-        break;
-    }
+    enum log_level level = log_level_for_message(line);
+    const char *category = log_category_for_message(line);
+    log_emit_impl(level, "app.ixland.terminal", category, line);
 }
 
 static void output_line(const char *line)
 {
-    // Publish to unified OSLog (single authoritative external sink)
     log_line(line);
-
-    // Also add to circular buffer for guest-visible syslog semantics
     log_buf_append(line);
     log_buf_append("\n");
 }
 
 void ish_vprintk(const char *msg, va_list args)
 {
-    // format the message
     static __thread char buf[16384] = "";
     static __thread size_t buf_size = 0;
     buf_size += vsprintf(buf + buf_size, msg, args);
 
-    // output up to the last newline, leave the rest in the buffer
     lock(&log_lock);
     char *b = buf;
     char *p;
@@ -239,11 +179,8 @@ void die(const char *msg, ...)
     char buf[4096];
     vsprintf(buf, msg, args);
 
-    // FATAL PATH: Log as fault and persist crash artifacts
-    os_log_fault(g_log_crash, "FATAL: %{public}s", buf);
+    log_fault_fatal_impl(buf);
 
-    /* Persist trace ring before dying for next-launch recovery */
-    /* Note: g_crash_ring_path should point to app sandbox Diagnostics directory */
     extern const char *g_crash_ring_path;
     extern int trace_persist_ring(const char *path);
     if (g_crash_ring_path) {
@@ -255,8 +192,7 @@ void die(const char *msg, ...)
     va_end(args);
 }
 
-// fun little utility function
-int current_pid()
+int current_pid(void)
 {
     if (current)
         return current->pid;

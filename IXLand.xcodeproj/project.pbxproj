@@ -322,6 +322,7 @@
 		0E8EEFF817ABCC943BEEB6BC /* real.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = real.h; sourceTree = "<group>"; };
 		0F7232C20762126236329A48 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		10AE7F899F687F7522BC04EC /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		1129142F90AAB4D8E9ABC286 /* platform_bridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = platform_bridge.h; sourceTree = "<group>"; };
 		113A11B7EAE92517A9F2E728 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
 		1185AC6E85598743A46FD1E5 /* ThemeViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ThemeViewController.m; sourceTree = "<group>"; };
 		125E6BF73B376EAF41723644 /* cpu-offsets.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "cpu-offsets.h"; sourceTree = "<group>"; };
@@ -336,6 +337,7 @@
 		17BDD7720CA57F72AA94E121 /* inode.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = inode.c; sourceTree = "<group>"; };
 		181F5CC1923CABB296BBEB8D /* ihash1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = ihash1.png; sourceTree = "<group>"; };
 		18CC902DD9DCF063888941DD /* tlb.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = tlb.c; sourceTree = "<group>"; };
+		18FBBFD1201991C3E0DB44EB /* log_bridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = log_bridge.h; sourceTree = "<group>"; };
 		19AEEED0456BE71FCC1F70BC /* signal.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = signal.h; sourceTree = "<group>"; };
 		1AA27F556BDBEFEDF25D866A /* prof.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = prof.c; sourceTree = "<group>"; };
 		1BA586F8A3060D06AE4E2FE6 /* AudioToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioToolbox.framework; path = System/Library/Frameworks/AudioToolbox.framework; sourceTree = SDKROOT; };
@@ -414,7 +416,6 @@
 		5241603834241B17080250AE /* fakefs.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = fakefs.c; sourceTree = "<group>"; };
 		535EB74BF370B42A897D0996 /* tcti_boundary_probe.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = tcti_boundary_probe.h; sourceTree = "<group>"; };
 		54DD0FE05BEB4DA03DBD0492 /* TCTIHotPathPerfTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TCTIHotPathPerfTests.m; sourceTree = "<group>"; };
-		55AF2AF32E2498D4DD7D633E /* host_bridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = host_bridge.h; sourceTree = "<group>"; };
 		563C027415F57AB6BE3EB3A3 /* term.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = term.js; sourceTree = "<group>"; };
 		57A2FBD22A8A181950AED401 /* SceneDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SceneDelegate.m; sourceTree = "<group>"; };
 		57C2B41AFEC474EF9AEC19A2 /* sock.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sock.c; sourceTree = "<group>"; };
@@ -479,6 +480,7 @@
 		7F93DABE63A2544150BFE0A7 /* personality.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = personality.h; sourceTree = "<group>"; };
 		7FDADEDF12FDDC2681F52D22 /* ScrollbarView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ScrollbarView.h; sourceTree = "<group>"; };
 		80032F7FA60CEA26F93BC39F /* term.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = term.html; sourceTree = "<group>"; };
+		81083EC6BF165200F2BE5E9D /* sock_bridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sock_bridge.h; sourceTree = "<group>"; };
 		811128E064EC055089670308 /* BarButton.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = BarButton.m; sourceTree = "<group>"; };
 		824D0F0A36DB5D3AB0C57BF6 /* GuestBringupMatrixTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GuestBringupMatrixTests.m; sourceTree = "<group>"; };
 		8291F30E37ACDDE208700D54 /* LocationDevice.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LocationDevice.h; sourceTree = "<group>"; };
@@ -1104,8 +1106,10 @@
 			isa = PBXGroup;
 			children = (
 				39EDDC5FDCE23C33D139AEAA /* clangd_owner_policy.h */,
-				55AF2AF32E2498D4DD7D633E /* host_bridge.h */,
 				0DF9623A0FF19B8B6671DE74 /* linux_types.h */,
+				18FBBFD1201991C3E0DB44EB /* log_bridge.h */,
+				1129142F90AAB4D8E9ABC286 /* platform_bridge.h */,
+				81083EC6BF165200F2BE5E9D /* sock_bridge.h */,
 			);
 			path = ixland;
 			sourceTree = "<group>";
@@ -2251,8 +2255,10 @@
 				CODE_SIGN_ENTITLEMENTS = Sources/IXLandTerminal/iSH.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				HEADER_SEARCH_PATHS = (
+					"$(LINUX_UAPI_INCLUDE_ROOT)",
 					"$(SRCROOT)/Sources/IXLandTerminal",
 					"$(DERIVED_FILE_DIR)",
+					"$(SRCROOT)/include",
 					"$(SRCROOT)/Sources",
 					"$(SRCROOT)/tools",
 					"$(SDKROOT)/usr/include/libxml2",
@@ -2477,8 +2483,10 @@
 				CODE_SIGN_ENTITLEMENTS = Sources/IXLandTerminal/iSH.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				HEADER_SEARCH_PATHS = (
+					"$(LINUX_UAPI_INCLUDE_ROOT)",
 					"$(SRCROOT)/Sources/IXLandTerminal",
 					"$(DERIVED_FILE_DIR)",
+					"$(SRCROOT)/include",
 					"$(SRCROOT)/Sources",
 					"$(SRCROOT)/tools",
 					"$(SDKROOT)/usr/include/libxml2",

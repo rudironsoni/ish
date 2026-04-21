@@ -408,7 +408,7 @@ static struct mmu_ops mem_mmu_ops = {
 };
 
 size_t real_page_size;
-__attribute__((constructor)) static void get_real_page_size()
+__attribute__((constructor)) static void get_real_page_size(void)
 {
     real_page_size = sysconf(_SC_PAGESIZE);
 }

@@ -25,7 +25,7 @@ struct futex_wait {
 static lock_t futex_lock = LOCK_INITIALIZER;
 static struct list futex_hash[FUTEX_HASH_SIZE];
 
-static void __attribute__((constructor)) init_futex_hash()
+static void __attribute__((constructor)) init_futex_hash(void)
 {
     for (int i = 0; i < FUTEX_HASH_SIZE; i++)
         list_init(&futex_hash[i]);
@@ -188,7 +188,7 @@ uint32_t sys_futex(addr_t uaddr, uint32_t op, uint32_t val, addr_t timeout_or_va
         return futex_wakelike(op & FUTEX_CMD_MASK_, uaddr, val, 0, 0);
     case FUTEX_REQUEUE_:
         STRACE("futex(FUTEX_REQUEUE, %#x, %d, %#x)", uaddr, val, uaddr2);
-        return futex_wakelike(op & FUTEX_CMD_MASK_, uaddr, val, timeout_or_val2, uaddr2);
+        return futex_wakelike(op & FUTEX_CMD_MASK_, uaddr, val, (int)timeout_or_val2, uaddr2);
     }
     STRACE("futex(%#x, %d, %d, timeout=%#x, %#x, %d) ", uaddr, op, val, timeout_or_val2, uaddr2,
            val3);

@@ -529,13 +529,13 @@ static int read_prg_headers(struct fd *fd, struct elf_header header, struct prg_
         return _ENOMEM;
     }
 
-    trace_emit_u32(TRACE_EVENT_BLOCK_COMPILE_START, 0x1002, header.prghead_off);
+    trace_emit_u32(TRACE_EVENT_BLOCK_COMPILE_START, 0x1002, (uint32_t)header.prghead_off);
     if (fd->ops->lseek(fd, header.prghead_off, LSEEK_SET) < 0) {
         trace_emit_u32(TRACE_EVENT_BLOCK_COMPILE_START, 0x1003, 1);
         free(ph);
         return _EIO;
     }
-    trace_emit_u32(TRACE_EVENT_BLOCK_COMPILE_START, 0x1004, ph_size);
+    trace_emit_u32(TRACE_EVENT_BLOCK_COMPILE_START, 0x1004, (uint32_t)ph_size);
     ssize_t read_ret = fd->ops->read(fd, ph, ph_size);
     trace_emit_u32(TRACE_EVENT_BLOCK_COMPILE_START, 0x1005, (uint32_t)read_ret);
     if (read_ret != ph_size) {
@@ -655,7 +655,7 @@ static int load_entry(struct prg_header ph, addr_t bias, struct fd *fd)
 
     if (memsize > filesize) {
         // put zeroes between addr + filesize and addr + memsize, call that bss
-        uint32_t bss_size = memsize - filesize;
+        uint32_t bss_size = (uint32_t)(memsize - filesize);
 
         // first zero the tail from the end of the file mapping to the end
         // of the load entry or the end of the page, whichever comes first
@@ -779,7 +779,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
             static int budget = 1;
             if (budget > 0) {
                 char ev[256];
-                int open_err = IS_ERR(interp_fd) ? PTR_ERR(interp_fd) : 0;
+                int open_err = IS_ERR(interp_fd) ? (int)PTR_ERR(interp_fd) : 0;
                 snprintf(ev, sizeof(ev), "loader.interp.open.result=err:%d,path:%s,present:1",
                          open_err, interp_name ? interp_name : "none");
                 trace_record_event(TRACE_ORIGIN_KERNEL, ev);
@@ -787,7 +787,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
             }
         }
         if (IS_ERR(interp_fd)) {
-            err = PTR_ERR(interp_fd);
+            err = (int)PTR_ERR(interp_fd);
             goto out_free_interp;
         }
         if ((err = read_header(interp_fd, &interp_header)) < 0) {
@@ -1559,7 +1559,7 @@ static int text_interpreter_exec(struct fd *fd, const char *file, struct exec_ar
     if (fd->ops->lseek(fd, 0, LSEEK_SET))
         return _EIO;
     char header[256];
-    int size = fd->ops->read(fd, header, sizeof(header) - 1);
+    int size = (int)fd->ops->read(fd, header, sizeof(header) - 1);
     if (size < 0)
         return _EIO;
     header[size] = '\0';
@@ -1618,7 +1618,7 @@ static int text_interpreter_exec(struct fd *fd, const char *file, struct exec_ar
 
     struct fd *interpreter_fd = generic_open(interpreter, O_RDONLY_, 0);
     if (IS_ERR(interpreter_fd))
-        return PTR_ERR(interpreter_fd);
+        return (int)PTR_ERR(interpreter_fd);
     int result = format_exec(interpreter_fd, interpreter, new_argv, envp);
     fd_close(interpreter_fd);
     return result;
@@ -1631,7 +1631,7 @@ static int shebang_exec(struct fd *fd, const char *file, struct exec_args argv,
     if (fd->ops->lseek(fd, 0, LSEEK_SET))
         return _EIO;
     char header[128];
-    int size = fd->ops->read(fd, header, sizeof(header) - 1);
+    int size = (int)fd->ops->read(fd, header, sizeof(header) - 1);
     if (size < 0)
         return _EIO;
     header[size] = '\0';
@@ -1700,7 +1700,7 @@ static int shebang_exec(struct fd *fd, const char *file, struct exec_args argv,
 
     struct fd *interpreter_fd = generic_open(interpreter, O_RDONLY_, 0);
     if (IS_ERR(interpreter_fd))
-        return PTR_ERR(interpreter_fd);
+        return (int)PTR_ERR(interpreter_fd);
     int err = format_exec(interpreter_fd, interpreter, new_argv, envp);
     fd_close(interpreter_fd);
     return err;
@@ -1716,7 +1716,7 @@ int __do_execve(const char *file, struct exec_args argv, struct exec_args envp)
         (uint64_t)(current ? current->mem : NULL), EXEC_PATH_DO_EXECVE_ENTRY_RET, 0);
     struct fd *fd = generic_open(file, O_RDONLY, 0);
     if (IS_ERR(fd)) {
-        return PTR_ERR(fd);
+        return (int)PTR_ERR(fd);
     }
 
     struct statbuf stat;
@@ -1941,7 +1941,7 @@ uint32_t sys_execve(addr_t filename_addr, addr_t argv_addr, addr_t envp_addr)
         goto err_free_argv;
     ssize_t argc = user_read_string_array(argv_addr, argv, ARGV_MAX);
     if (argc < 0) {
-        err = argc;
+        err = (int)argc;
         goto err_free_argv;
     }
 
@@ -1949,7 +1949,7 @@ uint32_t sys_execve(addr_t filename_addr, addr_t argv_addr, addr_t envp_addr)
     if (envp == NULL)
         goto err_free_envp;
     if (envp_addr != 0) {
-        err = user_read_string_array(envp_addr, envp, ARGV_MAX);
+        err = (int)user_read_string_array(envp_addr, envp, ARGV_MAX);
         if (err < 0)
             goto err_free_envp;
     } else {

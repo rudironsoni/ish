@@ -27,8 +27,6 @@ static int getpath(int fd, char *buf)
 static int open_flags_real_from_fake(int flags)
 {
     int real_flags = 0;
-    if (flags & O_RDONLY_)
-        real_flags |= O_RDONLY;
     if (flags & O_WRONLY_)
         real_flags |= O_WRONLY;
     if (flags & O_RDWR_)
@@ -51,8 +49,6 @@ static int open_flags_real_from_fake(int flags)
 static int open_flags_fake_from_real(int flags)
 {
     int fake_flags = 0;
-    if (flags & O_RDONLY)
-        fake_flags |= O_RDONLY_;
     if (flags & O_WRONLY)
         fake_flags |= O_WRONLY_;
     if (flags & O_RDWR)
@@ -104,13 +100,13 @@ static void copy_stat(struct statbuf *fake_stat, struct stat *real_stat)
     fake_stat->size = real_stat->st_size;
     fake_stat->blksize = real_stat->st_blksize;
     fake_stat->blocks = real_stat->st_blocks;
-    fake_stat->atime = real_stat->st_atime;
-    fake_stat->mtime = real_stat->st_mtime;
-    fake_stat->ctime = real_stat->st_ctime;
+    fake_stat->atime = (uint32_t)real_stat->st_atime;
+    fake_stat->mtime = (uint32_t)real_stat->st_mtime;
+    fake_stat->ctime = (uint32_t)real_stat->st_ctime;
 #define TIMESPEC(x) st_##x##timespec
-    fake_stat->atime_nsec = real_stat->TIMESPEC(a).tv_nsec;
-    fake_stat->mtime_nsec = real_stat->TIMESPEC(m).tv_nsec;
-    fake_stat->ctime_nsec = real_stat->TIMESPEC(c).tv_nsec;
+    fake_stat->atime_nsec = (uint32_t)real_stat->TIMESPEC(a).tv_nsec;
+    fake_stat->mtime_nsec = (uint32_t)real_stat->TIMESPEC(m).tv_nsec;
+    fake_stat->ctime_nsec = (uint32_t)real_stat->TIMESPEC(c).tv_nsec;
 #undef TIMESPEC
 }
 
@@ -531,7 +527,7 @@ int realfs_ioctl(struct fd *fd, int cmd, void *arg)
         err = ioctl(fd->real_fd, FIONREAD, &nread);
         if (err < 0)
             return errno_map();
-        *(uint32_t *)arg = nread;
+        *(uint32_t *)arg = (uint32_t)nread;
         return 0;
     }
     return _ENOTTY;

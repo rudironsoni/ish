@@ -1,9 +1,10 @@
+#import <IXLandLinuxRuntime/fs/path.h>
+#import <IXLandLinuxRuntime/kernel/calls.h>
 #include <string.h>
 #include <sys/stat.h>
-#import <IXLandLinuxRuntime/kernel/calls.h>
-#import <IXLandLinuxRuntime/fs/path.h>
 
-static int __path_normalize(const char *at_path, const char *path, char *out, int flags, int levels) {
+static int __path_normalize(const char *at_path, const char *path, char *out, int flags, int levels)
+{
     // you must choose one
     if (flags & N_SYMLINK_FOLLOW)
         assert(!(flags & N_SYMLINK_NOFOLLOW));
@@ -51,7 +52,8 @@ static int __path_normalize(const char *at_path, const char *path, char *out, in
         }
 
         // output a slash
-        *o++ = '/'; n--;
+        *o++ = '/';
+        n--;
         char *c = o;
         // copy up to a slash or null
         while (*p != '/' && *p != '\0' && --n > 0)
@@ -74,7 +76,7 @@ static int __path_normalize(const char *at_path, const char *path, char *out, in
             assert(path_is_normalized(possible_symlink));
             int res = _EINVAL;
             if (mount->fs->readlink)
-                res = mount->fs->readlink(mount, possible_symlink, c, MAX_PATH - (c - out));
+                res = (int)mount->fs->readlink(mount, possible_symlink, c, MAX_PATH - (c - out));
             if (res >= 0) {
                 mount_release(mount);
                 if (levels >= 5)
@@ -118,7 +120,8 @@ static int __path_normalize(const char *at_path, const char *path, char *out, in
     return 0;
 }
 
-int path_normalize(struct fd *at, const char *path, char *out, int flags) {
+int path_normalize(struct fd *at, const char *path, char *out, int flags)
+{
     assert(at != NULL);
     if (strcmp(path, "") == 0)
         return _ENOENT;
@@ -142,7 +145,8 @@ int path_normalize(struct fd *at, const char *path, char *out, int flags) {
 }
 
 
-bool path_is_normalized(const char *path) {
+bool path_is_normalized(const char *path)
+{
     while (*path != '\0') {
         if (*path != '/')
             return false;
@@ -155,7 +159,8 @@ bool path_is_normalized(const char *path) {
     return true;
 }
 
-bool path_next_component(const char **path, char *component, int *err) {
+bool path_next_component(const char **path, char *component, int *err)
+{
     const char *p = *path;
     if (*p == '\0')
         return false;

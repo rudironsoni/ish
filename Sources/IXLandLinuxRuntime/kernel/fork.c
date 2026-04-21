@@ -77,7 +77,7 @@ static int copy_task(struct task *task, uint32_t flags, addr_t stack, addr_t pti
     } else {
         struct mm *new_mm = mm_copy(parent_mm);
         if (IS_ERR(new_mm)) {
-            err = PTR_ERR(new_mm);
+            err = (int)PTR_ERR(new_mm);
             goto fail_free_mem;
         }
         task_set_mm(task, new_mm);
@@ -88,7 +88,7 @@ static int copy_task(struct task *task, uint32_t flags, addr_t stack, addr_t pti
     } else {
         task->files = fdtable_copy(task->files);
         if (IS_ERR(task->files)) {
-            err = PTR_ERR(task->files);
+            err = (int)PTR_ERR(task->files);
             goto fail_free_mem;
         }
     }
@@ -214,12 +214,12 @@ uint32_t sys_clone(uint32_t flags, addr_t stack, addr_t ptid, addr_t tls, addr_t
     return pid;
 }
 
-uint32_t sys_fork()
+uint32_t sys_fork(void)
 {
     return sys_clone(SIGCHLD_, 0, 0, 0, 0);
 }
 
-uint32_t sys_vfork()
+uint32_t sys_vfork(void)
 {
     return sys_clone(CLONE_VFORK_ | CLONE_VM_ | SIGCHLD_, 0, 0, 0, 0);
 }

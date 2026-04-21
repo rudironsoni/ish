@@ -1,16 +1,16 @@
+#import <IXLandLinuxRuntime/fs/dev.h>
+#import <IXLandLinuxRuntime/fs/fd.h>
+#import <IXLandLinuxRuntime/fs/inode.h>
+#import <IXLandLinuxRuntime/fs/path.h>
+#import <IXLandLinuxRuntime/kernel/errno.h>
+#import <IXLandLinuxRuntime/kernel/fs.h>
+#import <IXLandLinuxRuntime/kernel/task.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 
-#import <IXLandLinuxRuntime/kernel/fs.h>
-#import <IXLandLinuxRuntime/fs/fd.h>
-#import <IXLandLinuxRuntime/fs/inode.h>
-#import <IXLandLinuxRuntime/fs/path.h>
-#import <IXLandLinuxRuntime/fs/dev.h>
-#import <IXLandLinuxRuntime/kernel/task.h>
-#import <IXLandLinuxRuntime/kernel/errno.h>
-
-struct mount *find_mount_and_trim_path(char *path) {
+struct mount *find_mount_and_trim_path(char *path)
+{
     struct mount *mount = mount_find(path);
     char *dst = path;
     const char *src = path + strlen(mount->point);
@@ -20,25 +20,27 @@ struct mount *find_mount_and_trim_path(char *path) {
     return mount;
 }
 
-bool contains_mount_point(const char *path) {
+bool contains_mount_point(const char *path)
+{
     struct mount *mount;
-    list_for_each_entry(&mounts, mount, mounts) {
-        int n = strlen(path);
+    list_for_each_entry (&mounts, mount, mounts) {
+        size_t n = strlen(path);
         if (strncmp(path, mount->point, n) == 0 &&
-                (mount->point[n] == '\0' || mount->point[n] == '/'))
+            (mount->point[n] == '\0' || mount->point[n] == '/'))
             return true;
     }
     return false;
 }
 
-struct fd *generic_openat(struct fd *at, const char *path_raw, int flags, int mode) {
+struct fd *generic_openat(struct fd *at, const char *path_raw, int flags, int mode)
+{
     if (flags & O_RDWR_ && flags & O_WRONLY_)
         return ERR_PTR(_EINVAL);
 
     // TODO really, really, seriously reconsider what I'm doing with the strings
     char path[MAX_PATH];
-    int err = path_normalize(at, path_raw, path, N_SYMLINK_FOLLOW |
-            (flags & O_CREAT_ ? N_PARENT_DIR_WRITE : 0));
+    int err = path_normalize(at, path_raw, path,
+                             N_SYMLINK_FOLLOW | (flags & O_CREAT_ ? N_PARENT_DIR_WRITE : 0));
     if (err < 0)
         return ERR_PTR(err);
     struct mount *mount = find_mount_and_trim_path(path);
@@ -64,9 +66,12 @@ struct fd *generic_openat(struct fd *at, const char *path_raw, int flags, int mo
     fd->flags = flags;
 
     int accmode;
-    if (flags & O_RDWR_) accmode = AC_R | AC_W;
-    else if (flags & O_WRONLY_) accmode = AC_W;
-    else accmode = AC_R;
+    if (flags & O_RDWR_)
+        accmode = AC_R | AC_W;
+    else if (flags & O_WRONLY_)
+        accmode = AC_W;
+    else
+        accmode = AC_R;
     err = access_check(&stat, accmode);
     if (err < 0)
         goto error;
@@ -98,11 +103,13 @@ error:
     return ERR_PTR(err);
 }
 
-struct fd *generic_open(const char *path, int flags, int mode) {
+struct fd *generic_open(const char *path, int flags, int mode)
+{
     return generic_openat(AT_PWD, path, flags, mode);
 }
 
-int generic_getpath(struct fd *fd, char *buf) {
+int generic_getpath(struct fd *fd, char *buf)
+{
     int err = fd->mount->fs->getpath(fd, buf);
     if (err < 0)
         return err;
@@ -115,7 +122,8 @@ int generic_getpath(struct fd *fd, char *buf) {
     return 0;
 }
 
-int generic_accessat(struct fd *dirfd, const char *path_raw, int mode) {
+int generic_accessat(struct fd *dirfd, const char *path_raw, int mode)
+{
     char path[MAX_PATH];
     int err = path_normalize(dirfd, path_raw, path, N_SYMLINK_FOLLOW);
     if (err < 0)
@@ -130,7 +138,8 @@ int generic_accessat(struct fd *dirfd, const char *path_raw, int mode) {
     return access_check(&stat, mode);
 }
 
-int generic_linkat(struct fd *src_at, const char *src_raw, struct fd *dst_at, const char *dst_raw) {
+int generic_linkat(struct fd *src_at, const char *src_raw, struct fd *dst_at, const char *dst_raw)
+{
     char src[MAX_PATH];
     int err = path_normalize(src_at, src_raw, src, N_SYMLINK_NOFOLLOW);
     if (err < 0)
@@ -152,7 +161,8 @@ int generic_linkat(struct fd *src_at, const char *src_raw, struct fd *dst_at, co
     return err;
 }
 
-int generic_unlinkat(struct fd *at, const char *path_raw) {
+int generic_unlinkat(struct fd *at, const char *path_raw)
+{
     char path[MAX_PATH];
     int err = path_normalize(at, path_raw, path, N_SYMLINK_NOFOLLOW);
     if (err < 0)
@@ -165,7 +175,8 @@ int generic_unlinkat(struct fd *at, const char *path_raw) {
     return err;
 }
 
-int generic_renameat(struct fd *src_at, const char *src_raw, struct fd *dst_at, const char *dst_raw) {
+int generic_renameat(struct fd *src_at, const char *src_raw, struct fd *dst_at, const char *dst_raw)
+{
     char src[MAX_PATH];
     int err = path_normalize(src_at, src_raw, src, N_SYMLINK_NOFOLLOW);
     if (err < 0)
@@ -189,7 +200,8 @@ int generic_renameat(struct fd *src_at, const char *src_raw, struct fd *dst_at, 
     return err;
 }
 
-int generic_symlinkat(const char *target, struct fd *at, const char *link_raw) {
+int generic_symlinkat(const char *target, struct fd *at, const char *link_raw)
+{
     char link[MAX_PATH];
     int err = path_normalize(at, link_raw, link, N_SYMLINK_NOFOLLOW | N_PARENT_DIR_WRITE);
     if (err < 0)
@@ -202,7 +214,8 @@ int generic_symlinkat(const char *target, struct fd *at, const char *link_raw) {
     return err;
 }
 
-int generic_mknodat(struct fd *at, const char *path_raw, mode_t_ mode, dev_t_ dev) {
+int generic_mknodat(struct fd *at, const char *path_raw, mode_t_ mode, dev_t_ dev)
+{
     if (S_ISDIR(mode) || S_ISLNK(mode))
         return _EINVAL;
     if (!superuser() && (S_ISBLK(mode) || S_ISCHR(mode)))
@@ -220,9 +233,11 @@ int generic_mknodat(struct fd *at, const char *path_raw, mode_t_ mode, dev_t_ de
     return err;
 }
 
-int generic_setattrat(struct fd *at, const char *path_raw, struct attr attr, bool follow_links) {
+int generic_setattrat(struct fd *at, const char *path_raw, struct attr attr, bool follow_links)
+{
     char path[MAX_PATH];
-    int err = path_normalize(at, path_raw, path, follow_links ? N_SYMLINK_FOLLOW : N_SYMLINK_NOFOLLOW);
+    int err =
+        path_normalize(at, path_raw, path, follow_links ? N_SYMLINK_FOLLOW : N_SYMLINK_NOFOLLOW);
     if (err < 0)
         return err;
     struct mount *mount = find_mount_and_trim_path(path);
@@ -233,9 +248,12 @@ int generic_setattrat(struct fd *at, const char *path_raw, struct attr attr, boo
     return err;
 }
 
-int generic_utime(struct fd *at, const char *path_raw, struct timespec atime, struct timespec mtime, bool follow_links) {
+int generic_utime(struct fd *at, const char *path_raw, struct timespec atime, struct timespec mtime,
+                  bool follow_links)
+{
     char path[MAX_PATH];
-    int err = path_normalize(at, path_raw, path, follow_links ? N_SYMLINK_FOLLOW : N_SYMLINK_NOFOLLOW);
+    int err =
+        path_normalize(at, path_raw, path, follow_links ? N_SYMLINK_FOLLOW : N_SYMLINK_NOFOLLOW);
     if (err < 0)
         return err;
     struct mount *mount = find_mount_and_trim_path(path);
@@ -246,7 +264,8 @@ int generic_utime(struct fd *at, const char *path_raw, struct timespec atime, st
     return err;
 }
 
-ssize_t generic_readlinkat(struct fd *at, const char *path_raw, char *buf, size_t bufsize) {
+ssize_t generic_readlinkat(struct fd *at, const char *path_raw, char *buf, size_t bufsize)
+{
     char path[MAX_PATH];
     int err = path_normalize(at, path_raw, path, N_SYMLINK_NOFOLLOW);
     if (err < 0)
@@ -254,12 +273,13 @@ ssize_t generic_readlinkat(struct fd *at, const char *path_raw, char *buf, size_
     struct mount *mount = find_mount_and_trim_path(path);
     err = _EINVAL;
     if (mount->fs->readlink)
-        err = mount->fs->readlink(mount, path, buf, bufsize);
+        err = (int)mount->fs->readlink(mount, path, buf, bufsize);
     mount_release(mount);
     return err;
 }
 
-int generic_mkdirat(struct fd *at, const char *path_raw, mode_t_ mode) {
+int generic_mkdirat(struct fd *at, const char *path_raw, mode_t_ mode)
+{
     char path[MAX_PATH];
     int err = path_normalize(at, path_raw, path, N_SYMLINK_FOLLOW | N_PARENT_DIR_WRITE);
     if (err < 0)
@@ -272,7 +292,8 @@ int generic_mkdirat(struct fd *at, const char *path_raw, mode_t_ mode) {
     return err;
 }
 
-int generic_rmdirat(struct fd *at, const char *path_raw) {
+int generic_rmdirat(struct fd *at, const char *path_raw)
+{
     char path[MAX_PATH];
     int err = path_normalize(at, path_raw, path, N_SYMLINK_FOLLOW | N_PARENT_DIR_WRITE);
     if (err < 0)
@@ -287,7 +308,8 @@ int generic_rmdirat(struct fd *at, const char *path_raw) {
     return err;
 }
 
-int generic_seek(struct fd *fd, off_t_ off, int whence, size_t size) {
+int generic_seek(struct fd *fd, off_t_ off, int whence, size_t size)
+{
     off_t_ new_off = fd->offset;
     if (whence == LSEEK_SET) {
         fd->offset = off;

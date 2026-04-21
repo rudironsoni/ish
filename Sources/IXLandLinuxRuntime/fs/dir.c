@@ -38,8 +38,8 @@ struct linux_dirent64_ {
 size_t fill_dirent_32(void *dirent_data, ino_t inode, off_t_ offset, const char *name, int type)
 {
     struct linux_dirent_ *dirent = dirent_data;
-    dirent->inode = inode;
-    dirent->offset = offset;
+    dirent->inode = (uint32_t)inode;
+    dirent->offset = (uint32_t)offset;
     dirent->reclen =
         offsetof(struct linux_dirent_, name) + strlen(name) + 2; // name, null terminator, type
     strcpy(dirent->name, name);
@@ -69,7 +69,7 @@ int64_t sys_getdents_common(fd_t f, addr_t dirents, uint64_t count,
     if (!S_ISDIR(fd->type) || fd->ops->readdir == NULL)
         return _ENOTDIR;
 
-    uint32_t orig_count = count;
+    uint32_t orig_count = (uint32_t)count;
 
     long ptr;
     int err;

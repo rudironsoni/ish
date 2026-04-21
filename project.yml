@@ -219,8 +219,10 @@ targets:
       CODE_SIGN_ENTITLEMENTS: Sources/IXLandTerminal/iSH.entitlements
       ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
       HEADER_SEARCH_PATHS:
+      - "$(LINUX_UAPI_INCLUDE_ROOT)"
       - "$(SRCROOT)/Sources/IXLandTerminal"
       - "$(DERIVED_FILE_DIR)"
+      - "$(SRCROOT)/include"
       - "$(SRCROOT)/Sources"
       - "$(SRCROOT)/tools"
       - "$(SDKROOT)/usr/include/libxml2"

@@ -1,11 +1,13 @@
-#import <IXLandLinuxRuntime/util/debug.h>
-#import <IXLandLinuxRuntime/kernel/task.h>
-#import <IXLandLinuxRuntime/kernel/signal.h>
 #import <IXLandLinuxRuntime/kernel/errno.h>
+#import <IXLandLinuxRuntime/kernel/signal.h>
+#import <IXLandLinuxRuntime/kernel/task.h>
+#import <IXLandLinuxRuntime/util/debug.h>
 
-int err_map(int err) {
-#define ERRCASE(err) \
-        case err: return _##err;
+int err_map(int err)
+{
+#define ERRCASE(err)                                                                               \
+    case err:                                                                                      \
+        return _##err;
     switch (err) {
         ERRCASE(EPERM)
         ERRCASE(ENOENT)
@@ -98,7 +100,8 @@ int err_map(int err) {
     return -(err | 0x1000);
 }
 
-int errno_map() {
+int errno_map(void)
+{
     if (errno == EPIPE)
         send_signal(current, SIGPIPE_, SIGINFO_NIL);
     return err_map(errno);

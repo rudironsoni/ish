@@ -8,7 +8,7 @@
 #import <IXLandLinuxRuntime/util/debug.h>
 #include <string.h>
 
-struct mm *mm_new()
+struct mm *mm_new(void)
 {
     struct mm *mm = malloc(sizeof(struct mm));
     if (mm == NULL)
@@ -80,7 +80,7 @@ static addr_t do_mmap(addr_t addr, uint32_t len, uint32_t prot, uint32_t flags, 
     pages_t pages = PAGE_ROUND_UP(len);
     if (!pages)
         return _EINVAL;
-    page_t page;
+    page_t page = BAD_PAGE;
     if (addr != 0) {
         if (PGOFFSET(addr) != 0)
             return _EINVAL;
@@ -234,7 +234,7 @@ int64_t sys_mprotect(addr_t addr, uint64_t len, int64_t prot)
         return _EINVAL;
     pages_t pages = PAGE_ROUND_UP(len);
     write_wrlock(&current->mem->lock);
-    int err = pt_set_flags(current->mem, PAGE(addr), pages, prot);
+    int err = (int)pt_set_flags(current->mem, PAGE(addr), pages, (int)prot);
     write_wrunlock(&current->mem->lock);
     return err;
 }

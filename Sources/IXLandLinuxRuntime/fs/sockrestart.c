@@ -3,9 +3,12 @@
 #import <IXLandLinuxRuntime/fs/sockrestart.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
 #import <IXLandLinuxRuntime/util/list.h>
+#include <ixland/sock_bridge.h>
 #include <pthread.h>
 #include <signal.h>
 #include <string.h>
+#include <unistd.h>
+
 extern const struct fd_ops socket_fdops;
 
 static lock_t sockrestart_lock = LOCK_INITIALIZER;
@@ -66,18 +69,12 @@ struct saved_socket {
     struct fd *sock;
     int type;
     int proto;
-    union {
-        char name[128];
-        struct sockaddr name_addr;
-    };
-    socklen_t name_len;
+    char name[128];
+    uint32_t name_len;
     struct list saved;
 };
 
 static struct list saved_sockets = LIST_INITIALIZER(saved_sockets);
-
-// these should only be called from the main thread, but it's easiest to just lock for the whole
-// time
 
 void sockrestart_on_suspend(void)
 {
@@ -87,14 +84,15 @@ void sockrestart_on_suspend(void)
     list_for_each_entry (&listen_fds, sock, sockrestart.listen) {
         struct saved_socket *saved = malloc(sizeof(struct saved_socket));
         if (saved == NULL)
-            continue; // better than a crash
+            continue;
         saved->sock = fd_retain(sock);
         saved->proto = sock->socket.protocol;
-        unsigned size = sizeof(saved->type);
-        getsockopt(sock->real_fd, SOL_SOCKET, SO_TYPE, &saved->type, &size);
-        assert(size == sizeof(saved->type));
+        int32_t size = sizeof(saved->type);
+        getsockopt_impl(sock->real_fd, SOL_SOCKET_, SO_TYPE_, &saved->type, &size);
         saved->name_len = sizeof(saved->name);
-        getsockname(sock->real_fd, (struct sockaddr *)&saved->name, &saved->name_len);
+        struct sockaddr_result res = getsockname_impl(sock->real_fd, saved->name, saved->name_len);
+        if (res.ret >= 0)
+            saved->name_len = res.addr_len;
         list_add(&saved_sockets, &saved->saved);
     }
     unlock(&sockrestart_lock);
@@ -107,14 +105,16 @@ void sockrestart_on_resume(void)
     list_for_each_entry_safe(&saved_sockets, saved, tmp, saved)
     {
         list_remove(&saved->saved);
-        int new_sock = socket(saved->name_addr.sa_family, saved->type, saved->proto);
+        int real_family = sockaddr_get_family_impl(saved->name);
+        int32_t new_sock = socket_impl(real_family, saved->type, saved->proto);
         if (new_sock < 0) {
-            printk("restarting socket(%d, %d, %d) failed: %s\n", saved->name_addr.sa_family,
-                   saved->type, saved->proto, strerror(errno));
+            printk("restarting socket(%d, %d, %d) failed\n", real_family, saved->type,
+                   saved->proto);
             goto thank_u_next;
         }
-        if (bind(new_sock, (struct sockaddr *)&saved->name, saved->name_len) < 0) {
-            printk("rebinding socket failed: %s\n", strerror(errno));
+        int32_t ret = bind_impl(new_sock, saved->name, saved->name_len);
+        if (ret < 0) {
+            printk("rebinding socket failed\n");
             goto thank_u_next;
         }
         dup2(new_sock, saved->sock->real_fd);

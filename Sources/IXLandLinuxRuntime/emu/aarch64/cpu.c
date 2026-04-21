@@ -336,7 +336,7 @@ static void trace_x0chain_event(const char *name, const char *payload)
     g_x0chain_trace_budget--;
 }
 
-static void trace_str6a650_event(const char *name, const char *payload)
+static void __attribute__((unused)) trace_str6a650_event(const char *name, const char *payload)
 {
     if (!name || !payload || g_str6a650_trace_budget <= 0)
         return;
@@ -360,7 +360,7 @@ static void trace_str6a650_event_fields(const char *name, const ixland_guest_tra
     g_str6a650_trace_budget--;
 }
 
-static void trace_x7chain_event(const char *name, const char *payload)
+static void __attribute__((unused)) trace_x7chain_event(const char *name, const char *payload)
 {
     if (!name || !payload || g_x7chain_trace_budget <= 0)
         return;
@@ -384,7 +384,7 @@ static void trace_x7chain_event_fields(const char *name, const ixland_guest_trac
     g_x7chain_trace_budget--;
 }
 
-static void trace_insn64_event(const char *name, const char *payload)
+static void __attribute__((unused)) trace_insn64_event(const char *name, const char *payload)
 {
     if (!name || !payload || g_insn64_trace_budget <= 0)
         return;
@@ -660,8 +660,8 @@ static void trace_cpu_init_checkpoint(const char *name, struct task *task, struc
     (void)trace_begin_interval(TRACE_ORIGIN_EXEC, name, attrs, sizeof(attrs) / sizeof(attrs[0]));
 }
 
-static void trace_cpu_layout_checkpoint(const char *name, struct task *task, struct cpu_state *cpu,
-                                        int err)
+static void __attribute__((unused)) trace_cpu_layout_checkpoint(const char *name, struct task *task,
+                                                                struct cpu_state *cpu, int err)
 {
     char task_buf[32];
     char cpu_buf[32];
@@ -3232,7 +3232,7 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
                                                      : "task.proof.interpreter.x1seam.decode");
                     trace_insn_decode_checkpoint(decode_name, cpu->pc, raw_insn, decoded.cat,
                                                  decoded.subtype, decoded.Rn, decoded.Rm,
-                                                 decoded.imm);
+                                                 (int)decoded.imm);
                     if (cpu->pc == 0xf7fa4650) {
                         trace_interpreter_cmp_entry_asm_checkpoint(
                             "task.proof.interpreter.cmp.entry.asm", block->start_pc, block->end_pc,
@@ -3311,7 +3311,7 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
                 a64_decode(raw_insn, &decoded) == 0) {
                 trace_insn_decode_checkpoint("task.proof.faulting_insn.decode", cpu->pc, raw_insn,
                                              decoded.cat, decoded.subtype, decoded.Rn, decoded.Rm,
-                                             decoded.imm);
+                                             (int)decoded.imm);
             }
 
             // Trace fault event with full context for first fault analysis
@@ -3493,7 +3493,7 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
                                      "d,rn:%d,rm:%d,idx:%d,imm:%d",
                                      stuck_decoded.cat, stuck_decoded.subtype, stuck_decoded.Rd,
                                      stuck_decoded.Rn, stuck_decoded.Rm, stuck_decoded.idx_mode,
-                                     stuck_decoded.imm);
+                                     (int)stuck_decoded.imm);
                             trace_record_event(TRACE_ORIGIN_EXEC, ev_dec);
                         }
                     }
@@ -3535,7 +3535,8 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
                         snprintf(dec_ev, sizeof(dec_ev),
                                  "task.proof.user.pre_syscall.first_stuck_decode=cat:%d,sub:%d,rn:%"
                                  "d,rm:%d,imm:%d",
-                                 decoded.cat, decoded.subtype, decoded.Rn, decoded.Rm, decoded.imm);
+                                 decoded.cat, decoded.subtype, decoded.Rn, decoded.Rm,
+                                 (int)decoded.imm);
                         trace_record_event(TRACE_ORIGIN_EXEC, dec_ev);
                     }
                 }
@@ -3563,7 +3564,7 @@ int a64_execute_ldst(struct cpu_state *cpu, struct tlb *tlb, const a64_instr_t *
     bool is_reg_offset = a64_ldst_uses_register_offset(raw, instr);
     bool writeback = instr->idx_mode == A64_PRE_INDEX || instr->idx_mode == A64_POST_INDEX;
     int access = is_load ? MEM_READ : MEM_WRITE;
-    uint64_t base;
+    uint64_t base = 0;
     uint64_t addr;
 
     if (is_literal) {

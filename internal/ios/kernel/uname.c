@@ -1,5 +1,5 @@
 #import <IXLandLinuxRuntime/kernel/calls.h>
-#include <ixland/host_bridge.h>
+#include <ixland/platform_bridge.h>
 #include <string.h>
 #include <sys/sysctl.h>
 #include <sys/utsname.h>

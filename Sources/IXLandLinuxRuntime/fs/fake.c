@@ -1,18 +1,17 @@
-#include <stdarg.h>
-#include <limits.h>
-#include <string.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/file.h>
-#include <sqlite3.h>
-
-#import <IXLandLinuxRuntime/util/debug.h>
-#import <IXLandLinuxRuntime/kernel/errno.h>
-#import <IXLandLinuxRuntime/kernel/task.h>
-#import <IXLandLinuxRuntime/fs/fd.h>
 #import <IXLandLinuxRuntime/fs/dev.h>
+#import <IXLandLinuxRuntime/fs/fd.h>
 #import <IXLandLinuxRuntime/fs/inode.h>
 #import <IXLandLinuxRuntime/fs/real.h>
+#import <IXLandLinuxRuntime/kernel/errno.h>
+#import <IXLandLinuxRuntime/kernel/task.h>
+#import <IXLandLinuxRuntime/util/debug.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <sqlite3.h>
+#include <stdarg.h>
+#include <string.h>
+#include <sys/file.h>
+#include <sys/stat.h>
 #define ISH_INTERNAL
 #import <IXLandLinuxRuntime/fs/fake.h>
 
@@ -21,7 +20,8 @@
 // this exists only to override readdir to fix the returned inode numbers
 static struct fd_ops fakefs_fdops;
 
-static struct fd *fakefs_open(struct mount *mount, const char *path, int flags, int mode) {
+static struct fd *fakefs_open(struct mount *mount, const char *path, int flags, int mode)
+{
     struct fakefs_db *fs = &mount->fakefs;
     struct fd *fd = realfs.open(mount, path, flags, 0666);
     if (IS_ERR(fd))
@@ -51,7 +51,8 @@ static struct fd *fakefs_open(struct mount *mount, const char *path, int flags, 
 }
 
 // WARNING: giant hack, just for file providerws
-struct fd *fakefs_open_inode(struct mount *mount, ino_t inode) {
+struct fd *fakefs_open_inode(struct mount *mount, ino_t inode)
+{
     struct fakefs_db *fs = &mount->fakefs;
     db_begin_read(fs);
     sqlite3_stmt *stmt = fs->stmt.path_from_inode;
@@ -62,7 +63,7 @@ step:
         db_rollback(fs);
         return ERR_PTR(_ENOENT);
     }
-    const char *path = (const char *) sqlite3_column_text(stmt, 0);
+    const char *path = (const char *)sqlite3_column_text(stmt, 0);
     struct fd *fd = realfs.open(mount, path, O_RDWR_, 0);
     if (PTR_ERR(fd) == _EISDIR)
         fd = realfs.open(mount, path, O_RDONLY_, 0);
@@ -75,7 +76,8 @@ step:
     return fd;
 }
 
-static int fakefs_link(struct mount *mount, const char *src, const char *dst) {
+static int fakefs_link(struct mount *mount, const char *src, const char *dst)
+{
     struct fakefs_db *fs = &mount->fakefs;
     db_begin_write(fs);
     int err = realfs.link(mount, src, dst);
@@ -88,7 +90,8 @@ static int fakefs_link(struct mount *mount, const char *src, const char *dst) {
     return 0;
 }
 
-static int fakefs_unlink(struct mount *mount, const char *path) {
+static int fakefs_unlink(struct mount *mount, const char *path)
+{
     struct fakefs_db *fs = &mount->fakefs;
     db_begin_write(fs);
     int err = realfs.unlink(mount, path);
@@ -102,7 +105,8 @@ static int fakefs_unlink(struct mount *mount, const char *path) {
     return 0;
 }
 
-static int fakefs_rmdir(struct mount *mount, const char *path) {
+static int fakefs_rmdir(struct mount *mount, const char *path)
+{
     struct fakefs_db *fs = &mount->fakefs;
     db_begin_write(fs);
     int err = realfs.rmdir(mount, path);
@@ -116,7 +120,8 @@ static int fakefs_rmdir(struct mount *mount, const char *path) {
     return 0;
 }
 
-static int fakefs_rename(struct mount *mount, const char *src, const char *dst) {
+static int fakefs_rename(struct mount *mount, const char *src, const char *dst)
+{
     struct fakefs_db *fs = &mount->fakefs;
     db_begin_write(fs);
     path_rename(fs, src, dst);
@@ -129,7 +134,8 @@ static int fakefs_rename(struct mount *mount, const char *src, const char *dst) 
     return 0;
 }
 
-static int fakefs_symlink(struct mount *mount, const char *target, const char *link) {
+static int fakefs_symlink(struct mount *mount, const char *target, const char *link)
+{
     struct fakefs_db *fs = &mount->fakefs;
     db_begin_write(fs);
     // create a file containing the target
@@ -159,7 +165,8 @@ static int fakefs_symlink(struct mount *mount, const char *target, const char *l
     return 0;
 }
 
-static int fakefs_mknod(struct mount *mount, const char *path, mode_t_ mode, dev_t_ dev) {
+static int fakefs_mknod(struct mount *mount, const char *path, mode_t_ mode, dev_t_ dev)
+{
     struct fakefs_db *fs = &mount->fakefs;
     mode_t_ real_mode = 0666;
     if (S_ISBLK(mode) || S_ISCHR(mode) || S_ISSOCK(mode))
@@ -178,13 +185,14 @@ static int fakefs_mknod(struct mount *mount, const char *path, mode_t_ mode, dev
     stat.gid = current->egid;
     stat.rdev = 0;
     if (S_ISBLK(mode) || S_ISCHR(mode))
-        stat.rdev = dev;
+        stat.rdev = (uint32_t)dev;
     path_create(fs, path, &stat);
     db_commit(fs);
     return err;
 }
 
-static int fakefs_stat(struct mount *mount, const char *path, struct statbuf *fake_stat) {
+static int fakefs_stat(struct mount *mount, const char *path, struct statbuf *fake_stat)
+{
     struct fakefs_db *fs = &mount->fakefs;
     db_begin_read(fs);
     struct ish_stat ishstat;
@@ -205,7 +213,8 @@ static int fakefs_stat(struct mount *mount, const char *path, struct statbuf *fa
     return 0;
 }
 
-static int fakefs_fstat(struct fd *fd, struct statbuf *fake_stat) {
+static int fakefs_fstat(struct fd *fd, struct statbuf *fake_stat)
+{
     struct fakefs_db *fs = &fd->mount->fakefs;
     int err = realfs.fstat(fd, fake_stat);
     if (err < 0)
@@ -225,23 +234,25 @@ static int fakefs_fstat(struct fd *fd, struct statbuf *fake_stat) {
     return 0;
 }
 
-static void fake_stat_setattr(struct ish_stat *ishstat, struct attr attr) {
+static void fake_stat_setattr(struct ish_stat *ishstat, struct attr attr)
+{
     switch (attr.type) {
-        case attr_uid:
-            ishstat->uid = attr.uid;
-            break;
-        case attr_gid:
-            ishstat->gid = attr.gid;
-            break;
-        case attr_mode:
-            ishstat->mode = (ishstat->mode & S_IFMT) | (attr.mode & ~S_IFMT);
-            break;
-        case attr_size:
-            die("attr_size should be handled by realfs");
+    case attr_uid:
+        ishstat->uid = attr.uid;
+        break;
+    case attr_gid:
+        ishstat->gid = attr.gid;
+        break;
+    case attr_mode:
+        ishstat->mode = (ishstat->mode & S_IFMT) | (attr.mode & ~S_IFMT);
+        break;
+    case attr_size:
+        die("attr_size should be handled by realfs");
     }
 }
 
-static int fakefs_setattr(struct mount *mount, const char *path, struct attr attr) {
+static int fakefs_setattr(struct mount *mount, const char *path, struct attr attr)
+{
     struct fakefs_db *fs = &mount->fakefs;
     if (attr.type == attr_size)
         return realfs.setattr(mount, path, attr);
@@ -258,7 +269,8 @@ static int fakefs_setattr(struct mount *mount, const char *path, struct attr att
     return 0;
 }
 
-static int fakefs_fsetattr(struct fd *fd, struct attr attr) {
+static int fakefs_fsetattr(struct fd *fd, struct attr attr)
+{
     struct fakefs_db *fs = &fd->mount->fakefs;
     if (attr.type == attr_size)
         return realfs.fsetattr(fd, attr);
@@ -271,7 +283,8 @@ static int fakefs_fsetattr(struct fd *fd, struct attr attr) {
     return 0;
 }
 
-static int fakefs_mkdir(struct mount *mount, const char *path, mode_t_ mode) {
+static int fakefs_mkdir(struct mount *mount, const char *path, mode_t_ mode)
+{
     struct fakefs_db *fs = &mount->fakefs;
     db_begin_write(fs);
     int err = realfs.mkdir(mount, path, 0777);
@@ -289,19 +302,21 @@ static int fakefs_mkdir(struct mount *mount, const char *path, mode_t_ mode) {
     return 0;
 }
 
-static ssize_t file_readlink(struct mount *mount, const char *path, char *buf, size_t bufsize) {
+static ssize_t file_readlink(struct mount *mount, const char *path, char *buf, size_t bufsize)
+{
     // broken symlinks can't be included in an iOS app or else Xcode craps out
     int fd = openat(mount->root_fd, fix_path(path), O_RDONLY);
     if (fd < 0)
         return errno_map();
-    int err = read(fd, buf, bufsize);
+    int err = (int)read(fd, buf, bufsize);
     close(fd);
     if (err < 0)
         return errno_map();
     return err;
 }
 
-static ssize_t fakefs_readlink(struct mount *mount, const char *path, char *buf, size_t bufsize) {
+static ssize_t fakefs_readlink(struct mount *mount, const char *path, char *buf, size_t bufsize)
+{
     struct fakefs_db *fs = &mount->fakefs;
     db_begin_read(fs);
     struct ish_stat ishstat;
@@ -321,7 +336,8 @@ static ssize_t fakefs_readlink(struct mount *mount, const char *path, char *buf,
     return err;
 }
 
-static int fakefs_readdir(struct fd *fd, struct dir_entry *entry) {
+static int fakefs_readdir(struct fd *fd, struct dir_entry *entry)
+{
     assert(fd->ops == &fakefs_fdops);
     int res;
 retry:
@@ -354,12 +370,14 @@ retry:
 }
 
 static struct fd_ops fakefs_fdops;
-static void __attribute__((constructor)) init_fake_fdops() {
+static void __attribute__((constructor)) init_fake_fdops(void)
+{
     fakefs_fdops = realfs_fdops;
     fakefs_fdops.readdir = fakefs_readdir;
 }
 
-static int fakefs_mount(struct mount *mount) {
+static int fakefs_mount(struct mount *mount)
+{
     char db_path[PATH_MAX];
     strcpy(db_path, mount->source);
     char *basename = strrchr(db_path, '/') + 1;
@@ -378,7 +396,8 @@ static int fakefs_mount(struct mount *mount) {
     return 0;
 }
 
-static int fakefs_umount(struct mount *mount) {
+static int fakefs_umount(struct mount *mount)
+{
     int err = fake_db_deinit(&mount->fakefs);
     if (err != SQLITE_OK) {
         printk("sqlite failed to close: %d\n", err);
@@ -387,7 +406,8 @@ static int fakefs_umount(struct mount *mount) {
     return 0;
 }
 
-static void fakefs_inode_orphaned(struct mount *mount, ino_t inode) {
+static void fakefs_inode_orphaned(struct mount *mount, ino_t inode)
+{
     struct fakefs_db *fs = &mount->fakefs;
     db_begin_write(fs);
     sqlite3_bind_int64(fs->stmt.try_cleanup_inode, 1, inode);
@@ -396,7 +416,8 @@ static void fakefs_inode_orphaned(struct mount *mount, ino_t inode) {
 }
 
 const struct fs_ops fakefs = {
-    .name = "fake", .magic = 0x66616b65,
+    .name = "fake",
+    .magic = 0x66616b65,
     .mount = fakefs_mount,
     .umount = fakefs_umount,
     .statfs = realfs_statfs,

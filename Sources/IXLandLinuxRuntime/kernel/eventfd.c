@@ -14,7 +14,7 @@ int64_t sys_eventfd2(uint64_t initval, int64_t flags)
     if (fd == NULL)
         return _ENOMEM;
     fd->eventfd.val = initval;
-    return f_install(fd, flags);
+    return (fd_t)f_install(fd, (int)flags);
 }
 int64_t sys_eventfd(uint64_t initval)
 {

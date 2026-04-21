@@ -344,7 +344,7 @@ void handle_interrupt(int interrupt)
                 snprintf(fault_addr_buf, sizeof(fault_addr_buf), "0x%llx",
                          (unsigned long long)cpu->fault_addr);
                 snprintf(sig_buf, sizeof(sig_buf), "%d", SIGSEGV_);
-                snprintf(sig_code_buf, sizeof(sig_code_buf), "%d", info.code);
+                snprintf(sig_code_buf, sizeof(sig_code_buf), "%lld", (long long)info.code);
                 ixland_instrumentation_attribute_t attrs[] = {
                     { .key = "guest_pc", .value = pc_buf },
                     { .key = "fault_addr", .value = fault_addr_buf },

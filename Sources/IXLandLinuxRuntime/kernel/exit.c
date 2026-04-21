@@ -432,11 +432,11 @@ error:
 
 uint32_t sys_waitid(int64_t idtype, pid_t_ id, addr_t info_addr, int64_t options)
 {
-    STRACE("waitid(%d, %d, %#x, %#x)", idtype, id, info_addr, options);
+    STRACE("waitid(%d, %d, %#x, %#x)", (int)idtype, id, info_addr, (int)options);
     struct siginfo_ info = {};
-    int64_t res = do_wait(idtype, id, &info, NULL, options);
+    int64_t res = do_wait((int)idtype, id, &info, NULL, (int)options);
     if (res < 0 || (res == 0 && info.child.pid == 0))
-        return res;
+        return (uint32_t)res;
     if (info_addr != 0 && user_put(info_addr, info))
         return _EFAULT;
     return 0;
@@ -465,7 +465,7 @@ uint32_t sys_wait4(pid_t_ id, addr_t status_addr, uint32_t options, addr_t rusag
     struct rusage_ rusage;
     int64_t res = do_wait(idtype, id, &info, &rusage, options | WEXITED_);
     if (res < 0 || (res == 0 && info.child.pid == 0))
-        return res;
+        return (uint32_t)res;
     if (status_addr != 0 && user_put(status_addr, info.child.status))
         return _EFAULT;
     if (rusage_addr != 0 && user_put(rusage_addr, rusage))

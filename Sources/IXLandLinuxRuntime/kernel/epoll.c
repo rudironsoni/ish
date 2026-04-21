@@ -14,11 +14,11 @@ fd_t sys_epoll_create(int64_t flags)
         return _ENOMEM;
     struct poll *poll = poll_create();
     if (IS_ERR(poll))
-        return PTR_ERR(poll);
+        return (fd_t)PTR_ERR(poll);
     fd->epollfd.poll = poll;
-    return f_install(fd, flags);
+    return (fd_t)f_install(fd, (int)flags);
 }
-fd_t sys_epoll_create0()
+fd_t sys_epoll_create0(void)
 {
     return sys_epoll_create(0);
 }
@@ -96,7 +96,7 @@ int64_t sys_epoll_wait(fd_t epoll_f, addr_t events_addr, int64_t max_events, int
         return _EINVAL;
     struct epoll_event_ events[max_events];
 
-    struct epoll_context context = { .events = events, .n = 0, .max_events = max_events };
+    struct epoll_context context = { .events = events, .n = 0, .max_events = (int)max_events };
     STRACE("...\n");
     int res =
         poll_wait(epoll->epollfd.poll, epoll_callback, &context, timeout < 0 ? NULL : &timeout_ts);
