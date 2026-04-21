@@ -5,8 +5,10 @@
 //  Created by Theodore Dubois on 11/3/17.
 //
 
-@import UIKit;
+#import <UIKit/UIKit.h>
 #import "Terminal.h"
+
+NS_ASSUME_NONNULL_BEGIN
 
 enum OverrideAppearance {
     OverrideAppearanceNone,
@@ -36,8 +38,8 @@ enum OverrideAppearance {
 - (nullable UITextPosition *)closestPositionToPoint:(CGPoint)point;
 - (nullable UITextPosition *)closestPositionToPoint:(CGPoint)point withinRange:(UITextRange *)range;
 - (NSComparisonResult)comparePosition:(UITextPosition *)position toPosition:(UITextPosition *)other;
-- (UITextWritingDirection)baseWritingDirectionForPosition:(UITextPosition *)position inDirection:(UITextStorageDirection)direction;
-- (void)setBaseWritingDirection:(UITextWritingDirection)writingDirection forRange:(UITextRange *)range;
+- (NSWritingDirection)baseWritingDirectionForPosition:(UITextPosition *)position inDirection:(UITextStorageDirection)direction;
+- (void)setBaseWritingDirection:(NSWritingDirection)writingDirection forRange:(UITextRange *)range;
 - (CGRect)caretRectForPosition:(UITextPosition *)position;
 - (CGRect)firstRectForRange:(UITextRange *)range;
 - (void)setMarkedText:(nullable NSString *)markedText selectedRange:(NSRange)selectedRange;
@@ -59,3 +61,5 @@ enum OverrideAppearance {
 - (void)deleteBackward;
 
 @end
+
+NS_ASSUME_NONNULL_END
