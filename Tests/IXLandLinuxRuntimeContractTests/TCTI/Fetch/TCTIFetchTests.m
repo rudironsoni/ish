@@ -26,10 +26,19 @@
     _tlb = calloc(1, sizeof(struct tlb));
     XCTAssert(_cpu != NULL, "CPU allocation failed");
     XCTAssert(_tlb != NULL, "TLB allocation failed");
+    
+    // Initialize minimal MMU for TLB (tlb_handle_miss requires tlb->mmu)
+    struct mmu *mmu = calloc(1, sizeof(struct mmu));
+    XCTAssert(mmu != NULL, "MMU allocation failed");
+    _tlb->mmu = mmu;
+    _cpu->mmu = mmu;
 }
 
 - (void)tearDown {
     // Contract: No persistent state between tests
+    if (_tlb && _tlb->mmu) {
+        free(_tlb->mmu);
+    }
     free(_cpu);
     free(_tlb);
     [super tearDown];
