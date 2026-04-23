@@ -291,9 +291,9 @@ targets:
       GENERATE_INFOPLIST_FILE: true
 
 # MARK: - Test Plans and Schemes
-# Canonical schemes only: IXLand-6.12-arm64 (app) and IXLandRuntime-6.12-arm64 (runtime)
+# Canonical schemes only: IXLandApp-6.12-arm64 (app) and IXLandRuntime-6.12-arm64 (runtime)
 schemes:
-  IXLand-6.12-arm64:
+  IXLandApp-6.12-arm64:
     build:
       targets:
         IXLandLinuxRuntime: all

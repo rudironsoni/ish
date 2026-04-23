@@ -94,10 +94,6 @@ static uint32_t encode_bl(int32_t imm26) {
     return (0x5 << 26) | 0x1 | ((imm26 >> 2) & 0x3FFFFFF);
 }
 
-static uint32_t encode_br(int rn) {
-    return (0xD61F << 16) | ((rn & 0x1F) << 5) | 0x000;
-}
-
 static uint32_t encode_ldr_imm(int rt, int rn, int imm12, int size) {
     return (((size & 3) << 30) | (0x39 << 24) | (1 << 22) |
             ((imm12 & 0xFFF) << 10) | ((rn & 0x1F) << 5) | (rt & 0x1F));
@@ -110,14 +106,6 @@ static uint32_t encode_str_imm(int rt, int rn, int imm12, int size) {
 
 static uint32_t encode_svc(uint16_t imm16) {
     return (0xD4000000) | ((imm16 & 0xFFFF) << 5);
-}
-
-static uint32_t encode_hvc(uint16_t imm16) {
-    return (0xD44u << 21) | ((imm16 & 0xFFFF) << 5);
-}
-
-static uint32_t encode_hlt(void) {
-    return 0xD4400000;
 }
 
 static uint32_t encode_brk(void) {
