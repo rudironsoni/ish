@@ -237,6 +237,9 @@ static uint64_t test_sink_begin_interval(ixland_instrumentation_origin_t origin,
                 break;
             }
         }
+    } else if (strcmp(interval_name, "task.proof.exec.load_entry.reached") == 0) {
+        main_image_loaded = true;
+        snprintf(last_loader_event, sizeof(last_loader_event), "%s", interval_name);
     } else if (strcmp(interval_name, "task.proof.do_execve.entry") == 0) {
         // X0: do_execve entry checkpoint
         do_execve_entered = true;

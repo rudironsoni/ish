@@ -567,25 +567,6 @@ static void trace_live_ldr_probe(struct cpu_state *cpu, uint64_t instance_id, ui
     budget--;
 }
 
-static int a64_tcti_guest_write64_strict(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr,
-                                         uint64_t val)
-{
-    void *fast = __tlb_write_ptr(tlb, addr);
-    if (fast) {
-        *(uint64_t *)fast = val;
-        return A64_MEM_OK;
-    }
-
-    void *slow = tlb_handle_miss(tlb, addr, MEM_WRITE);
-    if (!slow) {
-        cpu->fault_addr = tlb->segfault_addr;
-        return A64_MEM_FAULT;
-    }
-
-    *(uint64_t *)slow = val;
-    return A64_MEM_OK;
-}
-
 static void tcti_write_base_reg_or_sp(struct cpu_state *cpu, int reg, uint64_t value, int is_64bit)
 {
     uint64_t masked = is_64bit ? value : (uint32_t)value;
@@ -1146,6 +1127,9 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
                                    imm, (int)idx_mode, instance_id);
     }
 
+    cpu->fault_addr = addr;
+    cpu->fault_was_write = is_load ? false : true;
+
     switch (size) {
     case A64_SIZE_B:
         width = 1;
@@ -1463,7 +1447,7 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
             mem_ret = a64_guest_write32(cpu, cpu->tlb, addr, (uint32_t)value);
             break;
         case 8:
-            mem_ret = a64_tcti_guest_write64_strict(cpu, cpu->tlb, addr, value);
+            mem_ret = a64_guest_write64(cpu, cpu->tlb, addr, value);
             break;
         default:
             mem_ret = A64_MEM_FAULT;
@@ -2897,24 +2881,8 @@ __attribute__((naked)) void gadget_str_x_impl(void)
         "ldr x24, [x28], #8\n\t" // idx_mode
         "ldr x25, [x28], #8\n\t" // meta
 
-        // Patch 1B.2: Hot-hot fast path for STR
-        // Requirements: both Rn and Rt in 0-15, 64-bit, offset mode, meta=0
-        "cmp x20, #16\n\t" // Is Rt hot (0-15)?
-        "b.hs 91f\n\t"     // Branch to nonhot counter
-        "cmp x21, #16\n\t" // Is Rn hot (0-15)?
-        "b.hs 91f\n\t"
-        "cmp x23, #3\n\t" // Is size 64-bit?
-        "b.ne 92f\n\t"    // Branch to size counter
-        "cmp x24, #0\n\t" // Is idx_mode offset (no writeback)?
-        "b.ne 93f\n\t"    // Branch to idxmode counter
-        "cmp x25, #0\n\t" // Is meta 0 (no reg offset, not signed)?
-        "b.ne 94f\n\t"    // Branch to meta counter
-
-        // PRE/POST-INDEX forms must go through helper to apply base writeback.
-        // Fast path only supports offset addressing semantics.
-        "cmp x24, #0\n\t"
-        "b.ne 99f\n\t"
-
+        // Force helper path for correctness while isolating LD/ST faults.
+        "b 99f\n\t"
 
         // Get base register value (hot, in x1-x16) using computed goto
         // Branch table for Rn 0-15

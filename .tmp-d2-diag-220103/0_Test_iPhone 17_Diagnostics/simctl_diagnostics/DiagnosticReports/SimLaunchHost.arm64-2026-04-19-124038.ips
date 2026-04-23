@@ -1,0 +1,209 @@
+{"app_name":"SimLaunchHost.arm64","timestamp":"2026-04-19 12:40:38.00 +0200","app_version":"1051.50","slice_uuid":"68cb7de1-fbb8-3d59-9a7c-6fcbe35db34d","build_version":"1051.50","platform":1,"bundleID":"com.apple.CoreSimulator.SimLaunchHost-arm64","share_with_app_devs":0,"is_first_party":1,"bug_type":"309","os_version":"macOS 26.4.1 (25E253)","roots_installed":0,"name":"SimLaunchHost.arm64","incident_id":"2EE9FB96-6175-4835-91C5-52DB58E8E75C"}
+{
+  "uptime" : 650000,
+  "procRole" : "Unspecified",
+  "version" : 2,
+  "userID" : 501,
+  "deployVersion" : 210,
+  "modelCode" : "MacBookAir10,1",
+  "coalitionID" : 60930,
+  "osVersion" : {
+    "train" : "macOS 26.4.1",
+    "build" : "25E253",
+    "releaseType" : "User"
+  },
+  "captureTime" : "2026-04-19 12:40:35.1940 +0200",
+  "codeSigningMonitor" : 1,
+  "incident" : "2EE9FB96-6175-4835-91C5-52DB58E8E75C",
+  "pid" : 63618,
+  "translated" : false,
+  "cpuType" : "ARM-64",
+  "procLaunch" : "2026-04-19 12:33:38.7974 +0200",
+  "procStartAbsTime" : 15780984440792,
+  "procExitAbsTime" : 15790976086365,
+  "procName" : "SimLaunchHost.arm64",
+  "procPath" : "\/Library\/Developer\/PrivateFrameworks\/CoreSimulator.framework\/Versions\/A\/XPCServices\/SimLaunchHost.arm64.xpc\/Contents\/MacOS\/SimLaunchHost.arm64",
+  "bundleInfo" : {"CFBundleShortVersionString":"1051.50","CFBundleVersion":"1051.50","CFBundleIdentifier":"com.apple.CoreSimulator.SimLaunchHost-arm64"},
+  "buildInfo" : {"ProjectName":"CoreSimulator","SourceVersion":"1051050000000000","BuildVersion":"12"},
+  "parentProc" : "launchd",
+  "parentPid" : 1,
+  "coalitionName" : "com.apple.CoreSimulator.SimLaunchHost-arm64",
+  "crashReporterKey" : "C906F00F-26AF-C49A-78C9-089D349B0E37",
+  "appleIntelligenceStatus" : {"state":"available"},
+  "developerMode" : 1,
+  "bootProgressRegister" : "0x2f000000",
+  "throttleTimeout" : 10,
+  "codeSigningID" : "com.apple.CoreSimulator.SimLaunchHost-arm64",
+  "codeSigningTeamID" : "",
+  "codeSigningFlags" : 570522369,
+  "codeSigningValidationCategory" : 1,
+  "codeSigningTrustLevel" : 4294967295,
+  "codeSigningAuxiliaryInfo" : 288230376151711744,
+  "instructionByteStream" : {"beforePC":"+mcEqfhfBan2Vwap9E8Hqf17CKn9AwKR9QMBqvQDAKrzAwiq\/\/8AOQ==","atPC":"CABAuelZn1Kp3b9yHwEJa+AAAFTJWZ9Sqd2\/ch8BCWshBQBUiQOAUg=="},
+  "bootSessionUUID" : "02153091-A206-48FF-9E23-3149386EA15A",
+  "sip" : "enabled",
+  "vmRegionInfo" : "0x100b28000 is in 0x100b28000-0x100b2c000;  bytes after start: 0  bytes before end: 16383\n      REGION TYPE                    START - END         [ VSIZE] PRT\/MAX SHRMOD  REGION DETAIL\n      __LINKEDIT                  100b20000-100b28000    [   32K] r--\/rw- SM=COW  \/Library\/Developer\/CoreSimulator\/Volumes\/iOS_23E254a\/Library\/Developer\/CoreSimulator\/Profiles\/Runtimes\/iOS 26.4.simruntime\/Contents\/Resources\/RuntimeRoot\/usr\/lib\/system\/host\/liblaunch_sim.dylib\n--->  mapped file                 100b28000-100b2c000    [   16K] r-x\/rwx SM=COW  Object_id=1bf162af\n      mapped file                 100b2c000-100b30000    [   16K] r--\/rw- SM=COW  Object_id=49c0fe34",
+  "exception" : {"codes":"0x000000000000000a, 0x0000000100b28000","rawCodes":[10,4306665472],"type":"EXC_BAD_ACCESS","signal":"SIGBUS","subtype":"KERN_MEMORY_ERROR at 0x0000000100b28000"},
+  "termination" : {"flags":0,"code":10,"namespace":"SIGNAL","indicator":"Bus error: 10","byProc":"exc handler","byPid":63618},
+  "ktriageinfo" : "VM - (arg = 0x0) Object has no pager because the backing vnode was force unmounted\n",
+  "vmregioninfo" : "0x100b28000 is in 0x100b28000-0x100b2c000;  bytes after start: 0  bytes before end: 16383\n      REGION TYPE                    START - END         [ VSIZE] PRT\/MAX SHRMOD  REGION DETAIL\n      __LINKEDIT                  100b20000-100b28000    [   32K] r--\/rw- SM=COW  \/Library\/Developer\/CoreSimulator\/Volumes\/iOS_23E254a\/Library\/Developer\/CoreSimulator\/Profiles\/Runtimes\/iOS 26.4.simruntime\/Contents\/Resources\/RuntimeRoot\/usr\/lib\/system\/host\/liblaunch_sim.dylib\n--->  mapped file                 100b28000-100b2c000    [   16K] r-x\/rwx SM=COW  Object_id=1bf162af\n      mapped file                 100b2c000-100b30000    [   16K] r--\/rw- SM=COW  Object_id=49c0fe34",
+  "extMods" : {"caller":{"thread_create":0,"thread_set_state":0,"task_for_pid":0},"system":{"thread_create":0,"thread_set_state":0,"task_for_pid":1726},"targeted":{"thread_create":0,"thread_set_state":0,"task_for_pid":0},"warnings":0},
+  "faultingThread" : 1,
+  "threads" : [{"id":16126775,"frames":[{"imageOffset":34136,"symbol":"__sigsuspend_nocancel","symbolLocation":8,"imageIndex":5},{"imageOffset":86216,"symbol":"_dispatch_sigsuspend","symbolLocation":48,"imageIndex":6},{"imageOffset":86168,"symbol":"_dispatch_sig_thread","symbolLocation":56,"imageIndex":6}],"threadState":{"x":[{"value":4},{"value":0},{"value":0},{"value":6162264000},{"value":6162264128},{"value":419432703},{"value":0},{"value":0},{"value":6162264000},{"value":6162264000},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":410},{"value":8459432176},{"value":0},{"value":6624680944,"symbolLocation":0,"symbol":"_dispatch_sigsuspend.mask"},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0}],"flavor":"ARM_THREAD_STATE64","lr":{"value":6624510152},"cpsr":{"value":536875008},"fp":{"value":6162263968},"sp":{"value":6162263952},"esr":{"value":1442840704,"description":"(Syscall)"},"pc":{"value":6625998168},"far":{"value":0}}},{"triggered":true,"id":16134863,"threadState":{"x":[{"value":4306665472},{"value":4305902264},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":243},{"value":4305902344},{"value":4305902280},{"value":8459589864,"symbolLocation":0,"symbol":"__block_descriptor_tmp.370"},{"value":0},{"value":16},{"value":0},{"value":0},{"value":12151369380156279917},{"value":6622782212,"symbolLocation":0,"symbol":"invocation function for block in mach_o::UnsafeHeader::forEachSegment(void (mach_o::UnsafeHeader::SegmentInfo const&, bool&) block_pointer) const"},{"value":7701436842086161080},{"value":0},{"value":4305902344},{"value":4306665472},{"value":4305902264},{"value":4305902720},{"value":16},{"value":4305902408},{"value":4305902424},{"value":8459572888,"symbolLocation":0,"symbol":"__block_descriptor_tmp.97"},{"value":8484382904,"symbolLocation":0,"symbol":"type metadata for Int32"},{"value":8461774624,"symbolLocation":0,"symbol":"value witness table for UUID"}],"flavor":"ARM_THREAD_STATE64","lr":{"value":6622781792},"cpsr":{"value":1610616832},"fp":{"value":4305902240},"sp":{"value":4305902112},"esr":{"value":2449473543,"description":"(Data Abort) byte read Translation fault"},"pc":{"value":6622769140,"matchesCrashFrame":1},"far":{"value":4306665472}},"queue":"com.apple.root.default-qos.overcommit","frames":[{"imageOffset":569332,"symbol":"mach_o::UnsafeHeader::forEachLoadCommand(void (load_command const*, bool&) block_pointer) const","symbolLocation":48,"imageIndex":8},{"imageOffset":581984,"symbol":"mach_o::UnsafeHeader::forEachSegment(void (mach_o::UnsafeHeader::SegmentInfo const&, bool&) block_pointer) const","symbolLocation":124,"imageIndex":8},{"imageOffset":189936,"symbol":"dyld4::Reaper::finalizeDeadImages()","symbolLocation":336,"imageIndex":8},{"imageOffset":191152,"symbol":"dyld4::RuntimeState::garbageCollectInner()","symbolLocation":284,"imageIndex":8},{"imageOffset":216764,"symbol":"invocation function for block in void lsl::MemoryManager::withProtectedStack<void dyld4::RuntimeLocks::withLoadersWriteLockAndProtectedStack<dyld4::RuntimeState::decDlRefCount(dyld4::Loader const*)::$_0>(dyld4::RuntimeState::decDlRefCount(dyld4::Loader const*)::$_0)::'lambda'()::operator()() const::'lambda'()>(dyld4::RuntimeState::decDlRefCount(dyld4::Loader const*)::$_0)","symbolLocation":240,"imageIndex":8},{"imageOffset":22848,"symbol":"callWithProtectedStack","symbolLocation":80,"imageIndex":8},{"imageOffset":480916,"symbol":"lsl::ProtectedStack::withProtectedStack(void () block_pointer)","symbolLocation":380,"imageIndex":8},{"imageOffset":216212,"symbol":"void dyld4::RuntimeLocks::withLoadersWriteLockAndProtectedStack<dyld4::RuntimeState::decDlRefCount(dyld4::Loader const*)::$_0>(dyld4::RuntimeState::decDlRefCount(dyld4::Loader const*)::$_0)::'lambda'()::operator()() const","symbolLocation":184,"imageIndex":8},{"imageOffset":188424,"symbol":"dyld4::RuntimeState::decDlRefCount(dyld4::Loader const*)","symbolLocation":564,"imageIndex":8},{"imageOffset":49528,"symbol":"dyld4::APIs::dlclose(void*)","symbolLocation":224,"imageIndex":8},{"imageOffset":34732,"imageIndex":0},{"imageOffset":48304,"symbol":"_swift_release_dealloc","symbolLocation":64,"imageIndex":9},{"imageOffset":453348,"symbol":"bool swift::RefCounts<swift::RefCountBitsT<(swift::RefCountInlinedness)1>>::doDecrementSlow<(swift::PerformDeinit)1>(swift::RefCountBitsT<(swift::RefCountInlinedness)1>, unsigned int)","symbolLocation":168,"imageIndex":9},{"imageOffset":33668,"imageIndex":0},{"imageOffset":38024,"imageIndex":0},{"imageOffset":44216,"imageIndex":0},{"imageOffset":33520,"imageIndex":0},{"imageOffset":49736,"imageIndex":0},{"imageOffset":46684,"imageIndex":0},{"imageOffset":52388,"imageIndex":0},{"imageOffset":58436,"symbol":"_xpc_connection_call_event_handler","symbolLocation":112,"imageIndex":10},{"imageOffset":52444,"symbol":"_xpc_connection_mach_event","symbolLocation":1488,"imageIndex":10},{"imageOffset":111864,"symbol":"_dispatch_client_callout4","symbolLocation":16,"imageIndex":6},{"imageOffset":122516,"symbol":"_dispatch_mach_msg_invoke","symbolLocation":480,"imageIndex":6},{"imageOffset":40600,"symbol":"_dispatch_lane_serial_drain","symbolLocation":332,"imageIndex":6},{"imageOffset":125932,"symbol":"_dispatch_mach_invoke","symbolLocation":472,"imageIndex":6},{"imageOffset":85556,"symbol":"_dispatch_root_queue_drain_deferred_wlh","symbolLocation":284,"imageIndex":6},{"imageOffset":83764,"symbol":"_dispatch_workloop_worker_thread","symbolLocation":720,"imageIndex":6},{"imageOffset":11968,"symbol":"_pthread_wqthread","symbolLocation":292,"imageIndex":11},{"imageOffset":7184,"symbol":"start_wqthread","symbolLocation":8,"imageIndex":11}]}],
+  "usedImages" : [
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4305174528,
+    "CFBundleShortVersionString" : "1051.50",
+    "CFBundleIdentifier" : "com.apple.CoreSimulator.SimLaunchHost-arm64",
+    "size" : 98304,
+    "uuid" : "68cb7de1-fbb8-3d59-9a7c-6fcbe35db34d",
+    "path" : "\/Library\/Developer\/PrivateFrameworks\/CoreSimulator.framework\/Versions\/A\/XPCServices\/SimLaunchHost.arm64.xpc\/Contents\/MacOS\/SimLaunchHost.arm64",
+    "name" : "SimLaunchHost.arm64",
+    "CFBundleVersion" : "1051.50"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 4307861504,
+    "CFBundleShortVersionString" : "1051.50",
+    "CFBundleIdentifier" : "com.apple.CoreSimulator.CoreSimulatorUtilities",
+    "size" : 393216,
+    "uuid" : "9a7ab094-1511-3dba-b5a4-525c9008de59",
+    "path" : "\/Library\/Developer\/PrivateFrameworks\/CoreSimulator.framework\/Versions\/A\/Frameworks\/CoreSimulatorUtilities.framework\/Versions\/A\/CoreSimulatorUtilities",
+    "name" : "CoreSimulatorUtilities",
+    "CFBundleVersion" : "1051.50"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 4308549632,
+    "CFBundleShortVersionString" : "46",
+    "CFBundleIdentifier" : "com.apple.ROCKit",
+    "size" : 278528,
+    "uuid" : "5034ca4c-09b1-3f90-b88a-ac14f1f3e5ee",
+    "path" : "\/Library\/Developer\/PrivateFrameworks\/ROCKit.framework\/Versions\/A\/ROCKit",
+    "name" : "ROCKit",
+    "CFBundleVersion" : "46"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 4314513408,
+    "CFBundleShortVersionString" : "17.0",
+    "CFBundleIdentifier" : "com.apple.dt.DVTDownloads",
+    "size" : 851968,
+    "uuid" : "2e9012f1-c1e7-3251-8597-1acd259b4c5b",
+    "path" : "\/Library\/Developer\/PrivateFrameworks\/DVTDownloads.framework\/Versions\/A\/DVTDownloads",
+    "name" : "DVTDownloads",
+    "CFBundleVersion" : "24431"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 4306583552,
+    "size" : 16384,
+    "uuid" : "19ea27db-0d9b-35ef-b480-becac87e3c54",
+    "path" : "\/Library\/Developer\/CoreSimulator\/Volumes\/iOS_23E254a\/Library\/Developer\/CoreSimulator\/Profiles\/Runtimes\/iOS 26.4.simruntime\/Contents\/Resources\/RuntimeRoot\/usr\/lib\/system\/host\/liblaunch_sim.dylib",
+    "name" : "liblaunch_sim.dylib"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 6625964032,
+    "size" : 250512,
+    "uuid" : "51565b39-f595-3e96-a217-fef29815057a",
+    "path" : "\/usr\/lib\/system\/libsystem_kernel.dylib",
+    "name" : "libsystem_kernel.dylib"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 6624423936,
+    "size" : 291392,
+    "uuid" : "e17aa23f-db2a-3302-b14c-f6b08c540fcf",
+    "path" : "\/usr\/lib\/system\/libdispatch.dylib",
+    "name" : "libdispatch.dylib"
+  },
+  {
+    "size" : 0,
+    "source" : "A",
+    "base" : 0,
+    "uuid" : "00000000-0000-0000-0000-000000000000"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 6622199808,
+    "size" : 679624,
+    "uuid" : "9f682dcf-340c-3bfa-bcdd-dd702f30313e",
+    "path" : "\/usr\/lib\/dyld",
+    "name" : "dyld"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 6951874560,
+    "size" : 5904704,
+    "uuid" : "fb6ad37d-0f92-3774-ab61-0323db22c111",
+    "path" : "\/usr\/lib\/swift\/libswiftCore.dylib",
+    "name" : "libswiftCore.dylib"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 6622896128,
+    "size" : 345376,
+    "uuid" : "618039c8-9965-3782-a7d2-90fd4c3dd66f",
+    "path" : "\/usr\/lib\/system\/libxpc.dylib",
+    "name" : "libxpc.dylib"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 6626217984,
+    "size" : 52028,
+    "uuid" : "e7a73008-0c09-31e3-9dd9-0c61652f0e85",
+    "path" : "\/usr\/lib\/system\/libsystem_pthread.dylib",
+    "name" : "libsystem_pthread.dylib"
+  }
+],
+  "sharedCache" : {
+  "base" : 6621069312,
+  "size" : 5978570752,
+  "uuid" : "2d40543a-792e-37b8-978d-3d7030e1aa81"
+},
+  "vmSummary" : "ReadOnly portion of Libraries: Total=1.1G resident=0K(0%) swapped_out_or_unallocated=1.1G(100%)\nWritable regions: Total=90.5M written=225K(0%) resident=225K(0%) swapped_out=0K(0%) unallocated=90.2M(100%)\n\n                                VIRTUAL   REGION \nREGION TYPE                        SIZE    COUNT (non-coalesced) \n===========                     =======  ======= \nActivity Tracing                   256K        1 \nKernel Alloc Once                   32K        1 \nMALLOC                            24.8M       11 \nMALLOC guard page                 3216K        4 \nMemory Tag 22                     64.0M        1 \nSTACK GUARD                         16K        1 \nStack                             1120K        3 \nStack Guard                       64.0M        3 \nVM_ALLOCATE                        528K        2 \nVM_ALLOCATE (reserved)              16K        1         reserved VM address space (unallocated)\n__AUTH                            2470K      274 \n__AUTH_CONST                      46.2M      527 \n__CTF                               824        1 \n__DATA                            11.7M      485 \n__DATA_CONST                      25.5M      534 \n__DATA_DIRTY                      3032K      452 \n__FONT_DATA                        2352        1 \n__LINKEDIT                       573.8M        6 \n__OBJC_RO                         79.1M        1 \n__OBJC_RW                         2597K        1 \n__TEXT                           583.1M      550 \n__TPRO_CONST                       128K        2 \ndyld private memory                176K        5 \nmapped file                        144K        4 \npage table in kernel               225K        1 \nshared memory                       48K        2 \n===========                     =======  ======= \nTOTAL                              1.5G     2874 \nTOTAL, minus reserved VM space     1.5G     2874 \n",
+  "legacyInfo" : {
+  "threadTriggered" : {
+    "queue" : "com.apple.root.default-qos.overcommit"
+  }
+},
+  "logWritingSignature" : "ae63b95745ede89fc8a338683a4c240f516f8ea8",
+  "bug_type" : "309",
+  "roots_installed" : 0,
+  "trmStatus" : 1,
+  "voucherInfos" : [{"originatorName":"com.apple.CoreSimulator.CoreSim","proximateName":"com.apple.CoreSimulator.CoreSim","thread_id":16134863}],
+  "trialInfo" : {
+  "rollouts" : [
+    {
+      "rolloutId" : "6297d96be2c9387df974efa4",
+      "factorPackIds" : [
+
+      ],
+      "deploymentId" : 240000032
+    },
+    {
+      "rolloutId" : "5f72dc58705eff005a46b3a9",
+      "factorPackIds" : [
+
+      ],
+      "deploymentId" : 240000015
+    }
+  ],
+  "experiments" : [
+
+  ]
+}
+}

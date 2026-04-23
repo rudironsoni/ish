@@ -1,0 +1,81 @@
+user/501/com.apple.CoreSimulator.SimDevice.AB23DD81-A717-431C-AEAE-5E86F8F41A72 = {
+	active count = 2
+	path = (submitted by com.apple.CoreS[94590])
+	type = Submitted
+	state = running
+
+	program = /Library/Developer/PrivateFrameworks/CoreSimulator.framework/Resources/simulator-trampoline
+	arguments = {
+		simulator-trampoline
+		/Library/Developer/CoreSimulator/Volumes/iOS_23E254a/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.4.simruntime/Contents/Resources/RuntimeRoot/sbin/launchd_sim_trampoline
+		/Library/Developer/CoreSimulator/Volumes/iOS_23E254a/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.4.simruntime/Contents/Resources/RuntimeRoot/sbin/launchd_sim
+		/Users/rudironsoni/Library/Developer/CoreSimulator/Devices/AB23DD81-A717-431C-AEAE-5E86F8F41A72/data/var/run/launchd_bootstrap.plist
+	}
+
+	default environment = {
+		PATH => /usr/bin:/bin:/usr/sbin:/sbin
+	}
+
+	environment = {
+		OSLogRateLimit => 64
+		XPC_SERVICE_NAME => com.apple.CoreSimulator.SimDevice.AB23DD81-A717-431C-AEAE-5E86F8F41A72
+	}
+
+	domain = user/501
+	asid = 100028
+	minimum runtime = 10
+	base minimum runtime = 10
+	exit timeout = 33
+	runs = 1
+	pid = 49969
+	immediate reason = ipc (mach)
+	forks = 301
+	execs = 3
+	initialized = 1
+	trampolined = 1
+	started suspended = 0
+	proxy started suspended = 0
+	checked allocations = 0 (queried = 1)
+	checked allocations reason = no host
+	checked allocations flags = 0x0
+	last exit code = (never exited)
+
+	endpoints = {
+		"com.apple.CoreSimulator.SimDevice.AB23DD81-A717-431C-AEAE-5E86F8F41A72" = {
+			port = 0xea993
+			active = 1
+			managed = 1
+			reset = 1
+			hide = 0
+			watching = 0
+		}
+	}
+
+	resource coalition = {
+		ID = 85908
+		type = resource
+		state = active
+		active count = 1
+		name = com.apple.CoreSimulator.SimDevice.AB23DD81-A717-431C-AEAE-5E86F8F41A72
+	}
+
+	jetsam coalition = {
+		ID = 85909
+		type = jetsam
+		state = active
+		active count = 1
+		name = com.apple.CoreSimulator.SimDevice.AB23DD81-A717-431C-AEAE-5E86F8F41A72
+	}
+
+	spawn type = interactive (4)
+	jetsam priority = 40
+	jetsam memory limit (active) = (unlimited)
+	jetsam memory limit (inactive) = (unlimited)
+	jetsamproperties category = daemon
+	submitted job. ignore execute allowed
+	jetsam thread limit = 32
+	cpumon = default
+	exponential throttling grace limit = 10
+
+	properties = legacy timer behavior | launch only once | exponential throttling
+}

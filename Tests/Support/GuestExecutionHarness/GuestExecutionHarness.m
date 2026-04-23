@@ -264,9 +264,8 @@
 //
 // Harness classification ladder H0-H4 captured in probe state.
 - (GuestExecutionResult *)prepareExecutableAtRootPath:(NSString *)rootPath
-                                       executablePath:(NSString *)executablePath {
+executablePath:(NSString *)executablePath {
     probe_reset();
-    guest_execution_trace_sink_init();
     probe_begin_fixture([executablePath UTF8String]);
     
     probe_get_result()->harness_entered = true;

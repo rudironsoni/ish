@@ -558,7 +558,7 @@ void task_run_current(void)
     a64_cpu_run(cpu, &tlb);
     ixland_guest_trace_emit(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR, "guest.a64_cpu_run.return");
     task_cpu_run_checkpoint("task.proof.process_terminating", current);
-    die("a64_cpu_run returned");
+    do_exit_group(128 + SIGSEGV_);
 }
 
 static void *task_thread(void *task)

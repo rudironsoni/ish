@@ -1,0 +1,18 @@
+== Disk Images ==
+-- iOS --
+iOS 26.4.1 (23E254a) - D86F9848-3320-43BB-B487-0C7BB8B6A919
+    State: Ready
+    Image Kind: Patchable Cryptex Disk Image
+    Signature State: Verified
+    Deletable: YES
+    Last Used At: 2026-04-23 20:00:22 +0000
+    Mounting Mode: Disk Image Mount
+    Mount Policy: Automatic
+    Mount Path: /Library/Developer/CoreSimulator/Volumes/iOS_23E254a
+    Image Path: /System/Library/AssetsV2/com_apple_MobileAsset_iOSSimulatorRuntime/c060853b459625d7878fd533de79c966fb98d31b.asset/AssetData/Restore/094-99015-001.dmg
+    Size: 7.9G
+    Bundle Path: /Library/Developer/CoreSimulator/Volumes/iOS_23E254a/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.4.simruntime
+    Supported Architectures: arm64
+    Parent Mount Path: /System/Library/AssetsV2/com_apple_MobileAsset_iOSSimulatorRuntime/c060853b459625d7878fd533de79c966fb98d31b.asset/AssetData
+
+Total Disk Images: 1 (7.9G)

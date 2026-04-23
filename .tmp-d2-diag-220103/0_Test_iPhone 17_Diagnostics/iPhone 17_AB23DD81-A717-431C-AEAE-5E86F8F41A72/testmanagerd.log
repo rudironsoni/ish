@@ -1,0 +1,26 @@
+22:01:12.717 xcodebuild[50395:24161141] Sim iPhone 17: Unregistering for sim device notification with token 3
+22:01:12.717 xcodebuild[50395:24161141] Calling -[SimDevice getenv:error:] for TESTMANAGERD_SIM_SOCK
+22:01:12.736 xcodebuild[50395:24161141] Sim iPhone 17 has testmanagerd socket at /private/var/tmp/com.apple.launchd.2CW2M55x82/com.apple.testmanagerd.unix-domain.socket
+22:01:12.736 xcodebuild[50395:24161141] Validating test connection socket path (/private/var/tmp/com.apple.launchd.2CW2M55x82/com.apple.testmanagerd.unix-domain.socket)
+22:01:12.736 xcodebuild[50395:24161141] Constructing transport for test connection socket
+22:01:12.736 xcodebuild[50395:24161141] Connected socket 41 to testmanagerd for Sim iPhone 17
+22:01:12.739 xcodebuild[50395:24161141] Initiating control session with IDE capabilities: <XCTCapabilities: 0x8cdcf5ac0>: {
+}
+22:01:13.232 xcodebuild[50395:24161140] Got reply to control session initiation request (result:error): <XCTCapabilities: 0x8cb930080>: {
+    "authorize test session capability" = 1;
+    "automation mode" = 1;
+    "daemon container sandbox extension" = 1;
+    "initiate daemon control session capability" = 4;
+    "initiate test runner session capability" = 2;
+    "record UI interaction capability" = 2;
+    "recording events as source code" = 1;
+    "report crashes capability" = 1;
+    "request log archive capability" = 1;
+    "supports delayed attachment transfers" = 1;
+}: (null)
+22:01:13.233 xcodebuild[50395:24161141] Requesting crash report collection for process names: SpringBoard, xctest, FrontBoard, runningboardd, testmanagerd, backboardd, IXLandTerminal, assertiond, DTServiceHub, debugserver, IXLandLinuxRuntimeSystemTests
+22:01:13.319 xcodebuild[50395:24161141] Got reply to crash report collection request (error: (null))
+22:01:26.842 xcodebuild[50395:24161141] Requesting authorization for pid 50540
+22:01:26.859 xcodebuild[50395:24161141] Got reply to authorization request for pid 50540 (result:error): 1: (null)
+22:02:23.847 xcodebuild[50395:24165325] Requesting authorization for pid 50676
+22:02:23.848 xcodebuild[50395:24162825] Got reply to authorization request for pid 50676 (result:error): 1: (null)

@@ -1,0 +1,131 @@
+Apr 23 13:38:15: aslmanager starting
+Apr 23 13:38:15: ----------------------------------------
+Apr 23 13:38:15: Processing data store /Users/rudironsoni/Library/Logs/CoreSimulator/AB23DD81-A717-431C-AEAE-5E86F8F41A72/asl
+Apr 23 13:38:15: Data Store Size = 165427
+Apr 23 13:38:15: Data Store YMD Files (TTL = 7 days)
+Apr 23 13:38:15:   2026.04.18.G80.asl   7711 (age 4 days 13:38:15)
+Apr 23 13:38:15:   2026.04.19.G80.asl   59367 (age 3 days 13:38:15)
+Apr 23 13:38:15:   2026.04.20.G80.asl   20038 (age 2 days 13:38:15)
+Apr 23 13:38:15:   2026.04.21.G80.asl   32365 (age 1 day 13:38:15)
+Apr 23 13:38:15:   2026.04.22.G80.asl   35300 (age 13:38:15)
+Apr 23 13:38:15:   2026.04.23.G80.asl   10646 (age 0)
+Apr 23 13:38:15: Data Store AUX Directories
+Apr 23 13:38:15: Data Store BB.AUX Directories
+Apr 23 13:38:15: Data Store BB Files
+Apr 23 13:38:15: Start YMD File Scan
+Apr 23 13:38:15: Finished YMD File Scan
+Apr 23 13:38:15: Start AUX Directory Scan
+Apr 23 13:38:15: Finished AUX Directory Scan
+Apr 23 13:38:15: Start BB.AUX Directory Scan
+Apr 23 13:38:15: Finished BB.AUX Directory Scan
+Apr 23 13:38:15: Start BB Scan
+Apr 23 13:38:15: Finished BB Scan
+Apr 23 13:38:15: Data Store Size = 165427
+Apr 23 13:38:15: ----------------------------------------
+Apr 23 13:38:15: Processing module com.apple.asl
+Apr 23 13:38:15: Checking file /Users/rudironsoni/Library/Logs/CoreSimulator/AB23DD81-A717-431C-AEAE-5E86F8F41A72/system.log
+Apr 23 13:38:15: - Rename, move to destination directory, and compress as required
+Apr 23 13:38:15:     ignore src file system.log since it is internal and syslogd will checkpoint it when it needs to be renamed
+Apr 23 13:38:15:     no src files
+Apr 23 13:38:15: - Check for expired files - TTL = 7 days
+Apr 23 13:38:15:     dst files
+Apr 23 13:38:15:       system.log.1.gz (age 3 days 13:32:55)
+Apr 23 13:38:15:       system.log.0.gz (age 13:38:15)
+Apr 23 13:38:15: - Check total storage used - MAX = 52428800
+Apr 23 13:38:15:     dst files
+Apr 23 13:38:15:       system.log.1.gz size 1753
+Apr 23 13:38:15:       system.log.0.gz size 2221
+Apr 23 13:38:15: ----------------------------------------
+Apr 23 13:38:15: Processing data store /Users/rudironsoni/Library/Logs/CoreSimulator/AB23DD81-A717-431C-AEAE-5E86F8F41A72/asl
+Apr 23 13:38:15: Data Store Size = 165427
+Apr 23 13:38:15: Data Store YMD Files (TTL = 7 days)
+Apr 23 13:38:15:   2026.04.18.G80.asl   7711 (age 4 days 13:38:15)
+Apr 23 13:38:15:   2026.04.19.G80.asl   59367 (age 3 days 13:38:15)
+Apr 23 13:38:15:   2026.04.20.G80.asl   20038 (age 2 days 13:38:15)
+Apr 23 13:38:15:   2026.04.21.G80.asl   32365 (age 1 day 13:38:15)
+Apr 23 13:38:15:   2026.04.22.G80.asl   35300 (age 13:38:15)
+Apr 23 13:38:15:   2026.04.23.G80.asl   10646 (age 0)
+Apr 23 13:38:15: Data Store AUX Directories
+Apr 23 13:38:15: Data Store BB.AUX Directories
+Apr 23 13:38:15: Data Store BB Files
+Apr 23 13:38:15: Start YMD File Scan
+Apr 23 13:38:15: Finished YMD File Scan
+Apr 23 13:38:15: Start AUX Directory Scan
+Apr 23 13:38:15: Finished AUX Directory Scan
+Apr 23 13:38:15: Start BB.AUX Directory Scan
+Apr 23 13:38:15: Finished BB.AUX Directory Scan
+Apr 23 13:38:15: Start BB Scan
+Apr 23 13:38:15: Finished BB Scan
+Apr 23 13:38:15: Data Store Size = 165427
+Apr 23 13:38:15: ----------------------------------------
+Apr 23 13:38:15: Processing data store /Users/rudironsoni/Library/Logs/CoreSimulator/AB23DD81-A717-431C-AEAE-5E86F8F41A72/eventmonitor
+Apr 23 13:38:15: ----------------------------------------
+Apr 23 13:38:15: Processing data store /Users/rudironsoni/Library/Logs/CoreSimulator/AB23DD81-A717-431C-AEAE-5E86F8F41A72/performance
+Apr 23 13:38:15: ----------------------------------------
+Apr 23 13:38:15: Processing data store /Users/rudironsoni/Library/Logs/CoreSimulator/AB23DD81-A717-431C-AEAE-5E86F8F41A72/DiagnosticMessages
+Apr 23 13:38:15: Finished processing module com.apple.asl
+Apr 23 13:38:15: ----------------------------------------
+Apr 23 13:38:15: Processing module com.apple.NanoFindMy-UserStudy
+Apr 23 13:38:15: Checking file /var/mobile/Library/Logs/com.apple.NanoFindMy-UserStudy.log
+Apr 23 13:38:15: - Rename, move to destination directory, and compress as required
+Apr 23 13:38:15:     no src files
+Apr 23 13:38:15: - Check for expired files - TTL = 7 days
+Apr 23 13:38:15:     no dst files
+Apr 23 13:38:15: Finished processing module com.apple.NanoFindMy-UserStudy
+Apr 23 13:38:15: ----------------------------------------
+Apr 23 13:38:15: Processing module com.apple.nano-fmld
+Apr 23 13:38:15: Checking file /var/mobile/Library/Logs/CrashReporter/DiagnosticLogs/com.apple.nano-fmld.log
+Apr 23 13:38:15: - Rename, move to destination directory, and compress as required
+Apr 23 13:38:15:     no src files
+Apr 23 13:38:15: - Check for expired files - TTL = 7 days
+Apr 23 13:38:15:     no dst files
+Apr 23 13:38:15: Finished processing module com.apple.nano-fmld
+Apr 23 13:38:15: ----------------------------------------
+Apr 23 13:38:15: Processing module com.apple.nanosetup
+Apr 23 13:38:15: Checking file /var/mobile/Library/Logs/CrashReporter/DiagnosticLogs/com.apple.nanosetup.log
+Apr 23 13:38:15: - Rename, move to destination directory, and compress as required
+Apr 23 13:38:15:     no src files
+Apr 23 13:38:15: - Check for expired files - TTL = 7 days
+Apr 23 13:38:15:     no dst files
+Apr 23 13:38:15: Finished processing module com.apple.nanosetup
+Apr 23 13:38:15: ----------------------------------------
+Apr 23 13:38:15: Processing module com.apple.contacts.ContactsAutocomplete
+Apr 23 13:38:15: Checking file /Users/rudironsoni/Library/Logs/CoreSimulator/AB23DD81-A717-431C-AEAE-5E86F8F41A72/com.apple.contacts.ContactsAutocomplete/Probes.log
+Apr 23 13:38:15: - Rename, move to destination directory, and compress as required
+Apr 23 13:38:15:     no src files
+Apr 23 13:38:15: - Check for expired files - TTL = 7 days
+Apr 23 13:38:15:     no dst files
+Apr 23 13:38:15: - Check total storage used - MAX = 209715200
+Apr 23 13:38:15:     no dst files
+Apr 23 13:38:15: Checking file /Users/rudironsoni/Library/Logs/CoreSimulator/AB23DD81-A717-431C-AEAE-5E86F8F41A72/com.apple.contacts.ContactsAutocomplete/Sorting.log
+Apr 23 13:38:15: - Rename, move to destination directory, and compress as required
+Apr 23 13:38:15:     no src files
+Apr 23 13:38:15: - Check for expired files - TTL = 7 days
+Apr 23 13:38:15:     no dst files
+Apr 23 13:38:15: - Check total storage used - MAX = 209715200
+Apr 23 13:38:15:     no dst files
+Apr 23 13:38:15: Checking file /Users/rudironsoni/Library/Logs/CoreSimulator/AB23DD81-A717-431C-AEAE-5E86F8F41A72/com.apple.contacts.ContactsAutocomplete/Performance.log
+Apr 23 13:38:15: - Rename, move to destination directory, and compress as required
+Apr 23 13:38:15:     no src files
+Apr 23 13:38:15: - Check for expired files - TTL = 7 days
+Apr 23 13:38:15:     no dst files
+Apr 23 13:38:15: - Check total storage used - MAX = 209715200
+Apr 23 13:38:15:     no dst files
+Apr 23 13:38:15: Checking file /Users/rudironsoni/Library/Logs/CoreSimulator/AB23DD81-A717-431C-AEAE-5E86F8F41A72/com.apple.contacts.ContactsAutocomplete/Debug.log
+Apr 23 13:38:15: - Rename, move to destination directory, and compress as required
+Apr 23 13:38:15:     no src files
+Apr 23 13:38:15: - Check for expired files - TTL = 7 days
+Apr 23 13:38:15:     no dst files
+Apr 23 13:38:15: - Check total storage used - MAX = 209715200
+Apr 23 13:38:15:     no dst files
+Apr 23 13:38:15: Finished processing module com.apple.contacts.ContactsAutocomplete
+Apr 23 13:38:15: ----------------------------------------
+Apr 23 13:38:15: Processing module com.apple.networking.boringssl
+Apr 23 13:38:15: Checking file /Library/Logs/CrashReporter/com.apple.networking.boringssl.log
+Apr 23 13:38:15: - Rename, move to destination directory, and compress as required
+Apr 23 13:38:15:     no src files
+Apr 23 13:38:15: - Check for expired files - TTL = 7 days
+Apr 23 13:38:15:     no dst files
+Apr 23 13:38:15: Finished processing module com.apple.networking.boringssl
+Apr 23 13:38:15: ----------------------------------------
+Apr 23 13:38:15: aslmanager finished

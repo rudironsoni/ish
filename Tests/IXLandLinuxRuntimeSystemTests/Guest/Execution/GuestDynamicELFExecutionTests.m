@@ -167,8 +167,9 @@
     
     // B1 behavioral: run executable to drive runtime checkpoints
     guest_execution_trace_sink_reset();
-    GuestExecutionResult *result = [self.harness runExecutableAtRootPath:dataRootPath
-                                                         executablePath:busyboxRelativePath];
+    GuestExecutionResult *result = [self.harness classifyExecutableAtRootPath:dataRootPath
+                                                                executablePath:busyboxRelativePath];
+
     
     // CLASSIFICATION LADDER H0-H4: Harness seam before runtime
     XCTAssertTrue(result.harnessEntered, @"H0: runExecutableAtRootPath must be entered");
@@ -293,40 +294,54 @@
     XCTAssertTrue([[NSFileManager defaultManager] fileExistsAtPath:busyboxFullPath],
                   @"B0: busybox must exist at %@", busyboxFullPath);
     
-    XCTestExpectation *boundaryExpectation = [self expectationWithDescription:@"D2 boundary observed"];
-    __block BOOL callbackFired = NO;
-    
     guest_execution_trace_sink_reset();
-    guest_execution_trace_sink_set_completion_callback(^(BOOL exit_observed, int exit_code) {
-        // DIAGNOSTIC: Check if elf_exec was reached
-        // D2.0: Check if interpreter open was attempted (loader.interp.open.result)
-        // D2.1: Check if interpreter header was loaded (loader.interp_elf.header or loader.interp.bias.compute)
-        // D2.3: Check if interpreter mappings exist (loader.interp.pt_load.map)
-        BOOL elfExecReached = guest_execution_trace_sink_elf_exec_reached();
-        BOOL mainElfHeaderAccepted = guest_execution_trace_sink_main_elf_header_accepted();
-        BOOL interpOpenAttempted = guest_execution_trace_sink_interp_open_attempted();
-        BOOL interpHeaderLoaded = guest_execution_trace_sink_interp_header_loaded();
-        BOOL interpMappingsExist = guest_execution_trace_sink_interp_mappings_exist();
-        
-        if (!callbackFired && (elfExecReached || mainElfHeaderAccepted || interpOpenAttempted || interpHeaderLoaded || interpMappingsExist || exit_observed)) {
-            callbackFired = YES;
-            [boundaryExpectation fulfill];
-        }
-    });
+
+    GuestExecutionResult *result = [self.harness runExecutableAtRootPath:dataRootPath
+                                                          executablePath:busyboxRelativePath];
+
+    XCTAssertTrue(result.harnessEntered, @"H0: runExecutableAtRootPath must be entered");
+    XCTAssertTrue(result.mountRootCalled, @"H1: mount_root must be called");
+    XCTAssertTrue(result.mountRootReturnValue == 0 || result.mountRootReturnValue == -16,
+                  @"H1: mount_root must return 0 or -16, got %d", result.mountRootReturnValue);
+    XCTAssertTrue(result.becomeFirstProcessCalled, @"H2: become_first_process must be called");
+    XCTAssertTrue(result.becomeFirstProcessReturnValue == 0 || result.becomeFirstProcessReturnValue == -17,
+                  @"H2: become_first_process must return 0 or -17, got %d", result.becomeFirstProcessReturnValue);
+    XCTAssertTrue(result.doExecveReached, @"H3: do_execve must be reached");
+    XCTAssertTrue(result.doExecveCalled, @"H4: do_execve must be called");
+    XCTAssertEqual(result.doExecveReturnValue, 0, @"H4: do_execve must return 0 (success), got %d", result.doExecveReturnValue);
+
+    // EXPLICIT LADDER OUTPUT FOR D2 - PROVE EXACT CHECKPOINT VISIBILITY
+    BOOL X0 = guest_execution_trace_sink_do_execve_entered();
+    BOOL X1 = guest_execution_trace_sink_format_exec_entered();
+    BOOL X2 = guest_execution_trace_sink_before_elf_exec_entered();
+    BOOL X3 = guest_execution_trace_sink_elf_exec_entered();
+    BOOL M1 = guest_execution_trace_sink_main_elf_header_accepted();
+    BOOL D2_0 = guest_execution_trace_sink_interp_open_attempted();
+    BOOL D2_1 = guest_execution_trace_sink_interp_header_loaded();
+    BOOL D2_3 = guest_execution_trace_sink_interp_mappings_exist();
+    const char *lastEvent = guest_execution_trace_sink_get_last_loader_event();
+
+    NSLog(@"D2 LADDER: X0=%d X1=%d X2=%d X3=%d | M1=%d D2.0=%d D2.1=%d D2.3=%d | last='%s'",
+          X0, X1, X2, X3,
+          M1, D2_0, D2_1, D2_3,
+          lastEvent);
     
-    dispatch_async(self.harness.executionQueue, ^{
-        [self.harness runExecutableAtRootPath:dataRootPath executablePath:busyboxRelativePath];
-    });
-    
-    [self waitForExpectations:@[boundaryExpectation] timeout:60.0];
-    
+    BOOL anyIntervalReceived = guest_execution_trace_sink_any_interval_received();
+    if (!anyIntervalReceived) {
+        const char *lastEvent = guest_execution_trace_sink_get_last_loader_event();
+        XCTFail(@"S0: trace sink did not receive begin_interval callbacks for D2 run; "
+                @"loader boundary assertions are invalid without sink delivery. "
+                @"last_event='%s'", lastEvent);
+        guest_execution_trace_sink_set_completion_callback(NULL);
+        return;
+    }
+
     // DIAGNOSTIC: Check if elf_exec was reached
     BOOL elfExecReached = guest_execution_trace_sink_elf_exec_reached();
     (void)elfExecReached; // suppress unused warning
     
     // M1: Check main ELF header accepted event
     BOOL mainElfHeaderAccepted = guest_execution_trace_sink_main_elf_header_accepted();
-    const char *lastEvent = guest_execution_trace_sink_get_last_loader_event();
     
     // M1 classification: read_header(main_fd, &header) must succeed
     XCTAssertTrue(mainElfHeaderAccepted,

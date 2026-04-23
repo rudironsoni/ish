@@ -695,12 +695,18 @@ static addr_t find_hole_for_elf(struct elf_header *header, struct prg_header *ph
         }
     }
     pages_t size = 0;
+    addr_t base = 0;
     if (first != NULL) {
         pages_t a = PAGE_ROUND_UP(last->vaddr + last->memsize);
         pages_t b = PAGE(first->vaddr);
         size = a - b;
+        page_t min_page = PAGE(first->vaddr);
+        page_t hole_page = vma_tree_find_hole_above(&current->mem->vmas, min_page, size);
+        if (hole_page == (page_t)-1)
+            hole_page = min_page;
+        base = (hole_page << PAGE_BITS) - first->vaddr;
     }
-    return pt_find_hole(current->mem, size) << PAGE_BITS;
+    return base;
 }
 
 static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, struct exec_args envp)
@@ -776,15 +782,11 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
         // open interpreter and read headers
         interp_fd = generic_open(interp_name, O_RDONLY, 0);
         {
-            static int budget = 1;
-            if (budget > 0) {
-                char ev[256];
-                int open_err = IS_ERR(interp_fd) ? (int)PTR_ERR(interp_fd) : 0;
-                snprintf(ev, sizeof(ev), "loader.interp.open.result=err:%d,path:%s,present:1",
-                         open_err, interp_name ? interp_name : "none");
-                trace_record_event(TRACE_ORIGIN_KERNEL, ev);
-                budget--;
-            }
+            char ev[256];
+            int open_err = IS_ERR(interp_fd) ? (int)PTR_ERR(interp_fd) : 0;
+            snprintf(ev, sizeof(ev), "loader.interp.open.result=err:%d,path:%s,present:1",
+                     open_err, interp_name ? interp_name : "none");
+            trace_record_event(TRACE_ORIGIN_KERNEL, ev);
         }
         if (IS_ERR(interp_fd)) {
             err = (int)PTR_ERR(interp_fd);
@@ -1003,6 +1005,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     addr_t interp_base = 0;
     addr_t dynamic_addr = 0; // _DYNAMIC section address for x1
     bool interp_first_load_seen = false;
+    bool interp_lowest_pt_load_seen = false;
     addr_t interp_first_load_vaddr = 0;
     addr_t interp_first_load_off = 0;
     addr_t interp_lowest_pt_load_vaddr = 0;
@@ -1021,7 +1024,9 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
             trace_interp_phdr_event(i, &interp_ph[i]);
             if (interp_ph[i].type != PT_LOAD)
                 continue;
-            if (!interp_first_load_seen || interp_ph[i].vaddr < interp_lowest_pt_load_vaddr) {
+            if (!interp_lowest_pt_load_seen ||
+                interp_ph[i].vaddr < interp_lowest_pt_load_vaddr) {
+                interp_lowest_pt_load_seen = true;
                 interp_lowest_pt_load_vaddr = interp_ph[i].vaddr;
                 interp_lowest_pt_load_off = interp_ph[i].offset;
             }
@@ -1030,10 +1035,10 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
         // map dat shit! interpreter edition
         interp_base = find_hole_for_elf(&interp_header, interp_ph);
         {
-            // Keep interpreter away from guest page zero.
-            // This is a loader/MM invariant: page 0 must not become the interpreter base.
-            if (interp_base < PAGE_SIZE)
-                interp_base = PAGE_SIZE;
+            addr_t interp_first_map =
+                interp_base + (PAGE(interp_lowest_pt_load_vaddr) << PAGE_BITS);
+            if (interp_first_map < PAGE_SIZE)
+                interp_base += (PAGE_SIZE - interp_first_map);
 
             char ev[320];
             snprintf(
@@ -1108,9 +1113,22 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
             trace_begin_interval(TRACE_ORIGIN_KERNEL, "task.proof.exec.load.segment", load_attrs,
                                  sizeof(load_attrs) / sizeof(load_attrs[0]));
         }
-        entry = interp_base + interp_header.entry_point;
+entry = interp_base + interp_header.entry_point;
 
-        // Trace interpreter mapping for APPSIM-004 diagnosis
+// Find PT_DYNAMIC in the interpreter (x1 must point to interpreter's _DYNAMIC)
+addr_t interp_dynamic_addr = 0;
+for (int i = 0; i < interp_header.phent_count; i++) {
+    if (interp_ph[i].type == PT_DYNAMIC) {
+        interp_dynamic_addr = interp_base + interp_ph[i].vaddr;
+        break;
+    }
+}
+// Use interpreter's _DYNAMIC for x1 when jumping to interpreter entry
+if (interp_dynamic_addr != 0) {
+    dynamic_addr = interp_dynamic_addr;
+}
+
+// Trace interpreter mapping for APPSIM-004 diagnosis
         char interp_base_buf[32];
         char interp_entry_buf[32];
 

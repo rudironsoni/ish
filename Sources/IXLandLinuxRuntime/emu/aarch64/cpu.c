@@ -755,26 +755,34 @@ static void trace_cpu_run_checkpoint(const char *name, struct task *task, struct
     (void)trace_begin_interval(TRACE_ORIGIN_EXEC, name, attrs, sizeof(attrs) / sizeof(attrs[0]));
 }
 
-static void trace_fault_origin_checkpoint(const char *name, uint64_t fault_pc, uint64_t base_reg,
-                                          uint64_t index_reg, int64_t imm_offset,
+static void trace_fault_origin_checkpoint(const char *name, uint64_t fault_pc, int base_reg,
+                                          uint64_t base_reg_value, int index_reg,
+                                          uint64_t index_reg_value, int64_t imm_offset,
                                           uint64_t computed_addr)
 {
     char fault_pc_buf[32];
     char base_reg_buf[32];
+    char base_reg_value_buf[32];
     char index_reg_buf[32];
+    char index_reg_value_buf[32];
     char imm_buf[32];
     char computed_buf[32];
 
     snprintf(fault_pc_buf, sizeof(fault_pc_buf), "0x%llx", (unsigned long long)fault_pc);
-    snprintf(base_reg_buf, sizeof(base_reg_buf), "0x%llx", (unsigned long long)base_reg);
-    snprintf(index_reg_buf, sizeof(index_reg_buf), "0x%llx", (unsigned long long)index_reg);
+    snprintf(base_reg_buf, sizeof(base_reg_buf), "%d", base_reg);
+    snprintf(base_reg_value_buf, sizeof(base_reg_value_buf), "0x%llx",
+             (unsigned long long)base_reg_value);
+    snprintf(index_reg_buf, sizeof(index_reg_buf), "%d", index_reg);
+    snprintf(index_reg_value_buf, sizeof(index_reg_value_buf), "0x%llx",
+             (unsigned long long)index_reg_value);
     snprintf(imm_buf, sizeof(imm_buf), "%lld", (long long)imm_offset);
     snprintf(computed_buf, sizeof(computed_buf), "0x%llx", (unsigned long long)computed_addr);
 
     trace_attribute_t attrs[] = {
-        { "fault_pc", fault_pc_buf },      { "base_reg", base_reg_buf },
-        { "index_reg", index_reg_buf },    { "imm_offset", imm_buf },
-        { "computed_addr", computed_buf },
+        { "fault_pc", fault_pc_buf },           { "base_reg", base_reg_buf },
+        { "base_reg_value", base_reg_value_buf },
+        { "index_reg", index_reg_buf },         { "index_reg_value", index_reg_value_buf },
+        { "imm_offset", imm_buf },              { "computed_addr", computed_buf },
     };
 
     (void)trace_begin_interval(TRACE_ORIGIN_EXEC, name, attrs, sizeof(attrs) / sizeof(attrs[0]));
@@ -1236,7 +1244,8 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
  * Uses tcti_entry_block to set up register mapping and execute
  * the entire gadget chain. Gadgets use epilogue to chain together.
  */
-int a64_execute_block(struct cpu_state *cpu, struct a64_block *block)
+__attribute__((no_stack_protector)) int a64_execute_block(struct cpu_state *cpu,
+                                                          struct a64_block *block)
 {
     // Trace: Register snapshot if at block level
     if (trace_get_level() >= TRACE_LEVEL_BLOCK) {
@@ -1472,7 +1481,6 @@ int a64_execute_block(struct cpu_state *cpu, struct a64_block *block)
     } else {
         // Fault containment path - signal was caught
         cpu->tcti_exit_reason = TCTI_EXIT_FAULT;
-        cpu->fault_addr = cpu->pc; // Best guess at fault location
         cpu->fault_was_write = false;
         trace_first_live_ldst_fault(cpu, guest_fault_signal);
     }
@@ -3307,16 +3315,29 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
             // Decode and trace the faulting instruction
             uint32_t raw_insn = 0;
             a64_instr_t decoded;
+            int fault_rn = -1;
+            int fault_rm = -1;
+            int64_t fault_imm = 0;
+            uint64_t fault_rn_value = 0;
+            uint64_t fault_rm_value = 0;
             if (a64_fetch_insn(cpu, cpu->tlb, cpu->pc, &raw_insn) == 0 &&
                 a64_decode(raw_insn, &decoded) == 0) {
                 trace_insn_decode_checkpoint("task.proof.faulting_insn.decode", cpu->pc, raw_insn,
                                              decoded.cat, decoded.subtype, decoded.Rn, decoded.Rm,
                                              (int)decoded.imm);
+                fault_rn = decoded.Rn;
+                fault_rm = decoded.Rm;
+                fault_imm = decoded.imm;
+                if (fault_rn >= 0 && fault_rn < 31)
+                    fault_rn_value = cpu->x[fault_rn];
+                if (fault_rm >= 0 && fault_rm < 31)
+                    fault_rm_value = cpu->x[fault_rm];
             }
 
             // Trace fault event with full context for first fault analysis
-            trace_fault_origin_checkpoint("task.proof.first_fault.details", cpu->pc, cpu->x[2], 0,
-                                          0, cpu->fault_addr);
+            trace_fault_origin_checkpoint("task.proof.first_fault.details", cpu->pc, fault_rn,
+                                          fault_rn_value, fault_rm, fault_rm_value, fault_imm,
+                                          cpu->fault_addr);
             trace_emit_fault(cpu->pc, cpu->fault_addr, cpu->fault_was_write, 0);
 
             // Dump sidecar and ring if configured
@@ -3498,6 +3519,36 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
                         }
                     }
                     stuck_site_budget--;
+                }
+            }
+
+            if (cpu->pc == 0x69654ULL || cpu->pc == 0x69658ULL) {
+                static int loop_ctr_budget = 24;
+                if (loop_ctr_budget > 0) {
+                    uint32_t raw = 0;
+                    if (a64_fetch_insn(cpu, cpu->tlb, cpu->pc, &raw) == 0) {
+                        char ev_raw[160];
+                        snprintf(ev_raw, sizeof(ev_raw),
+                                 "task.proof.a64_cpu_run.loop_ctr.raw=pc:0x%llx,raw:0x%08x,x5:0x%llx,"
+                                 "x2:0x%llx,x3:0x%llx",
+                                 (unsigned long long)cpu->pc, raw, (unsigned long long)cpu->x[5],
+                                 (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[3]);
+                        trace_record_event(TRACE_ORIGIN_EXEC, ev_raw);
+
+                        a64_instr_t decoded;
+                        if (a64_decode(raw, &decoded) == 0) {
+                            char ev_dec[192];
+                            snprintf(ev_dec, sizeof(ev_dec),
+                                     "task.proof.a64_cpu_run.loop_ctr.decoded=pc:0x%llx,cat:%d,sub:%d,"
+                                     "rd:%d,rn:%d,rm:%d,idx:%d,imm:%d,nzcv:%d%d%d%d",
+                                     (unsigned long long)cpu->pc, decoded.cat, decoded.subtype,
+                                     decoded.Rd, decoded.Rn, decoded.Rm, decoded.idx_mode,
+                                     (int)decoded.imm, cpu->n ? 1 : 0, cpu->z ? 1 : 0,
+                                     cpu->c ? 1 : 0, cpu->v ? 1 : 0);
+                            trace_record_event(TRACE_ORIGIN_EXEC, ev_dec);
+                        }
+                    }
+                    loop_ctr_budget--;
                 }
             }
         }
