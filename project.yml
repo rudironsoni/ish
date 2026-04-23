@@ -72,11 +72,6 @@ targets:
       product: libarchive
     settings:
       ENABLE_CODE_COVERAGE: false
-    scheme:
-      testTargets:
-      - IXLandLinuxRuntimeContractTests
-      - IXLandLinuxRuntimeSystemTests
-      - IXLandLinuxRuntimePerfTests
 
   # MARK: - Contract Test Target
   IXLandLinuxRuntimeContractTests:
