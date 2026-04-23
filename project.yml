@@ -291,25 +291,14 @@ targets:
       GENERATE_INFOPLIST_FILE: true
 
 # MARK: - Test Plans and Schemes
+# Canonical schemes only: IXLand-6.12-arm64 (app) and IXLandRuntime-6.12-arm64 (runtime)
 schemes:
-  IXLandRuntime-6.12-arm64:
-    build:
-      targets:
-        IXLandLinuxRuntime: all
-        IXLandLinuxRuntimeContractTests: all
-    test:
-      config: Debug
-      gatherCoverageData: false
-      targets:
-      - name: IXLandLinuxRuntimeContractTests
-        parallelizable: false
-
-  # Main development scheme
-  IXLand:
+  IXLand-6.12-arm64:
     build:
       targets:
         IXLandLinuxRuntime: all
         IXLandTerminal: all
+        IXLandTerminalUnitTests: all
         IXLandTerminalEnd2EndTests: [build-for-testing]
     run:
       config: Debug
@@ -318,47 +307,26 @@ schemes:
       config: Debug
       gatherCoverageData: false
       targets:
-      - name: IXLandTerminalEnd2EndTests
-        parallelizable: false
+        - name: IXLandTerminalUnitTests
+          parallelizable: false
+        - name: IXLandTerminalEnd2EndTests
+          parallelizable: false
 
-  # TCTI Contract Tests - Stage contracts for fetch/decode/lowering/entry/exit
-  IXLandTCTIContracts:
+  IXLandRuntime-6.12-arm64:
     build:
       targets:
         IXLandLinuxRuntime: all
         IXLandTerminal: all
         IXLandLinuxRuntimeContractTests: [build-for-testing]
-    test:
-      config: Debug
-      gatherCoverageData: false
-      targets:
-      - name: IXLandLinuxRuntimeContractTests
-        parallelizable: false
-
-  # Guest Runtime System Tests - Black-box guest behavior
-  IXLandGuestRuntime:
-    build:
-      targets:
-        IXLandLinuxRuntime: all
-        IXLandTerminal: all
         IXLandLinuxRuntimeSystemTests: [build-for-testing]
-    test:
-      config: Debug
-      gatherCoverageData: false
-      targets:
-      - name: IXLandLinuxRuntimeSystemTests
-        parallelizable: false
-
-  # Performance Tests
-  IXLandRuntimePerf:
-    build:
-      targets:
-        IXLandLinuxRuntime: all
-        IXLandTerminal: all
         IXLandLinuxRuntimePerfTests: [build-for-testing]
     test:
       config: Debug
       gatherCoverageData: false
       targets:
-      - name: IXLandLinuxRuntimePerfTests
-        parallelizable: false
+        - name: IXLandLinuxRuntimeContractTests
+          parallelizable: false
+        - name: IXLandLinuxRuntimeSystemTests
+          parallelizable: false
+        - name: IXLandLinuxRuntimePerfTests
+          parallelizable: false
