@@ -15,6 +15,7 @@
 		06BC6B2C1E8ACA722DE6881C /* fs_info.c in Sources */ = {isa = PBXBuildFile; fileRef = 33A2DE2552AFCCFA1C7A230B /* fs_info.c */; };
 		0A771B0127F910E4945AA9D6 /* log.c in Sources */ = {isa = PBXBuildFile; fileRef = E610A5433DF9A36127FCAC6C /* log.c */; };
 		0F5A6C643CB60AEF9E360D1B /* ThemeViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 1185AC6E85598743A46FD1E5 /* ThemeViewController.m */; };
+		10154EB71F93D79AD7BEA768 /* static_wrong_machine.bin in Resources */ = {isa = PBXBuildFile; fileRef = 9071C44F78843BF1F962C5FE /* static_wrong_machine.bin */; };
 		10AD73A7896BD675E691B3D7 /* futex.c in Sources */ = {isa = PBXBuildFile; fileRef = D625427CBA8ABE3DB17A57E8 /* futex.c */; };
 		1291A59269FFB9A6EB2D2B35 /* Terminal.m in Sources */ = {isa = PBXBuildFile; fileRef = 278CD94D45A96786F18E17A2 /* Terminal.m */; };
 		139DF9A4BC59503C6271E6A4 /* Settings.bundle in Resources */ = {isa = PBXBuildFile; fileRef = 2A72EF3A789A8F0DE2CDC77C /* Settings.bundle */; };
@@ -29,6 +30,7 @@
 		1AB153CD68F6452E66EF1072 /* dir.c in Sources */ = {isa = PBXBuildFile; fileRef = 142C7059858863CA4154679B /* dir.c */; };
 		1BC0CF24B9722169925648EF /* calls.c in Sources */ = {isa = PBXBuildFile; fileRef = B8E4AC70AC00926AB255EB75 /* calls.c */; };
 		1BDCAF4FCD118196AE74B91A /* vdso.c in Sources */ = {isa = PBXBuildFile; fileRef = 0856887DA7211FC09A6528B9 /* vdso.c */; };
+		1E457A02883EE586EE059D42 /* static_bad_magic.bin in Resources */ = {isa = PBXBuildFile; fileRef = 66269EDDFB1D201581D064CC /* static_bad_magic.bin */; };
 		1E601B660D7A6AC965F8A137 /* random.c in Sources */ = {isa = PBXBuildFile; fileRef = 5B1A263E99DF04E2183CD5AB /* random.c */; };
 		1EA19FC0283584BE7AC7B526 /* getset.c in Sources */ = {isa = PBXBuildFile; fileRef = AA4A63C3FA48ABA20C303639 /* getset.c */; };
 		1F53BB552F69D844AFA7AC9F /* group.c in Sources */ = {isa = PBXBuildFile; fileRef = F8760D68042E99F1896897F3 /* group.c */; };
@@ -75,6 +77,7 @@
 		5621363594F6B5083DC0E10B /* ArrowBarButton.m in Sources */ = {isa = PBXBuildFile; fileRef = 04DA2D6ED191BA50AC921EF9 /* ArrowBarButton.m */; };
 		575D34A5EADFAE85B5348DBD /* reworked.png in Resources */ = {isa = PBXBuildFile; fileRef = 048313195AEDB16A566122F3 /* reworked.png */; };
 		57ABBDC4F2CB059E6001AFEF /* is.png in Resources */ = {isa = PBXBuildFile; fileRef = C75784D7A6850DBE5CCEA355 /* is.png */; };
+		5948FDB22A372F569528B0DC /* static_minimal_exec_ok.elf in Resources */ = {isa = PBXBuildFile; fileRef = 40C2A88B267444A581024B5D /* static_minimal_exec_ok.elf */; };
 		598210E6E54CBEEF2F741EF9 /* pid.c in Sources */ = {isa = PBXBuildFile; fileRef = 2C280CCAC8F6B8BEEBFB5D53 /* pid.c */; };
 		59AF87221E68ED2CA7D1BE53 /* term.css in Resources */ = {isa = PBXBuildFile; fileRef = E102C0FF8EDAEF11230720DF /* term.css */; };
 		59BD1EB5136B3E624FDDAAD8 /* block-cache.c in Sources */ = {isa = PBXBuildFile; fileRef = D6CA7C71641E1BF8B6969B3E /* block-cache.c */; };
@@ -198,6 +201,7 @@
 		DC8231DF85EA9C00896EA264 /* fd.c in Sources */ = {isa = PBXBuildFile; fileRef = 97DB252437E128B0AC5E308F /* fd.c */; };
 		DF4467D014F9A2F83D07F72F /* notsurewhatthisis.png in Resources */ = {isa = PBXBuildFile; fileRef = 9FEDB8F13F52F27F0D4339DC /* notsurewhatthisis.png */; };
 		DFFCCD547506BC395F691790 /* AboutExternalKeyboardViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = B06306E63664EC691DA78595 /* AboutExternalKeyboardViewController.m */; };
+		E1D138AE8FCC50606A199DE9 /* static_minimal_aarch64_ok.elf in Resources */ = {isa = PBXBuildFile; fileRef = D463CED677710E2BE949EEDE /* static_minimal_aarch64_ok.elf */; };
 		E1EBA5566F786ED0F099FAE1 /* BarButton.m in Sources */ = {isa = PBXBuildFile; fileRef = 811128E064EC055089670308 /* BarButton.m */; };
 		E1FC566C26CC43062EA69330 /* libxml2.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 8A02C624D84627F688438977 /* libxml2.tbd */; };
 		E237B6C521C0261694F9FE1E /* signal.c in Sources */ = {isa = PBXBuildFile; fileRef = 2D9B042769BC68C96065E897 /* signal.c */; };
@@ -1587,6 +1591,7 @@
 			buildConfigurationList = 8B45708073C623418BF52270 /* Build configuration list for PBXNativeTarget "IXLandLinuxRuntimeSystemTests" */;
 			buildPhases = (
 				4DF8AA3F2002159AA15FDAD9 /* Sources */,
+				C864DD060EC5AAFC75B76FA5 /* Resources */,
 				699602C0B5DAF66758176648 /* Frameworks */,
 			);
 			buildRules = (
@@ -1833,6 +1838,17 @@
 				D68231BF6D58AD4D675E4F44 /* term.html in Resources */,
 				61CECF4AAD49D9527CC94A9E /* term.js in Resources */,
 				FD34D5B743A02B788828155E /* uninspired.png in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C864DD060EC5AAFC75B76FA5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1E457A02883EE586EE059D42 /* static_bad_magic.bin in Resources */,
+				E1D138AE8FCC50606A199DE9 /* static_minimal_aarch64_ok.elf in Resources */,
+				5948FDB22A372F569528B0DC /* static_minimal_exec_ok.elf in Resources */,
+				10154EB71F93D79AD7BEA768 /* static_wrong_machine.bin in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

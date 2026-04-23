@@ -115,6 +115,11 @@ targets:
       - "**/DISABLED/**"
       - "*.md"
     - path: Tests/Support/GuestExecutionHarness
+    - path: Tests/Fixtures/ELF
+      includes:
+      - "*.elf"
+      - "*.bin"
+      buildPhase: resources
     dependencies:
     - target: IXLandTerminal
     - target: IXLandLinuxRuntime
