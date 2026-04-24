@@ -755,13 +755,10 @@
                         <rect key="frame" x="0.0" y="0.0" width="320" height="568"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
-                            <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="6OQ-mF-Mur" customClass="TerminalView">
-                                <rect key="frame" x="0.0" y="64" width="320" height="504"/>
-                                <color key="backgroundColor" systemColor="systemBackgroundColor"/>
-                                <userDefinedRuntimeAttributes>
-                                    <userDefinedRuntimeAttribute type="boolean" keyPath="canBecomeFirstResponder" value="NO"/>
-                                </userDefinedRuntimeAttributes>
-                            </view>
+<view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="6OQ-mF-Mur" customClass="TerminalView">
+<rect key="frame" x="0.0" y="64" width="320" height="504"/>
+<color key="backgroundColor" systemColor="systemBackgroundColor"/>
+</view>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="1GV-qG-uh7"/>
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
