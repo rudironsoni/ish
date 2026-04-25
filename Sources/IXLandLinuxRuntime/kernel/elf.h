@@ -85,6 +85,7 @@ struct aux_ent {
 #define AX_PLATFORM     15
 #define AX_HWCAP        16
 #define AX_CLKTCK       17
+#define AX_DYNAMIC      21
 #define AX_SECURE       23
 #define AX_RANDOM       25
 #define AX_HWCAP2       26

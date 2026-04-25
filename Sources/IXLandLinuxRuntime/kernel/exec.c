@@ -1356,6 +1356,7 @@ if (interp_dynamic_addr != 0) {
                              { AX_BASE, interp_base },
                              { AX_FLAGS, 0 },
                              { AX_ENTRY, bias + header.entry_point },
+                             { AX_DYNAMIC, dynamic_addr },
                              { AX_UID, 0 },
                              { AX_EUID, 0 },
                              { AX_GID, 0 },
