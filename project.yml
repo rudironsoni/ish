@@ -65,29 +65,31 @@ targets:
       headerVisibility: project
     dependencies:
     - package: IXLandInstrumentation
-      product: IXLandInstrumentation
-    - package: IXLandInstrumentation
-      product: IXLandInstrumentationTracing
+      product: IXLandInstrumentationRuntime
     - package: libarchive-for-swift
       product: libarchive
     settings:
       ENABLE_CODE_COVERAGE: false
 
-# MARK: - Contract Test Target
-IXLandLinuxRuntimeContractTests:
-  type: bundle.unit-test
-  platform: iOS
-  sources:
-  - path: Tests/IXLandLinuxRuntimeContractTests
-  - path: Tests/Support/TCTITestHarness
-  excludes:
-  - "**/DISABLED/**"
-  - "*.md"
-  - "tcti_four_boundary.c"
-  - "tcti_harness_truth.c"
-  dependencies:
-  - target: IXLandTerminal
-  settings:
+  # MARK: - Contract Test Target
+  IXLandLinuxRuntimeContractTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+    - path: Tests/IXLandLinuxRuntimeContractTests
+      excludes:
+      - "**/DISABLED/**"
+      - "*.md"
+    - path: Tests/Support/TCTITestHarness
+      excludes:
+      - "tcti_four_boundary.c"
+      - "tcti_harness_truth.c"
+    dependencies:
+    - target: IXLandTerminal
+    - target: IXLandLinuxRuntime
+    - package: IXLandInstrumentation
+      product: IXLandInstrumentationRuntime
+    settings:
       GENERATE_INFOPLIST_FILE: true
       TEST_HOST: "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal"
       BUNDLE_LOADER: "$(TEST_HOST)"
@@ -98,24 +100,27 @@ IXLandLinuxRuntimeContractTests:
       - "$(SRCROOT)"
       - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include"
 
-# MARK: - System Test Target
-IXLandLinuxRuntimeSystemTests:
-  type: bundle.unit-test
-  platform: iOS
-  sources:
-  - path: Tests/IXLandLinuxRuntimeSystemTests
-  - path: Tests/Support/GuestExecutionHarness
-  - path: Tests/Fixtures/ELF
-  excludes:
-  - "**/DISABLED/**"
-  - "*.md"
-  includes:
-  - "*.elf"
-  - "*.bin"
-  buildPhase: resources
-  dependencies:
-  - target: IXLandTerminal
-  settings:
+  # MARK: - System Test Target
+  IXLandLinuxRuntimeSystemTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+    - path: Tests/IXLandLinuxRuntimeSystemTests
+      excludes:
+      - "**/DISABLED/**"
+      - "*.md"
+    - path: Tests/Support/GuestExecutionHarness
+    - path: Tests/Fixtures/ELF
+      includes:
+      - "*.elf"
+      - "*.bin"
+      buildPhase: resources
+    dependencies:
+    - target: IXLandTerminal
+    - target: IXLandLinuxRuntime
+    - package: IXLandInstrumentation
+      product: IXLandInstrumentationRuntime
+    settings:
       GENERATE_INFOPLIST_FILE: true
       TEST_HOST: "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal"
       BUNDLE_LOADER: "$(TEST_HOST)"
@@ -127,23 +132,26 @@ IXLandLinuxRuntimeSystemTests:
       - "$(SRCROOT)/Tests/Support"
       - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include"
 
-# MARK: - Performance Test Target
-IXLandLinuxRuntimePerfTests:
-  type: bundle.unit-test
-  platform: iOS
-  sources:
-  - path: Tests/IXLandLinuxRuntimePerfTests
-  - path: Tests/Fixtures/ELF
-  excludes:
-  - "**/DISABLED/**"
-  - "*.md"
-  includes:
-  - "*.elf"
-  - "*.bin"
-  buildPhase: resources
-  dependencies:
-  - target: IXLandTerminal
-  settings:
+  # MARK: - Performance Test Target
+  IXLandLinuxRuntimePerfTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+    - path: Tests/IXLandLinuxRuntimePerfTests
+      excludes:
+      - "**/DISABLED/**"
+      - "*.md"
+    - path: Tests/Fixtures/ELF
+      includes:
+      - "*.elf"
+      - "*.bin"
+      buildPhase: resources
+    dependencies:
+    - target: IXLandTerminal
+    - target: IXLandLinuxRuntime
+    - package: IXLandInstrumentation
+      product: IXLandInstrumentationRuntime
+    settings:
       GENERATE_INFOPLIST_FILE: true
       TEST_HOST: "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal"
       BUNDLE_LOADER: "$(TEST_HOST)"
@@ -228,11 +236,7 @@ IXLandLinuxRuntimePerfTests:
     dependencies:
     - target: IXLandLinuxRuntime
     - package: IXLandInstrumentation
-      product: IXLandInstrumentation
-    - package: IXLandInstrumentation
-      product: IXLandInstrumentationTracing
-    - package: IXLandInstrumentation
-      product: IXLandInstrumentationBridge
+      product: IXLandInstrumentationRuntime
     - package: libarchive-for-swift
       product: libarchive
     - sdk: CoreLocation.framework
@@ -248,15 +252,16 @@ IXLandLinuxRuntimePerfTests:
     - sdk: libiconv.tbd
     - sdk: UniformTypeIdentifiers.framework
 
-# MARK: - Terminal Unit Tests
-IXLandTerminalUnitTests:
-  type: bundle.unit-test
-  platform: iOS
-  sources:
-  - Tests/IXLandTerminalUnitTests
-  dependencies:
-  - target: IXLandTerminal
-  settings:
+  # MARK: - Terminal Unit Tests
+  IXLandTerminalUnitTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+    - Tests/IXLandTerminalUnitTests
+    dependencies:
+    - target: IXLandTerminal
+    - target: IXLandLinuxRuntime
+    settings:
       GENERATE_INFOPLIST_FILE: true
       TEST_HOST: "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal"
       BUNDLE_LOADER: "$(TEST_HOST)"

@@ -26,6 +26,7 @@
 		16D5C7BA6565CB2E85616120 /* page_map.c in Sources */ = {isa = PBXBuildFile; fileRef = FFE04D53E24F27B22AEED942 /* page_map.c */; };
 		172D560D3B445315E2C476F4 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = C00B2C9AC9CA72B9701DCBF4 /* LaunchScreen.storyboard */; };
 		1890B38E41A7FD2E3813BF8C /* ptrace.c in Sources */ = {isa = PBXBuildFile; fileRef = F0C48F59FD94FD171DC0B549 /* ptrace.c */; };
+		18C2B713FD5494BE59FD63F4 /* IXLandInstrumentationRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = EAD2DCABD2ADDDF18E7EFA62 /* IXLandInstrumentationRuntime */; };
 		1A18170CF3B1E27641AF4C4E /* entry.c in Sources */ = {isa = PBXBuildFile; fileRef = FF53D06DA3033A39B3BBED14 /* entry.c */; };
 		1AB153CD68F6452E66EF1072 /* dir.c in Sources */ = {isa = PBXBuildFile; fileRef = 142C7059858863CA4154679B /* dir.c */; };
 		1BC0CF24B9722169925648EF /* calls.c in Sources */ = {isa = PBXBuildFile; fileRef = B8E4AC70AC00926AB255EB75 /* calls.c */; };
@@ -43,7 +44,7 @@
 		24C9DF77A164E78F4281888A /* icon.png in Resources */ = {isa = PBXBuildFile; fileRef = 2BE27EB8C25638F130864D5B /* icon.png */; };
 		25A0EA5C1CA800D0005B20A8 /* libIXLandLinuxRuntime.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CB26B1B5D3A91542EDE0757A /* libIXLandLinuxRuntime.a */; };
 		2754921613B72C42CD6337A6 /* libIXLandLinuxRuntime.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CB26B1B5D3A91542EDE0757A /* libIXLandLinuxRuntime.a */; };
-		29098D015A1688CA881B2A44 /* IXLandInstrumentation in Frameworks */ = {isa = PBXBuildFile; productRef = 51ABDCFF20FABF291742442A /* IXLandInstrumentation */; };
+		29098D015A1688CA881B2A44 /* IXLandInstrumentationRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = 46AAD4FDC7F40A099A969EE4 /* IXLandInstrumentationRuntime */; };
 		2E464A6E6EF763006B977050 /* GuestTerminalRuntimeTests.m in Sources */ = {isa = PBXBuildFile; fileRef = FF34CA2F59C85D5329FA2CC8 /* GuestTerminalRuntimeTests.m */; };
 		2FF4836EB2A5D6B224F2E739 /* gadgets_ldst_tlb.S in Sources */ = {isa = PBXBuildFile; fileRef = 0ABD252C58B06EBB0A44685E /* gadgets_ldst_tlb.S */; };
 		349CAD64E052A89D88BCD6AD /* iOSFS.m in Sources */ = {isa = PBXBuildFile; fileRef = 8C7F3B2F81D97B00FCA35891 /* iOSFS.m */; };
@@ -65,7 +66,7 @@
 		461702AA2C910E3A95A04341 /* uname.c in Sources */ = {isa = PBXBuildFile; fileRef = B6E7E5183B898A2C841902B6 /* uname.c */; };
 		46E72D9D8D981A2A03825706 /* static_minimal_aarch64_ok.elf in Resources */ = {isa = PBXBuildFile; fileRef = D463CED677710E2BE949EEDE /* static_minimal_aarch64_ok.elf */; };
 		46FE92A11FFCA930F634BCDD /* lock.c in Sources */ = {isa = PBXBuildFile; fileRef = 2DAD7F4348E51CEA7064F262 /* lock.c */; };
-		475047D753FD8A132243D984 /* IXLandInstrumentationTracing in Frameworks */ = {isa = PBXBuildFile; productRef = CD998729280EC05E6FD303D0 /* IXLandInstrumentationTracing */; };
+		475047D753FD8A132243D984 /* IXLandInstrumentationRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = 16ECA5845F0EF0964A203FAA /* IXLandInstrumentationRuntime */; };
 		49A961AC130225BF1ED2F64D /* GuestELFLoaderFixtureTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 6E958AE23214162DB59253CF /* GuestELFLoaderFixtureTests.m */; };
 		4BCB0D6CFB18E5FD8FB40D72 /* exit.c in Sources */ = {isa = PBXBuildFile; fileRef = 9DC949EAB5EAC64F57A0E876 /* exit.c */; };
 		4C7E26053929925E39EEC595 /* poll.c in Sources */ = {isa = PBXBuildFile; fileRef = BB40886A40C02DBBD8ECDC3F /* poll.c */; };
@@ -124,6 +125,7 @@
 		81B54BB1D36413EB9B3B09A2 /* tty-real.c in Sources */ = {isa = PBXBuildFile; fileRef = E08BDE3EF4B2E3E3289BC97C /* tty-real.c */; };
 		81BFECCE6DD2F63577B5C19F /* GuestDynamicELFExecutionTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 6F75E6E9C3786EDA3B84A49C /* GuestDynamicELFExecutionTests.m */; };
 		81CAACA325880AC4EC6CEB59 /* root.c in Sources */ = {isa = PBXBuildFile; fileRef = 02DFAE52B46760351A2F6BF3 /* root.c */; };
+		83129F6338CFBEEB30AC3D39 /* IXLandInstrumentationRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = 88AEE1669087CCA090ED64F5 /* IXLandInstrumentationRuntime */; };
 		83803EC8EA3ACBD1F681051B /* colontildehash.png in Resources */ = {isa = PBXBuildFile; fileRef = 7A21715B57BF12F66CDEDCE3 /* colontildehash.png */; };
 		8449D790619D1E4C001A1241 /* fakefs.c in Sources */ = {isa = PBXBuildFile; fileRef = 5241603834241B17080250AE /* fakefs.c */; };
 		85E3301D9BE97C2E76A39AA8 /* DelayedUITask.m in Sources */ = {isa = PBXBuildFile; fileRef = A17624F5492FE375C9481480 /* DelayedUITask.m */; };
@@ -179,8 +181,7 @@
 		C236E4EB882407AD8118A697 /* cpu.c in Sources */ = {isa = PBXBuildFile; fileRef = E65B61D628C5A851EBF5085D /* cpu.c */; };
 		C23867B987EAA85C10458F4B /* TerminalViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 5B47FEBE11BD649BB6682684 /* TerminalViewController.m */; };
 		C525628FE128B709ABE2524D /* metal.png in Resources */ = {isa = PBXBuildFile; fileRef = BC12150720F8E6493A5B64A5 /* metal.png */; };
-		C54EF3C145560F464049E9A5 /* IXLandInstrumentationTracing in Frameworks */ = {isa = PBXBuildFile; productRef = 2CF49282FCED3387A78F41C2 /* IXLandInstrumentationTracing */; };
-		C692C13CD307DB6827DE7A20 /* libarchive in Frameworks */ = {isa = PBXBuildFile; productRef = E7B0164E5350C8A5A4E0CE8B /* libarchive */; };
+		C54EF3C145560F464049E9A5 /* libarchive in Frameworks */ = {isa = PBXBuildFile; productRef = E7B0164E5350C8A5A4E0CE8B /* libarchive */; };
 		C97D688F340BEFFE552AE015 /* sysreg.c in Sources */ = {isa = PBXBuildFile; fileRef = 724BCE40498A7A29DF9E8AC1 /* sysreg.c */; };
 		CAC77D6223909682311F17E0 /* libresolv.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 8C804D8247F78845E3D03ADD /* libresolv.tbd */; };
 		CBBF7D9620910717A9D4878D /* GuestMemoryManagementTests.m in Sources */ = {isa = PBXBuildFile; fileRef = F797CE4B570CD522D3CDDE8B /* GuestMemoryManagementTests.m */; };
@@ -195,6 +196,7 @@
 		D9DD89DAC927540EAD917D3E /* exec.c in Sources */ = {isa = PBXBuildFile; fileRef = 76C2387C73F32CB995484DD4 /* exec.c */; };
 		DB4F1B4864F9809782F01447 /* mem.c in Sources */ = {isa = PBXBuildFile; fileRef = 384D4E240AC5A70AAA5746C3 /* mem.c */; };
 		DB8C167C778EF8F00BDC7ADD /* hook.c in Sources */ = {isa = PBXBuildFile; fileRef = 38178F3DC3959DE00848B27E /* hook.c */; };
+		DBB09BADC519437C6C92DC52 /* dynamic_ptinterp_sample.elf in Resources */ = {isa = PBXBuildFile; fileRef = 2EBCAC10E6D11D00C50C0223 /* dynamic_ptinterp_sample.elf */; };
 		DC52F78BE94B3399F9531EAC /* proc.c in Sources */ = {isa = PBXBuildFile; fileRef = 1FBED050A43F65C2FBD47ABC /* proc.c */; };
 		DC5B93CA8FEBCD41F381A18D /* TerminalView.m in Sources */ = {isa = PBXBuildFile; fileRef = 7953E9394978DAA5A6AF04BD /* TerminalView.m */; };
 		DC72CFDDFF7EA7BE384F1BE1 /* pydann1.png in Resources */ = {isa = PBXBuildFile; fileRef = 3E160898B980B2A313FD013C /* pydann1.png */; };
@@ -205,6 +207,7 @@
 		E1EBA5566F786ED0F099FAE1 /* BarButton.m in Sources */ = {isa = PBXBuildFile; fileRef = 811128E064EC055089670308 /* BarButton.m */; };
 		E1FC566C26CC43062EA69330 /* libxml2.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 8A02C624D84627F688438977 /* libxml2.tbd */; };
 		E237B6C521C0261694F9FE1E /* signal.c in Sources */ = {isa = PBXBuildFile; fileRef = 2D9B042769BC68C96065E897 /* signal.c */; };
+		E34E3E87A4531B858D3A57A8 /* dynamic_ptinterp_sample.elf in Resources */ = {isa = PBXBuildFile; fileRef = 2EBCAC10E6D11D00C50C0223 /* dynamic_ptinterp_sample.elf */; };
 		E3A367FD55D16DF346C24CB1 /* inode.c in Sources */ = {isa = PBXBuildFile; fileRef = 17BDD7720CA57F72AA94E121 /* inode.c */; };
 		E6334925F3EA702CDF9CD266 /* mount.c in Sources */ = {isa = PBXBuildFile; fileRef = 1BAC36C3E8433F56993940C3 /* mount.c */; };
 		E69D8222686D054968EFEDAB /* dollarblock1.png in Resources */ = {isa = PBXBuildFile; fileRef = 0C4448FC15BAC204BDE6ECE7 /* dollarblock1.png */; };
@@ -226,7 +229,6 @@
 		F914C3E7ADAD7D8C48668623 /* task.c in Sources */ = {isa = PBXBuildFile; fileRef = 59A2E8A5B12BEC93A911DDCA /* task.c */; };
 		F960C579FD8B13A685D3BFF5 /* GuestELFHeaderTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 9463A1DBA325E8C92B937FBD /* GuestELFHeaderTests.m */; };
 		F96C854DF31BCCCA15BDE4F3 /* init.c in Sources */ = {isa = PBXBuildFile; fileRef = 7331A2AFB857A36FE4667A3D /* init.c */; };
-		FB78987CD8E43BCEF1AA9E22 /* IXLandInstrumentationBridge in Frameworks */ = {isa = PBXBuildFile; productRef = AB6645A8D5048403595F3FAB /* IXLandInstrumentationBridge */; };
 		FBDDA0C2616761F657EE6907 /* libIXLandLinuxRuntime.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CB26B1B5D3A91542EDE0757A /* libIXLandLinuxRuntime.a */; };
 		FD34D5B743A02B788828155E /* uninspired.png in Resources */ = {isa = PBXBuildFile; fileRef = 2434FC18C330673C663D9461 /* uninspired.png */; };
 		FEDF9B1248790A4A8AEFB671 /* tmp.c in Sources */ = {isa = PBXBuildFile; fileRef = 7F77411DE54BB02C07EC592F /* tmp.c */; };
@@ -372,6 +374,7 @@
 		2D8403306F7321F6B8F9488F /* sockrestart.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sockrestart.c; sourceTree = "<group>"; };
 		2D9B042769BC68C96065E897 /* signal.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = signal.c; sourceTree = "<group>"; };
 		2DAD7F4348E51CEA7064F262 /* lock.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = lock.c; sourceTree = "<group>"; };
+		2EBCAC10E6D11D00C50C0223 /* dynamic_ptinterp_sample.elf */ = {isa = PBXFileReference; path = dynamic_ptinterp_sample.elf; sourceTree = "<group>"; };
 		2F6A8ED59E9711A7419B40E7 /* cpu.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = cpu.h; sourceTree = "<group>"; };
 		3095D128D0AC3C9D4251A2C2 /* RootsTableViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RootsTableViewController.h; sourceTree = "<group>"; };
 		3192ECDE55742AD4A5FB6D27 /* fd.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = fd.h; sourceTree = "<group>"; };
@@ -672,10 +675,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				01F5164B620DA4E518B0E76D /* libIXLandLinuxRuntime.a in Frameworks */,
-				29098D015A1688CA881B2A44 /* IXLandInstrumentation in Frameworks */,
-				C54EF3C145560F464049E9A5 /* IXLandInstrumentationTracing in Frameworks */,
-				FB78987CD8E43BCEF1AA9E22 /* IXLandInstrumentationBridge in Frameworks */,
-				C692C13CD307DB6827DE7A20 /* libarchive in Frameworks */,
+				29098D015A1688CA881B2A44 /* IXLandInstrumentationRuntime in Frameworks */,
+				C54EF3C145560F464049E9A5 /* libarchive in Frameworks */,
 				403A61853C4046D018835B53 /* CoreLocation.framework in Frameworks */,
 				7702A0CC5EB8A8D292E42529 /* UIKit.framework in Frameworks */,
 				7223850AA78E03D1EBB572D8 /* WebKit.framework in Frameworks */,
@@ -696,7 +697,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				2754921613B72C42CD6337A6 /* libIXLandLinuxRuntime.a in Frameworks */,
-				475047D753FD8A132243D984 /* IXLandInstrumentationTracing in Frameworks */,
+				475047D753FD8A132243D984 /* IXLandInstrumentationRuntime in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -705,6 +706,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				14BC2EE48364771D87513A16 /* libIXLandLinuxRuntime.a in Frameworks */,
+				83129F6338CFBEEB30AC3D39 /* IXLandInstrumentationRuntime in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -721,6 +723,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				FBDDA0C2616761F657EE6907 /* libIXLandLinuxRuntime.a in Frameworks */,
+				18C2B713FD5494BE59FD63F4 /* IXLandInstrumentationRuntime in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1027,6 +1030,7 @@
 		7C25A85C7D22B3976756CD40 /* ELF */ = {
 			isa = PBXGroup;
 			children = (
+				2EBCAC10E6D11D00C50C0223 /* dynamic_ptinterp_sample.elf */,
 				66269EDDFB1D201581D064CC /* static_bad_magic.bin */,
 				D463CED677710E2BE949EEDE /* static_minimal_aarch64_ok.elf */,
 				40C2A88B267444A581024B5D /* static_minimal_exec_ok.elf */,
@@ -1602,6 +1606,7 @@
 			);
 			name = IXLandLinuxRuntimeSystemTests;
 			packageProductDependencies = (
+				88AEE1669087CCA090ED64F5 /* IXLandInstrumentationRuntime */,
 			);
 			productName = IXLandLinuxRuntimeSystemTests;
 			productReference = 2821FD6456B56F99983B973A /* IXLandLinuxRuntimeSystemTests.xctest */;
@@ -1622,6 +1627,7 @@
 			);
 			name = IXLandLinuxRuntimeContractTests;
 			packageProductDependencies = (
+				EAD2DCABD2ADDDF18E7EFA62 /* IXLandInstrumentationRuntime */,
 			);
 			productName = IXLandLinuxRuntimeContractTests;
 			productReference = 8E865770EE2EBCB4D7DA1C29 /* IXLandLinuxRuntimeContractTests.xctest */;
@@ -1644,9 +1650,7 @@
 			);
 			name = IXLandTerminal;
 			packageProductDependencies = (
-				51ABDCFF20FABF291742442A /* IXLandInstrumentation */,
-				2CF49282FCED3387A78F41C2 /* IXLandInstrumentationTracing */,
-				AB6645A8D5048403595F3FAB /* IXLandInstrumentationBridge */,
+				46AAD4FDC7F40A099A969EE4 /* IXLandInstrumentationRuntime */,
 				E7B0164E5350C8A5A4E0CE8B /* libarchive */,
 			);
 			productName = IXLandTerminal;
@@ -1665,12 +1669,10 @@
 			dependencies = (
 				ECD02DDE64ABC13EC8A3330A /* PBXTargetDependency */,
 				671B78034F78C722E5212D0E /* PBXTargetDependency */,
-				9C82B621B90A460E1BBDB925 /* PBXTargetDependency */,
 			);
 			name = IXLandLinuxRuntime;
 			packageProductDependencies = (
-				760057F8BFC7E1CF7F4B74F2 /* IXLandInstrumentation */,
-				864C93664B31280749EB6D36 /* IXLandInstrumentationTracing */,
+				A61C025D88AA0E6C570CC894 /* IXLandInstrumentationRuntime */,
 				F4BFEB3B7474ACD13F4C24E0 /* libarchive */,
 			);
 			productName = IXLandLinuxRuntime;
@@ -1714,7 +1716,7 @@
 			);
 			name = IXLandLinuxRuntimePerfTests;
 			packageProductDependencies = (
-				CD998729280EC05E6FD303D0 /* IXLandInstrumentationTracing */,
+				16ECA5845F0EF0964A203FAA /* IXLandInstrumentationRuntime */,
 			);
 			productName = IXLandLinuxRuntimePerfTests;
 			productReference = 9E04D8F6E2B02AFBE1B5B22C /* IXLandLinuxRuntimePerfTests.xctest */;
@@ -1787,6 +1789,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DBB09BADC519437C6C92DC52 /* dynamic_ptinterp_sample.elf in Resources */,
 				805105CE480CB3EE78F3038F /* static_bad_magic.bin in Resources */,
 				46E72D9D8D981A2A03825706 /* static_minimal_aarch64_ok.elf in Resources */,
 				6863A1EF0D3229412533A989 /* static_minimal_exec_ok.elf in Resources */,
@@ -1845,6 +1848,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E34E3E87A4531B858D3A57A8 /* dynamic_ptinterp_sample.elf in Resources */,
 				1E457A02883EE586EE059D42 /* static_bad_magic.bin in Resources */,
 				E1D138AE8FCC50606A199DE9 /* static_minimal_aarch64_ok.elf in Resources */,
 				5948FDB22A372F569528B0DC /* static_minimal_exec_ok.elf in Resources */,
@@ -2147,7 +2151,7 @@
 		};
 		671B78034F78C722E5212D0E /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = 864C93664B31280749EB6D36 /* IXLandInstrumentationTracing */;
+			productRef = F4BFEB3B7474ACD13F4C24E0 /* libarchive */;
 		};
 		74DABF569302B90E9F49D1BA /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -2169,10 +2173,6 @@
 			target = 1C10AF3D9F0341B987C8E504 /* IXLandTerminal */;
 			targetProxy = FB4985B85A1ED3B2EB3BD5BF /* PBXContainerItemProxy */;
 		};
-		9C82B621B90A460E1BBDB925 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			productRef = F4BFEB3B7474ACD13F4C24E0 /* libarchive */;
-		};
 		E1EE53CBED6754E4E42DE5B3 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 8B71F48AE7216B5689802404 /* IXLandLinuxRuntime */;
@@ -2180,7 +2180,7 @@
 		};
 		ECD02DDE64ABC13EC8A3330A /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = 760057F8BFC7E1CF7F4B74F2 /* IXLandInstrumentation */;
+			productRef = A61C025D88AA0E6C570CC894 /* IXLandInstrumentationRuntime */;
 		};
 /* End PBXTargetDependency section */
 
@@ -2832,34 +2832,30 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		2CF49282FCED3387A78F41C2 /* IXLandInstrumentationTracing */ = {
+		16ECA5845F0EF0964A203FAA /* IXLandInstrumentationRuntime */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = IXLandInstrumentationTracing;
+			productName = IXLandInstrumentationRuntime;
 		};
-		51ABDCFF20FABF291742442A /* IXLandInstrumentation */ = {
+		46AAD4FDC7F40A099A969EE4 /* IXLandInstrumentationRuntime */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = IXLandInstrumentation;
+			productName = IXLandInstrumentationRuntime;
 		};
-		760057F8BFC7E1CF7F4B74F2 /* IXLandInstrumentation */ = {
+		88AEE1669087CCA090ED64F5 /* IXLandInstrumentationRuntime */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = IXLandInstrumentation;
+			productName = IXLandInstrumentationRuntime;
 		};
-		864C93664B31280749EB6D36 /* IXLandInstrumentationTracing */ = {
+		A61C025D88AA0E6C570CC894 /* IXLandInstrumentationRuntime */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = IXLandInstrumentationTracing;
-		};
-		AB6645A8D5048403595F3FAB /* IXLandInstrumentationBridge */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = IXLandInstrumentationBridge;
-		};
-		CD998729280EC05E6FD303D0 /* IXLandInstrumentationTracing */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = IXLandInstrumentationTracing;
+			productName = IXLandInstrumentationRuntime;
 		};
 		E7B0164E5350C8A5A4E0CE8B /* libarchive */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 97D09F1B3ACEC32BA3E3D959 /* XCRemoteSwiftPackageReference "libarchive-for-swift" */;
 			productName = libarchive;
+		};
+		EAD2DCABD2ADDDF18E7EFA62 /* IXLandInstrumentationRuntime */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = IXLandInstrumentationRuntime;
 		};
 		F4BFEB3B7474ACD13F4C24E0 /* libarchive */ = {
 			isa = XCSwiftPackageProductDependency;

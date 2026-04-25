@@ -6,6 +6,11 @@ let package = Package(
     platforms: [.iOS(.v14)],
     products: [
         .library(
+            name: "IXLandInstrumentationRuntime",
+            type: .dynamic,
+            targets: ["IXLandInstrumentation", "IXLandInstrumentationTracing", "IXLandInstrumentationBridge"]
+        ),
+        .library(
             name: "IXLandInstrumentation",
             targets: ["IXLandInstrumentation"]
         ),
