@@ -290,12 +290,7 @@ void NetworkReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkReach
         }
         TerminalViewController *vc = (TerminalViewController *) self.window.rootViewController;
         currentTerminalViewController = vc;
-        NSDictionary<NSString *, NSString *> *env = NSProcessInfo.processInfo.environment;
-        BOOL isXCTestHost = (env[@"XCTestConfigurationFilePath"] != nil) ||
-                            (env[@"XCInjectBundleInto"] != nil && NSClassFromString(@"XCTestCase") != nil);
-        if (!isXCTestHost) {
-            [vc startNewSession];
-        }
+        [vc startNewSession];
     }
     return YES;
 }
