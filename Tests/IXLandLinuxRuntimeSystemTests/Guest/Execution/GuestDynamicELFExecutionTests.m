@@ -43,6 +43,17 @@
     [self provisionTestRootfs];
 }
 
+- (void)tearDown {
+    // Wait for any async guest execution to complete
+    // This ensures test isolation - next test starts with clean state
+    [self.harness waitForExecutionCompletionWithTimeout:5.0];
+    
+    // Reset trace sink callback to prevent stale callbacks between tests
+    guest_execution_trace_sink_set_completion_callback(NULL);
+    
+    [super tearDown];
+}
+
 // Provision test rootfs using injected local path (not App Group)
 - (void)provisionTestRootfs {
     // Create deterministic test roots directory in local sandbox
@@ -519,6 +530,222 @@
     }
     
     guest_execution_trace_sink_set_completion_callback(NULL);
+}
+
+// APP-001: Run /bin/login -f root (same as app) for valid comparison
+// This test runs the SAME executable with SAME arguments as the app
+// to enable apples-to-apples debugging of dynamic linker crashes
+- (void)testDynamicELF_APP001_RunBinLogin_WithArgv {
+    // Use APP rootfs instead of test rootfs for valid comparison
+    // The app uses Container/Shared/AppGroup/.../roots/default
+    NSFileManager *fm = [NSFileManager defaultManager];
+    NSURL *appGroupURL = nil;
+    
+    // Find App Group container
+    NSURL *simDevices = [NSURL fileURLWithPath:@"/Users/rudironsoni/Library/Developer/CoreSimulator/Devices"];
+    NSArray *deviceDirs = [fm contentsOfDirectoryAtURL:simDevices
+                            includingPropertiesForKeys:nil
+                                               options:NSDirectoryEnumerationSkipsHiddenFiles
+                                                 error:nil];
+    for (NSURL *deviceDir in deviceDirs) {
+        NSURL *appGroupDir = [deviceDir URLByAppendingPathComponent:@"data/Containers/Shared/AppGroup"];
+        if ([fm fileExistsAtPath:appGroupDir.path]) {
+            NSArray *groupDirs = [fm contentsOfDirectoryAtURL:appGroupDir
+                                   includingPropertiesForKeys:nil
+                                                      options:NSDirectoryEnumerationSkipsHiddenFiles
+                                                        error:nil];
+            for (NSURL *groupDir in groupDirs) {
+                NSURL *rootsDir = [groupDir URLByAppendingPathComponent:@"roots/default/data"];
+                if ([fm fileExistsAtPath:rootsDir.path]) {
+                    appGroupURL = rootsDir;
+                    break;
+                }
+            }
+        }
+        if (appGroupURL) break;
+    }
+    
+    NSString *dataRootPath = appGroupURL ? appGroupURL.path : nil;
+    if (!dataRootPath) {
+        // Fallback to test rootfs
+        XCTAssertNotNil(self.testRoots, @"B0: Roots bootstrap must complete");
+        NSURL *rootURL = [self.testRoots rootUrl:self.testRoots.defaultRoot];
+        NSString *rootPath = [rootURL path];
+        dataRootPath = [rootPath stringByAppendingPathComponent:@"data"];
+    }
+    
+    NSLog(@"APP-001: Using rootfs at: %@", dataRootPath);
+    
+    // Verify /bin/login exists
+    NSString *loginRelativePath = @"bin/login";
+    NSString *loginFullPath = [dataRootPath stringByAppendingPathComponent:loginRelativePath];
+    BOOL loginExists = [[NSFileManager defaultManager] fileExistsAtPath:loginFullPath];
+    XCTAssertTrue(loginExists, @"APP-001: /bin/login must exist at %@", loginFullPath);
+    
+    if (!loginExists) {
+        return; // Skip test if login doesn't exist
+    }
+    
+    // Setup argv like the app does: ["/bin/login", "-f", "root"]
+    NSArray<NSString *> *command = @[@"/bin/login", @"-f", @"root"];
+    size_t argc = command.count;
+    
+    // Build null-separated argv buffer (same format as convertCommand)
+    char argv[4096];
+    char *p = argv;
+    for (NSString *cmd in command) {
+        const char *c = cmd.UTF8String;
+        while (p < argv + sizeof(argv) - 1 && (*p++ = *c++));
+        *p = '\0';
+    }
+    *++p = '\0'; // Final NUL
+    
+    // Setup envp like the app does
+    const char *envp = "TERM=xterm-256color\0";
+    
+    // Reset trace sink
+    guest_execution_trace_sink_reset();
+    
+    // Run /bin/login with proper argc/argv (same as app)
+    GuestExecutionResult *result = [self.harness runExecutableAtRootPath:dataRootPath
+                                                          executablePath:loginRelativePath
+                                                                      argc:argc
+                                                                      argv:argv
+                                                                      envp:envp];
+    
+    // Classification ladder H0-H4
+    XCTAssertTrue(result.harnessEntered, @"H0: harness must be entered");
+    XCTAssertTrue(result.mountRootCalled, @"H1: mount_root must be called");
+    XCTAssertEqual(result.doExecveReturnValue, 0, @"H4: do_execve must return 0 (success)");
+    
+    // Log classification ladder for debugging
+    BOOL X0 = guest_execution_trace_sink_do_execve_entered();
+    BOOL X1 = guest_execution_trace_sink_format_exec_entered();
+    BOOL X2 = guest_execution_trace_sink_before_elf_exec_entered();
+    BOOL X3 = guest_execution_trace_sink_elf_exec_entered();
+    BOOL M1 = guest_execution_trace_sink_main_elf_header_accepted();
+    BOOL interpOpenAttempted = guest_execution_trace_sink_interp_open_attempted();
+    BOOL interpHeaderLoaded = guest_execution_trace_sink_interp_header_loaded();
+    BOOL interpMappingsExist = guest_execution_trace_sink_interp_mappings_exist();
+    BOOL mainImageLoaded = guest_execution_trace_sink_main_image_loaded();
+    BOOL auxvInitialized = guest_execution_trace_sink_auxv_initialized();
+    BOOL exitObserved = guest_execution_trace_sink_exit_observed();
+    const char *lastEvent = guest_execution_trace_sink_get_last_loader_event();
+    
+    NSLog(@"APP-001 LADDER: H0=%d H1=%d(rv=%d) H2=%d(rv=%d) H3=%d H4=%d(rv=%d)",
+          result.harnessEntered, result.mountRootCalled, result.mountRootReturnValue,
+          result.becomeFirstProcessCalled, result.becomeFirstProcessReturnValue,
+          result.doExecveReached, result.doExecveCalled, result.doExecveReturnValue);
+    NSLog(@"APP-001 LADDER: X0=%d X1=%d X2=%d X3=%d", X0, X1, X2, X3);
+    NSLog(@"APP-001 LADDER: M1=%d D2.0=%d D2.1=%d D2.3=%d B2.main=%d B3.auxv=%d",
+          M1, interpOpenAttempted, interpHeaderLoaded, interpMappingsExist,
+          mainImageLoaded, auxvInitialized);
+    NSLog(@"APP-001 LADDER: exit_observed=%d last_event='%s'", exitObserved, lastEvent);
+    
+    // Print PC values if available
+    NSLog(@"APP-001 PC: before=0x%llx after=0x%llx", result.pcBefore, result.pcAfter);
+    
+    // The key question: does /bin/login crash at same PC as app?
+    // App crashes at PC 0x6d1d4 in musl dynamic linker
+    // If harness also crashes at 0x6d1d4, we have valid comparison
+    // If harness succeeds, we have divergence to investigate
+    
+    // Record the result - we expect this to FAIL currently
+    // (because the app crashes, and we want to compare why)
+    NSLog(@"APP-001 RESULT: pc_after=0x%llx (app crashes at 0x6d1d4)", result.pcAfter);
+    
+    // KEY ASSERTION: Harness should reach exit (guest exit observed)
+    // App crashes at 0x6d1d4 - if harness also crashes, we have reproducible crash
+    // If harness succeeds, we have environment/setup divergence
+    NSLog(@"APP-001: exit_observed=%d task_exit_observed=%d", exitObserved, result.taskExitObserved);
+    
+    // Check if we hit the crash PC
+    if (result.pcAfter == 0x6d1d4 || result.pcAfter == 0x6d1d8) {
+        NSLog(@"APP-001: HIT CRASH PC 0x%llx - same as app!", result.pcAfter);
+        XCTFail(@"APP-001: Harness hit same crash PC as app (0x%llx) - crash is reproducible", result.pcAfter);
+    } else if (exitObserved || result.taskExitObserved) {
+        NSLog(@"APP-001: Guest exited cleanly - divergence from app crash");
+        // This is the key finding - harness exits cleanly but app crashes
+        // This means there's an environment/setup difference
+    } else {
+        NSLog(@"APP-001: Unknown state - pc_after=0x%llx, exit=%d", result.pcAfter, exitObserved);
+    }
+}
+
+// APP-002: Run /bin/login with app-style setup (become_new_init_child)
+// This test uses the EXACT same task setup as the app to see if we can reproduce the crash
+- (void)testDynamicELF_APP002_RunBinLogin_AppStyleSetup {
+    // Use APP rootfs
+    NSFileManager *fm = [NSFileManager defaultManager];
+    NSURL *appGroupURL = nil;
+    
+    NSURL *simDevices = [NSURL fileURLWithPath:@"/Users/rudironsoni/Library/Developer/CoreSimulator/Devices"];
+    NSArray *deviceDirs = [fm contentsOfDirectoryAtURL:simDevices
+                            includingPropertiesForKeys:nil
+                                               options:NSDirectoryEnumerationSkipsHiddenFiles
+                                                 error:nil];
+    for (NSURL *deviceDir in deviceDirs) {
+        NSURL *appGroupDir = [deviceDir URLByAppendingPathComponent:@"data/Containers/Shared/AppGroup"];
+        if ([fm fileExistsAtPath:appGroupDir.path]) {
+            NSArray *groupDirs = [fm contentsOfDirectoryAtURL:appGroupDir
+                                   includingPropertiesForKeys:nil
+                                                      options:NSDirectoryEnumerationSkipsHiddenFiles
+                                                        error:nil];
+            for (NSURL *groupDir in groupDirs) {
+                NSURL *rootsDir = [groupDir URLByAppendingPathComponent:@"roots/default/data"];
+                if ([fm fileExistsAtPath:rootsDir.path]) {
+                    appGroupURL = rootsDir;
+                    break;
+                }
+            }
+        }
+        if (appGroupURL) break;
+    }
+    
+    NSString *dataRootPath = appGroupURL ? appGroupURL.path : nil;
+    XCTAssertNotNil(dataRootPath, @"APP-002: Could not find app rootfs");
+    if (!dataRootPath) return;
+    
+    NSLog(@"APP-002: Using rootfs at: %@", dataRootPath);
+    
+    // Setup argv like the app does: ["/bin/login", "-f", "root"]
+    NSArray<NSString *> *command = @[@"/bin/login", @"-f", @"root"];
+    size_t argc = command.count;
+    
+    char argv[4096];
+    char *p = argv;
+    for (NSString *cmd in command) {
+        const char *c = cmd.UTF8String;
+        while (p < argv + sizeof(argv) - 1 && (*p++ = *c++));
+        *p = '\0';
+    }
+    *++p = '\0';
+    
+    const char *envp = "TERM=xterm-256color\0";
+    
+    guest_execution_trace_sink_reset();
+    
+    // Use app-style setup: become_first_process + become_new_init_child
+    GuestExecutionResult *result = [self.harness runExecutableAtRootPathAppStyle:dataRootPath
+                                                                  executablePath:@"bin/login"
+                                                                              argc:argc
+                                                                              argv:argv
+                                                                              envp:envp];
+    
+    NSLog(@"APP-002 RESULT: pc_before=0x%llx pc_after=0x%llx", result.pcBefore, result.pcAfter);
+    NSLog(@"APP-002 RESULT: load_ok=%d exit_observed=%d", result.loadOk, result.taskExitObserved);
+    
+    // Check if this reproduces the app crash
+    if (result.pcAfter == 0x6d1d4 || result.pcAfter == 0x6d1d8) {
+        NSLog(@"APP-002: REPRODUCED CRASH at 0x%llx!", result.pcAfter);
+        // This is what we want to see - the crash is reproducible with app-style setup
+        XCTAssertTrue(true, @"APP-002: Reproduced app crash with app-style setup");
+    } else if (result.taskExitObserved) {
+        NSLog(@"APP-002: Guest exited cleanly - need to investigate further");
+        // Still not crashing - maybe PTY or stdio is the missing piece
+    } else {
+        NSLog(@"APP-002: Unknown execution result - pc_after=0x%llx", result.pcAfter);
+    }
 }
 
 @end

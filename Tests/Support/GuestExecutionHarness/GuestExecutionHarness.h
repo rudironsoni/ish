@@ -55,11 +55,14 @@ struct tlb;
 
 @property (nonatomic, strong, readonly) dispatch_queue_t executionQueue;
 
+// Test isolation: wait for any pending async execution to complete
+- (void)waitForExecutionCompletionWithTimeout:(NSTimeInterval)timeout;
+
 // Lane A1: Execute until first externally useful boundary
 // Returns structured result - does NOT rely on guest exit returning
 - (GuestExecutionResult *)runFixtureUntilFirstBoundary:(NSString *)fixtureName
-                                             extension:(NSString *)ext
-                                               bundle:(NSBundle *)bundle;
+                                              extension:(NSString *)ext
+                                                bundle:(NSBundle *)bundle;
 
 // Lane A2: Run to deterministic guest exit, observed from outside
 - (GuestExecutionResult *)runFixtureToGuestExitSync:(NSString *)fixtureName
@@ -71,6 +74,26 @@ struct tlb;
 // executablePath: Relative path within rootfs (e.g., "bin/busybox")
 - (GuestExecutionResult *)runExecutableAtRootPath:(NSString *)rootPath
                                    executablePath:(NSString *)executablePath;
+
+// Run executable with explicit argc/argv (for dynamic executables like /bin/login)
+// rootPath: The fakefs root directory (e.g., .../roots/default/data/)
+// executablePath: Relative path within rootfs (e.g., "bin/login")
+// argc: Argument count
+// argv: Null-separated argument strings (like convertCommand produces)
+// envp: Null-separated environment strings (e.g., "TERM=xterm-256color\0")
+- (GuestExecutionResult *)runExecutableAtRootPath:(NSString *)rootPath
+                                   executablePath:(NSString *)executablePath
+                                               argc:(size_t)argc
+                                               argv:(const char *)argv
+                                               envp:(const char *)envp;
+
+// Run executable with app-style setup (become_new_init_child + proper task hierarchy)
+// This matches exactly how TerminalViewController starts a session
+- (GuestExecutionResult *)runExecutableAtRootPathAppStyle:(NSString *)rootPath
+                                           executablePath:(NSString *)executablePath
+                                                       argc:(size_t)argc
+                                                       argv:(const char *)argv
+                                                       envp:(const char *)envp;
 
 // Run executable through do_execve only, without entering guest CPU execution
 - (GuestExecutionResult *)classifyExecutableAtRootPath:(NSString *)rootPath

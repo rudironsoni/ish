@@ -1018,6 +1018,12 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
             break;
         }
     }
+    {
+        char ev[256];
+        snprintf(ev, sizeof(ev), "loader.dynamic_addr=0x%llx,interp_present:%s",
+                 (unsigned long long)dynamic_addr, interp_name ? "yes" : "no");
+        trace_record_event(TRACE_ORIGIN_KERNEL, ev);
+    }
 
     if (interp_name) {
         for (int i = 0; i < interp_header.phent_count; i++) {

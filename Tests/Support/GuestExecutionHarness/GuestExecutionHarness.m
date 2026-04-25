@@ -24,7 +24,12 @@ extern bool exit_should_pthread_exit;
 - (NSString *)materializeFixture:(NSString *)name extension:(NSString *)ext bundle:(NSBundle *)bundle;
 - (BOOL)setupRuntimeWithPath:(NSString *)tempPath;
 - (GuestExecutionResult *)prepareExecutableAtRootPath:(NSString *)rootPath
-                      executablePath:(NSString *)executablePath;
+                       executablePath:(NSString *)executablePath;
+@end
+
+// Test-only API for suite isolation
+@interface GuestExecutionHarness (TestIsolation)
+- (void)waitForExecutionCompletionWithTimeout:(NSTimeInterval)timeout;
 @end
 
 @implementation GuestExecutionResult
@@ -215,9 +220,9 @@ extern bool exit_should_pthread_exit;
     
     // Disable pthread_exit for GCD compatibility - guest returns normally
     exit_should_pthread_exit = false;
-    // Run with high iteration limit to reach exit syscall
-    // For A2: we need to run until guest.do_exit_group.entry fires
-    a64_cpu_run_limited(cpu, (struct tlb *)&exec_tlb, 10000);
+    // APP-003 FIX: Use unlimited a64_cpu_run (like app) instead of limited
+    // The crash at 0x6d1d4 might happen after 10000 iterations
+    a64_cpu_run(cpu, (struct tlb *)&exec_tlb);
     
     // Only capture post-exit state if current is still valid
     if (current != NULL) {
@@ -358,6 +363,207 @@ executablePath:(NSString *)executablePath {
     probe_set_completed(true);
     
     return [GuestExecutionResult resultFromProbe:probe_get_result()];
+}
+
+// Prepare executable with explicit argc/argv/envp (for dynamic executables like /bin/login)
+- (GuestExecutionResult *)prepareExecutableAtRootPath:(NSString *)rootPath
+                                       executablePath:(NSString *)executablePath
+                                                   argc:(size_t)argc
+                                                   argv:(const char *)argv
+                                                   envp:(const char *)envp {
+    probe_reset();
+    probe_begin_fixture([executablePath UTF8String]);
+    
+    probe_get_result()->harness_entered = true;
+    
+    probe_get_result()->mount_root_called = true;
+    int mountErr = mount_root(&realfs, [rootPath UTF8String]);
+    probe_get_result()->mount_root_return_value = mountErr;
+    if (mountErr != 0 && mountErr != -16) {
+        probe_set_error("Failed to mount rootfs");
+        probe_set_completed(true);
+        return [GuestExecutionResult resultFromProbe:probe_get_result()];
+    }
+    
+    probe_get_result()->become_first_process_called = true;
+    int initErr = become_first_process();
+    probe_get_result()->become_first_process_return_value = initErr;
+    if (initErr != 0 && initErr != -17) {
+        probe_set_error("Failed to become first process");
+        probe_set_completed(true);
+        return [GuestExecutionResult resultFromProbe:probe_get_result()];
+    }
+    
+    probe_get_result()->do_execve_reached = true;
+    int execErr = do_execve([executablePath UTF8String], argc, argv, envp);
+    probe_get_result()->do_execve_called = true;
+    probe_get_result()->do_execve_return_value = execErr;
+    if (execErr != 0) {
+        probe_set_error("Failed to execve");
+        probe_set_completed(true);
+        return [GuestExecutionResult resultFromProbe:probe_get_result()];
+    }
+    
+    probe_get_result()->load_ok = true;
+    return nil;
+}
+
+// Run executable with explicit argc/argv/envp
+- (GuestExecutionResult *)runExecutableAtRootPath:(NSString *)rootPath
+                                   executablePath:(NSString *)executablePath
+                                               argc:(size_t)argc
+                                               argv:(const char *)argv
+                                               envp:(const char *)envp {
+    GuestExecutionResult *earlyResult = [self prepareExecutableAtRootPath:rootPath
+                                                           executablePath:executablePath
+                                                                       argc:argc
+                                                                       argv:argv
+                                                                       envp:envp];
+    if (earlyResult != nil) {
+        return earlyResult;
+    }
+    
+    if (current == NULL) {
+        probe_set_error("current is NULL before CPU run");
+        probe_set_completed(true);
+        return [GuestExecutionResult resultFromProbe:probe_get_result()];
+    }
+
+    struct cpu_state *cpu = &current->cpu;
+    if (cpu->mmu == NULL) {
+        probe_set_error("cpu->mmu is NULL before CPU run");
+        probe_set_completed(true);
+        return [GuestExecutionResult resultFromProbe:probe_get_result()];
+    }
+
+    uint64_t pc_before = cpu->pc;
+    probe_capture_pc_before(pc_before);
+    
+    struct tlb exec_tlb = {};
+    tlb_refresh(&exec_tlb, cpu->mmu);
+    
+    // Disable pthread_exit for GCD compatibility - guest returns normally
+    exit_should_pthread_exit = false;
+    // APP-003 FIX: Use unlimited a64_cpu_run (like app) instead of limited
+    a64_cpu_run(cpu, &exec_tlb);
+    
+    probe_get_result()->task_exit_observed = guest_execution_trace_sink_exit_observed();
+    probe_get_result()->exit_code = guest_execution_trace_sink_get_exit_code();
+    probe_set_completed(true);
+    
+    return [GuestExecutionResult resultFromProbe:probe_get_result()];
+}
+
+// APP-002: Prepare executable using app-style setup (become_new_init_child)
+// This matches exactly how the app starts a session
+- (GuestExecutionResult *)prepareExecutableAtRootPathAppStyle:(NSString *)rootPath
+                                               executablePath:(NSString *)executablePath
+                                                           argc:(size_t)argc
+                                                           argv:(const char *)argv
+                                                           envp:(const char *)envp {
+    probe_reset();
+    probe_begin_fixture([executablePath UTF8String]);
+    
+    probe_get_result()->harness_entered = true;
+    
+    // Step 1: Mount rootfs
+    probe_get_result()->mount_root_called = true;
+    int mountErr = mount_root(&realfs, [rootPath UTF8String]);
+    probe_get_result()->mount_root_return_value = mountErr;
+    if (mountErr != 0 && mountErr != -16) {
+        probe_set_error("Failed to mount rootfs");
+        probe_set_completed(true);
+        return [GuestExecutionResult resultFromProbe:probe_get_result()];
+    }
+    
+    // Step 2: Create init task (PID 1) first - required for become_new_init_child
+    probe_get_result()->become_first_process_called = true;
+    int initErr = become_first_process();
+    probe_get_result()->become_first_process_return_value = initErr;
+    if (initErr != 0 && initErr != -17) {
+        probe_set_error("Failed to create init process");
+        probe_set_completed(true);
+        return [GuestExecutionResult resultFromProbe:probe_get_result()];
+    }
+    
+    // Step 3: Become init child (like the app does)
+    int childErr = become_new_init_child();
+    if (childErr != 0) {
+        probe_set_error("Failed to become init child");
+        probe_set_completed(true);
+        return [GuestExecutionResult resultFromProbe:probe_get_result()];
+    }
+    
+    // Step 4: Execve
+    probe_get_result()->do_execve_reached = true;
+    int execErr = do_execve([executablePath UTF8String], argc, argv, envp);
+    probe_get_result()->do_execve_called = true;
+    probe_get_result()->do_execve_return_value = execErr;
+    if (execErr != 0) {
+        probe_set_error("Failed to execve");
+        probe_set_completed(true);
+        return [GuestExecutionResult resultFromProbe:probe_get_result()];
+    }
+    
+    probe_get_result()->load_ok = true;
+    return nil;
+}
+
+// APP-002: Run executable with app-style setup (become_new_init_child + proper task hierarchy)
+- (GuestExecutionResult *)runExecutableAtRootPathAppStyle:(NSString *)rootPath
+                                           executablePath:(NSString *)executablePath
+                                                       argc:(size_t)argc
+                                                       argv:(const char *)argv
+                                                       envp:(const char *)envp {
+    GuestExecutionResult *earlyResult = [self prepareExecutableAtRootPathAppStyle:rootPath
+                                                                   executablePath:executablePath
+                                                                               argc:argc
+                                                                               argv:argv
+                                                                               envp:envp];
+    if (earlyResult != nil) {
+        return earlyResult;
+    }
+    
+    if (current == NULL) {
+        probe_set_error("current is NULL before CPU run");
+        probe_set_completed(true);
+        return [GuestExecutionResult resultFromProbe:probe_get_result()];
+    }
+
+    struct cpu_state *cpu = &current->cpu;
+    if (cpu->mmu == NULL) {
+        probe_set_error("cpu->mmu is NULL before CPU run");
+        probe_set_completed(true);
+        return [GuestExecutionResult resultFromProbe:probe_get_result()];
+    }
+
+    uint64_t pc_before = cpu->pc;
+    probe_capture_pc_before(pc_before);
+    
+    struct tlb exec_tlb = {};
+    tlb_refresh(&exec_tlb, cpu->mmu);
+    
+    // Disable pthread_exit for GCD compatibility - guest returns normally
+    exit_should_pthread_exit = false;
+    // APP-003 FIX: Use unlimited a64_cpu_run (like app) instead of limited
+    // The crash at 0x6d1d4 might happen after 10000 iterations
+    a64_cpu_run(cpu, &exec_tlb);
+    
+    probe_get_result()->task_exit_observed = guest_execution_trace_sink_exit_observed();
+    probe_get_result()->exit_code = guest_execution_trace_sink_get_exit_code();
+    probe_set_completed(true);
+    
+    return [GuestExecutionResult resultFromProbe:probe_get_result()];
+}
+
+// Test-only API for suite isolation
+// Waits for any pending async operations on the execution queue
+- (void)waitForExecutionCompletionWithTimeout:(NSTimeInterval)timeout {
+    dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
+    dispatch_async(self.executionQueue, ^{
+        dispatch_semaphore_signal(semaphore);
+    });
+    dispatch_semaphore_wait(semaphore, dispatch_time(DISPATCH_TIME_NOW, (int64_t)(timeout * NSEC_PER_SEC)));
 }
 
 @end
