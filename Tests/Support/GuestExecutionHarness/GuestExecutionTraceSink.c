@@ -8,6 +8,8 @@
 #include "GuestExecutionProbe.h"
 
 #include <IXLandInstrumentation/IXLandInstrumentation.h>
+#include <Block.h>
+#include <os/lock.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -21,6 +23,19 @@ static bool sink_registered = false;
 static bool exit_event_received = false;
 static int last_exit_code = -1;
 static guest_execution_trace_sink_callback_t completion_callback = NULL;
+static os_unfair_lock sink_state_lock = OS_UNFAIR_LOCK_INIT;
+
+static void invoke_completion_callback(bool exit_observed, int exit_code)
+{
+    guest_execution_trace_sink_callback_t callback = NULL;
+    os_unfair_lock_lock(&sink_state_lock);
+    callback = completion_callback;
+    os_unfair_lock_unlock(&sink_state_lock);
+
+    if (callback != NULL) {
+        callback(exit_observed, exit_code);
+    }
+}
 
 // S0: Sink Diagnostic - proves callbacks are being invoked
 static uint64_t begin_interval_calls_count = 0;
@@ -93,9 +108,7 @@ static void test_sink_record_event(ixland_instrumentation_origin_t origin, const
                 snprintf(resolved_interp_path, sizeof(resolved_interp_path), "%s", path_start);
                 snprintf(last_loader_event, sizeof(last_loader_event), "%s", event_name);
                 // Invoke callback for loader boundary - interp path resolved
-                if (completion_callback) {
-                    completion_callback(false, -1);
-                }
+                invoke_completion_callback(false, -1);
             }
         }
     }
@@ -179,9 +192,7 @@ static uint64_t test_sink_begin_interval(ixland_instrumentation_origin_t origin,
             }
         }
         probe_task_exit_observed(last_exit_code);
-        if (completion_callback) {
-            completion_callback(true, last_exit_code);
-        }
+        invoke_completion_callback(true, last_exit_code);
     } else if (strcmp(interval_name, "guest.do_exit.entry") == 0) {
         exit_event_received = true;
         last_exit_code = -1;
@@ -192,9 +203,7 @@ static uint64_t test_sink_begin_interval(ixland_instrumentation_origin_t origin,
             }
         }
         probe_task_exit_observed(last_exit_code);
-        if (completion_callback) {
-            completion_callback(true, last_exit_code);
-        }
+        invoke_completion_callback(true, last_exit_code);
     } else if (strcmp(interval_name, "guest.first_fault.exit") == 0) {
         probe_capture_boundary(PROBE_BOUNDARY_FAULT);
     } else if (strcmp(interval_name, "task.proof.loader.elf_header") == 0) {
@@ -230,9 +239,7 @@ static uint64_t test_sink_begin_interval(ixland_instrumentation_origin_t origin,
                              "task.proof.loader.biases:interp_path_resolved");
                     // Invoke callback for loader boundary - interp path resolved via stable
                     // interval
-                    if (completion_callback) {
-                        completion_callback(false, -1);
-                    }
+                    invoke_completion_callback(false, -1);
                 }
                 break;
             }
@@ -296,11 +303,21 @@ int guest_execution_trace_sink_get_exit_code(void)
 void guest_execution_trace_sink_set_completion_callback(
     guest_execution_trace_sink_callback_t callback)
 {
-    completion_callback = callback;
+    os_unfair_lock_lock(&sink_state_lock);
+    if (completion_callback != NULL) {
+        Block_release(completion_callback);
+        completion_callback = NULL;
+    }
+
+    if (callback != NULL) {
+        completion_callback = Block_copy(callback);
+    }
+    os_unfair_lock_unlock(&sink_state_lock);
 }
 
 void guest_execution_trace_sink_reset(void)
 {
+    os_unfair_lock_lock(&sink_state_lock);
     exit_event_received = false;
     last_exit_code = -1;
     completion_callback = NULL;
@@ -320,9 +337,9 @@ void guest_execution_trace_sink_reset(void)
     format_exec_entered = false;
     before_elf_exec_entered = false;
     elf_exec_entered = false;
-    // S0: Reset callback tracking
     begin_interval_calls_count = 0;
     any_interval_received = false;
+    os_unfair_lock_unlock(&sink_state_lock);
 }
 
 // Milestone B: Dynamic ELF observation API

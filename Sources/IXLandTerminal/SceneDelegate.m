@@ -31,8 +31,13 @@ static NSString *const TerminalUUID = @"TerminalUUID";
 
     TerminalViewController *vc = (TerminalViewController *) self.window.rootViewController;
     vc.sceneSession = session;
+    NSDictionary<NSString *, NSString *> *env = NSProcessInfo.processInfo.environment;
+    BOOL isXCTestHost = (env[@"XCTestConfigurationFilePath"] != nil) ||
+                        (env[@"XCInjectBundleInto"] != nil && NSClassFromString(@"XCTestCase") != nil);
     if (session.stateRestorationActivity == nil) {
-        [vc startNewSession];
+        if (!isXCTestHost) {
+            [vc startNewSession];
+        }
     } else {
         self.terminalUUID = session.stateRestorationActivity.userInfo[TerminalUUID];
         [vc reconnectSessionFromTerminalUUID:

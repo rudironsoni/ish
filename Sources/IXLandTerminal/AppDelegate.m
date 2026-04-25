@@ -281,7 +281,6 @@ void NetworkReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkReach
     SCNetworkReachabilityScheduleWithRunLoop(self.reachability, CFRunLoopGetMain(), kCFRunLoopCommonModes);
 
     if (self.window != nil) {
-        // For iOS <13, where the app delegate owns the window instead of the scene
         if ([NSUserDefaults.standardUserDefaults boolForKey:@"recovery"]) {
             UINavigationController *vc = [[UIStoryboard storyboardWithName:@"About" bundle:nil] instantiateInitialViewController];
             AboutViewController *avc = (AboutViewController *) vc.topViewController;
@@ -291,7 +290,12 @@ void NetworkReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkReach
         }
         TerminalViewController *vc = (TerminalViewController *) self.window.rootViewController;
         currentTerminalViewController = vc;
-        [vc startNewSession];
+        NSDictionary<NSString *, NSString *> *env = NSProcessInfo.processInfo.environment;
+        BOOL isXCTestHost = (env[@"XCTestConfigurationFilePath"] != nil) ||
+                            (env[@"XCInjectBundleInto"] != nil && NSClassFromString(@"XCTestCase") != nil);
+        if (!isXCTestHost) {
+            [vc startNewSession];
+        }
     }
     return YES;
 }

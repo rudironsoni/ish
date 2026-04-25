@@ -15,6 +15,9 @@
 #import <IXLandLinuxRuntime/emu/tlb.h>
 #import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
 
+// GCD compatibility: disable pthread_exit in do_exit to avoid libdispatch crashes
+extern bool exit_should_pthread_exit;
+
 @interface GuestExecutionHarness ()
 @property (nonatomic, strong) XCTestExpectation *exitExpectation;
 @property (nonatomic, strong) dispatch_queue_t executionQueue;
@@ -103,6 +106,8 @@
     struct tlb exec_tlb = {};
     tlb_refresh(&exec_tlb, cpu->mmu);
     
+    // Disable pthread_exit for GCD compatibility - guest returns normally
+    exit_should_pthread_exit = false;
     // Capture values before guest run - after guest exit, cpu state may be invalid
     a64_cpu_run_limited(cpu, (struct tlb *)&exec_tlb, 1);
     
@@ -167,6 +172,8 @@
     // Execute on background queue - trace sink captures exit event
     // When trace sink sees guest.do_exit_group.entry, it fulfills expectation
     dispatch_async(self.executionQueue, ^{
+        // Disable pthread_exit for GCD compatibility - guest returns normally
+        exit_should_pthread_exit = false;
         a64_cpu_run_limited(cpu, (struct tlb *)&exec_tlb, 100);
     });
     
@@ -206,6 +213,8 @@
     // Capture value before guest run - after exit, cpu state may be invalid
     uint64_t pc_after = 0;
     
+    // Disable pthread_exit for GCD compatibility - guest returns normally
+    exit_should_pthread_exit = false;
     // Run with high iteration limit to reach exit syscall
     // For A2: we need to run until guest.do_exit_group.entry fires
     a64_cpu_run_limited(cpu, (struct tlb *)&exec_tlb, 10000);
@@ -321,13 +330,27 @@ executablePath:(NSString *)executablePath {
         return earlyResult;
     }
     
+    if (current == NULL) {
+        probe_set_error("current is NULL before CPU run");
+        probe_set_completed(true);
+        return [GuestExecutionResult resultFromProbe:probe_get_result()];
+    }
+
     struct cpu_state *cpu = &current->cpu;
+    if (cpu->mmu == NULL) {
+        probe_set_error("cpu->mmu is NULL before CPU run");
+        probe_set_completed(true);
+        return [GuestExecutionResult resultFromProbe:probe_get_result()];
+    }
+
     uint64_t pc_before = cpu->pc;
     probe_capture_pc_before(pc_before);
     
     struct tlb exec_tlb = {};
     tlb_refresh(&exec_tlb, cpu->mmu);
     
+    // Disable pthread_exit for GCD compatibility - guest returns normally
+    exit_should_pthread_exit = false;
     a64_cpu_run_limited(cpu, &exec_tlb, 10000);
     
     probe_get_result()->task_exit_observed = guest_execution_trace_sink_exit_observed();

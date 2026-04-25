@@ -400,11 +400,11 @@
     // B2 behavioral: Poll for interpreter and main image mappings
     // These are EXTERNALLY OBSERVABLE LOADER BOUNDARIES for B2
     guest_execution_trace_sink_reset();
-    
+
     dispatch_async(self.harness.executionQueue, ^{
         [self.harness runExecutableAtRootPath:dataRootPath executablePath:busyboxRelativePath];
     });
-    
+
     // Poll for loader boundary: interpreter mappings + main image loaded
     NSDate *startTime = [NSDate date];
     BOOL interpMappingsExist = NO;
@@ -448,11 +448,11 @@
     // B3 behavioral: Poll for auxv initialization
     // This is an EXTERNALLY OBSERVABLE LOADER BOUNDARY for B3
     guest_execution_trace_sink_reset();
-    
+
     dispatch_async(self.harness.executionQueue, ^{
         [self.harness runExecutableAtRootPath:dataRootPath executablePath:busyboxRelativePath];
     });
-    
+
     // Poll for loader boundary: auxv initialized with AT_BASE
     NSDate *startTime = [NSDate date];
     BOOL auxvInitialized = NO;

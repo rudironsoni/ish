@@ -10,6 +10,7 @@
 #import <IXLandLinuxRuntime/kernel/ptrace.h>
 #include <pthread.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -37,6 +38,11 @@ static bool exit_tgroup(struct task *task)
 
 void (*exit_hook)(struct task *task, int code) = NULL;
 
+// When running under GCD (e.g., in test harness), pthread_exit is unsafe
+// because it conflicts with libdispatch's thread lifecycle management.
+// Set this to false to skip pthread_exit and return normally.
+bool exit_should_pthread_exit = true;
+
 static struct task *find_new_parent(struct task *task)
 {
     struct task *new_parent;
@@ -47,7 +53,7 @@ static struct task *find_new_parent(struct task *task)
     return pid_get_task(1);
 }
 
-noreturn void do_exit(int status)
+void do_exit(int status)
 {
     {
         char status_buf[32];
@@ -146,7 +152,10 @@ noreturn void do_exit(int status)
         task_destroy(current);
     unlock(&pids_lock);
 
-    pthread_exit(NULL);
+    if (exit_should_pthread_exit) {
+        pthread_exit(NULL);
+    }
+    // Return normally when running under GCD (pthread_exit would crash libdispatch)
 }
 
 static void trace_do_exit_group_checkpoint(const char *name, int status)
@@ -188,7 +197,7 @@ static void trace_do_exit_group_checkpoint(const char *name, int status)
     (void)trace_begin_interval(TRACE_ORIGIN_TASK, name, attrs, sizeof(attrs) / sizeof(attrs[0]));
 }
 
-noreturn void do_exit_group(int status)
+void do_exit_group(int status)
 {
     trace_do_exit_group_checkpoint("task.proof.do_exit_group.entry", status);
     ixland_guest_trace_emit_int(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR, "guest.do_exit_group.entry",
@@ -261,12 +270,14 @@ uint32_t sys_exit(uint32_t status)
 {
     STRACE("exit(%d)\n", status);
     do_exit(status << 8);
+    return 0; // never reached, but compiler requires it
 }
 
 uint32_t sys_exit_group(uint32_t status)
 {
     STRACE("exit_group(%d)\n", status);
     do_exit_group(status << 8);
+    return 0; // never reached, but compiler requires it
 }
 
 #define WNOHANG_    (1 << 0)

@@ -58,7 +58,6 @@ void *tlb_handle_miss(struct tlb *tlb, addr_t addr, int type);
 forceinline __no_instrument void *__tlb_read_ptr(struct tlb *tlb, addr_t addr)
 {
     struct tlb_entry entry = tlb->entries[TLB_INDEX(addr)];
-    /* Generation check: reject stale entries */
     if (entry.page == TLB_PAGE(addr) && entry.generation == tlb->mmu->generation) {
         void *address = (void *)(entry.data_minus_addr + addr);
         posit(address != NULL);

@@ -1,6 +1,7 @@
 build/
 xcuserdata/
 .floo
+.tmp/
 
 # Generated TCTI gadget files (build artifacts)
 tcti/aarch64/gadgets_tcti.h

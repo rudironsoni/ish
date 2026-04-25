@@ -12,6 +12,7 @@
 #import <IXLandLinuxRuntime/util/sync.h>
 #import <IXLandLinuxRuntime/util/timer.h>
 #include <pthread.h>
+#include <stdbool.h>
 
 // everything here is private to the thread executing this task and needs no
 // locking, unless otherwise specified
@@ -210,6 +211,10 @@ void task_start(struct task *task);
 void task_run_current(void);
 
 extern void (*exit_hook)(struct task *task, int code);
+
+// When false, do_exit will return instead of calling pthread_exit.
+// This is needed when running under GCD to avoid libdispatch crashes.
+extern bool exit_should_pthread_exit;
 
 #define superuser() (current != NULL && current->euid == 0)
 

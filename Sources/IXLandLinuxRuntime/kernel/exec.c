@@ -1058,7 +1058,14 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
                 interp_first_load_vaddr = interp_ph[i].vaddr;
                 interp_first_load_off = interp_ph[i].offset;
             }
-            if ((err = load_entry(interp_ph[i], interp_base, interp_fd)) < 0)
+            // musl's ld-musl self-relocates by writing to its own text segment.
+            // The kernel normally maps the first PT_LOAD of the interpreter as
+            // writable (PF_W) even if ELF flags say read+execute only, because
+            // self-relocation requires writing to the GOT/text.  We do the same.
+            struct prg_header interp_ph_entry = interp_ph[i];
+            if (i == 0 || (interp_ph[i].flags & PH_X))
+                interp_ph_entry.flags |= PH_W;
+            if ((err = load_entry(interp_ph_entry, interp_base, interp_fd)) < 0)
                 goto beyond_hope;
             trace_interp_pt_load_map_event(i, &interp_ph[i], interp_base);
 
