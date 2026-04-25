@@ -1122,18 +1122,10 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
         }
 entry = interp_base + interp_header.entry_point;
 
-// Find PT_DYNAMIC in the interpreter (x1 must point to interpreter's _DYNAMIC)
-addr_t interp_dynamic_addr = 0;
-for (int i = 0; i < interp_header.phent_count; i++) {
-    if (interp_ph[i].type == PT_DYNAMIC) {
-        interp_dynamic_addr = interp_base + interp_ph[i].vaddr;
-        break;
-    }
-}
-// Use interpreter's _DYNAMIC for x1 when jumping to interpreter entry
-if (interp_dynamic_addr != 0) {
-    dynamic_addr = interp_dynamic_addr;
-}
+// Note: x1/AT_DYNAMIC must point to the MAIN EXECUTABLE's _DYNAMIC, not the
+// interpreter's. The dynamic linker uses this to find the main program's
+// relocation table. dynamic_addr was already set from main's PT_DYNAMIC at
+// lines 1015-1020. Do not overwrite it with interpreter's _DYNAMIC.
 
 // Trace interpreter mapping for APPSIM-004 diagnosis
         char interp_base_buf[32];
