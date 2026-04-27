@@ -71,4 +71,18 @@ bool guest_execution_trace_sink_elf_exec_entered(void);
 uint64_t guest_execution_trace_sink_begin_interval_calls_count(void);
 bool guest_execution_trace_sink_any_interval_received(void);
 
+// --- New proof event accessors (thread-safe) ---
+// LDRH probe at 0x6d1c0: addr/read_val/mem_ret/host_ptr
+bool guest_execution_trace_sink_has_ldrh_6d1c0(void);
+void guest_execution_trace_sink_get_ldrh_6d1c0(uint64_t *addr, uint16_t *read_val, int *mem_ret, uint64_t *host_ptr);
+
+// Writeback probe at 0x6d1c0: x0 after write/value/rt/size/is_64bit
+bool guest_execution_trace_sink_has_6d1c0_writeback(void);
+void guest_execution_trace_sink_get_6d1c0_writeback(uint64_t *x0_after_write, uint64_t *value, unsigned long *rt, unsigned long *size, int *is_64bit);
+
+// X0 mutation probes: query by PC or ask if any were observed
+bool guest_execution_trace_sink_any_x0_mutation(void);
+bool guest_execution_trace_sink_has_x0_mutation_at(uint64_t pc);
+bool guest_execution_trace_sink_get_x0_mutation_at(uint64_t pc, uint64_t *new_x0, uint64_t *old_x0, uint64_t *value, unsigned long *size, int *is_64bit);
+
 #endif // GUEST_EXECUTION_TRACE_SINK_H

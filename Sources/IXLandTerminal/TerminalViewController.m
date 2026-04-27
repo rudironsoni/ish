@@ -197,6 +197,9 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 @property (nonatomic) CFAbsoluteTime activeSessionStartTime;
 @property (nonatomic) NSInteger postPTYRestartBudget;
 
+// Controller should not create window-level synthetic accessibility
+// elements. TerminalView is the honest owner of the TerminalSurface proxy.
+
 @property BOOL ignoreKeyboardMotion;
 @property (nonatomic) BOOL hasExternalKeyboard;
 
@@ -232,6 +235,7 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 
 - (void)viewDidLoad {
     [super viewDidLoad];
+    [ISHInstrumentation recordEvent:@"terminal.accessibility.controller.viewDidLoad.enter"];
     self.postPTYRestartBudget = 1;
 
     int bootError = [AppDelegate bootError];
@@ -245,8 +249,10 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 
     self.terminal = self.terminal;
     
-    // Ensure controller view is an accessibility container for TerminalSurface
-    self.view.isAccessibilityElement = YES;
+    // The controller should not become an accessibility element that hides
+    // children. Let TerminalView provide the TerminalSurface accessibility
+    // proxy which XCUI can discover.
+    self.view.isAccessibilityElement = NO;
     self.view.accessibilityIdentifier = @"TerminalViewController";
     
     self.tapRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleTerminalTap:)];
@@ -307,6 +313,9 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
         });
     }];
     [self _updateBadge];
+
+    // No window-level synthetic accessibility proxy should be created by the
+    // controller. TerminalView owns the TerminalSurface proxy.
 }
 
 - (void)awakeFromNib {
@@ -346,6 +355,9 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 
     int err = [self startSession];
     [self recordSessionAttemptEvent:@"session.start.exit" extra:@{ @"is_restart_path": @(isRestartPath), @"return_value": @(err) }];
+    // Minimal semantic probe to make the startSession return visible in traces
+    // for quick diagnosis of which bootstrap sub-step failed.
+    [ISHInstrumentation recordEvent:@"session.start.exit.detail" attributes:@{ @"is_restart_path": @(isRestartPath), @"return_value": @(err), @"runtime_mode": @(ISH_RUNTIME_MODE_VALUE) }];
     self.sessionStartInProgress = NO;
 
     if (err < 0) {
@@ -811,6 +823,10 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
     }
 }
 
+- (void)dealloc {
+    // Nothing to clean up; controller does not create window-level proxies.
+}
+
 #pragma mark Bar
 
 - (IBAction)showAbout:(id)sender {
@@ -969,6 +985,8 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch {
     return YES;
 }
+
+// Controller must not create window-level synthetic accessibility proxies.
 
 @end
 

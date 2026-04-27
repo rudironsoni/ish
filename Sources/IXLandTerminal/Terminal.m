@@ -106,6 +106,9 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
         if (@available(macOS 13.3, iOS 16.4, tvOS 16.4, *))
             _webView.inspectable = YES;
         _webView.scrollView.scrollEnabled = NO;
+        // Do not mark the WKWebView itself as a top-level accessibility
+        // element. TerminalView is responsible for exposing a single honest
+        // TerminalSurface accessibility proxy owned by the TerminalView.
         NSURL *xtermHtmlFile = [NSBundle.mainBundle URLForResource:@"term" withExtension:@"html"];
         [_webView loadFileURL:xtermHtmlFile allowingReadAccessToURL:xtermHtmlFile];
     }
@@ -135,7 +138,8 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
         // make sure this setting works if it's set before loading
         self.enableVoiceOverAnnounce = self.enableVoiceOverAnnounce;
     } else if ([message.name isEqualToString:@"log"]) {
-        // Log messages from terminal are handled silently
+        // Log messages from terminal JS -> native are intentionally silent in
+        // product code.
     } else if ([message.name isEqualToString:@"sendInput"]) {
         NSData *data = [message.body dataUsingEncoding:NSUTF8StringEncoding];
         [self sendInput:data];
@@ -207,10 +211,14 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
     // Record byte count at terminal input boundary
     NSDictionary *queueAttrs = [self sessionTraceAttributesWithByteCount:len
                                                              pendingBefore:_pendingData.length];
-    if (!self.firstPTYByteSeen && len > 0) {
-        self.firstPTYByteSeen = YES;
-        [ISHInstrumentation recordEvent:@"session.pty.first_byte" attributes:queueAttrs];
-    }
+        if (!self.firstPTYByteSeen && len > 0) {
+            self.firstPTYByteSeen = YES;
+            [ISHInstrumentation recordEvent:@"session.pty.first_byte" attributes:queueAttrs];
+            // Test-only bridge: notify the app process that the first PTY byte was seen.
+            // UI tests observe this notification to know when the guest has produced
+            // its first output byte and the terminal is no longer blank.
+            [[NSNotificationCenter defaultCenter] postNotificationName:@"IXLand.TerminalFirstPTYByteSeenNotification" object:self];
+        }
     [ISHInstrumentation recordEvent:@"terminal.output.queued" attributes:queueAttrs];
     [ISHInstrumentation recordEvent:@"pty.bytes.first_marker" attributes:queueAttrs];
 
@@ -332,6 +340,7 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
         if (error != nil) {
             // Error handled silently - bytes could not be sent to terminal
             return;
+        } else {
         }
     }];
 }

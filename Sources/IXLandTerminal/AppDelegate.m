@@ -84,6 +84,10 @@ static int bootError;
     // CONTRACT: PID 1 must always be created before any session can start
     // This is required for both shell-only mode (UI testing) and full-guest mode
     err = become_first_process();
+    // Minimal probe: record the return value of become_first_process so we can
+    // diagnose missing PID 1 in UI-test runs. This is intentionally small and
+    // diagnostic-only; it does not change behavior.
+    [ISHInstrumentation recordEvent:@"boot.become_first_process.exit" attributes:@{ @"return_value": @(err) }];
     if (err < 0) {
         return err;
     }
@@ -229,6 +233,10 @@ static int bootError;
     // Activate instrumentation before boot to capture all kernel events
     ixland_instrumentation_activate();
 
+    // Diagnostic probe: prove instrumentation is active at the exact moment
+    // we call boot(). This is intentionally tiny and must not change behavior.
+    [ISHInstrumentation recordEvent:@"app.boot.pre_boot_probe"];
+
     bootError = [self boot];
 
     return YES;
@@ -291,6 +299,14 @@ void NetworkReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkReach
         TerminalViewController *vc = (TerminalViewController *) self.window.rootViewController;
         currentTerminalViewController = vc;
         [vc startNewSession];
+
+        // (Test-only accessibility proxy removed)
+    }
+    // Diagnostic: record a startup event when running under XCTest so we can
+    // prove instrumentation is active from app launch in exported logs.
+    BOOL isTesting = NSProcessInfo.processInfo.environment[@"XCTestConfigurationFilePath"] != nil;
+    if (isTesting) {
+        [ISHInstrumentation recordEvent:@"app.didFinishLaunching.testing" attributes:@{ @"has_window": @(self.window != nil) }];
     }
     return YES;
 }

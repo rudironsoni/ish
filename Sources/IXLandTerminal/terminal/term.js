@@ -64,6 +64,12 @@ function syncProp(name, value) {
 }
 let decoder = new TextDecoder();
 exports.write = (data) => {
+    // Notify native that JS received data for additional tracing
+    try {
+        native.log({msg: 'term.js.exports.write called', length: data.length});
+    } catch (e) {
+        // ignore if native.log isn't handled
+    }
     term.io.writeUTF16(decoder.decode(lib.codec.stringToCodeUnitArray(data)));
     syncProp('applicationCursor', term.keyboard.applicationCursor);
 };

@@ -63,6 +63,33 @@ static bool format_exec_entered = false;
 static bool before_elf_exec_entered = false; // X2
 static bool elf_exec_entered = false;        // X3 (elf_exec returned)
 
+// --- New proof event storage (protected by sink_state_lock) ---
+static bool ldrh_6d1c0_seen = false;
+static uint64_t ldrh_6d1c0_addr = 0;
+static uint16_t ldrh_6d1c0_val = 0;
+static int ldrh_6d1c0_mem_ret = 0;
+static uint64_t ldrh_6d1c0_host_ptr = 0;
+
+static bool wb_6d1c0_seen = false;
+static uint64_t wb_6d1c0_x0_after = 0;
+static uint64_t wb_6d1c0_value = 0;
+static unsigned long long wb_6d1c0_rt = 0;
+static unsigned long long wb_6d1c0_size = 0;
+static int wb_6d1c0_is_64bit = 0;
+
+// Simple fixed-size table for x0 mutation observations
+#define X0_MUTATION_TABLE_SIZE 32
+struct x0_mutation_entry {
+    uint64_t pc;
+    uint64_t new_x0;
+    uint64_t old_x0;
+    uint64_t value;
+    unsigned long long size;
+    int is_64bit;
+    int used;
+};
+static struct x0_mutation_entry x0_mutations[X0_MUTATION_TABLE_SIZE];
+
 // Forward declaration
 static void test_sink_record_event(ixland_instrumentation_origin_t origin, const char *event_name);
 static uint64_t test_sink_begin_interval(ixland_instrumentation_origin_t origin,
@@ -130,6 +157,79 @@ static void test_sink_record_event(ixland_instrumentation_origin_t origin, const
     else if (strstr(event_name, "loader.interp.pt_load.map") != NULL) {
         interp_mappings_exist = true;
         snprintf(last_loader_event, sizeof(last_loader_event), "%s", event_name);
+    }
+    // PROOF event: ldrh result at 0x6d1c0
+    else if (strstr(event_name, "task.proof.6d1c0.ldrh_result=") != NULL) {
+        const char *p = strstr(event_name, "addr:");
+        if (p) {
+            uint64_t addr = 0;
+            unsigned int read_val = 0;
+            int mem_ret = 0;
+            uint64_t host_ptr = 0;
+            // Parse the expected format
+            sscanf(p, "addr:0x%llx,read_val:0x%04x,mem_ret:%d,host_ptr:0x%llx", &addr, &read_val, &mem_ret, &host_ptr);
+            os_unfair_lock_lock(&sink_state_lock);
+            ldrh_6d1c0_seen = true;
+            ldrh_6d1c0_addr = addr;
+            ldrh_6d1c0_val = (uint16_t)read_val;
+            ldrh_6d1c0_mem_ret = mem_ret;
+            ldrh_6d1c0_host_ptr = host_ptr;
+            os_unfair_lock_unlock(&sink_state_lock);
+        }
+    }
+    // PROOF event: writeback at 0x6d1c0 (x0 after write)
+    else if (strstr(event_name, "task.proof.6d1c0.writeback=") != NULL) {
+        const char *p = strstr(event_name, "x0_after_write:");
+        if (p) {
+            uint64_t x0_after = 0;
+            uint64_t value = 0;
+            unsigned long rt = 0, size = 0;
+            int is64 = 0;
+            sscanf(p, "x0_after_write:0x%llx,value:0x%llx,rt:%lu,size:%lu,is_64bit:%d", &x0_after, &value, &rt, &size, &is64);
+            os_unfair_lock_lock(&sink_state_lock);
+            wb_6d1c0_seen = true;
+            wb_6d1c0_x0_after = x0_after;
+            wb_6d1c0_value = value;
+            wb_6d1c0_rt = rt;
+            wb_6d1c0_size = size;
+            wb_6d1c0_is_64bit = is64;
+            os_unfair_lock_unlock(&sink_state_lock);
+        }
+    }
+    // PROOF event: x0 mutation records
+    else if (strstr(event_name, "task.proof.x0.mutation=") != NULL) {
+        const char *p = strstr(event_name, "pc:");
+        if (p) {
+            uint64_t pc = 0, new_x0 = 0, old_x0 = 0, value = 0, size = 0;
+            int is64 = 0;
+            sscanf(p, "pc:0x%llx,new_x0:0x%llx,old_x0:0x%llx,value:0x%llx,size:%lu,is_64bit:%d", &pc, &new_x0, &old_x0, &value, &size, &is64);
+            os_unfair_lock_lock(&sink_state_lock);
+            int inserted = 0;
+            for (int i = 0; i < X0_MUTATION_TABLE_SIZE; i++) {
+                if (!x0_mutations[i].used) {
+                    x0_mutations[i].pc = pc;
+                    x0_mutations[i].new_x0 = new_x0;
+                    x0_mutations[i].old_x0 = old_x0;
+                    x0_mutations[i].value = value;
+                    x0_mutations[i].size = size;
+                    x0_mutations[i].is_64bit = is64;
+                    x0_mutations[i].used = 1;
+                    inserted = 1;
+                    break;
+                }
+            }
+            if (!inserted) {
+                // Evict index 0
+                x0_mutations[0].pc = pc;
+                x0_mutations[0].new_x0 = new_x0;
+                x0_mutations[0].old_x0 = old_x0;
+                x0_mutations[0].value = value;
+                x0_mutations[0].size = size;
+                x0_mutations[0].is_64bit = is64;
+                x0_mutations[0].used = 1;
+            }
+            os_unfair_lock_unlock(&sink_state_lock);
+        }
     }
     // Milestone B: Auxv initialized with AT_BASE
     else if (strstr(event_name, "loader.auxv.at_base.write") != NULL) {
@@ -437,4 +537,85 @@ uint64_t guest_execution_trace_sink_begin_interval_calls_count(void)
 bool guest_execution_trace_sink_any_interval_received(void)
 {
     return any_interval_received;
+}
+
+// --- New proof accessors ---
+bool guest_execution_trace_sink_has_ldrh_6d1c0(void)
+{
+    bool v;
+    os_unfair_lock_lock(&sink_state_lock);
+    v = ldrh_6d1c0_seen;
+    os_unfair_lock_unlock(&sink_state_lock);
+    return v;
+}
+
+void guest_execution_trace_sink_get_ldrh_6d1c0(uint64_t *addr, uint16_t *read_val, int *mem_ret, uint64_t *host_ptr)
+{
+    os_unfair_lock_lock(&sink_state_lock);
+    if (addr) *addr = ldrh_6d1c0_addr;
+    if (read_val) *read_val = ldrh_6d1c0_val;
+    if (mem_ret) *mem_ret = ldrh_6d1c0_mem_ret;
+    if (host_ptr) *host_ptr = ldrh_6d1c0_host_ptr;
+    os_unfair_lock_unlock(&sink_state_lock);
+}
+
+bool guest_execution_trace_sink_has_6d1c0_writeback(void)
+{
+    bool v;
+    os_unfair_lock_lock(&sink_state_lock);
+    v = wb_6d1c0_seen;
+    os_unfair_lock_unlock(&sink_state_lock);
+    return v;
+}
+
+void guest_execution_trace_sink_get_6d1c0_writeback(uint64_t *x0_after_write, uint64_t *value, unsigned long *rt, unsigned long *size, int *is_64bit)
+{
+    os_unfair_lock_lock(&sink_state_lock);
+    if (x0_after_write) *x0_after_write = wb_6d1c0_x0_after;
+    if (value) *value = wb_6d1c0_value;
+    if (rt) *rt = (unsigned long)wb_6d1c0_rt;
+    if (size) *size = (unsigned long)wb_6d1c0_size;
+    if (is_64bit) *is_64bit = wb_6d1c0_is_64bit;
+    os_unfair_lock_unlock(&sink_state_lock);
+}
+
+bool guest_execution_trace_sink_any_x0_mutation(void)
+{
+    bool any = false;
+    os_unfair_lock_lock(&sink_state_lock);
+    for (int i = 0; i < X0_MUTATION_TABLE_SIZE; i++) {
+        if (x0_mutations[i].used) { any = true; break; }
+    }
+    os_unfair_lock_unlock(&sink_state_lock);
+    return any;
+}
+
+bool guest_execution_trace_sink_has_x0_mutation_at(uint64_t pc)
+{
+    bool found = false;
+    os_unfair_lock_lock(&sink_state_lock);
+    for (int i = 0; i < X0_MUTATION_TABLE_SIZE; i++) {
+        if (x0_mutations[i].used && x0_mutations[i].pc == pc) { found = true; break; }
+    }
+    os_unfair_lock_unlock(&sink_state_lock);
+    return found;
+}
+
+bool guest_execution_trace_sink_get_x0_mutation_at(uint64_t pc, uint64_t *new_x0, uint64_t *old_x0, uint64_t *value, unsigned long *size, int *is_64bit)
+{
+    bool found = false;
+    os_unfair_lock_lock(&sink_state_lock);
+    for (int i = 0; i < X0_MUTATION_TABLE_SIZE; i++) {
+        if (x0_mutations[i].used && x0_mutations[i].pc == pc) {
+            if (new_x0) *new_x0 = x0_mutations[i].new_x0;
+            if (old_x0) *old_x0 = x0_mutations[i].old_x0;
+            if (value) *value = x0_mutations[i].value;
+            if (size) *size = (unsigned long)x0_mutations[i].size;
+            if (is_64bit) *is_64bit = x0_mutations[i].is_64bit;
+            found = true;
+            break;
+        }
+    }
+    os_unfair_lock_unlock(&sink_state_lock);
+    return found;
 }

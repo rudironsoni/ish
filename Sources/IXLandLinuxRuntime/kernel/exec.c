@@ -645,6 +645,27 @@ static int load_entry(struct prg_header ph, addr_t bias, struct fd *fd)
         return err;
     }
 
+    // PROOF: Verify the mapped memory content at key offsets for interpreter first PT_LOAD
+    // This proves whether the file content was correctly mapped or if mmap returned wrong data
+    // The interpreter's first PT_LOAD maps guest page 0x1 (0x1000) from file offset 0
+    if (start_page == 1 && filesize > 0x40) {
+        struct page_desc *verify_desc = page_map_lookup(&current->mem->pages, start_page);
+        if (verify_desc && verify_desc->obj && verify_desc->obj->host_base) {
+            uint16_t *host_short = (uint16_t *)((char *)verify_desc->obj->host_base + 0x36);
+            char ev[256];
+            snprintf(ev, sizeof(ev),
+                     "loader.interp.first_pt_load_verify=bias:0x%lx,host_base:%p,bytes_at_0x36:0x%04x,expected:0x0038",
+                     (unsigned long)bias, verify_desc->obj->host_base, (unsigned int)*host_short);
+            trace_record_event(TRACE_ORIGIN_KERNEL, ev);
+
+            uint32_t *host_int = (uint32_t *)((char *)verify_desc->obj->host_base + 0x38);
+            snprintf(ev, sizeof(ev),
+                     "loader.interp.first_pt_load_verify2=bytes_at_0x38:0x%08x",
+                     (unsigned int)*host_int);
+            trace_record_event(TRACE_ORIGIN_KERNEL, ev);
+        }
+    }
+
     // TODO find a better place for these to avoid code duplication
     struct page_desc *first_desc = page_map_lookup(&current->mem->pages, start_page);
     if (first_desc == NULL || first_desc->obj == NULL) {
@@ -1424,6 +1445,17 @@ entry = interp_base + interp_header.entry_point;
 
     current->mm->stack_start = sp;
     trace_exec_checkpoint("task.proof.elf_exec.after_stack_setup", err);
+    
+    // STACK PROOF: Log stack layout before CPU setup
+    {
+        char stack_proof[512];
+        snprintf(stack_proof, sizeof(stack_proof),
+                 "stack.proof.layout=sp:0x%lx,argc:%zu,argv_addr:0x%lx,envp_addr:0x%lx,auxv_start:0x%lx,auxv_end:0x%lx",
+                 (unsigned long)sp, (size_t)argv.count, (unsigned long)argv_addr, 
+                 (unsigned long)envp_addr, (unsigned long)current->mm->auxv_start, 
+                 (unsigned long)current->mm->auxv_end);
+        trace_record_event(TRACE_ORIGIN_KERNEL, stack_proof);
+    }
 
     // Initialize CPU state properly before setting up registers
     // This zeros all X registers, PSTATE, and other state to prevent garbage values

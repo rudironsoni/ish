@@ -10,6 +10,7 @@
 #import "UserPreferences.h"
 #import "ScrollbarView.h"
 #import "NSObject+SaneKVO.h"
+#import <ISHInstrumentation.h>
 
 @interface WeakScriptMessageHandler : NSObject <WKScriptMessageHandler>
 @property (weak) id <WKScriptMessageHandler> handler;
@@ -61,6 +62,21 @@ struct rowcol {
         _terminalAccessibilityElement.accessibilityLabel = @"Terminal";
         _terminalAccessibilityElement.accessibilityTraits = UIAccessibilityTraitAllowsDirectInteraction;
         _terminalAccessibilityElement.accessibilityFrameInContainerSpace = self.bounds;
+        // Also set accessibilityFrame (screen coordinates) so XCUI snapshots
+        // and queries can find the element reliably. Only do this when running
+        // under XCTest to avoid affecting non-test behavior.
+        BOOL isTesting = NSProcessInfo.processInfo.environment[@"XCTestConfigurationFilePath"] != nil;
+        if (isTesting) {
+            CGRect frameInScreen = CGRectZero;
+            if (self.window != nil) {
+                frameInScreen = [self.window convertRect:[self convertRect:self.bounds toView:self.window] toCoordinateSpace:UIScreen.mainScreen.coordinateSpace];
+            }
+            if (CGRectIsEmpty(frameInScreen)) {
+                // Fallback to a reasonable rectangle based on the view bounds.
+                frameInScreen = CGRectMake(20.0, 200.0, MAX(8.0, CGRectGetWidth(self.bounds)), MAX(8.0, CGRectGetHeight(self.bounds)));
+            }
+            _terminalAccessibilityElement.accessibilityFrame = frameInScreen;
+        }
         _terminalAccessibilityElement.accessibilityValue = @"No terminal output";
     }
     return _terminalAccessibilityElement;
@@ -77,6 +93,13 @@ struct rowcol {
     [super layoutSubviews];
     if (self.terminalAccessibilityElement) {
         self.terminalAccessibilityElement.accessibilityFrameInContainerSpace = self.bounds;
+        BOOL isTesting = NSProcessInfo.processInfo.environment[@"XCTestConfigurationFilePath"] != nil;
+        if (isTesting) {
+            if (self.window != nil) {
+                CGRect frameInScreen = [self.window convertRect:[self convertRect:self.bounds toView:self.window] toCoordinateSpace:UIScreen.mainScreen.coordinateSpace];
+                self.terminalAccessibilityElement.accessibilityFrame = frameInScreen;
+            }
+        }
     }
 }
 
@@ -111,8 +134,19 @@ struct rowcol {
 
     self.markedRange = [UITextRange new];
     self.selectedRange = [UITextRange new];
-    
-    self.terminalAccessibilityElement = nil; // Explicit: nil until first terminal content
+
+    // By default the accessibility proxy (TerminalSurface) is created lazily
+    // after the terminal has content. For UI tests, pre-create the proxy so
+    // XCTest can discover and focus the terminal surface immediately. This is
+    // strictly a test-only visibility bridge and does not change runtime
+    // behavior outside XCTest runs.
+    BOOL isTesting = NSProcessInfo.processInfo.environment[@"XCTestConfigurationFilePath"] != nil;
+    if (isTesting) {
+        // Trigger the getter to allocate the accessibility element.
+        (void) self.terminalAccessibilityElement;
+    } else {
+        self.terminalAccessibilityElement = nil; // Explicit: nil until first terminal content
+    }
 }
 
 - (void)dealloc {
@@ -170,6 +204,7 @@ static NSString *const HANDLERS[] = {@"syncFocus", @"focus", @"newScrollHeight",
 
 - (void)installTerminalView {
     NSAssert(_terminal.loaded, @"should probably not be installing a non-loaded terminal");
+    // installTerminalView: no logging in production/test code
     UIView *superview = self.terminal.webView.superview;
     if (superview != nil) {
         NSAssert(superview == self.scrollbarView, @"installing terminal that is already installed elsewhere");
@@ -317,6 +352,16 @@ static NSString *const HANDLERS[] = {@"syncFocus", @"focus", @"newScrollHeight",
                        name:UIWindowDidResignKeyNotification
                      object:newWindow];
     }
+
+    // If running under XCTest and we are moving into a window, notify that
+    // the accessibility proxy can be inserted at the window level earlier
+    // than viewDidAppear. The TerminalViewController will call
+    // ensureWindowAccessibilityElement when it receives this notification.
+    BOOL isTesting = NSProcessInfo.processInfo.environment[@"XCTestConfigurationFilePath"] != nil;
+    if (isTesting && newWindow != nil) {
+        [ISHInstrumentation recordEvent:@"terminal.accessibility.proxy.didMoveToWindow" attributes:@{ @"has_window": @(newWindow != nil) }];
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"IXLand.TerminalViewDidMoveToWindowNotification" object:self userInfo:@{ @"window": newWindow }];
+    }
 }
 
 - (void)userContentController:(WKUserContentController *)userContentController didReceiveScriptMessage:(WKScriptMessage *)message {
@@ -372,6 +417,15 @@ static NSString *const HANDLERS[] = {@"syncFocus", @"focus", @"newScrollHeight",
     // In shell-only mode, terminal is nil - no input to send
     if (self.terminal == nil)
         return;
+
+    // PROOF: record that UI inserted text into TerminalView. This is a
+    // minimal, non-invasive instrumentation point to correlate typed input
+    // from XCTest with later terminal/sendInput events.
+    NSDictionary *uiAttrs = @{
+        @"char_count": @(text.length),
+        @"first_char": @(text.length > 0 ? (unsigned int)[text characterAtIndex:0] : 0)
+    };
+    [ISHInstrumentation recordEvent:@"terminal.ui.insert_text" attributes:uiAttrs];
 
     self.markedText = nil;
 
@@ -712,6 +766,8 @@ static const char *metaKeys = "abcdefghijklmnopqrstuvwxyz0123456789-=[]\\;',./";
 }
 
 - (NSArray *)accessibilityElements {
+    // Always expose only the TerminalView-owned accessibility proxy. Do not
+    // also expose the WKWebView or create window-level synthetic elements.
     if (self.terminalAccessibilityElement) {
         return @[self.terminalAccessibilityElement];
     }

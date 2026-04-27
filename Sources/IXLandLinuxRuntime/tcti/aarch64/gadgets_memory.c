@@ -1130,6 +1130,18 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
     cpu->fault_addr = addr;
     cpu->fault_was_write = is_load ? false : true;
 
+    // PROOF: Capture exact value read by ldrh at 0x6d1c0 (guest_ea 0x1036)
+    if (fault_pc == 0x6d1c0ULL && is_load && size == A64_SIZE_H && imm == 54) {
+        uint16_t probe_value = 0;
+        int probe_ret = a64_guest_read16(cpu, cpu->tlb, addr, &probe_value);
+        char ev[256];
+        snprintf(ev, sizeof(ev),
+                 "task.proof.6d1c0.ldrh_result=addr:0x%llx,read_val:0x%04x,mem_ret:%d,host_ptr:0x%llx",
+                 (unsigned long long)addr, (unsigned int)probe_value, probe_ret,
+                 (unsigned long long)(uintptr_t)ldst_host_ptr_probe);
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+    }
+
     switch (size) {
     case A64_SIZE_B:
         width = 1;
@@ -1409,6 +1421,30 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
         trace_emit_gadget_ldr_host_ptr(addr);
 
         tcti_write_reg_or_zr(cpu, (int)rt, value, size == A64_SIZE_X);
+
+        // PROOF: Trace x0 immediately after ldrh writeback at 0x6d1c0
+        if (fault_pc == 0x6d1c0ULL && is_load && size == A64_SIZE_H && rt == 0) {
+            char ev[256];
+            snprintf(ev, sizeof(ev),
+                     "task.proof.6d1c0.writeback=x0_after_write:0x%llx,value:0x%llx,"
+                     "rt:%llu,size:%llu,is_64bit:%d",
+                     (unsigned long long)cpu->x[0], (unsigned long long)value,
+                     (unsigned long long)rt, (unsigned long long)size, size == A64_SIZE_X ? 1 : 0);
+            trace_record_event(TRACE_ORIGIN_EXEC, ev);
+        }
+
+        // PROOF: Trace every write to x0 within interpreter seamblock [0x6d184-0x6d1d0]
+        if (rt == 0 && fault_pc >= 0x6d184ULL && fault_pc <= 0x6d1d0ULL) {
+            char ev[256];
+            snprintf(ev, sizeof(ev),
+                     "task.proof.x0.mutation=pc:0x%llx,new_x0:0x%llx,old_x0:0x%llx,"
+                     "value:0x%llx,size:%llu,is_64bit:%d",
+                     (unsigned long long)fault_pc, (unsigned long long)cpu->x[0],
+                     (unsigned long long)(cpu->x[0] ^ value), /* pre-write estimate */
+                     (unsigned long long)value, (unsigned long long)size,
+                     size == A64_SIZE_X ? 1 : 0);
+            trace_record_event(TRACE_ORIGIN_EXEC, ev);
+        }
 
         // PHASE 1: X2 Provenance Tracking - Capture first write to X2
         if (rt == 2 && is_load) {

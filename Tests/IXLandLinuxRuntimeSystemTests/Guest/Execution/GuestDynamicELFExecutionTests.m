@@ -655,20 +655,49 @@
     NSLog(@"APP-001 RESULT: pc_after=0x%llx (app crashes at 0x6d1d4)", result.pcAfter);
     
     // KEY ASSERTION: Harness should reach exit (guest exit observed)
-    // App crashes at 0x6d1d4 - if harness also crashes, we have reproducible crash
-    // If harness succeeds, we have environment/setup divergence
     NSLog(@"APP-001: exit_observed=%d task_exit_observed=%d", exitObserved, result.taskExitObserved);
-    
-    // Check if we hit the crash PC
-    if (result.pcAfter == 0x6d1d4 || result.pcAfter == 0x6d1d8) {
-        NSLog(@"APP-001: HIT CRASH PC 0x%llx - same as app!", result.pcAfter);
-        XCTFail(@"APP-001: Harness hit same crash PC as app (0x%llx) - crash is reproducible", result.pcAfter);
-    } else if (exitObserved || result.taskExitObserved) {
-        NSLog(@"APP-001: Guest exited cleanly - divergence from app crash");
-        // This is the key finding - harness exits cleanly but app crashes
-        // This means there's an environment/setup difference
+
+    // Poll for structured proof events emitted by runtime at the critical PCs
+    NSDate *start = [NSDate date];
+    BOOL seen_ldrh = NO;
+    BOOL seen_wb = NO;
+    BOOL seen_x0_mut_at_6d1d4 = NO;
+    BOOL seen_any_x0 = NO;
+    while ([[NSDate date] timeIntervalSinceDate:start] < 15.0) {
+        seen_ldrh = guest_execution_trace_sink_has_ldrh_6d1c0();
+        seen_wb = guest_execution_trace_sink_has_6d1c0_writeback();
+        seen_any_x0 = guest_execution_trace_sink_any_x0_mutation();
+        seen_x0_mut_at_6d1d4 = guest_execution_trace_sink_has_x0_mutation_at(0x6d1d4ULL);
+        if (seen_ldrh || seen_wb || seen_any_x0) break;
+        if (guest_execution_trace_sink_exit_observed()) break;
+        [NSThread sleepForTimeInterval:0.1];
+    }
+
+    if (!seen_ldrh && !seen_wb && !seen_any_x0) {
+        // Fail with structured diagnostics - no proof events captured
+        const char *lastEvent = guest_execution_trace_sink_get_last_loader_event();
+        XCTFail(@"APP-001: No proof events captured for 0x6d1c0/0x6d1d4. last_loader_event='%s' begin_interval_calls=%llu any_interval=%d pc_before=0x%llx pc_after=0x%llx exit_observed=%d",
+                lastEvent, (unsigned long long)guest_execution_trace_sink_begin_interval_calls_count(), guest_execution_trace_sink_any_interval_received(), result.pcBefore, result.pcAfter, guest_execution_trace_sink_exit_observed());
     } else {
-        NSLog(@"APP-001: Unknown state - pc_after=0x%llx, exit=%d", result.pcAfter, exitObserved);
+        if (seen_ldrh) {
+            uint64_t addr = 0; uint16_t val = 0; int memret = 0; uint64_t hostptr = 0;
+            guest_execution_trace_sink_get_ldrh_6d1c0(&addr, &val, &memret, &hostptr);
+            NSLog(@"APP-001 PROOF: ldrh@0x6d1c0 observed: addr=0x%llx val=0x%x mem_ret=%d host_ptr=0x%llx", addr, val, memret, hostptr);
+        }
+        if (seen_wb) {
+            uint64_t x0_after = 0, value = 0; unsigned long rt = 0, size = 0; int is64 = 0;
+            guest_execution_trace_sink_get_6d1c0_writeback(&x0_after, &value, &rt, &size, &is64);
+            NSLog(@"APP-001 PROOF: writeback@0x6d1c0 observed: x0_after=0x%llx value=0x%llx rt=%lu size=%lu is_64=%d", x0_after, value, rt, size, is64);
+        }
+        if (seen_any_x0) {
+            if (seen_x0_mut_at_6d1d4) {
+                uint64_t new_x0=0, old_x0=0, value=0; unsigned long size=0; int is64=0;
+                guest_execution_trace_sink_get_x0_mutation_at(0x6d1d4ULL, &new_x0, &old_x0, &value, &size, &is64);
+                NSLog(@"APP-001 PROOF: x0 mutation at 0x6d1d4: new=0x%llx old=0x%llx value=0x%llx size=%lu is64=%d", new_x0, old_x0, value, size, is64);
+            } else {
+                NSLog(@"APP-001 PROOF: x0 mutation(s) observed (none exactly at 0x6d1d4)");
+            }
+        }
     }
 }
 

@@ -6,6 +6,7 @@
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/kernel/init.h>
 #import <IXLandLinuxRuntime/kernel/personality.h>
+#import <IXLandLinuxRuntime/kernel/guest_trace_context.h>
 #include <signal.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -58,10 +59,20 @@ static struct task *construct_task(struct task *parent)
 {
     // TRACE: Enter construct_task - capture parent and expected child relationship
     trace_emit_u64(TRACE_EVENT_TASK_CREATE, 0, (uint64_t)(parent ? parent->pid : 0));
+    /* PROBE: mark entry to construct_task for instrumentation visibility */
+    trace_record_event(TRACE_ORIGIN_KERNEL, "boot.construct_task.entry");
 
     struct task *task = task_create_(parent);
+    if (task && !IS_ERR(task))
+        trace_record_event(TRACE_ORIGIN_KERNEL, "boot.construct_task.created_task_ptr");
     if (task == NULL || IS_ERR(task))
-        return ERR_PTR(task ? PTR_ERR(task) : -ENOMEM);
+    {
+        int err = task ? (int)PTR_ERR(task) : -ENOMEM;
+        /* Emit structured instrumentation for task_create_ failure */
+        ixland_guest_trace_emit_int(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
+                                    "boot.construct_task.error", "task_create_failure", (int64_t)err);
+        return ERR_PTR(err);
+    }
 
     // PROOF TRACE: After task_create_ returns, log pid assignment
     uint64_t host_thread_id = (uint64_t)pthread_self();
@@ -82,8 +93,12 @@ static struct task *construct_task(struct task *parent)
     task_setsid(task);
 
     struct mm *new_mm = mm_new();
+    if (new_mm != NULL)
+        trace_record_event(TRACE_ORIGIN_KERNEL, "boot.construct_task.mm_new_ok");
     if (new_mm == NULL) {
         printk("ERROR: construct_task: mm_new() failed\n");
+        ixland_guest_trace_emit_int(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
+                                    "boot.construct_task.error", "mm_new_failure", (int64_t)-ENOMEM);
         return ERR_PTR(-ENOMEM);
     }
     task_set_mm(task, new_mm);
@@ -104,8 +119,11 @@ static struct task *construct_task(struct task *parent)
     if (IS_ERR(task->fs->root)) {
         int err = (int)PTR_ERR(task->fs->root);
         printk("ERROR: construct_task: generic_open(/) failed with %d\n", err);
+        ixland_guest_trace_emit_int(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
+                                    "boot.construct_task.error", "generic_open_root_failure", (int64_t)err);
         return ERR_PTR(err);
     }
+    trace_record_event(TRACE_ORIGIN_KERNEL, "boot.construct_task.root_open_ok");
     task->fs->pwd = fd_retain(task->fs->root);
     current = old_current;
 
@@ -116,12 +134,23 @@ static struct task *construct_task(struct task *parent)
     trace_emit_construct_task_done(task->pid, (uint64_t)task, (uint64_t)task->mm,
                                    (uint64_t)task->mem);
 
+    /* Emit structured instrumentation proving construct_task succeeded and the assigned pid */
+    ixland_guest_trace_emit_int(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
+                                "boot.construct_task.success", "assigned_pid", (int64_t)task->pid);
+    trace_record_event(TRACE_ORIGIN_KERNEL, "boot.construct_task.exit_success");
+
     return task;
 }
 
 int become_first_process(void)
 {
     printk("become_first_process: ENTRY\n");
+
+    /* Diagnostic probe: record that become_first_process was entered so we
+     * can prove whether PID-1 creation is attempted during boot in UI tests.
+     * Use the minimal tracing API which forwards to the app-owned instrumentation
+     * bridge. Keep this probe tiny and side-effect free. */
+    trace_record_event(TRACE_ORIGIN_KERNEL, "boot.become_first_process.entry");
 
     // now seems like a nice time
     establish_signal_handlers();
@@ -134,9 +163,22 @@ int become_first_process(void)
     struct task *task = construct_task(NULL);
     printk("become_first_process: construct_task returned task=%p\n", (void *)task);
 
+    /* Diagnostic probe: record that construct_task returned during PID-1
+     * creation. Emit structured data with the return value (errno on
+     * failure, 0 on success) and the assigned PID when available so the
+     * unified log contains clear evidence of PID-1 creation. */
+    trace_record_event(TRACE_ORIGIN_KERNEL, "boot.become_first_process.construct_return");
+
     if (IS_ERR(task)) {
-        printk("ERROR: become_first_process: construct_task failed with %d\n", PTR_ERR(task));
-        return (int)PTR_ERR(task);
+        int err = (int)PTR_ERR(task);
+        printk("ERROR: become_first_process: construct_task failed with %d\n", err);
+        /* Emit structured guest instrumentation with the errno value */
+        ixland_guest_trace_emit_int(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
+                                    "boot.construct_task.error", "err", (int64_t)err);
+        /* Also emit a summary event for the construct return with errno */
+        ixland_guest_trace_emit_int(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
+                                    "boot.become_first_process.construct_return", "return_value", (int64_t)err);
+        return err;
     }
 
     printk(
@@ -144,6 +186,12 @@ int become_first_process(void)
         task->pid, (void *)task->mm, (void *)task->mem);
     current = task;
     printk("become_first_process: current set successfully, current=%p\n", (void *)current);
+    /* On success, emit the assigned PID as evidence that PID 1 exists. */
+    ixland_guest_trace_emit_int(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
+                                "boot.become_first_process.construct_return", "return_value", (int64_t)0);
+    ixland_guest_trace_emit_int(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
+                                "boot.become_first_process.construct_return", "assigned_pid", (int64_t)task->pid);
+
     printk("become_first_process: RETURN 0\n");
     return 0;
 }
@@ -153,9 +201,25 @@ int become_new_init_child(void)
     // CONTRACT: PID 1 must exist before any session can be started
     struct task *init = pid_get_task(1);
     if (init == NULL) {
-        // Use trace instrumentation to record contract violation
-        trace_emit(TRACE_EVENT_INIT_CHILD_NO_INIT_TASK, 0);
-        return -1; // EPERM equivalent
+        /* PID 1 missing at session start. Try to (re-)initialize PID 1 here
+         * as a minimal robust recovery: call become_first_process() and
+         * re-check the pid table. Emit structured instrumentation so UI
+         * tests and logs record the retry and its result. */
+        ixland_guest_trace_emit(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "boot.init_child.no_init_task.attempt_reinit");
+        int err = become_first_process();
+        ixland_guest_trace_emit_int(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "boot.become_first_process.retry.return", "return_value", (int64_t)err);
+        if (err < 0) {
+            /* If re-init failed, surface the error to caller */
+            ixland_guest_trace_emit(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "boot.become_first_process.retry.failed");
+            return err;
+        }
+
+        /* Re-check pid table after attempted re-init */
+        init = pid_get_task(1);
+        if (init == NULL) {
+            ixland_guest_trace_emit(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "boot.init_child.pid1_still_missing_after_retry");
+            return -1;
+        }
     }
 
     struct task *task = construct_task(init);
