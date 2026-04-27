@@ -2272,6 +2272,7 @@
 					"$(SRCROOT)/include",
 					"$(SRCROOT)/Sources",
 					"$(SRCROOT)",
+					"$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentation/include",
 					"$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include",
 				);
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -2363,6 +2364,7 @@
 					"$(SRCROOT)/Sources",
 					"$(SRCROOT)",
 					"$(SRCROOT)/Tests/Support",
+					"$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentation/include",
 					"$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include",
 				);
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -2391,6 +2393,7 @@
 					"$(SRCROOT)/include",
 					"$(SRCROOT)/Sources",
 					"$(SRCROOT)",
+					"$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentation/include",
 					"$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include",
 				);
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -2661,6 +2664,7 @@
 					"$(SRCROOT)/include",
 					"$(SRCROOT)/Sources",
 					"$(SRCROOT)",
+					"$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentation/include",
 					"$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include",
 				);
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -2690,6 +2694,7 @@
 					"$(SRCROOT)/Sources",
 					"$(SRCROOT)",
 					"$(SRCROOT)/Tests/Support",
+					"$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentation/include",
 					"$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include",
 				);
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -2718,6 +2723,7 @@
 					"$(SRCROOT)/include",
 					"$(SRCROOT)/Sources",
 					"$(SRCROOT)",
+					"$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentation/include",
 					"$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include",
 				);
 				LD_RUNPATH_SEARCH_PATHS = (

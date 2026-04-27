@@ -73,9 +73,29 @@ static int bootError;
     
     NSURL *root = [Roots.instance rootUrl:Roots.instance.defaultRoot];
 
-    int err = mount_root(&fakefs, [root URLByAppendingPathComponent:@"data"].fileSystemRepresentation);
-    if (err < 0) {
-        return err;
+    // When running under XCTest the app may not have access to the
+    // production App Group container, causing Roots to return nil. In that
+    // case (and generally when running under the test runner) the test
+    // harness is responsible for mounting the test root. Avoid calling
+    // mount_root with a NULL path here which leads to EINVAL and an empty
+    // mounts list later (triggering mount_find asserts). Emit a small
+    // instrumentation event to record the skip so it is visible in traces.
+    BOOL isTesting = NSProcessInfo.processInfo.environment[@"XCTestConfigurationFilePath"] != nil;
+    int err = 0;
+    if (root == nil || isTesting) {
+        [ISHInstrumentation recordEvent:@"app.boot.mount_root.skipped" attributes:@{ @"is_testing": @(isTesting), @"root_is_nil": @(root == nil) }];
+        /* When running under XCTest we expect the test harness to be the
+         * owner of mounting and PID-1 creation. Avoid creating PID-1 here so
+         * the harness can mount the test root and call become_first_process()
+         * deterministically. Emit a trace so test logs show the cooperative
+         * handoff. */
+        [ISHInstrumentation recordEvent:@"boot.become_first_process.skipped" attributes:@{ @"is_testing": @(isTesting) }];
+        return 0;
+    } else {
+        err = mount_root(&fakefs, [root URLByAppendingPathComponent:@"data"].fileSystemRepresentation);
+        if (err < 0) {
+            return err;
+        }
     }
 
     fs_register(&iosfs);

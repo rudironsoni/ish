@@ -1,3 +1,4 @@
+#import <IXLandInstrumentationTracing/trace.h>
 #import <IXLandLinuxRuntime/fs/dev.h>
 #import <IXLandLinuxRuntime/fs/fd.h>
 #import <IXLandLinuxRuntime/fs/inode.h>
@@ -34,6 +35,7 @@ bool contains_mount_point(const char *path)
 
 struct fd *generic_openat(struct fd *at, const char *path_raw, int flags, int mode)
 {
+    trace_record_event(TRACE_ORIGIN_KERNEL, "boot.generic_openat.entry");
     if (flags & O_RDWR_ && flags & O_WRONLY_)
         return ERR_PTR(_EINVAL);
 
@@ -43,8 +45,12 @@ struct fd *generic_openat(struct fd *at, const char *path_raw, int flags, int mo
                              N_SYMLINK_FOLLOW | (flags & O_CREAT_ ? N_PARENT_DIR_WRITE : 0));
     if (err < 0)
         return ERR_PTR(err);
+    trace_record_event(TRACE_ORIGIN_KERNEL, "boot.generic_openat.after_path_normalize");
     struct mount *mount = find_mount_and_trim_path(path);
+    trace_record_event(TRACE_ORIGIN_KERNEL, "boot.generic_openat.after_find_mount");
+    trace_record_event(TRACE_ORIGIN_KERNEL, "boot.generic_openat.before_fs_open");
     struct fd *fd = mount->fs->open(mount, path, flags, mode);
+    trace_record_event(TRACE_ORIGIN_KERNEL, "boot.generic_openat.after_fs_open");
     if (IS_ERR(fd)) {
         // if an error happens after this point, fd_close will release the
         // mount, but right now we need to do it manually
@@ -56,6 +62,7 @@ struct fd *generic_openat(struct fd *at, const char *path_raw, int flags, int mo
     lock(&inodes_lock); // TODO: don't do this
     struct statbuf stat;
     err = fd->mount->fs->fstat(fd, &stat);
+    trace_record_event(TRACE_ORIGIN_KERNEL, "boot.generic_openat.after_fstat");
     if (err < 0) {
         unlock(&inodes_lock);
         goto error;

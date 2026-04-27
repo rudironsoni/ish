@@ -25,6 +25,8 @@ extern bool exit_should_pthread_exit;
 - (BOOL)setupRuntimeWithPath:(NSString *)tempPath;
 - (GuestExecutionResult *)prepareExecutableAtRootPath:(NSString *)rootPath
                        executablePath:(NSString *)executablePath;
+// Helper: mount the provided root (if needed) and create PID 1.
+- (BOOL)mountRootAndBecomeFirstProcess:(NSString *)rootPath error:(int *)outErr;
 @end
 
 // Test-only API for suite isolation
@@ -142,6 +144,31 @@ extern bool exit_should_pthread_exit;
     return [GuestExecutionResult resultFromProbe:probe_get_result()];
 }
 
+- (BOOL)mountRootAndBecomeFirstProcess:(NSString *)rootPath error:(int *)outErr {
+    // Attempt mount and then create PID 1. This centralizes the ordering and
+    // avoids duplicating recovery/ retry logic across harness paths.
+    probe_get_result()->mount_root_called = true;
+    int mountErr = mount_root(&realfs, [rootPath UTF8String]);
+    probe_get_result()->mount_root_return_value = mountErr;
+    // Emit an explicit harness-only event for visibility. Use UI origin for
+    // harness-owned events (this is test-side instrumentation).
+    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_UI, "harness.mount_root.attempt");
+    if (mountErr != 0 && mountErr != -16) {
+        if (outErr) *outErr = mountErr;
+        return NO;
+    }
+
+    probe_get_result()->become_first_process_called = true;
+    int initErr = become_first_process();
+    probe_get_result()->become_first_process_return_value = initErr;
+    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_UI, "harness.become_first_process.called");
+    if (outErr) *outErr = initErr;
+    if (initErr != 0 && initErr != -17) {
+        return NO;
+    }
+    return YES;
+}
+
 // Lane A2: Guest exit observed externally via XCTestExpectation
 // Guest runs on background queue, exit captured by trace sink, expectation fulfilled
 - (GuestExecutionResult *)runFixtureToGuestExit:(NSString *)fixtureName
@@ -254,11 +281,8 @@ extern bool exit_should_pthread_exit;
 
 - (BOOL)setupRuntimeWithPath:(NSString *)tempPath {
     NSString *tempDir = [tempPath stringByDeletingLastPathComponent];
-    int mountErr = mount_root(&realfs, [tempDir UTF8String]);
-    if (mountErr != 0 && mountErr != -16) return NO;
-    
-    int initErr = become_first_process();
-    if (initErr != 0 && initErr != -17) return NO;
+    int err = 0;
+    if (![self mountRootAndBecomeFirstProcess:tempDir error:&err]) return NO;
     
     NSString *fileName = [tempPath lastPathComponent];
     NSString *execPath = [@"/" stringByAppendingString:fileName];
@@ -284,20 +308,9 @@ executablePath:(NSString *)executablePath {
     
     probe_get_result()->harness_entered = true;
     
-    probe_get_result()->mount_root_called = true;
-    int mountErr = mount_root(&realfs, [rootPath UTF8String]);
-    probe_get_result()->mount_root_return_value = mountErr;
-    if (mountErr != 0 && mountErr != -16) {
-        probe_set_error("Failed to mount rootfs");
-        probe_set_completed(true);
-        return [GuestExecutionResult resultFromProbe:probe_get_result()];
-    }
-    
-    probe_get_result()->become_first_process_called = true;
-    int initErr = become_first_process();
-    probe_get_result()->become_first_process_return_value = initErr;
-    if (initErr != 0 && initErr != -17) {
-        probe_set_error("Failed to become first process");
+    int err = 0;
+    if (![self mountRootAndBecomeFirstProcess:rootPath error:&err]) {
+        probe_set_error("Failed to prepare runtime: mount/become_first_process failed");
         probe_set_completed(true);
         return [GuestExecutionResult resultFromProbe:probe_get_result()];
     }
@@ -376,20 +389,9 @@ executablePath:(NSString *)executablePath {
     
     probe_get_result()->harness_entered = true;
     
-    probe_get_result()->mount_root_called = true;
-    int mountErr = mount_root(&realfs, [rootPath UTF8String]);
-    probe_get_result()->mount_root_return_value = mountErr;
-    if (mountErr != 0 && mountErr != -16) {
-        probe_set_error("Failed to mount rootfs");
-        probe_set_completed(true);
-        return [GuestExecutionResult resultFromProbe:probe_get_result()];
-    }
-    
-    probe_get_result()->become_first_process_called = true;
-    int initErr = become_first_process();
-    probe_get_result()->become_first_process_return_value = initErr;
-    if (initErr != 0 && initErr != -17) {
-        probe_set_error("Failed to become first process");
+    int err = 0;
+    if (![self mountRootAndBecomeFirstProcess:rootPath error:&err]) {
+        probe_set_error("Failed to prepare runtime: mount/become_first_process failed");
         probe_set_completed(true);
         return [GuestExecutionResult resultFromProbe:probe_get_result()];
     }

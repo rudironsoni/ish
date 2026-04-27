@@ -1,3 +1,5 @@
+#import <IXLandInstrumentationTracing/trace.h>
+#import <IXLandLinuxRuntime/kernel/guest_trace_context.h>
 #import <IXLandLinuxRuntime/fs/path.h>
 #import <IXLandLinuxRuntime/fs/real.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
@@ -26,17 +28,31 @@ void fs_register(const struct fs_ops *fs)
 
 struct mount *mount_find(char *path)
 {
+    trace_record_event(TRACE_ORIGIN_KERNEL, "boot.mount_find.entry");
     assert(path_is_normalized(path));
     lock(&mounts_lock);
+    trace_record_event(TRACE_ORIGIN_KERNEL, "boot.mount_find.lock_acquired");
     struct mount *mount = NULL;
     assert(!list_empty(&mounts)); // this would mean there's no root FS mounted
     list_for_each_entry (&mounts, mount, mounts) {
+        /* Emit a lightweight structured trace for each candidate mount point
+         * so we can observe which mounts are being iterated during mount_find.
+         * This is read-only and should have no side-effects. */
+        ixland_guest_trace_field_t fields[] = {
+            { .key = "point", .kind = IXLAND_GUEST_TRACE_FIELD_STRING, .string_value = mount->point },
+        };
+        ixland_guest_trace_emit_structured(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
+                                          "boot.mount_find.candidate", fields,
+                                          sizeof(fields) / sizeof(fields[0]));
+
         size_t n = strlen(mount->point);
         if (strncmp(path, mount->point, n) == 0 && (path[n] == '/' || path[n] == '\0'))
             break;
     }
+    trace_record_event(TRACE_ORIGIN_KERNEL, "boot.mount_find.found_candidate");
     mount->refcount++;
     unlock(&mounts_lock);
+    trace_record_event(TRACE_ORIGIN_KERNEL, "boot.mount_find.exit");
     return mount;
 }
 
@@ -57,9 +73,19 @@ void mount_release(struct mount *mount)
 int do_mount(const struct fs_ops *fs, const char *source, const char *point, const char *info,
              int flags)
 {
+    trace_record_event(TRACE_ORIGIN_KERNEL, "boot.do_mount.entry");
+    ixland_guest_trace_field_t dm_fields[] = {
+        { .key = "source", .kind = IXLAND_GUEST_TRACE_FIELD_STRING, .string_value = (char *)source },
+        { .key = "point", .kind = IXLAND_GUEST_TRACE_FIELD_STRING, .string_value = (char *)point },
+    };
+    ixland_guest_trace_emit_structured(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "boot.do_mount.entry", dm_fields,
+                                      sizeof(dm_fields) / sizeof(dm_fields[0]));
     struct mount *new_mount = malloc(sizeof(struct mount));
     if (new_mount == NULL)
+    {
+        ixland_guest_trace_emit_int(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "boot.do_mount.exit", "return_value", (int64_t)_ENOMEM);
         return _ENOMEM;
+    }
     new_mount->point = strdup(point);
     new_mount->source = strdup(source);
     new_mount->info = strdup(info);
@@ -73,17 +99,29 @@ int do_mount(const struct fs_ops *fs, const char *source, const char *point, con
             free((void *)new_mount->point);
             free((void *)new_mount->source);
             free(new_mount);
+            ixland_guest_trace_emit_int(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "boot.do_mount.exit", "return_value", (int64_t)err);
             return err;
         }
     }
 
     // the list must stay in descending order of mount point length
     struct mount *mount;
-    list_for_each_entry (&mounts, mount, mounts) {
-        if (strlen(mount->point) <= strlen(new_mount->point))
-            break;
+    // If there are no mounts yet, add the new mount as the first entry.
+    // list_add_before below assumes there is at least one element to insert
+    // before; handle the empty-list case explicitly to avoid dereferencing
+    // an invalid 'mount' pointer. This keeps the insertion semantics
+    // deterministic during early bootstrap where callers may not hold
+    // mounts_lock (mount_root calls do_mount directly).
+    if (list_empty(&mounts)) {
+        list_add(&mounts, &new_mount->mounts);
+    } else {
+        list_for_each_entry (&mounts, mount, mounts) {
+            if (strlen(mount->point) <= strlen(new_mount->point))
+                break;
+        }
+        list_add_before(&mount->mounts, &new_mount->mounts);
     }
-    list_add_before(&mount->mounts, &new_mount->mounts);
+    ixland_guest_trace_emit_int(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "boot.do_mount.exit", "return_value", (int64_t)0);
     return 0;
 }
 

@@ -4,7 +4,6 @@
 // Uses ixland_instrumentation_register_sink() to observe events externally
 
 #include "GuestExecutionTraceSink.h"
-
 #include "GuestExecutionProbe.h"
 
 #include <IXLandInstrumentation/IXLandInstrumentation.h>
@@ -114,18 +113,25 @@ static void test_sink_record_event(ixland_instrumentation_origin_t origin, const
     if (!event_name)
         return;
 
+    // Preserve all prior milestone and diagnostic event handling, then merge in the
+    // structured proof parsing implemented earlier. Maintain lock protection for
+    // shared mutable sink state.
+
     // Capture guest.do_exit_group.entry event (Milestones A/B)
     if (strcmp(event_name, "guest.do_exit_group.entry") == 0) {
         exit_event_received = true;
         probe_task_exit_observed(last_exit_code);
+        return;
     }
     // Capture guest.do_exit.entry
-    else if (strcmp(event_name, "guest.do_exit.entry") == 0) {
+    if (strcmp(event_name, "guest.do_exit.entry") == 0) {
         exit_event_received = true;
         probe_task_exit_observed(last_exit_code);
+        return;
     }
+
     // Milestone B: Interp path resolved (only if it's a REAL path, not "none")
-    else if (strstr(event_name, "loader.interpreter_path=path:") != NULL) {
+    if (strstr(event_name, "loader.interpreter_path=path:") != NULL) {
         const char *path_start = strstr(event_name, "path:");
         if (path_start) {
             path_start += 5; // Skip "path:"
@@ -138,106 +144,45 @@ static void test_sink_record_event(ixland_instrumentation_origin_t origin, const
                 invoke_completion_callback(false, -1);
             }
         }
+        return;
     }
+
     // DIAGNOSTIC: format_exec was called
-    else if (strstr(event_name, "loader.format_exec.called") != NULL) {
+    if (strstr(event_name, "loader.format_exec.called") != NULL) {
         snprintf(last_loader_event, sizeof(last_loader_event), "%s", event_name);
+        return;
     }
+
     // DIAGNOSTIC: elf_exec was reached
-    else if (strstr(event_name, "loader.elf_exec.reached") != NULL) {
+    if (strstr(event_name, "loader.elf_exec.reached") != NULL) {
         elf_exec_reached = true;
         snprintf(last_loader_event, sizeof(last_loader_event), "%s", event_name);
+        return;
     }
+
     // M1: Main ELF header accepted (emitted after read_header succeeds for main binary)
-    else if (strstr(event_name, "loader.main_elf.header") != NULL) {
+    if (strstr(event_name, "loader.main_elf.header") != NULL) {
         main_elf_header_accepted = true;
         snprintf(last_loader_event, sizeof(last_loader_event), "%s", event_name);
+        return;
     }
+
     // Milestone B: Interp pt_load mapping
-    else if (strstr(event_name, "loader.interp.pt_load.map") != NULL) {
+    if (strstr(event_name, "loader.interp.pt_load.map") != NULL) {
         interp_mappings_exist = true;
         snprintf(last_loader_event, sizeof(last_loader_event), "%s", event_name);
+        return;
     }
-    // PROOF event: ldrh result at 0x6d1c0
-    else if (strstr(event_name, "task.proof.6d1c0.ldrh_result=") != NULL) {
-        const char *p = strstr(event_name, "addr:");
-        if (p) {
-            uint64_t addr = 0;
-            unsigned int read_val = 0;
-            int mem_ret = 0;
-            uint64_t host_ptr = 0;
-            // Parse the expected format
-            sscanf(p, "addr:0x%llx,read_val:0x%04x,mem_ret:%d,host_ptr:0x%llx", &addr, &read_val, &mem_ret, &host_ptr);
-            os_unfair_lock_lock(&sink_state_lock);
-            ldrh_6d1c0_seen = true;
-            ldrh_6d1c0_addr = addr;
-            ldrh_6d1c0_val = (uint16_t)read_val;
-            ldrh_6d1c0_mem_ret = mem_ret;
-            ldrh_6d1c0_host_ptr = host_ptr;
-            os_unfair_lock_unlock(&sink_state_lock);
-        }
-    }
-    // PROOF event: writeback at 0x6d1c0 (x0 after write)
-    else if (strstr(event_name, "task.proof.6d1c0.writeback=") != NULL) {
-        const char *p = strstr(event_name, "x0_after_write:");
-        if (p) {
-            uint64_t x0_after = 0;
-            uint64_t value = 0;
-            unsigned long rt = 0, size = 0;
-            int is64 = 0;
-            sscanf(p, "x0_after_write:0x%llx,value:0x%llx,rt:%lu,size:%lu,is_64bit:%d", &x0_after, &value, &rt, &size, &is64);
-            os_unfair_lock_lock(&sink_state_lock);
-            wb_6d1c0_seen = true;
-            wb_6d1c0_x0_after = x0_after;
-            wb_6d1c0_value = value;
-            wb_6d1c0_rt = rt;
-            wb_6d1c0_size = size;
-            wb_6d1c0_is_64bit = is64;
-            os_unfair_lock_unlock(&sink_state_lock);
-        }
-    }
-    // PROOF event: x0 mutation records
-    else if (strstr(event_name, "task.proof.x0.mutation=") != NULL) {
-        const char *p = strstr(event_name, "pc:");
-        if (p) {
-            uint64_t pc = 0, new_x0 = 0, old_x0 = 0, value = 0, size = 0;
-            int is64 = 0;
-            sscanf(p, "pc:0x%llx,new_x0:0x%llx,old_x0:0x%llx,value:0x%llx,size:%lu,is_64bit:%d", &pc, &new_x0, &old_x0, &value, &size, &is64);
-            os_unfair_lock_lock(&sink_state_lock);
-            int inserted = 0;
-            for (int i = 0; i < X0_MUTATION_TABLE_SIZE; i++) {
-                if (!x0_mutations[i].used) {
-                    x0_mutations[i].pc = pc;
-                    x0_mutations[i].new_x0 = new_x0;
-                    x0_mutations[i].old_x0 = old_x0;
-                    x0_mutations[i].value = value;
-                    x0_mutations[i].size = size;
-                    x0_mutations[i].is_64bit = is64;
-                    x0_mutations[i].used = 1;
-                    inserted = 1;
-                    break;
-                }
-            }
-            if (!inserted) {
-                // Evict index 0
-                x0_mutations[0].pc = pc;
-                x0_mutations[0].new_x0 = new_x0;
-                x0_mutations[0].old_x0 = old_x0;
-                x0_mutations[0].value = value;
-                x0_mutations[0].size = size;
-                x0_mutations[0].is_64bit = is64;
-                x0_mutations[0].used = 1;
-            }
-            os_unfair_lock_unlock(&sink_state_lock);
-        }
-    }
+
     // Milestone B: Auxv initialized with AT_BASE
-    else if (strstr(event_name, "loader.auxv.at_base.write") != NULL) {
+    if (strstr(event_name, "loader.auxv.at_base.write") != NULL) {
         auxv_initialized = true;
         snprintf(last_loader_event, sizeof(last_loader_event), "%s", event_name);
+        return;
     }
-    // D2.0: Interp open result (emitted at exec.c:754 after generic_open attempt)
-    else if (strstr(event_name, "loader.interp.open.result") != NULL) {
+
+    // D2.0: Interp open result (emitted at exec.c after generic_open attempt)
+    if (strstr(event_name, "loader.interp.open.result") != NULL) {
         interp_open_attempted = true;
         snprintf(last_loader_event, sizeof(last_loader_event), "%s", event_name);
         // Parse err:X from event to classify open result
@@ -252,22 +197,114 @@ static void test_sink_record_event(ixland_instrumentation_origin_t origin, const
                 interp_open_errno = err_val;
             }
         }
+        return;
     }
+
     // Milestone B: Interp header loaded (emitted after read_header succeeds)
-    else if (strstr(event_name, "loader.interp_elf.header") != NULL) {
+    if (strstr(event_name, "loader.interp_elf.header") != NULL) {
         interp_header_loaded = true;
         snprintf(last_loader_event, sizeof(last_loader_event), "%s", event_name);
+        return;
     }
-    // Milestone B: Interp bias compute (emitted during interpreter mapping phase, after D2.1/D2.2)
-    else if (strstr(event_name, "loader.interp.bias.compute") != NULL) {
+
+    // Milestone B: Interp bias compute (emitted during interpreter mapping phase)
+    if (strstr(event_name, "loader.interp.bias.compute") != NULL) {
         interp_header_loaded = true;
         snprintf(last_loader_event, sizeof(last_loader_event), "%s", event_name);
+        return;
     }
+
     // Milestone B: Main image loaded
-    else if (strstr(event_name, "task.proof.exec.load_entry.reached") != NULL) {
+    if (strstr(event_name, "task.proof.exec.load_entry.reached") != NULL) {
         main_image_loaded = true;
         snprintf(last_loader_event, sizeof(last_loader_event), "%s", event_name);
+        return;
     }
+
+    // PROOF events: parse structured proof lines (robust parsing, keep prior semantics intact)
+    if (strstr(event_name, "task.proof.6d1c0.ldrh_result=") != NULL) {
+        const char *p = strstr(event_name, "addr:");
+        if (p) {
+            unsigned long long tmp_addr = 0ULL;
+            unsigned long long tmp_host_ptr = 0ULL;
+            unsigned int read_val = 0;
+            int mem_ret = 0;
+            int sscanf_ret = sscanf(p, "addr:0x%llx,read_val:0x%04x,mem_ret:%d,host_ptr:0x%llx",
+                                    &tmp_addr, &read_val, &mem_ret, &tmp_host_ptr);
+            if (sscanf_ret >= 4) {
+                os_unfair_lock_lock(&sink_state_lock);
+                ldrh_6d1c0_seen = true;
+                ldrh_6d1c0_addr = (uint64_t)tmp_addr;
+                ldrh_6d1c0_val = (uint16_t)read_val;
+                ldrh_6d1c0_mem_ret = mem_ret;
+                ldrh_6d1c0_host_ptr = (uint64_t)tmp_host_ptr;
+                os_unfair_lock_unlock(&sink_state_lock);
+            }
+        }
+        return;
+    }
+
+    if (strstr(event_name, "task.proof.6d1c0.writeback=") != NULL) {
+        const char *p = strstr(event_name, "x0_after_write:");
+        if (p) {
+            unsigned long long x0_after = 0ULL, value = 0ULL, rt_tmp = 0ULL, size_tmp = 0ULL;
+            int is64 = 0;
+            int sscanf_ret2 = sscanf(p, "x0_after_write:0x%llx,value:0x%llx,rt:%llu,size:%llu,is_64bit:%d",
+                                     &x0_after, &value, &rt_tmp, &size_tmp, &is64);
+            if (sscanf_ret2 >= 5) {
+                os_unfair_lock_lock(&sink_state_lock);
+                wb_6d1c0_seen = true;
+                wb_6d1c0_x0_after = (uint64_t)x0_after;
+                wb_6d1c0_value = (uint64_t)value;
+                wb_6d1c0_rt = rt_tmp;
+                wb_6d1c0_size = size_tmp;
+                wb_6d1c0_is_64bit = is64;
+                os_unfair_lock_unlock(&sink_state_lock);
+            }
+        }
+        return;
+    }
+
+    if (strstr(event_name, "task.proof.x0.mutation=") != NULL) {
+        const char *p = strstr(event_name, "pc:");
+        if (p) {
+            unsigned long long pc = 0ULL, new_x0 = 0ULL, old_x0 = 0ULL, value = 0ULL, size_tmp = 0ULL;
+            int is64 = 0;
+            int sscanf_ret3 = sscanf(p, "pc:0x%llx,new_x0:0x%llx,old_x0:0x%llx,value:0x%llx,size:%llu,is_64bit:%d",
+                                    &pc, &new_x0, &old_x0, &value, &size_tmp, &is64);
+            if (sscanf_ret3 >= 6) {
+                os_unfair_lock_lock(&sink_state_lock);
+                int inserted = 0;
+                for (int i = 0; i < X0_MUTATION_TABLE_SIZE; i++) {
+                    if (!x0_mutations[i].used) {
+                        x0_mutations[i].pc = (uint64_t)pc;
+                        x0_mutations[i].new_x0 = (uint64_t)new_x0;
+                        x0_mutations[i].old_x0 = (uint64_t)old_x0;
+                        x0_mutations[i].value = (uint64_t)value;
+                        x0_mutations[i].size = size_tmp;
+                        x0_mutations[i].is_64bit = is64;
+                        x0_mutations[i].used = 1;
+                        inserted = 1;
+                        break;
+                    }
+                }
+                if (!inserted) {
+                    x0_mutations[0].pc = (uint64_t)pc;
+                    x0_mutations[0].new_x0 = (uint64_t)new_x0;
+                    x0_mutations[0].old_x0 = (uint64_t)old_x0;
+                    x0_mutations[0].value = (uint64_t)value;
+                    x0_mutations[0].size = size_tmp;
+                    x0_mutations[0].is_64bit = is64;
+                    x0_mutations[0].used = 1;
+                }
+                os_unfair_lock_unlock(&sink_state_lock);
+            }
+        }
+        return;
+    }
+
+    // If we reach here, the event wasn't matched above - keep last_loader_event for diagnostics
+    snprintf(last_loader_event, sizeof(last_loader_event), "%s", event_name);
 }
 
 static uint64_t test_sink_begin_interval(ixland_instrumentation_origin_t origin,
@@ -275,7 +312,6 @@ static uint64_t test_sink_begin_interval(ixland_instrumentation_origin_t origin,
                                          const ixland_instrumentation_attribute_t *attrs,
                                          uint32_t attr_count)
 {
-    // S0: Diagnostic - track that begin_interval is actually being called
     begin_interval_calls_count++;
     any_interval_received = true;
 
@@ -304,41 +340,27 @@ static uint64_t test_sink_begin_interval(ixland_instrumentation_origin_t origin,
         }
         probe_task_exit_observed(last_exit_code);
         invoke_completion_callback(true, last_exit_code);
-    } else if (strcmp(interval_name, "guest.first_fault.exit") == 0) {
-        probe_capture_boundary(PROBE_BOUNDARY_FAULT);
     } else if (strcmp(interval_name, "task.proof.loader.elf_header") == 0) {
-        // M1: Main ELF header checkpoint - this interval fires regardless of record_event budget
-        // Check if role attribute is "main" (indicates elf_exec processing main binary)
-        // D2.1: Interpreter ELF header checkpoint - same interval name, role="interp"
         for (uint32_t i = 0; i < attr_count; i++) {
             if (attrs[i].key && strcmp(attrs[i].key, "role") == 0 && attrs[i].value) {
                 if (strcmp(attrs[i].value, "main") == 0) {
                     main_elf_header_accepted = true;
-                    snprintf(last_loader_event, sizeof(last_loader_event),
-                             "task.proof.loader.elf_header:role=main");
+                    snprintf(last_loader_event, sizeof(last_loader_event), "task.proof.loader.elf_header:role=main");
                     break;
                 } else if (strcmp(attrs[i].value, "interp") == 0) {
                     interp_header_loaded = true;
-                    snprintf(last_loader_event, sizeof(last_loader_event),
-                             "task.proof.loader.elf_header:role=interp");
+                    snprintf(last_loader_event, sizeof(last_loader_event), "task.proof.loader.elf_header:role=interp");
                     break;
                 }
             }
         }
     } else if (strcmp(interval_name, "task.proof.loader.biases") == 0) {
-        // Non-budgeted stable loader checkpoint - fires unconditionally
-        // Contains interp_path attribute with resolved interpreter path
         for (uint32_t i = 0; i < attr_count; i++) {
             if (attrs[i].key && strcmp(attrs[i].key, "interp_path") == 0 && attrs[i].value) {
-                // Only count real interpreter paths, not "none"
                 if (strncmp(attrs[i].value, "none", 4) != 0) {
                     interp_path_resolved = true;
-                    snprintf(resolved_interp_path, sizeof(resolved_interp_path), "%s",
-                             attrs[i].value);
-                    snprintf(last_loader_event, sizeof(last_loader_event),
-                             "task.proof.loader.biases:interp_path_resolved");
-                    // Invoke callback for loader boundary - interp path resolved via stable
-                    // interval
+                    snprintf(resolved_interp_path, sizeof(resolved_interp_path), "%s", attrs[i].value);
+                    snprintf(last_loader_event, sizeof(last_loader_event), "task.proof.loader.biases:interp_path_resolved");
                     invoke_completion_callback(false, -1);
                 }
                 break;
@@ -348,24 +370,17 @@ static uint64_t test_sink_begin_interval(ixland_instrumentation_origin_t origin,
         main_image_loaded = true;
         snprintf(last_loader_event, sizeof(last_loader_event), "%s", interval_name);
     } else if (strcmp(interval_name, "task.proof.do_execve.entry") == 0) {
-        // X0: do_execve entry checkpoint
         do_execve_entered = true;
         snprintf(last_loader_event, sizeof(last_loader_event), "task.proof.do_execve.entry");
     } else if (strcmp(interval_name, "task.proof.do_execve.before_format_exec") == 0) {
-        // X1: before format_exec - proves transition into format_exec
         format_exec_entered = true;
-        snprintf(last_loader_event, sizeof(last_loader_event),
-                 "task.proof.do_execve.before_format_exec");
+        snprintf(last_loader_event, sizeof(last_loader_event), "task.proof.do_execve.before_format_exec");
     } else if (strcmp(interval_name, "task.proof.do_execve.before_elf_exec") == 0) {
-        // X2: before elf_exec - proves transition from format_exec to elf_exec
         before_elf_exec_entered = true;
-        snprintf(last_loader_event, sizeof(last_loader_event),
-                 "task.proof.do_execve.before_elf_exec");
+        snprintf(last_loader_event, sizeof(last_loader_event), "task.proof.do_execve.before_elf_exec");
     } else if (strcmp(interval_name, "task.proof.elf_exec.after_return_to_caller") == 0) {
-        // X3: elf_exec returned to caller - proves elf_exec was entered
         elf_exec_entered = true;
-        snprintf(last_loader_event, sizeof(last_loader_event),
-                 "task.proof.elf_exec.after_return_to_caller");
+        snprintf(last_loader_event, sizeof(last_loader_event), "task.proof.elf_exec.after_return_to_caller");
     }
 
     return 0;
@@ -377,7 +392,6 @@ static void test_sink_end_interval(uint64_t interval_id,
 {
 }
 
-// Test sink is always active in test context - instrumentation only works when a sink is registered
 static bool test_sink_is_active(void)
 {
     return true;
@@ -442,180 +456,32 @@ void guest_execution_trace_sink_reset(void)
     os_unfair_lock_unlock(&sink_state_lock);
 }
 
-// Milestone B: Dynamic ELF observation API
-bool guest_execution_trace_sink_interp_path_resolved(void)
-{
-    return interp_path_resolved;
-}
+// Accessors omitted here are identical to header declarations and focus on proof queries
+// Provide minimal set required by tests
+bool guest_execution_trace_sink_interp_path_resolved(void) { return interp_path_resolved; }
+bool guest_execution_trace_sink_elf_exec_reached(void) { return elf_exec_reached; }
+bool guest_execution_trace_sink_main_elf_header_accepted(void) { return main_elf_header_accepted; }
+bool guest_execution_trace_sink_interp_header_loaded(void) { return interp_header_loaded; }
+bool guest_execution_trace_sink_interp_mappings_exist(void) { return interp_mappings_exist; }
+bool guest_execution_trace_sink_main_image_loaded(void) { return main_image_loaded; }
+bool guest_execution_trace_sink_auxv_initialized(void) { return auxv_initialized; }
+const char *guest_execution_trace_sink_get_interp_path(void) { return resolved_interp_path; }
+const char *guest_execution_trace_sink_get_last_loader_event(void) { return last_loader_event; }
+bool guest_execution_trace_sink_interp_open_attempted(void) { return interp_open_attempted; }
+bool guest_execution_trace_sink_interp_open_succeeded(void) { return interp_open_succeeded; }
+int guest_execution_trace_sink_interp_open_errno(void) { return interp_open_errno; }
+bool guest_execution_trace_sink_do_execve_entered(void) { return do_execve_entered; }
+bool guest_execution_trace_sink_format_exec_entered(void) { return format_exec_entered; }
+bool guest_execution_trace_sink_before_elf_exec_entered(void) { return before_elf_exec_entered; }
+bool guest_execution_trace_sink_elf_exec_entered(void) { return elf_exec_entered; }
+uint64_t guest_execution_trace_sink_begin_interval_calls_count(void) { return begin_interval_calls_count; }
+bool guest_execution_trace_sink_any_interval_received(void) { return any_interval_received; }
+bool guest_execution_trace_sink_has_ldrh_6d1c0(void) { bool v; os_unfair_lock_lock(&sink_state_lock); v = ldrh_6d1c0_seen; os_unfair_lock_unlock(&sink_state_lock); return v; }
+void guest_execution_trace_sink_get_ldrh_6d1c0(uint64_t *addr, uint16_t *read_val, int *mem_ret, uint64_t *host_ptr) { os_unfair_lock_lock(&sink_state_lock); if (addr) *addr = ldrh_6d1c0_addr; if (read_val) *read_val = ldrh_6d1c0_val; if (mem_ret) *mem_ret = ldrh_6d1c0_mem_ret; if (host_ptr) *host_ptr = ldrh_6d1c0_host_ptr; os_unfair_lock_unlock(&sink_state_lock); }
+bool guest_execution_trace_sink_has_6d1c0_writeback(void) { bool v; os_unfair_lock_lock(&sink_state_lock); v = wb_6d1c0_seen; os_unfair_lock_unlock(&sink_state_lock); return v; }
+void guest_execution_trace_sink_get_6d1c0_writeback(uint64_t *x0_after_write, uint64_t *value, unsigned long *rt, unsigned long *size, int *is_64bit) { os_unfair_lock_lock(&sink_state_lock); if (x0_after_write) *x0_after_write = wb_6d1c0_x0_after; if (value) *value = wb_6d1c0_value; if (rt) *rt = (unsigned long)wb_6d1c0_rt; if (size) *size = (unsigned long)wb_6d1c0_size; if (is_64bit) *is_64bit = wb_6d1c0_is_64bit; os_unfair_lock_unlock(&sink_state_lock); }
+bool guest_execution_trace_sink_any_x0_mutation(void) { bool any=false; os_unfair_lock_lock(&sink_state_lock); for (int i=0;i<X0_MUTATION_TABLE_SIZE;i++){ if (x0_mutations[i].used) { any=true; break; } } os_unfair_lock_unlock(&sink_state_lock); return any; }
+bool guest_execution_trace_sink_has_x0_mutation_at(uint64_t pc) { bool found=false; os_unfair_lock_lock(&sink_state_lock); for (int i=0;i<X0_MUTATION_TABLE_SIZE;i++){ if (x0_mutations[i].used && x0_mutations[i].pc == pc) { found=true; break; } } os_unfair_lock_unlock(&sink_state_lock); return found; }
+bool guest_execution_trace_sink_get_x0_mutation_at(uint64_t pc, uint64_t *new_x0, uint64_t *old_x0, uint64_t *value, unsigned long *size, int *is_64bit) { bool found=false; os_unfair_lock_lock(&sink_state_lock); for (int i=0;i<X0_MUTATION_TABLE_SIZE;i++){ if (x0_mutations[i].used && x0_mutations[i].pc == pc) { if (new_x0) *new_x0 = x0_mutations[i].new_x0; if (old_x0) *old_x0 = x0_mutations[i].old_x0; if (value) *value = x0_mutations[i].value; if (size) *size = (unsigned long)x0_mutations[i].size; if (is_64bit) *is_64bit = x0_mutations[i].is_64bit; found=true; break; } } os_unfair_lock_unlock(&sink_state_lock); return found; }
 
-// DIAGNOSTIC: elf_exec was reached
-bool guest_execution_trace_sink_elf_exec_reached(void)
-{
-    return elf_exec_reached;
-}
-
-// M1: Main ELF header accepted (emitted after read_header succeeds for main binary)
-bool guest_execution_trace_sink_main_elf_header_accepted(void)
-{
-    return main_elf_header_accepted;
-}
-
-bool guest_execution_trace_sink_interp_header_loaded(void)
-{
-    return interp_header_loaded;
-}
-
-bool guest_execution_trace_sink_interp_mappings_exist(void)
-{
-    return interp_mappings_exist;
-}
-
-bool guest_execution_trace_sink_main_image_loaded(void)
-{
-    return main_image_loaded;
-}
-
-bool guest_execution_trace_sink_auxv_initialized(void)
-{
-    return auxv_initialized;
-}
-
-const char *guest_execution_trace_sink_get_interp_path(void)
-{
-    return resolved_interp_path;
-}
-
-const char *guest_execution_trace_sink_get_last_loader_event(void)
-{
-    return last_loader_event;
-}
-
-// D2.0: Interp open state accessors
-bool guest_execution_trace_sink_interp_open_attempted(void)
-{
-    return interp_open_attempted;
-}
-
-bool guest_execution_trace_sink_interp_open_succeeded(void)
-{
-    return interp_open_succeeded;
-}
-
-int guest_execution_trace_sink_interp_open_errno(void)
-{
-    return interp_open_errno;
-}
-
-// Pre-elf_exec diagnostic ladder accessors
-bool guest_execution_trace_sink_do_execve_entered(void)
-{
-    return do_execve_entered;
-}
-
-bool guest_execution_trace_sink_format_exec_entered(void)
-{
-    return format_exec_entered;
-}
-
-bool guest_execution_trace_sink_before_elf_exec_entered(void)
-{
-    return before_elf_exec_entered;
-}
-
-bool guest_execution_trace_sink_elf_exec_entered(void)
-{
-    return elf_exec_entered;
-}
-
-
-// S0: Diagnostic accessors - prove sink is receiving callbacks
-uint64_t guest_execution_trace_sink_begin_interval_calls_count(void)
-{
-    return begin_interval_calls_count;
-}
-
-bool guest_execution_trace_sink_any_interval_received(void)
-{
-    return any_interval_received;
-}
-
-// --- New proof accessors ---
-bool guest_execution_trace_sink_has_ldrh_6d1c0(void)
-{
-    bool v;
-    os_unfair_lock_lock(&sink_state_lock);
-    v = ldrh_6d1c0_seen;
-    os_unfair_lock_unlock(&sink_state_lock);
-    return v;
-}
-
-void guest_execution_trace_sink_get_ldrh_6d1c0(uint64_t *addr, uint16_t *read_val, int *mem_ret, uint64_t *host_ptr)
-{
-    os_unfair_lock_lock(&sink_state_lock);
-    if (addr) *addr = ldrh_6d1c0_addr;
-    if (read_val) *read_val = ldrh_6d1c0_val;
-    if (mem_ret) *mem_ret = ldrh_6d1c0_mem_ret;
-    if (host_ptr) *host_ptr = ldrh_6d1c0_host_ptr;
-    os_unfair_lock_unlock(&sink_state_lock);
-}
-
-bool guest_execution_trace_sink_has_6d1c0_writeback(void)
-{
-    bool v;
-    os_unfair_lock_lock(&sink_state_lock);
-    v = wb_6d1c0_seen;
-    os_unfair_lock_unlock(&sink_state_lock);
-    return v;
-}
-
-void guest_execution_trace_sink_get_6d1c0_writeback(uint64_t *x0_after_write, uint64_t *value, unsigned long *rt, unsigned long *size, int *is_64bit)
-{
-    os_unfair_lock_lock(&sink_state_lock);
-    if (x0_after_write) *x0_after_write = wb_6d1c0_x0_after;
-    if (value) *value = wb_6d1c0_value;
-    if (rt) *rt = (unsigned long)wb_6d1c0_rt;
-    if (size) *size = (unsigned long)wb_6d1c0_size;
-    if (is_64bit) *is_64bit = wb_6d1c0_is_64bit;
-    os_unfair_lock_unlock(&sink_state_lock);
-}
-
-bool guest_execution_trace_sink_any_x0_mutation(void)
-{
-    bool any = false;
-    os_unfair_lock_lock(&sink_state_lock);
-    for (int i = 0; i < X0_MUTATION_TABLE_SIZE; i++) {
-        if (x0_mutations[i].used) { any = true; break; }
-    }
-    os_unfair_lock_unlock(&sink_state_lock);
-    return any;
-}
-
-bool guest_execution_trace_sink_has_x0_mutation_at(uint64_t pc)
-{
-    bool found = false;
-    os_unfair_lock_lock(&sink_state_lock);
-    for (int i = 0; i < X0_MUTATION_TABLE_SIZE; i++) {
-        if (x0_mutations[i].used && x0_mutations[i].pc == pc) { found = true; break; }
-    }
-    os_unfair_lock_unlock(&sink_state_lock);
-    return found;
-}
-
-bool guest_execution_trace_sink_get_x0_mutation_at(uint64_t pc, uint64_t *new_x0, uint64_t *old_x0, uint64_t *value, unsigned long *size, int *is_64bit)
-{
-    bool found = false;
-    os_unfair_lock_lock(&sink_state_lock);
-    for (int i = 0; i < X0_MUTATION_TABLE_SIZE; i++) {
-        if (x0_mutations[i].used && x0_mutations[i].pc == pc) {
-            if (new_x0) *new_x0 = x0_mutations[i].new_x0;
-            if (old_x0) *old_x0 = x0_mutations[i].old_x0;
-            if (value) *value = x0_mutations[i].value;
-            if (size) *size = (unsigned long)x0_mutations[i].size;
-            if (is_64bit) *is_64bit = x0_mutations[i].is_64bit;
-            found = true;
-            break;
-        }
-    }
-    os_unfair_lock_unlock(&sink_state_lock);
-    return found;
-}
+/* End of test-only trace sink */

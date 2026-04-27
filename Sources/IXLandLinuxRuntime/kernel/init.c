@@ -7,18 +7,46 @@
 #import <IXLandLinuxRuntime/kernel/init.h>
 #import <IXLandLinuxRuntime/kernel/personality.h>
 #import <IXLandLinuxRuntime/kernel/guest_trace_context.h>
+#import <IXLandLinuxRuntime/kernel/fs.h>
+#include <stdlib.h>
 #include <signal.h>
 #include <string.h>
 #include <sys/stat.h>
 
 int mount_root(const struct fs_ops *fs, const char *source)
 {
+    trace_record_event(TRACE_ORIGIN_KERNEL, "boot.mount_root.entry");
+    ixland_guest_trace_field_t mr_fields[] = {
+        { .key = "source", .kind = IXLAND_GUEST_TRACE_FIELD_STRING, .string_value = (char *)source },
+    };
+    ixland_guest_trace_emit_structured(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "boot.mount_root.entry", mr_fields,
+                                      sizeof(mr_fields) / sizeof(mr_fields[0]));
     char source_realpath[MAX_PATH + 1];
-    if (realpath(source, source_realpath) == NULL)
+    if (realpath(source, source_realpath) == NULL) {
+    ixland_guest_trace_field_t fields[] = {
+        { .key = "source", .kind = IXLAND_GUEST_TRACE_FIELD_STRING, .string_value = (char *)source },
+        { .key = "errno", .kind = IXLAND_GUEST_TRACE_FIELD_I64_DEC, .i64_value = (int64_t)errno },
+    };
+    ixland_guest_trace_emit_structured(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "boot.mount_root.exit", fields,
+                                      sizeof(fields) / sizeof(fields[0]));
         return errno_map();
+    }
     int err = do_mount(fs, source_realpath, "", "", 0);
-    if (err < 0)
+    if (err < 0) {
+        ixland_guest_trace_field_t fields[] = {
+            { .key = "source", .kind = IXLAND_GUEST_TRACE_FIELD_STRING, .string_value = (char *)source_realpath },
+            { .key = "return_value", .kind = IXLAND_GUEST_TRACE_FIELD_I64_DEC, .i64_value = (int64_t)err },
+        };
+        ixland_guest_trace_emit_structured(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "boot.mount_root.exit", fields,
+                                          sizeof(fields) / sizeof(fields[0]));
         return err;
+    }
+    ixland_guest_trace_field_t ok_fields[] = {
+        { .key = "source", .kind = IXLAND_GUEST_TRACE_FIELD_STRING, .string_value = (char *)source_realpath },
+        { .key = "return_value", .kind = IXLAND_GUEST_TRACE_FIELD_I64_DEC, .i64_value = (int64_t)0 },
+    };
+    ixland_guest_trace_emit_structured(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "boot.mount_root.exit", ok_fields,
+                                      sizeof(ok_fields) / sizeof(ok_fields[0]));
     return 0;
 }
 
@@ -117,6 +145,27 @@ static struct task *construct_task(struct task *parent)
     trace_record_event(TRACE_ORIGIN_KERNEL, "boot.construct_task.before_set_current");
     current = task;
     trace_record_event(TRACE_ORIGIN_KERNEL, "boot.construct_task.after_set_current");
+
+    /* Fast-fail: if there are no mounts yet, avoid attempting any
+     * filesystem lookup which would call mount_find and assert when the
+     * mounts list is empty. Emit structured instrumentation so tests can
+     * detect and recover by mounting a root and retrying. */
+    lock(&mounts_lock);
+    if (list_empty(&mounts)) {
+        int is_testing = getenv("XCTestConfigurationFilePath") != NULL;
+        ixland_guest_trace_field_t mf_fields[] = {
+            { .key = "mounts_count", .kind = IXLAND_GUEST_TRACE_FIELD_I64_DEC, .i64_value = (int64_t)0 },
+            { .key = "is_testing", .kind = IXLAND_GUEST_TRACE_FIELD_I64_DEC, .i64_value = (int64_t)is_testing },
+        };
+        ixland_guest_trace_emit_structured(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
+                                          "boot.construct_task.mounts_empty", mf_fields,
+                                          sizeof(mf_fields) / sizeof(mf_fields[0]));
+        unlock(&mounts_lock);
+        ixland_guest_trace_emit_int(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
+                                    "boot.construct_task.error", "mounts_empty", (int64_t)_ENODEV);
+        return ERR_PTR(_ENODEV);
+    }
+    unlock(&mounts_lock);
 
     trace_record_event(TRACE_ORIGIN_KERNEL, "boot.construct_task.before_generic_open");
     task->fs->root = generic_open("/", O_RDONLY_, 0);

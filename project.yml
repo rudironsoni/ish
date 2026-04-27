@@ -98,6 +98,7 @@ targets:
       - "$(SRCROOT)/include"
       - "$(SRCROOT)/Sources"
       - "$(SRCROOT)"
+      - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentation/include"
       - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include"
 
   # MARK: - System Test Target
@@ -130,6 +131,7 @@ targets:
       - "$(SRCROOT)/Sources"
       - "$(SRCROOT)"
       - "$(SRCROOT)/Tests/Support"
+      - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentation/include"
       - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include"
 
   # MARK: - Performance Test Target
@@ -160,6 +162,7 @@ targets:
       - "$(SRCROOT)/include"
       - "$(SRCROOT)/Sources"
       - "$(SRCROOT)"
+      - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentation/include"
       - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include"
 
   # MARK: - Terminal App
