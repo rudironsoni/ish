@@ -114,8 +114,13 @@ static struct task *construct_task(struct task *parent)
     task->fs->umask = 0022;
     // we'll need to have current set to do the open call
     struct task *old_current = current;
+    trace_record_event(TRACE_ORIGIN_KERNEL, "boot.construct_task.before_set_current");
     current = task;
+    trace_record_event(TRACE_ORIGIN_KERNEL, "boot.construct_task.after_set_current");
+
+    trace_record_event(TRACE_ORIGIN_KERNEL, "boot.construct_task.before_generic_open");
     task->fs->root = generic_open("/", O_RDONLY_, 0);
+    trace_record_event(TRACE_ORIGIN_KERNEL, "boot.construct_task.after_generic_open");
     if (IS_ERR(task->fs->root)) {
         int err = (int)PTR_ERR(task->fs->root);
         printk("ERROR: construct_task: generic_open(/) failed with %d\n", err);
