@@ -130,6 +130,15 @@ static struct task *construct_task(struct task *parent)
     // Emit trace event for task creation
     trace_emit_task_create(task->pid, parent ? parent->pid : 0);
 
+    // Ensure all writes performed while initializing the task (mm, mem, fs,
+    // files, etc.) are visible to other threads before we publish the task
+    // pointer. Without a publish barrier, a concurrently-started thread may
+    // observe a non-null task pointer but stale or zeroed mm/mem fields which
+    // leads to immediate failures when those fields are dereferenced. Emit a
+    // full memory barrier here as the minimal correct fix to publish the
+    // initialized task state to other CPU/host threads.
+    __sync_synchronize();
+
     // Diagnostic: trace at end of construct_task with all fields
     trace_emit_construct_task_done(task->pid, (uint64_t)task, (uint64_t)task->mm,
                                    (uint64_t)task->mem);
