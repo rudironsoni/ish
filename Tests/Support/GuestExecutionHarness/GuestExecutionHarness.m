@@ -14,6 +14,7 @@
 #import <IXLandLinuxRuntime/fs/real.h>
 #import <IXLandLinuxRuntime/emu/tlb.h>
 #import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
+// No app helper - tests should call app-owned paths directly (no wrapper)
 
 // GCD compatibility: disable pthread_exit in do_exit to avoid libdispatch crashes
 extern bool exit_should_pthread_exit;
@@ -145,20 +146,23 @@ extern bool exit_should_pthread_exit;
 }
 
 - (BOOL)mountRootAndBecomeFirstProcess:(NSString *)rootPath error:(int *)outErr {
-    // Attempt mount and then create PID 1. This centralizes the ordering and
-    // avoids duplicating recovery/ retry logic across harness paths.
+    // Delegate to the app-owned boot helper so tests exercise the same
+    // mount+become semantics and instrumentation as the real app.
     probe_get_result()->mount_root_called = true;
+    probe_get_result()->become_first_process_called = true;
+
+    // Delegate directly to the app helper so tests exercise app behavior.
+    probe_get_result()->mount_root_called = true;
+    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_UI, "harness.mount_root.attempt");
     int mountErr = mount_root(&realfs, [rootPath UTF8String]);
     probe_get_result()->mount_root_return_value = mountErr;
-    // Emit an explicit harness-only event for visibility. Use UI origin for
-    // harness-owned events (this is test-side instrumentation).
-    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_UI, "harness.mount_root.attempt");
     if (mountErr != 0 && mountErr != -16) {
         if (outErr) *outErr = mountErr;
         return NO;
     }
 
     probe_get_result()->become_first_process_called = true;
+    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_UI, "harness.become_first_process.attempt");
     int initErr = become_first_process();
     probe_get_result()->become_first_process_return_value = initErr;
     ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_UI, "harness.become_first_process.called");
@@ -468,26 +472,14 @@ executablePath:(NSString *)executablePath {
     
     probe_get_result()->harness_entered = true;
     
-    // Step 1: Mount rootfs
-    probe_get_result()->mount_root_called = true;
-    int mountErr = mount_root(&realfs, [rootPath UTF8String]);
-    probe_get_result()->mount_root_return_value = mountErr;
-    if (mountErr != 0 && mountErr != -16) {
-        probe_set_error("Failed to mount rootfs");
+    int err = 0;
+    // Centralize mount + become_first_process ordering and instrumentation.
+    if (![self mountRootAndBecomeFirstProcess:rootPath error:&err]) {
+        probe_set_error("Failed to mount rootfs / become first process");
         probe_set_completed(true);
         return [GuestExecutionResult resultFromProbe:probe_get_result()];
     }
-    
-    // Step 2: Create init task (PID 1) first - required for become_new_init_child
-    probe_get_result()->become_first_process_called = true;
-    int initErr = become_first_process();
-    probe_get_result()->become_first_process_return_value = initErr;
-    if (initErr != 0 && initErr != -17) {
-        probe_set_error("Failed to create init process");
-        probe_set_completed(true);
-        return [GuestExecutionResult resultFromProbe:probe_get_result()];
-    }
-    
+
     // Step 3: Become init child (like the app does)
     int childErr = become_new_init_child();
     if (childErr != 0) {

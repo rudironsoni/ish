@@ -99,6 +99,10 @@ struct tlb;
 - (GuestExecutionResult *)classifyExecutableAtRootPath:(NSString *)rootPath
                                         executablePath:(NSString *)executablePath;
 
+// Tests should exercise the app/runtime functions directly (mount_root,
+// become_first_process). The harness should be minimal and not reimplement
+// app-owned behavior.
+
 @end
 
 // Trace sink observation API
