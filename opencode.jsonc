@@ -34,6 +34,12 @@
       "environment": {}
     }
   },
+  "formatter": {
+    "clang-format-objc": {
+      "command": ["clang-format", "-i", "$FILE"],
+      "extensions": [".m", ".mm"]
+    }
+  },
   "lsp": {
     "asm-lsp": {
       "command": ["asm-lsp"],
@@ -45,7 +51,7 @@
     },
     "clangd": {
       "command": ["/usr/bin/clangd"],
-      "extensions": [".c", ".cpp", ".cc", ".cxx", ".h", ".hpp"]
+      "extensions": [".c", ".cpp", ".cc", ".cxx", ".m", ".mm", ".h", ".hpp"]
     }
   }
 }
