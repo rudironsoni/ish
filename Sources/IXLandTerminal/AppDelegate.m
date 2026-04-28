@@ -134,15 +134,17 @@ static __weak AppDelegate *appDelegate;
 }
 
 + (int)bootstrapRuntimeForSession {
-    static dispatch_once_t onceToken;
-    static int bootstrapResult = 0;
-    dispatch_once(&onceToken, ^{
-        bootstrapResult = [[AppDelegate sharedInstance] _bootstrapRuntimeForSession];
+    @synchronized(AppDelegate.class) {
+        BOOL runtimeReady = mounts_is_non_empty() && pid_get_task(1) != NULL && runtimePostMountInitialized && runtimeConsoleInitialized;
+        if (runtimeReady) {
+            return 0;
+        }
+        int bootstrapResult = [[AppDelegate sharedInstance] _bootstrapRuntimeForSession];
         if (bootstrapResult < 0) {
             bootError = bootstrapResult;
         }
-    });
-    return bootstrapResult;
+        return bootstrapResult;
+    }
 }
 
 - (int)_bootstrapRuntimeForSession {
