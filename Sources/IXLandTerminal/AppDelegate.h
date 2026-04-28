@@ -13,9 +13,21 @@
 - (void)exitApp;
 
 + (int)bootError;
++ (BOOL)lastBootstrapRootPresent;
++ (BOOL)lastBootstrapRootExists;
++ (BOOL)lastBootstrapRootDataExists;
++ (BOOL)lastBootstrapRootsAvailable;
++ (BOOL)lastBootstrapArchiveURLPresent;
++ (BOOL)lastBootstrapImportAttempted;
++ (BOOL)lastBootstrapImportSucceeded;
++ (NSString *)lastBootstrapImportErrorDescription;
++ (BOOL)lastBootstrapMountRootCalled;
 + (int)lastRootMountReturnValue;
 + (BOOL)lastMountsNonEmptyAfterRootMount;
++ (BOOL)lastBootstrapBecomeFirstProcessCalled;
 + (int)lastBecomeFirstProcessReturnValue;
++ (BOOL)lastBootstrapPID1ExistsAfterBecomeFirstProcess;
++ (int)lastBootstrapReturnValue;
 + (int)bootstrapRuntimeForSession;
 
 @end

@@ -64,9 +64,21 @@ static void ios_handle_die(const char *msg) {
 }
 
 static int bootError;
+static BOOL lastBootstrapRootPresent;
+static BOOL lastBootstrapRootExists;
+static BOOL lastBootstrapRootDataExists;
+static BOOL lastBootstrapRootsAvailable;
+static BOOL lastBootstrapArchiveURLPresent;
+static BOOL lastBootstrapImportAttempted;
+static BOOL lastBootstrapImportSucceeded;
+static NSString *lastBootstrapImportErrorDescription;
+static BOOL lastBootstrapMountRootCalled;
 static int lastRootMountReturnValue;
 static BOOL lastMountsNonEmptyAfterRootMount;
+static BOOL lastBootstrapBecomeFirstProcessCalled;
 static int lastBecomeFirstProcessReturnValue;
+static BOOL lastBootstrapPID1ExistsAfterBecomeFirstProcess;
+static int lastBootstrapReturnValue;
 static BOOL runtimePostMountInitialized;
 static BOOL runtimeConsoleInitialized;
 static __weak AppDelegate *appDelegate;
@@ -121,6 +133,42 @@ static __weak AppDelegate *appDelegate;
     return bootError;
 }
 
++ (BOOL)lastBootstrapRootPresent {
+    return lastBootstrapRootPresent;
+}
+
++ (BOOL)lastBootstrapRootExists {
+    return lastBootstrapRootExists;
+}
+
++ (BOOL)lastBootstrapRootDataExists {
+    return lastBootstrapRootDataExists;
+}
+
++ (BOOL)lastBootstrapRootsAvailable {
+    return Roots.instance.roots.count > 0;
+}
+
++ (BOOL)lastBootstrapArchiveURLPresent {
+    return lastBootstrapArchiveURLPresent;
+}
+
++ (BOOL)lastBootstrapImportAttempted {
+    return lastBootstrapImportAttempted;
+}
+
++ (BOOL)lastBootstrapImportSucceeded {
+    return lastBootstrapImportSucceeded;
+}
+
++ (NSString *)lastBootstrapImportErrorDescription {
+    return lastBootstrapImportErrorDescription ?: @"";
+}
+
++ (BOOL)lastBootstrapMountRootCalled {
+    return lastBootstrapMountRootCalled;
+}
+
 + (int)lastRootMountReturnValue {
     return lastRootMountReturnValue;
 }
@@ -129,8 +177,20 @@ static __weak AppDelegate *appDelegate;
     return lastMountsNonEmptyAfterRootMount;
 }
 
++ (BOOL)lastBootstrapBecomeFirstProcessCalled {
+    return lastBootstrapBecomeFirstProcessCalled;
+}
+
 + (int)lastBecomeFirstProcessReturnValue {
     return lastBecomeFirstProcessReturnValue;
+}
+
++ (BOOL)lastBootstrapPID1ExistsAfterBecomeFirstProcess {
+    return lastBootstrapPID1ExistsAfterBecomeFirstProcess;
+}
+
++ (int)lastBootstrapReturnValue {
+    return lastBootstrapReturnValue;
 }
 
 + (int)bootstrapRuntimeForSession {
@@ -149,13 +209,26 @@ static __weak AppDelegate *appDelegate;
 
 - (int)_bootstrapRuntimeForSession {
     [ISHInstrumentation recordEvent:@"app.runtime.bootstrap.start"];
-    if (!mounts_is_non_empty()) {
+    BOOL mountsWereEmptyAtEntry = !mounts_is_non_empty();
+    if (mountsWereEmptyAtEntry) {
         runtimePostMountInitialized = NO;
         runtimeConsoleInitialized = NO;
     }
+    lastBootstrapRootPresent = NO;
+    lastBootstrapRootExists = NO;
+    lastBootstrapRootDataExists = NO;
+    lastBootstrapRootsAvailable = Roots.instance.roots.count > 0;
+    lastBootstrapArchiveURLPresent = Roots.instance.lastArchiveURLPresent;
+    lastBootstrapImportAttempted = Roots.instance.lastImportAttempted;
+    lastBootstrapImportSucceeded = Roots.instance.lastImportSucceeded;
+    lastBootstrapImportErrorDescription = Roots.instance.lastImportErrorDescription;
+    lastBootstrapMountRootCalled = NO;
     lastRootMountReturnValue = 0;
     lastMountsNonEmptyAfterRootMount = mounts_is_non_empty();
+    lastBootstrapBecomeFirstProcessCalled = NO;
     lastBecomeFirstProcessReturnValue = 0;
+    lastBootstrapPID1ExistsAfterBecomeFirstProcess = pid_get_task(1) != NULL;
+    lastBootstrapReturnValue = 0;
 
     NSURL *root = [Roots.instance rootUrl:Roots.instance.defaultRoot];
     NSURL *rootDataURL = root ? [root URLByAppendingPathComponent:@"data"] : nil;
@@ -163,6 +236,14 @@ static __weak AppDelegate *appDelegate;
     BOOL rootDataExists = rootDataURL ? [[NSFileManager defaultManager] fileExistsAtPath:rootDataURL.path] : NO;
     BOOL isTesting = NSProcessInfo.processInfo.environment[@"XCTestConfigurationFilePath"] != nil;
     BOOL usingFallbackRoots = [root.path containsString:@"IXLandTestRoots"];
+    lastBootstrapRootsAvailable = Roots.instance.roots.count > 0;
+    lastBootstrapArchiveURLPresent = Roots.instance.lastArchiveURLPresent;
+    lastBootstrapImportAttempted = Roots.instance.lastImportAttempted;
+    lastBootstrapImportSucceeded = Roots.instance.lastImportSucceeded;
+    lastBootstrapImportErrorDescription = Roots.instance.lastImportErrorDescription;
+    lastBootstrapRootPresent = root != nil;
+    lastBootstrapRootExists = rootExists;
+    lastBootstrapRootDataExists = rootDataExists;
 
     [ISHInstrumentation recordEvent:@"app.runtime.bootstrap.root.present"
                          attributes:@{ @"root_present": @(root != nil),
@@ -170,22 +251,30 @@ static __weak AppDelegate *appDelegate;
                                        @"root_data_path": rootDataURL.path ?: @"",
                                        @"root_exists": @(rootExists),
                                        @"root_data_exists": @(rootDataExists),
+                                       @"roots_available": @(lastBootstrapRootsAvailable),
+                                       @"archive_url_present": @(lastBootstrapArchiveURLPresent),
+                                       @"import_attempted": @(lastBootstrapImportAttempted),
+                                       @"import_succeeded": @(lastBootstrapImportSucceeded),
+                                       @"import_error": lastBootstrapImportErrorDescription ?: @"",
                                        @"is_testing": @(isTesting),
                                        @"using_fallback_roots": @(usingFallbackRoots) }];
 
     if (root == nil) {
         [ISHInstrumentation recordEvent:@"app.runtime.bootstrap.root.missing"];
-        return _ENODEV;
+        lastBootstrapReturnValue = _ENODEV;
+        return lastBootstrapReturnValue;
     }
 
     if (!rootExists || !rootDataExists) {
         [ISHInstrumentation recordEvent:@"app.runtime.bootstrap.root.missing_data"
                              attributes:@{ @"root_exists": @(rootExists),
                                            @"root_data_exists": @(rootDataExists) }];
-        return _ENODEV;
+        lastBootstrapReturnValue = _ENODEV;
+        return lastBootstrapReturnValue;
     }
 
     if (!mounts_is_non_empty()) {
+        lastBootstrapMountRootCalled = YES;
         [ISHInstrumentation recordEvent:@"app.runtime.bootstrap.mount_root.enter"
                              attributes:@{ @"root_data_path": rootDataURL.path ?: @"",
                                            @"root_data_exists": @(rootDataExists) }];
@@ -198,16 +287,22 @@ static __weak AppDelegate *appDelegate;
                                            @"root_data_exists": @(rootDataExists),
                                            @"mounts_non_empty": @(lastMountsNonEmptyAfterRootMount) }];
         if (mountErr < 0) {
-            return mountErr;
+            lastBootstrapReturnValue = mountErr;
+            return lastBootstrapReturnValue;
         }
         if (!lastMountsNonEmptyAfterRootMount) {
             [ISHInstrumentation recordEvent:@"app.runtime.bootstrap.mount_root.empty_postmount"];
-            return _ENODEV;
+            lastBootstrapReturnValue = _ENODEV;
+            return lastBootstrapReturnValue;
         }
     }
 
     struct task *init = pid_get_task(1);
+    if (mountsWereEmptyAtEntry && init != NULL) {
+        lastBootstrapPID1ExistsAfterBecomeFirstProcess = YES;
+    }
     if (init == NULL) {
+        lastBootstrapBecomeFirstProcessCalled = YES;
         [ISHInstrumentation recordEvent:@"app.runtime.bootstrap.become_first_process.enter"];
         int processErr = become_first_process();
         lastBecomeFirstProcessReturnValue = processErr;
@@ -215,12 +310,16 @@ static __weak AppDelegate *appDelegate;
                              attributes:@{ @"return_value": @(processErr),
                                            @"mounts_non_empty": @(mounts_is_non_empty()) }];
         if (processErr < 0) {
-            return processErr;
+            lastBootstrapPID1ExistsAfterBecomeFirstProcess = NO;
+            lastBootstrapReturnValue = processErr;
+            return lastBootstrapReturnValue;
         }
         init = pid_get_task(1);
+        lastBootstrapPID1ExistsAfterBecomeFirstProcess = init != NULL;
         if (init == NULL) {
             [ISHInstrumentation recordEvent:@"app.runtime.bootstrap.pid1_still_missing"];
-            return _ENODEV;
+            lastBootstrapReturnValue = _ENODEV;
+            return lastBootstrapReturnValue;
         }
     }
 
@@ -233,7 +332,8 @@ static __weak AppDelegate *appDelegate;
     [ISHInstrumentation recordEvent:@"app.runtime.bootstrap.success"
                          attributes:@{ @"mounts_non_empty": @(mounts_is_non_empty()),
                                        @"pid1_exists": @(pid_get_task(1) != NULL) }];
-    return 0;
+    lastBootstrapReturnValue = 0;
+    return lastBootstrapReturnValue;
 #endif
 
     if (!runtimePostMountInitialized) {
@@ -289,7 +389,8 @@ static __weak AppDelegate *appDelegate;
         set_console_device(TTY_CONSOLE_MAJOR, 1);
         int stdioErr = create_stdio("/dev/console", TTY_CONSOLE_MAJOR, 1);
         if (stdioErr < 0) {
-            return stdioErr;
+            lastBootstrapReturnValue = stdioErr;
+            return lastBootstrapReturnValue;
         }
         runtimeConsoleInitialized = YES;
     }
@@ -300,7 +401,8 @@ static __weak AppDelegate *appDelegate;
     [ISHInstrumentation recordEvent:@"app.runtime.bootstrap.success"
                          attributes:@{ @"mounts_non_empty": @(mounts_is_non_empty()),
                                        @"pid1_exists": @(pid_get_task(1) != NULL) }];
-    return (mounts_is_non_empty() && pid_get_task(1) != NULL) ? 0 : _ENODEV;
+    lastBootstrapReturnValue = (mounts_is_non_empty() && pid_get_task(1) != NULL) ? 0 : _ENODEV;
+    return lastBootstrapReturnValue;
 }
 
 - (BOOL)application:(UIApplication *)application willFinishLaunchingWithOptions:(NSDictionary<UIApplicationLaunchOptionsKey,id> *)launchOptions {

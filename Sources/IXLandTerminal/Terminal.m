@@ -34,6 +34,8 @@ typedef struct tty *tty_t;
 @property DelayedUITask *scrollToBottomTask;
 
 @property BOOL applicationCursor;
+@property (nonatomic) NSUInteger contentChange;
+@property (nonatomic) NSMutableString *testingTranscript;
 
 @property NSNumber *terminalsKey;
 @property NSUUID *uuid;
@@ -79,6 +81,8 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
 
         if (self = [super init]) {
             self.pendingData = [[NSMutableData alloc] initWithCapacity:BUF_SIZE];
+            self.contentChange = 0;
+            self.testingTranscript = [NSMutableString string];
             self.refreshTask = [[DelayedUITask alloc] initWithTarget:self action:@selector(refresh)];
             self.scrollToBottomTask = [[DelayedUITask alloc] initWithTarget:self action:@selector(scrollToBottom)];
             lock_init(&_dataLock);
@@ -230,6 +234,23 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
     };
     uint64_t ptyReadInterval = [ISHInstrumentation beginInterval:@"task.proof.pty.master.read" attributes:byteAttrs];
     
+    if (len > 0) {
+        NSString *queuedText = [[NSString alloc] initWithBytes:buf length:(NSUInteger) len encoding:NSISOLatin1StringEncoding];
+        if (queuedText.length > 0) {
+            @synchronized (self) {
+                [self.testingTranscript appendString:queuedText];
+                static const NSUInteger maxTranscriptLength = 16384;
+                if (self.testingTranscript.length > maxTranscriptLength) {
+                    NSRange keepRange = NSMakeRange(self.testingTranscript.length - maxTranscriptLength, maxTranscriptLength);
+                    self.testingTranscript = [[self.testingTranscript substringWithRange:keepRange] mutableCopy];
+                }
+            }
+            dispatch_async(dispatch_get_main_queue(), ^{
+                self.contentChange = self.contentChange + 1;
+            });
+        }
+    }
+
     lock(&_dataLock);
     if (!NSThread.isMainThread) {
         // The main thread is the only one that can unblock this, so sleeping here would be a deadlock.
@@ -340,7 +361,6 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
         if (error != nil) {
             // Error handled silently - bytes could not be sent to terminal
             return;
-        } else {
         }
     }];
 }
@@ -383,19 +403,12 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
     }
 }
 
-// Test-only: Get the raw TTY buffer content for smoke tests
-// Returns the current buffer content from the TTY layer without modifying state
+// Test-only: Get terminal text for smoke tests
+// Returns recently rendered terminal output without modifying runtime state
 - (NSString *)screenTextForTesting {
-    tty_t tty = self.tty;
-    if (tty == NULL)
-        return @"";
-
-    char buffer[TTY_BUF_SIZE];
-    ssize_t len = tty_get_buffer_content(tty, buffer, sizeof(buffer));
-    if (len <= 0)
-        return @"";
-
-    return [[NSString alloc] initWithBytes:buffer length:len encoding:NSUTF8StringEncoding];
+    @synchronized (self) {
+        return [self.testingTranscript copy] ?: @"";
+    }
 }
 
 + (void)initialize {

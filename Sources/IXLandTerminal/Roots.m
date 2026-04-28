@@ -20,6 +20,10 @@ static NSString *kDefaultRoot = @"Default Root";
 @property BOOL updatingDomains;
 @property BOOL domainsNeedUpdate;
 @property BOOL wantsVersionFile;
+@property BOOL lastImportAttempted;
+@property BOOL lastImportSucceeded;
+@property (strong, nonatomic, nullable) NSString *lastImportErrorDescription;
+@property BOOL lastArchiveURLPresent;
 @end
 
 @implementation Roots
@@ -31,19 +35,13 @@ static NSString *kDefaultRoot = @"Default Root";
     dispatch_once(&token, ^{
         NSURL *containerURL = ContainerURL();
         if (containerURL == nil) {
-            // Fallback for XCTest: use a local directory in the app sandbox
-            BOOL isTesting = NSProcessInfo.processInfo.environment[@"XCTestConfigurationFilePath"] != nil;
-            if (isTesting) {
-                NSURL *cachesDir = [NSFileManager.defaultManager URLsForDirectory:NSCachesDirectory inDomains:NSUserDomainMask].firstObject;
-                rootsDir = [cachesDir URLByAppendingPathComponent:@"IXLandTestRoots"];
-                NSError *err = nil;
-                [[NSFileManager defaultManager] createDirectoryAtURL:rootsDir withIntermediateDirectories:YES attributes:@{} error:&err];
-                if (err) {
-                    rootsDir = nil;
-                }
-                return;
+            NSURL *cachesDir = [NSFileManager.defaultManager URLsForDirectory:NSCachesDirectory inDomains:NSUserDomainMask].firstObject;
+            rootsDir = [cachesDir URLByAppendingPathComponent:@"IXLandTestRoots"];
+            NSError *err = nil;
+            [[NSFileManager defaultManager] createDirectoryAtURL:rootsDir withIntermediateDirectories:YES attributes:@{} error:&err];
+            if (err) {
+                rootsDir = nil;
             }
-            rootsDir = nil;
             return;
         }
         rootsDir = [containerURL URLByAppendingPathComponent:@"roots"];
@@ -82,23 +80,39 @@ static NSString *kDefaultRoot = @"Default Root";
             return self;
         }
         
+        self.lastImportAttempted = NO;
+        self.lastImportSucceeded = NO;
+        self.lastImportErrorDescription = nil;
+        self.lastArchiveURLPresent = NO;
+
         NSError *error = nil;
         NSArray<NSString *> *rootNames = [NSFileManager.defaultManager contentsOfDirectoryAtPath:rootsDirectory.path error:&error];
         NSAssert(error == nil, @"couldn't list roots: %@", error);
         self.roots = [rootNames mutableCopy];
 
         if (!self.roots.count) {
-            // import default root from bundled archive
-        NSError *importError;
-        NSURL *archiveURL = [NSBundle.mainBundle URLForResource:@"root" withExtension:@"tar.gz"];
+            NSError *importError;
+            NSURL *archiveURL = [NSBundle.mainBundle URLForResource:@"root" withExtension:@"tar.gz"];
+            if (archiveURL == nil) {
+                NSURL *bundleArchiveURL = [NSBundle.mainBundle.bundleURL URLByAppendingPathComponent:@"root.tar.gz"];
+                if ([[NSFileManager defaultManager] fileExistsAtPath:bundleArchiveURL.path]) {
+                    archiveURL = bundleArchiveURL;
+                }
+            }
+            self.lastArchiveURLPresent = archiveURL != nil;
+            self.lastImportAttempted = YES;
 
-        if (![self importRootFromArchive:archiveURL
-                                     name:@"default"
-                                     error:&importError
-                          progressReporter:nil]) {
-            self.roots = [NSMutableOrderedSet orderedSet];
-            return self;
-        }
+            if (![self importRootFromArchive:archiveURL
+                                        name:@"default"
+                                       error:&importError
+                            progressReporter:nil]) {
+                self.lastImportSucceeded = NO;
+                self.lastImportErrorDescription = importError.localizedDescription;
+                self.roots = [NSMutableOrderedSet orderedSet];
+                return self;
+            }
+            self.lastImportSucceeded = YES;
+            self.lastImportErrorDescription = nil;
             _wantsVersionFile = YES;
         }
         [self observe:@[@"roots"] options:0 owner:self usingBlock:^(typeof(self) self) {
@@ -193,6 +207,14 @@ void root_progress_callback(void *cookie, double progress, const char *message, 
 
 - (BOOL)importRootFromArchive:(NSURL *)archive name:(NSString *)name error:(NSError **)error progressReporter:(id<ProgressReporter> _Nullable)progress {
     NSAssert(![self.roots containsObject:name], @"root already exists: %@", name);
+    if (archive == nil) {
+        if (error != NULL) {
+            *error = [NSError errorWithDomain:NSPOSIXErrorDomain
+                                         code:ENOENT
+                                     userInfo:@{NSLocalizedDescriptionKey: @"root archive missing from app bundle"}];
+        }
+        return NO;
+    }
     struct fakefsify_error fs_err;
     NSURL *destination = [self rootUrl:name];
     NSURL *tempDestination = [NSFileManager.defaultManager.temporaryDirectory

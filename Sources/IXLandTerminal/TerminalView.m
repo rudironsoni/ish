@@ -160,9 +160,11 @@ struct rowcol {
                 [self installTerminalView];
                 [self _updateStyle];
             }
+            NSString *terminalText = [_terminal screenTextForTesting];
+            self.terminalAccessibilityElement.accessibilityValue = terminalText.length > 0 ? terminalText : @"No terminal output";
         } else if ([keyPath isEqualToString:@"contentChange"]) {
             // Update accessibilityValue when terminal content changes
-            NSString *terminalText = _terminal.loaded ? [_terminal screenTextForTesting] : nil;
+            NSString *terminalText = [_terminal screenTextForTesting];
             self.terminalAccessibilityElement.accessibilityValue = terminalText.length > 0 ? terminalText : @"No terminal output";
         }
     }
@@ -173,12 +175,13 @@ static NSString *const HANDLERS[] = {@"syncFocus", @"focus", @"newScrollHeight",
 - (void)setTerminal:(Terminal *)terminal {
     if (_terminal) {
         [_terminal removeObserver:self forKeyPath:@"loaded"];
+        [_terminal removeObserver:self forKeyPath:@"contentChange"];
         [self uninstallTerminalView];
     }
     _terminal = terminal;
 
     if (_terminal) {
-        [_terminal addObserver:self forKeyPath:@"contentChange" options:NSKeyValueObservingOptionNew context:nil];
+        [_terminal addObserver:self forKeyPath:@"contentChange" options:NSKeyValueObservingOptionInitial|NSKeyValueObservingOptionNew context:nil];
     }
     // Initialize or update accessibility proxy
     if (!self.terminalAccessibilityElement) {

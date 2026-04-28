@@ -291,7 +291,21 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
     [lines addObject:[NSString stringWithFormat:@"ret=%d", returnValue]];
     [lines addObject:[NSString stringWithFormat:@"path=%@", path]];
     [lines addObject:[NSString stringWithFormat:@"root_path=%@", rootPath]];
+    [lines addObject:[NSString stringWithFormat:@"root_present=%@", [AppDelegate lastBootstrapRootPresent] ? @"true" : @"false"]];
+    [lines addObject:[NSString stringWithFormat:@"root_exists=%@", [AppDelegate lastBootstrapRootExists] ? @"true" : @"false"]];
+    [lines addObject:[NSString stringWithFormat:@"root_data_exists=%@", [AppDelegate lastBootstrapRootDataExists] ? @"true" : @"false"]];
+    [lines addObject:[NSString stringWithFormat:@"roots_available=%@", [AppDelegate lastBootstrapRootsAvailable] ? @"true" : @"false"]];
+    [lines addObject:[NSString stringWithFormat:@"archive_url_present=%@", [AppDelegate lastBootstrapArchiveURLPresent] ? @"true" : @"false"]];
+    [lines addObject:[NSString stringWithFormat:@"import_attempted=%@", [AppDelegate lastBootstrapImportAttempted] ? @"true" : @"false"]];
+    [lines addObject:[NSString stringWithFormat:@"import_succeeded=%@", [AppDelegate lastBootstrapImportSucceeded] ? @"true" : @"false"]];
+    NSString *importError = [AppDelegate lastBootstrapImportErrorDescription];
+    [lines addObject:[NSString stringWithFormat:@"import_error=%@", importError.length > 0 ? importError : @"unknown"]];
+    [lines addObject:[NSString stringWithFormat:@"root_mount_called=%@", [AppDelegate lastBootstrapMountRootCalled] ? @"true" : @"false"]];
     [lines addObject:[NSString stringWithFormat:@"root_mount_ret=%d", self.lastRootMountReturnValue]];
+    [lines addObject:[NSString stringWithFormat:@"boot_become_first_process_called=%@", [AppDelegate lastBootstrapBecomeFirstProcessCalled] ? @"true" : @"false"]];
+    [lines addObject:[NSString stringWithFormat:@"boot_become_first_process_ret=%d", [AppDelegate lastBecomeFirstProcessReturnValue]]];
+    [lines addObject:[NSString stringWithFormat:@"boot_pid1_exists_after_become_first_process=%@", [AppDelegate lastBootstrapPID1ExistsAfterBecomeFirstProcess] ? @"true" : @"false"]];
+    [lines addObject:[NSString stringWithFormat:@"boot_mounts_non_empty_after_root_mount=%@", [AppDelegate lastMountsNonEmptyAfterRootMount] ? @"true" : @"false"]];
     [lines addObject:[NSString stringWithFormat:@"mounts_non_empty=%@", self.lastSessionFailureMountsNonEmpty ? @"true" : @"false"]];
     [lines addObject:[NSString stringWithFormat:@"become_new_init_child_ret=%d", self.lastBecomeNewInitChildReturnValue]];
     [lines addObject:[NSString stringWithFormat:@"pty_create_ret=%d", self.lastPTYCreationReturnValue]];
@@ -616,8 +630,48 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
     BOOL mountsNonEmptyBeforeSession = mounts_is_non_empty();
     if (!mountsNonEmptyBeforeSession || pid_get_task(1) == NULL) {
         int bootstrapErr = [AppDelegate bootstrapRuntimeForSession];
-        if (bootstrapErr >= 0) {
-            mountsNonEmptyBeforeSession = mounts_is_non_empty();
+        NSURL *bootstrapRoot = [Roots.instance rootUrl:Roots.instance.defaultRoot];
+        self.lastSessionFailureRootPath = bootstrapRoot.path ?: @"";
+        self.lastRootMountReturnValue = [AppDelegate lastRootMountReturnValue];
+        if (bootstrapErr < 0) {
+            self.lastBecomeNewInitChildReturnValue = bootstrapErr;
+            [self recordSessionStartupFailureLabel:@"runtime_bootstrap_failed"
+                                       failingCall:@"bootstrapRuntimeForSession"
+                                       returnValue:bootstrapErr
+                                              path:self.lastSessionFailureRootPath
+                                     ptyDevicePath:nil
+                                   mountsNonEmpty:mounts_is_non_empty()];
+            [ISHInstrumentation recordEvent:@"app.session.failure"
+                                 attributes:@{ @"failing_call": @"bootstrapRuntimeForSession",
+                                               @"return_value": @(bootstrapErr),
+                                               @"errno_style_code": @(bootstrapErr),
+                                               @"is_restart_path": @(isRestartPath),
+                                               @"mounts_non_empty": @(mounts_is_non_empty()),
+                                               @"root_mount_return_value": @([AppDelegate lastRootMountReturnValue]),
+                                               @"boot_become_first_process_return_value": @([AppDelegate lastBecomeFirstProcessReturnValue]),
+                                               @"boot_mounts_non_empty_after_root_mount": @([AppDelegate lastMountsNonEmptyAfterRootMount]) }];
+            return bootstrapErr;
+        }
+        mountsNonEmptyBeforeSession = mounts_is_non_empty();
+        if (!mountsNonEmptyBeforeSession) {
+            int err = _ENODEV;
+            self.lastBecomeNewInitChildReturnValue = err;
+            [self recordSessionStartupFailureLabel:@"runtime_bootstrap_postcondition_failed"
+                                       failingCall:@"mounts_is_non_empty"
+                                       returnValue:err
+                                              path:self.lastSessionFailureRootPath
+                                     ptyDevicePath:nil
+                                   mountsNonEmpty:NO];
+            [ISHInstrumentation recordEvent:@"app.session.failure"
+                                 attributes:@{ @"failing_call": @"mounts_is_non_empty",
+                                               @"return_value": @(err),
+                                               @"errno_style_code": @(err),
+                                               @"is_restart_path": @(isRestartPath),
+                                               @"mounts_non_empty": @NO,
+                                               @"root_mount_return_value": @([AppDelegate lastRootMountReturnValue]),
+                                               @"boot_become_first_process_return_value": @([AppDelegate lastBecomeFirstProcessReturnValue]),
+                                               @"boot_mounts_non_empty_after_root_mount": @([AppDelegate lastMountsNonEmptyAfterRootMount]) }];
+            return err;
         }
     }
     [ISHInstrumentation recordEvent:@"app.session.become_new_init_child.enter"
