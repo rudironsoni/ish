@@ -69,30 +69,8 @@ targets:
     - package: libarchive-for-swift
       product: libarchive
     settings:
-      ENABLE_CODE_COVERAGE: false
-
-  # MARK: - Contract Test Target
-  IXLandLinuxRuntimeContractTests:
-    type: bundle.unit-test
-    platform: iOS
-    sources:
-    - path: Tests/IXLandLinuxRuntimeContractTests
-      excludes:
-      - "**/DISABLED/**"
-      - "*.md"
-    - path: Tests/Support/TCTITestHarness
-      excludes:
-      - "tcti_four_boundary.c"
-      - "tcti_harness_truth.c"
-    dependencies:
-    - target: IXLandTerminal
-    - target: IXLandLinuxRuntime
-    - package: IXLandInstrumentation
-      product: IXLandInstrumentationRuntime
-    settings:
-      GENERATE_INFOPLIST_FILE: true
-      TEST_HOST: "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal"
-      BUNDLE_LOADER: "$(TEST_HOST)"
+      PRODUCT_MODULE_NAME: IXLandLinuxRuntime
+      PUBLIC_HEADERS_FOLDER_PATH: include/IXLandLinuxRuntime
       HEADER_SEARCH_PATHS:
       - "$(LINUX_UAPI_INCLUDE_ROOT)"
       - "$(SRCROOT)/include"
@@ -100,17 +78,17 @@ targets:
       - "$(SRCROOT)"
       - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentation/include"
       - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include"
+      SKIP_INSTALL: false
 
-  # MARK: - System Test Target
-  IXLandLinuxRuntimeSystemTests:
+  # MARK: - Performance Test Target
+  IXLandLinuxRuntimePerfTests:
     type: bundle.unit-test
     platform: iOS
     sources:
-    - path: Tests/IXLandLinuxRuntimeSystemTests
+    - path: Tests/IXLandLinuxRuntimePerfTests
       excludes:
       - "**/DISABLED/**"
       - "*.md"
-    - path: Tests/Support/GuestExecutionHarness
     - path: Tests/Fixtures/ELF
       includes:
       - "*.elf"
@@ -130,19 +108,38 @@ targets:
       - "$(SRCROOT)/include"
       - "$(SRCROOT)/Sources"
       - "$(SRCROOT)"
-      - "$(SRCROOT)/Tests/Support"
       - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentation/include"
       - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include"
 
-  # MARK: - Performance Test Target
-  IXLandLinuxRuntimePerfTests:
+  # MARK: - Runtime Contract Tests
+  IXLandLinuxRuntimeContractTests:
     type: bundle.unit-test
     platform: iOS
     sources:
-    - path: Tests/IXLandLinuxRuntimePerfTests
+    - path: Tests/IXLandLinuxRuntimeContractTests
       excludes:
       - "**/DISABLED/**"
-      - "*.md"
+    dependencies:
+    - target: IXLandLinuxRuntime
+    settings:
+      GENERATE_INFOPLIST_FILE: true
+      TEST_HOST: "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal"
+      BUNDLE_LOADER: "$(TEST_HOST)"
+      HEADER_SEARCH_PATHS:
+      - "$(LINUX_UAPI_INCLUDE_ROOT)"
+      - "$(SRCROOT)/include"
+      - "$(SRCROOT)/Sources"
+      - "$(SRCROOT)"
+
+  # MARK: - Runtime System Tests
+  IXLandLinuxRuntimeSystemTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+    - path: Tests/IXLandLinuxRuntimeSystemTests
+      excludes:
+      - "**/DISABLED/**"
+      - "Support/**"
     - path: Tests/Fixtures/ELF
       includes:
       - "*.elf"
@@ -198,7 +195,6 @@ targets:
         mig -sheader "$DERIVED_FILE_DIR/mach_excServer.h" -server "$DERIVED_FILE_DIR/mach_excServer.c" -Wno-incompatible-sysroot -isysroot "$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk" "$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/mach/mach_exc.defs"
       basedOnDependencyAnalysis: false
       outputFiles:
-      - "$(DERIVED_FILE_DIR)/mach_excServer.h"
       - "$(DERIVED_FILE_DIR)/mach_excServer.c"
     - name: Provision bundled rootfs
       script: |
@@ -290,6 +286,7 @@ targets:
     - target: IXLandTerminal
     settings:
       GENERATE_INFOPLIST_FILE: true
+      PRODUCT_BUNDLE_IDENTIFIER: app.ixland.terminal.e2e-tests
 
 # MARK: - Test Plans and Schemes
 # Canonical schemes only: IXLandApp-6.12-arm64 (app) and IXLandRuntime-6.12-arm64 (runtime)

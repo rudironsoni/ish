@@ -23,10 +23,43 @@
     // TerminalViewController is no longer used; wait for TerminalSurface
     XCUIElement *terminalSurface = self.app.otherElements[@"TerminalSurface"];
     XCTAssertTrue([terminalSurface waitForExistenceWithTimeout:10.0], @"TerminalSurface must exist");
+    [self failIfStartupAlertExistsWithTimeout:1.0];
 }
 
 - (void)tearDown {
     [super tearDown];
+}
+
+- (NSString *)startupAlertPayloadForAlert:(XCUIElement *)alert {
+    NSMutableArray<NSString *> *parts = [NSMutableArray array];
+    NSString *title = alert.label ?: @"";
+    [parts addObject:[NSString stringWithFormat:@"alert_title=%@", title]];
+
+    NSMutableArray<NSString *> *staticTexts = [NSMutableArray array];
+    XCUIElementQuery *query = alert.staticTexts;
+    NSUInteger count = query.count;
+    for (NSUInteger i = 0; i < count; i++) {
+        XCUIElement *element = [query elementBoundByIndex:i];
+        NSString *label = element.label ?: @"";
+        [staticTexts addObject:[NSString stringWithFormat:@"staticText[%lu]=%@", (unsigned long)i, label]];
+    }
+    if (staticTexts.count == 0)
+        [staticTexts addObject:@"staticText[none]"];
+    [parts addObjectsFromArray:staticTexts];
+
+    NSString *debugDescription = alert.debugDescription ?: @"";
+    [parts addObject:[NSString stringWithFormat:@"alert_debugDescription=%@", debugDescription]];
+    return [parts componentsJoinedByString:@"\n"];
+}
+
+- (void)failIfStartupAlertExistsWithTimeout:(NSTimeInterval)timeout {
+    XCUIElement *alert = [self.app.alerts elementBoundByIndex:0];
+    if ([alert waitForExistenceWithTimeout:timeout]) {
+        NSString *payload = [self startupAlertPayloadForAlert:alert];
+        if ([payload containsString:@"could not start session"] || [alert.label isEqualToString:@"could not start session"]) {
+            XCTFail(@"Startup alert payload:\n%@", payload);
+        }
+    }
 }
 
 // The terminal UI is rendered in a web view and accepts keyboard input at the
@@ -68,9 +101,12 @@
 
     // Give time for execution
     [NSThread sleepForTimeInterval:2.0];
+
+    [self failIfStartupAlertExistsWithTimeout:1.0];
+
     NSString *output = [self terminalText];
     XCTAssertTrue([output containsString:@"aarch64_test_passed"],
-                  "Should see echo output in terminal");
+                  @"Should see echo output in terminal. Actual output: %@", output);
 }
 
 // Test 2: Verify aarch64 architecture

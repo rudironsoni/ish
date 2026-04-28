@@ -64,50 +64,65 @@ static void ios_handle_die(const char *msg) {
 }
 
 static int bootError;
+static int lastRootMountReturnValue;
+static BOOL lastMountsNonEmptyAfterRootMount;
+static int lastBecomeFirstProcessReturnValue;
 
 @implementation AppDelegate
 
 - (int)boot {
     [ISHInstrumentation recordEvent:@"app.trace.bootstrap_started"];
     [ISHInstrumentation recordEvent:@"app.boot.started"];
+    lastRootMountReturnValue = 0;
+    lastMountsNonEmptyAfterRootMount = NO;
+    lastBecomeFirstProcessReturnValue = 0;
     
     NSURL *root = [Roots.instance rootUrl:Roots.instance.defaultRoot];
-
-    // When running under XCTest the app may not have access to the
-    // production App Group container, causing Roots to return nil. In that
-    // case (and generally when running under the test runner) the test
-    // harness is responsible for mounting the test root. Avoid calling
-    // mount_root with a NULL path here which leads to EINVAL and an empty
-    // mounts list later (triggering mount_find asserts). Emit a small
-    // instrumentation event to record the skip so it is visible in traces.
+    NSURL *rootDataURL = root ? [root URLByAppendingPathComponent:@"data"] : nil;
+    BOOL rootExists = root ? [[NSFileManager defaultManager] fileExistsAtPath:root.path] : NO;
+    BOOL rootDataExists = rootDataURL ? [[NSFileManager defaultManager] fileExistsAtPath:rootDataURL.path] : NO;
     BOOL isTesting = NSProcessInfo.processInfo.environment[@"XCTestConfigurationFilePath"] != nil;
+    BOOL usingFallbackRoots = [root.path containsString:@"IXLandTestRoots"];
+
+    [ISHInstrumentation recordEvent:@"app.session.preflight.root.present"
+                         attributes:@{ @"root_present": @(root != nil),
+                                       @"root_path": root.path ?: @"",
+                                       @"root_data_path": rootDataURL.path ?: @"",
+                                       @"root_exists": @(rootExists),
+                                       @"root_data_exists": @(rootDataExists),
+                                       @"is_testing": @(isTesting),
+                                       @"using_fallback_roots": @(usingFallbackRoots) }];
+
     int err = 0;
-    if (root == nil || isTesting) {
-        [ISHInstrumentation recordEvent:@"app.boot.mount_root.skipped" attributes:@{ @"is_testing": @(isTesting), @"root_is_nil": @(root == nil) }];
-        /* When running under XCTest we expect the test harness to be the
-         * owner of mounting and PID-1 creation. Avoid creating PID-1 here so
-         * the harness can mount the test root and call become_first_process()
-         * deterministically. Emit a trace so test logs show the cooperative
-         * handoff. */
-        [ISHInstrumentation recordEvent:@"boot.become_first_process.skipped" attributes:@{ @"is_testing": @(isTesting) }];
+    if (root == nil) {
+        [ISHInstrumentation recordEvent:@"app.boot.mount_root.skipped" attributes:@{ @"root_is_nil": @YES }];
+        [ISHInstrumentation recordEvent:@"app.session.preflight.mounts.non_empty" attributes:@{ @"mounts_non_empty": @(mounts_is_non_empty()) }];
+        [ISHInstrumentation recordEvent:@"boot.become_first_process.skipped" attributes:@{ @"root_is_nil": @YES }];
         return 0;
     } else {
-        err = mount_root(&fakefs, [root URLByAppendingPathComponent:@"data"].fileSystemRepresentation);
+        [ISHInstrumentation recordEvent:@"app.boot.mount_root.enter"
+                             attributes:@{ @"root_data_path": rootDataURL.path ?: @"",
+                                           @"root_data_exists": @(rootDataExists) }];
+        err = mount_root(&fakefs, rootDataURL.fileSystemRepresentation);
+        lastRootMountReturnValue = err;
+        lastMountsNonEmptyAfterRootMount = mounts_is_non_empty();
+        [ISHInstrumentation recordEvent:@"app.boot.mount_root.exit"
+                             attributes:@{ @"return_value": @(err),
+                                           @"root_data_path": rootDataURL.path ?: @"",
+                                           @"root_data_exists": @(rootDataExists),
+                                           @"mounts_non_empty": @(lastMountsNonEmptyAfterRootMount) }];
+        [ISHInstrumentation recordEvent:@"app.session.preflight.mounts.non_empty" attributes:@{ @"mounts_non_empty": @(lastMountsNonEmptyAfterRootMount), @"mount_root_return_value": @(err) }];
         if (err < 0) {
             return err;
         }
     }
 
-    fs_register(&iosfs);
-    fs_register(&iosfs_unsafe);
-
-    // CONTRACT: PID 1 must always be created before any session can start
-    // This is required for both shell-only mode (UI testing) and full-guest mode
     err = become_first_process();
+    lastBecomeFirstProcessReturnValue = err;
     // Minimal probe: record the return value of become_first_process so we can
     // diagnose missing PID 1 in UI-test runs. This is intentionally small and
     // diagnostic-only; it does not change behavior.
-    [ISHInstrumentation recordEvent:@"boot.become_first_process.exit" attributes:@{ @"return_value": @(err) }];
+    [ISHInstrumentation recordEvent:@"boot.become_first_process.exit" attributes:@{ @"return_value": @(err), @"mounts_non_empty": @(mounts_is_non_empty()) }];
     if (err < 0) {
         return err;
     }
@@ -237,8 +252,20 @@ static int bootError;
 + (int)bootError {
     return bootError;
 }
-
-
++
+++ (int)lastRootMountReturnValue {
++    return lastRootMountReturnValue;
++}
++
+++ (BOOL)lastMountsNonEmptyAfterRootMount {
++    return lastMountsNonEmptyAfterRootMount;
++}
++
+++ (int)lastBecomeFirstProcessReturnValue {
++    return lastBecomeFirstProcessReturnValue;
++}
++
++
 - (BOOL)application:(UIApplication *)application willFinishLaunchingWithOptions:(NSDictionary<UIApplicationLaunchOptionsKey,id> *)launchOptions {
     NSUserDefaults *defaults = NSUserDefaults.standardUserDefaults;
     if ([defaults boolForKey:@"hail mary"]) {

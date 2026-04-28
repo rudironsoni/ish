@@ -31,6 +31,18 @@ static NSString *kDefaultRoot = @"Default Root";
     dispatch_once(&token, ^{
         NSURL *containerURL = ContainerURL();
         if (containerURL == nil) {
+            // Fallback for XCTest: use a local directory in the app sandbox
+            BOOL isTesting = NSProcessInfo.processInfo.environment[@"XCTestConfigurationFilePath"] != nil;
+            if (isTesting) {
+                NSURL *cachesDir = [NSFileManager.defaultManager URLsForDirectory:NSCachesDirectory inDomains:NSUserDomainMask].firstObject;
+                rootsDir = [cachesDir URLByAppendingPathComponent:@"IXLandTestRoots"];
+                NSError *err = nil;
+                [[NSFileManager defaultManager] createDirectoryAtURL:rootsDir withIntermediateDirectories:YES attributes:@{} error:&err];
+                if (err) {
+                    rootsDir = nil;
+                }
+                return;
+            }
             rootsDir = nil;
             return;
         }
@@ -77,19 +89,16 @@ static NSString *kDefaultRoot = @"Default Root";
 
         if (!self.roots.count) {
             // import default root from bundled archive
-            NSError *importError;
-            NSURL *archiveURL = [NSBundle.mainBundle URLForResource:@"root" withExtension:@"tar.gz"];
-            
-            if (![self importRootFromArchive:archiveURL
-                                        name:@"default"
-                                       error:&importError
-                            progressReporter:nil]) {
-                // Bootstrap failed - cannot create usable rootfs
-                // In production this shows alert; in tests this should fail assertions
-                NSLog(@"Rootfs bootstrap failed: %@", importError);
-                self.roots = [NSMutableOrderedSet orderedSet];
-                return self;
-            }
+        NSError *importError;
+        NSURL *archiveURL = [NSBundle.mainBundle URLForResource:@"root" withExtension:@"tar.gz"];
+
+        if (![self importRootFromArchive:archiveURL
+                                     name:@"default"
+                                     error:&importError
+                          progressReporter:nil]) {
+            self.roots = [NSMutableOrderedSet orderedSet];
+            return self;
+        }
             _wantsVersionFile = YES;
         }
         [self observe:@[@"roots"] options:0 owner:self usingBlock:^(typeof(self) self) {

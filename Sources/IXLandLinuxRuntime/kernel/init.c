@@ -41,9 +41,20 @@ int mount_root(const struct fs_ops *fs, const char *source)
                                           sizeof(fields) / sizeof(fields[0]));
         return err;
     }
+    if (!mounts_is_non_empty()) {
+        ixland_guest_trace_field_t fields[] = {
+            { .key = "source", .kind = IXLAND_GUEST_TRACE_FIELD_STRING, .string_value = (char *)source_realpath },
+            { .key = "return_value", .kind = IXLAND_GUEST_TRACE_FIELD_I64_DEC, .i64_value = (int64_t)_ENODEV },
+            { .key = "mounts_non_empty", .kind = IXLAND_GUEST_TRACE_FIELD_I64_DEC, .i64_value = (int64_t)0 },
+        };
+        ixland_guest_trace_emit_structured(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "boot.mount_root.exit", fields,
+                                          sizeof(fields) / sizeof(fields[0]));
+        return _ENODEV;
+    }
     ixland_guest_trace_field_t ok_fields[] = {
         { .key = "source", .kind = IXLAND_GUEST_TRACE_FIELD_STRING, .string_value = (char *)source_realpath },
         { .key = "return_value", .kind = IXLAND_GUEST_TRACE_FIELD_I64_DEC, .i64_value = (int64_t)0 },
+        { .key = "mounts_non_empty", .kind = IXLAND_GUEST_TRACE_FIELD_I64_DEC, .i64_value = (int64_t)1 },
     };
     ixland_guest_trace_emit_structured(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "boot.mount_root.exit", ok_fields,
                                       sizeof(ok_fields) / sizeof(ok_fields[0]));

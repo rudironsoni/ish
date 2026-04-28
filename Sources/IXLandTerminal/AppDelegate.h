@@ -13,7 +13,9 @@
 - (void)exitApp;
 
 + (int)bootError;
-
++ (int)lastRootMountReturnValue;
++ (BOOL)lastMountsNonEmptyAfterRootMount;
++ (int)lastBecomeFirstProcessReturnValue;
 
 @end
 

@@ -243,3 +243,12 @@ uint32_t sys_umount2(addr_t target_addr, uint32_t flags)
 
 struct list mounts = { &mounts, &mounts };
 lock_t mounts_lock = LOCK_INITIALIZER;
+
+bool mounts_is_non_empty(void)
+{
+    bool non_empty;
+    lock(&mounts_lock);
+    non_empty = !list_empty(&mounts);
+    unlock(&mounts_lock);
+    return non_empty;
+}

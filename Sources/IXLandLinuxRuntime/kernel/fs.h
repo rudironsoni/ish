@@ -97,6 +97,7 @@ int do_mount(const struct fs_ops *fs, const char *source, const char *point, con
 int do_umount(const char *point);
 int mount_remove(struct mount *mount);
 extern struct list mounts;
+bool mounts_is_non_empty(void);
 
 bool mount_param_flag(const char *info, const char *flag);
 

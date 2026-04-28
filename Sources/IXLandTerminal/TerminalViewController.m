@@ -13,6 +13,7 @@
 #import "UserPreferences.h"
 #import "AboutViewController.h"
 #import "CurrentRoot.h"
+#import "Roots.h"
 #import "NSObject+SaneKVO.h"
 #import "LinuxInterop.h"
 #import "Instrumentation/ISHRuntimeFlags.h"
@@ -21,6 +22,7 @@
 #import <IXLandLinuxRuntime/kernel/task.h>
 #import <IXLandLinuxRuntime/kernel/guest_trace_context.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
+#import <IXLandLinuxRuntime/kernel/fs.h>
 #import <IXLandLinuxRuntime/fs/devices.h>
 #import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
 #import <IXLandLinuxRuntime/emu/tlb.h>
@@ -196,6 +198,20 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 @property (nonatomic) BOOL sessionStartInProgress;
 @property (nonatomic) CFAbsoluteTime activeSessionStartTime;
 @property (nonatomic) NSInteger postPTYRestartBudget;
+@property (nonatomic, copy) NSString *lastSessionFailureLabel;
+@property (nonatomic, copy) NSString *lastSessionFailingCall;
+@property (nonatomic) int lastSessionFailureReturnValue;
+@property (nonatomic, copy) NSString *lastSessionFailurePath;
+@property (nonatomic, copy) NSString *lastSessionFailurePTYDevicePath;
+@property (nonatomic) BOOL lastSessionFailureMountsNonEmpty;
+@property (nonatomic, copy) NSString *lastSessionFailureRootPath;
+@property (nonatomic) int lastRootMountReturnValue;
+@property (nonatomic) int lastBecomeNewInitChildReturnValue;
+@property (nonatomic) int lastPTYCreationReturnValue;
+@property (nonatomic) int lastSTDIOCreateReturnValue;
+@property (nonatomic) int lastLoginExecReturnValue;
+@property (nonatomic) BOOL lastTaskStartEntered;
+@property (nonatomic, copy) NSString *lastTaskStartReturnText;
 
 // Controller should not create window-level synthetic accessibility
 // elements. TerminalView is the honest owner of the TerminalSurface proxy.
@@ -233,15 +249,78 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
     [ISHInstrumentation recordEvent:name attributes:[self sessionAttemptAttributesWithExtra:extra]];
 }
 
+- (void)recordSessionStartupFailureLabel:(NSString *)label
+                             failingCall:(NSString *)failingCall
+                             returnValue:(int)returnValue
+                                    path:(NSString *)path
+                           ptyDevicePath:(NSString *)ptyDevicePath
+                         mountsNonEmpty:(BOOL)mountsNonEmpty {
+    self.lastSessionFailureLabel = label;
+    self.lastSessionFailingCall = failingCall;
+    self.lastSessionFailureReturnValue = returnValue;
+    self.lastSessionFailurePath = path ?: @"";
+    self.lastSessionFailurePTYDevicePath = ptyDevicePath ?: @"";
+    self.lastSessionFailureMountsNonEmpty = mountsNonEmpty;
+    [self recordSessionAttemptEvent:@"session.failure.owner"
+                              extra:@{ @"failure_label": label ?: @"",
+                                       @"failing_call": failingCall ?: @"",
+                                       @"return_value": @(returnValue),
+                                       @"path": path ?: @"",
+                                       @"pty_device_path": ptyDevicePath ?: @"",
+                                       @"mounts_non_empty": @(mountsNonEmpty),
+                                       @"root_path": self.lastSessionFailureRootPath ?: @"",
+                                       @"root_mount_return_value": @(self.lastRootMountReturnValue),
+                                       @"become_new_init_child_return_value": @(self.lastBecomeNewInitChildReturnValue),
+                                       @"pty_create_return_value": @(self.lastPTYCreationReturnValue),
+                                       @"stdio_create_return_value": @(self.lastSTDIOCreateReturnValue),
+                                       @"login_exec_return_value": @(self.lastLoginExecReturnValue),
+                                       @"task_start_entered": @(self.lastTaskStartEntered) }];
+}
+
+- (NSString *)sessionFailureSubtitleForReturnValue:(int)returnValue {
+    NSMutableArray<NSString *> *lines = [NSMutableArray array];
+    NSString *label = self.lastSessionFailureLabel.length > 0 ? self.lastSessionFailureLabel : @"unknown";
+    NSString *call = self.lastSessionFailingCall.length > 0 ? self.lastSessionFailingCall : @"unknown";
+    NSString *rootPath = self.lastSessionFailureRootPath.length > 0 ? self.lastSessionFailureRootPath : @"unknown";
+    NSString *path = self.lastSessionFailurePath.length > 0 ? self.lastSessionFailurePath : @"unknown";
+    NSString *ptyPath = self.lastSessionFailurePTYDevicePath.length > 0 ? self.lastSessionFailurePTYDevicePath : @"unknown";
+    NSString *taskStartRet = self.lastTaskStartReturnText.length > 0 ? self.lastTaskStartReturnText : @"unknown";
+
+    [lines addObject:[NSString stringWithFormat:@"label=%@", label]];
+    [lines addObject:[NSString stringWithFormat:@"call=%@", call]];
+    [lines addObject:[NSString stringWithFormat:@"ret=%d", returnValue]];
+    [lines addObject:[NSString stringWithFormat:@"path=%@", path]];
+    [lines addObject:[NSString stringWithFormat:@"root_path=%@", rootPath]];
+    [lines addObject:[NSString stringWithFormat:@"root_mount_ret=%d", self.lastRootMountReturnValue]];
+    [lines addObject:[NSString stringWithFormat:@"mounts_non_empty=%@", self.lastSessionFailureMountsNonEmpty ? @"true" : @"false"]];
+    [lines addObject:[NSString stringWithFormat:@"become_new_init_child_ret=%d", self.lastBecomeNewInitChildReturnValue]];
+    [lines addObject:[NSString stringWithFormat:@"pty_create_ret=%d", self.lastPTYCreationReturnValue]];
+    [lines addObject:[NSString stringWithFormat:@"pty_device_path=%@", ptyPath]];
+    [lines addObject:[NSString stringWithFormat:@"stdio_create_ret=%d", self.lastSTDIOCreateReturnValue]];
+    [lines addObject:[NSString stringWithFormat:@"login_exec_ret=%d", self.lastLoginExecReturnValue]];
+    [lines addObject:[NSString stringWithFormat:@"task_start_entered=%@", self.lastTaskStartEntered ? @"true" : @"false"]];
+    [lines addObject:[NSString stringWithFormat:@"task_start_ret=%@", taskStartRet]];
+    return [lines componentsJoinedByString:@"\n"];
+}
+
 - (void)viewDidLoad {
     [super viewDidLoad];
     [ISHInstrumentation recordEvent:@"terminal.accessibility.controller.viewDidLoad.enter"];
     self.postPTYRestartBudget = 1;
 
+    NSURL *root = [Roots.instance rootUrl:Roots.instance.defaultRoot];
+    self.lastSessionFailureRootPath = root.path ?: @"";
+    self.lastRootMountReturnValue = [AppDelegate lastRootMountReturnValue];
+    self.lastTaskStartReturnText = @"unknown";
+
     int bootError = [AppDelegate bootError];
     if (bootError < 0) {
+        self.lastSessionFailureLabel = root == nil ? @"root_missing" : @"root_mount_failed";
+        self.lastSessionFailingCall = root == nil ? @"rootUrl" : @"mount_root";
+        self.lastSessionFailureReturnValue = bootError;
+        self.lastSessionFailureMountsNonEmpty = mounts_is_non_empty();
         NSString *message = [NSString stringWithFormat:@"could not boot"];
-        NSString *subtitle = [NSString stringWithFormat:@"error code %d", bootError];
+        NSString *subtitle = [self sessionFailureSubtitleForReturnValue:bootError];
         if (bootError == _EINVAL)
             subtitle = [subtitle stringByAppendingString:@"\n(try reinstalling the app, see release notes for details)"];
         [self showMessage:message subtitle:subtitle];
@@ -353,6 +432,19 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
     [self recordSessionAttemptEvent:@"session.generation.assigned" extra:@{ @"is_restart_path": @(isRestartPath), @"assigned_generation": @(self.activeSessionGeneration) }];
     [self recordSessionAttemptEvent:@"session.start.enter" extra:@{ @"is_restart_path": @(isRestartPath) }];
 
+    self.lastSessionFailureLabel = nil;
+    self.lastSessionFailingCall = nil;
+    self.lastSessionFailureReturnValue = 0;
+    self.lastSessionFailurePath = @"";
+    self.lastSessionFailurePTYDevicePath = @"";
+    self.lastSessionFailureMountsNonEmpty = mounts_is_non_empty();
+    self.lastBecomeNewInitChildReturnValue = 0;
+    self.lastPTYCreationReturnValue = 0;
+    self.lastSTDIOCreateReturnValue = 0;
+    self.lastLoginExecReturnValue = 0;
+    self.lastTaskStartEntered = NO;
+    self.lastTaskStartReturnText = @"unknown";
+
     int err = [self startSession];
     [self recordSessionAttemptEvent:@"session.start.exit" extra:@{ @"is_restart_path": @(isRestartPath), @"return_value": @(err) }];
     // Minimal semantic probe to make the startSession return visible in traces
@@ -361,9 +453,10 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
     self.sessionStartInProgress = NO;
 
     if (err < 0) {
-        [self recordSessionAttemptEvent:@"session.dialog.raise" extra:@{ @"return_value": @(err), @"message": @"could not start session", @"is_restart_path": @(isRestartPath) }];
+        NSString *subtitle = [self sessionFailureSubtitleForReturnValue:err];
+        [self recordSessionAttemptEvent:@"session.dialog.raise" extra:@{ @"return_value": @(err), @"message": @"could not start session", @"subtitle": subtitle ?: @"", @"is_restart_path": @(isRestartPath) }];
         [self showMessage:@"could not start session"
-                 subtitle:[NSString stringWithFormat:@"error code %d", err]];
+                 subtitle:subtitle];
     }
 }
 
@@ -379,6 +472,8 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 
 - (int)startSession {
     [self recordSessionAttemptEvent:@"session.attempt.startSession.entry" extra:nil];
+    NSURL *root = [Roots.instance rootUrl:Roots.instance.defaultRoot];
+    self.lastSessionFailureRootPath = root.path ?: @"";
     NSArray<NSString *> *command = UserPreferences.shared.launchCommand;
 
     // Shell-only mode: Skip ALL session infrastructure
@@ -509,35 +604,144 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 #endif
 
     // Full-guest mode: Normal session creation with PTY and Terminal
+    BOOL isRestartPath = (self.lastExitedAttemptSequence != 0);
+    [ISHInstrumentation recordEvent:@"app.session.start.enter"
+                         attributes:@{ @"is_restart_path": @(isRestartPath),
+                                       @"command_path": command.firstObject ?: @"",
+                                       @"mounts_non_empty": @(mounts_is_non_empty()) }];
+    [ISHInstrumentation recordEvent:@"app.session.preflight.mounts.non_empty"
+                         attributes:@{ @"mounts_non_empty": @(mounts_is_non_empty()),
+                                       @"is_restart_path": @(isRestartPath) }];
+
+    BOOL mountsNonEmptyBeforeSession = mounts_is_non_empty();
+    [ISHInstrumentation recordEvent:@"app.session.become_new_init_child.enter"
+                         attributes:@{ @"is_restart_path": @(isRestartPath),
+                                       @"mounts_non_empty": @(mountsNonEmptyBeforeSession) }];
+    if (!mountsNonEmptyBeforeSession) {
+        int err = _ENODEV;
+        self.lastBecomeNewInitChildReturnValue = err;
+        [self recordSessionStartupFailureLabel:@"mounts_empty_before_session"
+                                   failingCall:@"mounts_is_non_empty"
+                                   returnValue:err
+                                          path:self.lastSessionFailureRootPath
+                                 ptyDevicePath:nil
+                               mountsNonEmpty:NO];
+        [ISHInstrumentation recordEvent:@"app.session.failure"
+                             attributes:@{ @"failing_call": @"mounts_is_non_empty",
+                                           @"return_value": @(err),
+                                           @"errno_style_code": @(err),
+                                           @"is_restart_path": @(isRestartPath),
+                                           @"mounts_non_empty": @NO,
+                                           @"root_mount_return_value": @([AppDelegate lastRootMountReturnValue]),
+                                           @"boot_become_first_process_return_value": @([AppDelegate lastBecomeFirstProcessReturnValue]),
+                                           @"boot_mounts_non_empty_after_root_mount": @([AppDelegate lastMountsNonEmptyAfterRootMount]) }];
+        [self recordSessionAttemptEvent:@"session.attempt.fail.mounts_empty_before_session"
+                                  extra:@{ @"return_value": @(err),
+                                           @"is_restart_path": @(isRestartPath) }];
+        return err;
+    }
     int err = become_new_init_child();
+    self.lastBecomeNewInitChildReturnValue = err;
+    [ISHInstrumentation recordEvent:@"app.session.become_new_init_child.exit"
+                         attributes:@{ @"return_value": @(err),
+                                       @"errno_style_code": @(err),
+                                       @"is_restart_path": @(isRestartPath),
+                                       @"mounts_non_empty": @(mounts_is_non_empty()) }];
     if (err < 0) {
-        [self recordSessionAttemptEvent:@"session.exit.reason" extra:@{ @"return_value": @(err), @"reason": @"exec_failure", @"stdio_succeeded": @NO, @"pty_exists": @NO, @"is_restart_path": @(self.lastExitedAttemptSequence != 0) }];
-        [self recordSessionAttemptEvent:@"session.attempt.fail.become_new_init_child" extra:@{ @"return_value": @(err), @"stdio_succeeded": @NO, @"pty_exists": @NO, @"is_restart_path": @(self.lastExitedAttemptSequence != 0) }];
+        [self recordSessionStartupFailureLabel:@"become_new_init_child_failed"
+                                   failingCall:@"become_new_init_child"
+                                   returnValue:err
+                                          path:command.firstObject
+                                 ptyDevicePath:nil
+                               mountsNonEmpty:mounts_is_non_empty()];
+        [ISHInstrumentation recordEvent:@"app.session.failure"
+                             attributes:@{ @"failing_call": @"become_new_init_child",
+                                           @"return_value": @(err),
+                                           @"errno_style_code": @(err),
+                                           @"is_restart_path": @(isRestartPath),
+                                           @"mounts_non_empty": @(mounts_is_non_empty()) }];
+        [self recordSessionAttemptEvent:@"session.exit.reason" extra:@{ @"return_value": @(err), @"reason": @"exec_failure", @"stdio_succeeded": @NO, @"pty_exists": @NO, @"is_restart_path": @(isRestartPath) }];
+        [self recordSessionAttemptEvent:@"session.attempt.fail.become_new_init_child" extra:@{ @"return_value": @(err), @"stdio_succeeded": @NO, @"pty_exists": @NO, @"is_restart_path": @(isRestartPath) }];
         return err;
     }
     trace_task_source_checkpoint("task.proof.after_become_new_init_child", current);
+
     struct tty *tty;
     self.sessionTerminal = nil;
+    [ISHInstrumentation recordEvent:@"app.session.pty.create.enter"
+                         attributes:@{ @"is_restart_path": @(isRestartPath) }];
     Terminal *terminal = [Terminal createPseudoTerminal:&tty];
     if (terminal == nil) {
         NSAssert(IS_ERR(tty), @"tty should be error");
         int ttyErr = (int) PTR_ERR(tty);
-        [self recordSessionAttemptEvent:@"session.exit.reason" extra:@{ @"return_value": @(ttyErr), @"reason": @"exec_failure", @"stdio_succeeded": @NO, @"pty_exists": @NO, @"is_restart_path": @(self.lastExitedAttemptSequence != 0) }];
-        [self recordSessionAttemptEvent:@"session.attempt.fail.create_pseudoterminal" extra:@{ @"return_value": @(ttyErr), @"stdio_succeeded": @NO, @"pty_exists": @NO, @"is_restart_path": @(self.lastExitedAttemptSequence != 0) }];
+        self.lastPTYCreationReturnValue = ttyErr;
+        [ISHInstrumentation recordEvent:@"app.session.pty.create.exit"
+                             attributes:@{ @"return_value": @(ttyErr),
+                                           @"errno_style_code": @(ttyErr),
+                                           @"pty_device_path": @"",
+                                           @"tty_num": @(-1),
+                                           @"is_restart_path": @(isRestartPath) }];
+        [ISHInstrumentation recordEvent:@"app.session.failure"
+                             attributes:@{ @"failing_call": @"Terminal.createPseudoTerminal",
+                                           @"return_value": @(ttyErr),
+                                           @"errno_style_code": @(ttyErr),
+                                           @"is_restart_path": @(isRestartPath) }];
+        [self recordSessionAttemptEvent:@"session.exit.reason" extra:@{ @"return_value": @(ttyErr), @"reason": @"exec_failure", @"stdio_succeeded": @NO, @"pty_exists": @NO, @"is_restart_path": @(isRestartPath) }];
+        [self recordSessionAttemptEvent:@"session.attempt.fail.create_pseudoterminal" extra:@{ @"return_value": @(ttyErr), @"stdio_succeeded": @NO, @"pty_exists": @NO, @"is_restart_path": @(isRestartPath) }];
+        [self recordSessionStartupFailureLabel:@"pty_create_failed"
+                                   failingCall:@"Terminal.createPseudoTerminal"
+                                   returnValue:ttyErr
+                                          path:command.firstObject
+                                 ptyDevicePath:nil
+                               mountsNonEmpty:mounts_is_non_empty()];
         return ttyErr;
     }
+    NSString *stdioFile = [NSString stringWithFormat:@"/dev/pts/%d", tty->num];
+    [ISHInstrumentation recordEvent:@"app.session.pty.create.exit"
+                         attributes:@{ @"return_value": @0,
+                                       @"errno_style_code": @0,
+                                       @"pty_device_path": stdioFile,
+                                       @"tty_num": @(tty->num),
+                                       @"is_restart_path": @(isRestartPath) }];
     self.sessionTerminal = terminal;
     self.sessionTerminal.attemptSequence = self.sessionAttemptSequence;
     self.sessionTerminal.sessionGeneration = self.activeSessionGeneration;
     self.sessionTerminal.guestPID = current ? current->pid : -1;
-    self.sessionTerminal.restartPath = (self.lastExitedAttemptSequence != 0);
+    self.sessionTerminal.restartPath = isRestartPath;
     self.sessionTerminal.hasSessionTerminal = (self.sessionTerminal != nil);
     self.sessionTerminal.firstPTYByteSeen = NO;
-    NSString *stdioFile = [NSString stringWithFormat:@"/dev/pts/%d", tty->num];
+
+    [ISHInstrumentation recordEvent:@"app.session.stdio.create.enter"
+                         attributes:@{ @"pty_device_path": stdioFile,
+                                       @"tty_num": @(tty->num),
+                                       @"is_restart_path": @(isRestartPath) }];
     err = create_stdio(stdioFile.fileSystemRepresentation, TTY_PSEUDO_SLAVE_MAJOR, tty->num);
+    self.lastSTDIOCreateReturnValue = err;
+    [ISHInstrumentation recordEvent:@"app.session.stdio.create.exit"
+                         attributes:@{ @"return_value": @(err),
+                                       @"errno_style_code": @(err),
+                                       @"pty_device_path": stdioFile,
+                                       @"tty_num": @(tty->num),
+                                       @"fd_stdin": @0,
+                                       @"fd_stdout": @1,
+                                       @"fd_stderr": @2,
+                                       @"is_restart_path": @(isRestartPath) }];
     if (err < 0) {
-        [self recordSessionAttemptEvent:@"session.exit.reason" extra:@{ @"return_value": @(err), @"reason": @"exec_failure", @"stdio_succeeded": @NO, @"pty_exists": @YES, @"tty_num": @(tty->num), @"is_restart_path": @(self.lastExitedAttemptSequence != 0) }];
-        [self recordSessionAttemptEvent:@"session.attempt.fail.create_stdio" extra:@{ @"return_value": @(err), @"stdio_succeeded": @NO, @"pty_exists": @YES, @"tty_num": @(tty->num), @"is_restart_path": @(self.lastExitedAttemptSequence != 0) }];
+        [self recordSessionStartupFailureLabel:@"stdio_create_failed"
+                                   failingCall:@"create_stdio"
+                                   returnValue:err
+                                          path:command.firstObject
+                                 ptyDevicePath:stdioFile
+                               mountsNonEmpty:mounts_is_non_empty()];
+        [ISHInstrumentation recordEvent:@"app.session.failure"
+                             attributes:@{ @"failing_call": @"create_stdio",
+                                           @"return_value": @(err),
+                                           @"errno_style_code": @(err),
+                                           @"pty_device_path": stdioFile,
+                                           @"tty_num": @(tty->num),
+                                           @"is_restart_path": @(isRestartPath) }];
+        [self recordSessionAttemptEvent:@"session.exit.reason" extra:@{ @"return_value": @(err), @"reason": @"exec_failure", @"stdio_succeeded": @NO, @"pty_exists": @YES, @"tty_num": @(tty->num), @"is_restart_path": @(isRestartPath) }];
+        [self recordSessionAttemptEvent:@"session.attempt.fail.create_stdio" extra:@{ @"return_value": @(err), @"stdio_succeeded": @NO, @"pty_exists": @YES, @"tty_num": @(tty->num), @"is_restart_path": @(isRestartPath) }];
         return err;
     }
     trace_task_source_checkpoint("task.proof.after_create_stdio", current);
@@ -545,67 +749,89 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
     char argv[4096];
     [Terminal convertCommand:command toArgs:argv limitSize:sizeof(argv)];
     const char *envp = "TERM=xterm-256color\0";
-    
-    // APPSIM-004 Stage 1: Trace /bin/login exec entry
-    [self recordSessionAttemptEvent:@"login.exec.entry" extra:@{ @"stdio_succeeded": @YES, @"pty_exists": @YES, @"tty_num": @(tty->num), @"is_restart_path": @(self.lastExitedAttemptSequence != 0) }];
+
+    [ISHInstrumentation recordEvent:@"app.session.login.exec.entry"
+                         attributes:@{ @"path": command.firstObject ?: @"",
+                                       @"argc": @(command.count),
+                                       @"pty_device_path": stdioFile,
+                                       @"tty_num": @(tty->num),
+                                       @"mounts_non_empty": @(mounts_is_non_empty()),
+                                       @"is_restart_path": @(isRestartPath) }];
+    [self recordSessionAttemptEvent:@"login.exec.entry" extra:@{ @"stdio_succeeded": @YES, @"pty_exists": @YES, @"tty_num": @(tty->num), @"is_restart_path": @(isRestartPath) }];
     trace_task_source_checkpoint("task.proof.login.exec.entry", current);
-    
+
     tty_release(tty);
     err = do_execve(command[0].UTF8String, command.count, argv, envp);
-    
+    self.lastLoginExecReturnValue = err;
+    [ISHInstrumentation recordEvent:@"app.session.login.exec.exit"
+                         attributes:@{ @"return_value": @(err),
+                                       @"errno_style_code": @(err),
+                                       @"path": command.firstObject ?: @"",
+                                       @"argc": @(command.count),
+                                       @"pty_device_path": stdioFile,
+                                       @"mounts_non_empty": @(mounts_is_non_empty()),
+                                       @"is_restart_path": @(isRestartPath) }];
+
     if (err < 0) {
-        // APPSIM-004 Stage 1: Trace /bin/login exec failure
-        [self recordSessionAttemptEvent:@"login.exec.failure" extra:@{ @"return_value": @(err), @"stdio_succeeded": @YES, @"pty_exists": @YES, @"is_restart_path": @(self.lastExitedAttemptSequence != 0) }];
-        [self recordSessionAttemptEvent:@"session.exit.reason" extra:@{ @"return_value": @(err), @"reason": @"exec_failure", @"stdio_succeeded": @YES, @"pty_exists": @YES, @"is_restart_path": @(self.lastExitedAttemptSequence != 0) }];
-        [self recordSessionAttemptEvent:@"session.attempt.fail.do_execve" extra:@{ @"return_value": @(err), @"stdio_succeeded": @YES, @"pty_exists": @YES, @"is_restart_path": @(self.lastExitedAttemptSequence != 0) }];
+        [self recordSessionStartupFailureLabel:@"login_exec_failed"
+                                   failingCall:@"do_execve"
+                                   returnValue:err
+                                          path:command.firstObject
+                                 ptyDevicePath:stdioFile
+                               mountsNonEmpty:mounts_is_non_empty()];
+        [ISHInstrumentation recordEvent:@"app.session.failure"
+                             attributes:@{ @"failing_call": @"do_execve",
+                                           @"return_value": @(err),
+                                           @"errno_style_code": @(err),
+                                           @"path": command.firstObject ?: @"",
+                                           @"pty_device_path": stdioFile,
+                                           @"mounts_non_empty": @(mounts_is_non_empty()),
+                                           @"is_restart_path": @(isRestartPath) }];
+        [self recordSessionAttemptEvent:@"login.exec.failure" extra:@{ @"return_value": @(err), @"stdio_succeeded": @YES, @"pty_exists": @YES, @"is_restart_path": @(isRestartPath) }];
+        [self recordSessionAttemptEvent:@"session.exit.reason" extra:@{ @"return_value": @(err), @"reason": @"exec_failure", @"stdio_succeeded": @YES, @"pty_exists": @YES, @"is_restart_path": @(isRestartPath) }];
+        [self recordSessionAttemptEvent:@"session.attempt.fail.do_execve" extra:@{ @"return_value": @(err), @"stdio_succeeded": @YES, @"pty_exists": @YES, @"is_restart_path": @(isRestartPath) }];
         trace_task_source_checkpoint("task.proof.login.exec.failure", current);
         return err;
     }
-    
-    // APPSIM-004 Stage 1: Trace /bin/login exec success
-    [self recordSessionAttemptEvent:@"login.exec.success" extra:@{ @"stdio_succeeded": @YES, @"pty_exists": @YES, @"is_restart_path": @(self.lastExitedAttemptSequence != 0) }];
+
+    [self recordSessionAttemptEvent:@"login.exec.success" extra:@{ @"stdio_succeeded": @YES, @"pty_exists": @YES, @"is_restart_path": @(isRestartPath) }];
     trace_task_source_checkpoint("task.proof.login.exec.success", current);
     ixland_guest_trace_set_context((int64_t) self.sessionAttemptSequence,
                                    (int64_t) (current ? current->pid : -1),
                                    (int64_t) getpid(),
-                                   self.lastExitedAttemptSequence != 0,
+                                   isRestartPath,
                                    self.sessionTerminal != nil);
-    ixland_guest_trace_emit(IXLAND_INSTRUMENTATION_ORIGIN_EXEC, "guest.post_exec.success");
-    
-    // APPSIM-004 Stage 1: Verify PID remains alive after exec
-    if (current != NULL && current->pid != 0) {
-        [ISHInstrumentation recordEvent:@"login.pid_alive"];
+    if (current != NULL) {
+        self.sessionPid = current->pid;
+        self.sessionTerminal.guestPID = self.sessionPid;
+        ixland_guest_trace_set_guest_pid((int64_t) self.sessionPid);
         trace_task_source_checkpoint("task.proof.login.pid.alive", current);
     }
-    
     trace_task_source_checkpoint("task.proof.after_do_execve", current);
-    self.sessionPid = current->pid;
+    [self recordSessionAttemptEvent:@"session.guest.starting" extra:@{ @"guest_pid": @(self.sessionPid), @"tty_num": @(tty->num), @"is_restart_path": @(isRestartPath) }];
 
-    // CRITICAL: Memory barrier to ensure all stores from do_execve() are visible
-    // before task_start() creates the child thread. do_execve() modifies
-    // current->mm and current->mem via mm_release/task_set_mm window.
-    // Without this barrier, the child thread may see NULL current->mem.
-    __sync_synchronize();
-
-    // Record semantic event before starting guest thread
-    [self recordSessionAttemptEvent:@"guest.thread.start" extra:nil];
-
+    self.lastTaskStartEntered = YES;
+    [ISHInstrumentation recordEvent:@"app.session.task_start.enter"
+                         attributes:@{ @"guest_pid": @(self.sessionPid),
+                                       @"path": command.firstObject ?: @"",
+                                       @"pty_device_path": stdioFile,
+                                       @"tty_num": @(tty->num),
+                                       @"mounts_non_empty": @(mounts_is_non_empty()),
+                                       @"is_restart_path": @(isRestartPath) }];
     trace_task_source_checkpoint("task.proof.before_task_start_callsite", current);
-    [self recordSessionAttemptEvent:@"guest.thread.before_task_start" extra:nil];
-    ixland_guest_trace_set_context((int64_t) self.sessionAttemptSequence,
-                                   (int64_t) (current ? current->pid : -1),
-                                   (int64_t) getpid(),
-                                   self.lastExitedAttemptSequence != 0,
-                                   self.sessionTerminal != nil);
-    ixland_guest_trace_emit(IXLAND_INSTRUMENTATION_ORIGIN_TASK, "guest.task_start.before_call");
-
     task_start(current);
-    [self recordSessionAttemptEvent:@"guest.thread.after_task_start_return" extra:nil];
-    ixland_guest_trace_emit(IXLAND_INSTRUMENTATION_ORIGIN_TASK, "guest.task_start.after_return");
+    [ISHInstrumentation recordEvent:@"app.session.task_start.exit"
+                         attributes:@{ @"return_value": @0,
+                                       @"errno_style_code": @0,
+                                       @"guest_pid": @(self.sessionPid),
+                                       @"path": command.firstObject ?: @"",
+                                       @"pty_device_path": stdioFile,
+                                       @"tty_num": @(tty->num),
+                                       @"mounts_non_empty": @(mounts_is_non_empty()),
+                                       @"is_restart_path": @(isRestartPath) }];
 
-    // task_start creates a detached thread that runs the child process
-    // Return to allow normal UIKit runloop management
     return 0;
+
 }
 
 - (void)processExited:(NSNotification *)notif {
@@ -699,9 +925,11 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
     [self recordSessionAttemptEvent:@"session.attempt.showMessage.entry" extra:@{ @"message": message ?: @"", @"subtitle": subtitle ?: @"" }];
     dispatch_async(dispatch_get_main_queue(), ^{
         UIAlertController *alert = [UIAlertController alertControllerWithTitle:message message:subtitle preferredStyle:UIAlertControllerStyleAlert];
-        [alert addAction:[UIAlertAction actionWithTitle:@"k"
-                                                  style:UIAlertActionStyleDefault
-                                                handler:nil]];
+        UIAlertAction *action = [UIAlertAction actionWithTitle:@"k"
+                                                         style:UIAlertActionStyleDefault
+                                                       handler:nil];
+        [alert addAction:action];
+        alert.view.accessibilityIdentifier = @"SessionStartupAlertView";
         [self presentViewController:alert animated:YES completion:nil];
     });
 }
