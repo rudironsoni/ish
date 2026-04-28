@@ -67,152 +67,20 @@ static int bootError;
 static int lastRootMountReturnValue;
 static BOOL lastMountsNonEmptyAfterRootMount;
 static int lastBecomeFirstProcessReturnValue;
+static BOOL runtimePostMountInitialized;
+static BOOL runtimeConsoleInitialized;
+static __weak AppDelegate *appDelegate;
 
 @implementation AppDelegate
+
++ (AppDelegate *)sharedInstance {
+    return (AppDelegate *)[UIApplication sharedApplication].delegate;
+}
 
 - (int)boot {
     [ISHInstrumentation recordEvent:@"app.trace.bootstrap_started"];
     [ISHInstrumentation recordEvent:@"app.boot.started"];
-    lastRootMountReturnValue = 0;
-    lastMountsNonEmptyAfterRootMount = NO;
-    lastBecomeFirstProcessReturnValue = 0;
-    
-    NSURL *root = [Roots.instance rootUrl:Roots.instance.defaultRoot];
-    NSURL *rootDataURL = root ? [root URLByAppendingPathComponent:@"data"] : nil;
-    BOOL rootExists = root ? [[NSFileManager defaultManager] fileExistsAtPath:root.path] : NO;
-    BOOL rootDataExists = rootDataURL ? [[NSFileManager defaultManager] fileExistsAtPath:rootDataURL.path] : NO;
-    BOOL isTesting = NSProcessInfo.processInfo.environment[@"XCTestConfigurationFilePath"] != nil;
-    BOOL usingFallbackRoots = [root.path containsString:@"IXLandTestRoots"];
-
-    [ISHInstrumentation recordEvent:@"app.session.preflight.root.present"
-                         attributes:@{ @"root_present": @(root != nil),
-                                       @"root_path": root.path ?: @"",
-                                       @"root_data_path": rootDataURL.path ?: @"",
-                                       @"root_exists": @(rootExists),
-                                       @"root_data_exists": @(rootDataExists),
-                                       @"is_testing": @(isTesting),
-                                       @"using_fallback_roots": @(usingFallbackRoots) }];
-
-    int err = 0;
-    if (root == nil) {
-        [ISHInstrumentation recordEvent:@"app.boot.mount_root.skipped" attributes:@{ @"root_is_nil": @YES }];
-        [ISHInstrumentation recordEvent:@"app.session.preflight.mounts.non_empty" attributes:@{ @"mounts_non_empty": @(mounts_is_non_empty()) }];
-        [ISHInstrumentation recordEvent:@"boot.become_first_process.skipped" attributes:@{ @"root_is_nil": @YES }];
-        return 0;
-    } else {
-        [ISHInstrumentation recordEvent:@"app.boot.mount_root.enter"
-                             attributes:@{ @"root_data_path": rootDataURL.path ?: @"",
-                                           @"root_data_exists": @(rootDataExists) }];
-        err = mount_root(&fakefs, rootDataURL.fileSystemRepresentation);
-        lastRootMountReturnValue = err;
-        lastMountsNonEmptyAfterRootMount = mounts_is_non_empty();
-        [ISHInstrumentation recordEvent:@"app.boot.mount_root.exit"
-                             attributes:@{ @"return_value": @(err),
-                                           @"root_data_path": rootDataURL.path ?: @"",
-                                           @"root_data_exists": @(rootDataExists),
-                                           @"mounts_non_empty": @(lastMountsNonEmptyAfterRootMount) }];
-        [ISHInstrumentation recordEvent:@"app.session.preflight.mounts.non_empty" attributes:@{ @"mounts_non_empty": @(lastMountsNonEmptyAfterRootMount), @"mount_root_return_value": @(err) }];
-        if (err < 0) {
-            return err;
-        }
-    }
-
-    err = become_first_process();
-    lastBecomeFirstProcessReturnValue = err;
-    // Minimal probe: record the return value of become_first_process so we can
-    // diagnose missing PID 1 in UI-test runs. This is intentionally small and
-    // diagnostic-only; it does not change behavior.
-    [ISHInstrumentation recordEvent:@"boot.become_first_process.exit" attributes:@{ @"return_value": @(err), @"mounts_non_empty": @(mounts_is_non_empty()) }];
-    if (err < 0) {
-        return err;
-    }
-
-    // Shell-only mode: Establish base runtime state but skip guest execution
-#if ISH_RUNTIME_MODE_VALUE == 0
-    {
-        FsInitialize();
-        [ISHInstrumentation recordEvent:@"session.bootstrap.deferred"];
-        return 0;  // Success - guest execution bypassed, but PID 1 exists
-    }
-#endif
-
-    FsInitialize();
-
-    // create some device nodes
-    // this will do nothing if they already exist
-    generic_mknodat(AT_PWD, "/dev/tty1", S_IFCHR|0666, dev_make(TTY_CONSOLE_MAJOR, 1));
-    generic_mknodat(AT_PWD, "/dev/tty2", S_IFCHR|0666, dev_make(TTY_CONSOLE_MAJOR, 2));
-    generic_mknodat(AT_PWD, "/dev/tty3", S_IFCHR|0666, dev_make(TTY_CONSOLE_MAJOR, 3));
-    generic_mknodat(AT_PWD, "/dev/tty4", S_IFCHR|0666, dev_make(TTY_CONSOLE_MAJOR, 4));
-    generic_mknodat(AT_PWD, "/dev/tty5", S_IFCHR|0666, dev_make(TTY_CONSOLE_MAJOR, 5));
-    generic_mknodat(AT_PWD, "/dev/tty6", S_IFCHR|0666, dev_make(TTY_CONSOLE_MAJOR, 6));
-    generic_mknodat(AT_PWD, "/dev/tty7", S_IFCHR|0666, dev_make(TTY_CONSOLE_MAJOR, 7));
-
-    generic_mknodat(AT_PWD, "/dev/tty", S_IFCHR|0666, dev_make(TTY_ALTERNATE_MAJOR, DEV_TTY_MINOR));
-    generic_mknodat(AT_PWD, "/dev/console", S_IFCHR|0666, dev_make(TTY_ALTERNATE_MAJOR, DEV_CONSOLE_MINOR));
-    generic_mknodat(AT_PWD, "/dev/ptmx", S_IFCHR|0666, dev_make(TTY_ALTERNATE_MAJOR, DEV_PTMX_MINOR));
-
-    generic_mknodat(AT_PWD, "/dev/null", S_IFCHR|0666, dev_make(MEM_MAJOR, DEV_NULL_MINOR));
-    generic_mknodat(AT_PWD, "/dev/zero", S_IFCHR|0666, dev_make(MEM_MAJOR, DEV_ZERO_MINOR));
-    generic_mknodat(AT_PWD, "/dev/full", S_IFCHR|0666, dev_make(MEM_MAJOR, DEV_FULL_MINOR));
-    generic_mknodat(AT_PWD, "/dev/random", S_IFCHR|0666, dev_make(MEM_MAJOR, DEV_RANDOM_MINOR));
-    generic_mknodat(AT_PWD, "/dev/urandom", S_IFCHR|0666, dev_make(MEM_MAJOR, DEV_URANDOM_MINOR));
-    
-    generic_mkdirat(AT_PWD, "/dev/pts", 0755);
-    
-    // Permissions on / have been broken for a while, let's fix them
-    generic_setattrat(AT_PWD, "/", (struct attr) {.type = attr_mode, .mode = 0755}, false);
-    
-    // Register clipboard device driver and create device node for it
-    err = dyn_dev_register(&clipboard_dev, DEV_CHAR, DYN_DEV_MAJOR, DEV_CLIPBOARD_MINOR);
-    if (err != 0) {
-        return err;
-    }
-    
-    generic_mknodat(AT_PWD, "/dev/clipboard", S_IFCHR|0666, dev_make(DYN_DEV_MAJOR, DEV_CLIPBOARD_MINOR));
-    
-    err = dyn_dev_register(&location_dev, DEV_CHAR, DYN_DEV_MAJOR, DEV_LOCATION_MINOR);
-    if (err != 0) {
-        return err;
-    }
-    
-    generic_mknodat(AT_PWD, "/dev/location", S_IFCHR|0666, dev_make(DYN_DEV_MAJOR, DEV_LOCATION_MINOR));
-
-    do_mount(&procfs, "proc", "/proc", "", 0);
-    do_mount(&devptsfs, "devpts", "/dev/pts", "", 0);
-
-    iosfs_init(); // let it mount any filesystems from user defaults
-
-    [self configureDns];
-    
-    exit_hook = ios_handle_exit;
-    die_handler = ios_handle_die;
-#if !TARGET_OS_SIMULATOR
-    NSString *sockTmp = [NSTemporaryDirectory() stringByAppendingString:@"ishsock"];
-    sock_tmp_prefix = strdup(sockTmp.UTF8String);
-#endif
-    
-    tty_drivers[TTY_CONSOLE_MAJOR] = &ios_console_driver;
-    set_console_device(TTY_CONSOLE_MAJOR, 1);
-    err = create_stdio("/dev/console", TTY_CONSOLE_MAJOR, 1);
-    if (err < 0) {
-        return err;
-    }
-    
-    NSArray<NSString *> *command;
-    command = UserPreferences.shared.bootCommand;
-    
-    char argv[4096];
-    [Terminal convertCommand:command toArgs:argv limitSize:sizeof(argv)];
-    const char *envp = "TERM=xterm-256color\0";
-    
-    err = do_execve(command[0].UTF8String, command.count, argv, envp);
-    
-    if (err < 0) {
-        return err;
-    }
-    
-    return 0;
+    return [self _bootstrapRuntimeForSession];
 }
 
 - (void)configureDns {
@@ -252,20 +120,187 @@ static int lastBecomeFirstProcessReturnValue;
 + (int)bootError {
     return bootError;
 }
-+
-++ (int)lastRootMountReturnValue {
-+    return lastRootMountReturnValue;
-+}
-+
-++ (BOOL)lastMountsNonEmptyAfterRootMount {
-+    return lastMountsNonEmptyAfterRootMount;
-+}
-+
-++ (int)lastBecomeFirstProcessReturnValue {
-+    return lastBecomeFirstProcessReturnValue;
-+}
-+
-+
+
++ (int)lastRootMountReturnValue {
+    return lastRootMountReturnValue;
+}
+
++ (BOOL)lastMountsNonEmptyAfterRootMount {
+    return lastMountsNonEmptyAfterRootMount;
+}
+
++ (int)lastBecomeFirstProcessReturnValue {
+    return lastBecomeFirstProcessReturnValue;
+}
+
++ (int)bootstrapRuntimeForSession {
+    static dispatch_once_t onceToken;
+    static int bootstrapResult = 0;
+    dispatch_once(&onceToken, ^{
+        bootstrapResult = [[AppDelegate sharedInstance] _bootstrapRuntimeForSession];
+        if (bootstrapResult < 0) {
+            bootError = bootstrapResult;
+        }
+    });
+    return bootstrapResult;
+}
+
+- (int)_bootstrapRuntimeForSession {
+    [ISHInstrumentation recordEvent:@"app.runtime.bootstrap.start"];
+    if (!mounts_is_non_empty()) {
+        runtimePostMountInitialized = NO;
+        runtimeConsoleInitialized = NO;
+    }
+    lastRootMountReturnValue = 0;
+    lastMountsNonEmptyAfterRootMount = mounts_is_non_empty();
+    lastBecomeFirstProcessReturnValue = 0;
+
+    NSURL *root = [Roots.instance rootUrl:Roots.instance.defaultRoot];
+    NSURL *rootDataURL = root ? [root URLByAppendingPathComponent:@"data"] : nil;
+    BOOL rootExists = root ? [[NSFileManager defaultManager] fileExistsAtPath:root.path] : NO;
+    BOOL rootDataExists = rootDataURL ? [[NSFileManager defaultManager] fileExistsAtPath:rootDataURL.path] : NO;
+    BOOL isTesting = NSProcessInfo.processInfo.environment[@"XCTestConfigurationFilePath"] != nil;
+    BOOL usingFallbackRoots = [root.path containsString:@"IXLandTestRoots"];
+
+    [ISHInstrumentation recordEvent:@"app.runtime.bootstrap.root.present"
+                         attributes:@{ @"root_present": @(root != nil),
+                                       @"root_path": root.path ?: @"",
+                                       @"root_data_path": rootDataURL.path ?: @"",
+                                       @"root_exists": @(rootExists),
+                                       @"root_data_exists": @(rootDataExists),
+                                       @"is_testing": @(isTesting),
+                                       @"using_fallback_roots": @(usingFallbackRoots) }];
+
+    if (root == nil) {
+        [ISHInstrumentation recordEvent:@"app.runtime.bootstrap.root.missing"];
+        return _ENODEV;
+    }
+
+    if (!rootExists || !rootDataExists) {
+        [ISHInstrumentation recordEvent:@"app.runtime.bootstrap.root.missing_data"
+                             attributes:@{ @"root_exists": @(rootExists),
+                                           @"root_data_exists": @(rootDataExists) }];
+        return _ENODEV;
+    }
+
+    if (!mounts_is_non_empty()) {
+        [ISHInstrumentation recordEvent:@"app.runtime.bootstrap.mount_root.enter"
+                             attributes:@{ @"root_data_path": rootDataURL.path ?: @"",
+                                           @"root_data_exists": @(rootDataExists) }];
+        int mountErr = mount_root(&fakefs, rootDataURL.fileSystemRepresentation);
+        lastRootMountReturnValue = mountErr;
+        lastMountsNonEmptyAfterRootMount = mounts_is_non_empty();
+        [ISHInstrumentation recordEvent:@"app.runtime.bootstrap.mount_root.exit"
+                             attributes:@{ @"return_value": @(mountErr),
+                                           @"root_data_path": rootDataURL.path ?: @"",
+                                           @"root_data_exists": @(rootDataExists),
+                                           @"mounts_non_empty": @(lastMountsNonEmptyAfterRootMount) }];
+        if (mountErr < 0) {
+            return mountErr;
+        }
+        if (!lastMountsNonEmptyAfterRootMount) {
+            [ISHInstrumentation recordEvent:@"app.runtime.bootstrap.mount_root.empty_postmount"];
+            return _ENODEV;
+        }
+    }
+
+    struct task *init = pid_get_task(1);
+    if (init == NULL) {
+        [ISHInstrumentation recordEvent:@"app.runtime.bootstrap.become_first_process.enter"];
+        int processErr = become_first_process();
+        lastBecomeFirstProcessReturnValue = processErr;
+        [ISHInstrumentation recordEvent:@"app.runtime.bootstrap.become_first_process.exit"
+                             attributes:@{ @"return_value": @(processErr),
+                                           @"mounts_non_empty": @(mounts_is_non_empty()) }];
+        if (processErr < 0) {
+            return processErr;
+        }
+        init = pid_get_task(1);
+        if (init == NULL) {
+            [ISHInstrumentation recordEvent:@"app.runtime.bootstrap.pid1_still_missing"];
+            return _ENODEV;
+        }
+    }
+
+#if ISH_RUNTIME_MODE_VALUE == 0
+    if (!runtimePostMountInitialized) {
+        FsInitialize();
+        runtimePostMountInitialized = YES;
+        [ISHInstrumentation recordEvent:@"session.bootstrap.deferred"];
+    }
+    [ISHInstrumentation recordEvent:@"app.runtime.bootstrap.success"
+                         attributes:@{ @"mounts_non_empty": @(mounts_is_non_empty()),
+                                       @"pid1_exists": @(pid_get_task(1) != NULL) }];
+    return 0;
+#endif
+
+    if (!runtimePostMountInitialized) {
+        FsInitialize();
+
+        generic_mknodat(AT_PWD, "/dev/tty1", S_IFCHR|0666, dev_make(TTY_CONSOLE_MAJOR, 1));
+        generic_mknodat(AT_PWD, "/dev/tty2", S_IFCHR|0666, dev_make(TTY_CONSOLE_MAJOR, 2));
+        generic_mknodat(AT_PWD, "/dev/tty3", S_IFCHR|0666, dev_make(TTY_CONSOLE_MAJOR, 3));
+        generic_mknodat(AT_PWD, "/dev/tty4", S_IFCHR|0666, dev_make(TTY_CONSOLE_MAJOR, 4));
+        generic_mknodat(AT_PWD, "/dev/tty5", S_IFCHR|0666, dev_make(TTY_CONSOLE_MAJOR, 5));
+        generic_mknodat(AT_PWD, "/dev/tty6", S_IFCHR|0666, dev_make(TTY_CONSOLE_MAJOR, 6));
+        generic_mknodat(AT_PWD, "/dev/tty7", S_IFCHR|0666, dev_make(TTY_CONSOLE_MAJOR, 7));
+        generic_mknodat(AT_PWD, "/dev/tty", S_IFCHR|0666, dev_make(TTY_ALTERNATE_MAJOR, DEV_TTY_MINOR));
+        generic_mknodat(AT_PWD, "/dev/console", S_IFCHR|0666, dev_make(TTY_ALTERNATE_MAJOR, DEV_CONSOLE_MINOR));
+        generic_mknodat(AT_PWD, "/dev/ptmx", S_IFCHR|0666, dev_make(TTY_ALTERNATE_MAJOR, DEV_PTMX_MINOR));
+        generic_mknodat(AT_PWD, "/dev/null", S_IFCHR|0666, dev_make(MEM_MAJOR, DEV_NULL_MINOR));
+        generic_mknodat(AT_PWD, "/dev/zero", S_IFCHR|0666, dev_make(MEM_MAJOR, DEV_ZERO_MINOR));
+        generic_mknodat(AT_PWD, "/dev/full", S_IFCHR|0666, dev_make(MEM_MAJOR, DEV_FULL_MINOR));
+        generic_mknodat(AT_PWD, "/dev/random", S_IFCHR|0666, dev_make(MEM_MAJOR, DEV_RANDOM_MINOR));
+        generic_mknodat(AT_PWD, "/dev/urandom", S_IFCHR|0666, dev_make(MEM_MAJOR, DEV_URANDOM_MINOR));
+        generic_mkdirat(AT_PWD, "/dev/pts", 0755);
+        generic_setattrat(AT_PWD, "/", (struct attr) {.type = attr_mode, .mode = 0755}, false);
+
+        int err = dyn_dev_register(&clipboard_dev, DEV_CHAR, DYN_DEV_MAJOR, DEV_CLIPBOARD_MINOR);
+        if (err != 0) {
+            return err;
+        }
+        generic_mknodat(AT_PWD, "/dev/clipboard", S_IFCHR|0666, dev_make(DYN_DEV_MAJOR, DEV_CLIPBOARD_MINOR));
+
+        err = dyn_dev_register(&location_dev, DEV_CHAR, DYN_DEV_MAJOR, DEV_LOCATION_MINOR);
+        if (err != 0) {
+            return err;
+        }
+        generic_mknodat(AT_PWD, "/dev/location", S_IFCHR|0666, dev_make(DYN_DEV_MAJOR, DEV_LOCATION_MINOR));
+
+        do_mount(&procfs, "proc", "/proc", "", 0);
+        do_mount(&devptsfs, "devpts", "/dev/pts", "", 0);
+        iosfs_init();
+        [self configureDns];
+        exit_hook = ios_handle_exit;
+        die_handler = ios_handle_die;
+#if !TARGET_OS_SIMULATOR
+        if (sock_tmp_prefix == NULL) {
+            NSString *sockTmp = [NSTemporaryDirectory() stringByAppendingString:@"ishsock"];
+            sock_tmp_prefix = strdup(sockTmp.UTF8String);
+        }
+#endif
+        runtimePostMountInitialized = YES;
+    }
+
+    if (!runtimeConsoleInitialized) {
+        tty_drivers[TTY_CONSOLE_MAJOR] = &ios_console_driver;
+        set_console_device(TTY_CONSOLE_MAJOR, 1);
+        int stdioErr = create_stdio("/dev/console", TTY_CONSOLE_MAJOR, 1);
+        if (stdioErr < 0) {
+            return stdioErr;
+        }
+        runtimeConsoleInitialized = YES;
+    }
+
+    [ISHInstrumentation recordEvent:@"app.boot.runtime_owner.ready"
+                         attributes:@{ @"mounts_non_empty": @(mounts_is_non_empty()),
+                                       @"pid1_ready": @(current != NULL && current->pid == 1) }];
+    [ISHInstrumentation recordEvent:@"app.runtime.bootstrap.success"
+                         attributes:@{ @"mounts_non_empty": @(mounts_is_non_empty()),
+                                       @"pid1_exists": @(pid_get_task(1) != NULL) }];
+    return (mounts_is_non_empty() && pid_get_task(1) != NULL) ? 0 : _ENODEV;
+}
+
 - (BOOL)application:(UIApplication *)application willFinishLaunchingWithOptions:(NSDictionary<UIApplicationLaunchOptionsKey,id> *)launchOptions {
     NSUserDefaults *defaults = NSUserDefaults.standardUserDefaults;
     if ([defaults boolForKey:@"hail mary"]) {
@@ -345,7 +380,10 @@ void NetworkReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkReach
         }
         TerminalViewController *vc = (TerminalViewController *) self.window.rootViewController;
         currentTerminalViewController = vc;
-        [vc startNewSession];
+
+        // SceneDelegate owns session startup on iOS 16+. Starting a session here
+        // races the real scene lifecycle and can consume runtime ownership before
+        // the visible terminal attaches to the PTY-backed guest session.
 
         // (Test-only accessibility proxy removed)
     }

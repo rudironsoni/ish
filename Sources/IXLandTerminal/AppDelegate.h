@@ -16,6 +16,7 @@
 + (int)lastRootMountReturnValue;
 + (BOOL)lastMountsNonEmptyAfterRootMount;
 + (int)lastBecomeFirstProcessReturnValue;
++ (int)bootstrapRuntimeForSession;
 
 @end
 

@@ -7,6 +7,10 @@
 
 #import "SceneDelegate.h"
 #import "AboutViewController.h"
+#import "AppDelegate.h"
+#import <IXLandLinuxRuntime/kernel/init.h>
+#import <IXLandLinuxRuntime/kernel/task.h>
+#import <ISHInstrumentation.h>
 
 TerminalViewController *currentTerminalViewController = NULL;
 
@@ -32,6 +36,15 @@ static NSString *const TerminalUUID = @"TerminalUUID";
     TerminalViewController *vc = (TerminalViewController *) self.window.rootViewController;
     vc.sceneSession = session;
     if (session.stateRestorationActivity == nil) {
+        [ISHInstrumentation recordEvent:@"scene.session.start.bootstrap"];
+        int bootstrapErr = [AppDelegate bootstrapRuntimeForSession];
+        if (bootstrapErr < 0) {
+            [ISHInstrumentation recordEvent:@"scene.session.start.bootstrap.failed"
+                                 attributes:@{ @"return_value": @(bootstrapErr),
+                                               @"mounts_non_empty": @(mounts_is_non_empty()),
+                                               @"pid1_exists": @(pid_get_task(1) != NULL) }];
+            return;
+        }
         [vc startNewSession];
     } else {
         self.terminalUUID = session.stateRestorationActivity.userInfo[TerminalUUID];

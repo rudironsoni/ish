@@ -614,6 +614,12 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
                                        @"is_restart_path": @(isRestartPath) }];
 
     BOOL mountsNonEmptyBeforeSession = mounts_is_non_empty();
+    if (!mountsNonEmptyBeforeSession || pid_get_task(1) == NULL) {
+        int bootstrapErr = [AppDelegate bootstrapRuntimeForSession];
+        if (bootstrapErr >= 0) {
+            mountsNonEmptyBeforeSession = mounts_is_non_empty();
+        }
+    }
     [ISHInstrumentation recordEvent:@"app.session.become_new_init_child.enter"
                          attributes:@{ @"is_restart_path": @(isRestartPath),
                                        @"mounts_non_empty": @(mountsNonEmptyBeforeSession) }];
