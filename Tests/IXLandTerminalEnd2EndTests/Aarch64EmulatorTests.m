@@ -96,7 +96,7 @@
 
 // Test 1: Basic shell execution
 - (void)testBasicShellExecution {
-    [self typeCommand:@"printf '%s%s\n' 'aarch64_test_' 'passed'"];
+    [self typeCommand:@"printf '%s%s%s\n' 'aarch64' '_test' '_passed'"];
     NSString *output = [self waitForTerminalTextContaining:@"aarch64_test_passed" timeout:10.0];
     XCTAssertTrue([output containsString:@"aarch64_test_passed"],
                   @"Should see computed shell output in terminal. Actual output: %@", output);
