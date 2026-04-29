@@ -180,6 +180,7 @@
 		CBBF7D9620910717A9D4878D /* GuestMemoryManagementTests.m in Sources */ = {isa = PBXBuildFile; fileRef = F797CE4B570CD522D3CDDE8B /* GuestMemoryManagementTests.m */; };
 		D1AF25DB734DA206F8EE7114 /* eventfd.c in Sources */ = {isa = PBXBuildFile; fileRef = BB2A17AB54E7A646C8EFB3BB /* eventfd.c */; };
 		D2818B23FE9C87387747111C /* icon1337.png in Resources */ = {isa = PBXBuildFile; fileRef = 1314314FBFDF7FC8667E46AA /* icon1337.png */; };
+		D3CB15C74BB80E3DCFCFA3DD /* LinuxPTY.c in Sources */ = {isa = PBXBuildFile; fileRef = 1F4E72109DB368DC76FC0940 /* LinuxPTY.c */; };
 		D5ECA4A041E4AC4D8CEA9456 /* TCTISemanticExecutionTests.m in Sources */ = {isa = PBXBuildFile; fileRef = BEFD3683BD12419664FD93B2 /* TCTISemanticExecutionTests.m */; };
 		D68231BF6D58AD4D675E4F44 /* term.html in Resources */ = {isa = PBXBuildFile; fileRef = 80032F7FA60CEA26F93BC39F /* term.html */; };
 		D9646D47ED06AF3EB7575407 /* Roots.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AAD96C0895EB74ED71BD5BEE /* Roots.storyboard */; };
@@ -339,6 +340,7 @@
 		1DAB174BD1F4233E89D024E0 /* UIApplication+OpenURL.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "UIApplication+OpenURL.m"; sourceTree = "<group>"; };
 		1DC5E936F6639A333BFE8CF8 /* iSH.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = iSH.xcconfig; sourceTree = "<group>"; };
 		1DF72127BB5C3BF6A9AECB75 /* AboutAppearanceViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AboutAppearanceViewController.h; sourceTree = "<group>"; };
+		1F4E72109DB368DC76FC0940 /* LinuxPTY.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = LinuxPTY.c; sourceTree = "<group>"; };
 		1FBED050A43F65C2FBD47ABC /* proc.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = proc.c; sourceTree = "<group>"; };
 		1FC7794240A2228005FDEA90 /* gadgets_complex.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = gadgets_complex.h; sourceTree = "<group>"; };
 		2354FB26A844458906B662F8 /* memory.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = memory.h; sourceTree = "<group>"; };
@@ -1299,6 +1301,7 @@
 				8C7F3B2F81D97B00FCA35891 /* iOSFS.m */,
 				4E218C6EF34F8B4F4E422C55 /* iSH.entitlements */,
 				1DC5E936F6639A333BFE8CF8 /* iSH.xcconfig */,
+				1F4E72109DB368DC76FC0940 /* LinuxPTY.c */,
 				8291F30E37ACDDE208700D54 /* LocationDevice.h */,
 				4D526958EA5CE79135703843 /* LocationDevice.m */,
 				E536189B8FE196208B1A772A /* main.m */,
@@ -1861,6 +1864,7 @@
 				85E3301D9BE97C2E76A39AA8 /* DelayedUITask.m in Sources */,
 				54D36362ADDF1EDE3ADDF20F /* ExceptionExfiltrator.m in Sources */,
 				5E8E598B062322878B2C6234 /* FontPickerViewController.m in Sources */,
+				D3CB15C74BB80E3DCFCFA3DD /* LinuxPTY.c in Sources */,
 				F2B2E1AC7AF73E1D3BEE4CA4 /* LocationDevice.m in Sources */,
 				A6B563469FA7DB3880AE61F6 /* NSObject+SaneKVO.m in Sources */,
 				A93778A3BA5562FC346A1735 /* PassthroughView.m in Sources */,
