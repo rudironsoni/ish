@@ -65,135 +65,123 @@
 // The terminal UI is rendered in a web view and accepts keyboard input at the
 // application level once the scene is active.
 - (void)typeCommand:(NSString *)command {
-    // Focus TerminalSurface proxy directly for typing
     XCUIElement *terminalSurface = self.app.otherElements[@"TerminalSurface"];
-    XCTAssertTrue([terminalSurface waitForExistenceWithTimeout:5.0], "TerminalSurface must be accessible within 5 seconds");
+    XCTAssertTrue([terminalSurface waitForExistenceWithTimeout:5.0], @"TerminalSurface must be accessible within 5 seconds");
     [terminalSurface tap];
-    [NSThread sleepForTimeInterval:0.5]; // Give time for keyboard to appear and first responder to activate
-
-    // Type command
+    [NSThread sleepForTimeInterval:0.5];
     [self.app typeText:[NSString stringWithFormat:@"%@\n", command]];
-    [NSThread sleepForTimeInterval:1.5]; // Give time for command execution
 }
 
-// Helper: Get terminal text
 - (NSString *)terminalText {
-    // Terminal text is now exposed via TerminalSurface proxy
     XCUIElement *terminalSurface = self.app.otherElements[@"TerminalSurface"];
     XCTAssertTrue([terminalSurface waitForExistenceWithTimeout:5.0], @"TerminalSurface must be accessible");
-
-    // TerminalSurface.value exposes terminal text
     NSString *value = terminalSurface.value;
     XCTAssertNotNil(value, @"TerminalSurface value must not be nil");
     return value;
 }
 
+- (NSString *)waitForTerminalTextContaining:(NSString *)expected timeout:(NSTimeInterval)timeout {
+    NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:timeout];
+    NSString *lastObserved = [self terminalText];
+    while ([deadline timeIntervalSinceNow] > 0) {
+        [self failIfStartupAlertExistsWithTimeout:0.0];
+        lastObserved = [self terminalText];
+        if ([lastObserved containsString:expected])
+            return lastObserved;
+        [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.1]];
+    }
+    XCTFail(@"Timed out waiting for terminal text containing '%@'. Last observed TerminalSurface.value: %@", expected, lastObserved);
+    return lastObserved;
+}
+
 // Test 1: Basic shell execution
 - (void)testBasicShellExecution {
-    // Tap TerminalSurface proxy to ensure focus
-    XCUIElement *terminalSurface = self.app.otherElements[@"TerminalSurface"];
-    XCTAssertTrue([terminalSurface waitForExistenceWithTimeout:5.0], @"TerminalSurface must be accessible");
-    [terminalSurface tap];
-    [NSThread sleepForTimeInterval:1.0]; // Time for keyboard activation
-
-    // Type command
-    [self typeCommand:@"echo 'aarch64_test_passed'"];
-
-    // Give time for execution
-    [NSThread sleepForTimeInterval:2.0];
-
-    [self failIfStartupAlertExistsWithTimeout:1.0];
-
-    NSString *output = [self terminalText];
+    [self typeCommand:@"printf '%s%s\n' 'aarch64_test_' 'passed'"];
+    NSString *output = [self waitForTerminalTextContaining:@"aarch64_test_passed" timeout:10.0];
     XCTAssertTrue([output containsString:@"aarch64_test_passed"],
-                  @"Should see echo output in terminal. Actual output: %@", output);
+                  @"Should see computed shell output in terminal. Actual output: %@", output);
 }
 
 // Test 2: Verify aarch64 architecture
 - (void)testArchitectureDetection {
-    [self typeCommand:@"uname -m"];
-
-    NSString *output = [self terminalText];
-    XCTAssertTrue([output containsString:@"aarch64"],
-                  "Should report aarch64 architecture");
+    NSString *expected = @"ARCH:aarch64:END";
+    [self typeCommand:@"printf 'ARCH:%s:END\\n' \"$(uname -m)\""];
+    NSString *output = [self waitForTerminalTextContaining:expected timeout:10.0];
+    XCTAssertTrue([output containsString:expected],
+                  @"Should report aarch64 architecture. Actual output: %@", output);
 }
 
 // Test 3: Basic arithmetic via expr
 - (void)testArithmetic {
-    [self typeCommand:@"expr 5 + 3"];
-
-    NSString *output = [self terminalText];
-    XCTAssertTrue([output containsString:@"8"],
-                  "Should calculate 5+3=8");
+    NSString *expected = @"ARITH:8:END";
+    [self typeCommand:@"printf 'ARITH:%s:END\\n' \"$(expr 5 + 3)\""];
+    NSString *output = [self waitForTerminalTextContaining:expected timeout:10.0];
+    XCTAssertTrue([output containsString:expected],
+                  @"Should calculate 5+3=8. Actual output: %@", output);
 }
 
 // Test 4: Exit codes
 - (void)testExitCode {
-    [self typeCommand:@"true ; echo \"Exit: $?\""];
-
-    NSString *output = [self terminalText];
-    XCTAssertTrue([output containsString:@"Exit: 0"],
-                  "Should report exit code 0");
+    NSString *expected = @"EXIT:1:END";
+    [self typeCommand:@"false ; printf 'EXIT:%s:END\\n' \"$?\""];
+    NSString *output = [self waitForTerminalTextContaining:expected timeout:10.0];
+    XCTAssertTrue([output containsString:expected],
+                  @"Should report exit code 1. Actual output: %@", output);
 }
 
 // Test 5: File operations
 - (void)testFileOperations {
-    [self typeCommand:@"echo 'test_content' > /tmp/test_file"];
+    [self typeCommand:@"printf '%s%s' 'test_' 'content' > /tmp/test_file"];
     [self typeCommand:@"cat /tmp/test_file"];
-
-    NSString *output = [self terminalText];
+    NSString *output = [self waitForTerminalTextContaining:@"test_content" timeout:10.0];
     XCTAssertTrue([output containsString:@"test_content"],
-                  "Should read written file");
+                  @"Should read written file. Actual output: %@", output);
 }
 
 // Test 6: Process creation (fork)
 - (void)testProcessCreation {
-    [self typeCommand:@"echo $SHELL"];
-
-    NSString *output = [self terminalText];
-    XCTAssertTrue([output containsString:@"/bin/"],
-                  "Should report shell path");
+    NSString *expectedPrefix = @"SHELL:/bin/";
+    [self typeCommand:@"printf 'SHELL:%s:END\\n' \"$SHELL\""];
+    NSString *output = [self waitForTerminalTextContaining:expectedPrefix timeout:10.0];
+    XCTAssertTrue([output containsString:expectedPrefix],
+                  @"Should report shell path. Actual output: %@", output);
 }
 
 // Test 7: Pipes
 - (void)testPipes {
-    [self typeCommand:@"echo 'hello world' | wc -w"];
-
-    NSString *output = [self terminalText];
-    XCTAssertTrue([output containsString:@"2"],
-                  "Should count 2 words");
+    NSString *expected = @"PIPE:2:END";
+    [self typeCommand:@"printf 'PIPE:%s:END\\n' \"$(echo 'hello world' | wc -w)\""];
+    NSString *output = [self waitForTerminalTextContaining:expected timeout:10.0];
+    XCTAssertTrue([output containsString:expected],
+                  @"Should count 2 words. Actual output: %@", output);
 }
 
 // Test 8: Environment variables
 - (void)testEnvironmentVariables {
-    [self typeCommand:@"export TEST_VAR='aarch64_value' ; echo $TEST_VAR"];
-
-    NSString *output = [self terminalText];
+    [self typeCommand:@"export TEST_VAR='aarch64_'\"value\" ; echo $TEST_VAR"];
+    NSString *output = [self waitForTerminalTextContaining:@"aarch64_value" timeout:10.0];
     XCTAssertTrue([output containsString:@"aarch64_value"],
-                  "Should read environment variable");
+                  @"Should read environment variable. Actual output: %@", output);
 }
 
 // Test 9: Signal handling
 - (void)testSignalHandling {
-    // Send a command that completes quickly
-    [self typeCommand:@"sleep 0.1 ; echo 'completed'"];
-
-    NSString *output = [self terminalText];
+    [self typeCommand:@"sleep 0.1 ; printf '%s%s\n' 'comple' 'ted'"];
+    NSString *output = [self waitForTerminalTextContaining:@"completed" timeout:10.0];
     XCTAssertTrue([output containsString:@"completed"],
-                  "Should complete after sleep");
+                  @"Should complete after sleep. Actual output: %@", output);
 }
 
 // Test 10: Complex command sequence
 - (void)testCommandSequence {
-    [self typeCommand:@"for i in 1 2 3; do echo \"line_$i\"; done"];
-
-    NSString *output = [self terminalText];
-    XCTAssertTrue([output containsString:@"line_1"],
-                  "Should show line_1");
-    XCTAssertTrue([output containsString:@"line_2"],
-                  "Should show line_2");
-    XCTAssertTrue([output containsString:@"line_3"],
-                  "Should show line_3");
+    [self typeCommand:@"for i in 1 2 3; do printf 'SEQ:%s:END\\n' \"$i\"; done"];
+    NSString *output = [self waitForTerminalTextContaining:@"SEQ:3:END" timeout:10.0];
+    XCTAssertTrue([output containsString:@"SEQ:1:END"],
+                  @"Should show SEQ:1:END. Actual output: %@", output);
+    XCTAssertTrue([output containsString:@"SEQ:2:END"],
+                  @"Should show SEQ:2:END. Actual output: %@", output);
+    XCTAssertTrue([output containsString:@"SEQ:3:END"],
+                  @"Should show SEQ:3:END. Actual output: %@", output);
 }
 
 @end
