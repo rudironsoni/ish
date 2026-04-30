@@ -317,7 +317,6 @@
 		0C4448FC15BAC204BDE6ECE7 /* dollarblock1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = dollarblock1.png; sourceTree = "<group>"; };
 		0DF9623A0FF19B8B6671DE74 /* linux_types.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = linux_types.h; sourceTree = "<group>"; };
 		0E8EEFF817ABCC943BEEB6BC /* real.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = real.h; sourceTree = "<group>"; };
-		0F7232C20762126236329A48 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		10AE7F899F687F7522BC04EC /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		1129142F90AAB4D8E9ABC286 /* platform_bridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = platform_bridge.h; sourceTree = "<group>"; };
 		113A11B7EAE92517A9F2E728 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
@@ -1302,7 +1301,6 @@
 				5A7C34AF1E6683B5985A0652 /* FontPickerViewController.m */,
 				38178F3DC3959DE00848B27E /* hook.c */,
 				B74BC9381C8B3224E3D195A3 /* hook.h */,
-				0F7232C20762126236329A48 /* Info.plist */,
 				ED05A59CCCC5EB245D540593 /* iOS.xcconfig */,
 				954C8EF99EE722854A1164D5 /* iOSFS.h */,
 				8C7F3B2F81D97B00FCA35891 /* iOSFS.m */,
