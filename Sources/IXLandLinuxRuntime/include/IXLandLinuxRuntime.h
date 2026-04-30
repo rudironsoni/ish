@@ -1,7 +1,9 @@
 #ifndef IXLandLinuxRuntime_h
 #define IXLandLinuxRuntime_h
 
+#ifdef __OBJC__
 #import <Foundation/Foundation.h>
+#endif
 
 // MARK: - Kernel API
 #import <IXLandLinuxRuntime/kernel/calls.h>

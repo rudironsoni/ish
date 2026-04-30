@@ -172,6 +172,6 @@ extern struct dev_ops ptmx_dev;
 
 int ptmx_open(struct fd *fd);
 // Should call with a driver declared *without* DEFINE_TTY_DRIVER, as it overwrites the ttys field.
-struct tty *pty_open_fake(struct tty_driver *driver);
+struct tty *pty_open_guest_terminal(struct tty_driver *driver);
 
 #endif

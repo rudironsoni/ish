@@ -6,166 +6,130 @@
 //
 
 #import "LinuxInterop.h"
-#include <Block.h>
-#import <IXLandLinuxRuntime/IXLandLinuxRuntime.h>
 
-extern void run_kernel(void);
+#include <CoreFoundation/CoreFoundation.h>
+#import <IXLandLinuxRuntime/fs/devices.h>
+#import <IXLandLinuxRuntime/fs/tty.h>
+#import <IXLandLinuxRuntime/kernel/calls.h>
+#import <IXLandLinuxRuntime/kernel/init.h>
+#import <IXLandLinuxRuntime/kernel/task.h>
+#import <IXLandLinuxRuntime/util/misc.h>
+#include <stdlib.h>
+#include <string.h>
 
-void actuate_kernel(const char *cmdline) {
-    strcpy(boot_command_line, cmdline);
-    run_kernel();
+nsobj_t objc_get(nsobj_t object)
+{
+    if (object == NULL)
+        return NULL;
+    return (nsobj_t)CFRetain((CFTypeRef)object);
 }
 
-static int panic_report(struct notifier_block *nb, unsigned long action, void *data) {
-    const char *message = data;
-    async_do_in_ios(^{
-        ReportPanic(message);
-    });
+void objc_put(nsobj_t object)
+{
+    if (object != NULL)
+        CFRelease((CFTypeRef)object);
+}
+
+static int build_pts_path(int tty_num, char *buf, size_t size)
+{
+    static const char prefix[] = "/dev/pts/";
+    char digits[16];
+    size_t digit_count = 0;
+    unsigned int value = (unsigned int)tty_num;
+
+    if (size <= sizeof(prefix))
+        return -_ENAMETOOLONG;
+
+    memcpy(buf, prefix, sizeof(prefix) - 1);
+
+    do {
+        digits[digit_count++] = (char)('0' + (value % 10));
+        value /= 10;
+    } while (value != 0 && digit_count < sizeof(digits));
+
+    if ((sizeof(prefix) - 1) + digit_count + 1 > size)
+        return -_ENAMETOOLONG;
+
+    for (size_t i = 0; i < digit_count; i++)
+        buf[(sizeof(prefix) - 1) + i] = digits[digit_count - i - 1];
+    buf[(sizeof(prefix) - 1) + digit_count] = '\0';
     return 0;
 }
 
-static struct notifier_block panic_report_block = {
-    .notifier_call = panic_report,
-    .priority = INT_MAX,
-};
-static int __init panic_report_init(void) {
-    atomic_notifier_chain_register(&panic_notifier_list, &panic_report_block);
-    return 0;
-}
-core_initcall(panic_report_init);
+static char *flatten_argv(const char *const *argv, size_t *argc_out)
+{
+    size_t argc = 0;
+    size_t total_size = 1;
 
-static int block_request_read;
-static int block_request_write;
-static irqreturn_t call_block_irq(int irq, void *dev) {
-    void (^block)(void);
-    for (;;) {
-        int err = host_read(block_request_read, &block, sizeof(block));
-        if (err <= 0)
-            break;
-        block();
-        Block_release(block);
+    while (argv[argc] != NULL) {
+        total_size += strlen(argv[argc]) + 1;
+        argc++;
     }
-    return IRQ_HANDLED;
-}
 
-void async_do_in_irq(void (^block)(void)) {
-    block = Block_copy(block);
-    int err = host_write(block_request_write, &block, sizeof(block));
-    if (err < 0)
-        __builtin_trap();
-    trigger_irq(CALL_BLOCK_IRQ);
-}
+    char *flat_argv = malloc(total_size);
+    if (flat_argv == NULL)
+        return NULL;
 
-struct ios_work {
-    void (^block)(void);
-    struct work_struct work;
-};
-
-static void do_ios_work(struct work_struct *work) {
-    struct ios_work *ios_work = container_of(work, struct ios_work, work);
-    ios_work->block();
-    Block_release(ios_work->block);
-    kfree(ios_work);
-}
-
-void async_do_in_workqueue(void (^block)(void)) {
-    async_do_in_irq(^{
-        struct ios_work *work = kzalloc(sizeof(*work), GFP_ATOMIC);
-        work->block = Block_copy(block);
-        INIT_WORK(&work->work, do_ios_work);
-        schedule_work(&work->work);
-    });
-}
-
-static int __init call_block_init(void) {
-    int err = host_pipe(&block_request_read, &block_request_write);
-    if (err < 0)
-        return err;
-    err = fd_set_nonblock(block_request_read);
-    if (err < 0)
-        return err;
-    err = request_irq(CALL_BLOCK_IRQ, call_block_irq, 0, "block", NULL);
-    if (err < 0)
-        return err;
-    return 0;
-}
-subsys_initcall(call_block_init);
-
-struct ish_session {
-    struct file *tty;
-    nsobj_t terminal;
-    int pid;
-    StartSessionDoneBlock callback;
-};
-
-static int session_init(struct subprocess_info *info, struct cred *cred) {
-    struct ish_session *session = info->data;
-    int err = ksys_setsid();
-    if (err < 0)
-        return err;
-    err = vfs_ioctl(session->tty, TIOCSCTTY, 0);
-    if (err < 0)
-        return err;
-    for (int fd = 0; fd <= 2; fd++) {
-        int err = replace_fd(fd, session->tty, 0);
-        if (err < 0)
-            return err;
+    char *cursor = flat_argv;
+    for (size_t i = 0; i < argc; i++) {
+        size_t arg_size = strlen(argv[i]) + 1;
+        memcpy(cursor, argv[i], arg_size);
+        cursor += arg_size;
     }
-    session->pid = task_pid_nr(current);
-    return 0;
+    *cursor = '\0';
+
+    *argc_out = argc;
+    return flat_argv;
 }
 
-static void session_cleanup(struct subprocess_info *info) {
-    struct ish_session *session = info->data;
-    if (session->pid != 0 || info->retval != 0)
-        session->callback(info->retval, session->pid, objc_get(session->terminal));
-    else; // otherwise, there was a synchronous failure, returned directly from call_usermodehelper_exec
-    if (session->tty != NULL)
-        fput(session->tty);
-    objc_put(session->terminal);
-    kfree(session);
-}
-
-void linux_start_session(const char *exe, const char *const *argv, const char *const *envp, StartSessionDoneBlock done) {
-    struct ish_session *session = kzalloc(sizeof(*session), GFP_KERNEL);
-    session->tty = ios_pty_open(&session->terminal);
-    session->callback = done;
-    struct subprocess_info *proc = call_usermodehelper_setup(exe, (char **) argv, (char **) envp, GFP_KERNEL, session_init, session_cleanup, session);
-    int err = call_usermodehelper_exec(proc, UMH_WAIT_EXEC);
-    if (err < 0)
-        done(err, 0, NULL);
-}
-
-void linux_sethostname(const char *hostname) {
-    int len = strlen(hostname);
-    if (len > __NEW_UTS_LEN)
-        len = __NEW_UTS_LEN;
-    down_write(&uts_sem);
-    struct new_utsname *u = utsname();
-    if (strncmp(u->nodename, hostname, len) != 0) {
-        memcpy(u->nodename, hostname, len);
-        memset(u->nodename + len, 0, sizeof(u->nodename) - len);
-        uts_proc_notify(UTS_PROC_HOSTNAME);
+void linux_start_session(const char *exe, const char *const *argv, const char *envp,
+                         StartSessionDoneBlock done)
+{
+    nsobj_t terminal = NULL;
+    struct tty *tty = ios_pty_open(&terminal);
+    if (IS_ERR(tty)) {
+        done((int)PTR_ERR(tty), 0, NULL);
+        return;
     }
-    up_write(&uts_sem);
-}
 
-ssize_t linux_read_file(const char *path, char *buf, size_t size) {
-    struct file *filp = filp_open(path, O_RDONLY, 0);
-    if (IS_ERR(filp))
-        return PTR_ERR(filp);
-    ssize_t res = vfs_read(filp, buf, size, NULL);
-    filp_close(filp, NULL);
-    if (res >= size)
-        return -ENAMETOOLONG;
-    return res;
-}
-ssize_t linux_write_file(const char *path, const char *buf, size_t size) {
-    struct file *filp = filp_open(path, O_WRONLY, 0);
-    ssize_t res = vfs_write(filp, buf, size, NULL);
-    filp_close(filp, NULL);
-    return res;
-}
-int linux_remove_directory(const char *path) {
-    return init_rmdir(path);
+    int tty_num = tty->num;
+    int err = (int)sys_setsid();
+    if (err < 0)
+        goto fail_with_tty;
+
+    char pts_path[32];
+    err = build_pts_path(tty_num, pts_path, sizeof(pts_path));
+    if (err < 0)
+        goto fail_with_tty;
+
+    err = create_stdio(pts_path, TTY_PSEUDO_SLAVE_MAJOR, tty_num);
+    tty_release(tty);
+    tty = NULL;
+    if (err < 0)
+        goto fail;
+
+    size_t argc = 0;
+    char *flat_argv = flatten_argv(argv, &argc);
+    if (flat_argv == NULL) {
+        err = -_ENOMEM;
+        goto fail;
+    }
+
+    err = do_execve(exe, argc, flat_argv, envp);
+    free(flat_argv);
+    if (err < 0)
+        goto fail;
+
+    int pid = current->pid;
+    done(0, pid, objc_get(terminal));
+    task_start(current);
+    current = NULL;
+    objc_put(terminal);
+    return;
+
+fail_with_tty:
+    tty_release(tty);
+fail:
+    objc_put(terminal);
+    done(err, 0, NULL);
 }

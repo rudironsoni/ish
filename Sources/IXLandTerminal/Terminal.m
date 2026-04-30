@@ -121,7 +121,7 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
 }
 
 + (Terminal *)createPseudoTerminal:(struct tty **)tty {
-    *tty = pty_open_fake(&ios_pty_driver);
+    *tty = pty_open_guest_terminal(&ios_pty_driver);
     if (IS_ERR(*tty))
         return nil;
     return (__bridge Terminal *) (*tty)->data;

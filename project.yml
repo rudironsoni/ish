@@ -57,8 +57,11 @@ targets:
     - path: Sources/IXLandLinuxRuntime
       headerVisibility: project
       excludes:
+      - "include/**"
       - "trace/**"
       - "platform/**"
+    - path: Sources/IXLandLinuxRuntime/include/IXLandLinuxRuntime.h
+      headerVisibility: public
     - path: internal/ios
       headerVisibility: project
     - path: include/ixland
@@ -215,6 +218,7 @@ targets:
       PRODUCT_BUNDLE_IDENTIFIER: app.ixland.terminal
       PRODUCT_NAME: IXLandTerminal
       INFOPLIST_FILE: Sources/IXLandTerminal/Info.plist
+      ENABLE_DEBUG_DYLIB: NO
       CODE_SIGN_ENTITLEMENTS: Sources/IXLandTerminal/iSH.entitlements
       ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
       HEADER_SEARCH_PATHS:
@@ -292,7 +296,6 @@ schemes:
       targets:
         IXLandLinuxRuntime: all
         IXLandTerminal: all
-        IXLandTerminalUnitTests: all
         IXLandTerminalEnd2EndTests: [build-for-testing]
     run:
       config: Debug

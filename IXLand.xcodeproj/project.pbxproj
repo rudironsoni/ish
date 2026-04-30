@@ -52,6 +52,7 @@
 		37660A320C4BDBD526589610 /* adhoc.c in Sources */ = {isa = PBXBuildFile; fileRef = A699BC2960CA0766BD29C702 /* adhoc.c */; };
 		3872CD1835B680EFCA34A729 /* GuestThreadSignalTLSTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 7E061597EF45CAE188F61A0C /* GuestThreadSignalTLSTests.m */; };
 		3A1C699418F41B2C7B4BD960 /* ishcolontildehash.png in Resources */ = {isa = PBXBuildFile; fileRef = 32A99C6158148B709A2DD058 /* ishcolontildehash.png */; };
+		3CBEE5177D84535E25A20171 /* IXLandLinuxRuntime.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 5DD6DF9A14627C8C2413E737 /* IXLandLinuxRuntime.h */; };
 		3E08B4BD4F7E24DE96DCFE71 /* sock.c in Sources */ = {isa = PBXBuildFile; fileRef = 57C2B41AFEC474EF9AEC19A2 /* sock.c */; };
 		403A61853C4046D018835B53 /* CoreLocation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9FBB7D21DA87786D58E5402F /* CoreLocation.framework */; };
 		41D8FC492D7FFDAC4A5A7126 /* TCTILoweringTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 522555FC14ED380F4FEEF320 /* TCTILoweringTests.m */; };
@@ -296,6 +297,19 @@
 			remoteInfo = IXLandTerminal;
 		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		9441EC946890B5BE66911D9C /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "include/$(PRODUCT_NAME)";
+			dstSubfolderSpec = 16;
+			files = (
+				3CBEE5177D84535E25A20171 /* IXLandLinuxRuntime.h in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		00222841321E63745DCBD3F0 /* XcodeDefault.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = XcodeDefault.xcconfig; sourceTree = "<group>"; };
@@ -1605,6 +1619,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = AC8CBFC44F681A3320E34508 /* Build configuration list for PBXNativeTarget "IXLandLinuxRuntime" */;
 			buildPhases = (
+				9441EC946890B5BE66911D9C /* CopyFiles */,
 				8F89DFD816BFFA8F5088E949 /* Sources */,
 				32D46D9187FA331E6F3E758F /* Resources */,
 			);
@@ -2237,6 +2252,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Sources/IXLandTerminal/iSH.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				ENABLE_DEBUG_DYLIB = NO;
 				HEADER_SEARCH_PATHS = (
 					"$(LINUX_UAPI_INCLUDE_ROOT)",
 					"$(SRCROOT)/Sources/IXLandTerminal",
@@ -2474,6 +2490,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Sources/IXLandTerminal/iSH.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				ENABLE_DEBUG_DYLIB = NO;
 				HEADER_SEARCH_PATHS = (
 					"$(LINUX_UAPI_INCLUDE_ROOT)",
 					"$(SRCROOT)/Sources/IXLandTerminal",

@@ -49,20 +49,6 @@
                ReferencedContainer = "container:IXLand.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
-         <BuildActionEntry
-            buildForTesting = "YES"
-            buildForRunning = "YES"
-            buildForProfiling = "YES"
-            buildForArchiving = "YES"
-            buildForAnalyzing = "YES">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "A549863F1B49DC1E151FBF1E"
-               BuildableName = "IXLandTerminalUnitTests.xctest"
-               BlueprintName = "IXLandTerminalUnitTests"
-               ReferencedContainer = "container:IXLand.xcodeproj">
-            </BuildableReference>
-         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction

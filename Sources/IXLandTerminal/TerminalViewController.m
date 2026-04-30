@@ -751,7 +751,7 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
     trace_task_source_checkpoint("task.proof.login.exec.entry", current);
 
     self.lastTaskStartEntered = YES;
-    linux_start_session(command[0].UTF8String, (const char *const *) argvp, &envp, ^(int retval, int pid, nsobj_t terminalObject) {
+    linux_start_session(command[0].UTF8String, (const char *const *) argvp, envp, ^(int retval, int pid, nsobj_t terminalObject) {
         dispatch_async(dispatch_get_main_queue(), ^{
             self.lastLoginExecReturnValue = retval;
             if (retval < 0) {

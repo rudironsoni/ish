@@ -204,7 +204,7 @@ int ptmx_open(struct fd *fd)
     return tty_open(master, fd);
 }
 
-struct tty *pty_open_fake(struct tty_driver *driver)
+struct tty *pty_open_guest_terminal(struct tty_driver *driver)
 {
     int pty_num = pty_reserve_next();
     if (pty_num == MAX_PTYS)
