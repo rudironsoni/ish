@@ -6,13 +6,7 @@
 //
 
 #import "LinuxInterop.h"
-#include <linux/bug.h>
-#include <linux/console.h>
-#include <linux/errno.h>
-#include <linux/init.h>
-#include <linux/tty.h>
-#include <linux/tty_flip.h>
-#include <linux/slab.h>
+#import <IXLandLinuxRuntime/IXLandLinuxRuntime.h>
 
 static void nslog_console_write(struct console *console, const char *data, unsigned len) {
     ConsoleLog(data, len);
@@ -41,7 +35,8 @@ static struct tty_driver *ios_tty_driver;
 static struct ios_tty ios_ttys[NUM_TTYS];
 
 static int ios_tty_port_activate(struct tty_port *port, struct tty_struct *tty) {
-    BUG_ON(port != &ios_ttys[tty->index].port);
+    if (port != &ios_ttys[tty->index].port)
+        panic("ios tty: port/index mismatch");
     port->client_data = (void *) Terminal_terminalWithType_number(TTY_MAJOR, tty->index);
     Terminal_setLinuxTTY(port->client_data, &container_of(port, struct ios_tty, port)->linux_tty);
     return 0;

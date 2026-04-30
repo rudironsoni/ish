@@ -201,12 +201,10 @@ static NSString *const HANDLERS[] = {@"syncFocus", @"focus", @"newScrollHeight",
     }
 
     [_terminal addObserver:self forKeyPath:@"loaded" options:NSKeyValueObservingOptionInitial context:nil];
-    if (_terminal.loaded)
-        [self installTerminalView];
+    [self installTerminalView];
 }
 
 - (void)installTerminalView {
-    NSAssert(_terminal.loaded, @"should probably not be installing a non-loaded terminal");
     // installTerminalView: no logging in production/test code
     UIView *superview = self.terminal.webView.superview;
     if (superview != nil) {

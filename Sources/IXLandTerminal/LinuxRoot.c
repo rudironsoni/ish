@@ -5,13 +5,8 @@
 //  Created by Theodore Dubois on 12/29/21.
 //
 
-#include <linux/init.h>
-#include <linux/syscalls.h>
-#include <linux/init_syscalls.h>
-#include <linux/fs.h>
-#include <linux/errname.h>
-#include <linux/device.h>
-#include <uapi/linux/mount.h>
+#import <IXLandLinuxRuntime/IXLandLinuxRuntime.h>
+#include <linux/mount.h>
 #import "LinuxInterop.h"
 
 void FsInitialize(void);

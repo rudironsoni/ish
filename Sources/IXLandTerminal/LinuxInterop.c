@@ -7,23 +7,7 @@
 
 #import "LinuxInterop.h"
 #include <Block.h>
-#include <linux/start_kernel.h>
-#include <linux/slab.h>
-#include <linux/kernel.h>
-#include <linux/notifier.h>
-#include <linux/termios.h>
-#include <linux/string.h>
-#include <linux/completion.h>
-#include <linux/interrupt.h>
-#include <linux/file.h>
-#include <linux/umh.h>
-#include <linux/syscalls.h>
-#include <linux/utsname.h>
-#include <linux/panic_notifier.h>
-#include <linux/init_syscalls.h>
-#include <asm/irq.h>
-#include <user/fs.h>
-#include <user/irq.h>
+#import <IXLandLinuxRuntime/IXLandLinuxRuntime.h>
 
 extern void run_kernel(void);
 

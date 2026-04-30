@@ -11,8 +11,7 @@
 #ifndef __KERNEL__
 #include <sys/types.h>
 #else
-#include <linux/types.h>
-#include <linux/fs.h>
+#import <IXLandLinuxRuntime/IXLandLinuxRuntime.h>
 #endif
 
 void async_do_in_irq(void (^block)(void));

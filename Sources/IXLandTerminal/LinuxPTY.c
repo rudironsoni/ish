@@ -7,20 +7,8 @@
 
 #import "LinuxInterop.h"
 
-#include <linux/errname.h>
-#include <linux/fcntl.h>
-#include <linux/fdtable.h>
-#include <linux/fs.h>
-#include <linux/hashtable.h>
-#include <linux/init.h>
-#include <linux/init_syscalls.h>
-#include <linux/init_task.h>
-#include <linux/kthread.h>
-#include <linux/namei.h>
-#include <linux/syscalls.h>
-#include <linux/termios.h>
-#include <linux/vmalloc.h>
-#include <uapi/linux/mount.h>
+#import <IXLandLinuxRuntime/IXLandLinuxRuntime.h>
+#include <linux/mount.h>
 
 static struct path ptmx_path;
 
