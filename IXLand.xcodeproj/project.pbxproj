@@ -58,6 +58,7 @@
 		424CF59BDA97511D9742A18E /* iinhash.png in Resources */ = {isa = PBXBuildFile; fileRef = F5096B650C0BC023128CDB62 /* iinhash.png */; };
 		429084F7E08EEA3ED2214991 /* GuestProcessABITests.m in Sources */ = {isa = PBXBuildFile; fileRef = A64FD3CDB2FC351AD188D0A3 /* GuestProcessABITests.m */; };
 		43B430AB38CCA4C0D50A51EA /* tty.c in Sources */ = {isa = PBXBuildFile; fileRef = E4F3831D798AB676D8843AE3 /* tty.c */; };
+		449FACBB3BE99AEBD2FECA5D /* LinuxInterop.c in Sources */ = {isa = PBXBuildFile; fileRef = 39336A84654B0F70DCA035BA /* LinuxInterop.c */; };
 		44D70F202953D103F126C0E3 /* fake-rebuild.c in Sources */ = {isa = PBXBuildFile; fileRef = D470AFC0C8F201EDE54EDE83 /* fake-rebuild.c */; };
 		461702AA2C910E3A95A04341 /* uname.c in Sources */ = {isa = PBXBuildFile; fileRef = B6E7E5183B898A2C841902B6 /* uname.c */; };
 		46E72D9D8D981A2A03825706 /* static_minimal_aarch64_ok.elf in Resources */ = {isa = PBXBuildFile; fileRef = D463CED677710E2BE949EEDE /* static_minimal_aarch64_ok.elf */; };
@@ -94,6 +95,7 @@
 		6562D262D9213D9D89DC5B0F /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 96E2E9417EEA0EDE1B4050C2 /* CoreGraphics.framework */; };
 		65E4E2877579330C83249F57 /* gen.c in Sources */ = {isa = PBXBuildFile; fileRef = DB38F8D499A2BA93072BB447 /* gen.c */; };
 		65F7EAD8F98F0AF787C6128B /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 113A11B7EAE92517A9F2E728 /* AppDelegate.m */; };
+		66222EEF4D33EDF8EAE0023F /* LinuxRoot.c in Sources */ = {isa = PBXBuildFile; fileRef = 4546AC0E363369CA9E03885E /* LinuxRoot.c */; };
 		67444FA04FAB98AF5446FFBC /* mach_excServer.c in Sources */ = {isa = PBXBuildFile; fileRef = F11E497D8AFD0AE4678BC62C /* mach_excServer.c */; };
 		67A37DE498167D02EAD63609 /* Aarch64DecoderTests.mm in Sources */ = {isa = PBXBuildFile; fileRef = 2AF4814FB31E82FF9873FB3A /* Aarch64DecoderTests.mm */; };
 		6863A1EF0D3229412533A989 /* static_minimal_exec_ok.elf in Resources */ = {isa = PBXBuildFile; fileRef = 40C2A88B267444A581024B5D /* static_minimal_exec_ok.elf */; };
@@ -208,6 +210,7 @@
 		E848C05CFDC98D16CBE0349D /* TerminalIOPerfTests.m in Sources */ = {isa = PBXBuildFile; fileRef = CF96A3EACFB49BC1204323DC /* TerminalIOPerfTests.m */; };
 		E8EEF2D28C799AA16EE4712C /* generic.c in Sources */ = {isa = PBXBuildFile; fileRef = FB729DB1B9FB41A3F3BDD112 /* generic.c */; };
 		E93CDE0D5A8A21FB18C48959 /* README.generated.md in Resources */ = {isa = PBXBuildFile; fileRef = C7FB05C896D845C6AA5F1398 /* README.generated.md */; };
+		E9A6676D462998601875CEE3 /* LinuxTTY.c in Sources */ = {isa = PBXBuildFile; fileRef = 9225C7278750CBA981A7D9CA /* LinuxTTY.c */; };
 		ED9D3041081015F0053F7873 /* resource.c in Sources */ = {isa = PBXBuildFile; fileRef = 683857C797B0C2E327254A77 /* resource.c */; };
 		EE0AF117E54170777216140B /* timer.c in Sources */ = {isa = PBXBuildFile; fileRef = E1491C7C24DA49C49F35F53E /* timer.c */; };
 		F03EA524B0E8EB9CD935875A /* gadgets_complex.S in Sources */ = {isa = PBXBuildFile; fileRef = 85C61C918ABD750317FD3872 /* gadgets_complex.S */; };
@@ -380,6 +383,7 @@
 		38178F3DC3959DE00848B27E /* hook.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = hook.c; sourceTree = "<group>"; };
 		38214852B98C342F21C4945A /* sysreg.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sysreg.h; sourceTree = "<group>"; };
 		384D4E240AC5A70AAA5746C3 /* mem.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = mem.c; sourceTree = "<group>"; };
+		39336A84654B0F70DCA035BA /* LinuxInterop.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = LinuxInterop.c; sourceTree = "<group>"; };
 		39EDDC5FDCE23C33D139AEAA /* clangd_owner_policy.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = clangd_owner_policy.h; sourceTree = "<group>"; };
 		3B361A3D1CC6CE60B0C27D12 /* stat.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = stat.h; sourceTree = "<group>"; };
 		3B7F861511365437FF474E8E /* poll.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = poll.c; sourceTree = "<group>"; };
@@ -397,6 +401,7 @@
 		42F56059E1BBD9A6474A584E /* Roots.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Roots.h; sourceTree = "<group>"; };
 		434E79B731FC608DF7DA0F2B /* interrupt.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = interrupt.h; sourceTree = "<group>"; };
 		43B7AE632209C7F8460E97B7 /* calls.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = calls.h; sourceTree = "<group>"; };
+		4546AC0E363369CA9E03885E /* LinuxRoot.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = LinuxRoot.c; sourceTree = "<group>"; };
 		47BCAADCC74D0397C2433CD9 /* PassthroughView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = PassthroughView.m; sourceTree = "<group>"; };
 		49221EC885A4808B10523534 /* rgb.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = rgb.png; sourceTree = "<group>"; };
 		4A161659EBE436443B6A8A8D /* TCTIHostCarrierTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TCTIHostCarrierTests.m; sourceTree = "<group>"; };
@@ -423,6 +428,7 @@
 		5B1A263E99DF04E2183CD5AB /* random.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = random.c; sourceTree = "<group>"; };
 		5B265EB70C50718759C8939A /* SceneDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SceneDelegate.h; sourceTree = "<group>"; };
 		5B47FEBE11BD649BB6682684 /* TerminalViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TerminalViewController.m; sourceTree = "<group>"; };
+		5D55F7BC8E10B65EB78098C4 /* LinuxInterop.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LinuxInterop.h; sourceTree = "<group>"; };
 		5DD6DF9A14627C8C2413E737 /* IXLandLinuxRuntime.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = IXLandLinuxRuntime.h; sourceTree = "<group>"; };
 		5F1E52E7F625BE1C70E12450 /* darwin.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = darwin.c; sourceTree = "<group>"; };
 		5F8F1A234A09E55DBE066430 /* GuestELFLoaderTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GuestELFLoaderTests.m; sourceTree = "<group>"; };
@@ -495,6 +501,7 @@
 		8E865770EE2EBCB4D7DA1C29 /* IXLandLinuxRuntimeContractTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = IXLandLinuxRuntimeContractTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		901D1162C4C7C993CB65245C /* mul */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; name = mul; path = mul.lproj/LaunchScreen.xcstrings; sourceTree = "<group>"; };
 		9071C44F78843BF1F962C5FE /* static_wrong_machine.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = static_wrong_machine.bin; sourceTree = "<group>"; };
+		9225C7278750CBA981A7D9CA /* LinuxTTY.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = LinuxTTY.c; sourceTree = "<group>"; };
 		9260880B995F6DCF3C495BAB /* TCTIDecodeTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TCTIDecodeTests.m; sourceTree = "<group>"; };
 		92C08C746BF95B04C3730337 /* gen.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = gen.h; sourceTree = "<group>"; };
 		933EE1B812B704FE74231B36 /* UIViewController+Extras.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "UIViewController+Extras.m"; sourceTree = "<group>"; };
@@ -1301,7 +1308,11 @@
 				8C7F3B2F81D97B00FCA35891 /* iOSFS.m */,
 				4E218C6EF34F8B4F4E422C55 /* iSH.entitlements */,
 				1DC5E936F6639A333BFE8CF8 /* iSH.xcconfig */,
+				39336A84654B0F70DCA035BA /* LinuxInterop.c */,
+				5D55F7BC8E10B65EB78098C4 /* LinuxInterop.h */,
 				1F4E72109DB368DC76FC0940 /* LinuxPTY.c */,
+				4546AC0E363369CA9E03885E /* LinuxRoot.c */,
+				9225C7278750CBA981A7D9CA /* LinuxTTY.c */,
 				8291F30E37ACDDE208700D54 /* LocationDevice.h */,
 				4D526958EA5CE79135703843 /* LocationDevice.m */,
 				E536189B8FE196208B1A772A /* main.m */,
@@ -1864,7 +1875,10 @@
 				85E3301D9BE97C2E76A39AA8 /* DelayedUITask.m in Sources */,
 				54D36362ADDF1EDE3ADDF20F /* ExceptionExfiltrator.m in Sources */,
 				5E8E598B062322878B2C6234 /* FontPickerViewController.m in Sources */,
+				449FACBB3BE99AEBD2FECA5D /* LinuxInterop.c in Sources */,
 				D3CB15C74BB80E3DCFCFA3DD /* LinuxPTY.c in Sources */,
+				66222EEF4D33EDF8EAE0023F /* LinuxRoot.c in Sources */,
+				E9A6676D462998601875CEE3 /* LinuxTTY.c in Sources */,
 				F2B2E1AC7AF73E1D3BEE4CA4 /* LocationDevice.m in Sources */,
 				A6B563469FA7DB3880AE61F6 /* NSObject+SaneKVO.m in Sources */,
 				A93778A3BA5562FC346A1735 /* PassthroughView.m in Sources */,

@@ -175,11 +175,6 @@ targets:
       - "targets/**"
       - "xcode-ninja.sh"
       - "PasteboardDeviceLinux.c"
-      - "LinuxTTY.c"
-      - "LinuxPTY.c"
-      - "LinuxInterop.c"
-      - "LinuxInterop.h"
-      - "LinuxRoot.c"
     - path: tools
       headerVisibility: project
       includes:

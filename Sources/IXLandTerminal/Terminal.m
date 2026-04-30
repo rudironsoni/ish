@@ -39,6 +39,7 @@ typedef struct tty *tty_t;
 
 @property NSNumber *terminalsKey;
 @property NSUUID *uuid;
+@property (nonatomic) struct linux_tty *linuxTTY;
 
 @end
 
@@ -158,6 +159,14 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
     [self.webView evaluateJavaScript:@"exports.getSize()" completionHandler:^(NSArray<NSNumber *> *dimensions, NSError *error) {
         int cols = dimensions[0].intValue;
         int rows = dimensions[1].intValue;
+        struct linux_tty *linuxTTY = nil;
+        @synchronized (self) {
+            linuxTTY = self.linuxTTY;
+        }
+        if (linuxTTY != NULL) {
+            linuxTTY->ops->resize(linuxTTY, cols, rows);
+            return;
+        }
         if (self.tty == NULL)
             return;
         lock(&self.tty->lock);
@@ -276,9 +285,12 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
 
 - (void)sendInput:(NSData *)input {
     [ISHInstrumentation recordEvent:@"terminal.send_input.enter"];
-    if (self.tty == NULL)
+    struct linux_tty *linuxTTY = nil;
+    @synchronized (self) {
+        linuxTTY = self.linuxTTY;
+    }
+    if (self.tty == NULL && linuxTTY == NULL)
         return;
-    // Capture tty pointer, byte count, first byte
     NSDictionary *inputAttrs = @{
         @"tty_ptr": @((uintptr_t)self.tty),
         @"byte_count": @(input.length),
@@ -286,7 +298,10 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
     };
     uint64_t intervalId = [ISHInstrumentation beginInterval:@"terminal.send_input.data" attributes:inputAttrs];
     [ISHInstrumentation recordEvent:@"terminal.before_tty_input"];
-    tty_input(self.tty, input.bytes, input.length, 0);
+    if (linuxTTY != NULL)
+        linuxTTY->ops->send_input(linuxTTY, input.bytes, input.length);
+    else
+        tty_input(self.tty, input.bytes, input.length, 0);
     [ISHInstrumentation recordEvent:@"terminal.after_tty_input"];
     [ISHInstrumentation endInterval:intervalId attributes:inputAttrs];
     [self.webView evaluateJavaScript:@"exports.setUserGesture()" completionHandler:nil];
@@ -389,14 +404,37 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
     }
 }
 
+void Terminal_setLinuxTTY(nsobj_t _self, struct linux_tty *tty) {
+    Terminal *self = (__bridge Terminal *) _self;
+    @synchronized (self) {
+        self.linuxTTY = tty;
+    }
+}
+
+int Terminal_sendOutput_length(nsobj_t _self, const char *data, int size) {
+    return [(__bridge Terminal *) _self sendOutput:data length:size];
+}
+
+int Terminal_roomForOutput(nsobj_t _self) {
+    Terminal *self = (__bridge Terminal *) _self;
+    lock(&self->_dataLock);
+    int room = BUF_SIZE - (int) self.pendingData.length;
+    unlock(&self->_dataLock);
+    return room;
+}
+
 - (void)destroy {
+    struct linux_tty *linuxTTY = nil;
+    @synchronized (self) {
+        linuxTTY = self.linuxTTY;
+    }
     tty_t tty = self.tty;
-    if (tty != NULL) {
-        if (tty != NULL) {
-            lock(&tty->lock);
-            tty_hangup(tty);
-            unlock(&tty->lock);
-        }
+    if (linuxTTY != NULL)
+        linuxTTY->ops->hangup(linuxTTY);
+    else if (tty != NULL) {
+        lock(&tty->lock);
+        tty_hangup(tty);
+        unlock(&tty->lock);
     }
     @synchronized (Terminal.class) {
         [terminals removeObjectForKey:self.terminalsKey];

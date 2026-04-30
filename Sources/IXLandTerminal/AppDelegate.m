@@ -98,7 +98,7 @@ static __weak AppDelegate *appDelegate;
 - (void)configureDns {
     struct __res_state res;
     if (EXIT_SUCCESS != res_ninit(&res)) {
-        exit(2);
+        return;
     }
     NSMutableString *resolvConf = [NSMutableString new];
     if (res.dnsrch[0] != NULL) {
