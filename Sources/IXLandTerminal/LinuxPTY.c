@@ -8,6 +8,7 @@
 #import "LinuxInterop.h"
 
 #import <IXLandLinuxRuntime/fs/tty.h>
+#import <IXLandLinuxRuntime/kernel/errno.h>
 #import <IXLandLinuxRuntime/util/misc.h>
 
 extern struct tty_driver ios_pty_driver;
@@ -18,6 +19,10 @@ struct tty *ios_pty_open(nsobj_t *terminal_out)
     if (IS_ERR(tty))
         return tty;
 
-    *terminal_out = objc_get((nsobj_t)tty->data);
+    if (!Terminal_bindGuestTTY(tty, terminal_out)) {
+        tty_release(tty);
+        return ERR_PTR(_ENOMEM);
+    }
+
     return tty;
 }

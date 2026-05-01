@@ -14,6 +14,7 @@
 #import <IXLandLinuxRuntime/fs/devices.h>
 #import <IXLandLinuxRuntime/fs/tty.h>
 #import <IXLandLinuxRuntime/fs/devices.h>
+#import <IXLandLinuxRuntime/kernel/errno.h>
 
 extern struct tty_driver ios_pty_driver;
 
@@ -100,7 +101,44 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
     *tty = pty_open_guest_terminal(&ios_pty_driver);
     if (IS_ERR(*tty))
         return nil;
-    return (__bridge Terminal *) (*tty)->data;
+
+    nsobj_t terminalObject = NULL;
+    if (!Terminal_bindGuestTTY(*tty, &terminalObject)) {
+        tty_release(*tty);
+        *tty = ERR_PTR(_ENOMEM);
+        return nil;
+    }
+
+    Terminal *terminal = (__bridge Terminal *)terminalObject;
+    objc_put(terminalObject);
+    return terminal;
+}
+
+bool Terminal_bindGuestTTY(struct tty *tty, nsobj_t *terminal_out) {
+    if (terminal_out != NULL)
+        *terminal_out = NULL;
+    if (tty == NULL || terminal_out == NULL)
+        return false;
+
+    Terminal *terminal = (__bridge Terminal *)tty->data;
+    if (terminal == NULL) {
+        terminal = [Terminal terminalWithType:tty->type number:tty->num];
+        if (terminal == NULL)
+            return false;
+
+        lock(&tty->lock);
+        if (tty->data == NULL) {
+            tty->data = (void *)CFBridgingRetain(terminal);
+            terminal.tty = tty;
+        }
+        unlock(&tty->lock);
+        terminal = (__bridge Terminal *)tty->data;
+    } else {
+        terminal.tty = tty;
+    }
+
+    *terminal_out = objc_get((__bridge nsobj_t)terminal);
+    return *terminal_out != NULL;
 }
 
 - (void)setTty:(tty_t)tty {
@@ -307,6 +345,9 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
                          attributes:[self sessionTraceAttributesWithByteCount:0
                                                                pendingBefore:_pendingData.length]];
 
+    if (!self.loaded || self.ghosttyTerminal == nil)
+        return;
+
     lock(&_dataLock);
     if (_outputInProgress) {
         [self.refreshTask schedule];
@@ -332,9 +373,8 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
     }
 
     IXLandGhosttyHostTerminal *ghostty = self.ghosttyTerminal;
-    if (refreshByteCount > 0 && ghostty != nil) {
+    if (refreshByteCount > 0)
         [ghostty receiveOutput:data];
-    }
 
     lock(&self->_dataLock);
     self->_outputInProgress = NO;

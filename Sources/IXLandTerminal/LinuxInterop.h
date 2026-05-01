@@ -8,6 +8,7 @@
 #ifndef LinuxInterop_h
 #define LinuxInterop_h
 
+#include <stdbool.h>
 #include <sys/types.h>
 
 typedef const void *nsobj_t;
@@ -29,6 +30,7 @@ struct linux_tty_callbacks {
 struct tty;
 
 struct tty *ios_pty_open(nsobj_t *terminal_out);
+bool Terminal_bindGuestTTY(struct tty *tty, nsobj_t *terminal_out);
 
 typedef void (^StartSessionDoneBlock)(int retval, int pid, nsobj_t terminal);
 void linux_start_session(const char *exe, const char *const *argv, const char *envp,
