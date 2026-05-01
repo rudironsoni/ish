@@ -26,6 +26,7 @@ extern const tcti_gadget_t gadget_cbz_wreg[16];
 extern const tcti_gadget_t gadget_cbnz_wreg[16];
 extern const tcti_gadget_t gadget_cbz_xreg[16];
 extern const tcti_gadget_t gadget_cbnz_xreg[16];
+extern const tcti_gadget_t gadget_bcond[16];
 extern tcti_gadget_t gadget_sysreg_unsupported;
 extern tcti_gadget_t gadget_pc_advance;
 extern void gadget_csel_eq_0_1_2(void);
@@ -41,9 +42,13 @@ extern tcti_gadget_t gadget_logical_reg_fallback;
 extern tcti_gadget_t gadget_multiply_add_fallback;
 extern tcti_gadget_t gadget_shift_reg_fallback;
 extern tcti_gadget_t gadget_csel_fallback;
-extern tcti_gadget_t gadget_bcond_fallback;
 extern tcti_gadget_t gadget_ccmp_fallback;
 extern tcti_gadget_t gadget_div_fallback;
+extern tcti_gadget_t gadget_simd_dup_gpr;
+extern tcti_gadget_t gadget_simd_mov_gpr_from_vec;
+extern tcti_gadget_t gadget_simd_ldst;
+extern tcti_gadget_t gadget_atomic_ldst;
+extern tcti_gadget_t gadget_extend_x14;
 
 // Map guest registers 0-15 to our pre-generated gadget tables
 // Registers 16-30 and sp are handled differently (in memory)
@@ -397,13 +402,10 @@ static int emit_ccmp_fallback(a64_gen_state_t *state, int rn, int rm, uint64_t i
     return emit_u64(state, is_64bit ? 1 : 0);
 }
 
-static int emit_bcond_fallback(a64_gen_state_t *state, int cond, uint64_t target_pc,
-                               uint64_t fallthrough_pc)
+static int emit_bcond(a64_gen_state_t *state, int cond, uint64_t target_pc, uint64_t fallthrough_pc)
 {
-    int ret = emit_gadget(state, gadget_bcond_fallback);
-    if (ret != A64_GEN_OK)
-        return ret;
-    ret = emit_u64(state, (uint64_t)(cond & 0xf));
+    int cond_index = cond & 0xf;
+    int ret = emit_gadget(state, gadget_bcond[cond_index]);
     if (ret != A64_GEN_OK)
         return ret;
     ret = emit_u64(state, target_pc);
@@ -1303,30 +1305,14 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr)
                 return ret;
         }
 
-        // Apply extension/shift to second source (in x14, index 13)
-        switch (instr->extend_type) {
-        case A64_EXT_UXTW:
-            ret = emit_gadget(state, gadget_mov_imm[14]);
-            if (ret != A64_GEN_OK)
-                return ret;
-            ret = emit_u64(state, 0xffffffffULL);
-            if (ret != A64_GEN_OK)
-                return ret;
-            ret = emit_gadget(state, gadget_and_reg[13][13][14]);
-            if (ret != A64_GEN_OK)
-                return ret;
-            break;
+        ret = emit_gadget(state, gadget_extend_x14);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->extend_type);
+        if (ret != A64_GEN_OK)
+            return ret;
 
-        case A64_EXT_UXTX:
-        case A64_EXT_LSL:
-            // LSL requires shift amount applied below
-            break;
-
-        default:
-            return A64_GEN_UNSUPPORTED;
-        }
-
-        // Apply shift to second source (x14, index 13)
+        // Apply shift to second source (x14, index 13).
         for (int i = 0; i < instr->imm_shift; i++) {
             ret = emit_gadget(state, gadget_add_reg[13][13][13]);
             if (ret != A64_GEN_OK)
@@ -1464,8 +1450,7 @@ int a64_gen_branch(a64_gen_state_t *state, const a64_instr_t *instr)
         return A64_GEN_OK;
 
     case A64_BRANCH_COND:
-        ret = emit_bcond_fallback(state, instr->cond, state->guest_pc + instr->imm,
-                                  state->guest_pc + 4);
+        ret = emit_bcond(state, instr->cond, state->guest_pc + instr->imm, state->guest_pc + 4);
         if (ret != A64_GEN_OK)
             return ret;
         state->is_complete = 1;
@@ -1703,10 +1688,72 @@ static int a64_emit_base_writeback(a64_gen_state_t *state, int rn, int64_t imm)
     return emit_gadget(state, gadget_add_reg[rn][rn][13]);
 }
 
+static int a64_emit_simd_ldst(a64_gen_state_t *state, const a64_instr_t *instr)
+{
+    int ret = emit_gadget(state, gadget_simd_ldst);
+    if (ret != A64_GEN_OK)
+        return ret;
+
+    ret = emit_u64(state, state->guest_pc);
+    if (ret != A64_GEN_OK)
+        return ret;
+    ret = emit_u64(state, instr->Rd);
+    if (ret != A64_GEN_OK)
+        return ret;
+    ret = emit_u64(state, instr->Rm);
+    if (ret != A64_GEN_OK)
+        return ret;
+    ret = emit_u64(state, instr->Rn);
+    if (ret != A64_GEN_OK)
+        return ret;
+    ret = emit_u64(state, instr->is_pair ? instr->pair_offset : instr->imm);
+    if (ret != A64_GEN_OK)
+        return ret;
+    ret = emit_u64(state, instr->vec_bytes);
+    if (ret != A64_GEN_OK)
+        return ret;
+    ret = emit_u64(state, instr->idx_mode);
+    if (ret != A64_GEN_OK)
+        return ret;
+    ret = emit_u64(state, instr->is_pair ? 1 : 0);
+    if (ret != A64_GEN_OK)
+        return ret;
+    return emit_u64(state, instr->is_pair ? bit(instr->raw, 22) : a64_ldst_raw_is_load(instr->raw));
+}
+
 int a64_gen_ldst(a64_gen_state_t *state, const a64_instr_t *instr)
 {
-    if (instr->is_vector || instr->subtype == A64_LDST_LITERAL ||
-        instr->subtype == A64_LDST_ATOMIC) {
+    if (instr->is_vector) {
+        if ((instr->subtype == A64_LDST_SINGLE || instr->subtype == A64_LDST_PAIR) &&
+            instr->vec_bytes > 0) {
+            return a64_emit_simd_ldst(state, instr);
+        }
+        return A64_GEN_UNSUPPORTED;
+    }
+
+    if (instr->subtype == A64_LDST_ATOMIC) {
+        int ret = emit_gadget(state, gadget_atomic_ldst);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, state->guest_pc);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rd);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rn);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rm);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->size);
+        if (ret != A64_GEN_OK)
+            return ret;
+        return emit_u64(state, bit(instr->raw, 22));
+    }
+
+    if (instr->subtype == A64_LDST_LITERAL) {
         return A64_GEN_UNSUPPORTED;
     }
 
@@ -1767,6 +1814,46 @@ int a64_gen_ldst(a64_gen_state_t *state, const a64_instr_t *instr)
 
     // Single load/store helpers own pre/post-index writeback internally.
     return A64_GEN_OK;
+}
+
+static int a64_gen_simd(a64_gen_state_t *state, const a64_instr_t *instr)
+{
+    int ret;
+
+    switch (instr->subtype) {
+    case A64_SIMD_DUP_GPR:
+        ret = emit_gadget(state, gadget_simd_dup_gpr);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rd);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rn);
+        if (ret != A64_GEN_OK)
+            return ret;
+        return emit_u64(state, instr->vec_bytes);
+
+    case A64_SIMD_MOV_GPR_FROM_VEC:
+        ret = emit_gadget(state, gadget_simd_mov_gpr_from_vec);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rd);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rn);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->vec_bytes);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->vec_index);
+        if (ret != A64_GEN_OK)
+            return ret;
+        return emit_u64(state, instr->is_64bit ? 1 : 0);
+
+    default:
+        return A64_GEN_UNSUPPORTED;
+    }
 }
 
 /* ============================================================================
@@ -1880,6 +1967,11 @@ int a64_gen_instruction(a64_gen_state_t *state, uint32_t insn, uint64_t pc)
         ret = a64_gen_ldst(state, &decoded);
         break;
 
+    case A64_SIMD:
+    case A64_SIMD2:
+        ret = a64_gen_simd(state, &decoded);
+        break;
+
     default:
         ret = A64_GEN_UNSUPPORTED;
     }
@@ -1892,15 +1984,6 @@ int a64_gen_instruction(a64_gen_state_t *state, uint32_t insn, uint64_t pc)
         // so block finalization end_pc does not imply fallthrough sequencing.
         if ((decoded.cat == A64_BRANCH || decoded.cat == A64_BRANCH2) &&
             decoded.subtype != A64_EXCEPTION && decoded.subtype != 6) {
-            state->is_complete = 1;
-        }
-
-        // Single-register load/store pre/post-index forms also perform an
-        // architecturally visible base writeback inside helper/gadget path.
-        // Keep these instructions as terminal within a translated block to
-        // avoid stale fallthrough assumptions around the updated base register.
-        if (decoded.cat == A64_LD_ST && decoded.subtype == A64_LDST_SINGLE &&
-            (decoded.idx_mode == A64_PRE_INDEX || decoded.idx_mode == A64_POST_INDEX)) {
             state->is_complete = 1;
         }
 

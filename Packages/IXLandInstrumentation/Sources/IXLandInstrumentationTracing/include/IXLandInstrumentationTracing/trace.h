@@ -59,7 +59,7 @@ bool trace_should_emit_event(const char *event_name);
 
 /*
  * Set the trace level from a stable textual policy value.
- * Accepted values: off, info, boundary, debug, instr, debug_all.
+ * Accepted values: off, info, boundary, debug.
  */
 void trace_config_set_level_from_string(const char *value);
 

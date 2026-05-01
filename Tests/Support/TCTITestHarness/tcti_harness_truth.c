@@ -1,11 +1,15 @@
 #include "tcti_harness_truth.h"
 
+#include <IXLandLinuxRuntime/emu/aarch64/cpu.h>
+
 #include <string.h>
 
 typedef void (*tcti_gadget_t)(void);
 
 extern const tcti_gadget_t gadget_add_reg[16][16][16];
 extern const tcti_gadget_t gadget_mov_reg[16][16];
+extern const tcti_gadget_t gadget_bcond[16];
+extern void tcti_entry_block(void **gadgets, struct cpu_state *cpu);
 
 void tcti_harness_single_gadget_snapshot(void (*gadget)(void), const uint64_t *in_regs,
                                          uint64_t *out_regs);
@@ -136,4 +140,38 @@ int tcti_harness_case_mov_2_7(tcti_harness_snapshot_t *snapshot)
     return snapshot->out_regs[2] == 0x123456789ABCDEF0ULL &&
            snapshot->out_regs[7] == 0x123456789ABCDEF0ULL &&
            snapshot->out_regs[0] == 0x4444444444444444ULL;
+}
+
+uint64_t tcti_harness_case_entry_restores_pstate_for_bcond_ne(void)
+{
+    enum {
+        A64_COND_NE = 1,
+    };
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.pstate = 0; // Z clear, so B.NE must take the target path.
+
+    void *gadgets[] = {
+        (void *)gadget_bcond[A64_COND_NE],
+        (void *)0x2000,
+        (void *)0x1004,
+    };
+
+    /*
+     * Force host NZCV to Z=1 immediately before entering TCTI. The branch
+     * result must still follow cpu.pstate (Z=0), proving block entry restores
+     * guest flags after returning from C/syscall/fault handling.
+     */
+    __asm__ volatile("cmp xzr, xzr\n\t"
+                     "mov x0, %[gadgets]\n\t"
+                     "mov x1, %[cpu]\n\t"
+                     "bl _tcti_entry_block\n\t"
+                     :
+                     : [gadgets] "r"(gadgets), [cpu] "r"(&cpu)
+                     : "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9",
+                       "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x30",
+                       "cc", "memory");
+
+    return cpu.pc;
 }

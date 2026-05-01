@@ -36,6 +36,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 // ============================================================================
 // TCTI Helper Function Declarations
@@ -242,6 +243,153 @@ static uint64_t tcti_read_reg_or_zr(struct cpu_state *cpu, int reg)
     return cpu->x[reg];
 }
 
+static int tcti_simd_vec_access(struct cpu_state *cpu, uint64_t addr, uint64_t vt,
+                                uint64_t vec_bytes, int is_load)
+{
+    if (vt >= 32 || (vec_bytes != 1 && vec_bytes != 2 && vec_bytes != 4 &&
+                     vec_bytes != 8 && vec_bytes != 16)) {
+        return TCTI_EXIT_FAULT;
+    }
+
+    if (vec_bytes <= 8) {
+        if (is_load)
+            return a64_guest_read(cpu, cpu->tlb, addr, cpu->vregs[vt].b, (int)vec_bytes) ==
+                           A64_MEM_OK
+                       ? TCTI_EXIT_NORMAL
+                       : TCTI_EXIT_FAULT;
+        return a64_guest_write(cpu, cpu->tlb, addr, cpu->vregs[vt].b, (int)vec_bytes) ==
+                       A64_MEM_OK
+                   ? TCTI_EXIT_NORMAL
+                   : TCTI_EXIT_FAULT;
+    }
+
+    if (is_load) {
+        if (a64_guest_read64(cpu, cpu->tlb, addr, &cpu->vregs[vt].d[0]) != A64_MEM_OK)
+            return TCTI_EXIT_FAULT;
+        if (a64_guest_read64(cpu, cpu->tlb, addr + 8, &cpu->vregs[vt].d[1]) != A64_MEM_OK)
+            return TCTI_EXIT_FAULT;
+        return TCTI_EXIT_NORMAL;
+    }
+
+    if (a64_guest_write64(cpu, cpu->tlb, addr, cpu->vregs[vt].d[0]) != A64_MEM_OK)
+        return TCTI_EXIT_FAULT;
+    if (a64_guest_write64(cpu, cpu->tlb, addr + 8, cpu->vregs[vt].d[1]) != A64_MEM_OK)
+        return TCTI_EXIT_FAULT;
+    return TCTI_EXIT_NORMAL;
+}
+
+__attribute__((used)) static void tcti_simd_dup_gpr_helper(struct cpu_state *cpu, uint64_t vd,
+                                                          uint64_t rn,
+                                                          uint64_t vec_bytes)
+{
+    uint64_t value = tcti_read_reg_or_zr(cpu, (int)rn);
+    if (vd >= 32)
+        return;
+
+    switch (vec_bytes) {
+    case 1: {
+        uint8_t byte = (uint8_t)value;
+        memset(cpu->vregs[vd].b, byte, sizeof(cpu->vregs[vd].b));
+        break;
+    }
+    case 2:
+        for (int i = 0; i < 8; i++)
+            cpu->vregs[vd].h[i] = (uint16_t)value;
+        break;
+    case 4:
+        for (int i = 0; i < 4; i++)
+            cpu->vregs[vd].s[i] = (uint32_t)value;
+        break;
+    case 8:
+        for (int i = 0; i < 2; i++)
+            cpu->vregs[vd].d[i] = value;
+        break;
+    default:
+        break;
+    }
+}
+
+__attribute__((used)) static void tcti_simd_mov_gpr_from_vec_helper(struct cpu_state *cpu,
+                                                                   uint64_t rd,
+                                                                   uint64_t vn,
+                                                                   uint64_t vec_bytes,
+                                                                   uint64_t vec_index,
+                                                                   uint64_t is_64bit)
+{
+    uint64_t value = 0;
+
+    if (rd >= 31 || vn >= 32)
+        return;
+
+    switch (vec_bytes) {
+    case 1:
+        if (vec_index < 16)
+            value = cpu->vregs[vn].b[vec_index];
+        break;
+    case 2:
+        if (vec_index < 8)
+            value = cpu->vregs[vn].h[vec_index];
+        break;
+    case 4:
+        if (vec_index < 4)
+            value = cpu->vregs[vn].s[vec_index];
+        break;
+    case 8:
+        if (vec_index < 2)
+            value = cpu->vregs[vn].d[vec_index];
+        break;
+    default:
+        break;
+    }
+
+    cpu->x[rd] = is_64bit ? value : (uint32_t)value;
+}
+
+__attribute__((used)) static int tcti_simd_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc,
+                                                      uint64_t rt, uint64_t rt2,
+                                                      uint64_t rn, int64_t imm,
+                                                      uint64_t vec_bytes,
+                                                      uint64_t idx_mode,
+                                                      uint64_t is_pair,
+                                                      uint64_t is_load)
+{
+    uint64_t base = tcti_read_base_reg_or_sp(cpu, (int)rn);
+    uint64_t addr = base + (uint64_t)imm;
+    int ret;
+
+    if (idx_mode == A64_POST_INDEX) {
+        addr = base;
+    } else if (idx_mode == A64_PRE_INDEX) {
+        base += (uint64_t)imm;
+        addr = base;
+    }
+
+    ret = tcti_simd_vec_access(cpu, addr, rt, vec_bytes, (int)is_load);
+    if (ret != TCTI_EXIT_NORMAL)
+        goto fault;
+
+    if (is_pair) {
+        ret = tcti_simd_vec_access(cpu, addr + vec_bytes, rt2, vec_bytes, (int)is_load);
+        if (ret != TCTI_EXIT_NORMAL)
+            goto fault;
+    }
+
+    if (idx_mode == A64_PRE_INDEX || idx_mode == A64_POST_INDEX) {
+        uint64_t writeback = idx_mode == A64_POST_INDEX ? base + (uint64_t)imm : base;
+        if (rn == 31)
+            cpu->sp = writeback;
+        else if (rn < 31)
+            cpu->x[rn] = writeback;
+    }
+
+    return TCTI_EXIT_NORMAL;
+
+fault:
+    cpu->pc = fault_pc;
+    cpu->fault_was_write = !is_load;
+    return TCTI_EXIT_FAULT;
+}
+
 static int a64_tcti_mrs_helper(struct cpu_state *cpu, uint64_t sysreg, uint64_t rd)
 {
     return a64_sysreg_read(cpu, (uint16_t)sysreg, rd);
@@ -356,10 +504,18 @@ static const char *get_ldst_mnemonic(int is_load, int size, int is_signed)
 static const char *get_ldst_extend_name(int extend_type)
 {
     switch (extend_type) {
+    case A64_EXT_UXTB:
+        return "uxtb";
+    case A64_EXT_UXTH:
+        return "uxth";
     case A64_EXT_UXTW:
         return "uxtw";
     case A64_EXT_UXTX:
         return "uxtx";
+    case A64_EXT_SXTB:
+        return "sxtb";
+    case A64_EXT_SXTH:
+        return "sxth";
     case A64_EXT_SXTW:
         return "sxtw";
     case A64_EXT_SXTX:
@@ -603,13 +759,96 @@ static void tcti_write_reg_or_zr(struct cpu_state *cpu, int reg, uint64_t value,
     cpu->x[reg] = masked;
 }
 
+static int tcti_atomic_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64_t rt,
+                                   uint64_t rn, uint64_t rs, uint64_t size, uint64_t is_load)
+{
+    uint64_t addr = tcti_read_base_reg_or_sp(cpu, (int)rn);
+    int ret = A64_MEM_FAULT;
+
+    if (is_load) {
+        switch (size) {
+        case A64_SIZE_B: {
+            uint8_t value = 0;
+            ret = a64_guest_ldxr8(cpu, cpu->tlb, addr, &value);
+            if (ret == A64_MEM_OK)
+                tcti_write_reg_or_zr(cpu, (int)rt, value, 0);
+            break;
+        }
+        case A64_SIZE_H: {
+            uint16_t value = 0;
+            ret = a64_guest_ldxr16(cpu, cpu->tlb, addr, &value);
+            if (ret == A64_MEM_OK)
+                tcti_write_reg_or_zr(cpu, (int)rt, value, 0);
+            break;
+        }
+        case A64_SIZE_W: {
+            uint32_t value = 0;
+            ret = a64_guest_ldxr32(cpu, cpu->tlb, addr, &value);
+            if (ret == A64_MEM_OK)
+                tcti_write_reg_or_zr(cpu, (int)rt, value, 0);
+            break;
+        }
+        case A64_SIZE_X: {
+            uint64_t value = 0;
+            ret = a64_guest_ldxr64(cpu, cpu->tlb, addr, &value);
+            if (ret == A64_MEM_OK)
+                tcti_write_reg_or_zr(cpu, (int)rt, value, 1);
+            break;
+        }
+        default:
+            ret = A64_MEM_FAULT;
+            break;
+        }
+    } else {
+        uint64_t value = tcti_read_reg_or_zr(cpu, (int)rt);
+        int success = 0;
+
+        switch (size) {
+        case A64_SIZE_B:
+            ret = a64_guest_stxr8(cpu, cpu->tlb, addr, (uint8_t)value, &success);
+            break;
+        case A64_SIZE_H:
+            ret = a64_guest_stxr16(cpu, cpu->tlb, addr, (uint16_t)value, &success);
+            break;
+        case A64_SIZE_W:
+            ret = a64_guest_stxr32(cpu, cpu->tlb, addr, (uint32_t)value, &success);
+            break;
+        case A64_SIZE_X:
+            ret = a64_guest_stxr64(cpu, cpu->tlb, addr, value, &success);
+            break;
+        default:
+            ret = A64_MEM_FAULT;
+            break;
+        }
+
+        if (ret == A64_MEM_OK)
+            tcti_write_reg_or_zr(cpu, (int)rs, success ? 0 : 1, 0);
+    }
+
+    if (ret == A64_MEM_OK)
+        return TCTI_EXIT_NORMAL;
+
+    cpu->pc = fault_pc;
+    cpu->fault_addr = addr;
+    cpu->fault_was_write = !is_load;
+    return TCTI_EXIT_FAULT;
+}
+
 static uint64_t tcti_extend_ldst_offset(struct cpu_state *cpu, int rm, int extend_type)
 {
     uint64_t value = tcti_read_reg_or_zr(cpu, rm);
 
     switch (extend_type) {
+    case A64_EXT_UXTB:
+        return (uint8_t)value;
+    case A64_EXT_UXTH:
+        return (uint16_t)value;
     case A64_EXT_UXTW:
         return (uint32_t)value;
+    case A64_EXT_SXTB:
+        return (uint64_t)(int64_t)(int8_t)value;
+    case A64_EXT_SXTH:
+        return (uint64_t)(int64_t)(int16_t)value;
     case A64_EXT_SXTW:
         return (uint64_t)(int64_t)(int32_t)value;
     case A64_EXT_SXTX:
@@ -2064,101 +2303,23 @@ tcti_gadget_t gadget_b = gadget_b_impl;
 #define GEN_BCOND(name, cond)                                                                      \
     __attribute__((naked)) void gadget_bcond_##name##_impl(void)                                   \
     {                                                                                              \
-        asm volatile("ldr x16, [x28], #8\n\t"                                                      \
-                     "ldr x17, [x28], #8\n\t"                                                      \
-                     "ldr x15, [x29, #280]\n\t"                                                    \
-                     "msr nzcv, x15\n\t"                                                           \
+        asm volatile("ldr x24, [x28], #8\n\t"                                                      \
+                     "ldr x25, [x28], #8\n\t"                                                      \
+                     "ldr x26, [x29, #280]\n\t"                                                    \
+                     "msr nzcv, x26\n\t"                                                           \
                      "b." #cond " 1f\n\t"                                                          \
-                     "mov x16, x17\n\t"                                                            \
+                     "mov x24, x25\n\t"                                                            \
                      "1:\n\t"                                                                      \
-                     "str x16, [x29, %[pc_off]]\n\t"                                               \
+                     "str x24, [x29, %[pc_off]]\n\t"                                               \
                      "mov x0, #0\n\t"                                                              \
                      "b _tcti_exit_block\n\t"                                                      \
                      :                                                                             \
                      : [pc_off] "i"(PC_OFFSET)                                                     \
-                     : "x15");                                                                     \
+                     : "x24", "x25", "x26");                                                      \
     }
 
 GEN_BCOND(eq, eq);
-
-struct tcti_bcond_ne_probe {
-    uint64_t branch_site_pc;
-    uint64_t target_pc;
-    uint64_t fallthrough_pc;
-    uint64_t x15_loaded;
-    uint64_t x25_after_mrs;
-    uint64_t x14_after_and;
-    uint64_t x14_after_and_mirror;
-    uint64_t path_marker;
-    uint64_t path_pc;
-    uint64_t branch_path_result;
-    uint8_t captured;
-};
-
-struct tcti_bcond_ne_probe tcti_bcond_ne_probe = { 0 };
-
-// B.NE gadget
-__attribute__((naked)) void gadget_bcond_ne_impl(void)
-{
-    asm volatile(
-        "ldr x16, [x28], #8\n\t" // Load target PC
-        "ldr x17, [x28], #8\n\t" // Load fallthrough PC
-        "adrp x26, _tcti_bcond_ne_probe@PAGE\n\t"
-        "add x26, x26, _tcti_bcond_ne_probe@PAGEOFF\n\t"
-        "sub x27, x17, #4\n\t"
-        "str x27, [x26, %[branch_site_off]]\n\t"
-        "str x16, [x26, %[target_off]]\n\t"
-        "str x17, [x26, %[fallthrough_off]]\n\t"
-        "ldr x15, [x29, #280]\n\t" // Load NZCV from cpu->pstate
-        "str x15, [x26, %[x15_off]]\n\t"
-        "msr nzcv, x15\n\t" // Restore NZCV
-        "mrs x25, nzcv\n\t"
-        "str x25, [x26, %[x25_off]]\n\t"
-        "and x14, x25, #0x20000000\n\t"
-        "str x14, [x26, %[x14_and_off]]\n\t"
-        "str x14, [x26, %[x14_and_mirror_off]]\n\t"
-        "cbz x14, 1f\n\t" // Branch when equality bit is clear (NE)
-        "movz x27, #0x1111\n\t"
-        "movk x27, #0x1111, lsl #16\n\t"
-        "movk x27, #0x1111, lsl #32\n\t"
-        "movk x27, #0x1111, lsl #48\n\t"
-        "str x27, [x26, %[path_marker_off]]\n\t"
-        "str x17, [x26, %[path_pc_off]]\n\t"
-        "mov x27, #0\n\t"
-        "str x27, [x26, %[branch_result_off]]\n\t"
-        "mov x16, x17\n\t" // Use fallthrough PC (equal case)
-        "b 2f\n\t"
-        "1:\n\t"
-        "movz x27, #0x2222\n\t"
-        "movk x27, #0x2222, lsl #16\n\t"
-        "movk x27, #0x2222, lsl #32\n\t"
-        "movk x27, #0x2222, lsl #48\n\t"
-        "str x27, [x26, %[path_marker_off]]\n\t"
-        "str x16, [x26, %[path_pc_off]]\n\t"
-        "mov x27, #1\n\t"
-        "str x27, [x26, %[branch_result_off]]\n\t"
-        "2:\n\t"
-        "mov w25, #1\n\t"
-        "strb w25, [x26, %[captured_off]]\n\t"
-        "str x16, [x29, %[pc_off]]\n\t" // Store to cpu->pc
-        "mov x0, #0\n\t"
-        "b _tcti_exit_block\n\t"
-        :
-        : [pc_off] "i"(PC_OFFSET),
-          [branch_site_off] "i"(offsetof(struct tcti_bcond_ne_probe, branch_site_pc)),
-          [target_off] "i"(offsetof(struct tcti_bcond_ne_probe, target_pc)),
-          [fallthrough_off] "i"(offsetof(struct tcti_bcond_ne_probe, fallthrough_pc)),
-          [x15_off] "i"(offsetof(struct tcti_bcond_ne_probe, x15_loaded)),
-          [x25_off] "i"(offsetof(struct tcti_bcond_ne_probe, x25_after_mrs)),
-          [x14_and_off] "i"(offsetof(struct tcti_bcond_ne_probe, x14_after_and)),
-          [x14_and_mirror_off] "i"(offsetof(struct tcti_bcond_ne_probe, x14_after_and_mirror)),
-          [path_marker_off] "i"(offsetof(struct tcti_bcond_ne_probe, path_marker)),
-          [path_pc_off] "i"(offsetof(struct tcti_bcond_ne_probe, path_pc)),
-          [branch_result_off] "i"(offsetof(struct tcti_bcond_ne_probe, branch_path_result)),
-          [captured_off] "i"(offsetof(struct tcti_bcond_ne_probe, captured))
-        : "x14", "x15", "x16", "x17", "x25", "x26", "x27");
-}
-
+GEN_BCOND(ne, ne);
 GEN_BCOND(cs, cs);
 GEN_BCOND(cc, cc);
 GEN_BCOND(mi, mi);
@@ -4006,7 +4167,7 @@ __attribute__((naked)) void gadget_ldr_x_impl(void)
         // =========================================================================
         // GADGET ENTRY TRACING - Spill-First Boundary Instrumentation
         // =========================================================================
-        // Capture exact values at gadget entry for forensic analysis of:
+        // Capture exact values at gadget entry for runtime analysis of:
         //   1. x28 (bytecode pointer) - shows where we are in the gadget stream
         //   2. Fault address calculation - shows which address we're about to access
         //
@@ -4653,6 +4814,231 @@ __attribute__((naked)) void gadget_str_x_impl(void)
 }
 
 tcti_gadget_t gadget_str_x = gadget_str_x_impl;
+
+__attribute__((naked)) void gadget_simd_dup_gpr_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t"
+                 "ldr x20, [x28], #8\n\t"
+                 "ldr x21, [x28], #8\n\t"
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "stp x13, x14, [x29, #112]\n\t"
+                 "stp x15, x16, [x29, #128]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "mov x2, x20\n\t"
+                 "mov x3, x21\n\t"
+                 "bl _tcti_simd_dup_gpr_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
+tcti_gadget_t gadget_simd_dup_gpr = gadget_simd_dup_gpr_impl;
+
+__attribute__((visibility("default"))) void _tcti_simd_dup_gpr_helper(struct cpu_state *cpu,
+                                                                       uint64_t vd,
+                                                                       uint64_t rn,
+                                                                       uint64_t vec_bytes)
+{
+    tcti_simd_dup_gpr_helper(cpu, vd, rn, vec_bytes);
+}
+
+__attribute__((naked)) void gadget_simd_mov_gpr_from_vec_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t"
+                 "ldr x20, [x28], #8\n\t"
+                 "ldr x21, [x28], #8\n\t"
+                 "ldr x22, [x28], #8\n\t"
+                 "ldr x23, [x28], #8\n\t"
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "stp x13, x14, [x29, #112]\n\t"
+                 "stp x15, x16, [x29, #128]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "mov x2, x20\n\t"
+                 "mov x3, x21\n\t"
+                 "mov x4, x22\n\t"
+                 "mov x5, x23\n\t"
+                 "bl _tcti_simd_mov_gpr_from_vec_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "cmp x19, #16\n\t"
+                 "b.hs 1f\n\t"
+                 "mov x26, x19\n\t"
+                 "bl _tcti_sync_hot_reg_from_cpu\n\t"
+                 "1:\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
+tcti_gadget_t gadget_simd_mov_gpr_from_vec = gadget_simd_mov_gpr_from_vec_impl;
+
+__attribute__((visibility("default"))) void
+_tcti_simd_mov_gpr_from_vec_helper(struct cpu_state *cpu, uint64_t rd, uint64_t vn,
+                                   uint64_t vec_bytes, uint64_t vec_index,
+                                   uint64_t is_64bit)
+{
+    tcti_simd_mov_gpr_from_vec_helper(cpu, rd, vn, vec_bytes, vec_index, is_64bit);
+}
+
+__attribute__((naked)) void gadget_atomic_ldst_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t"
+                 "ldr x20, [x28], #8\n\t"
+                 "ldr x21, [x28], #8\n\t"
+                 "ldr x22, [x28], #8\n\t"
+                 "ldr x23, [x28], #8\n\t"
+                 "ldr x24, [x28], #8\n\t"
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "stp x13, x14, [x29, #112]\n\t"
+                 "stp x15, x16, [x29, #128]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "mov x2, x20\n\t"
+                 "mov x3, x21\n\t"
+                 "mov x4, x22\n\t"
+                 "mov x5, x23\n\t"
+                 "mov x6, x24\n\t"
+                 "bl _tcti_atomic_ldst_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "cmp x0, #0\n\t"
+                 "b.ne 3f\n\t"
+                 "cmp x20, #16\n\t"
+                 "b.hs 1f\n\t"
+                 "mov x26, x20\n\t"
+                 "bl _tcti_sync_hot_reg_from_cpu\n\t"
+                 "1:\n\t"
+                 "cmp x22, #16\n\t"
+                 "b.hs 2f\n\t"
+                 "mov x26, x22\n\t"
+                 "bl _tcti_sync_hot_reg_from_cpu\n\t"
+                 "2:\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t"
+                 "3:\n\t"
+                 "b _tcti_exit_block\n\t");
+}
+
+tcti_gadget_t gadget_atomic_ldst = gadget_atomic_ldst_impl;
+
+__attribute__((visibility("default"))) int _tcti_atomic_ldst_helper(
+    struct cpu_state *cpu, uint64_t fault_pc, uint64_t rt, uint64_t rn, uint64_t rs,
+    uint64_t size, uint64_t is_load)
+{
+    return tcti_atomic_ldst_helper(cpu, fault_pc, rt, rn, rs, size, is_load);
+}
+
+__attribute__((naked)) void gadget_simd_ldst_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t"
+                 "ldr x20, [x28], #8\n\t"
+                 "ldr x21, [x28], #8\n\t"
+                 "ldr x22, [x28], #8\n\t"
+                 "ldr x23, [x28], #8\n\t"
+                 "ldr x24, [x28], #8\n\t"
+                 "ldr x25, [x28], #8\n\t"
+                 "ldr x26, [x28], #8\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "stp x13, x14, [x29, #112]\n\t"
+                 "stp x15, x16, [x29, #128]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "mov x2, x20\n\t"
+                 "mov x3, x21\n\t"
+                 "mov x4, x22\n\t"
+                 "mov x5, x23\n\t"
+                 "mov x6, x24\n\t"
+                 "mov x7, x25\n\t"
+                 "stp x26, x27, [sp, #-16]!\n\t"
+                 "bl _tcti_simd_ldst_helper\n\t"
+                 "add sp, sp, #16\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "cmp x0, #0\n\t"
+                 "b.ne 2f\n\t"
+                 "cmp x22, #16\n\t"
+                 "b.hs 1f\n\t"
+                 "mov x26, x22\n\t"
+                 "bl _tcti_sync_hot_reg_from_cpu\n\t"
+                 "1:\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t"
+                 "2:\n\t"
+                 "b _tcti_exit_block\n\t");
+}
+
+tcti_gadget_t gadget_simd_ldst = gadget_simd_ldst_impl;
+
+__attribute__((visibility("default"))) int _tcti_simd_ldst_helper(
+    struct cpu_state *cpu, uint64_t fault_pc, uint64_t rt, uint64_t rt2, uint64_t rn,
+    int64_t imm, uint64_t vec_bytes, uint64_t idx_mode, uint64_t is_pair, uint64_t is_load)
+{
+    return tcti_simd_ldst_helper(cpu, fault_pc, rt, rt2, rn, imm, vec_bytes, idx_mode, is_pair,
+                                 is_load);
+}
+
+__attribute__((naked)) void gadget_extend_x14_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t"
+                 "cmp x19, #5\n\t"
+                 "b.eq 1f\n\t"
+                 "cmp x19, #6\n\t"
+                 "b.eq 2f\n\t"
+                 "cmp x19, #0\n\t"
+                 "b.eq 3f\n\t"
+                 "cmp x19, #7\n\t"
+                 "b.eq 4f\n\t"
+                 "cmp x19, #8\n\t"
+                 "b.eq 5f\n\t"
+                 "cmp x19, #2\n\t"
+                 "b.eq 6f\n\t"
+                 "b 7f\n\t"
+                 "1:\n\t"
+                 "and x14, x14, #0xff\n\t"
+                 "b 7f\n\t"
+                 "2:\n\t"
+                 "and x14, x14, #0xffff\n\t"
+                 "b 7f\n\t"
+                 "3:\n\t"
+                 "uxtw x14, w14\n\t"
+                 "b 7f\n\t"
+                 "4:\n\t"
+                 "sxtb x14, w14\n\t"
+                 "b 7f\n\t"
+                 "5:\n\t"
+                 "sxth x14, w14\n\t"
+                 "b 7f\n\t"
+                 "6:\n\t"
+                 "sxtw x14, w14\n\t"
+                 "7:\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
+tcti_gadget_t gadget_extend_x14 = gadget_extend_x14_impl;
 
 __attribute__((naked)) void gadget_nop_impl(void)
 {

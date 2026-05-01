@@ -25,6 +25,7 @@ void tcti_harness_run_snapshot(void (*gadget)(void),
 int tcti_harness_case_add_7_13_14(tcti_harness_snapshot_t *snapshot);
 int tcti_harness_case_add_0_1_2(tcti_harness_snapshot_t *snapshot);
 int tcti_harness_case_mov_2_7(tcti_harness_snapshot_t *snapshot);
+uint64_t tcti_harness_case_entry_restores_pstate_for_bcond_ne(void);
 
 #ifdef __cplusplus
 }

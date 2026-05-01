@@ -46,11 +46,7 @@ typedef enum {
     TRACE_LEVEL_SUMMARY = 1,
     TRACE_LEVEL_INFO = 1,
     TRACE_LEVEL_BOUNDARY = 2,
-    TRACE_LEVEL_BLOCK = 3,
     TRACE_LEVEL_DEBUG = 3,
-    TRACE_LEVEL_INSTR = 4,
-    TRACE_LEVEL_FORENSIC = 5,
-    TRACE_LEVEL_DEBUG_ALL = 5,
 } trace_level_t;
 
 /* ============================================

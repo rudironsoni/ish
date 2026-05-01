@@ -28,6 +28,12 @@
                   @"ADD X7, X13, X14 must update only the destination hot carrier");
 }
 
+- (void)testSemanticExecutionContract_BlockEntryRestoresGuestPStateForConditionalBranch
+{
+    XCTAssertEqual(tcti_harness_case_entry_restores_pstate_for_bcond_ne(), 0x2000ULL,
+                   @"TCTI block entry must restore guest NZCV from cpu->pstate before B.cond");
+}
+
 - (void)testSemanticExecutionContract_ADDImmProducesCorrectResult
 {
     // Contract: ADD_IMM gadget MUST produce correct sum with immediate

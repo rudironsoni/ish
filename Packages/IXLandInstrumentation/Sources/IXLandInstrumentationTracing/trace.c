@@ -56,15 +56,15 @@ typedef struct {
 } trace_level_rule_t;
 
 static const trace_level_rule_t g_trace_level_rules[] = {
-    { "task.proof.", TRACE_LEVEL_DEBUG_ALL },
-    { "boot.generic_openat.", TRACE_LEVEL_DEBUG_ALL },
-    { "boot.mount_find.", TRACE_LEVEL_DEBUG_ALL },
-    { "boot.construct_task.", TRACE_LEVEL_DEBUG_ALL },
-    { "tcti.block.", TRACE_LEVEL_DEBUG_ALL },
-    { "tcti.compile.instruction", TRACE_LEVEL_DEBUG_ALL },
-    { "gadget.", TRACE_LEVEL_DEBUG_ALL },
-    { "mem.translate.", TRACE_LEVEL_DEBUG_ALL },
-    { "mem.pgdir.", TRACE_LEVEL_DEBUG_ALL },
+    { "task.proof.", TRACE_LEVEL_DEBUG },
+    { "boot.generic_openat.", TRACE_LEVEL_DEBUG },
+    { "boot.mount_find.", TRACE_LEVEL_DEBUG },
+    { "boot.construct_task.", TRACE_LEVEL_DEBUG },
+    { "tcti.block.", TRACE_LEVEL_DEBUG },
+    { "tcti.compile.instruction", TRACE_LEVEL_DEBUG },
+    { "gadget.", TRACE_LEVEL_DEBUG },
+    { "mem.translate.", TRACE_LEVEL_DEBUG },
+    { "mem.pgdir.", TRACE_LEVEL_DEBUG },
     { "tcti.", TRACE_LEVEL_DEBUG },
     { "guest.handle_interrupt", TRACE_LEVEL_DEBUG },
     { "guest.receive_signals", TRACE_LEVEL_DEBUG },
@@ -191,7 +191,7 @@ static trace_level_t g_trace_level = TRACE_LEVEL_OFF;
 static trace_level_t default_trace_level(void)
 {
 #if DEBUG
-    return TRACE_LEVEL_DEBUG_ALL;
+    return TRACE_LEVEL_DEBUG;
 #else
     return TRACE_LEVEL_OFF;
 #endif
@@ -210,15 +210,8 @@ static trace_level_t parse_trace_level_value(const char *value)
         return TRACE_LEVEL_INFO;
     if (strcmp(value, "2") == 0 || strcasecmp(value, "boundary") == 0)
         return TRACE_LEVEL_BOUNDARY;
-    if (strcmp(value, "3") == 0 || strcasecmp(value, "debug") == 0 ||
-        strcasecmp(value, "block") == 0)
+    if (strcmp(value, "3") == 0 || strcasecmp(value, "debug") == 0)
         return TRACE_LEVEL_DEBUG;
-    if (strcmp(value, "4") == 0 || strcasecmp(value, "instr") == 0 ||
-        strcasecmp(value, "instruction") == 0)
-        return TRACE_LEVEL_INSTR;
-    if (strcmp(value, "5") == 0 || strcasecmp(value, "debug_all") == 0 ||
-        strcasecmp(value, "debug-all") == 0 || strcasecmp(value, "forensic") == 0)
-        return TRACE_LEVEL_DEBUG_ALL;
 
     return TRACE_LEVEL_OFF;
 }
@@ -674,47 +667,47 @@ void trace_emit_task_proof_point(task_proof_point_t point, uint32_t pid)
 {
     switch (point) {
     case TASK_PROOF_START_ENTER:
-        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG_ALL,
+        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG,
                                     "task.proof.start.enter");
         break;
     case TASK_PROOF_BEFORE_PTHREAD:
-        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG_ALL,
+        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG,
                                     "task.proof.before_pthread");
         break;
     case TASK_PROOF_AFTER_PTHREAD:
-        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG_ALL,
+        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG,
                                     "task.proof.after_pthread");
         break;
     case TASK_PROOF_THREAD_ENTRY:
-        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG_ALL,
+        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG,
                                     "task.proof.thread_entry");
         break;
     case TASK_PROOF_BEFORE_CURRENT_SET:
-        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG_ALL,
+        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG,
                                     "task.proof.before_current_set");
         break;
     case TASK_PROOF_AFTER_CURRENT_SET:
-        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG_ALL,
+        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG,
                                     "task.proof.after_current_set");
         break;
     case TASK_PROOF_RUN_CURRENT_ENTER:
-        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG_ALL,
+        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG,
                                     "task.proof.run_current_enter");
         break;
     case TASK_PROOF_BEFORE_GUEST_CPU:
-        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG_ALL,
+        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG,
                                     "task.proof.before_guest_cpu");
         break;
     case TASK_PROOF_AFTER_THREAD_ENTRY:
-        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG_ALL,
+        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG,
                                     "task.proof.after_thread_entry");
         break;
     case TASK_PROOF_BEFORE_TASK_RUN_CURRENT:
-        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG_ALL,
+        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG,
                                     "task.proof.before_task_run_current");
         break;
     case TASK_PROOF_TASK_RUN_CURRENT_ENTRY:
-        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG_ALL,
+        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG,
                                     "task.proof.task_run_current_entry");
         break;
     }
@@ -726,51 +719,51 @@ void trace_emit_task_proof_point(task_proof_point_t point, uint32_t pid)
  * ============================================
  *
  * These functions capture exact runtime values at the TCTI boundary
- * for forensic analysis of the spill-first execution model.
+ * for runtime analysis of the spill-first execution model.
  */
 
 void trace_emit_tcti_entry_x28_before(uint64_t x28_value)
 {
-    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG_ALL,
+    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG,
                                 "tcti.entry.x28.before");
     (void)x28_value;
 }
 
 void trace_emit_tcti_entry_qword0(uint64_t qword0)
 {
-    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG_ALL, "tcti.entry.qword0");
+    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG, "tcti.entry.qword0");
     (void)qword0;
 }
 
 void trace_emit_tcti_entry_x27_after(uint64_t x27_value)
 {
-    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG_ALL,
+    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG,
                                 "tcti.entry.x27.after");
     (void)x27_value;
 }
 
 void trace_emit_tcti_entry_x28_after(uint64_t x28_value)
 {
-    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG_ALL,
+    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG,
                                 "tcti.entry.x28.after");
     (void)x28_value;
 }
 
 void trace_emit_tcti_entry_qword1(uint64_t qword1)
 {
-    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG_ALL, "tcti.entry.qword1");
+    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG, "tcti.entry.qword1");
     (void)qword1;
 }
 
 void trace_emit_gadget_entry_x28(uint64_t x28_value)
 {
-    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG_ALL, "gadget.entry.x28");
+    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG, "gadget.entry.x28");
     (void)x28_value;
 }
 
 void trace_emit_gadget_fault_addr(uint64_t fault_addr)
 {
-    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG_ALL, "gadget.fault_addr");
+    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG, "gadget.fault_addr");
     (void)fault_addr;
 }
 
@@ -784,49 +777,49 @@ void trace_emit_gadget_fault_addr(uint64_t fault_addr)
 
 void trace_emit_gadget_ldr_fault_pc(uint64_t fault_pc)
 {
-    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG_ALL,
+    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG,
                                 "gadget.ldr.fault_pc");
     (void)fault_pc;
 }
 
 void trace_emit_gadget_ldr_rn_value(uint64_t rn_value)
 {
-    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG_ALL,
+    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG,
                                 "gadget.ldr.rn_value");
     (void)rn_value;
 }
 
 void trace_emit_gadget_ldr_imm_value(uint64_t imm_value)
 {
-    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG_ALL,
+    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG,
                                 "gadget.ldr.imm_value");
     (void)imm_value;
 }
 
 void trace_emit_gadget_ldr_idx_mode(uint64_t idx_mode)
 {
-    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG_ALL,
+    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG,
                                 "gadget.ldr.idx_mode");
     (void)idx_mode;
 }
 
 void trace_emit_gadget_ldr_guest_vaddr(uint64_t guest_vaddr)
 {
-    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG_ALL,
+    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG,
                                 "gadget.ldr.guest_vaddr");
     (void)guest_vaddr;
 }
 
 void trace_emit_gadget_ldr_host_ptr(uint64_t host_ptr)
 {
-    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG_ALL,
+    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG,
                                 "gadget.ldr.host_ptr");
     (void)host_ptr;
 }
 
 void trace_emit_mem_translate_attempt(uint64_t guest_addr, uint64_t size)
 {
-    trace_record_event_at_level(TRACE_ORIGIN_KERNEL, TRACE_LEVEL_DEBUG_ALL,
+    trace_record_event_at_level(TRACE_ORIGIN_KERNEL, TRACE_LEVEL_DEBUG,
                                 "mem.translate.attempt");
     (void)guest_addr;
     (void)size;
@@ -834,7 +827,7 @@ void trace_emit_mem_translate_attempt(uint64_t guest_addr, uint64_t size)
 
 void trace_emit_mem_translate_result(uint64_t host_ptr, int success)
 {
-    trace_record_event_at_level(TRACE_ORIGIN_KERNEL, TRACE_LEVEL_DEBUG_ALL,
+    trace_record_event_at_level(TRACE_ORIGIN_KERNEL, TRACE_LEVEL_DEBUG,
                                 "mem.translate.result");
     (void)host_ptr;
     (void)success;
@@ -842,7 +835,7 @@ void trace_emit_mem_translate_result(uint64_t host_ptr, int success)
 
 void trace_emit_mem_pgdir_lookup(uint64_t page, uint64_t pgdir_slot)
 {
-    trace_record_event_at_level(TRACE_ORIGIN_KERNEL, TRACE_LEVEL_DEBUG_ALL, "mem.pgdir.lookup");
+    trace_record_event_at_level(TRACE_ORIGIN_KERNEL, TRACE_LEVEL_DEBUG, "mem.pgdir.lookup");
     (void)page;
     (void)pgdir_slot;
 }

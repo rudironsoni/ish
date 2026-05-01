@@ -63,9 +63,9 @@ TEST(level_parsing)
     trace_config_from_env(&config);
     ASSERT(config.level == TRACE_LEVEL_BOUNDARY);
 
-    setenv("ISH_TRACE_LEVEL", "5", 1);
+    setenv("ISH_TRACE_LEVEL", "debug", 1);
     trace_config_from_env(&config);
-    ASSERT(config.level == TRACE_LEVEL_FORENSIC);
+    ASSERT(config.level == TRACE_LEVEL_DEBUG);
 
     unsetenv("ISH_TRACE_LEVEL");
 }
@@ -101,7 +101,7 @@ TEST(ring_buffer_basic)
 {
     trace_config_t config = {
         .backend = TRACE_BACKEND_RING,
-        .level = TRACE_LEVEL_BLOCK,
+        .level = TRACE_LEVEL_DEBUG,
         .ring_size = 100,
         .event_mask = ~0ULL,
         .category_mask = 0xFF,
@@ -130,7 +130,7 @@ TEST(ring_wraparound)
     /* Note: Minimum ring size is 1024, so use that */
     trace_config_t config = {
         .backend = TRACE_BACKEND_RING,
-        .level = TRACE_LEVEL_INSTR,
+        .level = TRACE_LEVEL_DEBUG,
         .ring_size = 1024,
         .event_mask = ~0ULL,
         .category_mask = 0xFF,
@@ -158,7 +158,7 @@ TEST(pc_range_filter)
 {
     trace_config_t config = {
         .backend = TRACE_BACKEND_RING,
-        .level = TRACE_LEVEL_BLOCK,
+        .level = TRACE_LEVEL_DEBUG,
         .ring_size = 100,
         .event_mask = ~0ULL,
         .category_mask = 0xFF,
@@ -184,7 +184,7 @@ TEST(max_events_limit)
 {
     trace_config_t config = {
         .backend = TRACE_BACKEND_RING,
-        .level = TRACE_LEVEL_INSTR,
+        .level = TRACE_LEVEL_DEBUG,
         .ring_size = 100,
         .event_mask = ~0ULL,
         .category_mask = 0xFF,
@@ -255,7 +255,7 @@ TEST(block_sidecar)
 {
     trace_config_t config = {
         .backend = TRACE_BACKEND_RING,
-        .level = TRACE_LEVEL_BLOCK,
+        .level = TRACE_LEVEL_DEBUG,
         .ring_size = 100,
         .event_mask = ~0ULL,
         .category_mask = 0xFF,

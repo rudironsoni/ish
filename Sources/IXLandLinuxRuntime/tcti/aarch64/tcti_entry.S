@@ -59,6 +59,11 @@ tcti_entry_block:
     ldr     x14, [x29, #CPU_OFFSET_x13] // Guest x13 -> host x14
     ldr     x15, [x29, #CPU_OFFSET_x14] // Guest x14 -> host x15
     ldr     x16, [x29, #CPU_OFFSET_x15] // Guest x15 -> host x16
+
+    // Restore guest condition flags on every block entry. Interrupt/syscall
+    // handlers update cpu->pstate in C before returning to translated code.
+    ldr     x17, [x29, #CPU_OFFSET_pstate]
+    msr     nzcv, x17
     
     // Guest x15-x30 and SP stay in memory
 
@@ -102,6 +107,7 @@ tcti_c_call_prologue:
     stp     x1,  x2,  [sp, #-16]!
     str     x28, [sp, #-16]!         // Save bytecode ptr (x0 is clobbered by C return value)
     mrs     x17, nzcv
+    str     x17, [x29, #CPU_OFFSET_pstate] // Make live guest flags visible to C helpers
     str     x17, [sp, #-16]!         // Preserve guest flags across helper C call
     ret
 

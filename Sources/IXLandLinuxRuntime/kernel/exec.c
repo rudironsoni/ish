@@ -1157,7 +1157,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
         // we have to know where the brk starts
         addr_t brk = bias + ph[i].vaddr + ph[i].memsize;
         if (brk > current->mm->start_brk)
-            current->mm->start_brk = current->mm->brk = HOST_ROUND_UP(brk);
+            current->mm->start_brk = current->mm->brk = brk;
     }
 
     addr_t entry = bias + header.entry_point;

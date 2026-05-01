@@ -78,6 +78,12 @@ typedef enum {
     A64_LDST_ATOMIC = 0,     // Atomic operations
 } a64_ldst_subtype_t;
 
+/* Subcategories for SIMD/FP instructions */
+typedef enum {
+    A64_SIMD_DUP_GPR = 1,        // DUP vector element from general register
+    A64_SIMD_MOV_GPR_FROM_VEC = 2, // UMOV/MOV general register from vector element
+} a64_simd_subtype_t;
+
 /* Indexing modes for load/store */
 typedef enum {
     A64_INDEX_OFFSET = 0,    // Offset addressing (base + offset, no writeback)
@@ -135,6 +141,10 @@ typedef enum {
     A64_EXT_SXTW = 2,   // Signed extend word
     A64_EXT_SXTX = 3,   // Signed extend doubleword
     A64_EXT_LSL = 4,    // Logical shift left (no extend)
+    A64_EXT_UXTB = 5,   // Unsigned extend byte
+    A64_EXT_UXTH = 6,   // Unsigned extend halfword
+    A64_EXT_SXTB = 7,   // Signed extend byte
+    A64_EXT_SXTH = 8,   // Signed extend halfword
 } a64_extend_t;
 
 /* Shift types */
@@ -179,6 +189,8 @@ typedef struct {
     bool is_signed;         // Signed extend on load
     bool is_vector;         // Vector/SIMD load/store
     bool is_pair;           // Load/store pair
+    int vec_bytes;          // Vector element/register memory width in bytes
+    int vec_index;          // Vector lane index for copy instructions
     int pair_offset;        // Offset for pair
     a64_index_mode_t idx_mode;  // Indexing mode (offset, post, pre)
 
@@ -236,8 +248,26 @@ static inline a64_category_t a64_get_category(uint32_t insn) {
     // Load/store pair: bits 29:25 = 10100 (0x14)
     // Distinguishes from logical register ops (AND/ORR/EOR) which have
     // bits 29:25 = 10101 (0x15) when sf=1.
-    if (((insn >> 25) & 0x1F) == 0x14) {
+    if ((((insn >> 25) & 0x1F) & 0x1D) == 0x14) {
         return A64_LD_ST;
+    }
+
+    if (((insn >> 25) & 0x1F) == 0x1E) {
+        return A64_LD_ST;
+    }
+
+    // Load/store exclusive and ordered atomic forms use top-level bits 28:25
+    // that otherwise look like data-processing register. Classify them as
+    // load/store before the generic category fallback.
+    if (((insn >> 24) & 0x3F) == 0x08) {
+        uint32_t op3 = (insn >> 12) & 0xF;
+        if (op3 == 0xE || op3 == 0xF)
+            return A64_LD_ST;
+    }
+
+    if ((insn & 0xbfe0fc00) == 0x0e000c00 || // DUP Vd.T, Rn
+        (insn & 0xbfe0fc00) == 0x0e003c00) { // UMOV/MOV Rd, Vn.T[index]
+        return A64_SIMD;
     }
 
     // Otherwise, use standard category from bits 28:25

@@ -87,6 +87,11 @@ int a64_decode(uint32_t insn, a64_instr_t *out)
     case A64_DP_REG2: // 0x5 (most register ops)
     case A64_DP_REG3: // 0x6
     case A64_DP_REG4: // 0x7
+        if ((insn & 0xbfe0fc00) == 0x0e000c00 ||
+            (insn & 0xbfe0fc00) == 0x0e003c00) {
+            out->cat = A64_SIMD;
+            return a64_decode_simd_fp(insn, out);
+        }
         return a64_decode_dp_reg(insn, out);
 
     case A64_BRANCH:  // 0xA
@@ -488,11 +493,23 @@ int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out)
         out->Rn = bits(insn, 9, 5);
         out->Rm = bits(insn, 20, 16);
         switch (opt) {
+        case 0: // UXTB
+            out->extend_type = A64_EXT_UXTB;
+            break;
+        case 1: // UXTH
+            out->extend_type = A64_EXT_UXTH;
+            break;
         case 2: // UXTW
             out->extend_type = A64_EXT_UXTW;
             break;
         case 3: // UXTX (LSL alias in some forms)
             out->extend_type = A64_EXT_UXTX;
+            break;
+        case 4: // SXTB
+            out->extend_type = A64_EXT_SXTB;
+            break;
+        case 5: // SXTH
+            out->extend_type = A64_EXT_SXTH;
             break;
         case 6: // SXTW
             out->extend_type = A64_EXT_SXTW;
@@ -500,9 +517,6 @@ int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out)
         case 7: // SXTX
             out->extend_type = A64_EXT_SXTX;
             break;
-        default:
-            // UXTB/UXTH/SXTB/SXTH not represented in current internal enum.
-            return -1;
         }
         out->imm_shift = imm3;
         out->set_flags = S;
@@ -646,6 +660,21 @@ int a64_decode_branch(uint32_t insn, a64_instr_t *out)
 }
 
 // Load/Store instructions
+static int a64_vector_mem_bytes(uint32_t insn)
+{
+    int size = bits(insn, 31, 30);
+    int opc = bits(insn, 23, 22);
+
+    if (opc == 2 && size == 0)
+        return 16;
+    if (opc == 1)
+        return 8;
+    if (opc == 0)
+        return 1 << size;
+
+    return 0;
+}
+
 int a64_decode_ldst(uint32_t insn, a64_instr_t *out)
 {
     int op0 = bits(insn, 31, 30);
@@ -666,8 +695,8 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out)
     // Load/store pair uses a separate major encoding space (x010100x) and must
     // be decoded before the generic single load/store cases below.
     // 32-bit pairs: top7 = 0010100 (0x14), 64-bit pairs: top7 = 1010100 (0x54)
-    // Check bits 29:25 (mask 0x1E) for pattern 0x14 (10100)
-    if ((top7 & 0x1E) == 0x14) {
+    // Check bits 29:25 for the scalar/vector pair pattern x1010x.
+    if ((top7 & 0x1C) == 0x14) {
         int imm7 = bits(insn, 21, 15);
         int Rt2 = bits(insn, 14, 10);
         int mode = bits(insn, 24, 23);
@@ -678,7 +707,10 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out)
         out->subtype = A64_LDST_PAIR;
         out->is_pair = true;
 
-        if (!out->is_vector) {
+        if (out->is_vector) {
+            out->vec_bytes = 4 << op0;
+            out->is_64bit = out->vec_bytes == 8;
+        } else {
             out->is_64bit = (op0 == 2);
             out->size = out->is_64bit ? A64_SIZE_X : A64_SIZE_W;
         }
@@ -700,6 +732,22 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out)
         return 0;
     }
 
+    // Exclusive and ordered atomic load/store forms occupy the same broad load/store
+    // space as the imm9 single-register forms. Decode them first so LDAXR/STLXR do
+    // not corrupt guest state by falling through as pre-indexed LDR/STR.
+    if (bits(insn, 29, 24) == 0x08 && (op3 == 0xE || op3 == 0xF)) {
+        out->Rd = bits(insn, 4, 0);      // Rt
+        out->Rn = bits(insn, 9, 5);      // Rn
+        out->Rm = bits(insn, 20, 16);    // Rs for stores, ZR encoding for loads
+        out->imm = 0;
+        out->is_pair = false;
+        out->is_signed = false;
+        out->is_64bit = op0 == A64_SIZE_X;
+        out->subtype = A64_LDST_ATOMIC;
+        out->idx_mode = A64_INDEX_OFFSET;
+        return 0;
+    }
+
     // Single-register unscaled/pre/post-indexed forms. These use the imm9 field
     // with bit24 == 0, and op4 selects offset/post/pre (0/1/3 respectively).
     if (!bit(insn, 24) && op4 != 2) {
@@ -708,9 +756,17 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out)
         out->Rd = bits(insn, 4, 0);
         out->Rn = bits(insn, 9, 5);
         out->imm = sign_extend(imm9, 9);
-        out->is_signed = (opc & 2) != 0;
-        if (out->is_signed)
-            out->is_64bit = (opc == 2);
+        if (out->is_vector) {
+            out->vec_bytes = a64_vector_mem_bytes(insn);
+            if (out->vec_bytes == 0)
+                return -1;
+            out->is_signed = false;
+            out->is_64bit = out->vec_bytes == 8;
+        } else {
+            out->is_signed = (opc & 2) != 0;
+            if (out->is_signed)
+                out->is_64bit = (opc == 2);
+        }
         out->subtype = A64_LDST_SINGLE;
 
         switch (op4) {
@@ -784,6 +840,21 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out)
 
     // Load/store unsigned immediate. bit24 distinguishes this class from the
     // imm9-based unscaled/pre/post forms above.
+    if (out->is_vector && bit(insn, 24)) {
+        uint64_t imm12 = bits(insn, 21, 10);
+        out->vec_bytes = a64_vector_mem_bytes(insn);
+        if (out->vec_bytes == 0)
+            return -1;
+        out->Rd = bits(insn, 4, 0);
+        out->Rn = bits(insn, 9, 5);
+        out->imm = imm12 * out->vec_bytes;
+        out->is_signed = false;
+        out->is_64bit = out->vec_bytes == 8;
+        out->subtype = A64_LDST_SINGLE;
+        out->idx_mode = A64_INDEX_OFFSET;
+        return 0;
+    }
+
     if (!out->is_vector && bit(insn, 24)) {
         int opc = bits(insn, 23, 22);
         uint64_t imm12 = bits(insn, 21, 10);
@@ -800,13 +871,6 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out)
         return 0;
     }
 
-    // Atomic operations
-    if (op3 == 0xE || op3 == 0xF) {
-        out->is_pair = false;
-        out->subtype = A64_LDST_ATOMIC;
-        return 0;
-    }
-
     return -1;
 }
 
@@ -814,6 +878,39 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out)
 int a64_decode_simd_fp(uint32_t insn, a64_instr_t *out)
 {
     int op0 = bits(insn, 28, 25);
+
+    if ((insn & 0xbfe0fc00) == 0x0e000c00) {
+        int imm5 = bits(insn, 20, 16);
+        if (imm5 == 0)
+            return -1;
+
+        out->cat = A64_SIMD;
+        out->subtype = A64_SIMD_DUP_GPR;
+        out->is_vector = true;
+        out->Rd = bits(insn, 4, 0);
+        out->Rn = bits(insn, 9, 5);
+        out->vec_bytes = 1 << __builtin_ctz((unsigned)imm5);
+        out->vec_index = 0;
+        return 0;
+    }
+
+    if ((insn & 0xbfe0fc00) == 0x0e003c00) {
+        int imm5 = bits(insn, 20, 16);
+        int element_shift;
+        if (imm5 == 0)
+            return -1;
+
+        element_shift = __builtin_ctz((unsigned)imm5);
+        out->cat = A64_SIMD;
+        out->subtype = A64_SIMD_MOV_GPR_FROM_VEC;
+        out->is_vector = true;
+        out->Rd = bits(insn, 4, 0);
+        out->Rn = bits(insn, 9, 5);
+        out->vec_bytes = 1 << element_shift;
+        out->vec_index = imm5 >> (element_shift + 1);
+        out->is_64bit = bit(insn, 30);
+        return 0;
+    }
 
     // Floating point data processing (scalar)
     if (op0 == 0xE || op0 == 0xF) {

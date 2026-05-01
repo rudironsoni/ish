@@ -448,7 +448,7 @@ static void trace_insn64_event_fields(const char *name, const ixland_guest_trace
 
 static void trace_block_bytecode(struct a64_block *block)
 {
-    if (!block || !block->gadgets || trace_get_level() < TRACE_LEVEL_DEBUG_ALL)
+    if (!block || !block->gadgets || trace_get_level() < TRACE_LEVEL_DEBUG)
         return;
 
     ixland_guest_trace_field_t start_fields[] = {
@@ -1192,7 +1192,7 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
         // Generate TCTI instruction - load/store and bitfield now have inline TCTI support
         ret = a64_gen_instruction(&gen_state, insn, gen_state.guest_pc);
 
-        a64_trace_event(TRACE_LEVEL_DEBUG_ALL,
+        a64_trace_event(TRACE_LEVEL_DEBUG,
                         "tcti.compile.instruction=start:0x%llx,pc:0x%llx,raw:0x%08x,ret:%d,"
                         "cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld,is_complete:%d,count:%d",
                         (unsigned long long)pc, (unsigned long long)gen_state.guest_pc, insn, ret,
@@ -1339,7 +1339,7 @@ __attribute__((no_stack_protector)) int a64_execute_block(struct cpu_state *cpu,
                                                           struct a64_block *block)
 {
     // Trace: Register snapshot if at block level
-    if (trace_get_level() >= TRACE_LEVEL_BLOCK) {
+    if (trace_get_level() >= TRACE_LEVEL_DEBUG) {
         uint64_t regs[6] = { cpu->x[0], cpu->x[1], cpu->x[2], cpu->x[3], cpu->x[4], cpu->x[5] };
         trace_emit_register_snapshot(block->start_pc, regs, 0x3F);
     }
@@ -1614,8 +1614,16 @@ static void a64_write_reg_or_sp(struct cpu_state *cpu, int reg, uint64_t value, 
 static uint64_t a64_extend_index(uint64_t value, int extend_type)
 {
     switch (extend_type) {
+    case A64_EXT_UXTB:
+        return (uint8_t)value;
+    case A64_EXT_UXTH:
+        return (uint16_t)value;
     case A64_EXT_UXTW:
         return (uint32_t)value;
+    case A64_EXT_SXTB:
+        return (uint64_t)(int64_t)(int8_t)value;
+    case A64_EXT_SXTH:
+        return (uint64_t)(int64_t)(int16_t)value;
     case A64_EXT_SXTW:
         return (uint64_t)(int64_t)(int32_t)value;
     case A64_EXT_SXTX:
@@ -1648,10 +1656,18 @@ static uint64_t trace_ldst_reg_or_zr(struct cpu_state *cpu, int reg)
 static const char *trace_ldst_extend_name(int extend_type)
 {
     switch (extend_type) {
+    case A64_EXT_UXTB:
+        return "uxtb";
+    case A64_EXT_UXTH:
+        return "uxth";
     case A64_EXT_UXTW:
         return "uxtw";
     case A64_EXT_UXTX:
         return "uxtx";
+    case A64_EXT_SXTB:
+        return "sxtb";
+    case A64_EXT_SXTH:
+        return "sxth";
     case A64_EXT_SXTW:
         return "sxtw";
     case A64_EXT_SXTX:
@@ -2187,22 +2203,7 @@ struct tcti_asm_probe {
     uint8_t captured;
 };
 
-struct tcti_bcond_ne_probe {
-    uint64_t branch_site_pc;
-    uint64_t target_pc;
-    uint64_t fallthrough_pc;
-    uint64_t x15_loaded;
-    uint64_t x25_after_mrs;
-    uint64_t x14_after_and;
-    uint64_t x14_after_and_mirror;
-    uint64_t path_marker;
-    uint64_t path_pc;
-    uint64_t branch_path_result;
-    uint8_t captured;
-};
-
 extern struct tcti_asm_probe tcti_asm_probe;
-extern struct tcti_bcond_ne_probe tcti_bcond_ne_probe;
 
 static void trace_interpreter_cmp_entry_asm_checkpoint(const char *name, uint64_t block_start,
                                                        uint64_t block_end, int repeat_count)
@@ -2235,71 +2236,6 @@ static void trace_interpreter_cmp_entry_asm_checkpoint(const char *name, uint64_
         { "host_x6", host_x6_buf },
         { "x29_value", x29_buf },
         { "raw_nzcv", nzcv_buf },
-        { "repeat_count", repeat_count_buf },
-    };
-
-    (void)trace_begin_interval(TRACE_ORIGIN_EMULATOR, name, attrs,
-                               sizeof(attrs) / sizeof(attrs[0]));
-}
-
-static void trace_interpreter_nzcv_chain_checkpoint(const char *name, uint64_t block_start,
-                                                    uint64_t block_end, int repeat_count)
-{
-    char block_start_buf[32];
-    char block_end_buf[32];
-    char branch_site_buf[32];
-    char target_pc_buf[32];
-    char fallthrough_pc_buf[32];
-    char raw_nzcv_buf[32];
-    char x15_loaded_buf[32];
-    char x25_after_mrs_buf[32];
-    char x14_after_and_buf[32];
-    char x14_after_and_mirror_buf[32];
-    char path_marker_buf[32];
-    char path_pc_buf[32];
-    char branch_taken_buf[16];
-    char repeat_count_buf[16];
-
-    snprintf(block_start_buf, sizeof(block_start_buf), "0x%llx", (unsigned long long)block_start);
-    snprintf(block_end_buf, sizeof(block_end_buf), "0x%llx", (unsigned long long)block_end);
-    snprintf(branch_site_buf, sizeof(branch_site_buf), "0x%llx",
-             (unsigned long long)tcti_bcond_ne_probe.branch_site_pc);
-    snprintf(target_pc_buf, sizeof(target_pc_buf), "0x%llx",
-             (unsigned long long)tcti_bcond_ne_probe.target_pc);
-    snprintf(fallthrough_pc_buf, sizeof(fallthrough_pc_buf), "0x%llx",
-             (unsigned long long)tcti_bcond_ne_probe.fallthrough_pc);
-    snprintf(raw_nzcv_buf, sizeof(raw_nzcv_buf), "0x%llx",
-             (unsigned long long)tcti_asm_probe.nzcv_value);
-    snprintf(x15_loaded_buf, sizeof(x15_loaded_buf), "0x%llx",
-             (unsigned long long)tcti_bcond_ne_probe.x15_loaded);
-    snprintf(x25_after_mrs_buf, sizeof(x25_after_mrs_buf), "0x%llx",
-             (unsigned long long)tcti_bcond_ne_probe.x25_after_mrs);
-    snprintf(x14_after_and_buf, sizeof(x14_after_and_buf), "0x%llx",
-             (unsigned long long)tcti_bcond_ne_probe.x14_after_and);
-    snprintf(x14_after_and_mirror_buf, sizeof(x14_after_and_mirror_buf), "0x%llx",
-             (unsigned long long)tcti_bcond_ne_probe.x14_after_and_mirror);
-    snprintf(path_marker_buf, sizeof(path_marker_buf), "0x%llx",
-             (unsigned long long)tcti_bcond_ne_probe.path_marker);
-    snprintf(path_pc_buf, sizeof(path_pc_buf), "0x%llx",
-             (unsigned long long)tcti_bcond_ne_probe.path_pc);
-    snprintf(branch_taken_buf, sizeof(branch_taken_buf), "%llu",
-             (unsigned long long)tcti_bcond_ne_probe.branch_path_result);
-    snprintf(repeat_count_buf, sizeof(repeat_count_buf), "%d", repeat_count);
-
-    trace_attribute_t attrs[] = {
-        { "block_start", block_start_buf },
-        { "block_end", block_end_buf },
-        { "branch_site_pc", branch_site_buf },
-        { "target_pc", target_pc_buf },
-        { "fallthrough_pc", fallthrough_pc_buf },
-        { "raw_nzcv", raw_nzcv_buf },
-        { "x15_loaded", x15_loaded_buf },
-        { "x25_after_mrs", x25_after_mrs_buf },
-        { "x14_after_and", x14_after_and_buf },
-        { "x14_after_and_mirror", x14_after_and_mirror_buf },
-        { "path_marker", path_marker_buf },
-        { "path_pc", path_pc_buf },
-        { "branch_taken", branch_taken_buf },
         { "repeat_count", repeat_count_buf },
     };
 
@@ -3146,7 +3082,7 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
                                            sizeof(fields) / sizeof(fields[0]));
             }
         }
-        a64_trace_event(TRACE_LEVEL_DEBUG_ALL,
+        a64_trace_event(TRACE_LEVEL_DEBUG,
                         "tcti.block.entry=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,"
                         "imm:%lld,start:0x%llx,end:0x%llx,gadgets:%zu,explicit:%d,sp:0x%llx,"
                         "x0:0x%llx,x1:0x%llx,x2:0x%llx,x3:0x%llx,x4:0x%llx,x5:0x%llx,"
@@ -3177,7 +3113,7 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
                         (unsigned long long)cpu->x[27], (unsigned long long)cpu->x[28],
                         (unsigned long long)cpu->x[29], (unsigned long long)cpu->x[30]);
         int exit_reason = a64_execute_block(cpu, block);
-        a64_trace_event(TRACE_LEVEL_DEBUG_ALL,
+        a64_trace_event(TRACE_LEVEL_DEBUG,
                         "tcti.block.exit=before:0x%llx,after:0x%llx,reason:%d,start:0x%llx,end:0x%llx,"
                         "explicit:%d,sp:0x%llx,pstate:0x%llx,x0:0x%llx,x1:0x%llx,x2:0x%llx,"
                         "x3:0x%llx,x4:0x%llx,x5:0x%llx,x6:0x%llx,x7:0x%llx,x8:0x%llx,"
@@ -3561,9 +3497,6 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
                         trace_interpreter_cmp_entry_asm_checkpoint(
                             "task.proof.interpreter.cmp.entry.asm", block->start_pc, block->end_pc,
                             same_block_repeat_count);
-                        trace_interpreter_nzcv_chain_checkpoint("task.proof.interpreter.nzcv.chain",
-                                                                block->start_pc, block->end_pc,
-                                                                same_block_repeat_count);
                         trace_interpreter_store_edge_checkpoint("task.proof.interpreter.store.edge",
                                                                 cpu, same_block_repeat_count);
                         trace_interpreter_loop_predicate_checkpoint(
@@ -3892,7 +3825,7 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
         }
 
         if (exit_reason == TCTI_EXIT_NORMAL &&
-            ((trace_get_level() >= TRACE_LEVEL_DEBUG_ALL && total_blocks_executed % 10 == 0) ||
+            ((trace_get_level() >= TRACE_LEVEL_DEBUG && total_blocks_executed % 10 == 0) ||
              total_blocks_executed == 1000 || total_blocks_executed == 10000 ||
              total_blocks_executed == 100000 || same_block_repeat_count == 1000 ||
              same_block_repeat_count == 10000)) {
