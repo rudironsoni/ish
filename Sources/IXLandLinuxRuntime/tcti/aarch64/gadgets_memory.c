@@ -2877,18 +2877,6 @@ __attribute__((used)) static void tcti_addsub_imm_helper(struct cpu_state *cpu, 
                 nzcv |= 0x10000000ULL;
         }
         cpu->pstate = nzcv;
-        if (cpu->pc == 0x6c410ULL) {
-            static int cmp_6c410_budget = 32;
-            if (cmp_6c410_budget > 0) {
-                char ev[192];
-                snprintf(ev, sizeof(ev),
-                         "task.proof.6c410.cmp=lhs:0x%llx,rhs:0x%llx,result:0x%llx,pstate:0x%llx",
-                         (unsigned long long)lhs, (unsigned long long)rhs,
-                         (unsigned long long)result, (unsigned long long)cpu->pstate);
-                trace_record_event(TRACE_ORIGIN_EXEC, ev);
-                cmp_6c410_budget--;
-            }
-        }
     }
 
     if (rd == 31) {

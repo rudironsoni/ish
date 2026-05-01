@@ -23,6 +23,7 @@
 #import <IXLandLinuxRuntime/tcti/frame.h>
 #import <IXLandLinuxRuntime/tcti/gadgets_tcti.h>
 #include <dlfcn.h>
+#include <stdarg.h>
 #include <setjmp.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -126,6 +127,25 @@ static uint64_t a64_read_reg_or_sp(struct cpu_state *cpu, int reg, bool is_64bit
 static uint64_t a64_extend_index(uint64_t value, int extend_type);
 static bool a64_ldst_uses_register_offset(uint32_t raw, const a64_instr_t *instr);
 static const char *trace_ldst_mnemonic(int is_load, int size, int is_signed);
+
+static bool a64_trace_enabled(trace_level_t level)
+{
+    return trace_get_level() >= level;
+}
+
+static void a64_trace_event(trace_level_t level, const char *format, ...)
+{
+    if (!a64_trace_enabled(level))
+        return;
+
+    char event[512];
+    va_list args;
+    va_start(args, format);
+    vsnprintf(event, sizeof(event), format, args);
+    va_end(args);
+
+    trace_record_event(TRACE_ORIGIN_TCTI, event);
+}
 
 typedef struct {
     int seen;
@@ -1099,16 +1119,11 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
     struct a64_block *block;
     bool explicit_pc_on_exit = false;
 
-    if ((pc >= 0x6a9d0ULL && pc <= 0x6aa00ULL) ||
-        (pc >= 0x3e300ULL && pc <= 0x3e380ULL)) {
-        char ev[192];
-        snprintf(ev, sizeof(ev),
-                 "task.proof.tcti.compile.entry=pc:0x%llx,tlb:%d,mmu_gen:%llu,fault:0x%llx",
-                 (unsigned long long)pc, tlb ? 1 : 0,
-                 (tlb && tlb->mmu) ? (unsigned long long)tlb->mmu->generation : 0ULL,
-                 cpu ? (unsigned long long)cpu->fault_addr : 0ULL);
-        trace_record_event(TRACE_ORIGIN_EXEC, ev);
-    }
+    a64_trace_event(TRACE_LEVEL_DEBUG,
+                    "tcti.compile.entry=pc:0x%llx,tlb:%d,mmu_gen:%llu,fault:0x%llx",
+                    (unsigned long long)pc, tlb ? 1 : 0,
+                    (tlb && tlb->mmu) ? (unsigned long long)tlb->mmu->generation : 0ULL,
+                    cpu ? (unsigned long long)cpu->fault_addr : 0ULL);
 
     // Trace: Block compilation start
     trace_emit_block_compile_start(pc);
@@ -1121,13 +1136,8 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
 
     int ret = a64_gen_init(&gen_state, buffer, A64_MAX_GADGETS_PER_BLOCK);
     if (ret != A64_GEN_OK) {
-        if ((pc >= 0x6a9d0ULL && pc <= 0x6aa00ULL) ||
-            (pc >= 0x3e300ULL && pc <= 0x3e380ULL)) {
-            char ev[128];
-            snprintf(ev, sizeof(ev), "task.proof.tcti.compile.init_fail=pc:0x%llx,ret:%d",
-                     (unsigned long long)pc, ret);
-            trace_record_event(TRACE_ORIGIN_EXEC, ev);
-        }
+        a64_trace_event(TRACE_LEVEL_DEBUG, "tcti.compile.init_fail=pc:0x%llx,ret:%d",
+                        (unsigned long long)pc, ret);
         return NULL;
     }
     a64_gen_reset(&gen_state, pc);
@@ -1142,25 +1152,20 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
         uint32_t insn;
         int ret = a64_fetch_insn(cpu, tlb, gen_state.guest_pc, &insn);
         if (ret < 0) {
-        if ((gen_state.guest_pc >= 0x6a9d0ULL && gen_state.guest_pc <= 0x6aa00ULL) ||
-                (gen_state.guest_pc >= 0x3e300ULL && gen_state.guest_pc <= 0x3e380ULL)) {
-                void *direct = NULL;
-                if (current && current->mem) {
-                    read_wrlock(&current->mem->lock);
-                    direct = mem_ptr(current->mem, gen_state.guest_pc, MEM_READ);
-                    read_wrunlock(&current->mem->lock);
-                }
-                char ev[320];
-                snprintf(ev, sizeof(ev),
-                         "task.proof.tcti.compile.fetch_fail=start:0x%llx,pc:0x%llx,ret:%d,"
-                         "fault:0x%llx,was_write:%d,tlb_gen:%llu,mmu_gen:%llu,direct:%d",
-                         (unsigned long long)pc, (unsigned long long)gen_state.guest_pc, ret,
-                         (unsigned long long)cpu->fault_addr, cpu->fault_was_write ? 1 : 0,
-                         tlb ? (unsigned long long)tlb->generation : 0ULL,
-                         (tlb && tlb->mmu) ? (unsigned long long)tlb->mmu->generation : 0ULL,
-                         direct ? 1 : 0);
-                trace_record_event(TRACE_ORIGIN_EXEC, ev);
+            void *direct = NULL;
+            if (current && current->mem) {
+                read_wrlock(&current->mem->lock);
+                direct = mem_ptr(current->mem, gen_state.guest_pc, MEM_READ);
+                read_wrunlock(&current->mem->lock);
             }
+            a64_trace_event(TRACE_LEVEL_DEBUG,
+                            "tcti.compile.fetch_fail=start:0x%llx,pc:0x%llx,ret:%d,"
+                            "fault:0x%llx,was_write:%d,tlb_gen:%llu,mmu_gen:%llu,direct:%d",
+                            (unsigned long long)pc, (unsigned long long)gen_state.guest_pc, ret,
+                            (unsigned long long)cpu->fault_addr, cpu->fault_was_write ? 1 : 0,
+                            tlb ? (unsigned long long)tlb->generation : 0ULL,
+                            (tlb && tlb->mmu) ? (unsigned long long)tlb->mmu->generation : 0ULL,
+                            direct ? 1 : 0);
             // Page fault during fetch
             break;
         }
@@ -1173,22 +1178,17 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
         // Generate TCTI instruction - load/store and bitfield now have inline TCTI support
         ret = a64_gen_instruction(&gen_state, insn, gen_state.guest_pc);
 
-        if ((gen_state.guest_pc >= 0x6a9d0ULL && gen_state.guest_pc <= 0x6aa00ULL) ||
-            (gen_state.guest_pc >= 0x3e300ULL && gen_state.guest_pc <= 0x3e380ULL)) {
-            char ev[256];
-            snprintf(ev, sizeof(ev),
-                     "task.proof.tcti.compile.focus=start:0x%llx,pc:0x%llx,raw:0x%08x,ret:%d,"
-                     "cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld,is_complete:%d,count:%d",
-                     (unsigned long long)pc, (unsigned long long)gen_state.guest_pc, insn, ret,
-                     decode_ret == 0 ? decoded_info.cat : -1,
-                     decode_ret == 0 ? decoded_info.subtype : -1,
-                     decode_ret == 0 ? decoded_info.Rd : -1,
-                     decode_ret == 0 ? decoded_info.Rn : -1,
-                     decode_ret == 0 ? decoded_info.Rm : -1,
-                     decode_ret == 0 ? (long long)decoded_info.imm : 0LL, gen_state.is_complete,
-                     insns_decoded);
-            trace_record_event(TRACE_ORIGIN_EXEC, ev);
-        }
+        a64_trace_event(TRACE_LEVEL_DEBUG_ALL,
+                        "tcti.compile.instruction=start:0x%llx,pc:0x%llx,raw:0x%08x,ret:%d,"
+                        "cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld,is_complete:%d,count:%d",
+                        (unsigned long long)pc, (unsigned long long)gen_state.guest_pc, insn, ret,
+                        decode_ret == 0 ? decoded_info.cat : -1,
+                        decode_ret == 0 ? decoded_info.subtype : -1,
+                        decode_ret == 0 ? decoded_info.Rd : -1,
+                        decode_ret == 0 ? decoded_info.Rn : -1,
+                        decode_ret == 0 ? decoded_info.Rm : -1,
+                        decode_ret == 0 ? (long long)decoded_info.imm : 0LL,
+                        gen_state.is_complete, insns_decoded);
 
         if (ret < 0) {
             if (insns_decoded > 0) {
@@ -1225,15 +1225,10 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
         // No instructions could be decoded - this is a fatal error in 100% TCTI mode
         uint32_t failing_insn = 0;
         a64_fetch_insn(cpu, tlb, pc, &failing_insn);
-        if ((pc >= 0x6a9d0ULL && pc <= 0x6aa00ULL) ||
-            (pc >= 0x3e300ULL && pc <= 0x3e380ULL)) {
-            char ev[192];
-            snprintf(ev, sizeof(ev),
-                     "task.proof.tcti.compile.no_insns=pc:0x%llx,raw:0x%08x,fault:0x%llx",
-                     (unsigned long long)pc, failing_insn,
-                     (unsigned long long)cpu->fault_addr);
-            trace_record_event(TRACE_ORIGIN_EXEC, ev);
-        }
+        a64_trace_event(TRACE_LEVEL_DEBUG,
+                        "tcti.compile.no_insns=pc:0x%llx,raw:0x%08x,fault:0x%llx",
+                        (unsigned long long)pc, failing_insn,
+                        (unsigned long long)cpu->fault_addr);
         trace_emit_u32(TRACE_EVENT_UNSUPPORTED_INSTRUCTION, pc, failing_insn);
         return NULL;
     }
@@ -1241,14 +1236,9 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
     // Finalize the block
     int finalize_ret = a64_gen_finalize(&gen_state);
     if (finalize_ret != A64_GEN_OK) {
-        if ((pc >= 0x6a9d0ULL && pc <= 0x6aa00ULL) ||
-            (pc >= 0x3e300ULL && pc <= 0x3e380ULL)) {
-            char ev[192];
-            snprintf(ev, sizeof(ev),
-                     "task.proof.tcti.compile.finalize_fail=pc:0x%llx,ret:%d,gadgets:%zu",
-                     (unsigned long long)pc, finalize_ret, gen_state.num_gadgets);
-            trace_record_event(TRACE_ORIGIN_EXEC, ev);
-        }
+        a64_trace_event(TRACE_LEVEL_DEBUG,
+                        "tcti.compile.finalize_fail=pc:0x%llx,ret:%d,gadgets:%zu",
+                        (unsigned long long)pc, finalize_ret, gen_state.num_gadgets);
         return NULL;
     }
 
@@ -1291,6 +1281,10 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
 
     // Trace: Block compilation end
     trace_emit_block_compile_end(pc, gen_state.end_pc, (uint32_t)insns_decoded);
+    a64_trace_event(TRACE_LEVEL_DEBUG,
+                    "tcti.compile.exit=start:0x%llx,end:0x%llx,insns:%d,gadgets:%zu,explicit:%d",
+                    (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
+                    insns_decoded, block->num_gadgets, block->explicit_pc_on_exit ? 1 : 0);
 
     if (block->start_pc < 0x6d1b0ULL && block->end_pc > 0x6d190ULL) {
         char start_buf[24];
@@ -1480,43 +1474,7 @@ __attribute__((no_stack_protector)) int a64_execute_block(struct cpu_state *cpu,
             trace_x7chain_event_fields("mov6a64c.pre_sync", fields,
                                        sizeof(fields) / sizeof(fields[0]));
         }
-        if (block->start_pc >= 0x6c434ULL && block->start_pc <= 0x6c500ULL) {
-            static int post_auxv_block_budget = 32;
-            if (post_auxv_block_budget > 0) {
-                char ev[320];
-                snprintf(ev, sizeof(ev),
-                         "task.proof.post_auxv.block.pre=start:0x%llx,end:0x%llx,pc:0x%llx,"
-                         "gadgets:%zu,explicit:%d,x0:0x%llx,x1:0x%llx,x2:0x%llx,x3:0x%llx,"
-                         "x5:0x%llx,sp:0x%llx",
-                         (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
-                         (unsigned long long)cpu->pc, block->num_gadgets,
-                         block->explicit_pc_on_exit ? 1 : 0, (unsigned long long)cpu->x[0],
-                         (unsigned long long)cpu->x[1], (unsigned long long)cpu->x[2],
-                         (unsigned long long)cpu->x[3], (unsigned long long)cpu->x[5],
-                         (unsigned long long)cpu->sp);
-                trace_record_event(TRACE_ORIGIN_EXEC, ev);
-                post_auxv_block_budget--;
-            }
-        }
         tcti_entry_block(block->gadgets, cpu);
-        if (block->start_pc >= 0x6c434ULL && block->start_pc <= 0x6c500ULL) {
-            static int post_auxv_block_post_budget = 32;
-            if (post_auxv_block_post_budget > 0) {
-                char ev[320];
-                snprintf(ev, sizeof(ev),
-                         "task.proof.post_auxv.block.post=start:0x%llx,end:0x%llx,pc:0x%llx,"
-                         "reason:%d,x0:0x%llx,x1:0x%llx,x2:0x%llx,x3:0x%llx,x5:0x%llx,"
-                         "sp:0x%llx,pstate:0x%llx",
-                         (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
-                         (unsigned long long)cpu->pc, cpu->tcti_exit_reason,
-                         (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[1],
-                         (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[3],
-                         (unsigned long long)cpu->x[5], (unsigned long long)cpu->sp,
-                         (unsigned long long)cpu->pstate);
-                trace_record_event(TRACE_ORIGIN_EXEC, ev);
-                post_auxv_block_post_budget--;
-            }
-        }
         if (block->start_pc == 0x6a628ULL) {
             char payload[512];
             snprintf(payload, sizeof(payload),
@@ -2491,29 +2449,17 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
                         trace_cpu_run_checkpoint("task.proof.a64_cpu_run.before_first_compile",
                                                  current, cpu, 0);
                     }
-                    if ((pc >= 0x6a9d0ULL && pc <= 0x6aa00ULL) ||
-                        (pc >= 0x6c400ULL && pc <= 0x6c438ULL) ||
-                        (pc >= 0x3e300ULL && pc <= 0x3e380ULL)) {
-                        char ev[160];
-                        snprintf(ev, sizeof(ev),
-                                 "task.proof.tcti.compile.call=pc:0x%llx,total:%d,mmu_gen:%llu",
-                                 (unsigned long long)pc, total_blocks_executed,
-                                 cpu && cpu->mmu ? (unsigned long long)cpu->mmu->generation : 0ULL);
-                        trace_record_event(TRACE_ORIGIN_EXEC, ev);
-                    }
+                    a64_trace_event(
+                        TRACE_LEVEL_DEBUG, "tcti.dispatch.compile.call=pc:0x%llx,total:%d,mmu_gen:%llu",
+                        (unsigned long long)pc, total_blocks_executed,
+                        cpu && cpu->mmu ? (unsigned long long)cpu->mmu->generation : 0ULL);
                     block = a64_compile_block(cpu, pc, tlb);
-                    if ((pc >= 0x6a9d0ULL && pc <= 0x6aa00ULL) ||
-                        (pc >= 0x6c400ULL && pc <= 0x6c438ULL) ||
-                        (pc >= 0x3e300ULL && pc <= 0x3e380ULL)) {
-                        char ev[224];
-                        snprintf(ev, sizeof(ev),
-                                 "task.proof.tcti.compile.return=pc:0x%llx,block:%d,fault:0x%llx,"
-                                 "was_write:%d,total:%d",
-                                 (unsigned long long)pc, block ? 1 : 0,
-                                 (unsigned long long)cpu->fault_addr,
-                                 cpu->fault_was_write ? 1 : 0, total_blocks_executed);
-                        trace_record_event(TRACE_ORIGIN_EXEC, ev);
-                    }
+                    a64_trace_event(TRACE_LEVEL_DEBUG,
+                                    "tcti.dispatch.compile.return=pc:0x%llx,block:%d,fault:0x%llx,"
+                                    "was_write:%d,total:%d",
+                                    (unsigned long long)pc, block ? 1 : 0,
+                                    (unsigned long long)cpu->fault_addr,
+                                    cpu->fault_was_write ? 1 : 0, total_blocks_executed);
                     if (!block) {
                         trace_emit(TRACE_EVENT_FAULT, pc);
                         trace_cpu_run_checkpoint("task.proof.a64_cpu_run.exit_fault", current, cpu,
@@ -2528,19 +2474,6 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
                                                  current, cpu, TCTI_EXIT_FAULT);
                         continue;
                     }
-                    if (pc >= 0x6c434ULL && pc <= 0x6c500ULL) {
-                        char ev[192];
-                        snprintf(ev, sizeof(ev),
-                                 "task.proof.post_auxv.dispatch.after_compile=pc:0x%llx,start:"
-                                 "0x%llx,end:0x%llx,gadgets:%zu,explicit:%d,first_compile:%d",
-                                 (unsigned long long)pc,
-                                 block ? (unsigned long long)block->start_pc : 0ULL,
-                                 block ? (unsigned long long)block->end_pc : 0ULL,
-                                 block ? block->num_gadgets : 0,
-                                 block && block->explicit_pc_on_exit ? 1 : 0,
-                                 first_compile ? 1 : 0);
-                        trace_record_event(TRACE_ORIGIN_EXEC, ev);
-                    }
                     if (first_compile) {
                         trace_cpu_run_checkpoint("task.proof.a64_cpu_run.after_first_compile",
                                                  current, cpu, 0);
@@ -2550,52 +2483,12 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
 
                     // Insert into MMU cache (L1)
                     if (cpu->mmu->block_cache) {
-                        if (pc >= 0x6c434ULL && pc <= 0x6c500ULL) {
-                            char ev[160];
-                            snprintf(ev, sizeof(ev),
-                                     "task.proof.post_auxv.cache.before_insert=pc:0x%llx,start:"
-                                     "0x%llx,end:0x%llx",
-                                     (unsigned long long)pc,
-                                     block ? (unsigned long long)block->start_pc : 0ULL,
-                                     block ? (unsigned long long)block->end_pc : 0ULL);
-                            trace_record_event(TRACE_ORIGIN_EXEC, ev);
-                        }
                         a64_cache_insert(cpu->mmu->block_cache, block);
-                        if (pc >= 0x6c434ULL && pc <= 0x6c500ULL) {
-                            char ev[160];
-                            snprintf(ev, sizeof(ev),
-                                     "task.proof.post_auxv.cache.after_insert=pc:0x%llx,start:"
-                                     "0x%llx,end:0x%llx",
-                                     (unsigned long long)pc,
-                                     block ? (unsigned long long)block->start_pc : 0ULL,
-                                     block ? (unsigned long long)block->end_pc : 0ULL);
-                            trace_record_event(TRACE_ORIGIN_EXEC, ev);
-                        }
                     }
                 }
 
                 // Populate L0 cache for next access
-                if (pc >= 0x6c434ULL && pc <= 0x6c500ULL) {
-                    char ev[160];
-                    snprintf(ev, sizeof(ev),
-                             "task.proof.post_auxv.cache.before_l0=pc:0x%llx,idx:%zu,start:0x%llx,"
-                             "end:0x%llx",
-                             (unsigned long long)pc, l0_idx,
-                             block ? (unsigned long long)block->start_pc : 0ULL,
-                             block ? (unsigned long long)block->end_pc : 0ULL);
-                    trace_record_event(TRACE_ORIGIN_EXEC, ev);
-                }
                 ctx->l0_cache[l0_idx] = block;
-                if (pc >= 0x6c434ULL && pc <= 0x6c500ULL) {
-                    char ev[160];
-                    snprintf(ev, sizeof(ev),
-                             "task.proof.post_auxv.cache.after_l0=pc:0x%llx,idx:%zu,start:0x%llx,"
-                             "end:0x%llx",
-                             (unsigned long long)pc, l0_idx,
-                             block ? (unsigned long long)block->start_pc : 0ULL,
-                             block ? (unsigned long long)block->end_pc : 0ULL);
-                    trace_record_event(TRACE_ORIGIN_EXEC, ev);
-                }
             }
         }
 
@@ -2605,19 +2498,14 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
             first_block_lookup = false;
         }
 
-        if ((pc >= 0x6a9d0ULL && pc <= 0x6aa00ULL) ||
-            (pc >= 0x6c400ULL && pc <= 0x6c438ULL) ||
-            (pc >= 0x3e300ULL && pc <= 0x3e380ULL)) {
-            char ev[256];
-            snprintf(ev, sizeof(ev),
-                     "task.proof.tcti.lookup.focus=pc:0x%llx,block:%d,start:0x%llx,end:0x%llx,"
-                     "gadgets:%zu,explicit:%d,total_before:%d",
-                     (unsigned long long)pc, block ? 1 : 0,
-                     block ? (unsigned long long)block->start_pc : 0ULL,
-                     block ? (unsigned long long)block->end_pc : 0ULL, block ? block->num_gadgets : 0,
-                     block && block->explicit_pc_on_exit ? 1 : 0, total_blocks_executed);
-            trace_record_event(TRACE_ORIGIN_EXEC, ev);
-        }
+        a64_trace_event(TRACE_LEVEL_DEBUG,
+                        "tcti.dispatch.lookup=pc:0x%llx,block:%d,start:0x%llx,end:0x%llx,"
+                        "gadgets:%zu,explicit:%d,total_before:%d",
+                        (unsigned long long)pc, block ? 1 : 0,
+                        block ? (unsigned long long)block->start_pc : 0ULL,
+                        block ? (unsigned long long)block->end_pc : 0ULL,
+                        block ? block->num_gadgets : 0,
+                        block && block->explicit_pc_on_exit ? 1 : 0, total_blocks_executed);
 
         // Stage 3A.6: Track block execution progression
         total_blocks_executed++;
@@ -2680,28 +2568,6 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
 
         if (a64_fetch_insn(cpu, cpu->tlb, pc_before_execute, &writer_raw) == 0 &&
             a64_decode(writer_raw, &writer_decoded) == 0) {
-            if (pc_before_execute >= 0x6c430ULL && pc_before_execute <= 0x6c520ULL) {
-                static int post_auxv_entry_budget = 64;
-                if (post_auxv_entry_budget > 0) {
-                    char ev[384];
-                    snprintf(ev, sizeof(ev),
-                             "task.proof.post_auxv.entry=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,"
-                             "rd:%d,rn:%d,rm:%d,imm:%lld,start:0x%llx,end:0x%llx,"
-                             "explicit:%d,x0:0x%llx,x1:0x%llx,x2:0x%llx,x3:0x%llx,x5:0x%llx",
-                             (unsigned long long)pc_before_execute, writer_raw, writer_decoded.cat,
-                             writer_decoded.subtype, writer_decoded.Rd, writer_decoded.Rn,
-                             writer_decoded.Rm, (long long)writer_decoded.imm,
-                             (unsigned long long)block->start_pc,
-                             (unsigned long long)block->end_pc,
-                             block->explicit_pc_on_exit ? 1 : 0,
-                             (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[1],
-                             (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[3],
-                             (unsigned long long)cpu->x[5]);
-                    trace_record_event(TRACE_ORIGIN_EXEC, ev);
-                    post_auxv_entry_budget--;
-                }
-            }
-
             if (pc_before_execute == 0x6a970ULL || pc_before_execute == 0x6a990ULL) {
                 char ev[256];
                 snprintf(ev, sizeof(ev),
@@ -3228,28 +3094,23 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
                                            sizeof(fields) / sizeof(fields[0]));
             }
         }
+        a64_trace_event(TRACE_LEVEL_DEBUG_ALL,
+                        "tcti.block.entry=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,"
+                        "imm:%lld,start:0x%llx,end:0x%llx,gadgets:%zu,explicit:%d,sp:0x%llx",
+                        (unsigned long long)pc_before_execute, writer_raw, writer_decoded.cat,
+                        writer_decoded.subtype, writer_decoded.Rd, writer_decoded.Rn,
+                        writer_decoded.Rm, (long long)writer_decoded.imm,
+                        (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
+                        block->num_gadgets, block->explicit_pc_on_exit ? 1 : 0,
+                        (unsigned long long)cpu->sp);
         int exit_reason = a64_execute_block(cpu, block);
-        if (pc_before_execute >= 0x6c430ULL && pc_before_execute <= 0x6c520ULL) {
-            static int post_auxv_exit_budget = 64;
-            if (post_auxv_exit_budget > 0) {
-                uint32_t raw_after = 0;
-                int fetch_after = a64_fetch_insn(cpu, cpu->tlb, cpu->pc, &raw_after);
-                char ev[384];
-                snprintf(ev, sizeof(ev),
-                         "task.proof.post_auxv.exit=before:0x%llx,after:0x%llx,reason:%d,"
-                         "start:0x%llx,end:0x%llx,explicit:%d,next_raw:0x%08x,next_fetch:%d,"
-                         "x0:0x%llx,x1:0x%llx,x2:0x%llx,x3:0x%llx,x5:0x%llx,pstate:0x%llx",
-                         (unsigned long long)pc_before_execute, (unsigned long long)cpu->pc,
-                         exit_reason, (unsigned long long)block->start_pc,
-                         (unsigned long long)block->end_pc,
-                         block->explicit_pc_on_exit ? 1 : 0, raw_after, fetch_after,
-                         (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[1],
-                         (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[3],
-                         (unsigned long long)cpu->x[5], (unsigned long long)cpu->pstate);
-                trace_record_event(TRACE_ORIGIN_EXEC, ev);
-                post_auxv_exit_budget--;
-            }
-        }
+        a64_trace_event(TRACE_LEVEL_DEBUG_ALL,
+                        "tcti.block.exit=before:0x%llx,after:0x%llx,reason:%d,start:0x%llx,end:0x%llx,"
+                        "explicit:%d,sp:0x%llx,pstate:0x%llx",
+                        (unsigned long long)pc_before_execute, (unsigned long long)cpu->pc,
+                        exit_reason, (unsigned long long)block->start_pc,
+                        (unsigned long long)block->end_pc, block->explicit_pc_on_exit ? 1 : 0,
+                        (unsigned long long)cpu->sp, (unsigned long long)cpu->pstate);
         if ((pc_before_execute >= 0x6b3f0ULL && pc_before_execute <= 0x6b438ULL) ||
             (pc_before_execute >= 0x6c400ULL && pc_before_execute <= 0x6c438ULL)) {
             static int dls3_loop_prehandle_budget = 96;

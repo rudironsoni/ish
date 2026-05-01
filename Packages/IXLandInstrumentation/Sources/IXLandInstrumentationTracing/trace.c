@@ -16,6 +16,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 
 /* ============================================
  * Instrumentation API (provided by IXLandInstrumentation package)
@@ -125,16 +126,53 @@ bool trace_is_enabled(void)
     return ixland_instrumentation_is_active();
 }
 
-/* Get current trace level - always off */
-trace_level_t trace_get_level(void)
+static int g_trace_level_initialized = 0;
+static trace_level_t g_trace_level = TRACE_LEVEL_OFF;
+
+static trace_level_t parse_trace_level_value(const char *value)
 {
+    if (!value || value[0] == '\0')
+        return TRACE_LEVEL_OFF;
+
+    if (strcmp(value, "0") == 0 || strcasecmp(value, "off") == 0 ||
+        strcasecmp(value, "none") == 0)
+        return TRACE_LEVEL_OFF;
+    if (strcmp(value, "1") == 0 || strcasecmp(value, "info") == 0 ||
+        strcasecmp(value, "summary") == 0)
+        return TRACE_LEVEL_INFO;
+    if (strcmp(value, "2") == 0 || strcasecmp(value, "boundary") == 0)
+        return TRACE_LEVEL_BOUNDARY;
+    if (strcmp(value, "3") == 0 || strcasecmp(value, "debug") == 0 ||
+        strcasecmp(value, "block") == 0)
+        return TRACE_LEVEL_DEBUG;
+    if (strcmp(value, "4") == 0 || strcasecmp(value, "instr") == 0 ||
+        strcasecmp(value, "instruction") == 0)
+        return TRACE_LEVEL_INSTR;
+    if (strcmp(value, "5") == 0 || strcasecmp(value, "debug_all") == 0 ||
+        strcasecmp(value, "debug-all") == 0 || strcasecmp(value, "forensic") == 0)
+        return TRACE_LEVEL_DEBUG_ALL;
+
     return TRACE_LEVEL_OFF;
 }
 
-/* Set trace level - no-op */
+/* Get current trace level */
+trace_level_t trace_get_level(void)
+{
+    if (!g_trace_level_initialized) {
+        const char *value = getenv("IXLAND_TRACE_LEVEL");
+        if (!value || value[0] == '\0')
+            value = getenv("ISH_TRACE_LEVEL");
+        g_trace_level = parse_trace_level_value(value);
+        g_trace_level_initialized = 1;
+    }
+
+    return g_trace_level;
+}
+
 void trace_config_set_level(trace_level_t level)
 {
-    (void)level;
+    g_trace_level = level;
+    g_trace_level_initialized = 1;
 }
 
 /* Set PC range filter - no-op */
