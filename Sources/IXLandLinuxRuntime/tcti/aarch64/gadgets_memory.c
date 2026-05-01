@@ -795,6 +795,7 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
     uint64_t addr = base;
     uint64_t is_signed = meta & 0xff;
     uint64_t is_reg_offset = (meta >> 8) & 0xff;
+    uint64_t load_writes_64 = (meta >> 40) & 0x1;
     int rm = (meta >> 16) & 0xff;
     int extend_type = (meta >> 24) & 0xff;
     int reg_shift = (meta >> 32) & 0xff;
@@ -1442,12 +1443,11 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
             snprintf(ev, sizeof(ev),
                      "task.proof.6a990.load.pre_writeback=rt:%llu,value:0x%llx,write64:%d",
                      (unsigned long long)rt, (unsigned long long)value,
-                     size == A64_SIZE_X || (is_signed && size == A64_SIZE_W));
+                     size == A64_SIZE_X || load_writes_64);
             trace_record_event(TRACE_ORIGIN_EXEC, ev);
         }
 
-        tcti_write_reg_or_zr(cpu, (int)rt, value,
-                             size == A64_SIZE_X || (is_signed && size == A64_SIZE_W));
+        tcti_write_reg_or_zr(cpu, (int)rt, value, size == A64_SIZE_X || load_writes_64);
 
         if (trace_6a990) {
             char ev[384];
@@ -2970,6 +2970,10 @@ __attribute__((naked)) void gadget_addsub_imm_fallback_impl(void)
                  "bl _tcti_addsub_imm_helper\n\t"
                  "add sp, sp, #16\n\t"
                  "bl _tcti_c_call_epilogue\n\t"
+                 "cbz x23, 2f\n\t"
+                 "ldr x17, [x29, #280]\n\t"
+                 "msr nzcv, x17\n\t"
+                 "2:\n\t"
                  "ldp x1, x2, [x29, #16]\n\t"
                  "ldp x3, x4, [x29, #32]\n\t"
                  "ldp x5, x6, [x29, #48]\n\t"
@@ -3080,6 +3084,10 @@ __attribute__((naked)) void gadget_addsub_reg_fallback_impl(void)
                  "bl _tcti_addsub_reg_helper\n\t"
                  "add sp, sp, #16\n\t"
                  "bl _tcti_c_call_epilogue\n\t"
+                 "cbz x25, 2f\n\t"
+                 "ldr x17, [x29, #280]\n\t"
+                 "msr nzcv, x17\n\t"
+                 "2:\n\t"
                  "ldp x1, x2, [x29, #16]\n\t"
                  "ldp x3, x4, [x29, #32]\n\t"
                  "ldp x5, x6, [x29, #48]\n\t"
@@ -3164,6 +3172,10 @@ __attribute__((naked)) void gadget_logical_imm_fallback_impl(void)
                  "mov x6, x24\n\t"
                  "bl _tcti_logical_imm_helper\n\t"
                  "bl _tcti_c_call_epilogue\n\t"
+                 "cbz x23, 2f\n\t"
+                 "ldr x17, [x29, #280]\n\t"
+                 "msr nzcv, x17\n\t"
+                 "2:\n\t"
                  "ldp x1, x2, [x29, #16]\n\t"
                  "ldp x3, x4, [x29, #32]\n\t"
                  "ldp x5, x6, [x29, #48]\n\t"
@@ -3227,6 +3239,7 @@ __attribute__((used)) static void tcti_logical_reg_helper(struct cpu_state *cpu,
     uint64_t result;
     switch (subtype) {
     case 0:
+    case 3:
         result = lhs & rhs;
         break;
     case 1:
@@ -3283,6 +3296,10 @@ __attribute__((naked)) void gadget_logical_reg_fallback_impl(void)
                  "bl _tcti_logical_reg_helper\n\t"
                  "add sp, sp, #16\n\t"
                  "bl _tcti_c_call_epilogue\n\t"
+                 "cbz x25, 2f\n\t"
+                 "ldr x17, [x29, #280]\n\t"
+                 "msr nzcv, x17\n\t"
+                 "2:\n\t"
                  "ldp x1, x2, [x29, #16]\n\t"
                  "ldp x3, x4, [x29, #32]\n\t"
                  "ldp x5, x6, [x29, #48]\n\t"
@@ -3477,6 +3494,83 @@ __attribute__((naked)) void gadget_shift_reg_fallback_impl(void)
 
 tcti_gadget_t gadget_shift_reg_fallback = gadget_shift_reg_fallback_impl;
 
+__attribute__((used)) static void tcti_div_helper(struct cpu_state *cpu, uint64_t rd,
+                                                    uint64_t rn, uint64_t rm, uint64_t subtype,
+                                                    uint64_t is_64bit)
+{
+    uint64_t mask = is_64bit ? UINT64_MAX : UINT32_MAX;
+    uint64_t divisor = tcti_read_reg_or_zr(cpu, (int)rm) & mask;
+    uint64_t result = 0;
+
+    if (divisor != 0) {
+        if (subtype == A64_DP_REG_UDIV) {
+            uint64_t dividend = tcti_read_reg_or_zr(cpu, (int)rn) & mask;
+            result = dividend / divisor;
+        } else if (subtype == A64_DP_REG_SDIV) {
+            if (is_64bit) {
+                int64_t dividend = (int64_t)tcti_read_reg_or_zr(cpu, (int)rn);
+                int64_t signed_divisor = (int64_t)divisor;
+                if (dividend == INT64_MIN && signed_divisor == -1)
+                    result = (uint64_t)INT64_MIN;
+                else
+                    result = (uint64_t)(dividend / signed_divisor);
+            } else {
+                int32_t dividend = (int32_t)(uint32_t)tcti_read_reg_or_zr(cpu, (int)rn);
+                int32_t signed_divisor = (int32_t)(uint32_t)divisor;
+                if (dividend == INT32_MIN && signed_divisor == -1)
+                    result = (uint32_t)INT32_MIN;
+                else
+                    result = (uint32_t)(dividend / signed_divisor);
+            }
+        }
+    }
+
+    tcti_write_reg_or_zr(cpu, (int)rd, result & mask, is_64bit != 0);
+}
+
+__attribute__((naked)) void gadget_div_fallback_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t" // rd
+                 "ldr x20, [x28], #8\n\t" // rn
+                 "ldr x21, [x28], #8\n\t" // rm
+                 "ldr x22, [x28], #8\n\t" // subtype
+                 "ldr x23, [x28], #8\n\t" // is_64bit
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "stp x13, x14, [x29, #112]\n\t"
+                 "stp x15, x16, [x29, #128]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "mov x2, x20\n\t"
+                 "mov x3, x21\n\t"
+                 "mov x4, x22\n\t"
+                 "mov x5, x23\n\t"
+                 "bl _tcti_div_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "ldp x1, x2, [x29, #16]\n\t"
+                 "ldp x3, x4, [x29, #32]\n\t"
+                 "ldp x5, x6, [x29, #48]\n\t"
+                 "ldp x7, x8, [x29, #64]\n\t"
+                 "ldp x9, x10, [x29, #80]\n\t"
+                 "ldp x11, x12, [x29, #96]\n\t"
+                 "ldp x13, x14, [x29, #112]\n\t"
+                 "ldp x15, x16, [x29, #128]\n\t"
+                 "cmp x19, #16\n\t"
+                 "b.hs 1f\n\t"
+                 "mov x26, x19\n\t"
+                 "bl _tcti_sync_hot_reg_from_cpu\n\t"
+                 "1:\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
+tcti_gadget_t gadget_div_fallback = gadget_div_fallback_impl;
+
 static int tcti_cond_holds(uint64_t nzcv, uint64_t cond)
 {
     int n = (nzcv >> 31) & 1;
@@ -3559,6 +3653,55 @@ __attribute__((used)) static void tcti_bcond_helper(struct cpu_state *cpu, uint6
     cpu->pc = tcti_cond_holds(cpu->pstate, cond) ? target_pc : fallthrough_pc;
 }
 
+static uint64_t tcti_addsub_nzcv(uint64_t lhs, uint64_t rhs, uint64_t is_sub, uint64_t is_64bit)
+{
+    uint64_t mask = is_64bit ? UINT64_MAX : UINT32_MAX;
+    uint64_t sign_bit = is_64bit ? (1ULL << 63) : (1ULL << 31);
+    uint64_t result = is_sub ? ((lhs - rhs) & mask) : ((lhs + rhs) & mask);
+    uint64_t nzcv = 0;
+
+    lhs &= mask;
+    rhs &= mask;
+    if (result & sign_bit)
+        nzcv |= 0x80000000ULL;
+    if (result == 0)
+        nzcv |= 0x40000000ULL;
+    if (is_sub) {
+        if (lhs >= rhs)
+            nzcv |= 0x20000000ULL;
+        if (((lhs ^ rhs) & (lhs ^ result) & sign_bit) != 0)
+            nzcv |= 0x10000000ULL;
+    } else {
+        if (result < lhs)
+            nzcv |= 0x20000000ULL;
+        if (((~(lhs ^ rhs)) & (lhs ^ result) & sign_bit) != 0)
+            nzcv |= 0x10000000ULL;
+    }
+    return nzcv;
+}
+
+__attribute__((used)) static void tcti_ccmp_helper(struct cpu_state *cpu, uint64_t rn,
+                                                       uint64_t rm, uint64_t imm_operand,
+                                                       uint64_t cond, uint64_t nzcv,
+                                                       uint64_t subtype, uint64_t is_64bit)
+{
+    uint64_t mask = is_64bit ? UINT64_MAX : UINT32_MAX;
+    uint64_t next_nzcv;
+
+    if (tcti_cond_holds(cpu->pstate, cond)) {
+        uint64_t lhs = tcti_read_reg_or_zr(cpu, (int)rn) & mask;
+        uint64_t rhs = (subtype == A64_DP_REG_CCMN_IMM || subtype == A64_DP_REG_CCMP_IMM)
+                           ? (imm_operand & mask)
+                           : (tcti_read_reg_or_zr(cpu, (int)rm) & mask);
+        uint64_t is_sub = (subtype == A64_DP_REG_CCMP || subtype == A64_DP_REG_CCMP_IMM);
+        next_nzcv = tcti_addsub_nzcv(lhs, rhs, is_sub, is_64bit);
+    } else {
+        next_nzcv = (nzcv & 0xf) << 28;
+    }
+
+    cpu->pstate = next_nzcv;
+}
+
 __attribute__((naked)) void gadget_bcond_fallback_impl(void)
 {
     asm volatile("ldr x19, [x28], #8\n\t" // cond
@@ -3592,6 +3735,50 @@ __attribute__((naked)) void gadget_bcond_fallback_impl(void)
 }
 
 tcti_gadget_t gadget_bcond_fallback = gadget_bcond_fallback_impl;
+
+__attribute__((naked)) void gadget_ccmp_fallback_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t" // rn
+                 "ldr x20, [x28], #8\n\t" // rm
+                 "ldr x21, [x28], #8\n\t" // imm_operand
+                 "ldr x22, [x28], #8\n\t" // cond
+                 "ldr x23, [x28], #8\n\t" // nzcv
+                 "ldr x24, [x28], #8\n\t" // subtype
+                 "ldr x25, [x28], #8\n\t" // is_64bit
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "stp x13, x14, [x29, #112]\n\t"
+                 "stp x15, x16, [x29, #128]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "mov x2, x20\n\t"
+                 "mov x3, x21\n\t"
+                 "mov x4, x22\n\t"
+                 "mov x5, x23\n\t"
+                 "mov x6, x24\n\t"
+                 "mov x7, x25\n\t"
+                 "bl _tcti_ccmp_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "ldr x17, [x29, #280]\n\t"
+                 "msr nzcv, x17\n\t"
+                 "ldp x1, x2, [x29, #16]\n\t"
+                 "ldp x3, x4, [x29, #32]\n\t"
+                 "ldp x5, x6, [x29, #48]\n\t"
+                 "ldp x7, x8, [x29, #64]\n\t"
+                 "ldp x9, x10, [x29, #80]\n\t"
+                 "ldp x11, x12, [x29, #96]\n\t"
+                 "ldp x13, x14, [x29, #112]\n\t"
+                 "ldp x15, x16, [x29, #128]\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
+tcti_gadget_t gadget_ccmp_fallback = gadget_ccmp_fallback_impl;
 
 __attribute__((naked)) void gadget_csel_fallback_impl(void)
 {
@@ -4147,14 +4334,15 @@ __attribute__((naked)) void gadget_str_x_impl(void)
         "ldr x24, [x28], #8\n\t" // idx_mode
         "ldr x25, [x28], #8\n\t" // meta
 
-        // Fast path supports aligned 64-bit offset and post-index stores with hot
-        // base registers. Pre-index and register-offset forms stay on the helper path.
+        // Fast path supports aligned 64-bit offset stores with hot base registers.
+        // Writeback forms stay on the helper path so architectural base updates and
+        // host fault handling remain centralized.
         "cmp x21, #16\n\t" // Is Rn hot (0-15)?
         "b.hs 91f\n\t"
         "cmp x23, #3\n\t" // Is size 64-bit?
         "b.ne 92f\n\t"
-        "cmp x24, #1\n\t" // Offset or post-index addressing only.
-        "b.hi 93f\n\t"
+        "cmp x24, #0\n\t" // Offset addressing only.
+        "b.ne 93f\n\t"
         "cmp x25, #0\n\t" // No register offset / extension metadata.
         "b.ne 94f\n\t"
         "cmp x20, #16\n\t" // Rt hot is supported.
@@ -4210,12 +4398,7 @@ __attribute__((naked)) void gadget_str_x_impl(void)
         // Continue after base register load
         "110:\n\t"
 
-        // Add immediate offset for offset addressing. Post-index stores access the
-        // original base and apply writeback after the memory access succeeds.
-        "cmp x24, #1\n\t"
-        "b.eq 111f\n\t"
         "add x17, x17, x22\n\t"
-        "111:\n\t"
 
         // Check alignment: addr & 7 == 0
         "tst x17, #7\n\t"

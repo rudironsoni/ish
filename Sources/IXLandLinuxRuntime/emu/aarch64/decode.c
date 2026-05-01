@@ -4,6 +4,59 @@
 /* Mark variables as intentionally unused (for future expansion) */
 #define UNUSED(x) ((void)(x))
 
+static int highest_set_bit(unsigned value)
+{
+    for (int bit_index = 6; bit_index >= 0; bit_index--) {
+        if (value & (1u << bit_index))
+            return bit_index;
+    }
+    return -1;
+}
+
+static uint64_t bitmask_ones(unsigned count)
+{
+    if (count >= 64)
+        return UINT64_MAX;
+    return count == 0 ? 0 : ((1ULL << count) - 1);
+}
+
+static uint64_t rotate_right_width(uint64_t value, unsigned rotation, unsigned width)
+{
+    uint64_t mask = bitmask_ones(width);
+    rotation &= width - 1;
+    value &= mask;
+    if (rotation == 0)
+        return value;
+    return ((value >> rotation) | (value << (width - rotation))) & mask;
+}
+
+static bool decode_logical_bitmask(unsigned N, unsigned imms, unsigned immr, bool is_64bit,
+                                   uint64_t *out_mask)
+{
+    if (!is_64bit && N != 0)
+        return false;
+
+    int len = highest_set_bit((N << 6) | (~imms & 0x3f));
+    if (len < 1)
+        return false;
+
+    unsigned levels = (1u << len) - 1;
+    unsigned S = imms & levels;
+    unsigned R = immr & levels;
+    if (S == levels)
+        return false;
+
+    unsigned element_width = 1u << len;
+    unsigned data_width = is_64bit ? 64u : 32u;
+    uint64_t element = rotate_right_width(bitmask_ones(S + 1), R, element_width);
+    uint64_t mask = 0;
+    for (unsigned bit_offset = 0; bit_offset < data_width; bit_offset += element_width)
+        mask |= element << bit_offset;
+
+    *out_mask = mask;
+    return true;
+}
+
 // Main decode entry point
 int a64_decode(uint32_t insn, a64_instr_t *out)
 {
@@ -79,6 +132,22 @@ int a64_decode_dp_imm(uint32_t insn, a64_instr_t *out)
 
     // Common: sf bit (bit 31) indicates 64-bit operation
     out->is_64bit = bit(insn, 31);
+
+    if ((insn & 0x1F000000) == 0x10000000) {
+        int op = bit(insn, 31); // 0=ADR, 1=ADRP
+        out->Rd = bits(insn, 4, 0);
+        int64_t immhi = bits(insn, 23, 5);
+        int immlo = bits(insn, 30, 29);
+        out->imm = (immhi << 2) | immlo;
+        if (op) {
+            out->imm = sign_extend(out->imm, 21) << 12;
+            out->subtype = 1; // ADRP
+        } else {
+            out->imm = sign_extend(out->imm, 21);
+            out->subtype = 0; // ADR
+        }
+        return 0;
+    }
 
     switch (op0) {
     case 0: // 000 - PC-rel addressing (ADR, ADRP)
@@ -167,11 +236,14 @@ int a64_decode_dp_imm(uint32_t insn, a64_instr_t *out)
         out->is_64bit = bit(insn, 31);
         out->Rd = bits(insn, 4, 0);
         out->Rn = bits(insn, 9, 5);
-        // immN:imms:immr at bits 22:16, 15:10, 21:16
         int N = bit(insn, 22);
         int immr = bits(insn, 21, 16);
         int imms = bits(insn, 15, 10);
-        out->imm = ((uint64_t)N << 13) | ((uint64_t)imms << 6) | immr;
+        uint64_t imm;
+        if (!decode_logical_bitmask((unsigned)N, (unsigned)imms, (unsigned)immr,
+                                    out->is_64bit, &imm))
+            return -1;
+        out->imm = (int64_t)imm;
         // Map to subtypes 7-10 to avoid collision with MOVN/MOVZ/MOVK (0-2)
         // and ADD/SUB immediate (3-6)
         // 7=AND, 8=ORR, 9=EOR, 10=ANDS
@@ -236,8 +308,27 @@ int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out)
     // For categorization within DP_REG, use op2 = bits 24:21
     out->is_64bit = bit(insn, 31);
 
-    // Check if this is ADC/SBC (category 0xD) which needs special handling
     a64_category_t cat = a64_get_category(insn);
+    if (cat == A64_DP_IMM2) {
+        uint32_t ccmp_form = insn & 0x3fe00c10;
+        if (ccmp_form == 0x3a400000 || ccmp_form == 0x3a400800) {
+            int op = bit(insn, 30);
+            bool is_immediate = bit(insn, 11);
+            out->Rn = bits(insn, 9, 5);
+            out->Rm = is_immediate ? -1 : bits(insn, 20, 16);
+            out->imm_shift = is_immediate ? (int)bits(insn, 20, 16) : 0;
+            out->cond = bits(insn, 15, 12);
+            out->imm = bits(insn, 3, 0);
+            out->set_flags = true;
+            if (is_immediate)
+                out->subtype = op ? A64_DP_REG_CCMP_IMM : A64_DP_REG_CCMN_IMM;
+            else
+                out->subtype = op ? A64_DP_REG_CCMP : A64_DP_REG_CCMN;
+            return 0;
+        }
+    }
+
+    // Check if this is ADC/SBC (category 0xD) which needs special handling
     if (cat == A64_DP_IMM2) {
         // ADC/SBC with carry - op2 = bits 24:21 should be 0-2
         int op2 = bits(insn, 24, 21);
@@ -282,10 +373,20 @@ int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out)
 
     if ((insn & 0x7fe00000) == 0x1ac00000) {
         int opcode = bits(insn, 15, 10);
+        if (opcode == 2 || opcode == 3) {
+            out->Rd = bits(insn, 4, 0);
+            out->Rn = bits(insn, 9, 5);
+            out->Rm = bits(insn, 20, 16);
+            out->is_64bit = bit(insn, 31);
+            out->subtype = opcode == 2 ? A64_DP_REG_UDIV : A64_DP_REG_SDIV;
+            out->set_flags = 0;
+            return 0;
+        }
         if (opcode >= 8 && opcode <= 11) {
             out->Rd = bits(insn, 4, 0);
             out->Rn = bits(insn, 9, 5);
             out->Rm = bits(insn, 20, 16);
+            out->is_64bit = bit(insn, 31);
             out->subtype = 16 + (opcode - 8); // 16=LSLV, 17=LSRV, 18=ASRV, 19=RORV
             out->set_flags = 0;
             return 0;
@@ -449,7 +550,7 @@ int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out)
         out->Rm = bits(insn, 20, 16);
         out->cond = cond;
         out->imm = nzcv;
-        out->subtype = op ? 5 : 4; // 4=CCMN, 5=CCMP
+        out->subtype = op ? A64_DP_REG_CCMP : A64_DP_REG_CCMN;
         return 0;
     }
 
@@ -608,6 +709,8 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out)
         out->Rn = bits(insn, 9, 5);
         out->imm = sign_extend(imm9, 9);
         out->is_signed = (opc & 2) != 0;
+        if (out->is_signed)
+            out->is_64bit = (opc == 2);
         out->subtype = A64_LDST_SINGLE;
 
         switch (op4) {
@@ -651,6 +754,8 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out)
         out->Rn = bits(insn, 9, 5);
         out->Rm = bits(insn, 20, 16);
         out->is_signed = (opc & 2) != 0;
+        if (out->is_signed)
+            out->is_64bit = (opc == 2);
 
         // Map raw option encoding to internal enum
         switch (opt) {
@@ -685,8 +790,10 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out)
         out->Rd = bits(insn, 4, 0);
         out->Rn = bits(insn, 9, 5);
         out->is_signed = (opc & 2) != 0;
+        if (out->is_signed)
+            out->is_64bit = (opc == 2);
         // Scale immediate by size
-        int scale = out->is_64bit ? 3 : out->size;
+        int scale = out->size;
         out->imm = imm12 << scale;
         out->subtype = A64_LDST_SINGLE;
         out->idx_mode = A64_INDEX_OFFSET;
@@ -767,15 +874,17 @@ int a64_decode_system(uint32_t insn, a64_instr_t *out)
     if ((insn & 0xFFC00000) == 0xD4000000) {
         int op = bits(insn, 23, 21);
         if (op == 1) { // SVC
-            uint16_t imm16 = bits(insn, 15, 0);
+            uint16_t imm16 = bits(insn, 20, 5);
             out->imm = imm16;
-            out->subtype = 0; // SVC
+            out->op = op;
+            out->subtype = A64_EXCEPTION;
             return 0;
         }
         if (op == 0) { // HVC
-            uint16_t imm16 = bits(insn, 15, 0);
+            uint16_t imm16 = bits(insn, 20, 5);
             out->imm = imm16;
-            out->subtype = 1; // HVC
+            out->op = op;
+            out->subtype = A64_EXCEPTION;
             return 0;
         }
     }

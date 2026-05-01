@@ -100,6 +100,12 @@ typedef enum {
     A64_DP_REG_SMSUBL = 35,     // SMSUBL / SMNEGL alias when Ra == XZR
     A64_DP_REG_UMADDL = 36,     // UMADDL / UMULL alias when Ra == XZR
     A64_DP_REG_UMSUBL = 37,     // UMSUBL / UMNEGL alias when Ra == XZR
+    A64_DP_REG_CCMN = 38,       // Conditional compare negative (register)
+    A64_DP_REG_CCMP = 39,       // Conditional compare (register)
+    A64_DP_REG_CCMN_IMM = 40,   // Conditional compare negative (immediate)
+    A64_DP_REG_CCMP_IMM = 41,   // Conditional compare (immediate)
+    A64_DP_REG_UDIV = 42,       // Unsigned divide
+    A64_DP_REG_SDIV = 43,       // Signed divide
 } a64_dp_reg_subtype_t;
 
 /* Condition codes for conditional instructions */

@@ -31,6 +31,144 @@ struct exec_args {
     const char *args;
 };
 
+struct elf64_rela {
+    uint64_t offset;
+    uint64_t info;
+    int64_t addend;
+};
+
+struct elf64_dynsym {
+    uint32_t name;
+    uint8_t info;
+    uint8_t other;
+    uint16_t shndx;
+    uint64_t value;
+    uint64_t size;
+};
+
+#define DT_PLTRELSZ 2
+#define DT_RELA     7
+#define DT_RELASZ   8
+#define DT_RELAENT  9
+#define DT_SYMENT   11
+#define DT_JMPREL   23
+
+#define R_AARCH64_GLOB_DAT  1025
+#define R_AARCH64_JUMP_SLOT 1026
+
+static int relocate_interp_self_symbol_table(addr_t interp_base, addr_t rela_addr,
+                                             uint64_t rela_size, uint64_t rela_ent,
+                                             addr_t symtab_addr, uint64_t sym_ent,
+                                             unsigned *applied)
+{
+    if (rela_addr == 0 || rela_size == 0 || symtab_addr == 0)
+        return 0;
+    if (rela_ent == 0)
+        rela_ent = sizeof(struct elf64_rela);
+    if (sym_ent == 0)
+        sym_ent = sizeof(struct elf64_dynsym);
+
+    for (uint64_t off = 0; off + sizeof(struct elf64_rela) <= rela_size; off += rela_ent) {
+        struct elf64_rela rela;
+        if (user_get(rela_addr + off, rela))
+            return _EFAULT;
+
+        uint32_t type = (uint32_t)rela.info;
+        uint32_t sym_index = (uint32_t)(rela.info >> 32);
+        if (type != R_AARCH64_GLOB_DAT && type != R_AARCH64_JUMP_SLOT)
+            continue;
+        if (sym_index == 0)
+            continue;
+
+        struct elf64_dynsym sym;
+        if (user_get(symtab_addr + (addr_t)sym_index * sym_ent, sym))
+            return _EFAULT;
+        if (sym.shndx == 0 || sym.value == 0)
+            continue;
+
+        uint64_t relocated = interp_base + sym.value + (uint64_t)rela.addend;
+        if (user_put(interp_base + rela.offset, relocated))
+            return _EFAULT;
+        (*applied)++;
+    }
+
+    return 0;
+}
+
+static int relocate_interp_self_symbols(addr_t interp_base, addr_t interp_dynamic_addr)
+{
+    if (interp_base == 0 || interp_dynamic_addr == 0)
+        return 0;
+
+    addr_t rela_addr = 0;
+    addr_t jmprel_addr = 0;
+    addr_t symtab_addr = 0;
+    uint64_t rela_size = 0;
+    uint64_t rela_ent = sizeof(struct elf64_rela);
+    uint64_t pltrel_size = 0;
+    uint64_t sym_ent = sizeof(struct elf64_dynsym);
+    unsigned applied = 0;
+    int err = 0;
+
+    write_wrunlock(&current->mem->lock);
+
+    for (unsigned i = 0; i < 256; i++) {
+        struct dyn_ent dyn;
+        if (user_get(interp_dynamic_addr + (addr_t)i * sizeof(dyn), dyn)) {
+            err = _EFAULT;
+            goto out;
+        }
+        if (dyn.tag == DT_NULL)
+            break;
+
+        switch (dyn.tag) {
+        case DT_RELA:
+            rela_addr = interp_base + dyn.val;
+            break;
+        case DT_RELASZ:
+            rela_size = dyn.val;
+            break;
+        case DT_RELAENT:
+            rela_ent = dyn.val;
+            break;
+        case DT_JMPREL:
+            jmprel_addr = interp_base + dyn.val;
+            break;
+        case DT_PLTRELSZ:
+            pltrel_size = dyn.val;
+            break;
+        case DT_SYMTAB:
+            symtab_addr = interp_base + dyn.val;
+            break;
+        case DT_SYMENT:
+            sym_ent = dyn.val;
+            break;
+        default:
+            break;
+        }
+    }
+
+    err = relocate_interp_self_symbol_table(interp_base, rela_addr, rela_size, rela_ent,
+                                            symtab_addr, sym_ent, &applied);
+    if (err < 0)
+        goto out;
+
+    err = relocate_interp_self_symbol_table(interp_base, jmprel_addr, pltrel_size,
+                                            sizeof(struct elf64_rela), symtab_addr, sym_ent,
+                                            &applied);
+
+out:
+    write_wrlock(&current->mem->lock);
+
+    char ev[192];
+    snprintf(ev, sizeof(ev),
+             "loader.interp.self_reloc=base:0x%llx,dynamic:0x%llx,applied:%u,err:%d",
+             (unsigned long long)interp_base, (unsigned long long)interp_dynamic_addr, applied,
+             err);
+    trace_record_event(TRACE_ORIGIN_KERNEL, ev);
+    return err;
+}
+
 static void trace_exec_checkpoint(const char *name, int err)
 {
     char pid_buf[32];
@@ -1029,6 +1167,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     bool interp_lowest_pt_load_seen = false;
     addr_t interp_first_load_vaddr = 0;
     addr_t interp_first_load_off = 0;
+    addr_t interp_dynamic_vaddr = 0;
     addr_t interp_lowest_pt_load_vaddr = 0;
     addr_t interp_lowest_pt_load_off = 0;
 
@@ -1049,6 +1188,8 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     if (interp_name) {
         for (int i = 0; i < interp_header.phent_count; i++) {
             trace_interp_phdr_event(i, &interp_ph[i]);
+            if (interp_ph[i].type == PT_DYNAMIC)
+                interp_dynamic_vaddr = interp_ph[i].vaddr;
             if (interp_ph[i].type != PT_LOAD)
                 continue;
             if (!interp_lowest_pt_load_seen ||
@@ -1191,6 +1332,9 @@ entry = interp_base + interp_header.entry_point;
         // (not interpreter's _DYNAMIC). The interpreter needs the main program's dynamic
         // section to perform relocations. dynamic_addr was already set from main's PT_DYNAMIC
         // at lines 1011-1017, so do not overwrite it here.
+        if ((err = relocate_interp_self_symbols(
+                 interp_base, interp_dynamic_vaddr ? interp_base + interp_dynamic_vaddr : 0)) < 0)
+            goto beyond_hope;
 
         {
             struct page_desc *page0_desc = page_map_lookup(&current->mem->pages, 0);

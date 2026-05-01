@@ -551,7 +551,8 @@ static bool trace_instr_writes_rd(const a64_instr_t *instr, uint32_t raw)
     case A64_DP_REG3:
     case A64_DP_REG4:
         // CCMN/CCMP update flags only; they do not write Rd.
-        if (instr->subtype == 4 || instr->subtype == 5)
+        if (instr->subtype == A64_DP_REG_CCMN || instr->subtype == A64_DP_REG_CCMP ||
+            instr->subtype == A64_DP_REG_CCMN_IMM || instr->subtype == A64_DP_REG_CCMP_IMM)
             return false;
         return instr->Rd >= 0 && instr->Rd <= 31;
 
@@ -4088,7 +4089,7 @@ int a64_execute_ldst(struct cpu_state *cpu, struct tlb *tlb, const a64_instr_t *
         }
         a64_write_reg_or_sp(cpu, instr->Rd, value,
                              instr->size == A64_SIZE_X ||
-                                 (instr->is_signed && instr->size == A64_SIZE_W));
+                                 (instr->is_signed && instr->is_64bit));
     } else {
         uint64_t value = a64_read_reg_or_sp(cpu, instr->Rd, instr->size == A64_SIZE_X);
         switch (instr->size) {
