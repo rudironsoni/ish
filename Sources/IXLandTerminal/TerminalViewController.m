@@ -58,6 +58,21 @@ static void trace_task_source_checkpoint(const char *name, struct task *task) {
     (void) trace_begin_interval(TRACE_ORIGIN_TASK, name, attrs, sizeof(attrs) / sizeof(attrs[0]));
 }
 
+static BOOL g_guestSessionActive = NO;
+static NSString *const IXLandGuestSessionGuardLock = @"IXLandGuestSessionGuardLock";
+
+static BOOL IXLandIsGuestSessionActive(void) {
+    @synchronized (IXLandGuestSessionGuardLock) {
+        return g_guestSessionActive;
+    }
+}
+
+static void IXLandSetGuestSessionActive(BOOL active) {
+    @synchronized (IXLandGuestSessionGuardLock) {
+        g_guestSessionActive = active;
+    }
+}
+
 #if ISH_RUNTIME_MODE_VALUE == 2
 // APPSIM-004 Stage 3B: Trace stdio fd wiring state
 // Captures what fd 0, 1, 2 point to and whether they're wired to PTY slave
@@ -437,8 +452,13 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
         [self recordSessionAttemptEvent:@"session.start.blocked.reentrant" extra:@{ @"is_restart_path": @(isRestartPath) }];
         return;
     }
+    if (ISH_RUNTIME_MODE_VALUE == 3 && IXLandIsGuestSessionActive()) {
+        [self recordSessionAttemptEvent:@"session.start.blocked.active_guest" extra:@{ @"is_restart_path": @(isRestartPath) }];
+        return;
+    }
 
     self.sessionStartInProgress = YES;
+    self.sessionPid = 0;
     self.sessionAttemptSequence += 1;
     self.sessionGenerationSequence += 1;
     self.activeSessionGeneration = self.sessionGenerationSequence;
@@ -751,10 +771,12 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
     trace_task_source_checkpoint("task.proof.login.exec.entry", current);
 
     self.lastTaskStartEntered = YES;
+    IXLandSetGuestSessionActive(YES);
     linux_start_session(command[0].UTF8String, (const char *const *) argvp, envp, ^(int retval, int pid, nsobj_t terminalObject) {
-        dispatch_async(dispatch_get_main_queue(), ^{
+        void (^handleStartResult)(void) = ^{
             self.lastLoginExecReturnValue = retval;
             if (retval < 0) {
+                IXLandSetGuestSessionActive(NO);
                 self.lastPTYCreationReturnValue = retval;
                 self.lastSTDIOCreateReturnValue = retval;
                 [self recordSessionStartupFailureLabel:@"linux_start_session_failed"
@@ -812,7 +834,13 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
                                                @"mounts_non_empty": @(mounts_is_non_empty()),
                                                @"is_restart_path": @(isRestartPath) }];
             free(argvp);
-        });
+        };
+
+        if ([NSThread isMainThread]) {
+            handleStartResult();
+        } else {
+            dispatch_async(dispatch_get_main_queue(), handleStartResult);
+        }
     });
 
     return 0;
@@ -895,6 +923,7 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
     }
 
     current = NULL; // it's been freed
+    IXLandSetGuestSessionActive(NO);
     if (!allowRestart) {
         return;
     }

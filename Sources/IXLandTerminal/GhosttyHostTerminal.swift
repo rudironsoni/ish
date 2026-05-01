@@ -4,20 +4,22 @@ import GhosttyTerminal
 
 @objc public protocol IXLandGhosttyHostTerminalDelegate: AnyObject {
     func ghosttyHostTerminal(_ terminal: IXLandGhosttyHostTerminal, didReceiveInput data: Data)
+    @objc(ghosttyHostTerminal:didResizeColumns:rows:)
     func ghosttyHostTerminal(_ terminal: IXLandGhosttyHostTerminal, didResize columns: Int, rows: Int)
 }
 
-@objcMembers
 public final class IXLandGhosttyHostTerminal: NSObject {
-    @objc public private(set) var view: UIView
-    @objc public private(set) var session: InMemoryTerminalSession
-    @objc public private(set) var terminalView: TerminalView
+    @objc public private(set) var view: UIView!
+    @objc public private(set) var terminalView: TerminalView!
+    private var session: InMemoryTerminalSession!
 
     @objc public weak var delegate: (any IXLandGhosttyHostTerminalDelegate)?
 
-    private let controller: TerminalController
+    private var controller: TerminalController!
 
+    @MainActor
     @objc public init(fontSize: Double = 14.0) {
+        super.init()
         controller = TerminalController()
 
         let session = InMemoryTerminalSession(write: { [weak self] data in
@@ -42,7 +44,6 @@ public final class IXLandGhosttyHostTerminal: NSObject {
 
         self.terminalView = terminalView
         self.view = terminalView
-        super.init()
     }
 
     @objc public func receiveOutput(_ data: Data) {
@@ -60,6 +61,7 @@ public final class IXLandGhosttyHostTerminal: NSObject {
         session.sendInput(data)
     }
 
+    @MainActor
     @objc public func updateFontSize(_ fontSize: Double) {
         terminalView.configuration = TerminalSurfaceOptions(
             backend: .inMemory(session),

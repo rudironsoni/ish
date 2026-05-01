@@ -1600,12 +1600,10 @@
 			);
 			dependencies = (
 				ECD02DDE64ABC13EC8A3330A /* PBXTargetDependency */,
-				671B78034F78C722E5212D0E /* PBXTargetDependency */,
 			);
 			name = IXLandLinuxRuntime;
 			packageProductDependencies = (
 				A61C025D88AA0E6C570CC894 /* IXLandInstrumentationRuntime */,
-				F4BFEB3B7474ACD13F4C24E0 /* libarchive */,
 			);
 			productName = IXLandLinuxRuntime;
 			productReference = CB26B1B5D3A91542EDE0757A /* libIXLandLinuxRuntime.a */;
@@ -2091,10 +2089,6 @@
 			target = 8B71F48AE7216B5689802404 /* IXLandLinuxRuntime */;
 			targetProxy = 738145ACAA252FEEF658A6DC /* PBXContainerItemProxy */;
 		};
-		671B78034F78C722E5212D0E /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			productRef = F4BFEB3B7474ACD13F4C24E0 /* libarchive */;
-		};
 		74DABF569302B90E9F49D1BA /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 8B71F48AE7216B5689802404 /* IXLandLinuxRuntime */;
@@ -2254,6 +2248,7 @@
 					"$(SRCROOT)/include",
 					"$(SRCROOT)/Sources",
 					"$(SRCROOT)/tools",
+					"$(LIBARCHIVE_PACKAGE_SLICE_DIR)/Headers",
 					"$(SDKROOT)/usr/include/libxml2",
 					"$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentation/include",
 					"$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationBridge",
@@ -2265,8 +2260,14 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				"LIBARCHIVE_PACKAGE_SLICE_DIR[sdk=iphoneos*]" = "$(BUILD_DIR)/../../SourcePackages/checkouts/libarchive-for-swift/libarchive.xcframework/ios-arm64_arm64e";
+				"LIBARCHIVE_PACKAGE_SLICE_DIR[sdk=iphonesimulator*]" = "$(BUILD_DIR)/../../SourcePackages/checkouts/libarchive-for-swift/libarchive.xcframework/ios-arm64_x86_64-simulator";
+				LIBRARY_SEARCH_PATHS = (
+					"$(LIBARCHIVE_PACKAGE_SLICE_DIR)",
+				);
 				OTHER_LDFLAGS = (
 					"$(inherited)",
+					"-larchive",
 					"-ObjC",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.ixland.terminal;
@@ -2496,6 +2497,7 @@
 					"$(SRCROOT)/include",
 					"$(SRCROOT)/Sources",
 					"$(SRCROOT)/tools",
+					"$(LIBARCHIVE_PACKAGE_SLICE_DIR)/Headers",
 					"$(SDKROOT)/usr/include/libxml2",
 					"$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentation/include",
 					"$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationBridge",
@@ -2507,8 +2509,14 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				"LIBARCHIVE_PACKAGE_SLICE_DIR[sdk=iphoneos*]" = "$(BUILD_DIR)/../../SourcePackages/checkouts/libarchive-for-swift/libarchive.xcframework/ios-arm64_arm64e";
+				"LIBARCHIVE_PACKAGE_SLICE_DIR[sdk=iphonesimulator*]" = "$(BUILD_DIR)/../../SourcePackages/checkouts/libarchive-for-swift/libarchive.xcframework/ios-arm64_x86_64-simulator";
+				LIBRARY_SEARCH_PATHS = (
+					"$(LIBARCHIVE_PACKAGE_SLICE_DIR)",
+				);
 				OTHER_LDFLAGS = (
 					"$(inherited)",
+					"-larchive",
 					"-ObjC",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.ixland.terminal;
@@ -2826,11 +2834,6 @@
 		A61C025D88AA0E6C570CC894 /* IXLandInstrumentationRuntime */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = IXLandInstrumentationRuntime;
-		};
-		F4BFEB3B7474ACD13F4C24E0 /* libarchive */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 97D09F1B3ACEC32BA3E3D959 /* XCRemoteSwiftPackageReference "libarchive-for-swift" */;
-			productName = libarchive;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

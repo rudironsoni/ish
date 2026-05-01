@@ -74,8 +74,6 @@ targets:
     dependencies:
     - package: IXLandInstrumentation
       product: IXLandInstrumentationRuntime
-    - package: libarchive-for-swift
-      product: libarchive
     settings:
       PRODUCT_MODULE_NAME: IXLandLinuxRuntime
       PUBLIC_HEADERS_FOLDER_PATH: include/IXLandLinuxRuntime
@@ -238,6 +236,8 @@ targets:
       ENABLE_DEBUG_DYLIB: NO
       CODE_SIGN_ENTITLEMENTS: Sources/IXLandTerminal/iSH.entitlements
       ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+      LIBARCHIVE_PACKAGE_SLICE_DIR[sdk=iphoneos*]: "$(BUILD_DIR)/../../SourcePackages/checkouts/libarchive-for-swift/libarchive.xcframework/ios-arm64_arm64e"
+      LIBARCHIVE_PACKAGE_SLICE_DIR[sdk=iphonesimulator*]: "$(BUILD_DIR)/../../SourcePackages/checkouts/libarchive-for-swift/libarchive.xcframework/ios-arm64_x86_64-simulator"
       HEADER_SEARCH_PATHS:
       - "$(LINUX_UAPI_INCLUDE_ROOT)"
       - "$(SRCROOT)/Sources/IXLandTerminal"
@@ -245,10 +245,16 @@ targets:
       - "$(SRCROOT)/include"
       - "$(SRCROOT)/Sources"
       - "$(SRCROOT)/tools"
+      - "$(LIBARCHIVE_PACKAGE_SLICE_DIR)/Headers"
       - "$(SDKROOT)/usr/include/libxml2"
       - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentation/include"
       - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationBridge"
       - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include"
+      LIBRARY_SEARCH_PATHS:
+      - "$(LIBARCHIVE_PACKAGE_SLICE_DIR)"
+      OTHER_LDFLAGS:
+      - "$(inherited)"
+      - "-larchive"
     dependencies:
     - target: IXLandLinuxRuntime
     - package: IXLandInstrumentation
