@@ -20,29 +20,9 @@ static _Atomic int64_t g_trace_ui_pid = 0;
 static _Atomic int g_trace_is_restart = 0;
 static _Atomic int g_trace_has_terminal = 0;
 
-static bool ixland_guest_trace_has_prefix(const char *event_name, const char *prefix)
-{
-    if (!event_name || !prefix)
-        return false;
-    return strncmp(event_name, prefix, strlen(prefix)) == 0;
-}
-
-static trace_level_t ixland_guest_trace_level_for_event(const char *event_name)
-{
-    if (ixland_guest_trace_has_prefix(event_name, "task.proof.") ||
-        ixland_guest_trace_has_prefix(event_name, "guest.handle_interrupt") ||
-        ixland_guest_trace_has_prefix(event_name, "guest.receive_signals") ||
-        ixland_guest_trace_has_prefix(event_name, "guest.syscall") ||
-        ixland_guest_trace_has_prefix(event_name, "guest.first_fault")) {
-        return TRACE_LEVEL_DEBUG;
-    }
-
-    return TRACE_LEVEL_INFO;
-}
-
 static bool ixland_guest_trace_should_emit(const char *event_name)
 {
-    return trace_is_active() && trace_get_level() >= ixland_guest_trace_level_for_event(event_name);
+    return trace_should_emit_event(event_name);
 }
 
 void ixland_guest_trace_set_context(int64_t attempt_id, int64_t guest_pid, int64_t ui_pid,
@@ -597,6 +577,11 @@ void task_run_current(void)
     ixland_guest_trace_emit(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR, "guest.a64_cpu_run.entry");
     a64_cpu_run(cpu, &tlb);
     ixland_guest_trace_emit(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR, "guest.a64_cpu_run.return");
+
+    if (current->exiting || current->mm == NULL) {
+        pthread_exit(NULL);
+    }
+
     task_cpu_run_checkpoint("task.proof.process_terminating", current);
     do_exit_group(128 + SIGSEGV_);
 }

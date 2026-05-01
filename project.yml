@@ -135,6 +135,7 @@ targets:
     - path: Tests/IXLandLinuxRuntimeContractTests
       excludes:
       - "**/DISABLED/**"
+    - path: Tests/Support/TCTITestHarness/tcti_harness_truth.c
     dependencies:
     - target: IXLandLinuxRuntime
     settings:

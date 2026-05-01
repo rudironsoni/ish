@@ -50,22 +50,39 @@ static bool trace_event_has_prefix(const char *event_name, const char *prefix)
     return strncmp(event_name, prefix, strlen(prefix)) == 0;
 }
 
+typedef struct {
+    const char *prefix;
+    trace_level_t level;
+} trace_level_rule_t;
+
+static const trace_level_rule_t g_trace_level_rules[] = {
+    { "task.proof.", TRACE_LEVEL_DEBUG_ALL },
+    { "boot.generic_openat.", TRACE_LEVEL_DEBUG_ALL },
+    { "boot.mount_find.", TRACE_LEVEL_DEBUG_ALL },
+    { "boot.construct_task.", TRACE_LEVEL_DEBUG_ALL },
+    { "tcti.block.", TRACE_LEVEL_DEBUG_ALL },
+    { "tcti.compile.instruction", TRACE_LEVEL_DEBUG_ALL },
+    { "gadget.", TRACE_LEVEL_DEBUG_ALL },
+    { "mem.translate.", TRACE_LEVEL_DEBUG_ALL },
+    { "mem.pgdir.", TRACE_LEVEL_DEBUG_ALL },
+    { "tcti.", TRACE_LEVEL_DEBUG },
+    { "guest.handle_interrupt", TRACE_LEVEL_DEBUG },
+    { "guest.receive_signals", TRACE_LEVEL_DEBUG },
+    { "guest.syscall", TRACE_LEVEL_DEBUG },
+    { "guest.first_fault", TRACE_LEVEL_DEBUG },
+};
+
 static trace_level_t trace_level_for_event_name(const char *event_name)
 {
-    if (trace_event_has_prefix(event_name, "task.proof.") ||
-        trace_event_has_prefix(event_name, "tcti.") ||
-        trace_event_has_prefix(event_name, "gadget.") ||
-        trace_event_has_prefix(event_name, "guest.handle_interrupt") ||
-        trace_event_has_prefix(event_name, "guest.receive_signals") ||
-        trace_event_has_prefix(event_name, "guest.syscall") ||
-        trace_event_has_prefix(event_name, "guest.first_fault")) {
-        return TRACE_LEVEL_DEBUG;
+    for (size_t i = 0; i < sizeof(g_trace_level_rules) / sizeof(g_trace_level_rules[0]); i++) {
+        if (trace_event_has_prefix(event_name, g_trace_level_rules[i].prefix))
+            return g_trace_level_rules[i].level;
     }
 
     return TRACE_LEVEL_INFO;
 }
 
-static bool trace_should_emit_event(const char *event_name)
+bool trace_should_emit_event(const char *event_name)
 {
     return trace_is_active() && trace_get_level() >= trace_level_for_event_name(event_name);
 }
@@ -171,6 +188,15 @@ bool trace_is_enabled(void)
 static int g_trace_level_initialized = 0;
 static trace_level_t g_trace_level = TRACE_LEVEL_OFF;
 
+static trace_level_t default_trace_level(void)
+{
+#if DEBUG
+    return TRACE_LEVEL_DEBUG_ALL;
+#else
+    return TRACE_LEVEL_OFF;
+#endif
+}
+
 static trace_level_t parse_trace_level_value(const char *value)
 {
     if (!value || value[0] == '\0')
@@ -204,7 +230,8 @@ trace_level_t trace_get_level(void)
         const char *value = getenv("IXLAND_TRACE_LEVEL");
         if (!value || value[0] == '\0')
             value = getenv("ISH_TRACE_LEVEL");
-        g_trace_level = parse_trace_level_value(value);
+        g_trace_level = value && value[0] != '\0' ? parse_trace_level_value(value)
+                                                  : default_trace_level();
         g_trace_level_initialized = 1;
     }
 
@@ -647,47 +674,47 @@ void trace_emit_task_proof_point(task_proof_point_t point, uint32_t pid)
 {
     switch (point) {
     case TASK_PROOF_START_ENTER:
-        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG,
+        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG_ALL,
                                     "task.proof.start.enter");
         break;
     case TASK_PROOF_BEFORE_PTHREAD:
-        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG,
+        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG_ALL,
                                     "task.proof.before_pthread");
         break;
     case TASK_PROOF_AFTER_PTHREAD:
-        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG,
+        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG_ALL,
                                     "task.proof.after_pthread");
         break;
     case TASK_PROOF_THREAD_ENTRY:
-        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG,
+        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG_ALL,
                                     "task.proof.thread_entry");
         break;
     case TASK_PROOF_BEFORE_CURRENT_SET:
-        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG,
+        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG_ALL,
                                     "task.proof.before_current_set");
         break;
     case TASK_PROOF_AFTER_CURRENT_SET:
-        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG,
+        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG_ALL,
                                     "task.proof.after_current_set");
         break;
     case TASK_PROOF_RUN_CURRENT_ENTER:
-        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG,
+        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG_ALL,
                                     "task.proof.run_current_enter");
         break;
     case TASK_PROOF_BEFORE_GUEST_CPU:
-        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG,
+        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG_ALL,
                                     "task.proof.before_guest_cpu");
         break;
     case TASK_PROOF_AFTER_THREAD_ENTRY:
-        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG,
+        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG_ALL,
                                     "task.proof.after_thread_entry");
         break;
     case TASK_PROOF_BEFORE_TASK_RUN_CURRENT:
-        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG,
+        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG_ALL,
                                     "task.proof.before_task_run_current");
         break;
     case TASK_PROOF_TASK_RUN_CURRENT_ENTRY:
-        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG,
+        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG_ALL,
                                     "task.proof.task_run_current_entry");
         break;
     }

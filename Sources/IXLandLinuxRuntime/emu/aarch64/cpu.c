@@ -2323,8 +2323,11 @@ void a64_cpu_run(struct cpu_state *cpu, struct tlb *tlb)
 void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterations)
 {
     trace_cpu_run_checkpoint("task.proof.a64_cpu_run.entry", current, cpu, 0);
+    const char *stop_reason = "iteration_limit";
 
     if (!cpu || !tlb || !cpu->mmu) {
+        stop_reason = "invalid_state";
+        ixland_guest_trace_emit(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR, "guest.a64_cpu_run.stop");
         return;
     }
 
@@ -2427,6 +2430,7 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
             if (!ctx) {
                 trace_emit(TRACE_EVENT_FAULT, cpu->pc);
                 handle_interrupt(INT_GPF);
+                stop_reason = "ctx_reacquire_failed";
                 break;
             }
         }
@@ -3960,6 +3964,24 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
         }
 
         // Normal exit - PC already advanced, continue to next block
+    }
+
+    {
+        char pc_buf[32];
+        char iterations_buf[32];
+        char total_buf[32];
+        snprintf(pc_buf, sizeof(pc_buf), "0x%llx", cpu ? (unsigned long long)cpu->pc : 0ULL);
+        snprintf(iterations_buf, sizeof(iterations_buf), "%d", iteration_count);
+        snprintf(total_buf, sizeof(total_buf), "%d", total_blocks_executed);
+        ixland_instrumentation_attribute_t attrs[] = {
+            { .key = "reason", .value = stop_reason },
+            { .key = "guest_pc", .value = pc_buf },
+            { .key = "iterations", .value = iterations_buf },
+            { .key = "total_blocks", .value = total_buf },
+        };
+        ixland_guest_trace_emit_attrs(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR,
+                                      "guest.a64_cpu_run.stop", attrs,
+                                      sizeof(attrs) / sizeof(attrs[0]));
     }
 
     trace_shutdown();

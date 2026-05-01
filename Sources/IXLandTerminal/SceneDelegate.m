@@ -17,12 +17,50 @@ TerminalViewController *currentTerminalViewController = NULL;
 @interface SceneDelegate ()
 
 @property NSString *terminalUUID;
+@property BOOL sessionStartupScheduled;
 
 @end
 
 static NSString *const TerminalUUID = @"TerminalUUID";
 
 @implementation SceneDelegate
+
+- (void)scheduleSessionStartupForViewController:(TerminalViewController *)viewController
+                                  sceneSession:(UISceneSession *)session {
+    if (self.sessionStartupScheduled) {
+        [ISHInstrumentation recordEvent:@"scene.session.start.blocked.already_scheduled"];
+        return;
+    }
+    self.sessionStartupScheduled = YES;
+
+    __weak typeof(self) weakSelf = self;
+    __weak TerminalViewController *weakViewController = viewController;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        typeof(self) strongSelf = weakSelf;
+        TerminalViewController *strongViewController = weakViewController;
+        if (strongSelf == nil || strongViewController == nil)
+            return;
+
+        [ISHInstrumentation recordEvent:@"scene.session.start.bootstrap"];
+        int bootstrapErr = [AppDelegate bootstrapRuntimeForSession];
+        if (bootstrapErr < 0) {
+            strongSelf.sessionStartupScheduled = NO;
+            [ISHInstrumentation recordEvent:@"scene.session.start.bootstrap.failed"
+                                 attributes:@{ @"return_value": @(bootstrapErr),
+                                               @"mounts_non_empty": @(mounts_is_non_empty()),
+                                               @"pid1_exists": @(pid_get_task(1) != NULL) }];
+            return;
+        }
+
+        if (session.stateRestorationActivity == nil) {
+            [strongViewController startNewSession];
+        } else {
+            strongSelf.terminalUUID = session.stateRestorationActivity.userInfo[TerminalUUID];
+            [strongViewController reconnectSessionFromTerminalUUID:
+             [[NSUUID alloc] initWithUUIDString:strongSelf.terminalUUID]];
+        }
+    });
+}
 
 - (void)scene:(UIScene *)scene willConnectToSession:(UISceneSession *)session options:(UISceneConnectionOptions *)connectionOptions {
     if ([scene isKindOfClass:[UIWindowScene class]] && self.window == nil) {
@@ -43,22 +81,7 @@ static NSString *const TerminalUUID = @"TerminalUUID";
 
     TerminalViewController *vc = (TerminalViewController *) self.window.rootViewController;
     vc.sceneSession = session;
-    if (session.stateRestorationActivity == nil) {
-        [ISHInstrumentation recordEvent:@"scene.session.start.bootstrap"];
-        int bootstrapErr = [AppDelegate bootstrapRuntimeForSession];
-        if (bootstrapErr < 0) {
-            [ISHInstrumentation recordEvent:@"scene.session.start.bootstrap.failed"
-                                 attributes:@{ @"return_value": @(bootstrapErr),
-                                               @"mounts_non_empty": @(mounts_is_non_empty()),
-                                               @"pid1_exists": @(pid_get_task(1) != NULL) }];
-            return;
-        }
-        [vc startNewSession];
-    } else {
-        self.terminalUUID = session.stateRestorationActivity.userInfo[TerminalUUID];
-        [vc reconnectSessionFromTerminalUUID:
-         [[NSUUID alloc] initWithUUIDString:self.terminalUUID]];
-    }
+    [self scheduleSessionStartupForViewController:vc sceneSession:session];
 }
 
 - (NSUserActivity *)stateRestorationActivityForScene:(UIScene *)scene {

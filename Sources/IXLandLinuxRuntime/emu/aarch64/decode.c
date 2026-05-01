@@ -257,6 +257,29 @@ int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out)
     // Standard DP_REG processing based on op2 = bits 24:21
     int op2 = bits(insn, 24, 21);
 
+    if ((insn & 0x1f000000) == 0x1b000000) {
+        bool is_subtract = bit(insn, 15);
+        bool is_long = bit(insn, 21);
+        bool is_unsigned = bit(insn, 23);
+
+        out->Rd = bits(insn, 4, 0);
+        out->Rn = bits(insn, 9, 5);
+        out->Ra = bits(insn, 14, 10);
+        out->Rm = bits(insn, 20, 16);
+        out->is_64bit = bit(insn, 31);
+
+        if (is_long) {
+            if (is_unsigned) {
+                out->subtype = is_subtract ? A64_DP_REG_UMSUBL : A64_DP_REG_UMADDL;
+            } else {
+                out->subtype = is_subtract ? A64_DP_REG_SMSUBL : A64_DP_REG_SMADDL;
+            }
+        } else {
+            out->subtype = is_subtract ? A64_DP_REG_MSUB : A64_DP_REG_MADD;
+        }
+        return 0;
+    }
+
     if ((insn & 0x7fe00000) == 0x1ac00000) {
         int opcode = bits(insn, 15, 10);
         if (opcode >= 8 && opcode <= 11) {

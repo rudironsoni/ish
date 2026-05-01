@@ -34,7 +34,6 @@
 #import <IXLandLinuxRuntime/fs/dyndev.h>
 #import <IXLandLinuxRuntime/fs/devices.h>
 #import <IXLandLinuxRuntime/fs/path.h>
-#import <IXLandInstrumentationTracing/trace.h>
 #include <fcntl.h>
 
 @interface AppDelegate ()
@@ -83,28 +82,6 @@ static int lastBootstrapReturnValue;
 static BOOL runtimePostMountInitialized;
 static BOOL runtimeConsoleInitialized;
 static __weak AppDelegate *appDelegate;
-
-static const char *IXLandConfiguredTraceLevel(void) {
-    const char *level = getenv("IXLAND_TRACE_LEVEL");
-    if (level != NULL && level[0] != '\0') {
-        return level;
-    }
-    level = getenv("ISH_TRACE_LEVEL");
-    if (level != NULL && level[0] != '\0') {
-        return level;
-    }
-
-    NSString *defaultsLevel = [NSUserDefaults.standardUserDefaults stringForKey:@"IXLandTraceLevel"];
-    if (defaultsLevel.length > 0) {
-        return defaultsLevel.UTF8String;
-    }
-
-#if DEBUG
-    return "debug";
-#else
-    return "off";
-#endif
-}
 
 @implementation AppDelegate
 
@@ -439,12 +416,11 @@ static const char *IXLandConfiguredTraceLevel(void) {
         return YES;
     }
 
-    trace_config_set_level_from_string(IXLandConfiguredTraceLevel());
-
     // Activate instrumentation before boot to capture all configured kernel events
     ixland_instrumentation_activate();
 
-    bootError = [self boot];
+    bootError = 0;
+    [ISHInstrumentation recordEvent:@"app.boot.deferred_to_scene"];
 
     return YES;
 }

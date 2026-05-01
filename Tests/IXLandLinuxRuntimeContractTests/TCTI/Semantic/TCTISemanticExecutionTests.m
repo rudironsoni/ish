@@ -1,5 +1,7 @@
 #import <XCTest/XCTest.h>
 
+#include "../../../Support/TCTITestHarness/tcti_harness_truth.h"
+
 // TCTI.SemanticExecution Contract Tests
 // Tests for stage [5] GADGET EXECUTION semantic correctness
 //
@@ -13,24 +15,17 @@
 
 - (void)testSemanticExecutionContract_MOVRegProducesCorrectResult
 {
-    // Contract: MOV_REG gadget MUST produce correct value movement
-    // Owner: gadget bodies
-    //
-    // Input: host x8 = 0x123456789ABCDEF0 (guest x7 carrier)
-    // Output: host x3 = 0x123456789ABCDEF0 (guest x2 carrier)
-    
-    XCTAssertTrue(YES, "TCTI.SemanticExecution MOV_REG contract placeholder");
+    tcti_harness_snapshot_t snapshot;
+    XCTAssertTrue(tcti_harness_case_mov_2_7(&snapshot),
+                  @"MOV X2, X7 must copy guest x7 into guest x2 without corrupting other hot "
+                   "registers");
 }
 
 - (void)testSemanticExecutionContract_ADDRegProducesCorrectResult
 {
-    // Contract: ADD_REG gadget MUST produce correct sum
-    // Owner: gadget bodies
-    //
-    // Input: host x14 = 0x10, host x15 = 0x20
-    // Output: host x15 = 0x30
-    
-    XCTAssertTrue(YES, "TCTI.SemanticExecution ADD_REG contract placeholder");
+    tcti_harness_snapshot_t snapshot;
+    XCTAssertTrue(tcti_harness_case_add_7_13_14(&snapshot),
+                  @"ADD X7, X13, X14 must update only the destination hot carrier");
 }
 
 - (void)testSemanticExecutionContract_ADDImmProducesCorrectResult

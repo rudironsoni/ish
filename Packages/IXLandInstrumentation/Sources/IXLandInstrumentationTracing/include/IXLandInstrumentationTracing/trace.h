@@ -52,6 +52,12 @@ void trace_activate(void);
 bool trace_is_active(void);
 
 /*
+ * Return whether an event should be emitted under the current trace level.
+ * The tracing package owns event classification and level policy.
+ */
+bool trace_should_emit_event(const char *event_name);
+
+/*
  * Set the trace level from a stable textual policy value.
  * Accepted values: off, info, boundary, debug, instr, debug_all.
  */

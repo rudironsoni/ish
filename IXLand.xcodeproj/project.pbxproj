@@ -87,6 +87,7 @@
 		606F58FB819923C5EB0094A5 /* ipc.c in Sources */ = {isa = PBXBuildFile; fileRef = BF249005260B7A21629F8543 /* ipc.c */; };
 		623247850DA3106995546CDD /* pydann2.png in Resources */ = {isa = PBXBuildFile; fileRef = BB7E10F4B69FF7DB6BE84BC1 /* pydann2.png */; };
 		62D925E0339D28DAE02378D5 /* GuestRuntimeCorePerfTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 024F148C3D410A1A69FB197B /* GuestRuntimeCorePerfTests.m */; };
+		63E06A76135EFB0BB1CE098A /* tcti_harness_truth.c in Sources */ = {isa = PBXBuildFile; fileRef = FBD4F4203EF17AE231313CFC /* tcti_harness_truth.c */; };
 		63FDDB6410B1D6F630C044B7 /* RootsTableViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = EBB123B65035BE96FBFA6716 /* RootsTableViewController.m */; };
 		6466465152B2C57DF3479690 /* gadgets_arith.c in Sources */ = {isa = PBXBuildFile; fileRef = BD7B6B38ADD8B8687CBB2278 /* gadgets_arith.c */; };
 		64CCBF7018666E49859616A4 /* resource.c in Sources */ = {isa = PBXBuildFile; fileRef = 6F2AF854AD7F8B71BED49E91 /* resource.c */; };
@@ -632,6 +633,7 @@
 		F8D9EB8FC7D1955053105D3E /* TerminalView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TerminalView.h; sourceTree = "<group>"; };
 		FA46100FFEA2192849ECD0EC /* pty.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = pty.c; sourceTree = "<group>"; };
 		FB729DB1B9FB41A3F3BDD112 /* generic.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = generic.c; sourceTree = "<group>"; };
+		FBD4F4203EF17AE231313CFC /* tcti_harness_truth.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = tcti_harness_truth.c; sourceTree = "<group>"; };
 		FC5918DF7B26FC6631033835 /* init.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = init.h; sourceTree = "<group>"; };
 		FCBAA3B6AA42972686C4067A /* DelayedUITask.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DelayedUITask.h; sourceTree = "<group>"; };
 		FD58558ADB6A07FB74BA202E /* platform.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = platform.h; sourceTree = "<group>"; };
@@ -771,6 +773,14 @@
 				EFD522DB0380FDCDEC22B79A /* sock_bridge.h */,
 			);
 			path = fs;
+			sourceTree = "<group>";
+		};
+		2DE414BF1C2E449E9BADD36C /* TCTITestHarness */ = {
+			isa = PBXGroup;
+			children = (
+				FBD4F4203EF17AE231313CFC /* tcti_harness_truth.c */,
+			);
+			path = TCTITestHarness;
 			sourceTree = "<group>";
 		};
 		2FC70D66BB569758A301CD33 /* Dispatch */ = {
@@ -1030,6 +1040,14 @@
 			path = emu;
 			sourceTree = "<group>";
 		};
+		96564D0C286DF4E06DE70503 /* Support */ = {
+			isa = PBXGroup;
+			children = (
+				2DE414BF1C2E449E9BADD36C /* TCTITestHarness */,
+			);
+			path = Support;
+			sourceTree = "<group>";
+		};
 		9A20AC19A3840DE64E20AA18 /* util */ = {
 			isa = PBXGroup;
 			children = (
@@ -1166,6 +1184,7 @@
 				500A99CA9E0A881CADBFBAAE /* IXLandLinuxRuntimeSystemTests */,
 				AB17EB30231C7833A714AD22 /* IXLandTerminalEnd2EndTests */,
 				C9C0B9C02D91E25485217951 /* IXLandTerminalUnitTests */,
+				96564D0C286DF4E06DE70503 /* Support */,
 			);
 			path = Tests;
 			sourceTree = "<group>";
@@ -2029,6 +2048,7 @@
 				A963003A2E39E6AAAA6B0559 /* TCTIHostCarrierTests.m in Sources */,
 				41D8FC492D7FFDAC4A5A7126 /* TCTILoweringTests.m in Sources */,
 				D5ECA4A041E4AC4D8CEA9456 /* TCTISemanticExecutionTests.m in Sources */,
+				63E06A76135EFB0BB1CE098A /* tcti_harness_truth.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

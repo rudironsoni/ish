@@ -94,6 +94,12 @@ typedef enum {
     A64_DP_REG_COND2 = 4,       // Conditional select
     A64_DP_REG_SHIFT = 5,       // Data processing (1 source/2 source)
     A64_DP_REG_3SRC = 6,        // Data processing (3 source)
+    A64_DP_REG_MADD = 32,       // MADD
+    A64_DP_REG_MSUB = 33,       // MSUB
+    A64_DP_REG_SMADDL = 34,     // SMADDL / SMULL alias when Ra == XZR
+    A64_DP_REG_SMSUBL = 35,     // SMSUBL / SMNEGL alias when Ra == XZR
+    A64_DP_REG_UMADDL = 36,     // UMADDL / UMULL alias when Ra == XZR
+    A64_DP_REG_UMSUBL = 37,     // UMSUBL / UMNEGL alias when Ra == XZR
 } a64_dp_reg_subtype_t;
 
 /* Condition codes for conditional instructions */

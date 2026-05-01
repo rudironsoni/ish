@@ -1,7 +1,11 @@
 #include "tcti_harness_truth.h"
 
-#import <IXLandLinuxRuntime/tcti/gadgets_tcti.h>
 #include <string.h>
+
+typedef void (*tcti_gadget_t)(void);
+
+extern const tcti_gadget_t gadget_add_reg[16][16][16];
+extern const tcti_gadget_t gadget_mov_reg[16][16];
 
 void tcti_harness_single_gadget_snapshot(void (*gadget)(void), const uint64_t *in_regs,
                                          uint64_t *out_regs);
