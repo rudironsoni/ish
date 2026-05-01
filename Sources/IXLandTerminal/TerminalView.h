@@ -16,7 +16,7 @@ enum OverrideAppearance {
     OverrideAppearanceDark,
 };
 
-@interface TerminalView : UIView <UITextInput, WKScriptMessageHandler, UIScrollViewDelegate>
+@interface TerminalView : UIView <UITextInput, UIScrollViewDelegate>
 
 @property (nonatomic) CGFloat overrideFontSize;
 @property (readonly) CGFloat effectiveFontSize;

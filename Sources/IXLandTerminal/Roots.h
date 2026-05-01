@@ -34,6 +34,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (BOOL)exportRootNamed:(NSString *)name toArchive:(NSURL *)archive error:(NSError **)error progressReporter:(id<ProgressReporter> _Nullable)progress;
 - (BOOL)destroyRootNamed:(NSString *)name error:(NSError **)error;
 - (BOOL)renameRoot:(NSString *)name toName:(NSString *)newName error:(NSError **)error;
+- (void)syncFileProviderDomains;
 
 @end
 

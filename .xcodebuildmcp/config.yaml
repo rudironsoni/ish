@@ -1,0 +1,9 @@
+schemaVersion: 1
+sessionDefaults:
+  projectPath: IXLand.xcodeproj
+  scheme: IXLandApp-6.12-arm64
+  configuration: Debug
+  simulatorName: iPhone 17
+  simulatorPlatform: iOS
+  derivedDataPath: /Volumes/1TB/Xcode/DerivedData
+  bundleId: app.ixland.terminal

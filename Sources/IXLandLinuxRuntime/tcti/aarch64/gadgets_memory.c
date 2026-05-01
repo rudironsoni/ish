@@ -982,6 +982,7 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
                  decoded_rt, decoded_rn, decoded_rm, idx_name, (long long)imm,
                  (unsigned long long)base, helper_entry_reached, fast_path_taken);
         trace_record_event(TRACE_ORIGIN_EXEC, ev);
+        ldst_fault_trace_budget--;
     }
 
     if (trace_ldr69634) {
@@ -1162,6 +1163,19 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
     if (is_load) {
         uint64_t value = 0;
         int mem_ret = A64_MEM_FAULT;
+        int trace_6a990 = fault_pc == 0x6a990ULL;
+
+        if (trace_6a990) {
+            char ev[384];
+            snprintf(ev, sizeof(ev),
+                     "task.proof.6a990.load.pre=rt:%llu,rn:%llu,base:0x%llx,imm:%lld,"
+                     "addr:0x%llx,width:%d,size:%llu,is_signed:%llu,host_ptr:0x%llx",
+                     (unsigned long long)rt, (unsigned long long)rn,
+                     (unsigned long long)base, (long long)imm, (unsigned long long)addr, width,
+                     (unsigned long long)size, (unsigned long long)is_signed,
+                     (unsigned long long)(uintptr_t)ldst_host_ptr_probe);
+            trace_record_event(TRACE_ORIGIN_EXEC, ev);
+        }
 
         trace_live_ldr_probe(cpu, instance_id, fault_pc, rt, rn, imm, size, idx_mode, meta, is_load,
                              base, addr, -1, 1);
@@ -1197,6 +1211,17 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
         }
 
         helper_mem_result = mem_ret;
+
+        if (trace_6a990) {
+            char ev[384];
+            snprintf(ev, sizeof(ev),
+                     "task.proof.6a990.load.post_mem=mem_ret:%d,value:0x%llx,x3_before:0x%llx,"
+                     "x0:0x%llx,x4:0x%llx,pc:0x%llx",
+                     mem_ret, (unsigned long long)value, (unsigned long long)cpu->x[3],
+                     (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[4],
+                     (unsigned long long)cpu->pc);
+            trace_record_event(TRACE_ORIGIN_EXEC, ev);
+        }
 
         trace_live_ldr_probe(cpu, instance_id, fault_pc, rt, rn, imm, size, idx_mode, meta, is_load,
                              base, addr, mem_ret, 0);
@@ -1420,7 +1445,26 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
         // Note: Actual host pointer is internal to TLB; using addr as correlation ID
         trace_emit_gadget_ldr_host_ptr(addr);
 
-        tcti_write_reg_or_zr(cpu, (int)rt, value, size == A64_SIZE_X);
+        if (trace_6a990) {
+            char ev[256];
+            snprintf(ev, sizeof(ev),
+                     "task.proof.6a990.load.pre_writeback=rt:%llu,value:0x%llx,write64:%d",
+                     (unsigned long long)rt, (unsigned long long)value,
+                     size == A64_SIZE_X || (is_signed && size == A64_SIZE_W));
+            trace_record_event(TRACE_ORIGIN_EXEC, ev);
+        }
+
+        tcti_write_reg_or_zr(cpu, (int)rt, value,
+                             size == A64_SIZE_X || (is_signed && size == A64_SIZE_W));
+
+        if (trace_6a990) {
+            char ev[384];
+            snprintf(ev, sizeof(ev),
+                     "task.proof.6a990.load.post_writeback=x3_after:0x%llx,x0:0x%llx,x4:0x%llx",
+                     (unsigned long long)cpu->x[3], (unsigned long long)cpu->x[0],
+                     (unsigned long long)cpu->x[4]);
+            trace_record_event(TRACE_ORIGIN_EXEC, ev);
+        }
 
         // PROOF: Trace x0 immediately after ldrh writeback at 0x6d1c0
         if (fault_pc == 0x6d1c0ULL && is_load && size == A64_SIZE_H && rt == 0) {
@@ -2013,6 +2057,25 @@ void a64_write_sp(struct cpu_state *cpu, uint64_t val)
 __attribute__((naked)) void gadget_b_impl(void)
 {
     asm volatile("ldr x0, [x28], #8\n\t"
+                 "ldr x26, [x28], #8\n\t"
+                 "ldr x17, [x28], #8\n\t"
+                 "mov x19, x0\n\t"
+                 "mov x20, x26\n\t"
+                 "mov x21, x17\n\t"
+                 "mov x22, x1\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x19\n\t"
+                 "mov x1, x20\n\t"
+                 "mov x2, x21\n\t"
+                 "mov x3, x22\n\t"
+                 "bl _tcti_trace_branch_target\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "mov x0, x19\n\t"
+                 "mov x26, x20\n\t"
+                 "mov x17, x21\n\t"
+                 "cbz x26, 1f\n\t"
+                 "str x17, [x29, #256]\n\t"
+                 "1:\n\t"
                  "str x0, [x29, #272]\n\t"
                  "mov x0, #0\n\t"
                  "b _tcti_exit_block\n\t");
@@ -2146,18 +2209,57 @@ __attribute__((naked)) void gadget_br_impl(void)
                  "ldr x26, [x28], #8\n\t"
                  "ldr x17, [x28], #8\n\t"
                  "cmp x0, #31\n\t"
-                 "b.eq 1f\n\t"
+                 "b.eq 31f\n\t"
+                 "cmp x0, #16\n\t"
+                 "b.hs 32f\n\t"
+                 "adr x27, 10f\n\t"
+                 "add x27, x27, x0, lsl #2\n\t"
+                 "br x27\n\t"
+                 "10:\n\t"
+                 "b 11f\n\t"
+                 "b 12f\n\t"
+                 "b 13f\n\t"
+                 "b 14f\n\t"
+                 "b 15f\n\t"
+                 "b 16f\n\t"
+                 "b 17f\n\t"
+                 "b 18f\n\t"
+                 "b 19f\n\t"
+                 "b 20f\n\t"
+                 "b 21f\n\t"
+                 "b 22f\n\t"
+                 "b 23f\n\t"
+                 "b 24f\n\t"
+                 "b 25f\n\t"
+                 "b 26f\n\t"
+                 "11:\n\tmov x0, x1\n\tb 40f\n\t"
+                 "12:\n\tmov x0, x2\n\tb 40f\n\t"
+                 "13:\n\tmov x0, x3\n\tb 40f\n\t"
+                 "14:\n\tmov x0, x4\n\tb 40f\n\t"
+                 "15:\n\tmov x0, x5\n\tb 40f\n\t"
+                 "16:\n\tmov x0, x6\n\tb 40f\n\t"
+                 "17:\n\tmov x0, x7\n\tb 40f\n\t"
+                 "18:\n\tmov x0, x8\n\tb 40f\n\t"
+                 "19:\n\tmov x0, x9\n\tb 40f\n\t"
+                 "20:\n\tmov x0, x10\n\tb 40f\n\t"
+                 "21:\n\tmov x0, x11\n\tb 40f\n\t"
+                 "22:\n\tmov x0, x12\n\tb 40f\n\t"
+                 "23:\n\tmov x0, x13\n\tb 40f\n\t"
+                 "24:\n\tmov x0, x14\n\tb 40f\n\t"
+                 "25:\n\tmov x0, x15\n\tb 40f\n\t"
+                 "26:\n\tmov x0, x16\n\tb 40f\n\t"
+                 "31:\n\t"
+                 "ldr x0, [x29, #264]\n\t"
+                 "b 40f\n\t"
+                 "32:\n\t"
                  "add x27, x29, #16\n\t"
                  "lsl x19, x0, #3\n\t"
                  "ldr x0, [x27, x19]\n\t"
-                 "b 2f\n\t"
-                 "1:\n\t"
-                 "ldr x0, [x29, #264]\n\t"
-                 "2:\n\t"
+                 "40:\n\t"
                  "cmp x26, #0\n\t"
-                 "b.eq 3f\n\t"
+                 "b.eq 41f\n\t"
                  "str x17, [x29, #256]\n\t"
-                 "3:\n\t"
+                 "41:\n\t"
                  "str x0, [x29, #272]\n\t"
                  "mov x0, #0\n\t"
                  "b _tcti_exit_block\n\t");
@@ -2584,6 +2686,485 @@ __attribute__((naked)) void gadget_ubfm_impl(void)
 
 tcti_gadget_t gadget_ubfm = gadget_ubfm_impl;
 
+__attribute__((used)) static void tcti_write_reg_imm_helper(struct cpu_state *cpu, uint64_t rd,
+                                                            uint64_t value, uint64_t is_64bit,
+                                                            uint64_t rd_is_sp)
+{
+    if (!is_64bit)
+        value = (uint32_t)value;
+    if (rd == 31) {
+        if (rd_is_sp)
+            cpu->sp = value;
+        return;
+    }
+    if (rd < 31) {
+        cpu->x[rd] = value;
+        if (rd == 21) {
+            char ev[160];
+            snprintf(ev, sizeof(ev), "tcti.dpimm.write_reg=rd:%llu,value:0x%llx,is64:%llu",
+                     (unsigned long long)rd, (unsigned long long)value,
+                     (unsigned long long)is_64bit);
+            trace_record_event(TRACE_ORIGIN_EXEC, ev);
+        }
+    }
+}
+
+__attribute__((used)) static void tcti_addsub_imm_helper(struct cpu_state *cpu, uint64_t rd,
+                                                            uint64_t rn, uint64_t imm,
+                                                            uint64_t is_sub, uint64_t set_flags,
+                                                            uint64_t is_64bit, uint64_t rd_is_sp,
+                                                            uint64_t rn_is_sp)
+{
+    uint64_t mask = is_64bit ? UINT64_MAX : UINT32_MAX;
+    uint64_t lhs = 0;
+    if (rn == 31) {
+        lhs = rn_is_sp ? cpu->sp : 0;
+    } else if (rn < 31) {
+        lhs = cpu->x[rn];
+    }
+    lhs &= mask;
+
+    uint64_t rhs = imm & mask;
+    uint64_t result = is_sub ? ((lhs - rhs) & mask) : ((lhs + rhs) & mask);
+
+    if (set_flags) {
+        uint64_t sign_bit = is_64bit ? (1ULL << 63) : (1ULL << 31);
+        uint64_t nzcv = 0;
+        if (result & sign_bit)
+            nzcv |= 0x80000000ULL;
+        if (result == 0)
+            nzcv |= 0x40000000ULL;
+        if (is_sub) {
+            if (lhs >= rhs)
+                nzcv |= 0x20000000ULL;
+            if (((lhs ^ rhs) & (lhs ^ result) & sign_bit) != 0)
+                nzcv |= 0x10000000ULL;
+        } else {
+            if (result < lhs)
+                nzcv |= 0x20000000ULL;
+            if (((~(lhs ^ rhs)) & (lhs ^ result) & sign_bit) != 0)
+                nzcv |= 0x10000000ULL;
+        }
+        cpu->pstate = nzcv;
+    }
+
+    if (rd == 31) {
+        if (rd_is_sp)
+            cpu->sp = result;
+        return;
+    }
+    if (rd < 31)
+        cpu->x[rd] = result;
+    if ((rd == 2 && rn == 21) || rd == 21) {
+        char ev[192];
+        snprintf(ev, sizeof(ev),
+                 "tcti.dpimm.addsub=rd:%llu,rn:%llu,lhs:0x%llx,imm:0x%llx,result:0x%llx,is_sub:%llu",
+                 (unsigned long long)rd, (unsigned long long)rn, (unsigned long long)lhs,
+                 (unsigned long long)imm, (unsigned long long)result,
+                 (unsigned long long)is_sub);
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+    }
+}
+
+__attribute__((naked)) void gadget_write_reg_imm_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t" // rd
+                 "ldr x20, [x28], #8\n\t" // value
+                 "ldr x21, [x28], #8\n\t" // is_64bit
+                 "ldr x22, [x28], #8\n\t" // rd_is_sp
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "stp x13, x14, [x29, #112]\n\t"
+                 "stp x15, x16, [x29, #128]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "mov x2, x20\n\t"
+                 "mov x3, x21\n\t"
+                 "mov x4, x22\n\t"
+                 "bl _tcti_write_reg_imm_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "ldp x1, x2, [x29, #16]\n\t"
+                 "ldp x3, x4, [x29, #32]\n\t"
+                 "ldp x5, x6, [x29, #48]\n\t"
+                 "ldp x7, x8, [x29, #64]\n\t"
+                 "ldp x9, x10, [x29, #80]\n\t"
+                 "ldp x11, x12, [x29, #96]\n\t"
+                 "ldp x13, x14, [x29, #112]\n\t"
+                 "ldp x15, x16, [x29, #128]\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
+tcti_gadget_t gadget_write_reg_imm = gadget_write_reg_imm_impl;
+
+__attribute__((naked)) void gadget_addsub_imm_fallback_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t" // rd
+                 "ldr x20, [x28], #8\n\t" // rn
+                 "ldr x21, [x28], #8\n\t" // imm
+                 "ldr x22, [x28], #8\n\t" // is_sub
+                 "ldr x23, [x28], #8\n\t" // set_flags
+                 "ldr x24, [x28], #8\n\t" // is_64bit
+                 "ldr x25, [x28], #8\n\t" // rd_is_sp
+                 "ldr x26, [x28], #8\n\t" // rn_is_sp
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "stp x13, x14, [x29, #112]\n\t"
+                 "stp x15, x16, [x29, #128]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "mov x2, x20\n\t"
+                 "mov x3, x21\n\t"
+                 "mov x4, x22\n\t"
+                 "mov x5, x23\n\t"
+                 "mov x6, x24\n\t"
+                 "mov x7, x25\n\t"
+                 "str x26, [sp, #-16]!\n\t"
+                 "bl _tcti_addsub_imm_helper\n\t"
+                 "add sp, sp, #16\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "ldp x1, x2, [x29, #16]\n\t"
+                 "ldp x3, x4, [x29, #32]\n\t"
+                 "ldp x5, x6, [x29, #48]\n\t"
+                 "ldp x7, x8, [x29, #64]\n\t"
+                 "ldp x9, x10, [x29, #80]\n\t"
+                 "ldp x11, x12, [x29, #96]\n\t"
+                 "ldp x13, x14, [x29, #112]\n\t"
+                 "ldp x15, x16, [x29, #128]\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
+tcti_gadget_t gadget_addsub_imm_fallback = gadget_addsub_imm_fallback_impl;
+
+static int tcti_cond_holds(uint64_t nzcv, uint64_t cond)
+{
+    int n = (nzcv >> 31) & 1;
+    int z = (nzcv >> 30) & 1;
+    int c = (nzcv >> 29) & 1;
+    int v = (nzcv >> 28) & 1;
+
+    switch (cond & 0xf) {
+    case 0x0:
+        return z;
+    case 0x1:
+        return !z;
+    case 0x2:
+        return c;
+    case 0x3:
+        return !c;
+    case 0x4:
+        return n;
+    case 0x5:
+        return !n;
+    case 0x6:
+        return v;
+    case 0x7:
+        return !v;
+    case 0x8:
+        return c && !z;
+    case 0x9:
+        return !c || z;
+    case 0xa:
+        return n == v;
+    case 0xb:
+        return n != v;
+    case 0xc:
+        return !z && (n == v);
+    case 0xd:
+        return z || (n != v);
+    case 0xe:
+    case 0xf:
+        return 1;
+    default:
+        return 0;
+    }
+}
+
+__attribute__((used)) static void tcti_csel_helper(struct cpu_state *cpu, uint64_t rd,
+                                                       uint64_t rn, uint64_t rm, uint64_t cond,
+                                                       uint64_t subtype, uint64_t is_64bit)
+{
+    uint64_t true_value = tcti_read_reg_or_zr(cpu, (int)rn);
+    uint64_t false_value = tcti_read_reg_or_zr(cpu, (int)rm);
+
+    switch (subtype) {
+    case 0: // CSEL
+        break;
+    default:
+        return;
+    }
+
+    uint64_t value = tcti_cond_holds(cpu->pstate, cond) ? true_value : false_value;
+    tcti_write_reg_or_zr(cpu, (int)rd, value, is_64bit != 0);
+}
+
+__attribute__((used)) static void tcti_bcond_helper(struct cpu_state *cpu, uint64_t cond,
+                                                        uint64_t target_pc,
+                                                        uint64_t fallthrough_pc)
+{
+    cpu->pc = tcti_cond_holds(cpu->pstate, cond) ? target_pc : fallthrough_pc;
+}
+
+__attribute__((naked)) void gadget_bcond_fallback_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t" // cond
+                 "ldr x20, [x28], #8\n\t" // target_pc
+                 "ldr x21, [x28], #8\n\t" // fallthrough_pc
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "stp x13, x14, [x29, #112]\n\t"
+                 "stp x15, x16, [x29, #128]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "mov x2, x20\n\t"
+                 "mov x3, x21\n\t"
+                 "bl _tcti_bcond_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "ldp x1, x2, [x29, #16]\n\t"
+                 "ldp x3, x4, [x29, #32]\n\t"
+                 "ldp x5, x6, [x29, #48]\n\t"
+                 "ldp x7, x8, [x29, #64]\n\t"
+                 "ldp x9, x10, [x29, #80]\n\t"
+                 "ldp x11, x12, [x29, #96]\n\t"
+                 "ldp x13, x14, [x29, #112]\n\t"
+                 "ldp x15, x16, [x29, #128]\n\t"
+                 "mov x0, #0\n\t"
+                 "b _tcti_exit_block\n\t");
+}
+
+tcti_gadget_t gadget_bcond_fallback = gadget_bcond_fallback_impl;
+
+__attribute__((naked)) void gadget_csel_fallback_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t" // rd
+                 "ldr x20, [x28], #8\n\t" // rn
+                 "ldr x21, [x28], #8\n\t" // rm
+                 "ldr x22, [x28], #8\n\t" // cond
+                 "ldr x23, [x28], #8\n\t" // subtype
+                 "ldr x24, [x28], #8\n\t" // is_64bit
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "stp x13, x14, [x29, #112]\n\t"
+                 "stp x15, x16, [x29, #128]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "mov x2, x20\n\t"
+                 "mov x3, x21\n\t"
+                 "mov x4, x22\n\t"
+                 "mov x5, x23\n\t"
+                 "mov x6, x24\n\t"
+                 "bl _tcti_csel_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "ldp x1, x2, [x29, #16]\n\t"
+                 "ldp x3, x4, [x29, #32]\n\t"
+                 "ldp x5, x6, [x29, #48]\n\t"
+                 "ldp x7, x8, [x29, #64]\n\t"
+                 "ldp x9, x10, [x29, #80]\n\t"
+                 "ldp x11, x12, [x29, #96]\n\t"
+                 "ldp x13, x14, [x29, #112]\n\t"
+                 "ldp x15, x16, [x29, #128]\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
+tcti_gadget_t gadget_csel_fallback = gadget_csel_fallback_impl;
+
+__attribute__((naked)) void gadget_movk_impl(void)
+{
+    asm volatile("ldr x20, [x28], #8\n\t" // Rd
+                 "ldr x21, [x28], #8\n\t" // imm16
+                 "ldr x22, [x28], #8\n\t" // shift
+                 "ldr x23, [x28], #8\n\t" // is_64bit
+                 "cmp x20, #31\n\t"
+                 "b.eq 99f\n\t"
+                 "cmp x20, #16\n\t"
+                 "b.hs 30f\n\t"
+                 "adr x27, 1f\n\t"
+                 "add x27, x27, x20, lsl #2\n\t"
+                 "br x27\n\t"
+                 "1:\n\t"
+                 "b 10f\n\t"
+                 "b 11f\n\t"
+                 "b 12f\n\t"
+                 "b 13f\n\t"
+                 "b 14f\n\t"
+                 "b 15f\n\t"
+                 "b 16f\n\t"
+                 "b 17f\n\t"
+                 "b 18f\n\t"
+                 "b 19f\n\t"
+                 "b 20f\n\t"
+                 "b 21f\n\t"
+                 "b 22f\n\t"
+                 "b 23f\n\t"
+                 "b 24f\n\t"
+                 "b 25f\n\t"
+                 "10:\n\tmov x0, x1\n\tb 40f\n\t"
+                 "11:\n\tmov x0, x2\n\tb 40f\n\t"
+                 "12:\n\tmov x0, x3\n\tb 40f\n\t"
+                 "13:\n\tmov x0, x4\n\tb 40f\n\t"
+                 "14:\n\tmov x0, x5\n\tb 40f\n\t"
+                 "15:\n\tmov x0, x6\n\tb 40f\n\t"
+                 "16:\n\tmov x0, x7\n\tb 40f\n\t"
+                 "17:\n\tmov x0, x8\n\tb 40f\n\t"
+                 "18:\n\tmov x0, x9\n\tb 40f\n\t"
+                 "19:\n\tmov x0, x10\n\tb 40f\n\t"
+                 "20:\n\tmov x0, x11\n\tb 40f\n\t"
+                 "21:\n\tmov x0, x12\n\tb 40f\n\t"
+                 "22:\n\tmov x0, x13\n\tb 40f\n\t"
+                 "23:\n\tmov x0, x14\n\tb 40f\n\t"
+                 "24:\n\tmov x0, x15\n\tb 40f\n\t"
+                 "25:\n\tmov x0, x16\n\tb 40f\n\t"
+                 "30:\n\t"
+                 "add x27, x29, #16\n\t"
+                 "ldr x0, [x27, x20, lsl #3]\n\t"
+                 "40:\n\t"
+                 "mov x24, #0xffff\n\t"
+                 "lsl x24, x24, x22\n\t"
+                 "bic x0, x0, x24\n\t"
+                 "lsl x21, x21, x22\n\t"
+                 "orr x0, x0, x21\n\t"
+                 "cbnz x23, 41f\n\t"
+                 "mov w0, w0\n\t"
+                 "41:\n\t"
+                 "cmp x20, #16\n\t"
+                 "b.hs 70f\n\t"
+                 "adr x27, 50f\n\t"
+                 "add x27, x27, x20, lsl #2\n\t"
+                 "br x27\n\t"
+                 "50:\n\t"
+                 "b 51f\n\t"
+                 "b 52f\n\t"
+                 "b 53f\n\t"
+                 "b 54f\n\t"
+                 "b 55f\n\t"
+                 "b 56f\n\t"
+                 "b 57f\n\t"
+                 "b 58f\n\t"
+                 "b 59f\n\t"
+                 "b 60f\n\t"
+                 "b 61f\n\t"
+                 "b 62f\n\t"
+                 "b 63f\n\t"
+                 "b 64f\n\t"
+                 "b 65f\n\t"
+                 "b 66f\n\t"
+                 "51:\n\tmov x1, x0\n\tb 99f\n\t"
+                 "52:\n\tmov x2, x0\n\tb 99f\n\t"
+                 "53:\n\tmov x3, x0\n\tb 99f\n\t"
+                 "54:\n\tmov x4, x0\n\tb 99f\n\t"
+                 "55:\n\tmov x5, x0\n\tb 99f\n\t"
+                 "56:\n\tmov x6, x0\n\tb 99f\n\t"
+                 "57:\n\tmov x7, x0\n\tb 99f\n\t"
+                 "58:\n\tmov x8, x0\n\tb 99f\n\t"
+                 "59:\n\tmov x9, x0\n\tb 99f\n\t"
+                 "60:\n\tmov x10, x0\n\tb 99f\n\t"
+                 "61:\n\tmov x11, x0\n\tb 99f\n\t"
+                 "62:\n\tmov x12, x0\n\tb 99f\n\t"
+                 "63:\n\tmov x13, x0\n\tb 99f\n\t"
+                 "64:\n\tmov x14, x0\n\tb 99f\n\t"
+                 "65:\n\tmov x15, x0\n\tb 99f\n\t"
+                 "66:\n\tmov x16, x0\n\tb 99f\n\t"
+                 "70:\n\t"
+                 "add x27, x29, #16\n\t"
+                 "str x0, [x27, x20, lsl #3]\n\t"
+                 "99:\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
+tcti_gadget_t gadget_movk = gadget_movk_impl;
+
+void tcti_trace_resume_after_ldst(uint64_t fault_pc, uint64_t rt, uint64_t rn, uint64_t x3)
+{
+    if (fault_pc == 0x6a990ULL) {
+        char ev[224];
+        snprintf(ev, sizeof(ev),
+                 "task.proof.6a990.gadget_resume=rt:%llu,rn:%llu,host_x3:0x%llx",
+                 (unsigned long long)rt, (unsigned long long)rn, (unsigned long long)x3);
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+    }
+}
+
+void tcti_trace_branch_target(uint64_t target, uint64_t is_link, uint64_t ret_pc, uint64_t guest_x0)
+{
+    if ((target >= 0x6a990ULL && target <= 0x6aa00ULL) ||
+        (target >= 0x6c300ULL && target <= 0x6c500ULL)) {
+        char ev[224];
+        snprintf(ev, sizeof(ev),
+                 "task.proof.branch=target:0x%llx,is_link:%llu,ret_pc:0x%llx,guest_x0:0x%llx",
+                 (unsigned long long)target, (unsigned long long)is_link,
+                 (unsigned long long)ret_pc, (unsigned long long)guest_x0);
+        trace_record_event(TRACE_ORIGIN_EXEC, ev);
+    }
+}
+
+__attribute__((naked)) void tcti_sync_hot_reg_from_cpu(void)
+{
+    asm volatile("cmp x26, #16\n\t"
+                 "b.hs 99f\n\t"
+                 "add x27, x29, #16\n\t"
+                 "ldr x17, [x27, x26, lsl #3]\n\t"
+                 "adr x27, 1f\n\t"
+                 "add x27, x27, x26, lsl #2\n\t"
+                 "br x27\n\t"
+                 "1:\n\t"
+                 "b 10f\n\t"
+                 "b 11f\n\t"
+                 "b 12f\n\t"
+                 "b 13f\n\t"
+                 "b 14f\n\t"
+                 "b 15f\n\t"
+                 "b 16f\n\t"
+                 "b 17f\n\t"
+                 "b 18f\n\t"
+                 "b 19f\n\t"
+                 "b 20f\n\t"
+                 "b 21f\n\t"
+                 "b 22f\n\t"
+                 "b 23f\n\t"
+                 "b 24f\n\t"
+                 "b 25f\n\t"
+                 "10:\n\tmov x1, x17\n\tret\n\t"
+                 "11:\n\tmov x2, x17\n\tret\n\t"
+                 "12:\n\tmov x3, x17\n\tret\n\t"
+                 "13:\n\tmov x4, x17\n\tret\n\t"
+                 "14:\n\tmov x5, x17\n\tret\n\t"
+                 "15:\n\tmov x6, x17\n\tret\n\t"
+                 "16:\n\tmov x7, x17\n\tret\n\t"
+                 "17:\n\tmov x8, x17\n\tret\n\t"
+                 "18:\n\tmov x9, x17\n\tret\n\t"
+                 "19:\n\tmov x10, x17\n\tret\n\t"
+                 "20:\n\tmov x11, x17\n\tret\n\t"
+                 "21:\n\tmov x12, x17\n\tret\n\t"
+                 "22:\n\tmov x13, x17\n\tret\n\t"
+                 "23:\n\tmov x14, x17\n\tret\n\t"
+                 "24:\n\tmov x15, x17\n\tret\n\t"
+                 "25:\n\tmov x16, x17\n\tret\n\t"
+                 "99:\n\tret\n\t");
+}
+
 __attribute__((naked)) void gadget_ldr_x_impl(void)
 {
     asm volatile(
@@ -2731,10 +3312,10 @@ __attribute__((naked)) void gadget_ldr_x_impl(void)
         "eor x27, x27, x0\n\t"
 
         // Load tlb entry at &entries[index]
-        // entries is at offset 32 in struct tlb (64-bit page fields)
+        // entries is at offset 32 in struct tlb.
         "add x0, x26, #32\n\t"      // x0 = &tlb->entries[0]
-        "mov x26, #24\n\t"          // x26 = sizeof(tlb_entry)
-        "madd x0, x27, x26, x0\n\t" // x0 = &tlb->entries[index] (x0 + x27*24)
+        "mov x26, #32\n\t"          // x26 = sizeof(tlb_entry)
+        "madd x0, x27, x26, x0\n\t" // x0 = &tlb->entries[index]
         "ldr x27, [x0]\n\t"         // x27 = entry.page
 
         // Compare page (clear lower 12 bits via shift)
@@ -2884,6 +3465,30 @@ __attribute__((naked)) void gadget_ldr_x_impl(void)
         "ldp x15, x16, [x29, #128]\n\t"
         "cmp x0, #0\n\t"
         "b.ne 1f\n\t"
+        "cmp x20, #16\n\t"
+        "b.hs 160f\n\t"
+        "mov x26, x20\n\t"
+        "bl _tcti_sync_hot_reg_from_cpu\n\t"
+        "160:\n\t"
+        "cmp x24, #0\n\t"
+        "b.eq 161f\n\t"
+        "cmp x21, #16\n\t"
+        "b.hs 161f\n\t"
+        "mov x26, x21\n\t"
+        "bl _tcti_sync_hot_reg_from_cpu\n\t"
+        "161:\n\t"
+        "movz x26, #0xa990\n\t"
+        "movk x26, #0x6, lsl #16\n\t"
+        "cmp x19, x26\n\t"
+        "b.ne 162f\n\t"
+        "bl _tcti_c_call_prologue\n\t"
+        "mov x0, x19\n\t"
+        "mov x1, x20\n\t"
+        "mov x2, x21\n\t"
+        "mov x3, x4\n\t"
+        "bl _tcti_trace_resume_after_ldst\n\t"
+        "bl _tcti_c_call_epilogue\n\t"
+        "162:\n\t"
         "ldr x27, [x28], #8\n\t"
         "br x27\n\t"
         "1:\n\t"
@@ -2917,8 +3522,22 @@ __attribute__((naked)) void gadget_str_x_impl(void)
         "ldr x24, [x28], #8\n\t" // idx_mode
         "ldr x25, [x28], #8\n\t" // meta
 
-        // Force helper path for correctness while isolating LD/ST faults.
-        "b 99f\n\t"
+        // Fast path supports aligned 64-bit offset and post-index stores with hot
+        // base registers. Pre-index and register-offset forms stay on the helper path.
+        "cmp x21, #16\n\t" // Is Rn hot (0-15)?
+        "b.hs 91f\n\t"
+        "cmp x23, #3\n\t" // Is size 64-bit?
+        "b.ne 92f\n\t"
+        "cmp x24, #1\n\t" // Offset or post-index addressing only.
+        "b.hi 93f\n\t"
+        "cmp x25, #0\n\t" // No register offset / extension metadata.
+        "b.ne 94f\n\t"
+        "cmp x20, #16\n\t" // Rt hot is supported.
+        "b.lo 60f\n\t"
+        "cmp x20, #31\n\t" // XZR zero stores are supported.
+        "b.ne 91f\n\t"
+
+        "60:\n\t"
 
         // Get base register value (hot, in x1-x16) using computed goto
         // Branch table for Rn 0-15
@@ -2966,8 +3585,12 @@ __attribute__((naked)) void gadget_str_x_impl(void)
         // Continue after base register load
         "110:\n\t"
 
-        // Add immediate offset: x17 = base + offset
+        // Add immediate offset for offset addressing. Post-index stores access the
+        // original base and apply writeback after the memory access succeeds.
+        "cmp x24, #1\n\t"
+        "b.eq 111f\n\t"
         "add x17, x17, x22\n\t"
+        "111:\n\t"
 
         // Check alignment: addr & 7 == 0
         "tst x17, #7\n\t"
@@ -2978,8 +3601,13 @@ __attribute__((naked)) void gadget_str_x_impl(void)
         "cmp x0, #0xFF8\n\t"
         "b.hi 96f\n\t" // Branch to crosspg counter
 
+        "b 150f\n\t"
+
         // Get source register value (Rt, hot, in x1-x16) using computed goto
         // x20 still holds original Rt (0-15)
+        "119:\n\t"
+        "cmp x20, #31\n\t"
+        "b.eq 146f\n\t"
         "adr x26, 120f\n\t"             // x26 = base of branch table
         "add x26, x26, x20, lsl #2\n\t" // x26 = &table[Rt] (b instructions are 4 bytes)
         "br x26\n\t"
@@ -3004,24 +3632,25 @@ __attribute__((naked)) void gadget_str_x_impl(void)
         "b 145f\n\t" // Rt=15 -> load from x16
 
         // Load source register value into x0
-        "130:\n\tmov x0, x1\n\tb 150f\n\t"
-        "131:\n\tmov x0, x2\n\tb 150f\n\t"
-        "132:\n\tmov x0, x3\n\tb 150f\n\t"
-        "133:\n\tmov x0, x4\n\tb 150f\n\t"
-        "134:\n\tmov x0, x5\n\tb 150f\n\t"
-        "135:\n\tmov x0, x6\n\tb 150f\n\t"
-        "136:\n\tmov x0, x7\n\tb 150f\n\t"
-        "137:\n\tmov x0, x8\n\tb 150f\n\t"
-        "138:\n\tmov x0, x9\n\tb 150f\n\t"
-        "139:\n\tmov x0, x10\n\tb 150f\n\t"
-        "140:\n\tmov x0, x11\n\tb 150f\n\t"
-        "141:\n\tmov x0, x12\n\tb 150f\n\t"
-        "142:\n\tmov x0, x13\n\tb 150f\n\t"
-        "143:\n\tmov x0, x14\n\tb 150f\n\t"
-        "144:\n\tmov x0, x15\n\tb 150f\n\t"
-        "145:\n\tmov x0, x16\n\tb 150f\n\t"
+        "130:\n\tmov x0, x1\n\tb 151f\n\t"
+        "131:\n\tmov x0, x2\n\tb 151f\n\t"
+        "132:\n\tmov x0, x3\n\tb 151f\n\t"
+        "133:\n\tmov x0, x4\n\tb 151f\n\t"
+        "134:\n\tmov x0, x5\n\tb 151f\n\t"
+        "135:\n\tmov x0, x6\n\tb 151f\n\t"
+        "136:\n\tmov x0, x7\n\tb 151f\n\t"
+        "137:\n\tmov x0, x8\n\tb 151f\n\t"
+        "138:\n\tmov x0, x9\n\tb 151f\n\t"
+        "139:\n\tmov x0, x10\n\tb 151f\n\t"
+        "140:\n\tmov x0, x11\n\tb 151f\n\t"
+        "141:\n\tmov x0, x12\n\tb 151f\n\t"
+        "142:\n\tmov x0, x13\n\tb 151f\n\t"
+        "143:\n\tmov x0, x14\n\tb 151f\n\t"
+        "144:\n\tmov x0, x15\n\tb 151f\n\t"
+        "145:\n\tmov x0, x16\n\tb 151f\n\t"
+        "146:\n\tmov x0, xzr\n\tb 151f\n\t"
 
-        // Continue after source register load
+        // Continue after address validation.
         "150:\n\t"
 
         // Inline TLB lookup
@@ -3038,11 +3667,11 @@ __attribute__((naked)) void gadget_str_x_impl(void)
         "eor x27, x27, x0\n\t"
 
         // Load tlb entry at &entries[index]
-        // entries is at offset 32 in struct tlb (64-bit page fields)
+        // entries is at offset 32 in struct tlb.
         "add x0, x26, #32\n\t"      // x0 = &tlb->entries[0]
-        "mov x26, #24\n\t"          // x26 = sizeof(tlb_entry)
-        "madd x0, x27, x26, x0\n\t" // x0 = &tlb->entries[index] (x0 + x27*24)
-        "ldr x27, [x0]\n\t"         // x27 = entry.page
+        "mov x26, #32\n\t"          // x26 = sizeof(tlb_entry)
+        "madd x0, x27, x26, x0\n\t" // x0 = &tlb->entries[index]
+        "ldr x27, [x0, #8]\n\t"     // x27 = entry.page_if_writable
 
         // Compare page (clear lower 12 bits via shift)
         "lsr x26, x17, #12\n\t" // x26 = addr >> 12
@@ -3054,9 +3683,52 @@ __attribute__((naked)) void gadget_str_x_impl(void)
         // data_minus_addr is at offset 16 in tlb_entry
         "ldr x27, [x0, #16]\n\t" // x27 = entry.data_minus_addr
         "add x17, x27, x17\n\t"  // x17 = host address
+        "b 119b\n\t"             // Load source value after TLB scratch use.
+        "151:\n\t"
         "str x0, [x17]\n\t"      // store value from x0
+        "cmp x24, #1\n\t"
+        "b.ne 152f\n\t"
+        "sub x17, x17, x27\n\t"  // Recover guest address from host address.
+        "add x17, x17, x22\n\t"  // Post-index writeback value.
+        "adr x26, 170f\n\t"
+        "add x26, x26, x21, lsl #2\n\t"
+        "br x26\n\t"
+        "170:\n\t"
+        "b 180f\n\t"
+        "b 181f\n\t"
+        "b 182f\n\t"
+        "b 183f\n\t"
+        "b 184f\n\t"
+        "b 185f\n\t"
+        "b 186f\n\t"
+        "b 187f\n\t"
+        "b 188f\n\t"
+        "b 189f\n\t"
+        "b 190f\n\t"
+        "b 191f\n\t"
+        "b 192f\n\t"
+        "b 193f\n\t"
+        "b 194f\n\t"
+        "b 195f\n\t"
+        "180:\n\tmov x1, x17\n\tb 152f\n\t"
+        "181:\n\tmov x2, x17\n\tb 152f\n\t"
+        "182:\n\tmov x3, x17\n\tb 152f\n\t"
+        "183:\n\tmov x4, x17\n\tb 152f\n\t"
+        "184:\n\tmov x5, x17\n\tb 152f\n\t"
+        "185:\n\tmov x6, x17\n\tb 152f\n\t"
+        "186:\n\tmov x7, x17\n\tb 152f\n\t"
+        "187:\n\tmov x8, x17\n\tb 152f\n\t"
+        "188:\n\tmov x9, x17\n\tb 152f\n\t"
+        "189:\n\tmov x10, x17\n\tb 152f\n\t"
+        "190:\n\tmov x11, x17\n\tb 152f\n\t"
+        "191:\n\tmov x12, x17\n\tb 152f\n\t"
+        "192:\n\tmov x13, x17\n\tb 152f\n\t"
+        "193:\n\tmov x14, x17\n\tb 152f\n\t"
+        "194:\n\tmov x15, x17\n\tb 152f\n\t"
+        "195:\n\tmov x16, x17\n\tb 152f\n\t"
 
         // Fast path complete - increment counter and advance to next gadget
+        "152:\n\t"
         "ldr x26, [x29, %[str_fast_hits_off]]\n\t"
         "add x26, x26, #1\n\t"
         "str x26, [x29, %[str_fast_hits_off]]\n\t"
@@ -3146,6 +3818,13 @@ __attribute__((naked)) void gadget_str_x_impl(void)
         "ldp x15, x16, [x29, #128]\n\t"
         "cmp x0, #0\n\t" // x0 still has return value from helper
         "b.ne 1f\n\t"
+        "cmp x24, #0\n\t"
+        "b.eq 160f\n\t"
+        "cmp x21, #16\n\t"
+        "b.hs 160f\n\t"
+        "mov x26, x21\n\t"
+        "bl _tcti_sync_hot_reg_from_cpu\n\t"
+        "160:\n\t"
         "ldr x27, [x28], #8\n\t"
         "br x27\n\t"
         "1:\n\t"

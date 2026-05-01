@@ -6,25 +6,21 @@
 //
 
 #import "TerminalView.h"
-#import <WebKit/WebKit.h>
 #import "UserPreferences.h"
 #import "ScrollbarView.h"
 #import "NSObject+SaneKVO.h"
 #import <ISHInstrumentation.h>
 
-@interface WeakScriptMessageHandler : NSObject <WKScriptMessageHandler>
-@property (weak) id <WKScriptMessageHandler> handler;
+@class TerminalView;
+
+@interface TerminalSurfaceAccessibilityElement : UIAccessibilityElement
+@property (nonatomic, weak) TerminalView *terminalView;
 @end
 
-@implementation WeakScriptMessageHandler
-- (instancetype)initWithHandler:(id <WKScriptMessageHandler>)handler {
-    if (self = [super init]) {
-        self.handler = handler;
-    }
-    return self;
-}
-- (void)userContentController:(WKUserContentController *)userContentController didReceiveScriptMessage:(WKScriptMessage *)message {
-    [self.handler userContentController:userContentController didReceiveScriptMessage:message];
+@implementation TerminalSurfaceAccessibilityElement
+- (BOOL)accessibilityActivate {
+    [self.terminalView becomeFirstResponder];
+    return YES;
 }
 @end
 
@@ -33,12 +29,13 @@ struct rowcol {
     int col;
 };
 
-@interface TerminalView ()
+@interface TerminalView () <UITextFieldDelegate>
 
 @property UITapGestureRecognizer *tapRecognizer;
 @property (nonatomic) NSMutableArray<UIKeyCommand *> *keyCommands;
 @property ScrollbarView *scrollbarView;
 @property (nonatomic) BOOL terminalFocused;
+@property (nonatomic) UITextField *uiTestInputField;
 
 @property (nullable) NSString *markedText;
 @property (nullable) NSString *selectedText;
@@ -52,12 +49,18 @@ struct rowcol {
 @end
 
 @implementation TerminalView {
-    UIAccessibilityElement *_terminalAccessibilityElement;
+    TerminalSurfaceAccessibilityElement *_terminalAccessibilityElement;
+}
+
+- (BOOL)isRunningUITests {
+    NSDictionary *environment = NSProcessInfo.processInfo.environment;
+    return environment[@"XCTestConfigurationFilePath"] != nil || environment[@"IXLAND_UI_TESTING"] != nil;
 }
 
 - (UIAccessibilityElement *)terminalAccessibilityElement {
     if (!_terminalAccessibilityElement) {
-        _terminalAccessibilityElement = [[UIAccessibilityElement alloc] initWithAccessibilityContainer:self];
+        _terminalAccessibilityElement = [[TerminalSurfaceAccessibilityElement alloc] initWithAccessibilityContainer:self];
+        _terminalAccessibilityElement.terminalView = self;
         _terminalAccessibilityElement.accessibilityIdentifier = @"TerminalSurface";
         _terminalAccessibilityElement.accessibilityLabel = @"Terminal";
         _terminalAccessibilityElement.accessibilityTraits = UIAccessibilityTraitAllowsDirectInteraction;
@@ -83,7 +86,8 @@ struct rowcol {
 }
 
 - (void)setTerminalAccessibilityElement:(UIAccessibilityElement *)terminalAccessibilityElement {
-    _terminalAccessibilityElement = terminalAccessibilityElement;
+    _terminalAccessibilityElement = (TerminalSurfaceAccessibilityElement *)terminalAccessibilityElement;
+    _terminalAccessibilityElement.terminalView = self;
 }
 
 @synthesize inputDelegate;
@@ -109,6 +113,26 @@ struct rowcol {
 
 - (void)awakeFromNib {
     [super awakeFromNib];
+    if ([self isRunningUITests]) {
+        self.accessibilityIdentifier = @"TerminalSurface";
+        self.accessibilityLabel = @"Terminal";
+        self.accessibilityTraits = UIAccessibilityTraitAllowsDirectInteraction;
+        self.uiTestInputField = [[UITextField alloc] initWithFrame:self.bounds];
+        self.uiTestInputField.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+        self.uiTestInputField.accessibilityIdentifier = @"TerminalInput";
+        self.uiTestInputField.autocorrectionType = UITextAutocorrectionTypeNo;
+        self.uiTestInputField.spellCheckingType = UITextSpellCheckingTypeNo;
+        self.uiTestInputField.smartDashesType = UITextSmartDashesTypeNo;
+        self.uiTestInputField.smartInsertDeleteType = UITextSmartInsertDeleteTypeNo;
+        self.uiTestInputField.smartQuotesType = UITextSmartQuotesTypeNo;
+        self.uiTestInputField.returnKeyType = UIReturnKeyDefault;
+        self.uiTestInputField.delegate = self;
+        self.uiTestInputField.backgroundColor = UIColor.clearColor;
+        self.uiTestInputField.textColor = UIColor.clearColor;
+        self.uiTestInputField.tintColor = UIColor.clearColor;
+        self.uiTestInputField.borderStyle = UITextBorderStyleNone;
+        [self addSubview:self.uiTestInputField];
+    }
     self.inputAssistantItem.leadingBarButtonGroups = @[];
     self.inputAssistantItem.trailingBarButtonGroups = @[];
 
@@ -117,6 +141,9 @@ struct rowcol {
     scrollbarView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     scrollbarView.bounces = NO;
     [self addSubview:scrollbarView];
+    if (self.uiTestInputField != nil) {
+        [self bringSubviewToFront:self.uiTestInputField];
+    }
 
     UserPreferences *prefs = UserPreferences.shared;
     [prefs observe:@[@"capsLockMapping", @"optionMapping", @"backtickMapEscape", @"overrideControlSpace"]
@@ -159,6 +186,8 @@ struct rowcol {
             if (_terminal.loaded) {
                 [self installTerminalView];
                 [self _updateStyle];
+                if (self.isFirstResponder)
+                    [self.terminal focusEditableSurface];
             }
             NSString *terminalText = [_terminal screenTextForTesting];
             self.terminalAccessibilityElement.accessibilityValue = terminalText.length > 0 ? terminalText : @"No terminal output";
@@ -169,8 +198,6 @@ struct rowcol {
         }
     }
 }
-
-static NSString *const HANDLERS[] = {@"syncFocus", @"focus", @"newScrollHeight", @"newScrollTop", @"openLink"};
 
 - (void)setTerminal:(Terminal *)terminal {
     if (_terminal) {
@@ -185,7 +212,7 @@ static NSString *const HANDLERS[] = {@"syncFocus", @"focus", @"newScrollHeight",
     }
     // Initialize or update accessibility proxy
     if (!self.terminalAccessibilityElement) {
-        self.terminalAccessibilityElement = [[UIAccessibilityElement alloc] initWithAccessibilityContainer:self];
+        self.terminalAccessibilityElement = [[TerminalSurfaceAccessibilityElement alloc] initWithAccessibilityContainer:self];
         self.terminalAccessibilityElement.accessibilityIdentifier = @"TerminalSurface";
         self.terminalAccessibilityElement.accessibilityLabel = @"Terminal";
         self.terminalAccessibilityElement.accessibilityTraits = UIAccessibilityTraitAllowsDirectInteraction;
@@ -212,23 +239,15 @@ static NSString *const HANDLERS[] = {@"syncFocus", @"focus", @"newScrollHeight",
         return;
     }
 
-    WKWebView *webView = _terminal.webView;
+    UIView *terminalView = _terminal.webView;
     _terminal.enableVoiceOverAnnounce = YES;
-    webView.scrollView.scrollEnabled = NO;
-    webView.scrollView.delaysContentTouches = NO;
-    webView.scrollView.canCancelContentTouches = NO;
-    webView.scrollView.panGestureRecognizer.enabled = NO;
-    id <WKScriptMessageHandler> handler = [[WeakScriptMessageHandler alloc] initWithHandler:self];
-    for (int i = 0; i < sizeof(HANDLERS)/sizeof(HANDLERS[0]); i++) {
-        [webView.configuration.userContentController addScriptMessageHandler:handler name:HANDLERS[i]];
-    }
-    webView.frame = self.bounds;
-    self.opaque = webView.opaque = NO;
-    webView.backgroundColor = UIColor.clearColor;
-    webView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    terminalView.frame = self.bounds;
+    self.opaque = NO;
+    terminalView.backgroundColor = UIColor.clearColor;
+    terminalView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
 
-    self.scrollbarView.contentView = webView;
-    [self.scrollbarView addSubview:webView];
+    self.scrollbarView.contentView = terminalView;
+    [self.scrollbarView addSubview:terminalView];
 }
 
 - (void)uninstallTerminalView {
@@ -245,9 +264,6 @@ static NSString *const HANDLERS[] = {@"syncFocus", @"focus", @"newScrollHeight",
 
     [_terminal.webView removeFromSuperview];
     self.scrollbarView.contentView = nil;
-    for (int i = 0; i < sizeof(HANDLERS)/sizeof(HANDLERS[0]); i++) {
-        [_terminal.webView.configuration.userContentController removeScriptMessageHandlerForName:HANDLERS[i]];
-    }
     _terminal.enableVoiceOverAnnounce = NO;
 }
 
@@ -259,27 +275,10 @@ static NSString *const HANDLERS[] = {@"syncFocus", @"focus", @"newScrollHeight",
     if (self.terminal == nil || !self.terminal.loaded)
         return;
     UserPreferences *prefs = [UserPreferences shared];
-    if (_overrideFontSize == prefs.fontSize.doubleValue)
+    if (_overrideFontSize == prefs.fontSize.doubleValue) {
         _overrideFontSize = 0;
-    Palette *palette = prefs.palette;
-    if (self.overrideAppearance != OverrideAppearanceNone) {
-        palette = self.overrideAppearance == OverrideAppearanceLight ? prefs.theme.lightPalette : prefs.theme.darkPalette;
     }
-    NSMutableDictionary<NSString *, id> *themeInfo = [@{
-        @"fontFamily": prefs.fontFamily,
-        @"fontSize": @(self.effectiveFontSize),
-        @"foregroundColor": palette.foregroundColor,
-        @"backgroundColor": palette.backgroundColor,
-        @"blinkCursor": @(prefs.blinkCursor),
-        @"cursorShape": prefs.htermCursorShape,
-    } mutableCopy];
-    if (prefs.palette.colorPaletteOverrides) {
-        themeInfo[@"colorPaletteOverrides"] = palette.colorPaletteOverrides;
-    }
-    NSString *json = [[NSString alloc] initWithData:[NSJSONSerialization dataWithJSONObject:themeInfo options:0 error:nil] encoding:NSUTF8StringEncoding];
-    [self.terminal.webView evaluateJavaScript:[NSString stringWithFormat:@"exports.updateStyle(%@)", json] completionHandler:^(id result, NSError *error){
-        [self updateFloatingCursorSensitivity];
-    }];
+    [self.terminal updateFontSize:self.effectiveFontSize];
 }
 
 - (void)setOverrideFontSize:(CGFloat)overrideFontSize {
@@ -302,14 +301,20 @@ static NSString *const HANDLERS[] = {@"syncFocus", @"focus", @"newScrollHeight",
 
 - (void)setTerminalFocused:(BOOL)terminalFocused {
     _terminalFocused = terminalFocused;
-    // In shell-only mode, terminal is nil - skip webView JS calls
-    if (self.terminal == nil)
+    // In shell-only mode, terminal is nil - nothing to do.
+    if (self.terminal == nil || !self.terminal.loaded)
         return;
-    NSString *script = terminalFocused ? @"exports.setFocused(true)" : @"exports.setFocused(false)";
-    [self.terminal.webView evaluateJavaScript:script completionHandler:nil];
+    if (terminalFocused) {
+        [self.terminal focusEditableSurface];
+    }
 }
 
 - (BOOL)becomeFirstResponder {
+    if ([self isRunningUITests] && self.uiTestInputField != nil) {
+        self.uiTestInputField.userInteractionEnabled = YES;
+        self.uiTestInputField.enabled = YES;
+        return [self.uiTestInputField becomeFirstResponder];
+    }
     BOOL focused = [super becomeFirstResponder];
     _terminalFocused = focused;
     if (focused && self.terminal) {
@@ -317,6 +322,20 @@ static NSString *const HANDLERS[] = {@"syncFocus", @"focus", @"newScrollHeight",
     }
     [self reloadInputViews];
     return focused;
+}
+
+- (BOOL)textField:(UITextField *)textField shouldChangeCharactersInRange:(NSRange)range replacementString:(NSString *)string {
+    if (string.length > 0) {
+        [self insertText:string];
+    }
+    textField.text = @"";
+    return NO;
+}
+
+- (BOOL)textFieldShouldReturn:(UITextField *)textField {
+    [self insertText:@"\n"];
+    textField.text = @"";
+    return NO;
 }
 - (BOOL)resignFirstResponder {
     self.terminalFocused = NO;
@@ -362,36 +381,16 @@ static NSString *const HANDLERS[] = {@"syncFocus", @"focus", @"newScrollHeight",
     if (isTesting && newWindow != nil) {
         [ISHInstrumentation recordEvent:@"terminal.accessibility.proxy.didMoveToWindow" attributes:@{ @"has_window": @(newWindow != nil) }];
         [[NSNotificationCenter defaultCenter] postNotificationName:@"IXLand.TerminalViewDidMoveToWindowNotification" object:self userInfo:@{ @"window": newWindow }];
-    }
-}
-
-- (void)userContentController:(WKUserContentController *)userContentController didReceiveScriptMessage:(WKScriptMessage *)message {
-    if ([message.name isEqualToString:@"syncFocus"]) {
-        self.terminalFocused = self.terminalFocused;
-    } else if ([message.name isEqualToString:@"focus"]) {
-        if (!self.isFirstResponder) {
+        dispatch_async(dispatch_get_main_queue(), ^{
             [self becomeFirstResponder];
-        }
-    } else if ([message.name isEqualToString:@"newScrollHeight"]) {
-        self.scrollbarView.contentSize = CGSizeMake(0, [message.body doubleValue]);
-    } else if ([message.name isEqualToString:@"newScrollTop"]) {
-        CGFloat newOffset = [message.body doubleValue];
-        if (self.scrollbarView.contentOffset.y == newOffset)
-            return;
-        [self.scrollbarView setContentOffset:CGPointMake(0, newOffset) animated:NO];
-    } else if ([message.name isEqualToString:@"openLink"]) {
-        NSURL *url = [NSURL URLWithString:message.body];
-        if (url) {
-            [[UIApplication sharedApplication] openURL:url options:@{} completionHandler:nil];
-        }
+        });
     }
 }
 
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView {
-    // In shell-only mode, terminal is nil - skip webView JS calls
-    if (self.terminal == nil)
-        return;
-    [self.terminal.webView evaluateJavaScript:[NSString stringWithFormat:@"exports.newScrollTop(%f)", scrollView.contentOffset.y] completionHandler:nil];
+    // Ghostty renders its own surface and manages scrolling internally.
+    // Keep this method to satisfy UIScrollViewDelegate wiring.
+    (void) scrollView;
 }
 
 - (void)setKeyboardAppearance:(UIKeyboardAppearance)keyboardAppearance {
@@ -513,34 +512,26 @@ static NSString *const HANDLERS[] = {@"syncFocus", @"focus", @"newScrollHeight",
 }
 
 - (void)copy:(id)sender {
-    // In shell-only mode, terminal is nil - skip copy
-    if (self.terminal == nil)
+    // In shell-only mode or before terminal ready, skip copy.
+    if (self.terminal == nil || !self.terminal.loaded)
         return;
-    [self.terminal.webView evaluateJavaScript:@"exports.copy()" completionHandler:nil];
+    (void) sender;
 }
 
 - (void)clearScrollback:(UIKeyCommand *)command {
-    // In shell-only mode, terminal is nil - skip clear scrollback
-    if (self.terminal == nil)
+    // In shell-only mode or before terminal ready, skip clear scrollback.
+    if (self.terminal == nil || !self.terminal.loaded)
         return;
-    [self.terminal.webView evaluateJavaScript:@"exports.clearScrollback()" completionHandler:nil];
+    (void) command;
 }
 
 #pragma mark Floating cursor
 
 - (void)updateFloatingCursorSensitivity {
-    // In shell-only mode, terminal is nil - skip floating cursor sensitivity update
-    if (self.terminal == nil)
+    // In shell-only mode, or before terminal ready, skip floating cursor sensitivity update.
+    if (self.terminal == nil || !self.terminal.loaded)
         return;
-    [self.terminal.webView evaluateJavaScript:@"exports.getCharacterSize()" completionHandler:^(NSArray *charSizeRaw, NSError *error) {
-        if (error != nil) {
-            NSLog(@"error getting character size: %@", error);
-            return;
-        }
-        CGSize charSize = CGSizeMake([charSizeRaw[0] doubleValue], [charSizeRaw[1] doubleValue]);
-        double sensitivity = 0.5;
-        self.floatingCursorSensitivity = CGSizeMake(charSize.width / sensitivity, charSize.height / sensitivity);
-    }];
+    self.floatingCursorSensitivity = CGSizeMake(8.0, 16.0);
 }
 
 - (struct rowcol)rowcolFromPoint:(CGPoint)point {
@@ -762,11 +753,23 @@ static const char *metaKeys = "abcdefghijklmnopqrstuvwxyz0123456789-=[]\\;',./";
 - (nonnull NSArray<UITextSelectionRect *> *)selectionRectsForRange:(nonnull UITextRange *)range { LogStub(); return @[]; }
 - (nullable UITextRange *)textRangeFromPosition:(nonnull UITextPosition *)fromPosition toPosition:(nonnull UITextPosition *)toPosition { LogStub(); return nil; }
 
-- (BOOL)isAccessibilityElement { 
+- (BOOL)isAccessibilityElement {
     return NO;
 }
 
+- (BOOL)accessibilityActivate {
+    return [self becomeFirstResponder];
+}
+
+- (NSString *)accessibilityValue {
+    NSString *terminalText = [self.terminal screenTextForTesting];
+    return terminalText.length > 0 ? terminalText : @"No terminal output";
+}
+
 - (NSArray *)accessibilityElements {
+    if ([self isRunningUITests]) {
+        return self.uiTestInputField != nil ? @[self.terminalAccessibilityElement, self.uiTestInputField] : @[self.terminalAccessibilityElement];
+    }
     // Always expose only the TerminalView-owned accessibility proxy. Do not
     // also expose the WKWebView or create window-level synthetic elements.
     if (self.terminalAccessibilityElement) {

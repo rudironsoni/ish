@@ -192,6 +192,11 @@ static inline uint32_t bit(uint32_t val, int n) {
     return (val >> n) & 1;
 }
 
+static inline bool a64_ldst_raw_is_load(uint32_t insn) {
+    uint32_t opc = bits(insn, 23, 22);
+    return opc != 0;
+}
+
 static inline int64_t sign_extend(uint64_t val, int bits) {
     int64_t sign_bit = 1LL << (bits - 1);
     return (val ^ sign_bit) - sign_bit;

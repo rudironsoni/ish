@@ -9,6 +9,7 @@
 #import "DelayedUITask.h"
 #import "UserPreferences.h"
 #import <ISHInstrumentation.h>
+#import "IXLandTerminal-Swift.h"
 #import "LinuxInterop.h"
 #import <IXLandLinuxRuntime/fs/devices.h>
 #import <IXLandLinuxRuntime/fs/tty.h>
@@ -18,16 +19,18 @@ extern struct tty_driver ios_pty_driver;
 
 typedef struct tty *tty_t;
 
-@interface Terminal () <WKScriptMessageHandler> {
+@interface Terminal () <IXLandGhosttyHostTerminalDelegate> {
     lock_t _dataLock;
     cond_t _dataConsumed;
 }
 
+@property (nonatomic) BOOL focusRequestedBeforeLoad;
 @property BOOL loaded;
 @property (nonatomic) tty_t tty;
+@property (nonatomic, nullable) IXLandGhosttyHostTerminal *ghosttyTerminal;
 // lock with dataLock for !linux and @synchronized(self) for linux
 @property (nonatomic) NSMutableData *pendingData;
-// sending output is an asynchronous thing due to javascript, this is used to ensure it doesn't happen twice at once
+// sending output is an asynchronous thing due to terminal rendering, this is used to ensure it doesn't happen twice at once
 @property (nonatomic) BOOL outputInProgress;
 
 @property DelayedUITask *refreshTask;
@@ -41,28 +44,6 @@ typedef struct tty *tty_t;
 @property NSUUID *uuid;
 @property (nonatomic) struct linux_tty *linuxTTY;
 
-@end
-
-@interface CustomWebView : WKWebView
-@end
-@implementation CustomWebView
-- (BOOL)canBecomeFirstResponder {
-    return YES;
-}
-
-- (BOOL)becomeFirstResponder {
-    if (self.window == nil || !self.window.isKeyWindow) {
-        return NO;
-    }
-    return [super becomeFirstResponder];
-}
-
-- (BOOL)canPerformAction:(SEL)action withSender:(id)sender {
-    if (action == @selector(copy:) || action == @selector(paste:)) {
-        return NO;
-    }
-    return [super canPerformAction:action withSender:sender];
-}
 @end
 
 @implementation Terminal
@@ -97,27 +78,22 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
     }
 }
 
-- (WKWebView *)webView {
+- (UIView *)webView {
     if (_webView == nil) {
-        WKWebViewConfiguration *config = [WKWebViewConfiguration new];
-        [config.userContentController addScriptMessageHandler:self name:@"load"];
-        [config.userContentController addScriptMessageHandler:self name:@"log"];
-        [config.userContentController addScriptMessageHandler:self name:@"sendInput"];
-        [config.userContentController addScriptMessageHandler:self name:@"resize"];
-        [config.userContentController addScriptMessageHandler:self name:@"propUpdate"];
-        // Make the web view really big so that if a program tries to write to the terminal before it's displayed, the text probably won't wrap too badly.
-        CGRect webviewSize = CGRectMake(0, 0, 10000, 10000);
-        _webView = [[CustomWebView alloc] initWithFrame:webviewSize configuration:config];
-        if (@available(macOS 13.3, iOS 16.4, tvOS 16.4, *))
-            _webView.inspectable = YES;
-        _webView.scrollView.scrollEnabled = NO;
-        // Do not mark the WKWebView itself as a top-level accessibility
-        // element. TerminalView is responsible for exposing a single honest
-        // TerminalSurface accessibility proxy owned by the TerminalView.
-        NSURL *xtermHtmlFile = [NSBundle.mainBundle URLForResource:@"term" withExtension:@"html"];
-        [_webView loadFileURL:xtermHtmlFile allowingReadAccessToURL:xtermHtmlFile];
+        double fontSize = UserPreferences.shared.fontSize.doubleValue;
+        IXLandGhosttyHostTerminal *terminal = [[IXLandGhosttyHostTerminal alloc] initWithFontSize:fontSize];
+        terminal.delegate = self;
+        self.ghosttyTerminal = terminal;
+        _webView = terminal.view;
+        self.loaded = YES;
+        [self flushPendingFocus];
+        [self refresh];
     }
     return _webView;
+}
+
+- (void)dealloc {
+    self.ghosttyTerminal = nil;
 }
 
 + (Terminal *)createPseudoTerminal:(struct tty **)tty {
@@ -136,43 +112,50 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
     });
 }
 
-- (void)userContentController:(WKUserContentController *)userContentController didReceiveScriptMessage:(WKScriptMessage *)message {
-    if ([message.name isEqualToString:@"load"]) {
-        self.loaded = YES;
-        [self.refreshTask schedule];
-        // make sure this setting works if it's set before loading
-        self.enableVoiceOverAnnounce = self.enableVoiceOverAnnounce;
-    } else if ([message.name isEqualToString:@"log"]) {
-        // Log messages from terminal JS -> native are intentionally silent in
-        // product code.
-    } else if ([message.name isEqualToString:@"sendInput"]) {
-        NSData *data = [message.body dataUsingEncoding:NSUTF8StringEncoding];
-        [self sendInput:data];
-    } else if ([message.name isEqualToString:@"resize"]) {
-        [self syncWindowSize];
-    } else if ([message.name isEqualToString:@"propUpdate"]) {
-        [self setValue:message.body[1] forKey:message.body[0]];
+- (void)ghosttyHostTerminal:(IXLandGhosttyHostTerminal *)terminal didReceiveInput:(NSData *)data {
+    [self sendInput:data];
+}
+
+- (void)ghosttyHostTerminal:(IXLandGhosttyHostTerminal *)terminal didResizeColumns:(NSInteger)columns rows:(NSInteger)rows {
+    struct linux_tty *linuxTTY = nil;
+    @synchronized (self) {
+        linuxTTY = self.linuxTTY;
     }
+
+    if (linuxTTY != NULL) {
+        linuxTTY->ops->resize(linuxTTY, (int) columns, (int) rows);
+        return;
+    }
+
+    if (self.tty == NULL)
+        return;
+
+    lock(&self.tty->lock);
+    tty_set_winsize(self.tty, (struct winsize_) {.col = (uint16_t) columns, .row = (uint16_t) rows});
+    unlock(&self.tty->lock);
 }
 
 - (void)syncWindowSize {
-    [self.webView evaluateJavaScript:@"exports.getSize()" completionHandler:^(NSArray<NSNumber *> *dimensions, NSError *error) {
-        int cols = dimensions[0].intValue;
-        int rows = dimensions[1].intValue;
-        struct linux_tty *linuxTTY = nil;
-        @synchronized (self) {
-            linuxTTY = self.linuxTTY;
-        }
-        if (linuxTTY != NULL) {
-            linuxTTY->ops->resize(linuxTTY, cols, rows);
-            return;
-        }
-        if (self.tty == NULL)
-            return;
-        lock(&self.tty->lock);
-        tty_set_winsize(self.tty, (struct winsize_) {.col = cols, .row = rows});
-        unlock(&self.tty->lock);
-    }];
+    if (!self.loaded)
+        return;
+
+    UIView *view = self.webView;
+    CGSize size = view.bounds.size;
+    NSUInteger cols = MAX(1, (NSUInteger) (size.width / 8));
+    NSUInteger rows = MAX(1, (NSUInteger) (size.height / 16));
+    struct linux_tty *linuxTTY = nil;
+    @synchronized (self) {
+        linuxTTY = self.linuxTTY;
+    }
+    if (linuxTTY != NULL) {
+        linuxTTY->ops->resize(linuxTTY, (int) cols, (int) rows);
+        return;
+    }
+    if (self.tty == NULL)
+        return;
+    lock(&self.tty->lock);
+    tty_set_winsize(self.tty, (struct winsize_) {.col = (uint16_t) cols, .row = (uint16_t) rows});
+    unlock(&self.tty->lock);
 }
 
 - (BOOL)becomeInputResponder {
@@ -184,23 +167,28 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
 }
 
 - (BOOL)focusEditableSurface {
-    if (!self.webView || !self.webView.window) {
+    if (!self.webView || !self.webView.window || !self.loaded) {
+        self.focusRequestedBeforeLoad = YES;
         return NO;
     }
-    NSString *script = @"term.focus();";
-    [self.webView evaluateJavaScript:script completionHandler:^(id result, NSError *error) {
-        if (error) {
-            NSLog(@"JS focus error: %@", error);
-        }
-    }];
-    return YES;
+    self.focusRequestedBeforeLoad = NO;
+    return [self.webView becomeFirstResponder];
+}
+
+- (void)updateFontSize:(CGFloat)fontSize {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self.ghosttyTerminal updateFontSize:fontSize];
+    });
 }
 
 - (void)setEnableVoiceOverAnnounce:(BOOL)enableVoiceOverAnnounce {
     _enableVoiceOverAnnounce = enableVoiceOverAnnounce;
-    [self.webView evaluateJavaScript:[NSString stringWithFormat:@"term.setAccessibilityEnabled(%@)",
-                                      enableVoiceOverAnnounce ? @"true" : @"false"]
-                   completionHandler:nil];
+}
+
+- (void)flushPendingFocus {
+    if (!self.focusRequestedBeforeLoad)
+        return;
+    [self focusEditableSurface];
 }
 
 - (NSDictionary *)sessionTraceAttributesWithByteCount:(NSInteger)byteCount
@@ -304,12 +292,9 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
         tty_input(self.tty, input.bytes, input.length, 0);
     [ISHInstrumentation recordEvent:@"terminal.after_tty_input"];
     [ISHInstrumentation endInterval:intervalId attributes:inputAttrs];
-    [self.webView evaluateJavaScript:@"exports.setUserGesture()" completionHandler:nil];
-    [self.scrollToBottomTask schedule];
 }
 
 - (void)scrollToBottom {
-    [self.webView evaluateJavaScript:@"exports.scrollToBottom()" completionHandler:nil];
 }
 
 - (NSString *)arrow:(char)direction {
@@ -317,9 +302,6 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
 }
 
 - (void)refresh {
-    if (!self.loaded)
-        return;
-    
     // APPSIM-004 Stage 2: PTY byte detection
     [ISHInstrumentation recordEvent:@"terminal.refresh.triggered"
                          attributes:[self sessionTraceAttributesWithByteCount:0
@@ -344,40 +326,26 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
         NSDictionary *byteCountAttrs = @{
             @"byte_count": @(refreshByteCount),
             @"task": @"terminal_refresh",
-            @"destination": @"webview"
+            @"destination": @"ghostty"
         };
         byteCountInterval = [ISHInstrumentation beginInterval:@"task.proof.pty.byte_count" attributes:byteCountAttrs];
     }
 
-    NSString *dataString = [[NSString alloc] initWithBytes:data.bytes length:data.length encoding:NSISOLatin1StringEncoding];
-    // escape for javascript. only have to worry about the first 256 codepoints, because of the latin-1 encoding.
-    dataString = [dataString stringByReplacingOccurrencesOfString:@"\\" withString:@"\\\\"];
-    dataString = [dataString stringByReplacingOccurrencesOfString:@"\r" withString:@"\\r"];
-    dataString = [dataString stringByReplacingOccurrencesOfString:@"\n" withString:@"\\n"];
-    dataString = [dataString stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""];
-    NSString *jsToEvaluate = [NSString stringWithFormat:@"exports.write(\"%@\")", dataString];
-    if (refreshByteCount > 0) {
-        [ISHInstrumentation recordEvent:@"terminal.js.write.bytes"
-                             attributes:[self sessionTraceAttributesWithByteCount:refreshByteCount
-                                                                   pendingBefore:_pendingData.length]];
+    IXLandGhosttyHostTerminal *ghostty = self.ghosttyTerminal;
+    if (refreshByteCount > 0 && ghostty != nil) {
+        [ghostty receiveOutput:data];
     }
-    [self.webView evaluateJavaScript:jsToEvaluate completionHandler:^(id result, NSError *error) {
-        // Trace completion
-        if (byteCountInterval != 0) {
-            NSDictionary *completeAttrs = @{
-                @"byte_count": @(refreshByteCount),
-                @"error": error ? @YES : @NO
-            };
-            [ISHInstrumentation endInterval:byteCountInterval attributes:completeAttrs];
-        }
-        lock(&self->_dataLock);
-        self->_outputInProgress = NO;
-        unlock(&self->_dataLock);
-        if (error != nil) {
-            // Error handled silently - bytes could not be sent to terminal
-            return;
-        }
-    }];
+
+    lock(&self->_dataLock);
+    self->_outputInProgress = NO;
+    unlock(&self->_dataLock);
+    if (byteCountInterval != 0) {
+        NSDictionary *completeAttrs = @{
+            @"byte_count": @(refreshByteCount),
+            @"error": @NO
+        };
+        [ISHInstrumentation endInterval:byteCountInterval attributes:completeAttrs];
+    }
 }
 
 + (void)convertCommand:(NSArray<NSString *> *)command toArgs:(char *)argv limitSize:(size_t)maxSize {

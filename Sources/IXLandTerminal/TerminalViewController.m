@@ -1182,6 +1182,10 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 
 // Override accessibilityValue to expose terminal text for UI test queries
 - (NSArray *)accessibilityElements {
+    NSDictionary *environment = NSProcessInfo.processInfo.environment;
+    if (environment[@"XCTestConfigurationFilePath"] != nil || environment[@"IXLAND_UI_TESTING"] != nil) {
+        return self.termView.accessibilityElements;
+    }
     // Expose TerminalSurface proxy as the sole accessibility element
     return @[self.termView.terminalAccessibilityElement];
 }

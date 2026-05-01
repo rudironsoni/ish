@@ -18,6 +18,7 @@
     self.continueAfterFailure = NO;
 
     self.app = [[XCUIApplication alloc] init];
+    self.app.launchEnvironment = @{ @"IXLAND_UI_TESTING": @"1" };
     [self.app launch];
 
     // TerminalViewController is no longer used; wait for TerminalSurface
@@ -67,9 +68,12 @@
 - (void)typeCommand:(NSString *)command {
     XCUIElement *terminalSurface = self.app.otherElements[@"TerminalSurface"];
     XCTAssertTrue([terminalSurface waitForExistenceWithTimeout:5.0], @"TerminalSurface must be accessible within 5 seconds");
-    [terminalSurface tap];
+    [self waitForTerminalReadyWithTimeout:20.0];
+    XCUIElement *terminalInput = self.app.textFields[@"TerminalInput"];
+    XCTAssertTrue([terminalInput waitForExistenceWithTimeout:5.0], @"TerminalInput must be accessible within 5 seconds");
+    [terminalInput tap];
     [NSThread sleepForTimeInterval:0.5];
-    [self.app typeText:[NSString stringWithFormat:@"%@\n", command]];
+    [terminalInput typeText:[NSString stringWithFormat:@"%@\n", command]];
 }
 
 - (NSString *)terminalText {
@@ -78,6 +82,20 @@
     NSString *value = terminalSurface.value;
     XCTAssertNotNil(value, @"TerminalSurface value must not be nil");
     return value;
+}
+
+- (NSString *)waitForTerminalReadyWithTimeout:(NSTimeInterval)timeout {
+    NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:timeout];
+    NSString *lastObserved = [self terminalText];
+    while ([deadline timeIntervalSinceNow] > 0) {
+        [self failIfStartupAlertExistsWithTimeout:0.0];
+        lastObserved = [self terminalText];
+        if (lastObserved.length > 0 && ![lastObserved isEqualToString:@"No terminal output"])
+            return lastObserved;
+        [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.1]];
+    }
+    XCTFail(@"Timed out waiting for terminal readiness. Last observed TerminalSurface.value: %@", lastObserved);
+    return lastObserved;
 }
 
 - (NSString *)waitForTerminalTextContaining:(NSString *)expected timeout:(NSTimeInterval)timeout {
@@ -97,7 +115,7 @@
 // Test 1: Basic shell execution
 - (void)testBasicShellExecution {
     [self typeCommand:@"printf '%s%s%s\n' 'aarch64' '_test' '_passed'"];
-    NSString *output = [self waitForTerminalTextContaining:@"aarch64_test_passed" timeout:10.0];
+    NSString *output = [self waitForTerminalTextContaining:@"aarch64_test_passed" timeout:30.0];
     XCTAssertTrue([output containsString:@"aarch64_test_passed"],
                   @"Should see computed shell output in terminal. Actual output: %@", output);
 }

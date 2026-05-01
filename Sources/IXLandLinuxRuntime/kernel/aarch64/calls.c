@@ -312,9 +312,9 @@ void handle_interrupt(int interrupt)
 
     switch (interrupt) {
     case INT_SYSCALL:
-        // Syscalls are dispatched via a64_do_syscall
-        // This path is reached when SVC triggers an exception
-        // The actual syscall dispatch happens in the TCTI exit path
+        // SVC exits from TCTI arrive here. Dispatch the Linux syscall and
+        // advance PC past the SVC instruction.
+        a64_handle_syscall(cpu);
         break;
 
     case INT_GPF: {

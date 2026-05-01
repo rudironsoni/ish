@@ -11,6 +11,7 @@
 #import <IXLandLinuxRuntime/fs/devices.h>
 #import <IXLandLinuxRuntime/fs/tty.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
+#import <IXLandLinuxRuntime/kernel/errno.h>
 #import <IXLandLinuxRuntime/kernel/init.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
 #import <IXLandLinuxRuntime/util/misc.h>
@@ -82,6 +83,17 @@ static char *flatten_argv(const char *const *argv, size_t *argc_out)
     return flat_argv;
 }
 
+static bool current_is_session_leader(void)
+{
+    bool is_session_leader;
+
+    lock(&pids_lock);
+    is_session_leader = current->group->sid == current->pid;
+    unlock(&pids_lock);
+
+    return is_session_leader;
+}
+
 void linux_start_session(const char *exe, const char *const *argv, const char *envp,
                          StartSessionDoneBlock done)
 {
@@ -94,7 +106,7 @@ void linux_start_session(const char *exe, const char *const *argv, const char *e
 
     int tty_num = tty->num;
     int err = (int)sys_setsid();
-    if (err < 0)
+    if (err < 0 && !(err == _EPERM && current_is_session_leader()))
         goto fail_with_tty;
 
     char pts_path[32];

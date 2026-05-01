@@ -118,9 +118,7 @@ static NSString *kDefaultRoot = @"Default Root";
         [self observe:@[@"roots"] options:0 owner:self usingBlock:^(typeof(self) self) {
             if (self.defaultRoot == nil && self.roots.count)
                 self.defaultRoot = self.roots[0];
-            [self syncFileProviderDomains];
         }];
-        [self syncFileProviderDomains];
 
         if ((!self.defaultRoot || ![self.roots containsObject:self.defaultRoot]) && self.roots.count)
             self.defaultRoot = self.roots.firstObject;
@@ -149,22 +147,14 @@ void root_progress_callback(void *cookie, double progress, const char *message, 
         return;
     }
 
-    static BOOL fileProviderAvailable = NO;
-    static BOOL checked = NO;
-    
-    if (!checked) {
-        checked = YES;
-        @try {
-            NSURL *testURL = [NSFileProviderManager defaultManager].documentStorageURL;
-            fileProviderAvailable = (testURL != nil);
-        }
-        @catch (__unused NSException *exception) {
-            fileProviderAvailable = NO;
-        }
+    if (@available(iOS 11.0, *)) {
+        if (![NSFileProviderManager respondsToSelector:@selector(defaultManager)])
+            return;
     }
-    
-    if (!fileProviderAvailable) {
-        return;
+    if (@available(iOS 11.0, *)) {
+        NSFileProviderManager *providerManager = [NSFileProviderManager defaultManager];
+        if (providerManager == nil)
+            return;
     }
     
     if (self.updatingDomains) {

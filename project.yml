@@ -12,6 +12,9 @@ packages:
   libarchive-for-swift:
     url: https://github.com/matteo-pacini/libarchive-for-swift
     from: 1.0.0
+  libghostty-spm:
+    url: https://github.com/Lakr233/libghostty-spm
+    branch: main
   IXLandInstrumentation:
     path: Packages/IXLandInstrumentation
 
@@ -27,6 +30,8 @@ settings:
     LINUX_UAPI_INCLUDE_ROOT: $(LINUX_UAPI_ROOT)/include
     GCC_TREAT_WARNINGS_AS_ERRORS: true
     SWIFT_TREAT_WARNINGS_AS_ERRORS: true
+    SWIFT_EXPLICIT_MODULES: false
+    SWIFT_ENABLE_EXPLICIT_MODULES: false
 
 targetTemplates:
   LinuxRuntimeBase:
@@ -75,6 +80,8 @@ targets:
       PRODUCT_MODULE_NAME: IXLandLinuxRuntime
       PUBLIC_HEADERS_FOLDER_PATH: include/IXLandLinuxRuntime
       HEADER_SEARCH_PATHS:
+      - "$(DERIVED_FILE_DIR)"
+      - "$(DERIVED_FILE_DIR)/IXLandLinuxRuntime/tcti"
       - "$(LINUX_UAPI_INCLUDE_ROOT)"
       - "$(SRCROOT)/include"
       - "$(SRCROOT)/Sources"
@@ -82,6 +89,15 @@ targets:
       - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentation/include"
       - "$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include"
       SKIP_INSTALL: false
+    preBuildScripts:
+    - name: Generate TCTI Gadgets
+      script: |
+        set -eu
+        OUT_DIR="${DERIVED_FILE_DIR}/IXLandLinuxRuntime/tcti"
+        python3 "${SRCROOT}/Sources/IXLandLinuxRuntime/tcti/aarch64/tcti-gadget-gen.py" -o "$OUT_DIR"
+      basedOnDependencyAnalysis: false
+      outputFiles:
+      - "$(DERIVED_FILE_DIR)/IXLandLinuxRuntime/tcti/gadgets_tcti.h"
 
   # MARK: - Performance Test Target
   IXLandLinuxRuntimePerfTests:
@@ -179,6 +195,7 @@ targets:
       - "xcode-ninja.sh"
       - "PasteboardDeviceLinux.c"
       - "Info.plist"
+      - "terminal/**"
     - path: tools
       headerVisibility: project
       includes:
@@ -236,11 +253,10 @@ targets:
     - target: IXLandLinuxRuntime
     - package: IXLandInstrumentation
       product: IXLandInstrumentationRuntime
-    - package: libarchive-for-swift
-      product: libarchive
+    - package: libghostty-spm
+      product: GhosttyTerminal
     - sdk: CoreLocation.framework
     - sdk: UIKit.framework
-    - sdk: WebKit.framework
     - sdk: SystemConfiguration.framework
     - sdk: CoreGraphics.framework
     - sdk: QuartzCore.framework

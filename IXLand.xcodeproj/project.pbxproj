@@ -78,7 +78,6 @@
 		57ABBDC4F2CB059E6001AFEF /* is.png in Resources */ = {isa = PBXBuildFile; fileRef = C75784D7A6850DBE5CCEA355 /* is.png */; };
 		5948FDB22A372F569528B0DC /* static_minimal_exec_ok.elf in Resources */ = {isa = PBXBuildFile; fileRef = 40C2A88B267444A581024B5D /* static_minimal_exec_ok.elf */; };
 		598210E6E54CBEEF2F741EF9 /* pid.c in Sources */ = {isa = PBXBuildFile; fileRef = 2C280CCAC8F6B8BEEBFB5D53 /* pid.c */; };
-		59AF87221E68ED2CA7D1BE53 /* term.css in Resources */ = {isa = PBXBuildFile; fileRef = E102C0FF8EDAEF11230720DF /* term.css */; };
 		59BD1EB5136B3E624FDDAAD8 /* block-cache.c in Sources */ = {isa = PBXBuildFile; fileRef = D6CA7C71641E1BF8B6969B3E /* block-cache.c */; };
 		59C88C60B3D58114F7F8A008 /* fake.c in Sources */ = {isa = PBXBuildFile; fileRef = F8B91D5887EEBACADD3B5C44 /* fake.c */; };
 		5A49B9AC32363E504DE5EF1B /* AppGroup.m in Sources */ = {isa = PBXBuildFile; fileRef = C060C452E7ADDCE44D66B5C9 /* AppGroup.m */; };
@@ -87,7 +86,6 @@
 		5E3E92754DCD4F16C8AFC64A /* fork.c in Sources */ = {isa = PBXBuildFile; fileRef = 3268F8FE6225F8B58EEF7531 /* fork.c */; };
 		5E8E598B062322878B2C6234 /* FontPickerViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 5A7C34AF1E6683B5985A0652 /* FontPickerViewController.m */; };
 		606F58FB819923C5EB0094A5 /* ipc.c in Sources */ = {isa = PBXBuildFile; fileRef = BF249005260B7A21629F8543 /* ipc.c */; };
-		61CECF4AAD49D9527CC94A9E /* term.js in Resources */ = {isa = PBXBuildFile; fileRef = 563C027415F57AB6BE3EB3A3 /* term.js */; };
 		623247850DA3106995546CDD /* pydann2.png in Resources */ = {isa = PBXBuildFile; fileRef = BB7E10F4B69FF7DB6BE84BC1 /* pydann2.png */; };
 		62D925E0339D28DAE02378D5 /* GuestRuntimeCorePerfTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 024F148C3D410A1A69FB197B /* GuestRuntimeCorePerfTests.m */; };
 		63FDDB6410B1D6F630C044B7 /* RootsTableViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = EBB123B65035BE96FBFA6716 /* RootsTableViewController.m */; };
@@ -106,7 +104,6 @@
 		6C28F4635D408CCDF343AA6B /* ThemesViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 60F0620B6217DE91ECBFDAC6 /* ThemesViewController.m */; };
 		6DDD59ED1A15E30C8F122CCA /* GuestBringupMatrixTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 824D0F0A36DB5D3AB0C57BF6 /* GuestBringupMatrixTests.m */; };
 		70CCFC9B74E85B77BCAC2085 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BAE7DCC2F0AA9AA9DB7546E0 /* QuartzCore.framework */; };
-		7223850AA78E03D1EBB572D8 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 247C3F63C3770461EE0BB1BE /* WebKit.framework */; };
 		72E9FCA6521EF25F9FD47233 /* dyndev.c in Sources */ = {isa = PBXBuildFile; fileRef = D75F368F8A0B728AC875CC5A /* dyndev.c */; };
 		74FCDE5FDC2EC4268377C4D6 /* ish.c in Sources */ = {isa = PBXBuildFile; fileRef = 15AF3057431E43D0FA701DA0 /* ish.c */; };
 		7702A0CC5EB8A8D292E42529 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E52C4CDCEE5CD1F9912BF659 /* UIKit.framework */; };
@@ -177,7 +174,7 @@
 		C236E4EB882407AD8118A697 /* cpu.c in Sources */ = {isa = PBXBuildFile; fileRef = E65B61D628C5A851EBF5085D /* cpu.c */; };
 		C23867B987EAA85C10458F4B /* TerminalViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 5B47FEBE11BD649BB6682684 /* TerminalViewController.m */; };
 		C525628FE128B709ABE2524D /* metal.png in Resources */ = {isa = PBXBuildFile; fileRef = BC12150720F8E6493A5B64A5 /* metal.png */; };
-		C54EF3C145560F464049E9A5 /* libarchive in Frameworks */ = {isa = PBXBuildFile; productRef = E7B0164E5350C8A5A4E0CE8B /* libarchive */; };
+		C54EF3C145560F464049E9A5 /* GhosttyTerminal in Frameworks */ = {isa = PBXBuildFile; productRef = A6157563B16CEEAD994938F2 /* GhosttyTerminal */; };
 		C97D688F340BEFFE552AE015 /* sysreg.c in Sources */ = {isa = PBXBuildFile; fileRef = 724BCE40498A7A29DF9E8AC1 /* sysreg.c */; };
 		CAC77D6223909682311F17E0 /* libresolv.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 8C804D8247F78845E3D03ADD /* libresolv.tbd */; };
 		CBBF7D9620910717A9D4878D /* GuestMemoryManagementTests.m in Sources */ = {isa = PBXBuildFile; fileRef = F797CE4B570CD522D3CDDE8B /* GuestMemoryManagementTests.m */; };
@@ -185,7 +182,6 @@
 		D2818B23FE9C87387747111C /* icon1337.png in Resources */ = {isa = PBXBuildFile; fileRef = 1314314FBFDF7FC8667E46AA /* icon1337.png */; };
 		D3CB15C74BB80E3DCFCFA3DD /* LinuxPTY.c in Sources */ = {isa = PBXBuildFile; fileRef = 1F4E72109DB368DC76FC0940 /* LinuxPTY.c */; };
 		D5ECA4A041E4AC4D8CEA9456 /* TCTISemanticExecutionTests.m in Sources */ = {isa = PBXBuildFile; fileRef = BEFD3683BD12419664FD93B2 /* TCTISemanticExecutionTests.m */; };
-		D68231BF6D58AD4D675E4F44 /* term.html in Resources */ = {isa = PBXBuildFile; fileRef = 80032F7FA60CEA26F93BC39F /* term.html */; };
 		D9646D47ED06AF3EB7575407 /* Roots.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AAD96C0895EB74ED71BD5BEE /* Roots.storyboard */; };
 		D97320FC18015BAB894317FC /* frame.c in Sources */ = {isa = PBXBuildFile; fileRef = 41C916EF6FD504EBE1ADDBB2 /* frame.c */; };
 		D9D9022DE10D2D1B8C213920 /* user.c in Sources */ = {isa = PBXBuildFile; fileRef = F1F263FDD453F7B292BE667F /* user.c */; };
@@ -199,6 +195,7 @@
 		DC8231DF85EA9C00896EA264 /* fd.c in Sources */ = {isa = PBXBuildFile; fileRef = 97DB252437E128B0AC5E308F /* fd.c */; };
 		DF4467D014F9A2F83D07F72F /* notsurewhatthisis.png in Resources */ = {isa = PBXBuildFile; fileRef = 9FEDB8F13F52F27F0D4339DC /* notsurewhatthisis.png */; };
 		DFFCCD547506BC395F691790 /* AboutExternalKeyboardViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = B06306E63664EC691DA78595 /* AboutExternalKeyboardViewController.m */; };
+		E165287AEB0BABFAEF2A0968 /* GhosttyHostTerminal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F779F3562B252ECFF40A6AC /* GhosttyHostTerminal.swift */; };
 		E1D138AE8FCC50606A199DE9 /* static_minimal_aarch64_ok.elf in Resources */ = {isa = PBXBuildFile; fileRef = D463CED677710E2BE949EEDE /* static_minimal_aarch64_ok.elf */; };
 		E1EBA5566F786ED0F099FAE1 /* BarButton.m in Sources */ = {isa = PBXBuildFile; fileRef = 811128E064EC055089670308 /* BarButton.m */; };
 		E1FC566C26CC43062EA69330 /* libxml2.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 8A02C624D84627F688438977 /* libxml2.tbd */; };
@@ -357,11 +354,11 @@
 		1DC5E936F6639A333BFE8CF8 /* iSH.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = iSH.xcconfig; sourceTree = "<group>"; };
 		1DF72127BB5C3BF6A9AECB75 /* AboutAppearanceViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AboutAppearanceViewController.h; sourceTree = "<group>"; };
 		1F4E72109DB368DC76FC0940 /* LinuxPTY.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = LinuxPTY.c; sourceTree = "<group>"; };
+		1F779F3562B252ECFF40A6AC /* GhosttyHostTerminal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GhosttyHostTerminal.swift; sourceTree = "<group>"; };
 		1FBED050A43F65C2FBD47ABC /* proc.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = proc.c; sourceTree = "<group>"; };
 		1FC7794240A2228005FDEA90 /* gadgets_complex.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = gadgets_complex.h; sourceTree = "<group>"; };
 		2354FB26A844458906B662F8 /* memory.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = memory.h; sourceTree = "<group>"; };
 		2434FC18C330673C663D9461 /* uninspired.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = uninspired.png; sourceTree = "<group>"; };
-		247C3F63C3770461EE0BB1BE /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
 		251F13D3F44BD8FB605524B0 /* signal.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = signal.h; sourceTree = "<group>"; };
 		25256302BEA7C9B8D6F738F3 /* ExceptionExfiltrator.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ExceptionExfiltrator.m; sourceTree = "<group>"; };
 		278A12240E644B50F8856838 /* UpgradeRootViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = UpgradeRootViewController.h; sourceTree = "<group>"; };
@@ -429,7 +426,6 @@
 		522555FC14ED380F4FEEF320 /* TCTILoweringTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TCTILoweringTests.m; sourceTree = "<group>"; };
 		5241603834241B17080250AE /* fakefs.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = fakefs.c; sourceTree = "<group>"; };
 		54DD0FE05BEB4DA03DBD0492 /* TCTIHotPathPerfTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TCTIHotPathPerfTests.m; sourceTree = "<group>"; };
-		563C027415F57AB6BE3EB3A3 /* term.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = term.js; sourceTree = "<group>"; };
 		57A2FBD22A8A181950AED401 /* SceneDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SceneDelegate.m; sourceTree = "<group>"; };
 		57C2B41AFEC474EF9AEC19A2 /* sock.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sock.c; sourceTree = "<group>"; };
 		580831AFE9C3A1CD95BAC860 /* IXLandTerminalEnd2EndTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = IXLandTerminalEnd2EndTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -490,7 +486,6 @@
 		7F9028DFBDF40C43347C5929 /* XcodeDebug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = XcodeDebug.xcconfig; sourceTree = "<group>"; };
 		7F93DABE63A2544150BFE0A7 /* personality.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = personality.h; sourceTree = "<group>"; };
 		7FDADEDF12FDDC2681F52D22 /* ScrollbarView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ScrollbarView.h; sourceTree = "<group>"; };
-		80032F7FA60CEA26F93BC39F /* term.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = term.html; sourceTree = "<group>"; };
 		81083EC6BF165200F2BE5E9D /* sock_bridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sock_bridge.h; sourceTree = "<group>"; };
 		811128E064EC055089670308 /* BarButton.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = BarButton.m; sourceTree = "<group>"; };
 		824D0F0A36DB5D3AB0C57BF6 /* GuestBringupMatrixTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GuestBringupMatrixTests.m; sourceTree = "<group>"; };
@@ -603,7 +598,6 @@
 		DE88CB76F664588CDE81BCB4 /* ISHRuntimeFlags.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ISHRuntimeFlags.h; sourceTree = "<group>"; };
 		E08BDE3EF4B2E3E3289BC97C /* tty-real.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "tty-real.c"; sourceTree = "<group>"; };
 		E0EDBAD8D5296DBCDBA3C8CD /* AltIconViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AltIconViewController.m; sourceTree = "<group>"; };
-		E102C0FF8EDAEF11230720DF /* term.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; path = term.css; sourceTree = "<group>"; };
 		E1491C7C24DA49C49F35F53E /* timer.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = timer.c; sourceTree = "<group>"; };
 		E1B7A6EBCCDC6B4EAC856FA8 /* fetch.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = fetch.c; sourceTree = "<group>"; };
 		E2A2C1CE801ACBF0FD8D8BFA /* time.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = time.c; sourceTree = "<group>"; };
@@ -654,7 +648,6 @@
 		FB729DB1B9FB41A3F3BDD112 /* generic.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = generic.c; sourceTree = "<group>"; };
 		FC5918DF7B26FC6631033835 /* init.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = init.h; sourceTree = "<group>"; };
 		FCBAA3B6AA42972686C4067A /* DelayedUITask.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DelayedUITask.h; sourceTree = "<group>"; };
-		FCD544804580CD35D651EA38 /* gadgets_tcti.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = gadgets_tcti.h; sourceTree = "<group>"; };
 		FD58558ADB6A07FB74BA202E /* platform.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = platform.h; sourceTree = "<group>"; };
 		FE3E2C19351BACE9A7E0C543 /* sock_bridge.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sock_bridge.c; sourceTree = "<group>"; };
 		FF34CA2F59C85D5329FA2CC8 /* GuestTerminalRuntimeTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GuestTerminalRuntimeTests.m; sourceTree = "<group>"; };
@@ -670,10 +663,9 @@
 			files = (
 				01F5164B620DA4E518B0E76D /* libIXLandLinuxRuntime.a in Frameworks */,
 				29098D015A1688CA881B2A44 /* IXLandInstrumentationRuntime in Frameworks */,
-				C54EF3C145560F464049E9A5 /* libarchive in Frameworks */,
+				C54EF3C145560F464049E9A5 /* GhosttyTerminal in Frameworks */,
 				403A61853C4046D018835B53 /* CoreLocation.framework in Frameworks */,
 				7702A0CC5EB8A8D292E42529 /* UIKit.framework in Frameworks */,
-				7223850AA78E03D1EBB572D8 /* WebKit.framework in Frameworks */,
 				ACACAE2059522BF1051AB26C /* SystemConfiguration.framework in Frameworks */,
 				6562D262D9213D9D89DC5B0F /* CoreGraphics.framework in Frameworks */,
 				70CCFC9B74E85B77BCAC2085 /* QuartzCore.framework in Frameworks */,
@@ -878,13 +870,6 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		53D858BA6C7D13063FFF3B29 /* UITests */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = UITests;
-			sourceTree = "<group>";
-		};
 		57B5AC6714138C65B93C4E63 /* TCTIHotPath */ = {
 			isa = PBXGroup;
 			children = (
@@ -1021,7 +1006,6 @@
 				F64D9183658D2C2D3837F3B9 /* SystemConfiguration.framework */,
 				E52C4CDCEE5CD1F9912BF659 /* UIKit.framework */,
 				A72627E301437AE08899AB40 /* UniformTypeIdentifiers.framework */,
-				247C3F63C3770461EE0BB1BE /* WebKit.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -1127,7 +1111,6 @@
 				41C916EF6FD504EBE1ADDBB2 /* frame.c */,
 				8624F7CE994E5B1C6A238B17 /* frame.h */,
 				35A16CBCB50B9696548B010A /* gadgets_tcti_impl.c */,
-				FCD544804580CD35D651EA38 /* gadgets_tcti.h */,
 			);
 			path = tcti;
 			sourceTree = "<group>";
@@ -1281,8 +1264,6 @@
 				C00B2C9AC9CA72B9701DCBF4 /* LaunchScreen.storyboard */,
 				F037FC405D39770A90E82BC7 /* terminal */,
 				DEB92121576D4AEDE60387FE /* Terminal.storyboard */,
-				F562E7EE760093FB75596465 /* Tests */,
-				53D858BA6C7D13063FFF3B29 /* UITests */,
 				1DF72127BB5C3BF6A9AECB75 /* AboutAppearanceViewController.h */,
 				36E4F78DF1271206F4EC6F81 /* AboutAppearanceViewController.m */,
 				870D07BFAA772143F6F49CAA /* AboutExternalKeyboardViewController.h */,
@@ -1313,6 +1294,7 @@
 				25256302BEA7C9B8D6F738F3 /* ExceptionExfiltrator.m */,
 				65E79AB17A4E1E196C29511F /* FontPickerViewController.h */,
 				5A7C34AF1E6683B5985A0652 /* FontPickerViewController.m */,
+				1F779F3562B252ECFF40A6AC /* GhosttyHostTerminal.swift */,
 				38178F3DC3959DE00848B27E /* hook.c */,
 				B74BC9381C8B3224E3D195A3 /* hook.h */,
 				ED05A59CCCC5EB245D540593 /* iOS.xcconfig */,
@@ -1474,9 +1456,6 @@
 		F037FC405D39770A90E82BC7 /* terminal */ = {
 			isa = PBXGroup;
 			children = (
-				E102C0FF8EDAEF11230720DF /* term.css */,
-				80032F7FA60CEA26F93BC39F /* term.html */,
-				563C027415F57AB6BE3EB3A3 /* term.js */,
 			);
 			path = terminal;
 			sourceTree = "<group>";
@@ -1512,13 +1491,6 @@
 				177FF1628807C5BC160B8A8B /* Perf */,
 			);
 			path = IXLandLinuxRuntimePerfTests;
-			sourceTree = "<group>";
-		};
-		F562E7EE760093FB75596465 /* Tests */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = Tests;
 			sourceTree = "<group>";
 		};
 		F9535807942D3C230335039B /* ELFLoader */ = {
@@ -1609,7 +1581,7 @@
 			name = IXLandTerminal;
 			packageProductDependencies = (
 				46AAD4FDC7F40A099A969EE4 /* IXLandInstrumentationRuntime */,
-				E7B0164E5350C8A5A4E0CE8B /* libarchive */,
+				A6157563B16CEEAD994938F2 /* GhosttyTerminal */,
 			);
 			productName = IXLandTerminal;
 			productReference = C4D634F7FEDACD511EBA6D83 /* IXLandTerminal.app */;
@@ -1619,6 +1591,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = AC8CBFC44F681A3320E34508 /* Build configuration list for PBXNativeTarget "IXLandLinuxRuntime" */;
 			buildPhases = (
+				44A6CE4399FEB1E111C71FFC /* Generate TCTI Gadgets */,
 				9441EC946890B5BE66911D9C /* CopyFiles */,
 				8F89DFD816BFFA8F5088E949 /* Sources */,
 				32D46D9187FA331E6F3E758F /* Resources */,
@@ -1725,6 +1698,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				97D09F1B3ACEC32BA3E3D959 /* XCRemoteSwiftPackageReference "libarchive-for-swift" */,
+				5AE0F57F80108555FC066C14 /* XCRemoteSwiftPackageReference "libghostty-spm" */,
 				B7C35B7455E69A5F1747A2DB /* XCLocalSwiftPackageReference "Packages/IXLandInstrumentation" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -1796,9 +1770,6 @@
 				575D34A5EADFAE85B5348DBD /* reworked.png in Resources */,
 				B14B9463B79C1D9F672F8AAB /* rgb.png in Resources */,
 				7C6AE3E8E603303F9D77EFF5 /* sprite64.png in Resources */,
-				59AF87221E68ED2CA7D1BE53 /* term.css in Resources */,
-				D68231BF6D58AD4D675E4F44 /* term.html in Resources */,
-				61CECF4AAD49D9527CC94A9E /* term.js in Resources */,
 				FD34D5B743A02B788828155E /* uninspired.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1847,6 +1818,26 @@
 			shellPath = /bin/sh;
 			shellScript = "set -eu\nROOTFS_OUT=\"${DERIVED_FILE_DIR}/root.tar.gz\"\nTMP_OUT=\"${ROOTFS_OUT}.tmp\"\nROOTFS_SOURCE_URL=\"${ROOTFS_URL:-https://dl-cdn.alpinelinux.org/alpine/v3.23/releases/aarch64/alpine-minirootfs-3.23.3-aarch64.tar.gz}\"\nif [ -s \"$ROOTFS_OUT\" ]; then\n    gzip -t \"$ROOTFS_OUT\"\nelse\n    rm -f \"$TMP_OUT\"\n    curl --fail --location --silent --show-error \"$ROOTFS_SOURCE_URL\" --output \"$TMP_OUT\"\n    gzip -t \"$TMP_OUT\"\n    mv \"$TMP_OUT\" \"$ROOTFS_OUT\"\nfi\ncp -f \"$ROOTFS_OUT\" \"${TARGET_BUILD_DIR}/${WRAPPER_NAME}/root.tar.gz\"\n";
 		};
+		44A6CE4399FEB1E111C71FFC /* Generate TCTI Gadgets */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Generate TCTI Gadgets";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/IXLandLinuxRuntime/tcti/gadgets_tcti.h",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -eu\nOUT_DIR=\"${DERIVED_FILE_DIR}/IXLandLinuxRuntime/tcti\"\npython3 \"${SRCROOT}/Sources/IXLandLinuxRuntime/tcti/aarch64/tcti-gadget-gen.py\" -o \"$OUT_DIR\"\n";
+		};
 		7493D492729D3A602B5D2E1B /* Generate mach_excServer */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -1888,6 +1879,7 @@
 				85E3301D9BE97C2E76A39AA8 /* DelayedUITask.m in Sources */,
 				54D36362ADDF1EDE3ADDF20F /* ExceptionExfiltrator.m in Sources */,
 				5E8E598B062322878B2C6234 /* FontPickerViewController.m in Sources */,
+				E165287AEB0BABFAEF2A0968 /* GhosttyHostTerminal.swift in Sources */,
 				449FACBB3BE99AEBD2FECA5D /* LinuxInterop.c in Sources */,
 				D3CB15C74BB80E3DCFCFA3DD /* LinuxPTY.c in Sources */,
 				66222EEF4D33EDF8EAE0023F /* LinuxRoot.c in Sources */,
@@ -2197,6 +2189,8 @@
 					"$(SRCROOT)",
 					"$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentation/include",
 					"$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include",
+					"$(DERIVED_FILE_DIR)",
+					"$(DERIVED_FILE_DIR)/IXLandLinuxRuntime/tcti",
 					"$(LINUX_UAPI_INCLUDE_ROOT)",
 					"$(SRCROOT)/include",
 					"$(SRCROOT)/Sources",
@@ -2381,6 +2375,8 @@
 					"$(SRCROOT)",
 					"$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentation/include",
 					"$(SRCROOT)/Packages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include",
+					"$(DERIVED_FILE_DIR)",
+					"$(DERIVED_FILE_DIR)/IXLandLinuxRuntime/tcti",
 					"$(LINUX_UAPI_INCLUDE_ROOT)",
 					"$(SRCROOT)/include",
 					"$(SRCROOT)/Sources",
@@ -2478,6 +2474,8 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_ENABLE_EXPLICIT_MODULES = NO;
+				SWIFT_EXPLICIT_MODULES = NO;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
 				SWIFT_VERSION = 5.9;
@@ -2584,6 +2582,8 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_ENABLE_EXPLICIT_MODULES = NO;
+				SWIFT_EXPLICIT_MODULES = NO;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
 				SWIFT_VERSION = 5.9;
@@ -2787,6 +2787,14 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		5AE0F57F80108555FC066C14 /* XCRemoteSwiftPackageReference "libghostty-spm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Lakr233/libghostty-spm";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
 		97D09F1B3ACEC32BA3E3D959 /* XCRemoteSwiftPackageReference "libarchive-for-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/matteo-pacini/libarchive-for-swift";
@@ -2810,14 +2818,14 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = IXLandInstrumentationRuntime;
 		};
+		A6157563B16CEEAD994938F2 /* GhosttyTerminal */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5AE0F57F80108555FC066C14 /* XCRemoteSwiftPackageReference "libghostty-spm" */;
+			productName = GhosttyTerminal;
+		};
 		A61C025D88AA0E6C570CC894 /* IXLandInstrumentationRuntime */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = IXLandInstrumentationRuntime;
-		};
-		E7B0164E5350C8A5A4E0CE8B /* libarchive */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 97D09F1B3ACEC32BA3E3D959 /* XCRemoteSwiftPackageReference "libarchive-for-swift" */;
-			productName = libarchive;
 		};
 		F4BFEB3B7474ACD13F4C24E0 /* libarchive */ = {
 			isa = XCSwiftPackageProductDependency;

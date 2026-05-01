@@ -6,7 +6,6 @@
 //
 
 #import <UIKit/UIKit.h>
-#import <WebKit/WebKit.h>
 
 struct tty;
 
@@ -26,6 +25,7 @@ struct tty;
 - (BOOL)becomeInputResponder;
 - (BOOL)requestFocus;
 - (BOOL)focusEditableSurface;
+- (void)updateFontSize:(CGFloat)fontSize;
 
 - (NSString *)arrow:(char)direction;
 
@@ -36,7 +36,7 @@ struct tty;
 // Returns the current buffer content from the TTY layer without modifying state
 - (NSString *)screenTextForTesting;
 
-@property (readonly) WKWebView *webView;
+@property (readonly) UIView *webView;
 @property (nonatomic) BOOL enableVoiceOverAnnounce;
 @property (nonatomic) uint64_t attemptSequence;
 @property (nonatomic) uint64_t sessionGeneration;

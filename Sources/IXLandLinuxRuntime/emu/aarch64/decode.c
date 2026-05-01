@@ -568,10 +568,11 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out)
     // with bit24 == 0, and op4 selects offset/post/pre (0/1/3 respectively).
     if (!bit(insn, 24) && op4 != 2) {
         int imm9 = bits(insn, 20, 12);
+        int opc = bits(insn, 23, 22);
         out->Rd = bits(insn, 4, 0);
         out->Rn = bits(insn, 9, 5);
         out->imm = sign_extend(imm9, 9);
-        out->is_signed = false;
+        out->is_signed = (opc & 2) != 0;
         out->subtype = A64_LDST_SINGLE;
 
         switch (op4) {
@@ -610,9 +611,11 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out)
     if (!bit(insn, 24) && op4 == 2) {
         int S = bit(insn, 12);
         int opt = bits(insn, 15, 13);
+        int opc = bits(insn, 23, 22);
         out->Rd = bits(insn, 4, 0);
         out->Rn = bits(insn, 9, 5);
         out->Rm = bits(insn, 20, 16);
+        out->is_signed = (opc & 2) != 0;
 
         // Map raw option encoding to internal enum
         switch (opt) {
@@ -642,10 +645,11 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out)
     // Load/store unsigned immediate. bit24 distinguishes this class from the
     // imm9-based unscaled/pre/post forms above.
     if (!out->is_vector && bit(insn, 24)) {
-        (void)bit(insn, 22); // L bit - load/store flag
+        int opc = bits(insn, 23, 22);
         uint64_t imm12 = bits(insn, 21, 10);
         out->Rd = bits(insn, 4, 0);
         out->Rn = bits(insn, 9, 5);
+        out->is_signed = (opc & 2) != 0;
         // Scale immediate by size
         int scale = out->is_64bit ? 3 : out->size;
         out->imm = imm12 << scale;

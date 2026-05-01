@@ -36,6 +36,7 @@
                     options:0 owner:self usingBlock:^(typeof(self) self) {
         [self.tableView reloadData];
     }];
+    [Roots.instance syncFileProviderDomains];
 }
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
@@ -166,28 +167,59 @@
 }
 
 - (void)browseFiles {
-    // Check if File Provider is available (won't be for sideloaded builds)
-    NSURL *docStorageURL = nil;
-    @try {
-        docStorageURL = [NSFileProviderManager defaultManager].documentStorageURL;
-    }
-    @catch (NSException *exception) {
-        NSLog(@"[RootsTableViewController] File Provider not available");
-    }
-    
-    if (docStorageURL == nil) {
-        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"File Provider Unavailable"
-                                                                       message:@"File browsing is not available for sideloaded builds."
-                                                                preferredStyle:UIAlertControllerStyleAlert];
-        [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
-        [self presentViewController:alert animated:YES completion:nil];
+    if (!@available(iOS 11.0, *)) {
+        [self presentAlertForUnavailableFileProvider];
         return;
     }
-    
-    NSURL *url = [docStorageURL URLByAppendingPathComponent:self.rootName];
-    NSURLComponents *components = [NSURLComponents componentsWithURL:url resolvingAgainstBaseURL:NO];
-    components.scheme = @"shareddocuments";
-    [UIApplication openURL:components.string];
+
+    if (![NSFileProviderManager respondsToSelector:@selector(defaultManager)]) {
+        [self presentAlertForUnavailableFileProvider];
+        return;
+    }
+
+    NSFileProviderManager *providerManager = [NSFileProviderManager defaultManager];
+    if (providerManager == nil) {
+        [self presentAlertForUnavailableFileProvider];
+        return;
+    }
+
+    [NSFileProviderManager getDomainsWithCompletionHandler:^(NSArray<NSFileProviderDomain *> *domains, NSError *error) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (error != nil || domains == nil) {
+                [self presentAlertForUnavailableFileProvider];
+                return;
+            }
+
+            NSURL *docStorageURL = nil;
+            @try {
+                docStorageURL = providerManager.documentStorageURL;
+            } @catch (__unused NSException *exception) {
+                NSLog(@"[RootsTableViewController] File Provider not available");
+            }
+
+            if (docStorageURL == nil) {
+                [self presentAlertForUnavailableFileProvider];
+                return;
+            }
+
+            NSURL *url = [docStorageURL URLByAppendingPathComponent:self.rootName];
+            NSURLComponents *components = [NSURLComponents componentsWithURL:url resolvingAgainstBaseURL:NO];
+            components.scheme = @"shareddocuments";
+            [UIApplication openURL:components.string];
+        });
+    }];
+}
+
+- (void)presentAlertForUnavailableFileProvider {
+    NSString *message = @"File browsing is not available for sideloaded builds.";
+    if (self.isBeingPresented || self.isMovingToParentViewController)
+        return;
+
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"File Provider Unavailable"
+                                                                   message:message
+                                                            preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+    [self presentViewController:alert animated:YES completion:nil];
 }
 
 - (void)exportFilesystem {
@@ -214,9 +246,8 @@
                     return;
                 }
 
-                        UIDocumentPickerViewController *picker = [[UIDocumentPickerViewController alloc]
-                                                                  initForExportingURLs:@[self.exportURL] asCopy:NO];
-                        picker.delegate = self;
+                UIDocumentPickerViewController *picker = [[UIDocumentPickerViewController alloc]
+                                                          initForExportingURLs:@[self.exportURL] asCopy:NO];
                 if (@available(iOS 13, *)) {
                     picker.shouldShowFileExtensions = YES;
                 }
