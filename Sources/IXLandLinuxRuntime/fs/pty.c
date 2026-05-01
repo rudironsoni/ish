@@ -9,6 +9,9 @@
 #include <string.h>
 #include <sys/stat.h>
 
+typedef const void *nsobj_t;
+int Terminal_sendOutput_length(nsobj_t terminal, const char *data, int size) __attribute__((weak));
+
 extern struct tty_driver pty_slave;
 
 // the master holds a reference to the slave, so the slave will always be cleaned up second
@@ -72,8 +75,6 @@ static void pty_master_cleanup(struct tty *tty)
 
 static int pty_slave_open(struct tty *tty)
 {
-    if (tty->pty.other == NULL)
-        return _EIO;
     if (tty->pty.locked)
         return _EIO;
     return 0;
@@ -133,6 +134,18 @@ static int pty_write(struct tty *tty, const void *buf, size_t len, bool blocking
     } else {
         // Slave writing to master (process output → PTY)
         (void)trace_begin_interval(TRACE_ORIGIN_TASK, "task.proof.pty.slave.write", pty_attrs, 2);
+    }
+
+    if (len > INT_MAX)
+        return _EINVAL;
+
+    if (tty->type == TTY_PSEUDO_SLAVE_MAJOR && tty->data != NULL && len > 0 &&
+        Terminal_sendOutput_length != NULL) {
+        Terminal_sendOutput_length(tty->data, buf, (int)len);
+    }
+
+    if (tty->pty.other == NULL) {
+        return (int)len;
     }
 
     int result = (int)tty_input(tty->pty.other, buf, len, blocking);
@@ -216,6 +229,9 @@ struct tty *pty_open_guest_terminal(struct tty_driver *driver)
     struct tty *tty = tty_get(driver, TTY_PSEUDO_SLAVE_MAJOR, pty_num);
     if (IS_ERR(tty))
         return tty;
+    // Guest PTY sessions use the slave side directly as the stdio endpoint.
+    // Clear the lock that is normally managed through the master-side setup.
+    tty->pty.locked = false;
     pty_slave_init_inode(tty);
     return tty;
 }
