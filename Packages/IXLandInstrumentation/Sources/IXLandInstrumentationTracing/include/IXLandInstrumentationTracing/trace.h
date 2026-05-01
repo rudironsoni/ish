@@ -2,8 +2,8 @@
  * trace.h
  * Minimal semantic API for the iSH tracing subsystem.
  *
- * This header provides ONLY the minimal semantic surface that forwards to the
- * ISHInstrumentation framework. New code MUST use only these 6 functions.
+ * This header provides the minimal semantic surface that forwards to the
+ * ISHInstrumentation framework.
  *
  * Legacy event-specific APIs are preserved in trace_internal.h for kernel
  * compatibility (these call sites in kernel/task.c, kernel/exec.c, kernel/mmap.c
@@ -28,7 +28,7 @@ extern "C" {
  * Minimal Semantic API (PUBLIC)
  * ============================================
  *
- * These 6 functions provide the public interface to the tracing subsystem.
+ * These functions provide the public interface to the tracing subsystem.
  * They forward to the ISHInstrumentation framework via the C bridge.
  * NEW CODE MUST USE ONLY THESE FUNCTIONS.
  */
@@ -50,6 +50,12 @@ void trace_activate(void);
  * Returns true if bootstrap and activation have completed.
  */
 bool trace_is_active(void);
+
+/*
+ * Set the trace level from a stable textual policy value.
+ * Accepted values: off, info, boundary, debug, instr, debug_all.
+ */
+void trace_config_set_level_from_string(const char *value);
 
 /*
  * Record a semantic event.

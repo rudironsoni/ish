@@ -70,6 +70,14 @@ static bool trace_should_emit_event(const char *event_name)
     return trace_is_active() && trace_get_level() >= trace_level_for_event_name(event_name);
 }
 
+static void trace_record_event_at_level(trace_origin_t origin, trace_level_t level,
+                                        const char *event_name)
+{
+    if (!event_name || !trace_is_active() || trace_get_level() < level)
+        return;
+    ixland_instrumentation_record_event((ixland_instrumentation_origin_t)origin, event_name);
+}
+
 void trace_record_event(int origin, const char *event_name)
 {
     if (!trace_should_emit_event(event_name))
@@ -207,6 +215,11 @@ void trace_config_set_level(trace_level_t level)
 {
     g_trace_level = level;
     g_trace_level_initialized = 1;
+}
+
+void trace_config_set_level_from_string(const char *value)
+{
+    trace_config_set_level(parse_trace_level_value(value));
 }
 
 /* Set PC range filter - no-op */
@@ -632,52 +645,50 @@ void trace_emit_task_run_current_entry_check(uint64_t current_ptr)
  * ============================================ */
 void trace_emit_task_proof_point(task_proof_point_t point, uint32_t pid)
 {
-    /* Route through ISHInstrumentation bridge only - single observability path */
     switch (point) {
     case TASK_PROOF_START_ENTER:
-        ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TASK,
-                                            "task_proof_start_enter");
+        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG,
+                                    "task.proof.start.enter");
         break;
     case TASK_PROOF_BEFORE_PTHREAD:
-        ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TASK,
-                                            "task_proof_before_pthread");
+        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG,
+                                    "task.proof.before_pthread");
         break;
     case TASK_PROOF_AFTER_PTHREAD:
-        ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TASK,
-                                            "task_proof_after_pthread");
+        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG,
+                                    "task.proof.after_pthread");
         break;
     case TASK_PROOF_THREAD_ENTRY:
-        ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TASK,
-                                            "task_proof_thread_entry");
+        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG,
+                                    "task.proof.thread_entry");
         break;
     case TASK_PROOF_BEFORE_CURRENT_SET:
-        ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TASK,
-                                            "task_proof_before_current_set");
+        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG,
+                                    "task.proof.before_current_set");
         break;
     case TASK_PROOF_AFTER_CURRENT_SET:
-        ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TASK,
-                                            "task_proof_after_current_set");
+        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG,
+                                    "task.proof.after_current_set");
         break;
     case TASK_PROOF_RUN_CURRENT_ENTER:
-        ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TASK,
-                                            "task_proof_run_current_enter");
+        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG,
+                                    "task.proof.run_current_enter");
         break;
     case TASK_PROOF_BEFORE_GUEST_CPU:
-        ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TASK,
-                                            "task_proof_before_guest_cpu");
+        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG,
+                                    "task.proof.before_guest_cpu");
         break;
-    // Paired diagnostic proof points for narrowing failure boundary
     case TASK_PROOF_AFTER_THREAD_ENTRY:
-        ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TASK,
-                                            "task_proof_after_thread_entry");
+        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG,
+                                    "task.proof.after_thread_entry");
         break;
     case TASK_PROOF_BEFORE_TASK_RUN_CURRENT:
-        ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TASK,
-                                            "task_proof_before_task_run_current");
+        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG,
+                                    "task.proof.before_task_run_current");
         break;
     case TASK_PROOF_TASK_RUN_CURRENT_ENTRY:
-        ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TASK,
-                                            "task_proof_task_run_current_entry");
+        trace_record_event_at_level(TRACE_ORIGIN_TASK, TRACE_LEVEL_DEBUG,
+                                    "task.proof.task_run_current_entry");
         break;
     }
     (void)pid;
@@ -693,44 +704,46 @@ void trace_emit_task_proof_point(task_proof_point_t point, uint32_t pid)
 
 void trace_emit_tcti_entry_x28_before(uint64_t x28_value)
 {
-    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI,
-                                        "tcti.entry.x28.before");
+    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG_ALL,
+                                "tcti.entry.x28.before");
     (void)x28_value;
 }
 
 void trace_emit_tcti_entry_qword0(uint64_t qword0)
 {
-    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI, "tcti.entry.qword0");
+    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG_ALL, "tcti.entry.qword0");
     (void)qword0;
 }
 
 void trace_emit_tcti_entry_x27_after(uint64_t x27_value)
 {
-    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI, "tcti.entry.x27.after");
+    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG_ALL,
+                                "tcti.entry.x27.after");
     (void)x27_value;
 }
 
 void trace_emit_tcti_entry_x28_after(uint64_t x28_value)
 {
-    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI, "tcti.entry.x28.after");
+    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG_ALL,
+                                "tcti.entry.x28.after");
     (void)x28_value;
 }
 
 void trace_emit_tcti_entry_qword1(uint64_t qword1)
 {
-    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI, "tcti.entry.qword1");
+    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG_ALL, "tcti.entry.qword1");
     (void)qword1;
 }
 
 void trace_emit_gadget_entry_x28(uint64_t x28_value)
 {
-    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI, "gadget.entry.x28");
+    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG_ALL, "gadget.entry.x28");
     (void)x28_value;
 }
 
 void trace_emit_gadget_fault_addr(uint64_t fault_addr)
 {
-    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI, "gadget.fault_addr");
+    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG_ALL, "gadget.fault_addr");
     (void)fault_addr;
 }
 
@@ -744,60 +757,65 @@ void trace_emit_gadget_fault_addr(uint64_t fault_addr)
 
 void trace_emit_gadget_ldr_fault_pc(uint64_t fault_pc)
 {
-    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI, "gadget.ldr.fault_pc");
+    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG_ALL,
+                                "gadget.ldr.fault_pc");
     (void)fault_pc;
 }
 
 void trace_emit_gadget_ldr_rn_value(uint64_t rn_value)
 {
-    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI, "gadget.ldr.rn_value");
+    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG_ALL,
+                                "gadget.ldr.rn_value");
     (void)rn_value;
 }
 
 void trace_emit_gadget_ldr_imm_value(uint64_t imm_value)
 {
-    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI, "gadget.ldr.imm_value");
+    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG_ALL,
+                                "gadget.ldr.imm_value");
     (void)imm_value;
 }
 
 void trace_emit_gadget_ldr_idx_mode(uint64_t idx_mode)
 {
-    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI, "gadget.ldr.idx_mode");
+    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG_ALL,
+                                "gadget.ldr.idx_mode");
     (void)idx_mode;
 }
 
 void trace_emit_gadget_ldr_guest_vaddr(uint64_t guest_vaddr)
 {
-    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI,
-                                        "gadget.ldr.guest_vaddr");
+    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG_ALL,
+                                "gadget.ldr.guest_vaddr");
     (void)guest_vaddr;
 }
 
 void trace_emit_gadget_ldr_host_ptr(uint64_t host_ptr)
 {
-    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_TCTI, "gadget.ldr.host_ptr");
+    trace_record_event_at_level(TRACE_ORIGIN_TCTI, TRACE_LEVEL_DEBUG_ALL,
+                                "gadget.ldr.host_ptr");
     (void)host_ptr;
 }
 
 void trace_emit_mem_translate_attempt(uint64_t guest_addr, uint64_t size)
 {
-    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
-                                        "mem.translate.attempt");
+    trace_record_event_at_level(TRACE_ORIGIN_KERNEL, TRACE_LEVEL_DEBUG_ALL,
+                                "mem.translate.attempt");
     (void)guest_addr;
     (void)size;
 }
 
 void trace_emit_mem_translate_result(uint64_t host_ptr, int success)
 {
-    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
-                                        "mem.translate.result");
+    trace_record_event_at_level(TRACE_ORIGIN_KERNEL, TRACE_LEVEL_DEBUG_ALL,
+                                "mem.translate.result");
     (void)host_ptr;
     (void)success;
 }
 
 void trace_emit_mem_pgdir_lookup(uint64_t page, uint64_t pgdir_slot)
 {
-    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "mem.pgdir.lookup");
+    trace_record_event_at_level(TRACE_ORIGIN_KERNEL, TRACE_LEVEL_DEBUG_ALL, "mem.pgdir.lookup");
     (void)page;
     (void)pgdir_slot;
 }

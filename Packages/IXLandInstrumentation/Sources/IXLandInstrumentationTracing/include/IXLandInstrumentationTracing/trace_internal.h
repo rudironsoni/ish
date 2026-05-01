@@ -213,6 +213,7 @@ trace_ctx_t *trace_get_global(void);
 bool trace_is_enabled(void);
 trace_level_t trace_get_level(void);
 void trace_config_set_level(trace_level_t level);
+void trace_config_set_level_from_string(const char *value);
 void trace_config_set_pc_range(uint64_t start, uint64_t end);
 void trace_config_enable_event(trace_event_id_t event);
 void trace_config_disable_event(trace_event_id_t event);

@@ -8,6 +8,7 @@
 #include <resolv.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <stdlib.h>
 #include <sys/stat.h>
 #import <SystemConfiguration/SystemConfiguration.h>
 #import "AboutViewController.h"
@@ -82,6 +83,28 @@ static int lastBootstrapReturnValue;
 static BOOL runtimePostMountInitialized;
 static BOOL runtimeConsoleInitialized;
 static __weak AppDelegate *appDelegate;
+
+static const char *IXLandConfiguredTraceLevel(void) {
+    const char *level = getenv("IXLAND_TRACE_LEVEL");
+    if (level != NULL && level[0] != '\0') {
+        return level;
+    }
+    level = getenv("ISH_TRACE_LEVEL");
+    if (level != NULL && level[0] != '\0') {
+        return level;
+    }
+
+    NSString *defaultsLevel = [NSUserDefaults.standardUserDefaults stringForKey:@"IXLandTraceLevel"];
+    if (defaultsLevel.length > 0) {
+        return defaultsLevel.UTF8String;
+    }
+
+#if DEBUG
+    return "debug";
+#else
+    return "off";
+#endif
+}
 
 @implementation AppDelegate
 
@@ -416,12 +439,10 @@ static __weak AppDelegate *appDelegate;
         return YES;
     }
 
-    // Activate instrumentation before boot to capture all kernel events
-    ixland_instrumentation_activate();
+    trace_config_set_level_from_string(IXLandConfiguredTraceLevel());
 
-    // Diagnostic probe: prove instrumentation is active at the exact moment
-    // we call boot(). This is intentionally tiny and must not change behavior.
-    [ISHInstrumentation recordEvent:@"app.boot.pre_boot_probe"];
+    // Activate instrumentation before boot to capture all configured kernel events
+    ixland_instrumentation_activate();
 
     bootError = [self boot];
 
