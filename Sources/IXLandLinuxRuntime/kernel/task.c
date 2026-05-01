@@ -20,6 +20,31 @@ static _Atomic int64_t g_trace_ui_pid = 0;
 static _Atomic int g_trace_is_restart = 0;
 static _Atomic int g_trace_has_terminal = 0;
 
+static bool ixland_guest_trace_has_prefix(const char *event_name, const char *prefix)
+{
+    if (!event_name || !prefix)
+        return false;
+    return strncmp(event_name, prefix, strlen(prefix)) == 0;
+}
+
+static trace_level_t ixland_guest_trace_level_for_event(const char *event_name)
+{
+    if (ixland_guest_trace_has_prefix(event_name, "task.proof.") ||
+        ixland_guest_trace_has_prefix(event_name, "guest.handle_interrupt") ||
+        ixland_guest_trace_has_prefix(event_name, "guest.receive_signals") ||
+        ixland_guest_trace_has_prefix(event_name, "guest.syscall") ||
+        ixland_guest_trace_has_prefix(event_name, "guest.first_fault")) {
+        return TRACE_LEVEL_DEBUG;
+    }
+
+    return TRACE_LEVEL_INFO;
+}
+
+static bool ixland_guest_trace_should_emit(const char *event_name)
+{
+    return trace_is_active() && trace_get_level() >= ixland_guest_trace_level_for_event(event_name);
+}
+
 void ixland_guest_trace_set_context(int64_t attempt_id, int64_t guest_pid, int64_t ui_pid,
                                     bool is_restart_path, bool has_terminal)
 {
@@ -59,6 +84,9 @@ static uint32_t ixland_guest_trace_base_attrs(ixland_instrumentation_attribute_t
 
 void ixland_guest_trace_emit(ixland_instrumentation_origin_t origin, const char *event_name)
 {
+    if (!ixland_guest_trace_should_emit(event_name))
+        return;
+
     char attempt_buf[32], guest_pid_buf[32], ui_pid_buf[32], restart_buf[8], terminal_buf[8];
     ixland_instrumentation_attribute_t attrs[5];
     uint32_t count = ixland_guest_trace_base_attrs(
@@ -71,6 +99,9 @@ void ixland_guest_trace_emit(ixland_instrumentation_origin_t origin, const char 
 void ixland_guest_trace_emit_int(ixland_instrumentation_origin_t origin, const char *event_name,
                                  const char *key, int64_t value)
 {
+    if (!ixland_guest_trace_should_emit(event_name))
+        return;
+
     char attempt_buf[32], guest_pid_buf[32], ui_pid_buf[32], restart_buf[8], terminal_buf[8],
         value_buf[32];
     ixland_instrumentation_attribute_t attrs[6];
@@ -87,6 +118,9 @@ void ixland_guest_trace_emit_int2(ixland_instrumentation_origin_t origin, const 
                                   const char *key1, int64_t value1, const char *key2,
                                   int64_t value2)
 {
+    if (!ixland_guest_trace_should_emit(event_name))
+        return;
+
     char attempt_buf[32], guest_pid_buf[32], ui_pid_buf[32], restart_buf[8], terminal_buf[8];
     char value1_buf[32], value2_buf[32];
     ixland_instrumentation_attribute_t attrs[7];
@@ -105,6 +139,9 @@ void ixland_guest_trace_emit_attrs(ixland_instrumentation_origin_t origin, const
                                    const ixland_instrumentation_attribute_t *attrs,
                                    uint32_t attr_count)
 {
+    if (!ixland_guest_trace_should_emit(event_name))
+        return;
+
     char attempt_buf[32], guest_pid_buf[32], ui_pid_buf[32], restart_buf[8], terminal_buf[8];
     ixland_instrumentation_attribute_t base_attrs[5];
     ixland_instrumentation_attribute_t merged_attrs[16];
@@ -134,6 +171,9 @@ void ixland_guest_trace_emit_structured(ixland_instrumentation_origin_t origin,
                                         const ixland_guest_trace_field_t *fields,
                                         uint32_t field_count)
 {
+    if (!ixland_guest_trace_should_emit(event_name))
+        return;
+
     if (!fields || field_count == 0) {
         ixland_guest_trace_emit(origin, event_name);
         return;

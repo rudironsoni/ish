@@ -141,6 +141,9 @@ int send_group_signal(uint32_t pgid, int sig, struct siginfo_ info)
 
 static void trace_receive_signals_checkpoint(const char *name, int sig, uint64_t pending_mask)
 {
+    if (trace_get_level() < TRACE_LEVEL_DEBUG)
+        return;
+
     struct cpu_state *cpu = current ? &current->cpu : NULL;
     char task_buf[32];
     char pid_buf[32];
@@ -196,12 +199,16 @@ static void trace_receive_signals_checkpoint(const char *name, int sig, uint64_t
  */
 void receive_signals(void)
 {
-    trace_receive_signals_checkpoint("task.proof.receive_signals.entry", 0, 0);
-    ixland_guest_trace_emit(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR, "guest.receive_signals.entry");
     struct task *task = current;
     if (task == NULL) {
         return;
     }
+    if (task->pending == 0) {
+        return;
+    }
+
+    trace_receive_signals_checkpoint("task.proof.receive_signals.entry", 0, task->pending);
+    ixland_guest_trace_emit(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR, "guest.receive_signals.entry");
 
     trace_receive_signals_checkpoint("task.proof.receive_signals.pending_mask_snapshot", 0,
                                      task->pending);

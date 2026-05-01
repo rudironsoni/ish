@@ -9,6 +9,7 @@
 #import "UserPreferences.h"
 #import "ScrollbarView.h"
 #import "NSObject+SaneKVO.h"
+#import "Theme.h"
 #import <ISHInstrumentation.h>
 
 @class TerminalView;
@@ -242,8 +243,10 @@ struct rowcol {
     UIView *terminalView = _terminal.webView;
     _terminal.enableVoiceOverAnnounce = YES;
     terminalView.frame = self.bounds;
-    self.opaque = NO;
-    terminalView.backgroundColor = UIColor.clearColor;
+    self.opaque = YES;
+    UIColor *backgroundColor = [[UIColor alloc] ish_initWithHexString:UserPreferences.shared.palette.backgroundColor];
+    self.backgroundColor = backgroundColor;
+    self.scrollbarView.backgroundColor = backgroundColor;
     terminalView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
 
     self.scrollbarView.contentView = terminalView;

@@ -2,6 +2,44 @@ import Foundation
 import UIKit
 import GhosttyTerminal
 
+private final class IXLandGhosttyTerminalContainerView: UIView {
+    let terminalView: GhosttyTerminal.TerminalView
+
+    init(terminalView: GhosttyTerminal.TerminalView) {
+        self.terminalView = terminalView
+        super.init(frame: .zero)
+        backgroundColor = UIColor(red: 0x21 / 255.0, green: 0x21 / 255.0, blue: 0x21 / 255.0, alpha: 1.0)
+        isOpaque = true
+        addSubview(terminalView)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override var canBecomeFirstResponder: Bool {
+        terminalView.canBecomeFirstResponder
+    }
+
+    override func becomeFirstResponder() -> Bool {
+        terminalView.becomeFirstResponder()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        terminalView.frame = bounds
+        terminalView.fitToSize()
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        terminalView.fitToSize()
+        if window != nil {
+            _ = becomeFirstResponder()
+        }
+    }
+}
+
 @objc public protocol IXLandGhosttyHostTerminalDelegate: AnyObject {
     func ghosttyHostTerminal(_ terminal: IXLandGhosttyHostTerminal, didReceiveInput data: Data)
     @objc(ghosttyHostTerminal:didResizeColumns:rows:)
@@ -10,7 +48,7 @@ import GhosttyTerminal
 
 public final class IXLandGhosttyHostTerminal: NSObject {
     @objc public private(set) var view: UIView!
-    @objc public private(set) var terminalView: TerminalView!
+    @objc public private(set) var terminalView: GhosttyTerminal.TerminalView!
     private var session: InMemoryTerminalSession!
 
     @objc public weak var delegate: (any IXLandGhosttyHostTerminalDelegate)?
@@ -20,7 +58,10 @@ public final class IXLandGhosttyHostTerminal: NSObject {
     @MainActor
     @objc public init(fontSize: Double = 14.0) {
         super.init()
-        controller = TerminalController()
+        controller = TerminalController(
+            theme: TerminalTheme(light: .afterglow, dark: .afterglow)
+        )
+        controller.setColorScheme(.dark)
 
         let session = InMemoryTerminalSession(write: { [weak self] data in
             guard let self else { return }
@@ -36,14 +77,15 @@ public final class IXLandGhosttyHostTerminal: NSObject {
             fontSize: Float(fontSize)
         )
 
-        let terminalView = TerminalView()
+        let terminalView = GhosttyTerminal.TerminalView(frame: .zero)
         terminalView.controller = controller
         terminalView.configuration = options
         terminalView.backgroundColor = .clear
         terminalView.isOpaque = false
+        terminalView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
 
         self.terminalView = terminalView
-        self.view = terminalView
+        self.view = IXLandGhosttyTerminalContainerView(terminalView: terminalView)
     }
 
     @objc public func receiveOutput(_ data: Data) {
@@ -68,5 +110,6 @@ public final class IXLandGhosttyHostTerminal: NSObject {
             fontSize: Float(fontSize),
             context: terminalView.configuration.context
         )
+        terminalView.fitToSize()
     }
 }

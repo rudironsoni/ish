@@ -40,17 +40,49 @@ void trace_activate(void)
 
 bool trace_is_active(void)
 {
-    return ixland_instrumentation_is_active();
+    return ixland_instrumentation_is_active() && trace_get_level() > TRACE_LEVEL_OFF;
+}
+
+static bool trace_event_has_prefix(const char *event_name, const char *prefix)
+{
+    if (!event_name || !prefix)
+        return false;
+    return strncmp(event_name, prefix, strlen(prefix)) == 0;
+}
+
+static trace_level_t trace_level_for_event_name(const char *event_name)
+{
+    if (trace_event_has_prefix(event_name, "task.proof.") ||
+        trace_event_has_prefix(event_name, "tcti.") ||
+        trace_event_has_prefix(event_name, "gadget.") ||
+        trace_event_has_prefix(event_name, "guest.handle_interrupt") ||
+        trace_event_has_prefix(event_name, "guest.receive_signals") ||
+        trace_event_has_prefix(event_name, "guest.syscall") ||
+        trace_event_has_prefix(event_name, "guest.first_fault")) {
+        return TRACE_LEVEL_DEBUG;
+    }
+
+    return TRACE_LEVEL_INFO;
+}
+
+static bool trace_should_emit_event(const char *event_name)
+{
+    return trace_is_active() && trace_get_level() >= trace_level_for_event_name(event_name);
 }
 
 void trace_record_event(int origin, const char *event_name)
 {
+    if (!trace_should_emit_event(event_name))
+        return;
     ixland_instrumentation_record_event((ixland_instrumentation_origin_t)origin, event_name);
 }
 
 uint64_t trace_begin_interval(int origin, const char *interval_name, const void *attrs,
                               uint32_t attr_count)
 {
+    if (!trace_should_emit_event(interval_name))
+        return 0;
+
     return ixland_instrumentation_begin_interval(
         (ixland_instrumentation_origin_t)origin, interval_name,
         (const ixland_instrumentation_attribute_t *)attrs, attr_count);
@@ -58,6 +90,8 @@ uint64_t trace_begin_interval(int origin, const char *interval_name, const void 
 
 void trace_end_interval(uint64_t interval_id, const void *attrs, uint32_t attr_count)
 {
+    if (interval_id == 0)
+        return;
     ixland_instrumentation_end_interval(
         interval_id, (const ixland_instrumentation_attribute_t *)attrs, attr_count);
 }
@@ -123,7 +157,7 @@ trace_ctx_t *trace_get_global(void)
 /* Check if tracing is enabled - forwards to ISHInstrumentation */
 bool trace_is_enabled(void)
 {
-    return ixland_instrumentation_is_active();
+    return trace_is_active();
 }
 
 static int g_trace_level_initialized = 0;

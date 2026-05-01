@@ -49,6 +49,9 @@ static void init_syscall_arg_counts(void)
 
 static void trace_handle_interrupt_checkpoint(const char *name, int interrupt, int signal_code)
 {
+    if (trace_get_level() < TRACE_LEVEL_DEBUG)
+        return;
+
     struct cpu_state *cpu = current ? &current->cpu : NULL;
     char task_buf[32];
     char pid_buf[32];

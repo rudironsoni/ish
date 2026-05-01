@@ -1197,7 +1197,7 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 }
 
 - (void)setSessionTerminal:(Terminal *)sessionTerminal {
-    if (_terminal == _sessionTerminal)
+    if (_terminal == nil || _terminal == _sessionTerminal)
         self.terminal = sessionTerminal;
     _sessionTerminal = sessionTerminal;
 }
