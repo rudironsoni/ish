@@ -18,6 +18,14 @@
 
 extern const tcti_gadget_t gadget_tbz_reg[16];
 extern const tcti_gadget_t gadget_tbnz_reg[16];
+extern const tcti_gadget_t gadget_tbz_wreg[16];
+extern const tcti_gadget_t gadget_tbnz_wreg[16];
+extern const tcti_gadget_t gadget_tbz_xreg[16];
+extern const tcti_gadget_t gadget_tbnz_xreg[16];
+extern const tcti_gadget_t gadget_cbz_wreg[16];
+extern const tcti_gadget_t gadget_cbnz_wreg[16];
+extern const tcti_gadget_t gadget_cbz_xreg[16];
+extern const tcti_gadget_t gadget_cbnz_xreg[16];
 extern tcti_gadget_t gadget_sysreg_unsupported;
 extern tcti_gadget_t gadget_pc_advance;
 extern void gadget_csel_eq_0_1_2(void);
@@ -27,6 +35,9 @@ extern void gadget_csel_cc_0_1_2(void);
 extern tcti_gadget_t gadget_movk;
 extern tcti_gadget_t gadget_write_reg_imm;
 extern tcti_gadget_t gadget_addsub_imm_fallback;
+extern tcti_gadget_t gadget_addsub_reg_fallback;
+extern tcti_gadget_t gadget_logical_imm_fallback;
+extern tcti_gadget_t gadget_shift_reg_fallback;
 extern tcti_gadget_t gadget_csel_fallback;
 extern tcti_gadget_t gadget_bcond_fallback;
 
@@ -177,6 +188,82 @@ static int emit_addsub_imm_fallback(a64_gen_state_t *state, int rd, int rn, uint
     if (ret != A64_GEN_OK)
         return ret;
     return emit_u64(state, rn_is_sp ? 1 : 0);
+}
+
+static int emit_addsub_reg_fallback(a64_gen_state_t *state, int rd, int rn, int rm,
+                                    int shift_type, int imm_shift, int is_sub, int set_flags,
+                                    int is_64bit)
+{
+    int ret = emit_gadget(state, gadget_addsub_reg_fallback);
+    if (ret != A64_GEN_OK)
+        return ret;
+    ret = emit_u64(state, (uint64_t)rd);
+    if (ret != A64_GEN_OK)
+        return ret;
+    ret = emit_u64(state, (uint64_t)rn);
+    if (ret != A64_GEN_OK)
+        return ret;
+    ret = emit_u64(state, (uint64_t)rm);
+    if (ret != A64_GEN_OK)
+        return ret;
+    ret = emit_u64(state, (uint64_t)shift_type);
+    if (ret != A64_GEN_OK)
+        return ret;
+    ret = emit_u64(state, (uint64_t)imm_shift);
+    if (ret != A64_GEN_OK)
+        return ret;
+    ret = emit_u64(state, is_sub ? 1 : 0);
+    if (ret != A64_GEN_OK)
+        return ret;
+    ret = emit_u64(state, set_flags ? 1 : 0);
+    if (ret != A64_GEN_OK)
+        return ret;
+    return emit_u64(state, is_64bit ? 1 : 0);
+}
+
+static int emit_logical_imm_fallback(a64_gen_state_t *state, int rd, int rn, uint64_t imm,
+                                     int subtype, int set_flags, int is_64bit)
+{
+    int ret = emit_gadget(state, gadget_logical_imm_fallback);
+    if (ret != A64_GEN_OK)
+        return ret;
+    ret = emit_u64(state, (uint64_t)rd);
+    if (ret != A64_GEN_OK)
+        return ret;
+    ret = emit_u64(state, (uint64_t)rn);
+    if (ret != A64_GEN_OK)
+        return ret;
+    ret = emit_u64(state, imm);
+    if (ret != A64_GEN_OK)
+        return ret;
+    ret = emit_u64(state, (uint64_t)subtype);
+    if (ret != A64_GEN_OK)
+        return ret;
+    ret = emit_u64(state, set_flags ? 1 : 0);
+    if (ret != A64_GEN_OK)
+        return ret;
+    return emit_u64(state, is_64bit ? 1 : 0);
+}
+
+static int emit_shift_reg_fallback(a64_gen_state_t *state, int rd, int rn, int rm, int subtype,
+                                   int is_64bit)
+{
+    int ret = emit_gadget(state, gadget_shift_reg_fallback);
+    if (ret != A64_GEN_OK)
+        return ret;
+    ret = emit_u64(state, (uint64_t)rd);
+    if (ret != A64_GEN_OK)
+        return ret;
+    ret = emit_u64(state, (uint64_t)rn);
+    if (ret != A64_GEN_OK)
+        return ret;
+    ret = emit_u64(state, (uint64_t)rm);
+    if (ret != A64_GEN_OK)
+        return ret;
+    ret = emit_u64(state, (uint64_t)subtype);
+    if (ret != A64_GEN_OK)
+        return ret;
+    return emit_u64(state, is_64bit ? 1 : 0);
 }
 
 static int emit_csel_fallback(a64_gen_state_t *state, int rd, int rn, int rm, int cond,
@@ -530,6 +617,11 @@ int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr)
         int ret;
         tcti_gadget_t logical_gadget;
 
+        if (instr->set_flags) {
+            return emit_logical_imm_fallback(state, rd, rn, instr->imm, instr->subtype,
+                                             instr->set_flags, instr->is_64bit);
+        }
+
         if (src_is_memory) {
             int load_idx = rn - 16;
             if (load_idx < 0 || load_idx > 14)
@@ -751,6 +843,10 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr)
 
     tcti_gadget_t gadget = NULL;
 
+    if (instr->subtype >= 16 && instr->subtype <= 19) {
+        return emit_shift_reg_fallback(state, rd, rn, rm, instr->subtype, instr->is_64bit);
+    }
+
     if (op2 >= 0 && op2 <= 3) {
         int ret;
         int logical_rn = eff_rn;
@@ -810,6 +906,11 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr)
         return emit_csel_fallback(state, rd, rn, rm, instr->cond, instr->subtype,
                                   instr->is_64bit);
     } else if (op2 >= 4 && op2 <= 7) {
+        if (instr->set_flags) {
+            return emit_addsub_reg_fallback(state, rd, rn, rm, instr->shift_type,
+                                            instr->imm_shift, instr->subtype == 1,
+                                            instr->set_flags, instr->is_64bit);
+        }
         if (instr->imm_shift != 0) {
             int ret;
             int work_dst = (dst_is_memory || dst_is_sp) ? 13 : rd;
@@ -926,6 +1027,11 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr)
         int ret;
 
         if (!dpreg_ext_form) {
+            if (instr->set_flags) {
+                return emit_addsub_reg_fallback(state, rd, rn, rm, instr->shift_type,
+                                                instr->imm_shift, instr->subtype == 1,
+                                                instr->set_flags, instr->is_64bit);
+            }
             int work_dst = (dst_is_memory || dst_is_sp) ? 13 : rd;
             int eff_rn_for_op = rn;
 
@@ -1225,8 +1331,9 @@ int a64_gen_branch(a64_gen_state_t *state, const a64_instr_t *instr)
         if (instr->Rd < 0 || instr->Rd >= 16)
             return A64_GEN_UNSUPPORTED;
 
-        ret =
-            emit_gadget(state, instr->op ? gadget_cbnz_reg[instr->Rd] : gadget_cbz_reg[instr->Rd]);
+        const tcti_gadget_t *cbz_table = instr->is_64bit ? gadget_cbz_xreg : gadget_cbz_wreg;
+        const tcti_gadget_t *cbnz_table = instr->is_64bit ? gadget_cbnz_xreg : gadget_cbnz_wreg;
+        ret = emit_gadget(state, instr->op ? cbnz_table[instr->Rd] : cbz_table[instr->Rd]);
         if (ret != A64_GEN_OK)
             return ret;
 
@@ -1247,8 +1354,10 @@ int a64_gen_branch(a64_gen_state_t *state, const a64_instr_t *instr)
         if (instr->Rd < 0 || instr->Rd >= 16)
             return A64_GEN_UNSUPPORTED;
 
-        ret =
-            emit_gadget(state, instr->op ? gadget_tbnz_reg[instr->Rd] : gadget_tbz_reg[instr->Rd]);
+        const bool is_64bit = instr->imm_shift >= 32;
+        const tcti_gadget_t *tbz_table = is_64bit ? gadget_tbz_xreg : gadget_tbz_wreg;
+        const tcti_gadget_t *tbnz_table = is_64bit ? gadget_tbnz_xreg : gadget_tbnz_wreg;
+        ret = emit_gadget(state, instr->op ? tbnz_table[instr->Rd] : tbz_table[instr->Rd]);
         if (ret != A64_GEN_OK)
             return ret;
 
@@ -1485,7 +1594,7 @@ int a64_gen_system(a64_gen_state_t *state, const a64_instr_t *instr)
 
     // Exception generation (SVC, HVC, SMC) - subtype from decoder
     switch (instr->subtype) {
-    case 0: // SVC
+    case A64_EXCEPTION: // SVC/HVC/SMC exception generation; Linux userspace uses SVC.
         ret = emit_gadget(state, gadget_svc);
         if (ret != A64_GEN_OK)
             return ret;

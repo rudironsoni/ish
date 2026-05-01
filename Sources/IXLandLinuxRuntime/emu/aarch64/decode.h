@@ -208,15 +208,16 @@ static inline int64_t sign_extend(uint64_t val, int bits) {
 static inline a64_category_t a64_get_category(uint32_t insn) {
     uint32_t top = (insn >> 25) & 0xF;
 
-    // Check for branch encodings
-    uint32_t branch_type = (insn >> 26) & 0x3F;
-    if (branch_type == 0x05) { // 000101 - Unconditional branch
+    // Check branch encodings with the architectural masks used by the
+    // branch decoder. Broad top-bit checks alias valid data-processing
+    // instructions such as CMP/SUBS register.
+    if ((insn & 0x7c000000) == 0x14000000) { // B/BL
         return A64_BRANCH;
-    } else if (branch_type == 0x15) { // 010101 - Conditional branch
+    } else if ((insn & 0xff000010) == 0x54000000) { // B.cond
         return A64_BRANCH;
-    } else if (branch_type == 0x1A) { // 011010 - Compare and branch
+    } else if ((insn & 0x7e000000) == 0x34000000) { // CBZ/CBNZ
         return A64_BRANCH;
-    } else if (branch_type == 0x1B) { // 011011 - Test and branch
+    } else if ((insn & 0x7e000000) == 0x36000000) { // TBZ/TBNZ
         return A64_BRANCH;
     }
 

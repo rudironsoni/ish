@@ -230,8 +230,11 @@ void a64_handle_syscall(struct cpu_state *cpu)
                              sizeof(return_attrs) / sizeof(return_attrs[0]));
     }
 
-    // Advance PC past the SVC instruction
-    cpu->pc += 4;
+    /*
+     * The TCTI execution loop owns SVC PC advancement. It sets cpu->pc to the
+     * translated block end before calling handle_interrupt(INT_SYSCALL), so
+     * advancing here would skip the instruction after every guest syscall.
+     */
 }
 
 /*

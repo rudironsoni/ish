@@ -257,6 +257,18 @@ int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out)
     // Standard DP_REG processing based on op2 = bits 24:21
     int op2 = bits(insn, 24, 21);
 
+    if ((insn & 0x7fe00000) == 0x1ac00000) {
+        int opcode = bits(insn, 15, 10);
+        if (opcode >= 8 && opcode <= 11) {
+            out->Rd = bits(insn, 4, 0);
+            out->Rn = bits(insn, 9, 5);
+            out->Rm = bits(insn, 20, 16);
+            out->subtype = 16 + (opcode - 8); // 16=LSLV, 17=LSRV, 18=ASRV, 19=RORV
+            out->set_flags = 0;
+            return 0;
+        }
+    }
+
     if (cat == A64_DP_IMM2 && op2 >= 4 && op2 <= 7) {
         int op = bit(insn, 30); // 0=CSEL/CSINC, 1=CSINV/CSNEG
         int S = bit(insn, 29);  // 0 for conditional select

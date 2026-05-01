@@ -721,6 +721,11 @@ __attribute__((naked)) void gadget_probe_x7_x2_state(void)
                  "ldp x11, x12, [x29, #96]\n\t"
                  "ldp x13, x14, [x29, #112]\n\t"
                  "ldp x15, x16, [x29, #128]\n\t"
+                 "cmp x19, #16\n\t"
+                 "b.hs 1f\n\t"
+                 "mov x26, x19\n\t"
+                 "bl _tcti_sync_hot_reg_from_cpu\n\t"
+                 "1:\n\t"
                  "ldr x27, [x28], #8\n\t"
                  "br x27\n\t");
 }
@@ -772,11 +777,7 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
     static int first_fault_captured = 0;
     static int fault_69650_captured = 0;
 
-    // EMIT MEMORY TRANSLATION TRACE EVENTS (before translation)
-    // These trace the TCTI boundary: fault PC, Rn value, immediate, idx_mode
-    trace_emit_gadget_ldr_fault_pc(fault_pc);
-
-    static int ldst_fault_trace_budget = 24;
+    static int ldst_fault_trace_budget = 0;
     int trace_ldst_fault = (ldst_fault_trace_budget > 0);
     uint32_t fault_raw_opcode = 0;
     a64_instr_t fault_decoded;
@@ -789,9 +790,6 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
     }
 
     uint64_t base = tcti_read_base_reg_or_sp(cpu, (int)rn);
-    trace_emit_gadget_ldr_rn_value(base);
-    trace_emit_gadget_ldr_imm_value((uint64_t)imm);
-    trace_emit_gadget_ldr_idx_mode(idx_mode);
 
     uint64_t addr = base;
     uint64_t is_signed = meta & 0xff;
@@ -1077,9 +1075,6 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
                  fast_path_taken);
         trace_record_event(TRACE_ORIGIN_EXEC, ev);
     }
-
-    // EMIT GUEST VIRTUAL ADDRESS (after computing effective address)
-    trace_emit_gadget_ldr_guest_vaddr(addr);
 
     if (fault_pc == 0x69650ULL && !fault_69650_captured) {
         fault_69650_captured = 1;
@@ -1441,10 +1436,6 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
             return TCTI_EXIT_FAULT;
         }
 
-        // EMIT HOST POINTER TRACE (after successful translation)
-        // Note: Actual host pointer is internal to TLB; using addr as correlation ID
-        trace_emit_gadget_ldr_host_ptr(addr);
-
         if (trace_6a990) {
             char ev[256];
             snprintf(ev, sizeof(ev),
@@ -1762,7 +1753,7 @@ int a64_tcti_str_x_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64_t rt,
 int _a64_tcti_ldr_x_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64_t rt, uint64_t rn,
                            int64_t imm, uint64_t size, uint64_t idx_mode, uint64_t meta)
 {
-    static int ldr_helper_reach_budget = 24;
+    static int ldr_helper_reach_budget = 0;
     if (ldr_helper_reach_budget > 0) {
         char ev[224];
         snprintf(
@@ -1779,7 +1770,7 @@ int _a64_tcti_ldr_x_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64_t rt
 int _a64_tcti_str_x_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64_t rt, uint64_t rn,
                            int64_t imm, uint64_t size, uint64_t idx_mode, uint64_t meta)
 {
-    static int str_helper_reach_budget = 24;
+    static int str_helper_reach_budget = 0;
     if (str_helper_reach_budget > 0) {
         char ev[224];
         snprintf(
@@ -2059,20 +2050,6 @@ __attribute__((naked)) void gadget_b_impl(void)
     asm volatile("ldr x0, [x28], #8\n\t"
                  "ldr x26, [x28], #8\n\t"
                  "ldr x17, [x28], #8\n\t"
-                 "mov x19, x0\n\t"
-                 "mov x20, x26\n\t"
-                 "mov x21, x17\n\t"
-                 "mov x22, x1\n\t"
-                 "bl _tcti_c_call_prologue\n\t"
-                 "mov x0, x19\n\t"
-                 "mov x1, x20\n\t"
-                 "mov x2, x21\n\t"
-                 "mov x3, x22\n\t"
-                 "bl _tcti_trace_branch_target\n\t"
-                 "bl _tcti_c_call_epilogue\n\t"
-                 "mov x0, x19\n\t"
-                 "mov x26, x20\n\t"
-                 "mov x17, x21\n\t"
                  "cbz x26, 1f\n\t"
                  "str x17, [x29, #256]\n\t"
                  "1:\n\t"
@@ -2267,11 +2244,11 @@ __attribute__((naked)) void gadget_br_impl(void)
 
 tcti_gadget_t gadget_br = gadget_br_impl;
 
-#define GEN_CBZ_TABLE(kind, mnemonic, hostreg, idx)                                                \
+#define GEN_CBZ_TABLE(kind, mnemonic, reg_prefix, hostreg, idx)                                    \
     __attribute__((naked)) void gadget_##kind##_##idx##_impl(void)                                 \
     {                                                                                              \
         asm volatile("ldr x16, [x28], #8\n\t"                                                      \
-                     "ldr x17, [x28], #8\n\t" mnemonic " x" #hostreg ", 1f\n\t"                    \
+                     "ldr x17, [x28], #8\n\t" mnemonic " " reg_prefix #hostreg ", 1f\n\t"         \
                      "mov x16, x17\n\t"                                                            \
                      "1:\n\t"                                                                      \
                      "str x16, [x29, %[pc_off]]\n\t"                                               \
@@ -2281,63 +2258,135 @@ tcti_gadget_t gadget_br = gadget_br_impl;
                      : [pc_off] "i"(PC_OFFSET));                                                   \
     }
 
-GEN_CBZ_TABLE(cbz_reg, "cbz", 1, 0);
-GEN_CBZ_TABLE(cbz_reg, "cbz", 2, 1);
-GEN_CBZ_TABLE(cbz_reg, "cbz", 3, 2);
-GEN_CBZ_TABLE(cbz_reg, "cbz", 4, 3);
-GEN_CBZ_TABLE(cbz_reg, "cbz", 5, 4);
-GEN_CBZ_TABLE(cbz_reg, "cbz", 6, 5);
-GEN_CBZ_TABLE(cbz_reg, "cbz", 7, 6);
-GEN_CBZ_TABLE(cbz_reg, "cbz", 8, 7);
-GEN_CBZ_TABLE(cbz_reg, "cbz", 9, 8);
-GEN_CBZ_TABLE(cbz_reg, "cbz", 10, 9);
-GEN_CBZ_TABLE(cbz_reg, "cbz", 11, 10);
-GEN_CBZ_TABLE(cbz_reg, "cbz", 12, 11);
-GEN_CBZ_TABLE(cbz_reg, "cbz", 13, 12);
-GEN_CBZ_TABLE(cbz_reg, "cbz", 14, 13);
-GEN_CBZ_TABLE(cbz_reg, "cbz", 15, 14);
-GEN_CBZ_TABLE(cbz_reg, "cbz", 16, 15);
+GEN_CBZ_TABLE(cbz_wreg, "cbz", "w", 1, 0);
+GEN_CBZ_TABLE(cbz_wreg, "cbz", "w", 2, 1);
+GEN_CBZ_TABLE(cbz_wreg, "cbz", "w", 3, 2);
+GEN_CBZ_TABLE(cbz_wreg, "cbz", "w", 4, 3);
+GEN_CBZ_TABLE(cbz_wreg, "cbz", "w", 5, 4);
+GEN_CBZ_TABLE(cbz_wreg, "cbz", "w", 6, 5);
+GEN_CBZ_TABLE(cbz_wreg, "cbz", "w", 7, 6);
+GEN_CBZ_TABLE(cbz_wreg, "cbz", "w", 8, 7);
+GEN_CBZ_TABLE(cbz_wreg, "cbz", "w", 9, 8);
+GEN_CBZ_TABLE(cbz_wreg, "cbz", "w", 10, 9);
+GEN_CBZ_TABLE(cbz_wreg, "cbz", "w", 11, 10);
+GEN_CBZ_TABLE(cbz_wreg, "cbz", "w", 12, 11);
+GEN_CBZ_TABLE(cbz_wreg, "cbz", "w", 13, 12);
+GEN_CBZ_TABLE(cbz_wreg, "cbz", "w", 14, 13);
+GEN_CBZ_TABLE(cbz_wreg, "cbz", "w", 15, 14);
+GEN_CBZ_TABLE(cbz_wreg, "cbz", "w", 16, 15);
 
-GEN_CBZ_TABLE(cbnz_reg, "cbnz", 1, 0);
-GEN_CBZ_TABLE(cbnz_reg, "cbnz", 2, 1);
-GEN_CBZ_TABLE(cbnz_reg, "cbnz", 3, 2);
-GEN_CBZ_TABLE(cbnz_reg, "cbnz", 4, 3);
-GEN_CBZ_TABLE(cbnz_reg, "cbnz", 5, 4);
-GEN_CBZ_TABLE(cbnz_reg, "cbnz", 6, 5);
-GEN_CBZ_TABLE(cbnz_reg, "cbnz", 7, 6);
-GEN_CBZ_TABLE(cbnz_reg, "cbnz", 8, 7);
-GEN_CBZ_TABLE(cbnz_reg, "cbnz", 9, 8);
-GEN_CBZ_TABLE(cbnz_reg, "cbnz", 10, 9);
-GEN_CBZ_TABLE(cbnz_reg, "cbnz", 11, 10);
-GEN_CBZ_TABLE(cbnz_reg, "cbnz", 12, 11);
-GEN_CBZ_TABLE(cbnz_reg, "cbnz", 13, 12);
-GEN_CBZ_TABLE(cbnz_reg, "cbnz", 14, 13);
-GEN_CBZ_TABLE(cbnz_reg, "cbnz", 15, 14);
-GEN_CBZ_TABLE(cbnz_reg, "cbnz", 16, 15);
+GEN_CBZ_TABLE(cbnz_wreg, "cbnz", "w", 1, 0);
+GEN_CBZ_TABLE(cbnz_wreg, "cbnz", "w", 2, 1);
+GEN_CBZ_TABLE(cbnz_wreg, "cbnz", "w", 3, 2);
+GEN_CBZ_TABLE(cbnz_wreg, "cbnz", "w", 4, 3);
+GEN_CBZ_TABLE(cbnz_wreg, "cbnz", "w", 5, 4);
+GEN_CBZ_TABLE(cbnz_wreg, "cbnz", "w", 6, 5);
+GEN_CBZ_TABLE(cbnz_wreg, "cbnz", "w", 7, 6);
+GEN_CBZ_TABLE(cbnz_wreg, "cbnz", "w", 8, 7);
+GEN_CBZ_TABLE(cbnz_wreg, "cbnz", "w", 9, 8);
+GEN_CBZ_TABLE(cbnz_wreg, "cbnz", "w", 10, 9);
+GEN_CBZ_TABLE(cbnz_wreg, "cbnz", "w", 11, 10);
+GEN_CBZ_TABLE(cbnz_wreg, "cbnz", "w", 12, 11);
+GEN_CBZ_TABLE(cbnz_wreg, "cbnz", "w", 13, 12);
+GEN_CBZ_TABLE(cbnz_wreg, "cbnz", "w", 14, 13);
+GEN_CBZ_TABLE(cbnz_wreg, "cbnz", "w", 15, 14);
+GEN_CBZ_TABLE(cbnz_wreg, "cbnz", "w", 16, 15);
+
+GEN_CBZ_TABLE(cbz_xreg, "cbz", "x", 1, 0);
+GEN_CBZ_TABLE(cbz_xreg, "cbz", "x", 2, 1);
+GEN_CBZ_TABLE(cbz_xreg, "cbz", "x", 3, 2);
+GEN_CBZ_TABLE(cbz_xreg, "cbz", "x", 4, 3);
+GEN_CBZ_TABLE(cbz_xreg, "cbz", "x", 5, 4);
+GEN_CBZ_TABLE(cbz_xreg, "cbz", "x", 6, 5);
+GEN_CBZ_TABLE(cbz_xreg, "cbz", "x", 7, 6);
+GEN_CBZ_TABLE(cbz_xreg, "cbz", "x", 8, 7);
+GEN_CBZ_TABLE(cbz_xreg, "cbz", "x", 9, 8);
+GEN_CBZ_TABLE(cbz_xreg, "cbz", "x", 10, 9);
+GEN_CBZ_TABLE(cbz_xreg, "cbz", "x", 11, 10);
+GEN_CBZ_TABLE(cbz_xreg, "cbz", "x", 12, 11);
+GEN_CBZ_TABLE(cbz_xreg, "cbz", "x", 13, 12);
+GEN_CBZ_TABLE(cbz_xreg, "cbz", "x", 14, 13);
+GEN_CBZ_TABLE(cbz_xreg, "cbz", "x", 15, 14);
+GEN_CBZ_TABLE(cbz_xreg, "cbz", "x", 16, 15);
+
+GEN_CBZ_TABLE(cbnz_xreg, "cbnz", "x", 1, 0);
+GEN_CBZ_TABLE(cbnz_xreg, "cbnz", "x", 2, 1);
+GEN_CBZ_TABLE(cbnz_xreg, "cbnz", "x", 3, 2);
+GEN_CBZ_TABLE(cbnz_xreg, "cbnz", "x", 4, 3);
+GEN_CBZ_TABLE(cbnz_xreg, "cbnz", "x", 5, 4);
+GEN_CBZ_TABLE(cbnz_xreg, "cbnz", "x", 6, 5);
+GEN_CBZ_TABLE(cbnz_xreg, "cbnz", "x", 7, 6);
+GEN_CBZ_TABLE(cbnz_xreg, "cbnz", "x", 8, 7);
+GEN_CBZ_TABLE(cbnz_xreg, "cbnz", "x", 9, 8);
+GEN_CBZ_TABLE(cbnz_xreg, "cbnz", "x", 10, 9);
+GEN_CBZ_TABLE(cbnz_xreg, "cbnz", "x", 11, 10);
+GEN_CBZ_TABLE(cbnz_xreg, "cbnz", "x", 12, 11);
+GEN_CBZ_TABLE(cbnz_xreg, "cbnz", "x", 13, 12);
+GEN_CBZ_TABLE(cbnz_xreg, "cbnz", "x", 14, 13);
+GEN_CBZ_TABLE(cbnz_xreg, "cbnz", "x", 15, 14);
+GEN_CBZ_TABLE(cbnz_xreg, "cbnz", "x", 16, 15);
+
+const tcti_gadget_t gadget_cbz_wreg[16] = {
+    gadget_cbz_wreg_0_impl,  gadget_cbz_wreg_1_impl,  gadget_cbz_wreg_2_impl,
+    gadget_cbz_wreg_3_impl,  gadget_cbz_wreg_4_impl,  gadget_cbz_wreg_5_impl,
+    gadget_cbz_wreg_6_impl,  gadget_cbz_wreg_7_impl,  gadget_cbz_wreg_8_impl,
+    gadget_cbz_wreg_9_impl,  gadget_cbz_wreg_10_impl, gadget_cbz_wreg_11_impl,
+    gadget_cbz_wreg_12_impl, gadget_cbz_wreg_13_impl, gadget_cbz_wreg_14_impl,
+    gadget_cbz_wreg_15_impl,
+};
+
+const tcti_gadget_t gadget_cbnz_wreg[16] = {
+    gadget_cbnz_wreg_0_impl,  gadget_cbnz_wreg_1_impl,  gadget_cbnz_wreg_2_impl,
+    gadget_cbnz_wreg_3_impl,  gadget_cbnz_wreg_4_impl,  gadget_cbnz_wreg_5_impl,
+    gadget_cbnz_wreg_6_impl,  gadget_cbnz_wreg_7_impl,  gadget_cbnz_wreg_8_impl,
+    gadget_cbnz_wreg_9_impl,  gadget_cbnz_wreg_10_impl, gadget_cbnz_wreg_11_impl,
+    gadget_cbnz_wreg_12_impl, gadget_cbnz_wreg_13_impl, gadget_cbnz_wreg_14_impl,
+    gadget_cbnz_wreg_15_impl,
+};
+
+const tcti_gadget_t gadget_cbz_xreg[16] = {
+    gadget_cbz_xreg_0_impl,  gadget_cbz_xreg_1_impl,  gadget_cbz_xreg_2_impl,
+    gadget_cbz_xreg_3_impl,  gadget_cbz_xreg_4_impl,  gadget_cbz_xreg_5_impl,
+    gadget_cbz_xreg_6_impl,  gadget_cbz_xreg_7_impl,  gadget_cbz_xreg_8_impl,
+    gadget_cbz_xreg_9_impl,  gadget_cbz_xreg_10_impl, gadget_cbz_xreg_11_impl,
+    gadget_cbz_xreg_12_impl, gadget_cbz_xreg_13_impl, gadget_cbz_xreg_14_impl,
+    gadget_cbz_xreg_15_impl,
+};
+
+const tcti_gadget_t gadget_cbnz_xreg[16] = {
+    gadget_cbnz_xreg_0_impl,  gadget_cbnz_xreg_1_impl,  gadget_cbnz_xreg_2_impl,
+    gadget_cbnz_xreg_3_impl,  gadget_cbnz_xreg_4_impl,  gadget_cbnz_xreg_5_impl,
+    gadget_cbnz_xreg_6_impl,  gadget_cbnz_xreg_7_impl,  gadget_cbnz_xreg_8_impl,
+    gadget_cbnz_xreg_9_impl,  gadget_cbnz_xreg_10_impl, gadget_cbnz_xreg_11_impl,
+    gadget_cbnz_xreg_12_impl, gadget_cbnz_xreg_13_impl, gadget_cbnz_xreg_14_impl,
+    gadget_cbnz_xreg_15_impl,
+};
 
 const tcti_gadget_t gadget_cbz_reg[16] = {
-    gadget_cbz_reg_0_impl,  gadget_cbz_reg_1_impl,  gadget_cbz_reg_2_impl,  gadget_cbz_reg_3_impl,
-    gadget_cbz_reg_4_impl,  gadget_cbz_reg_5_impl,  gadget_cbz_reg_6_impl,  gadget_cbz_reg_7_impl,
-    gadget_cbz_reg_8_impl,  gadget_cbz_reg_9_impl,  gadget_cbz_reg_10_impl, gadget_cbz_reg_11_impl,
-    gadget_cbz_reg_12_impl, gadget_cbz_reg_13_impl, gadget_cbz_reg_14_impl, gadget_cbz_reg_15_impl,
+    gadget_cbz_xreg_0_impl,  gadget_cbz_xreg_1_impl,  gadget_cbz_xreg_2_impl,
+    gadget_cbz_xreg_3_impl,  gadget_cbz_xreg_4_impl,  gadget_cbz_xreg_5_impl,
+    gadget_cbz_xreg_6_impl,  gadget_cbz_xreg_7_impl,  gadget_cbz_xreg_8_impl,
+    gadget_cbz_xreg_9_impl,  gadget_cbz_xreg_10_impl, gadget_cbz_xreg_11_impl,
+    gadget_cbz_xreg_12_impl, gadget_cbz_xreg_13_impl, gadget_cbz_xreg_14_impl,
+    gadget_cbz_xreg_15_impl,
 };
 
 const tcti_gadget_t gadget_cbnz_reg[16] = {
-    gadget_cbnz_reg_0_impl,  gadget_cbnz_reg_1_impl,  gadget_cbnz_reg_2_impl,
-    gadget_cbnz_reg_3_impl,  gadget_cbnz_reg_4_impl,  gadget_cbnz_reg_5_impl,
-    gadget_cbnz_reg_6_impl,  gadget_cbnz_reg_7_impl,  gadget_cbnz_reg_8_impl,
-    gadget_cbnz_reg_9_impl,  gadget_cbnz_reg_10_impl, gadget_cbnz_reg_11_impl,
-    gadget_cbnz_reg_12_impl, gadget_cbnz_reg_13_impl, gadget_cbnz_reg_14_impl,
-    gadget_cbnz_reg_15_impl,
+    gadget_cbnz_xreg_0_impl,  gadget_cbnz_xreg_1_impl,  gadget_cbnz_xreg_2_impl,
+    gadget_cbnz_xreg_3_impl,  gadget_cbnz_xreg_4_impl,  gadget_cbnz_xreg_5_impl,
+    gadget_cbnz_xreg_6_impl,  gadget_cbnz_xreg_7_impl,  gadget_cbnz_xreg_8_impl,
+    gadget_cbnz_xreg_9_impl,  gadget_cbnz_xreg_10_impl, gadget_cbnz_xreg_11_impl,
+    gadget_cbnz_xreg_12_impl, gadget_cbnz_xreg_13_impl, gadget_cbnz_xreg_14_impl,
+    gadget_cbnz_xreg_15_impl,
 };
 
-#define GEN_TBZ_TABLE(kind, mnemonic, hostreg, idx)                                                \
+#define GEN_TBZ_TABLE(kind, mnemonic, reg_prefix, hostreg, idx)                                    \
     __attribute__((naked)) void gadget_##kind##_##idx##_impl(void)                                 \
     {                                                                                              \
         asm volatile("ldr x17, [x28], #8\n\t"                                                      \
                      "ldr x19, [x28], #8\n\t"                                                      \
                      "ldr x26, [x28], #8\n\t"                                                      \
-                     "lsr x27, x" #hostreg ", x17\n\t"                                             \
+                     "lsr " reg_prefix "27, " reg_prefix #hostreg ", " reg_prefix "17\n\t"       \
                      "and x27, x27, #1\n\t" mnemonic " x27, 1f\n\t"                                \
                      "mov x19, x26\n\t"                                                            \
                      "1:\n\t"                                                                      \
@@ -2348,54 +2397,126 @@ const tcti_gadget_t gadget_cbnz_reg[16] = {
                      : [pc_off] "i"(PC_OFFSET));                                                   \
     }
 
-GEN_TBZ_TABLE(tbz_reg, "cbz", 1, 0);
-GEN_TBZ_TABLE(tbz_reg, "cbz", 2, 1);
-GEN_TBZ_TABLE(tbz_reg, "cbz", 3, 2);
-GEN_TBZ_TABLE(tbz_reg, "cbz", 4, 3);
-GEN_TBZ_TABLE(tbz_reg, "cbz", 5, 4);
-GEN_TBZ_TABLE(tbz_reg, "cbz", 6, 5);
-GEN_TBZ_TABLE(tbz_reg, "cbz", 7, 6);
-GEN_TBZ_TABLE(tbz_reg, "cbz", 8, 7);
-GEN_TBZ_TABLE(tbz_reg, "cbz", 9, 8);
-GEN_TBZ_TABLE(tbz_reg, "cbz", 10, 9);
-GEN_TBZ_TABLE(tbz_reg, "cbz", 11, 10);
-GEN_TBZ_TABLE(tbz_reg, "cbz", 12, 11);
-GEN_TBZ_TABLE(tbz_reg, "cbz", 13, 12);
-GEN_TBZ_TABLE(tbz_reg, "cbz", 14, 13);
-GEN_TBZ_TABLE(tbz_reg, "cbz", 15, 14);
-GEN_TBZ_TABLE(tbz_reg, "cbz", 16, 15);
+GEN_TBZ_TABLE(tbz_wreg, "cbz", "w", 1, 0);
+GEN_TBZ_TABLE(tbz_wreg, "cbz", "w", 2, 1);
+GEN_TBZ_TABLE(tbz_wreg, "cbz", "w", 3, 2);
+GEN_TBZ_TABLE(tbz_wreg, "cbz", "w", 4, 3);
+GEN_TBZ_TABLE(tbz_wreg, "cbz", "w", 5, 4);
+GEN_TBZ_TABLE(tbz_wreg, "cbz", "w", 6, 5);
+GEN_TBZ_TABLE(tbz_wreg, "cbz", "w", 7, 6);
+GEN_TBZ_TABLE(tbz_wreg, "cbz", "w", 8, 7);
+GEN_TBZ_TABLE(tbz_wreg, "cbz", "w", 9, 8);
+GEN_TBZ_TABLE(tbz_wreg, "cbz", "w", 10, 9);
+GEN_TBZ_TABLE(tbz_wreg, "cbz", "w", 11, 10);
+GEN_TBZ_TABLE(tbz_wreg, "cbz", "w", 12, 11);
+GEN_TBZ_TABLE(tbz_wreg, "cbz", "w", 13, 12);
+GEN_TBZ_TABLE(tbz_wreg, "cbz", "w", 14, 13);
+GEN_TBZ_TABLE(tbz_wreg, "cbz", "w", 15, 14);
+GEN_TBZ_TABLE(tbz_wreg, "cbz", "w", 16, 15);
 
-GEN_TBZ_TABLE(tbnz_reg, "cbnz", 1, 0);
-GEN_TBZ_TABLE(tbnz_reg, "cbnz", 2, 1);
-GEN_TBZ_TABLE(tbnz_reg, "cbnz", 3, 2);
-GEN_TBZ_TABLE(tbnz_reg, "cbnz", 4, 3);
-GEN_TBZ_TABLE(tbnz_reg, "cbnz", 5, 4);
-GEN_TBZ_TABLE(tbnz_reg, "cbnz", 6, 5);
-GEN_TBZ_TABLE(tbnz_reg, "cbnz", 7, 6);
-GEN_TBZ_TABLE(tbnz_reg, "cbnz", 8, 7);
-GEN_TBZ_TABLE(tbnz_reg, "cbnz", 9, 8);
-GEN_TBZ_TABLE(tbnz_reg, "cbnz", 10, 9);
-GEN_TBZ_TABLE(tbnz_reg, "cbnz", 11, 10);
-GEN_TBZ_TABLE(tbnz_reg, "cbnz", 12, 11);
-GEN_TBZ_TABLE(tbnz_reg, "cbnz", 13, 12);
-GEN_TBZ_TABLE(tbnz_reg, "cbnz", 14, 13);
-GEN_TBZ_TABLE(tbnz_reg, "cbnz", 15, 14);
-GEN_TBZ_TABLE(tbnz_reg, "cbnz", 16, 15);
+GEN_TBZ_TABLE(tbnz_wreg, "cbnz", "w", 1, 0);
+GEN_TBZ_TABLE(tbnz_wreg, "cbnz", "w", 2, 1);
+GEN_TBZ_TABLE(tbnz_wreg, "cbnz", "w", 3, 2);
+GEN_TBZ_TABLE(tbnz_wreg, "cbnz", "w", 4, 3);
+GEN_TBZ_TABLE(tbnz_wreg, "cbnz", "w", 5, 4);
+GEN_TBZ_TABLE(tbnz_wreg, "cbnz", "w", 6, 5);
+GEN_TBZ_TABLE(tbnz_wreg, "cbnz", "w", 7, 6);
+GEN_TBZ_TABLE(tbnz_wreg, "cbnz", "w", 8, 7);
+GEN_TBZ_TABLE(tbnz_wreg, "cbnz", "w", 9, 8);
+GEN_TBZ_TABLE(tbnz_wreg, "cbnz", "w", 10, 9);
+GEN_TBZ_TABLE(tbnz_wreg, "cbnz", "w", 11, 10);
+GEN_TBZ_TABLE(tbnz_wreg, "cbnz", "w", 12, 11);
+GEN_TBZ_TABLE(tbnz_wreg, "cbnz", "w", 13, 12);
+GEN_TBZ_TABLE(tbnz_wreg, "cbnz", "w", 14, 13);
+GEN_TBZ_TABLE(tbnz_wreg, "cbnz", "w", 15, 14);
+GEN_TBZ_TABLE(tbnz_wreg, "cbnz", "w", 16, 15);
+
+GEN_TBZ_TABLE(tbz_xreg, "cbz", "x", 1, 0);
+GEN_TBZ_TABLE(tbz_xreg, "cbz", "x", 2, 1);
+GEN_TBZ_TABLE(tbz_xreg, "cbz", "x", 3, 2);
+GEN_TBZ_TABLE(tbz_xreg, "cbz", "x", 4, 3);
+GEN_TBZ_TABLE(tbz_xreg, "cbz", "x", 5, 4);
+GEN_TBZ_TABLE(tbz_xreg, "cbz", "x", 6, 5);
+GEN_TBZ_TABLE(tbz_xreg, "cbz", "x", 7, 6);
+GEN_TBZ_TABLE(tbz_xreg, "cbz", "x", 8, 7);
+GEN_TBZ_TABLE(tbz_xreg, "cbz", "x", 9, 8);
+GEN_TBZ_TABLE(tbz_xreg, "cbz", "x", 10, 9);
+GEN_TBZ_TABLE(tbz_xreg, "cbz", "x", 11, 10);
+GEN_TBZ_TABLE(tbz_xreg, "cbz", "x", 12, 11);
+GEN_TBZ_TABLE(tbz_xreg, "cbz", "x", 13, 12);
+GEN_TBZ_TABLE(tbz_xreg, "cbz", "x", 14, 13);
+GEN_TBZ_TABLE(tbz_xreg, "cbz", "x", 15, 14);
+GEN_TBZ_TABLE(tbz_xreg, "cbz", "x", 16, 15);
+
+GEN_TBZ_TABLE(tbnz_xreg, "cbnz", "x", 1, 0);
+GEN_TBZ_TABLE(tbnz_xreg, "cbnz", "x", 2, 1);
+GEN_TBZ_TABLE(tbnz_xreg, "cbnz", "x", 3, 2);
+GEN_TBZ_TABLE(tbnz_xreg, "cbnz", "x", 4, 3);
+GEN_TBZ_TABLE(tbnz_xreg, "cbnz", "x", 5, 4);
+GEN_TBZ_TABLE(tbnz_xreg, "cbnz", "x", 6, 5);
+GEN_TBZ_TABLE(tbnz_xreg, "cbnz", "x", 7, 6);
+GEN_TBZ_TABLE(tbnz_xreg, "cbnz", "x", 8, 7);
+GEN_TBZ_TABLE(tbnz_xreg, "cbnz", "x", 9, 8);
+GEN_TBZ_TABLE(tbnz_xreg, "cbnz", "x", 10, 9);
+GEN_TBZ_TABLE(tbnz_xreg, "cbnz", "x", 11, 10);
+GEN_TBZ_TABLE(tbnz_xreg, "cbnz", "x", 12, 11);
+GEN_TBZ_TABLE(tbnz_xreg, "cbnz", "x", 13, 12);
+GEN_TBZ_TABLE(tbnz_xreg, "cbnz", "x", 14, 13);
+GEN_TBZ_TABLE(tbnz_xreg, "cbnz", "x", 15, 14);
+GEN_TBZ_TABLE(tbnz_xreg, "cbnz", "x", 16, 15);
+
+const tcti_gadget_t gadget_tbz_wreg[16] = {
+    gadget_tbz_wreg_0_impl,  gadget_tbz_wreg_1_impl,  gadget_tbz_wreg_2_impl,
+    gadget_tbz_wreg_3_impl,  gadget_tbz_wreg_4_impl,  gadget_tbz_wreg_5_impl,
+    gadget_tbz_wreg_6_impl,  gadget_tbz_wreg_7_impl,  gadget_tbz_wreg_8_impl,
+    gadget_tbz_wreg_9_impl,  gadget_tbz_wreg_10_impl, gadget_tbz_wreg_11_impl,
+    gadget_tbz_wreg_12_impl, gadget_tbz_wreg_13_impl, gadget_tbz_wreg_14_impl,
+    gadget_tbz_wreg_15_impl,
+};
+
+const tcti_gadget_t gadget_tbnz_wreg[16] = {
+    gadget_tbnz_wreg_0_impl,  gadget_tbnz_wreg_1_impl,  gadget_tbnz_wreg_2_impl,
+    gadget_tbnz_wreg_3_impl,  gadget_tbnz_wreg_4_impl,  gadget_tbnz_wreg_5_impl,
+    gadget_tbnz_wreg_6_impl,  gadget_tbnz_wreg_7_impl,  gadget_tbnz_wreg_8_impl,
+    gadget_tbnz_wreg_9_impl,  gadget_tbnz_wreg_10_impl, gadget_tbnz_wreg_11_impl,
+    gadget_tbnz_wreg_12_impl, gadget_tbnz_wreg_13_impl, gadget_tbnz_wreg_14_impl,
+    gadget_tbnz_wreg_15_impl,
+};
+
+const tcti_gadget_t gadget_tbz_xreg[16] = {
+    gadget_tbz_xreg_0_impl,  gadget_tbz_xreg_1_impl,  gadget_tbz_xreg_2_impl,
+    gadget_tbz_xreg_3_impl,  gadget_tbz_xreg_4_impl,  gadget_tbz_xreg_5_impl,
+    gadget_tbz_xreg_6_impl,  gadget_tbz_xreg_7_impl,  gadget_tbz_xreg_8_impl,
+    gadget_tbz_xreg_9_impl,  gadget_tbz_xreg_10_impl, gadget_tbz_xreg_11_impl,
+    gadget_tbz_xreg_12_impl, gadget_tbz_xreg_13_impl, gadget_tbz_xreg_14_impl,
+    gadget_tbz_xreg_15_impl,
+};
+
+const tcti_gadget_t gadget_tbnz_xreg[16] = {
+    gadget_tbnz_xreg_0_impl,  gadget_tbnz_xreg_1_impl,  gadget_tbnz_xreg_2_impl,
+    gadget_tbnz_xreg_3_impl,  gadget_tbnz_xreg_4_impl,  gadget_tbnz_xreg_5_impl,
+    gadget_tbnz_xreg_6_impl,  gadget_tbnz_xreg_7_impl,  gadget_tbnz_xreg_8_impl,
+    gadget_tbnz_xreg_9_impl,  gadget_tbnz_xreg_10_impl, gadget_tbnz_xreg_11_impl,
+    gadget_tbnz_xreg_12_impl, gadget_tbnz_xreg_13_impl, gadget_tbnz_xreg_14_impl,
+    gadget_tbnz_xreg_15_impl,
+};
 
 const tcti_gadget_t gadget_tbz_reg[16] = {
-    gadget_tbz_reg_0_impl,  gadget_tbz_reg_1_impl,  gadget_tbz_reg_2_impl,  gadget_tbz_reg_3_impl,
-    gadget_tbz_reg_4_impl,  gadget_tbz_reg_5_impl,  gadget_tbz_reg_6_impl,  gadget_tbz_reg_7_impl,
-    gadget_tbz_reg_8_impl,  gadget_tbz_reg_9_impl,  gadget_tbz_reg_10_impl, gadget_tbz_reg_11_impl,
-    gadget_tbz_reg_12_impl, gadget_tbz_reg_13_impl, gadget_tbz_reg_14_impl, gadget_tbz_reg_15_impl,
+    gadget_tbz_xreg_0_impl,  gadget_tbz_xreg_1_impl,  gadget_tbz_xreg_2_impl,
+    gadget_tbz_xreg_3_impl,  gadget_tbz_xreg_4_impl,  gadget_tbz_xreg_5_impl,
+    gadget_tbz_xreg_6_impl,  gadget_tbz_xreg_7_impl,  gadget_tbz_xreg_8_impl,
+    gadget_tbz_xreg_9_impl,  gadget_tbz_xreg_10_impl, gadget_tbz_xreg_11_impl,
+    gadget_tbz_xreg_12_impl, gadget_tbz_xreg_13_impl, gadget_tbz_xreg_14_impl,
+    gadget_tbz_xreg_15_impl,
 };
 
 const tcti_gadget_t gadget_tbnz_reg[16] = {
-    gadget_tbnz_reg_0_impl,  gadget_tbnz_reg_1_impl,  gadget_tbnz_reg_2_impl,
-    gadget_tbnz_reg_3_impl,  gadget_tbnz_reg_4_impl,  gadget_tbnz_reg_5_impl,
-    gadget_tbnz_reg_6_impl,  gadget_tbnz_reg_7_impl,  gadget_tbnz_reg_8_impl,
-    gadget_tbnz_reg_9_impl,  gadget_tbnz_reg_10_impl, gadget_tbnz_reg_11_impl,
-    gadget_tbnz_reg_12_impl, gadget_tbnz_reg_13_impl, gadget_tbnz_reg_14_impl,
-    gadget_tbnz_reg_15_impl,
+    gadget_tbnz_xreg_0_impl,  gadget_tbnz_xreg_1_impl,  gadget_tbnz_xreg_2_impl,
+    gadget_tbnz_xreg_3_impl,  gadget_tbnz_xreg_4_impl,  gadget_tbnz_xreg_5_impl,
+    gadget_tbnz_xreg_6_impl,  gadget_tbnz_xreg_7_impl,  gadget_tbnz_xreg_8_impl,
+    gadget_tbnz_xreg_9_impl,  gadget_tbnz_xreg_10_impl, gadget_tbnz_xreg_11_impl,
+    gadget_tbnz_xreg_12_impl, gadget_tbnz_xreg_13_impl, gadget_tbnz_xreg_14_impl,
+    gadget_tbnz_xreg_15_impl,
 };
 
 __attribute__((naked)) void gadget_sbfm_impl(void)
@@ -2595,6 +2716,11 @@ __attribute__((naked)) void gadget_bfm_impl(void)
                  "ldp x11, x12, [x29, #96]\n\t"
                  "ldp x13, x14, [x29, #112]\n\t"
                  "ldp x15, x16, [x29, #128]\n\t"
+                 "cmp x19, #16\n\t"
+                 "b.hs 1f\n\t"
+                 "mov x26, x19\n\t"
+                 "bl _tcti_sync_hot_reg_from_cpu\n\t"
+                 "1:\n\t"
                  "ldr x27, [x28], #8\n\t"
                  "br x27\n\t");
 }
@@ -2680,6 +2806,11 @@ __attribute__((naked)) void gadget_ubfm_impl(void)
                  "ldp x11, x12, [x29, #96]\n\t"
                  "ldp x13, x14, [x29, #112]\n\t"
                  "ldp x15, x16, [x29, #128]\n\t"
+                 "cmp x19, #16\n\t"
+                 "b.hs 1f\n\t"
+                 "mov x26, x19\n\t"
+                 "bl _tcti_sync_hot_reg_from_cpu\n\t"
+                 "1:\n\t"
                  "ldr x27, [x28], #8\n\t"
                  "br x27\n\t");
 }
@@ -2746,6 +2877,18 @@ __attribute__((used)) static void tcti_addsub_imm_helper(struct cpu_state *cpu, 
                 nzcv |= 0x10000000ULL;
         }
         cpu->pstate = nzcv;
+        if (cpu->pc == 0x6c410ULL) {
+            static int cmp_6c410_budget = 32;
+            if (cmp_6c410_budget > 0) {
+                char ev[192];
+                snprintf(ev, sizeof(ev),
+                         "task.proof.6c410.cmp=lhs:0x%llx,rhs:0x%llx,result:0x%llx,pstate:0x%llx",
+                         (unsigned long long)lhs, (unsigned long long)rhs,
+                         (unsigned long long)result, (unsigned long long)cpu->pstate);
+                trace_record_event(TRACE_ORIGIN_EXEC, ev);
+                cmp_6c410_budget--;
+            }
+        }
     }
 
     if (rd == 31) {
@@ -2796,6 +2939,11 @@ __attribute__((naked)) void gadget_write_reg_imm_impl(void)
                  "ldp x11, x12, [x29, #96]\n\t"
                  "ldp x13, x14, [x29, #112]\n\t"
                  "ldp x15, x16, [x29, #128]\n\t"
+                 "cmp x19, #16\n\t"
+                 "b.hs 1f\n\t"
+                 "mov x26, x19\n\t"
+                 "bl _tcti_sync_hot_reg_from_cpu\n\t"
+                 "1:\n\t"
                  "ldr x27, [x28], #8\n\t"
                  "br x27\n\t");
 }
@@ -2841,11 +2989,286 @@ __attribute__((naked)) void gadget_addsub_imm_fallback_impl(void)
                  "ldp x11, x12, [x29, #96]\n\t"
                  "ldp x13, x14, [x29, #112]\n\t"
                  "ldp x15, x16, [x29, #128]\n\t"
+                 "cmp x19, #16\n\t"
+                 "b.hs 1f\n\t"
+                 "mov x26, x19\n\t"
+                 "bl _tcti_sync_hot_reg_from_cpu\n\t"
+                 "1:\n\t"
                  "ldr x27, [x28], #8\n\t"
                  "br x27\n\t");
 }
 
 tcti_gadget_t gadget_addsub_imm_fallback = gadget_addsub_imm_fallback_impl;
+
+__attribute__((used)) static void tcti_addsub_reg_helper(struct cpu_state *cpu, uint64_t rd,
+                                                            uint64_t rn, uint64_t rm,
+                                                            uint64_t shift_type,
+                                                            uint64_t imm_shift, uint64_t is_sub,
+                                                            uint64_t set_flags,
+                                                            uint64_t is_64bit)
+{
+    uint64_t mask = is_64bit ? UINT64_MAX : UINT32_MAX;
+    uint64_t lhs = tcti_read_reg_or_zr(cpu, (int)rn) & mask;
+    uint64_t rhs = tcti_read_reg_or_zr(cpu, (int)rm) & mask;
+    unsigned shift = (unsigned)(imm_shift & 0x3f);
+
+    if (!is_64bit)
+        shift &= 0x1f;
+
+    switch (shift_type) {
+    case A64_SHIFT_LSL:
+        rhs = (rhs << shift) & mask;
+        break;
+    case A64_SHIFT_LSR:
+        rhs = shift == 0 ? rhs : (rhs >> shift);
+        break;
+    case A64_SHIFT_ASR:
+        if (is_64bit) {
+            rhs = (uint64_t)(((int64_t)rhs) >> shift);
+        } else {
+            rhs = (uint32_t)(((int32_t)(uint32_t)rhs) >> shift);
+        }
+        rhs &= mask;
+        break;
+    default:
+        return;
+    }
+
+    uint64_t result = is_sub ? ((lhs - rhs) & mask) : ((lhs + rhs) & mask);
+
+    if (set_flags) {
+        uint64_t sign_bit = is_64bit ? (1ULL << 63) : (1ULL << 31);
+        uint64_t nzcv = 0;
+        if (result & sign_bit)
+            nzcv |= 0x80000000ULL;
+        if (result == 0)
+            nzcv |= 0x40000000ULL;
+        if (is_sub) {
+            if (lhs >= rhs)
+                nzcv |= 0x20000000ULL;
+            if (((lhs ^ rhs) & (lhs ^ result) & sign_bit) != 0)
+                nzcv |= 0x10000000ULL;
+        } else {
+            if (result < lhs)
+                nzcv |= 0x20000000ULL;
+            if (((~(lhs ^ rhs)) & (lhs ^ result) & sign_bit) != 0)
+                nzcv |= 0x10000000ULL;
+        }
+        cpu->pstate = nzcv;
+    }
+
+    tcti_write_reg_or_zr(cpu, (int)rd, result, is_64bit != 0);
+}
+
+__attribute__((naked)) void gadget_addsub_reg_fallback_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t" // rd
+                 "ldr x20, [x28], #8\n\t" // rn
+                 "ldr x21, [x28], #8\n\t" // rm
+                 "ldr x22, [x28], #8\n\t" // shift_type
+                 "ldr x23, [x28], #8\n\t" // imm_shift
+                 "ldr x24, [x28], #8\n\t" // is_sub
+                 "ldr x25, [x28], #8\n\t" // set_flags
+                 "ldr x26, [x28], #8\n\t" // is_64bit
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "stp x13, x14, [x29, #112]\n\t"
+                 "stp x15, x16, [x29, #128]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "mov x2, x20\n\t"
+                 "mov x3, x21\n\t"
+                 "mov x4, x22\n\t"
+                 "mov x5, x23\n\t"
+                 "mov x6, x24\n\t"
+                 "mov x7, x25\n\t"
+                 "str x26, [sp, #-16]!\n\t"
+                 "bl _tcti_addsub_reg_helper\n\t"
+                 "add sp, sp, #16\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "ldp x1, x2, [x29, #16]\n\t"
+                 "ldp x3, x4, [x29, #32]\n\t"
+                 "ldp x5, x6, [x29, #48]\n\t"
+                 "ldp x7, x8, [x29, #64]\n\t"
+                 "ldp x9, x10, [x29, #80]\n\t"
+                 "ldp x11, x12, [x29, #96]\n\t"
+                 "ldp x13, x14, [x29, #112]\n\t"
+                 "ldp x15, x16, [x29, #128]\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
+tcti_gadget_t gadget_addsub_reg_fallback = gadget_addsub_reg_fallback_impl;
+
+__attribute__((used)) static void tcti_logical_imm_helper(struct cpu_state *cpu, uint64_t rd,
+                                                            uint64_t rn, uint64_t imm,
+                                                            uint64_t subtype, uint64_t set_flags,
+                                                            uint64_t is_64bit)
+{
+    uint64_t mask = is_64bit ? UINT64_MAX : UINT32_MAX;
+    uint64_t lhs = tcti_read_reg_or_zr(cpu, (int)rn) & mask;
+    uint64_t rhs = imm & mask;
+    uint64_t result;
+
+    switch (subtype) {
+    case 7:  // AND immediate
+    case 10: // ANDS immediate
+        result = lhs & rhs;
+        break;
+    case 8: // ORR immediate
+        result = lhs | rhs;
+        break;
+    case 9: // EOR immediate
+        result = lhs ^ rhs;
+        break;
+    default:
+        return;
+    }
+    result &= mask;
+
+    if (set_flags) {
+        uint64_t sign_bit = is_64bit ? (1ULL << 63) : (1ULL << 31);
+        uint64_t nzcv = 0;
+        if (result & sign_bit)
+            nzcv |= 0x80000000ULL;
+        if (result == 0)
+            nzcv |= 0x40000000ULL;
+        cpu->pstate = nzcv;
+    }
+
+    tcti_write_reg_or_zr(cpu, (int)rd, result, is_64bit != 0);
+}
+
+__attribute__((naked)) void gadget_logical_imm_fallback_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t" // rd
+                 "ldr x20, [x28], #8\n\t" // rn
+                 "ldr x21, [x28], #8\n\t" // imm
+                 "ldr x22, [x28], #8\n\t" // subtype
+                 "ldr x23, [x28], #8\n\t" // set_flags
+                 "ldr x24, [x28], #8\n\t" // is_64bit
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "stp x13, x14, [x29, #112]\n\t"
+                 "stp x15, x16, [x29, #128]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "mov x2, x20\n\t"
+                 "mov x3, x21\n\t"
+                 "mov x4, x22\n\t"
+                 "mov x5, x23\n\t"
+                 "mov x6, x24\n\t"
+                 "bl _tcti_logical_imm_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "ldp x1, x2, [x29, #16]\n\t"
+                 "ldp x3, x4, [x29, #32]\n\t"
+                 "ldp x5, x6, [x29, #48]\n\t"
+                 "ldp x7, x8, [x29, #64]\n\t"
+                 "ldp x9, x10, [x29, #80]\n\t"
+                 "ldp x11, x12, [x29, #96]\n\t"
+                 "ldp x13, x14, [x29, #112]\n\t"
+                 "ldp x15, x16, [x29, #128]\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
+tcti_gadget_t gadget_logical_imm_fallback = gadget_logical_imm_fallback_impl;
+
+__attribute__((used)) static void tcti_shift_reg_helper(struct cpu_state *cpu, uint64_t rd,
+                                                          uint64_t rn, uint64_t rm,
+                                                          uint64_t subtype, uint64_t is_64bit)
+{
+    uint64_t mask = is_64bit ? UINT64_MAX : UINT32_MAX;
+    unsigned amount_mask = is_64bit ? 63 : 31;
+    uint64_t lhs = tcti_read_reg_or_zr(cpu, (int)rn) & mask;
+    unsigned amount = (unsigned)(tcti_read_reg_or_zr(cpu, (int)rm) & amount_mask);
+    uint64_t result;
+
+    switch (subtype) {
+    case 16: // LSLV
+        result = (lhs << amount) & mask;
+        break;
+    case 17: // LSRV
+        result = lhs >> amount;
+        break;
+    case 18: // ASRV
+        if (is_64bit) {
+            result = (uint64_t)(((int64_t)lhs) >> amount);
+        } else {
+            result = (uint32_t)(((int32_t)(uint32_t)lhs) >> amount);
+        }
+        result &= mask;
+        break;
+    case 19: // RORV
+        if (amount == 0) {
+            result = lhs;
+        } else if (is_64bit) {
+            result = (lhs >> amount) | (lhs << (64 - amount));
+        } else {
+            uint32_t value = (uint32_t)lhs;
+            result = (uint32_t)((value >> amount) | (value << (32 - amount)));
+        }
+        result &= mask;
+        break;
+    default:
+        return;
+    }
+
+    tcti_write_reg_or_zr(cpu, (int)rd, result, is_64bit != 0);
+}
+
+__attribute__((naked)) void gadget_shift_reg_fallback_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t" // rd
+                 "ldr x20, [x28], #8\n\t" // rn
+                 "ldr x21, [x28], #8\n\t" // rm
+                 "ldr x22, [x28], #8\n\t" // subtype
+                 "ldr x23, [x28], #8\n\t" // is_64bit
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "stp x13, x14, [x29, #112]\n\t"
+                 "stp x15, x16, [x29, #128]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "mov x2, x20\n\t"
+                 "mov x3, x21\n\t"
+                 "mov x4, x22\n\t"
+                 "mov x5, x23\n\t"
+                 "bl _tcti_shift_reg_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "ldp x1, x2, [x29, #16]\n\t"
+                 "ldp x3, x4, [x29, #32]\n\t"
+                 "ldp x5, x6, [x29, #48]\n\t"
+                 "ldp x7, x8, [x29, #64]\n\t"
+                 "ldp x9, x10, [x29, #80]\n\t"
+                 "ldp x11, x12, [x29, #96]\n\t"
+                 "ldp x13, x14, [x29, #112]\n\t"
+                 "ldp x15, x16, [x29, #128]\n\t"
+                 "cmp x19, #16\n\t"
+                 "b.hs 1f\n\t"
+                 "mov x26, x19\n\t"
+                 "bl _tcti_sync_hot_reg_from_cpu\n\t"
+                 "1:\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
+tcti_gadget_t gadget_shift_reg_fallback = gadget_shift_reg_fallback_impl;
 
 static int tcti_cond_holds(uint64_t nzcv, uint64_t cond)
 {
@@ -3110,7 +3533,7 @@ void tcti_trace_resume_after_ldst(uint64_t fault_pc, uint64_t rt, uint64_t rn, u
 void tcti_trace_branch_target(uint64_t target, uint64_t is_link, uint64_t ret_pc, uint64_t guest_x0)
 {
     if ((target >= 0x6a990ULL && target <= 0x6aa00ULL) ||
-        (target >= 0x6c300ULL && target <= 0x6c500ULL)) {
+        (target >= 0x3e300ULL && target <= 0x3e380ULL)) {
         char ev[224];
         snprintf(ev, sizeof(ev),
                  "task.proof.branch=target:0x%llx,is_link:%llu,ret_pc:0x%llx,guest_x0:0x%llx",
@@ -3189,29 +3612,6 @@ __attribute__((naked)) void gadget_ldr_x_impl(void)
         //   x24 = idx_mode (0=offset, 1=pre-index, 2=post-index)
         //   x25 = meta (extension type, etc.)
         // =========================================================================
-
-        // Trace gadget entry with x28 (bytecode pointer) - BEFORE loading parameters
-        // since C trace functions may clobber x19-x25
-        "stp x0, x1, [sp, #-16]!\n\t"
-        "stp x2, x3, [sp, #-16]!\n\t"
-        "stp x4, x5, [sp, #-16]!\n\t"
-        "stp x6, x7, [sp, #-16]!\n\t"
-        "stp x8, x9, [sp, #-16]!\n\t"
-        "stp x10, x11, [sp, #-16]!\n\t"
-        "stp x12, x13, [sp, #-16]!\n\t"
-        "stp x14, x15, [sp, #-16]!\n\t"
-        "stp x16, x17, [sp, #-16]!\n\t"
-        "mov x0, x28\n\t" // x28 to emit
-        "bl _trace_emit_gadget_entry_x28\n\t"
-        "ldp x16, x17, [sp], #16\n\t"
-        "ldp x14, x15, [sp], #16\n\t"
-        "ldp x12, x13, [sp], #16\n\t"
-        "ldp x10, x11, [sp], #16\n\t"
-        "ldp x8, x9, [sp], #16\n\t"
-        "ldp x6, x7, [sp], #16\n\t"
-        "ldp x4, x5, [sp], #16\n\t"
-        "ldp x2, x3, [sp], #16\n\t"
-        "ldp x0, x1, [sp], #16\n\t"
 
         // Load parameters from bytecode (AFTER all trace calls to avoid corruption)
         "ldr x19, [x28], #8\n\t" // fault_pc
