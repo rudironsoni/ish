@@ -190,6 +190,34 @@
                     "recognize its own libc SONAME while loading BusyBox dependencies");
 }
 
+- (void)testSemanticExecutionContract_MuslLoadLibraryDetectsLibcSelf
+{
+    XCTAssertEqual(tcti_harness_case_musl_load_library_detects_libc_self(), 0ULL,
+                   @"TCTI must execute musl load_library's reserved libc detection path so "
+                    "ldso does not load itself as a second libc dependency");
+}
+
+- (void)testSemanticExecutionContract_MuslGNUHashMalloc
+{
+    XCTAssertEqual(tcti_harness_case_musl_gnu_hash_malloc(), 0ULL,
+                   @"TCTI must execute musl's GNU hash loop with 32-bit shifted ADD on "
+                    "memory-backed registers so dynamic symbol lookup can find malloc/free");
+}
+
+- (void)testSemanticExecutionContract_MuslGNULookupFilteredMalloc
+{
+    XCTAssertEqual(tcti_harness_case_musl_gnu_lookup_filtered_malloc(), 0ULL,
+                   @"TCTI must execute musl's GNU hash lookup helper so ldso can resolve "
+                    "libc symbols through bloom filters, hash buckets, and symbol strings");
+}
+
+- (void)testSemanticExecutionContract_MuslFindSymAcceptsGlobalFunc
+{
+    XCTAssertEqual(tcti_harness_case_musl_find_sym_accepts_global_func(), 0ULL,
+                   @"TCTI must execute musl find_sym's st_shndx, st_value, type, and binding "
+                    "checks so valid global function symbols are not rejected");
+}
+
 - (void)testSemanticExecutionContract_ADDImmProducesCorrectResult
 {
     // Contract: ADD_IMM gadget MUST produce correct sum with immediate

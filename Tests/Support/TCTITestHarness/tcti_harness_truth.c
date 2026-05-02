@@ -1438,3 +1438,462 @@ uint64_t tcti_harness_case_musl_strncmp_libc_reserved_prefix(void)
     mem_destroy(&mem);
     return result;
 }
+
+uint64_t tcti_harness_case_musl_load_library_detects_libc_self(void)
+{
+    enum {
+        text_base = 0x6b598,
+        text_end = 0x6b630,
+        fail_open_path = 0x6b544,
+        self_detected_path = 0x6b5f0,
+        self_path = 0x6b54c,
+        strchr_pc = 0x5e920,
+        strncmp_pc = 0x5ee64,
+        libc_name_addr = 0x120000,
+        reserved_libs_addr = 0x9db30,
+    };
+
+    static const uint32_t load_library_insns[] = {
+        0x39400720, // ldrb w0, [x25, #0x1]
+        0x7101a41f, // cmp w0, #0x69
+        0x54fffd21, // b.ne 0x6b544
+        0x39400b20, // ldrb w0, [x25, #0x2]
+        0x7101881f, // cmp w0, #0x62
+        0x54fffcc1, // b.ne 0x6b544
+        0xd0000198, // adrp x24, 0x9d000
+        0x912cc313, // add x19, x24, #0xb30
+        0xaa1303f5, // mov x21, x19
+        0xaa1303e0, // mov x0, x19
+        0x528005c1, // mov w1, #0x2e
+        0x97ffccd7, // bl 0x5e920
+        0x91000413, // add x19, x0, #0x1
+        0xaa0003f6, // mov x22, x0
+        0xcb150262, // sub x2, x19, x21
+        0xaa1503e1, // mov x1, x21
+        0x91000f20, // add x0, x25, #0x3
+        0x97ffce22, // bl 0x5ee64
+        0x34000080, // cbz w0, 0x6b5f0
+        0x394006c0, // ldrb w0, [x22, #0x1]
+        0x35fffe80, // cbnz w0, 0x6b5b8
+        0x17ffffd6, // b 0x6b544
+        0x394002a0, // ldrb w0, [x21]
+        0x34fffa80, // cbz w0, 0x6b544
+        0xf00002a0, // adrp x0, 0xc2000
+        0x91134000, // add x0, x0, #0x4d0
+        0xf9400000, // ldr x0, [x0]
+        0xf9003c00, // str x0, [x0, #0x78]
+        0xf9403c00, // ldr x0, [x0, #0x78]
+        0xf9003800, // str x0, [x0, #0x70]
+        0xf9003400, // str x0, [x0, #0x68]
+        0xf9003000, // str x0, [x0, #0x60]
+        0xf9002c00, // str x0, [x0, #0x58]
+        0xf9002800, // str x0, [x0, #0x50]
+        0xf9002400, // str x0, [x0, #0x48]
+        0xf9002000, // str x0, [x0, #0x40]
+        0x52800024, // mov w4, #0x1
+        0x17ffffc8, // b 0x6b54c
+    };
+
+    struct mem mem;
+    mem_init(&mem);
+    if (pt_map_nothing(&mem, PAGE(libc_name_addr), 1, P_READ | P_WRITE) < 0 ||
+        pt_map_nothing(&mem, PAGE(reserved_libs_addr), 1, P_READ | P_WRITE) < 0) {
+        mem_destroy(&mem);
+        return UINT64_MAX;
+    }
+
+    struct tlb tlb = {};
+    tlb_refresh(&tlb, &mem.mmu);
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.mmu = &mem.mmu;
+    cpu.tlb = &tlb;
+    cpu.pc = text_base;
+    cpu.x[25] = libc_name_addr;
+
+    const char libc_name[] = "libc.musl-aarch64.so.1";
+    const char reserved_libs[] = "c.pthread.rt.m.dl.util.xnet";
+    for (size_t i = 0; i < sizeof(libc_name); i++) {
+        if (a64_guest_write8(&cpu, &tlb, libc_name_addr + i, (uint8_t)libc_name[i]) !=
+            A64_MEM_OK) {
+            mem_destroy(&mem);
+            return UINT64_MAX - 1;
+        }
+    }
+    for (size_t i = 0; i < sizeof(reserved_libs); i++) {
+        if (a64_guest_write8(&cpu, &tlb, reserved_libs_addr + i, (uint8_t)reserved_libs[i]) !=
+            A64_MEM_OK) {
+            mem_destroy(&mem);
+            return UINT64_MAX - 2;
+        }
+    }
+
+    for (unsigned step = 0; step < 96; step++) {
+        if (cpu.pc == self_detected_path) {
+            mem_destroy(&mem);
+            return 0;
+        }
+        if (cpu.pc == self_path) {
+            uint64_t result = cpu.x[4] == 1 ? 0 : (0x3000000000000000ULL | cpu.x[4]);
+            mem_destroy(&mem);
+            return result;
+        }
+        if (cpu.pc == fail_open_path) {
+            mem_destroy(&mem);
+            return 0x1000000000000000ULL | cpu.pc;
+        }
+        if (cpu.pc == strchr_pc) {
+            if (cpu.x[0] != reserved_libs_addr || (uint32_t)cpu.x[1] != '.') {
+                uint64_t result = 0x4000000000000000ULL | (cpu.x[0] & 0x0000ffffffffffffULL);
+                mem_destroy(&mem);
+                return result;
+            }
+            cpu.x[0] = reserved_libs_addr + 1;
+            cpu.pc = cpu.x[30];
+            continue;
+        }
+        if (cpu.pc == strncmp_pc) {
+            if (cpu.x[0] != libc_name_addr + 3 || cpu.x[1] != reserved_libs_addr ||
+                cpu.x[2] != 2) {
+                uint64_t result = 0x5000000000000000ULL | (cpu.x[0] & 0x0000ffffffffffffULL);
+                mem_destroy(&mem);
+                return result;
+            }
+            cpu.x[0] = 0;
+            cpu.pc = cpu.x[30];
+            continue;
+        }
+        if (cpu.pc < text_base || cpu.pc >= text_end || ((cpu.pc - text_base) & 3) != 0) {
+            uint64_t result = 0x2000000000000000ULL | cpu.pc;
+            mem_destroy(&mem);
+            return result;
+        }
+
+        size_t index = (size_t)((cpu.pc - text_base) / 4);
+        uint64_t old_pc = cpu.pc;
+        if (tcti_harness_run_generated_block(&cpu, cpu.pc, &load_library_insns[index], 1) < 0) {
+            mem_destroy(&mem);
+            return 0x6000000000000000ULL | old_pc;
+        }
+        if (cpu.pc == old_pc)
+            cpu.pc += 4;
+    }
+
+    uint64_t result = 0x7000000000000000ULL | cpu.pc;
+    mem_destroy(&mem);
+    return result;
+}
+
+static uint32_t tcti_harness_musl_gnu_hash_expected(const char *s)
+{
+    uint32_t h = 5381;
+    for (; *s; s++)
+        h += h * 32 + (unsigned char)*s;
+    return h;
+}
+
+static int tcti_harness_musl_gnu_hash_loop_insn(uint64_t pc, uint32_t *insn)
+{
+    switch (pc) {
+    case 0x69f50:
+        *insn = 0x14000004; // b 0x69f60
+        return 0;
+    case 0x69f54:
+        *insn = 0x0b0d15ad; // add w13, w13, w13, lsl #5
+        return 0;
+    case 0x69f58:
+        *insn = 0x91000463; // add x3, x3, #0x1
+        return 0;
+    case 0x69f5c:
+        *insn = 0x0b0d002d; // add w13, w1, w13
+        return 0;
+    case 0x69f60:
+        *insn = 0x39400061; // ldrb w1, [x3]
+        return 0;
+    case 0x69f64:
+        *insn = 0x35ffff81; // cbnz w1, 0x69f54
+        return 0;
+    default:
+        return -1;
+    }
+}
+
+uint64_t tcti_harness_case_musl_gnu_hash_malloc(void)
+{
+    enum {
+        text_base = 0x69f50,
+        text_end = 0x69f68,
+        name_addr = 0x120000,
+    };
+
+    struct mem mem;
+    mem_init(&mem);
+    if (pt_map_nothing(&mem, PAGE(name_addr), 1, P_READ | P_WRITE) < 0) {
+        mem_destroy(&mem);
+        return UINT64_MAX;
+    }
+
+    struct tlb tlb = {};
+    tlb_refresh(&tlb, &mem.mmu);
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.mmu = &mem.mmu;
+    cpu.tlb = &tlb;
+    cpu.pc = text_base;
+    cpu.x[3] = name_addr;
+    cpu.x[13] = 5381;
+
+    const char name[] = "malloc";
+    for (size_t i = 0; i < sizeof(name); i++) {
+        if (a64_guest_write8(&cpu, &tlb, name_addr + i, (uint8_t)name[i]) != A64_MEM_OK) {
+            mem_destroy(&mem);
+            return UINT64_MAX - 1;
+        }
+    }
+
+    for (unsigned step = 0; step < 64; step++) {
+        if (cpu.pc == text_end)
+            break;
+        uint32_t insn = 0;
+        if (cpu.pc < text_base || cpu.pc >= text_end || ((cpu.pc - text_base) & 3) != 0 ||
+            tcti_harness_musl_gnu_hash_loop_insn(cpu.pc, &insn) < 0) {
+            uint64_t result = 0x1000000000000000ULL | cpu.pc;
+            mem_destroy(&mem);
+            return result;
+        }
+
+        uint64_t old_pc = cpu.pc;
+        int run_ret = tcti_harness_run_generated_block(&cpu, cpu.pc, &insn, 1);
+        if (run_ret < 0) {
+            mem_destroy(&mem);
+            return 0x2000000000000000ULL | (((uint64_t)(uint8_t)(-run_ret)) << 48) | old_pc;
+        }
+        if (cpu.pc == old_pc)
+            cpu.pc += 4;
+    }
+
+    uint32_t actual = (uint32_t)cpu.x[13];
+    uint32_t expected = tcti_harness_musl_gnu_hash_expected(name);
+    mem_destroy(&mem);
+    return actual == expected ? 0 : (0x3000000000000000ULL | actual);
+}
+
+uint64_t tcti_harness_case_musl_gnu_lookup_filtered_malloc(void)
+{
+    enum {
+        text_base = 0x69884,
+        text_end = 0x69968,
+        hashtab_addr = 0x120000,
+        dso_addr = 0x121000,
+        symtab_addr = 0x122000,
+        strings_addr = 0x123000,
+        name_addr = 0x124000,
+        sym_size = 24,
+        sym_index = 1,
+    };
+
+    static const uint32_t lookup_insns[] = {
+        0xb9400826, 0x2a0003ea, 0x510004c0, 0x0a040000, 0xd2800204, 0x8b204c80,
+        0xf8606820, 0xea05001f, 0x540005e0, 0xb9400c24, 0x1ac42544, 0x9ac42404,
+        0xd2800000, 0x36000564, 0xb9400025, 0xd37d7cc4, 0x91004084, 0x8b040024,
+        0x1ac50946, 0x1b05a8c6, 0xb8667888, 0x34000468, 0xb9400420, 0x3200014a,
+        0x5280030b, 0x4b000100, 0x8b254005, 0x8b050885, 0x14000004, 0x37000346,
+        0x910010a5, 0x11000508, 0xb94000a6, 0x320000c0, 0x6b00015f, 0x54ffff41,
+        0xf9402c41, 0x2a0803e0, 0xb4000061, 0x78e07821, 0x37fffea1, 0xf9402044,
+        0x9bab7c01, 0xf9403049, 0x8b010080, 0xb8616881, 0x8b010129, 0xd2800001,
+        0x38616864, 0x38616927, 0x6b07009f, 0x54fffd41, 0x91000421, 0x35ffff64,
+        0x14000002, 0xd2800000, 0xd65f03c0,
+    };
+
+    struct mem mem;
+    mem_init(&mem);
+    if (pt_map_nothing(&mem, PAGE(hashtab_addr), 1, P_READ | P_WRITE) < 0 ||
+        pt_map_nothing(&mem, PAGE(dso_addr), 1, P_READ | P_WRITE) < 0 ||
+        pt_map_nothing(&mem, PAGE(symtab_addr), 1, P_READ | P_WRITE) < 0 ||
+        pt_map_nothing(&mem, PAGE(strings_addr), 1, P_READ | P_WRITE) < 0 ||
+        pt_map_nothing(&mem, PAGE(name_addr), 1, P_READ | P_WRITE) < 0) {
+        mem_destroy(&mem);
+        return UINT64_MAX;
+    }
+
+    struct tlb tlb = {};
+    tlb_refresh(&tlb, &mem.mmu);
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.mmu = &mem.mmu;
+    cpu.tlb = &tlb;
+    cpu.pc = text_base;
+
+    const char name[] = "malloc";
+    for (size_t i = 0; i < sizeof(name); i++) {
+        if (a64_guest_write8(&cpu, &tlb, name_addr + i, (uint8_t)name[i]) != A64_MEM_OK ||
+            a64_guest_write8(&cpu, &tlb, strings_addr + i, (uint8_t)name[i]) != A64_MEM_OK) {
+            mem_destroy(&mem);
+            return UINT64_MAX - 1;
+        }
+    }
+
+    uint32_t hash = tcti_harness_musl_gnu_hash_expected(name);
+    uint32_t bloom_shift = 6;
+    uint32_t fofs = hash / 64;
+    size_t fmask = (size_t)1 << (hash % 64);
+    size_t bloom = fmask | ((size_t)1 << ((hash >> bloom_shift) % 64));
+
+    if (a64_guest_write32(&cpu, &tlb, hashtab_addr + 0, 1) != A64_MEM_OK ||
+        a64_guest_write32(&cpu, &tlb, hashtab_addr + 4, sym_index) != A64_MEM_OK ||
+        a64_guest_write32(&cpu, &tlb, hashtab_addr + 8, 1) != A64_MEM_OK ||
+        a64_guest_write32(&cpu, &tlb, hashtab_addr + 12, bloom_shift) != A64_MEM_OK ||
+        a64_guest_write64(&cpu, &tlb, hashtab_addr + 16, bloom) != A64_MEM_OK ||
+        a64_guest_write32(&cpu, &tlb, hashtab_addr + 24, sym_index) != A64_MEM_OK ||
+        a64_guest_write32(&cpu, &tlb, hashtab_addr + 28, hash | 1u) != A64_MEM_OK ||
+        a64_guest_write64(&cpu, &tlb, dso_addr + 0x40, symtab_addr) != A64_MEM_OK ||
+        a64_guest_write64(&cpu, &tlb, dso_addr + 0x58, 0) != A64_MEM_OK ||
+        a64_guest_write64(&cpu, &tlb, dso_addr + 0x60, strings_addr) != A64_MEM_OK ||
+        a64_guest_write32(&cpu, &tlb, symtab_addr + sym_index * sym_size, 0) != A64_MEM_OK) {
+        mem_destroy(&mem);
+        return UINT64_MAX - 2;
+    }
+
+    cpu.x[0] = hash;
+    cpu.x[1] = hashtab_addr;
+    cpu.x[2] = dso_addr;
+    cpu.x[3] = name_addr;
+    cpu.x[4] = fofs;
+    cpu.x[5] = fmask;
+    cpu.x[30] = text_end;
+
+    for (unsigned step = 0; step < 128; step++) {
+        if (cpu.pc == text_end)
+            break;
+        if (cpu.pc < text_base || cpu.pc >= text_end || ((cpu.pc - text_base) & 3) != 0) {
+            uint64_t result = 0x1000000000000000ULL | cpu.pc;
+            mem_destroy(&mem);
+            return result;
+        }
+
+        size_t index = (size_t)((cpu.pc - text_base) / 4);
+        uint64_t old_pc = cpu.pc;
+        int run_ret = tcti_harness_run_generated_block(&cpu, cpu.pc, &lookup_insns[index], 1);
+        if (run_ret < 0) {
+            mem_destroy(&mem);
+            return 0x2000000000000000ULL | (((uint64_t)(uint8_t)(-run_ret)) << 48) | old_pc;
+        }
+        if (cpu.pc == old_pc)
+            cpu.pc += 4;
+    }
+
+    uint64_t expected = symtab_addr + sym_index * sym_size;
+    uint64_t result = cpu.x[0] == expected ? 0 : (0x3000000000000000ULL | cpu.x[0]);
+    mem_destroy(&mem);
+    return result;
+}
+
+uint64_t tcti_harness_case_musl_find_sym_accepts_global_func(void)
+{
+    enum {
+        text_base = 0x69fc4,
+        success_pc = 0x69fe8,
+        fail_pc = 0x6a00c,
+        sym_addr = 0x120000,
+    };
+
+    struct mem mem;
+    mem_init(&mem);
+    if (pt_map_nothing(&mem, PAGE(sym_addr), 1, P_READ | P_WRITE) < 0 ||
+        pt_map_nothing(&mem, PAGE(0x130000), 1, P_READ | P_WRITE) < 0) {
+        mem_destroy(&mem);
+        return UINT64_MAX;
+    }
+
+    struct tlb tlb = {};
+    tlb_refresh(&tlb, &mem.mmu);
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.mmu = &mem.mmu;
+    cpu.tlb = &tlb;
+    cpu.pc = text_base;
+    cpu.x[0] = sym_addr;
+    cpu.x[15] = 0xabcdef00;
+    cpu.x[22] = 0x406;
+    cpu.x[23] = 0x67;
+    cpu.sp = 0x130000;
+
+    if (a64_guest_write8(&cpu, &tlb, sym_addr + 4, 0x12) != A64_MEM_OK ||
+        a64_guest_write16(&cpu, &tlb, sym_addr + 6, 1) != A64_MEM_OK ||
+        a64_guest_write64(&cpu, &tlb, sym_addr + 8, 0x28888) != A64_MEM_OK) {
+        mem_destroy(&mem);
+        return UINT64_MAX - 1;
+    }
+
+    for (unsigned step = 0; step < 32; step++) {
+        if (cpu.pc == success_pc) {
+            mem_destroy(&mem);
+            return 0;
+        }
+        if (cpu.pc == fail_pc) {
+            mem_destroy(&mem);
+            return 0x1000000000000000ULL | cpu.pc;
+        }
+        uint32_t insn = 0;
+        switch (cpu.pc) {
+        case 0x69fc4:
+            insn = 0xf9400402; // ldr x2, [x0, #0x8]
+            break;
+        case 0x69fc8:
+            insn = 0x39401001; // ldrb w1, [x0, #0x4]
+            break;
+        case 0x69fcc:
+            insn = 0xb50001a2; // cbnz x2, 0x6a000
+            break;
+        case 0x69fd0:
+            insn = 0x12000c22; // and w2, w1, #0xf
+            break;
+        case 0x69fd4:
+            insn = 0x7100185f; // cmp w2, #0x6
+            break;
+        case 0x69fd8:
+            insn = 0x540001a1; // b.ne 0x6a00c
+            break;
+        case 0x69fdc:
+            insn = 0x53047c21; // lsr w1, w1, #4
+            break;
+        case 0x69fe0:
+            insn = 0x1ac12ac1; // asr w1, w22, w1
+            break;
+        case 0x69fe4:
+            insn = 0x36000141; // tbz w1, #0x0, 0x6a00c
+            break;
+        case 0x6a000:
+            insn = 0x12000c22; // and w2, w1, #0xf
+            break;
+        case 0x6a004:
+            insn = 0x1ac22ae2; // asr w2, w23, w2
+            break;
+        case 0x6a008:
+            insn = 0x3707fea2; // tbnz w2, #0x0, 0x69fdc
+            break;
+        default: {
+            uint64_t result = 0x2000000000000000ULL | cpu.pc;
+            mem_destroy(&mem);
+            return result;
+        }
+        }
+
+        uint64_t old_pc = cpu.pc;
+        int run_ret = tcti_harness_run_generated_block(&cpu, cpu.pc, &insn, 1);
+        if (run_ret < 0) {
+            mem_destroy(&mem);
+            return 0x3000000000000000ULL | (((uint64_t)(uint8_t)(-run_ret)) << 48) | old_pc;
+        }
+        if (cpu.pc == old_pc)
+            cpu.pc += 4;
+    }
+
+    uint64_t result = 0x4000000000000000ULL | cpu.pc;
+    mem_destroy(&mem);
+    return result;
+}

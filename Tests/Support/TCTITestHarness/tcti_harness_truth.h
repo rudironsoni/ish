@@ -48,6 +48,10 @@ uint64_t tcti_harness_case_relocation_fault_path_uses_loaded_x5(void);
 uint64_t tcti_harness_case_musl_vdprintf_stack_file_zero_init(void);
 uint64_t tcti_harness_case_musl_snprintf_file_wpos_init(void);
 uint64_t tcti_harness_case_musl_strncmp_libc_reserved_prefix(void);
+uint64_t tcti_harness_case_musl_load_library_detects_libc_self(void);
+uint64_t tcti_harness_case_musl_gnu_hash_malloc(void);
+uint64_t tcti_harness_case_musl_gnu_lookup_filtered_malloc(void);
+uint64_t tcti_harness_case_musl_find_sym_accepts_global_func(void);
 
 #ifdef __cplusplus
 }

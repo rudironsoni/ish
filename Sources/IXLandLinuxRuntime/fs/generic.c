@@ -6,6 +6,7 @@
 #import <IXLandLinuxRuntime/kernel/errno.h>
 #import <IXLandLinuxRuntime/kernel/fs.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -33,6 +34,19 @@ bool contains_mount_point(const char *path)
     return false;
 }
 
+static void trace_generic_openat_result(const char *path_raw, const char *normalized,
+                                        const char *trimmed, const char *mount_point, int flags,
+                                        int mode, long result)
+{
+    char ev[1024];
+    snprintf(ev, sizeof(ev),
+             "boot.generic_openat.open=raw:%s,normalized:%s,trimmed:%s,mount:%s,flags:0x%x,"
+             "mode:0%o,result:%ld",
+             path_raw ? path_raw : "", normalized ? normalized : "", trimmed ? trimmed : "",
+             mount_point ? mount_point : "", flags, mode, result);
+    trace_record_event(TRACE_ORIGIN_KERNEL, ev);
+}
+
 struct fd *generic_openat(struct fd *at, const char *path_raw, int flags, int mode)
 {
     trace_record_event(TRACE_ORIGIN_KERNEL, "boot.generic_openat.entry");
@@ -46,11 +60,33 @@ struct fd *generic_openat(struct fd *at, const char *path_raw, int flags, int mo
     if (err < 0)
         return ERR_PTR(err);
     trace_record_event(TRACE_ORIGIN_KERNEL, "boot.generic_openat.after_path_normalize");
+    char normalized[MAX_PATH];
+    strncpy(normalized, path, sizeof(normalized));
+    normalized[sizeof(normalized) - 1] = '\0';
     struct mount *mount = find_mount_and_trim_path(path);
     trace_record_event(TRACE_ORIGIN_KERNEL, "boot.generic_openat.after_find_mount");
     trace_record_event(TRACE_ORIGIN_KERNEL, "boot.generic_openat.before_fs_open");
     struct fd *fd = mount->fs->open(mount, path, flags, mode);
     trace_record_event(TRACE_ORIGIN_KERNEL, "boot.generic_openat.after_fs_open");
+    char flags_buf[32];
+    char mode_buf[32];
+    char result_buf[32];
+    snprintf(flags_buf, sizeof(flags_buf), "0x%x", flags);
+    snprintf(mode_buf, sizeof(mode_buf), "0%o", mode);
+    snprintf(result_buf, sizeof(result_buf), "%ld", IS_ERR(fd) ? (long)PTR_ERR(fd) : 0L);
+    trace_attribute_t open_attrs[] = {
+        { .key = "raw", .value = path_raw ? path_raw : "" },
+        { .key = "normalized", .value = normalized },
+        { .key = "trimmed", .value = path },
+        { .key = "mount", .value = mount->point ? mount->point : "" },
+        { .key = "flags", .value = flags_buf },
+        { .key = "mode", .value = mode_buf },
+        { .key = "result", .value = result_buf },
+    };
+    (void)trace_begin_interval(TRACE_ORIGIN_KERNEL, "boot.generic_openat.open", open_attrs,
+                               sizeof(open_attrs) / sizeof(open_attrs[0]));
+    trace_generic_openat_result(path_raw, normalized, path, mount->point, flags, mode,
+                                IS_ERR(fd) ? (long)PTR_ERR(fd) : 0L);
     if (IS_ERR(fd)) {
         // if an error happens after this point, fd_close will release the
         // mount, but right now we need to do it manually
