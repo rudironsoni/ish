@@ -57,6 +57,11 @@ static bool decode_logical_bitmask(unsigned N, unsigned imms, unsigned immr, boo
     return true;
 }
 
+static bool a64_is_advsimd_modified_immediate(uint32_t insn)
+{
+    return (insn & 0x9e000400) == 0x0e000400;
+}
+
 // Main decode entry point
 int a64_decode(uint32_t insn, a64_instr_t *out)
 {
@@ -87,7 +92,8 @@ int a64_decode(uint32_t insn, a64_instr_t *out)
     case A64_DP_REG2: // 0x5 (most register ops)
     case A64_DP_REG3: // 0x6
     case A64_DP_REG4: // 0x7
-        if ((insn & 0xbfe0fc00) == 0x0e000c00 ||
+        if (a64_is_advsimd_modified_immediate(insn) ||
+            (insn & 0xbfe0fc00) == 0x0e000c00 ||
             (insn & 0xbfe0fc00) == 0x0e003c00) {
             out->cat = A64_SIMD;
             return a64_decode_simd_fp(insn, out);
@@ -882,17 +888,18 @@ int a64_decode_simd_fp(uint32_t insn, a64_instr_t *out)
     // AdvSIMD modified immediate. This covers MOVI/MVNI vector constants used
     // by musl to initialize stack FILE objects in vdprintf before terminal
     // output is possible.
-    if ((insn & 0x9e000400) == 0x0e000400) {
+    if (a64_is_advsimd_modified_immediate(insn)) {
         unsigned cmode = bits(insn, 15, 12);
-        unsigned imm8 = bits(insn, 20, 16) << 3 | bits(insn, 7, 5);
-        bool op = bit(insn, 29);
+        unsigned imm8 = (bits(insn, 18, 16) << 5) | bits(insn, 9, 5);
 
         out->cat = A64_SIMD;
         out->subtype = A64_SIMD_MOVI_IMM;
         out->is_vector = true;
         out->Rd = bits(insn, 4, 0);
-        out->imm = op ? (uint8_t)~imm8 : imm8;
-        out->size = (cmode == 14) ? A64_SIZE_W : A64_SIZE_W;
+        out->imm = imm8;
+        out->imm_shift = cmode;
+        out->op = bit(insn, 29);
+        out->size = A64_SIZE_W;
         out->is_64bit = bit(insn, 30);
         return 0;
     }

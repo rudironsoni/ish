@@ -49,6 +49,7 @@ extern tcti_gadget_t gadget_ccmp_fallback;
 extern tcti_gadget_t gadget_div_fallback;
 extern tcti_gadget_t gadget_simd_dup_gpr;
 extern tcti_gadget_t gadget_simd_mov_gpr_from_vec;
+extern tcti_gadget_t gadget_simd_movi_imm;
 extern tcti_gadget_t gadget_simd_ldst;
 extern tcti_gadget_t gadget_atomic_ldst;
 extern tcti_gadget_t gadget_extend_x14;
@@ -1801,6 +1802,24 @@ static int a64_gen_simd(a64_gen_state_t *state, const a64_instr_t *instr)
     int ret;
 
     switch (instr->subtype) {
+    case A64_SIMD_MOVI_IMM:
+        ret = emit_gadget(state, gadget_simd_movi_imm);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rd);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, (uint64_t)instr->imm);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, (uint64_t)instr->imm_shift);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->op ? 1 : 0);
+        if (ret != A64_GEN_OK)
+            return ret;
+        return emit_u64(state, instr->is_64bit ? 1 : 0);
+
     case A64_SIMD_DUP_GPR:
         ret = emit_gadget(state, gadget_simd_dup_gpr);
         if (ret != A64_GEN_OK)

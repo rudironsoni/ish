@@ -153,6 +153,20 @@
                     "SIMD copy setup before fwrite_unlocked calls memcpy");
 }
 
+- (void)testSemanticExecutionContract_MuslVdprintfStackFILEZeroInit
+{
+    XCTAssertEqual(tcti_harness_case_musl_vdprintf_stack_file_zero_init(), 0ULL,
+                   @"TCTI must lower AdvSIMD MOVI/MVNI immediates so musl's stack FILE starts "
+                    "with zeroed buffer pointers before relocation diagnostics reach the PTY");
+}
+
+- (void)testSemanticExecutionContract_MuslStrncmpLibcReservedPrefix
+{
+    XCTAssertEqual(tcti_harness_case_musl_strncmp_libc_reserved_prefix(), 0ULL,
+                   @"TCTI must execute musl strncmp(\"c...\", \"c.\", 2) correctly so ldso can "
+                    "recognize its own libc SONAME while loading BusyBox dependencies");
+}
+
 - (void)testSemanticExecutionContract_ADDImmProducesCorrectResult
 {
     // Contract: ADD_IMM gadget MUST produce correct sum with immediate

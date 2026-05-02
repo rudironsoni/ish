@@ -1112,3 +1112,159 @@ uint64_t tcti_harness_case_musl_snprintf_file_wpos_init(void)
         return 0x2000000000000000ULL | (packed_flags & 0x0fffffffffffffffULL);
     return 0;
 }
+
+uint64_t tcti_harness_case_musl_vdprintf_stack_file_zero_init(void)
+{
+    enum {
+        stack_top = 0x130000,
+        stack_ptr = stack_top - 0x120,
+        file_ptr = stack_ptr + 0x38,
+    };
+
+    struct mem mem;
+    mem_init(&mem);
+    if (pt_map_nothing(&mem, PAGE(stack_ptr), 1, P_READ | P_WRITE) < 0) {
+        mem_destroy(&mem);
+        return UINT64_MAX;
+    }
+
+    struct tlb tlb = {};
+    tlb_refresh(&tlb, &mem.mmu);
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.mmu = &mem.mmu;
+    cpu.tlb = &tlb;
+    cpu.sp = stack_top;
+    cpu.x[0] = 2;
+
+    memset(cpu.vregs[31].b, 0xa5, sizeof(cpu.vregs[31].b));
+
+    static const uint32_t init_file[] = {
+        0xa9ae7bfd, // stp x29, x30, [sp, #-0x120]!
+        0x2a0003e4, // mov w4, w0
+        0x4f00041f, // movi v31.4s, #0x0
+        0x9100e3e0, // add x0, sp, #0x38
+        0x910003fd, // mov x29, sp
+        0xf900701f, // str xzr, [x0, #0xe0]
+        0xad007c1f, // stp q31, q31, [x0]
+        0xad017c1f, // stp q31, q31, [x0, #0x20]
+        0xad027c1f, // stp q31, q31, [x0, #0x40]
+        0xad037c1f, // stp q31, q31, [x0, #0x60]
+        0xad047c1f, // stp q31, q31, [x0, #0x80]
+        0xad057c1f, // stp q31, q31, [x0, #0xa0]
+        0xad067c1f, // stp q31, q31, [x0, #0xc0]
+        0x2f00041f, // mvni v31.2s, #0x0
+        0xfc0c43ff, // stur d31, [sp, #0xc4]
+    };
+
+    if (tcti_harness_run_generated_block(&cpu, 0x57828, init_file,
+                                         sizeof(init_file) / sizeof(init_file[0])) < 0) {
+        mem_destroy(&mem);
+        return UINT64_MAX - 1;
+    }
+
+    uint64_t zero_slots[] = { 0, 0, 0, 0 };
+    uint64_t negative_flags = 0;
+    int ret = A64_MEM_OK;
+    ret |= a64_guest_read64(&cpu, cpu.tlb, file_ptr + 0x20, &zero_slots[0]);
+    ret |= a64_guest_read64(&cpu, cpu.tlb, file_ptr + 0x28, &zero_slots[1]);
+    ret |= a64_guest_read64(&cpu, cpu.tlb, file_ptr + 0xc0, &zero_slots[2]);
+    ret |= a64_guest_read64(&cpu, cpu.tlb, file_ptr + 0xe0, &zero_slots[3]);
+    ret |= a64_guest_read64(&cpu, cpu.tlb, stack_ptr + 0xc4, &negative_flags);
+
+    mem_destroy(&mem);
+
+    if (ret != A64_MEM_OK)
+        return UINT64_MAX - 2;
+    for (size_t i = 0; i < sizeof(zero_slots) / sizeof(zero_slots[0]); i++) {
+        if (zero_slots[i] != 0)
+            return 0x1000000000000000ULL | (i << 48) | (zero_slots[i] & 0xffffffffffffULL);
+    }
+    if (negative_flags != UINT64_MAX)
+        return 0x2000000000000000ULL | (negative_flags & 0x0fffffffffffffffULL);
+    return 0;
+}
+
+uint64_t tcti_harness_case_musl_strncmp_libc_reserved_prefix(void)
+{
+    enum {
+        text_base = 0x5ee64,
+        left_addr = 0x120000,
+        right_addr = 0x121000,
+    };
+
+    static const uint32_t strncmp_insns[] = {
+        0xb40001a2, // cbz x2, 0x5ee98
+        0xd1000442, // sub x2, x2, #0x1
+        0xd2800003, // mov x3, #0x0
+        0x38636804, // ldrb w4, [x0, x3]
+        0x38636825, // ldrb w5, [x1, x3]
+        0x710000bf, // cmp w5, #0x0
+        0x7a451080, // ccmp w4, w5, #0x0, ne
+        0x34000084, // cbz w4, 0x5ee90
+        0xfa430044, // ccmp x2, x3, #0x4, eq
+        0x91000463, // add x3, x3, #0x1
+        0x54ffff21, // b.ne 0x5ee70
+        0x4b050080, // sub w0, w4, w5
+        0xd65f03c0, // ret
+        0x52800000, // mov w0, #0
+        0x17fffffe, // b 0x5ee94
+    };
+
+    struct mem mem;
+    mem_init(&mem);
+    if (pt_map_nothing(&mem, PAGE(left_addr), 1, P_READ | P_WRITE) < 0 ||
+        pt_map_nothing(&mem, PAGE(right_addr), 1, P_READ | P_WRITE) < 0) {
+        mem_destroy(&mem);
+        return UINT64_MAX;
+    }
+
+    struct tlb tlb = {};
+    tlb_refresh(&tlb, &mem.mmu);
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.mmu = &mem.mmu;
+    cpu.tlb = &tlb;
+    cpu.pc = text_base;
+    cpu.x[0] = left_addr;
+    cpu.x[1] = right_addr;
+    cpu.x[2] = 2;
+
+    const char left[] = "c.musl-aarch64.so.1";
+    const char right[] = "c.";
+    for (size_t i = 0; i < sizeof(left); i++) {
+        if (a64_guest_write8(&cpu, &tlb, left_addr + i, (uint8_t)left[i]) != A64_MEM_OK) {
+            mem_destroy(&mem);
+            return UINT64_MAX - 1;
+        }
+    }
+    for (size_t i = 0; i < sizeof(right); i++) {
+        if (a64_guest_write8(&cpu, &tlb, right_addr + i, (uint8_t)right[i]) != A64_MEM_OK) {
+            mem_destroy(&mem);
+            return UINT64_MAX - 1;
+        }
+    }
+
+    for (unsigned step = 0; step < 64; step++) {
+        if (cpu.pc == 0)
+            break;
+        if (cpu.pc < text_base || cpu.pc >= text_base + sizeof(strncmp_insns)) {
+            mem_destroy(&mem);
+            return 0x1000000000000000ULL | cpu.pc;
+        }
+        size_t index = (size_t)((cpu.pc - text_base) / 4);
+        uint64_t old_pc = cpu.pc;
+        if (tcti_harness_run_generated_block(&cpu, cpu.pc, &strncmp_insns[index], 1) < 0) {
+            mem_destroy(&mem);
+            return 0x2000000000000000ULL | old_pc;
+        }
+        if (cpu.pc == old_pc)
+            cpu.pc += 4;
+    }
+
+    uint64_t result = (uint32_t)cpu.x[0];
+    mem_destroy(&mem);
+    return result;
+}

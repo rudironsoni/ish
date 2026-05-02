@@ -1651,13 +1651,16 @@ entry = interp_base + interp_header.entry_point;
 
     // aarch64 musl process startup convention:
     // x0 = sp (pointer to stack with argc/argv/envp/auxv layout)
-    // x1 = _DYNAMIC (pointer to dynamic section, or 0 if not modeled)
+    // x1 = loader _DYNAMIC when entering an interpreter, otherwise the
+    //      executable _DYNAMIC for direct static-pie startup.
     // x2-x7 = 0 (not used for startup)
     // x8 = 0 (syscall number register)
     // TPIDR_EL0 = TCB base (TLS pointer, accessed via system register)
     //
-    // musl _start moves sp into x0, sets x1 to _DYNAMIC, aligns sp,
-    // then calls _start_c(sp) which reads argc from p[0] and argv from p+1
+    // musl ldso startup records x1 as its own dynv before walking auxv to
+    // discover the main executable. Passing the main executable _DYNAMIC here
+    // makes ld-musl relocate against the wrong object and report its own libc
+    // symbols as missing.
 
     // Set up TCB (Thread Control Block) for TLS
     // TLS belongs in TPIDR_EL0, NOT in x3
@@ -1665,8 +1668,9 @@ entry = interp_base + interp_header.entry_point;
     a64_setup_tls_area(&current->cpu, tcb_base);
 
     // Correct AArch64 musl startup: pass stack pointer in x0
-    current->cpu.x[0] = sp;           // Points to argc on stack
-    current->cpu.x[1] = dynamic_addr; // _DYNAMIC - address of PT_DYNAMIC section
+    current->cpu.x[0] = sp; // Points to argc on stack
+    current->cpu.x[1] =
+        interp_name && interp_dynamic_vaddr ? interp_base + interp_dynamic_vaddr : dynamic_addr;
     // x[2-7] already zeroed by a64_cpu_init()
     // x[8-30] also zeroed by a64_cpu_init()
 

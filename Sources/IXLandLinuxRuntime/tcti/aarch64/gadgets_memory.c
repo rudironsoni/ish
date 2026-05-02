@@ -243,6 +243,18 @@ static uint64_t tcti_read_reg_or_zr(struct cpu_state *cpu, int reg)
     return cpu->x[reg];
 }
 
+static uint64_t tcti_replicate16(uint16_t value)
+{
+    uint64_t lane = value;
+    return lane | (lane << 16) | (lane << 32) | (lane << 48);
+}
+
+static uint64_t tcti_replicate32(uint32_t value)
+{
+    uint64_t lane = value;
+    return lane | (lane << 32);
+}
+
 static int tcti_simd_vec_access(struct cpu_state *cpu, uint64_t addr, uint64_t vt,
                                 uint64_t vec_bytes, int is_load)
 {
@@ -307,6 +319,65 @@ __attribute__((used)) static void tcti_simd_dup_gpr_helper(struct cpu_state *cpu
     default:
         break;
     }
+}
+
+static uint64_t tcti_advsimd_modified_immediate64(uint64_t imm8_value, uint64_t cmode,
+                                                  uint64_t op)
+{
+    uint8_t imm8 = (uint8_t)imm8_value;
+
+    if (cmode <= 7) {
+        uint32_t lane = (uint32_t)imm8 << ((cmode >> 1) * 8);
+        if (op)
+            lane = ~lane;
+        return tcti_replicate32(lane);
+    }
+
+    if ((cmode & 0xe) == 8) {
+        uint16_t lane = (uint16_t)imm8 << ((cmode & 1) * 8);
+        if (op)
+            lane = (uint16_t)~lane;
+        return tcti_replicate16(lane);
+    }
+
+    if (cmode == 12 || cmode == 13) {
+        uint32_t lane = cmode == 12 ? (((uint32_t)imm8 << 8) | 0x000000ffu)
+                                    : (((uint32_t)imm8 << 16) | 0x0000ffffu);
+        if (op)
+            lane = ~lane;
+        return tcti_replicate32(lane);
+    }
+
+    if (cmode == 14 && !op) {
+        uint64_t byte = imm8;
+        byte |= byte << 8;
+        byte |= byte << 16;
+        byte |= byte << 32;
+        return byte;
+    }
+
+    if (cmode == 14 && op) {
+        uint64_t lane = 0;
+        for (unsigned bit_index = 0; bit_index < 8; bit_index++) {
+            if (imm8 & (1u << bit_index))
+                lane |= 0xffULL << (bit_index * 8);
+        }
+        return lane;
+    }
+
+    return 0;
+}
+
+__attribute__((used)) static void tcti_simd_movi_imm_helper(struct cpu_state *cpu, uint64_t vd,
+                                                           uint64_t imm8, uint64_t cmode,
+                                                           uint64_t op, uint64_t q)
+{
+    if (vd >= 32)
+        return;
+
+    uint64_t low = tcti_advsimd_modified_immediate64(imm8, cmode, op);
+    cpu->vregs[vd].d[0] = low;
+    cpu->vregs[vd].d[1] = q ? low : 0;
 }
 
 __attribute__((used)) static void tcti_simd_mov_gpr_from_vec_helper(struct cpu_state *cpu,
@@ -4899,6 +4970,43 @@ __attribute__((visibility("default"))) void _tcti_simd_dup_gpr_helper(struct cpu
                                                                        uint64_t vec_bytes)
 {
     tcti_simd_dup_gpr_helper(cpu, vd, rn, vec_bytes);
+}
+
+__attribute__((naked)) void gadget_simd_movi_imm_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t"
+                 "ldr x20, [x28], #8\n\t"
+                 "ldr x21, [x28], #8\n\t"
+                 "ldr x22, [x28], #8\n\t"
+                 "ldr x23, [x28], #8\n\t"
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "stp x13, x14, [x29, #112]\n\t"
+                 "stp x15, x16, [x29, #128]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "mov x2, x20\n\t"
+                 "mov x3, x21\n\t"
+                 "mov x4, x22\n\t"
+                 "mov x5, x23\n\t"
+                 "bl _tcti_simd_movi_imm_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
+tcti_gadget_t gadget_simd_movi_imm = gadget_simd_movi_imm_impl;
+
+__attribute__((visibility("default"))) void
+_tcti_simd_movi_imm_helper(struct cpu_state *cpu, uint64_t vd, uint64_t imm8,
+                           uint64_t cmode, uint64_t op, uint64_t q)
+{
+    tcti_simd_movi_imm_helper(cpu, vd, imm8, cmode, op, q);
 }
 
 __attribute__((naked)) void gadget_simd_mov_gpr_from_vec_impl(void)
