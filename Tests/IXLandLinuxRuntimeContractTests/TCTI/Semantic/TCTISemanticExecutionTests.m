@@ -158,6 +158,13 @@
                     "across the dynamic linker symbol lookup path");
 }
 
+- (void)testSemanticExecutionContract_LDPFirstDestinationPreservesPairBase
+{
+    XCTAssertEqual(tcti_harness_case_ldp_first_destination_preserves_pair_base(), 0ULL,
+                   @"TCTI LDP must compute both pair addresses from the original base even when "
+                    "the first destination register is also the base register");
+}
+
 - (void)testSemanticExecutionContract_DynamicTagScaledStoreUsesFullIndex
 {
     XCTAssertEqual(tcti_harness_case_dynamic_tag_scaled_store_uses_full_index(), 0ULL,

@@ -115,8 +115,6 @@ void linux_start_session(const char *exe, const char *const *argv, const char *e
         goto fail_with_tty;
 
     err = create_stdio(pts_path, TTY_PSEUDO_SLAVE_MAJOR, tty_num);
-    tty_release(tty);
-    tty = NULL;
     if (err < 0)
         goto fail;
 
@@ -140,8 +138,13 @@ void linux_start_session(const char *exe, const char *const *argv, const char *e
     return;
 
 fail_with_tty:
-    tty_release(tty);
+    if (tty != NULL) {
+        tty_release(tty);
+        tty = NULL;
+    }
 fail:
+    if (tty != NULL)
+        tty_release(tty);
     objc_put(terminal);
     done(err, 0, NULL);
 }

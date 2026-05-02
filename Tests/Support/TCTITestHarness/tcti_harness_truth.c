@@ -946,6 +946,57 @@ uint64_t tcti_harness_case_stack_pair_roundtrips_hot_x5_x4(void)
     return result;
 }
 
+uint64_t tcti_harness_case_ldp_first_destination_preserves_pair_base(void)
+{
+    enum {
+        base_ptr = 0x140000,
+        next_ptr = 0x150000,
+    };
+    const uint64_t expected_next = next_ptr;
+    const uint64_t expected_field = 0x2222333344445555ULL;
+    const uint64_t decoy_field = 0x9999aaaabbbbccccULL;
+
+    struct mem mem;
+    mem_init(&mem);
+    if (pt_map_nothing(&mem, PAGE(base_ptr), 1, P_READ | P_WRITE) < 0 ||
+        pt_map_nothing(&mem, PAGE(next_ptr), 1, P_READ | P_WRITE) < 0) {
+        mem_destroy(&mem);
+        return UINT64_MAX;
+    }
+
+    struct tlb tlb = {};
+    tlb_refresh(&tlb, &mem.mmu);
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.mmu = &mem.mmu;
+    cpu.tlb = &tlb;
+    cpu.x[25] = base_ptr;
+    cpu.x[1] = 0x1111111111111111ULL;
+
+    if (a64_guest_write64(&cpu, &tlb, base_ptr, expected_next) != A64_MEM_OK ||
+        a64_guest_write64(&cpu, &tlb, base_ptr + 8, expected_field) != A64_MEM_OK ||
+        a64_guest_write64(&cpu, &tlb, next_ptr + 8, decoy_field) != A64_MEM_OK) {
+        mem_destroy(&mem);
+        return UINT64_MAX - 1;
+    }
+
+    static const uint32_t load_pair[] = {
+        0xa9400739, // ldp x25, x1, [x25]
+    };
+    if (tcti_harness_run_generated_block(&cpu, 0x565b3548, load_pair,
+                                         sizeof(load_pair) / sizeof(load_pair[0])) < 0) {
+        mem_destroy(&mem);
+        return UINT64_MAX - 2;
+    }
+
+    uint64_t result = ((cpu.x[25] == expected_next) ? 0 : 1);
+    result |= ((cpu.x[1] == expected_field) ? 0 : 2);
+
+    mem_destroy(&mem);
+    return result;
+}
+
 uint64_t tcti_harness_case_dynamic_tag_scaled_store_uses_full_index(void)
 {
     enum {

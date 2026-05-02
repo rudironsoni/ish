@@ -1835,15 +1835,35 @@ int a64_gen_ldst(a64_gen_state_t *state, const a64_instr_t *instr)
                              : (instr->pair_offset + (1LL << access_size));
         }
 
-        ret = a64_emit_ldst_single(state, state->guest_pc, instr->Rd, instr->Rn, first_imm,
-                                   access_size, first_mode, 0, 0, 0, 0, 0, bit(instr->raw, 22),
-                                   access_size == A64_SIZE_X);
-        if (ret != A64_GEN_OK)
-            return ret;
+        bool is_load = bit(instr->raw, 22);
+        bool load_first_destination_overlaps_base =
+            is_load && instr->idx_mode == A64_INDEX_OFFSET && instr->Rd == instr->Rn;
 
-        ret = a64_emit_ldst_single(state, state->guest_pc, instr->Rm, instr->Rn, second_imm,
-                                   access_size, second_mode, 0, 0, 0, 0, 0, bit(instr->raw, 22),
-                                   access_size == A64_SIZE_X);
+        // Pair addressing uses the original base register for both elements.
+        // If the first load destination is also the base, emit the independent
+        // second element first so the second address is not computed from the
+        // newly loaded first value.
+        if (load_first_destination_overlaps_base) {
+            ret = a64_emit_ldst_single(state, state->guest_pc, instr->Rm, instr->Rn, second_imm,
+                                       access_size, second_mode, 0, 0, 0, 0, 0, is_load,
+                                       access_size == A64_SIZE_X);
+            if (ret != A64_GEN_OK)
+                return ret;
+
+            ret = a64_emit_ldst_single(state, state->guest_pc, instr->Rd, instr->Rn, first_imm,
+                                       access_size, first_mode, 0, 0, 0, 0, 0, is_load,
+                                       access_size == A64_SIZE_X);
+        } else {
+            ret = a64_emit_ldst_single(state, state->guest_pc, instr->Rd, instr->Rn, first_imm,
+                                       access_size, first_mode, 0, 0, 0, 0, 0, is_load,
+                                       access_size == A64_SIZE_X);
+            if (ret != A64_GEN_OK)
+                return ret;
+
+            ret = a64_emit_ldst_single(state, state->guest_pc, instr->Rm, instr->Rn, second_imm,
+                                       access_size, second_mode, 0, 0, 0, 0, 0, is_load,
+                                       access_size == A64_SIZE_X);
+        }
         if (ret != A64_GEN_OK)
             return ret;
 

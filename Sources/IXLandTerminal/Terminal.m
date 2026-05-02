@@ -331,6 +331,8 @@ void Terminal_releaseBoundTTYData(nsobj_t terminal) {
     [ISHInstrumentation recordEvent:@"terminal.before_tty_input"];
     if (linuxTTY != NULL)
         linuxTTY->ops->send_input(linuxTTY, input.bytes, input.length);
+    else if (self.tty->type == TTY_PSEUDO_MASTER_MAJOR && self.tty->driver->ops->write != NULL)
+        self.tty->driver->ops->write(self.tty, input.bytes, input.length, false);
     else
         tty_input(self.tty, input.bytes, input.length, 0);
     [ISHInstrumentation recordEvent:@"terminal.after_tty_input"];
