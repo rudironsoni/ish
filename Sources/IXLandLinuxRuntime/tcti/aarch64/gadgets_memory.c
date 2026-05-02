@@ -5100,6 +5100,33 @@ __attribute__((naked)) void gadget_nop_impl(void)
 
 tcti_gadget_t gadget_nop = gadget_nop_impl;
 
+__attribute__((naked)) void gadget_dmb_impl(void)
+{
+    asm volatile("dmb ish\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
+tcti_gadget_t gadget_dmb = gadget_dmb_impl;
+
+__attribute__((naked)) void gadget_dsb_impl(void)
+{
+    asm volatile("dsb sy\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
+tcti_gadget_t gadget_dsb = gadget_dsb_impl;
+
+__attribute__((naked)) void gadget_isb_impl(void)
+{
+    asm volatile("isb\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
+tcti_gadget_t gadget_isb = gadget_isb_impl;
+
 __attribute__((naked)) void gadget_pc_advance_impl(void)
 {
     asm volatile("ldr x0, [x28], #8\n\t"

@@ -29,6 +29,9 @@ extern const tcti_gadget_t gadget_cbnz_xreg[16];
 extern const tcti_gadget_t gadget_bcond[16];
 extern tcti_gadget_t gadget_sysreg_unsupported;
 extern tcti_gadget_t gadget_pc_advance;
+extern tcti_gadget_t gadget_isb;
+extern tcti_gadget_t gadget_dsb;
+extern tcti_gadget_t gadget_dmb;
 extern void gadget_csel_eq_0_1_2(void);
 extern void gadget_csel_ne_0_1_2(void);
 extern void gadget_csel_cs_0_1_2(void);
@@ -49,6 +52,7 @@ extern tcti_gadget_t gadget_simd_mov_gpr_from_vec;
 extern tcti_gadget_t gadget_simd_ldst;
 extern tcti_gadget_t gadget_atomic_ldst;
 extern tcti_gadget_t gadget_extend_x14;
+extern void gadget_br_impl(void);
 
 // Map guest registers 0-15 to our pre-generated gadget tables
 // Registers 16-30 and sp are handled differently (in memory)
@@ -1517,7 +1521,7 @@ int a64_gen_branch(a64_gen_state_t *state, const a64_instr_t *instr)
 
     case 5: // Branch register (BR/BLR/RET)
     {
-        ret = emit_gadget(state, gadget_br);
+        ret = emit_gadget(state, (tcti_gadget_t)gadget_br_impl);
         if (ret != A64_GEN_OK)
             return ret;
 
@@ -1851,7 +1855,7 @@ int a64_gen_system(a64_gen_state_t *state, const a64_instr_t *instr)
             return ret;
         state->is_complete = 1;
         return A64_GEN_OK;
-    case 2: // MRS
+    case A64_SYSTEM_MRS:
         if (a64_sysreg_route_for_access((uint16_t)instr->sysreg, 0) ==
             A64_SYSREG_ROUTE_UNSUPPORTED) {
             state->is_complete = 1;
@@ -1864,7 +1868,7 @@ int a64_gen_system(a64_gen_state_t *state, const a64_instr_t *instr)
         if (ret != A64_GEN_OK)
             return ret;
         return emit_u64(state, instr->Rd);
-    case 4: // MSR (reg)
+    case A64_SYSTEM_MSR_REG:
         if (a64_sysreg_route_for_access((uint16_t)instr->sysreg, 1) ==
             A64_SYSREG_ROUTE_UNSUPPORTED) {
             state->is_complete = 1;
@@ -1877,7 +1881,18 @@ int a64_gen_system(a64_gen_state_t *state, const a64_instr_t *instr)
         if (ret != A64_GEN_OK)
             return ret;
         return emit_u64(state, instr->Rd);
-    case 6: // HINT (NOP, YIELD, etc.)
+    case A64_SYSTEM_BARRIER:
+        switch (instr->op) {
+        case 4:
+            return emit_gadget(state, gadget_dsb);
+        case 5:
+            return emit_gadget(state, gadget_dmb);
+        case 6:
+            return emit_gadget(state, gadget_isb);
+        default:
+            return A64_GEN_UNSUPPORTED;
+        }
+    case A64_SYSTEM_HINT:
         if (instr->imm == 0) {
             return emit_gadget(state, gadget_nop);
         }
@@ -1930,13 +1945,7 @@ int a64_gen_instruction(a64_gen_state_t *state, uint32_t insn, uint64_t pc)
 
     case A64_BRANCH:
     case A64_BRANCH2:
-        // System instructions (SVC, HVC, SMC, hints, barriers) have subtypes 0-1
-        // Branch instructions (CBZ, CBNZ, TBZ, TBNZ, B, B.cond) have subtypes 2-6
-        if (decoded.subtype == A64_EXCEPTION || decoded.subtype == 6) {
-            ret = a64_gen_system(state, &decoded);
-        } else {
-            ret = a64_gen_branch(state, &decoded);
-        }
+        ret = a64_gen_branch(state, &decoded);
         break;
 
     case A64_LD_ST:

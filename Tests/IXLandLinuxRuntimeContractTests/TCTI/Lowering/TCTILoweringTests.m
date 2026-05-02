@@ -27,6 +27,7 @@ typedef struct a64_gen_state {
 int a64_gen_init(a64_gen_state_t *state, tcti_gadget_t *buffer, size_t max);
 void a64_gen_reset(a64_gen_state_t *state, uint64_t pc);
 int a64_gen_instruction(a64_gen_state_t *state, uint32_t insn, uint64_t pc);
+extern void gadget_br_impl(void);
 
 // TCTI.Lowering Contract Tests
 // Tests for stage [3] LOWERING: semantic op -> gadget chain plan
@@ -67,6 +68,53 @@ int a64_gen_instruction(a64_gen_state_t *state, uint32_t insn, uint64_t pc);
     uint32_t subSpSpX0Uxtx = 0xcb2063ff;
     XCTAssertEqual(a64_gen_instruction(&state, subSpSpX0Uxtx, 0x6d2b8), A64_GEN_OK);
     XCTAssertGreaterThan(state.num_gadgets, (size_t)0);
+}
+
+- (void)testLoweringContract_AArch64BarriersDecodeAndLower
+{
+    struct {
+        uint32_t raw;
+        uint8_t op;
+    } barriers[] = {
+        {0xd5033f9f, 4}, // DSB SY
+        {0xd5033bbf, 5}, // DMB ISH
+        {0xd5033fdf, 6}, // ISB SY
+    };
+
+    for (size_t i = 0; i < sizeof(barriers) / sizeof(barriers[0]); i++) {
+        a64_instr_t decoded;
+        XCTAssertEqual(a64_decode(barriers[i].raw, &decoded), 0);
+        XCTAssertEqual(decoded.subtype, A64_SYSTEM_BARRIER);
+        XCTAssertEqual(decoded.op, barriers[i].op);
+
+        tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
+        a64_gen_state_t state;
+        XCTAssertEqual(a64_gen_init(&state, gadgets, A64_MAX_GADGETS_PER_BLOCK), A64_GEN_OK);
+        a64_gen_reset(&state, 0x190e8);
+
+        XCTAssertEqual(a64_gen_instruction(&state, barriers[i].raw, 0x190e8), A64_GEN_OK);
+        XCTAssertGreaterThan(state.num_gadgets, (size_t)0);
+    }
+}
+
+- (void)testLoweringContract_BRMemoryBackedX16Lowers
+{
+    uint32_t brX16 = 0xd61f0200;
+    a64_instr_t decoded;
+    XCTAssertEqual(a64_decode(brX16, &decoded), 0);
+    XCTAssertEqual(decoded.cat, A64_BRANCH2);
+    XCTAssertEqual(decoded.subtype, A64_BRANCH_REG);
+    XCTAssertEqual(decoded.Rn, 16);
+    XCTAssertNotEqual((uintptr_t)gadget_br_impl, (uintptr_t)0);
+
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
+    a64_gen_state_t state;
+    XCTAssertEqual(a64_gen_init(&state, gadgets, A64_MAX_GADGETS_PER_BLOCK), A64_GEN_OK);
+    a64_gen_reset(&state, 0x69800);
+
+    XCTAssertEqual(a64_gen_instruction(&state, brX16, 0x69800), A64_GEN_OK);
+    XCTAssertGreaterThan(state.num_gadgets, (size_t)0);
+    XCTAssertTrue(state.is_complete);
 }
 
 - (void)testLoweringContract_CBZMemoryBackedRegisterLowers

@@ -957,12 +957,22 @@ int a64_decode_simd_fp(uint32_t insn, a64_instr_t *out)
 // System instructions (SVC, MRS, MSR, barriers, hints)
 int a64_decode_system(uint32_t insn, a64_instr_t *out)
 {
+    // Barriers: DSB/DMB/ISB. These are architecturally required userspace
+    // instructions on AArch64 and must lower through TCTI as ordering gadgets.
+    if ((insn & 0xFFFFF01F) == 0xD503301F) {
+        unsigned op2 = bits(insn, 7, 5);
+        if (op2 >= 4 && op2 <= 6) {
+            out->op = op2;
+            out->imm = bits(insn, 11, 8);
+            out->subtype = A64_SYSTEM_BARRIER;
+            return 0;
+        }
+    }
+
     // HINT instructions (NOP, YIELD, WFE, WFI, SEV, etc.)
-    // HINT encoding: bits 31:20 = 1101 0101 0000 (0xD50), CRm varies, op2=0, Rt=31
-    // Base pattern: 0xD503201F = NOP (CRm=0)
-    // The only variable part is CRm (bits 11:8) for different hint types
+    // Base pattern: 0xD503201F = NOP.
     if ((insn & 0xFFFFF01F) == 0xD503201F) {
-        out->subtype = 6;             // HINT
+        out->subtype = A64_SYSTEM_HINT;
         out->imm = bits(insn, 11, 8); // CRm field selects hint type
         return 0;
     }
@@ -996,7 +1006,7 @@ int a64_decode_system(uint32_t insn, a64_instr_t *out)
         int sysreg = bits(insn, 19, 5);
         out->Rd = Rt;
         out->sysreg = sysreg;
-        out->subtype = 2; // MRS
+        out->subtype = A64_SYSTEM_MRS;
         return 0;
     }
 
@@ -1007,7 +1017,7 @@ int a64_decode_system(uint32_t insn, a64_instr_t *out)
         int imm = bits(insn, 4, 0);
         out->op = op1;
         out->imm = imm;
-        out->subtype = 3; // MSR (imm)
+        out->subtype = A64_SYSTEM_MSR_IMM;
         return 0;
     }
 
@@ -1016,20 +1026,8 @@ int a64_decode_system(uint32_t insn, a64_instr_t *out)
         int sysreg = bits(insn, 19, 5);
         out->Rd = Rt;
         out->sysreg = sysreg;
-        out->subtype = 4; // MSR (reg)
+        out->subtype = A64_SYSTEM_MSR_REG;
         return 0;
-    }
-
-    // System instructions (hint, barriers, etc.)
-    // ISB/DSB/DMB barriers: bits 31:20 = 0xD50, CRn=3 (bits 15:12), CRm varies
-    // Pattern: 0xD50xx020 where xx encodes the barrier type
-    if ((insn & 0xFFF00020) == 0xD5000020) {
-        // ISB/DSB/DMB - bits 15:12 = CRn=3 for barriers
-        if (bits(insn, 15, 12) == 3) {
-            out->imm = bits(insn, 11, 8); // CRm
-            out->subtype = 5;             // barriers
-            return 0;
-        }
     }
 
     return -1;

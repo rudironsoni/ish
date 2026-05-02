@@ -70,6 +70,14 @@ typedef enum {
     A64_EXCEPTION = 7,       // Exception generation
 } a64_branch_subtype_t;
 
+typedef enum {
+    A64_SYSTEM_MRS = 2,
+    A64_SYSTEM_MSR_IMM = 3,
+    A64_SYSTEM_MSR_REG = 4,
+    A64_SYSTEM_BARRIER = 5,
+    A64_SYSTEM_HINT = 6,
+} a64_system_subtype_t;
+
 /* Subcategories for Loads and Stores */
 typedef enum {
     A64_LDST_SINGLE = 4,     // Load/store single (unscaled, immediate, etc.)
