@@ -303,6 +303,19 @@ static void task_cpu_run_checkpoint(const char *name, struct task *task)
 static struct pid pids[MAX_PID + 1] = {};
 lock_t pids_lock = LOCK_INITIALIZER;
 
+static void task_copy_fork_cpu_state(struct cpu_state *dst, const struct cpu_state *src)
+{
+    dst->cycle = src->cycle;
+    memcpy(dst->x, src->x, sizeof(dst->x));
+    dst->sp = src->sp;
+    dst->pc = src->pc;
+    dst->pstate = src->pstate;
+    memcpy(dst->vregs, src->vregs, sizeof(dst->vregs));
+    dst->fpcr = src->fpcr;
+    dst->fpsr = src->fpsr;
+    dst->tpidr_el0 = src->tpidr_el0;
+}
+
 static bool pid_empty(struct pid *pid)
 {
     return pid->task == NULL && list_empty(&pid->session) && list_empty(&pid->pgroup);
@@ -351,8 +364,10 @@ struct task *task_create_(struct task *parent)
     list_init(&pid->pgroup);
 
     struct task *task = malloc(sizeof(struct task));
-    if (task == NULL)
+    if (task == NULL) {
+        unlock(&pids_lock);
         return NULL;
+    }
     trace_emit_task_create(pid->id, parent ? parent->pid : 0);
 
     // STEP 1: Zero-initialize the entire task structure
@@ -403,11 +418,26 @@ struct task *task_create_(struct task *parent)
 
         // VDSO trampoline - inherited
         task->vdso_sigtramp = parent->vdso_sigtramp;
+
+        task_copy_fork_cpu_state(&task->cpu, &parent->cpu);
     }
 
     // STEP 3: Freshly initialize all runtime-owned fields
 
-    // CPU state - zero-initialized above, will be set by caller
+    // CPU memory binding is set by copy_task()/init through task_set_mm().
+    task->cpu.mmu = NULL;
+    task->cpu.tlb = NULL;
+    task->cpu.exec_ctx = NULL;
+    task->cpu.poked_ptr = NULL;
+    task->cpu._poked = false;
+    task->cpu.fault_addr = 0;
+    task->cpu.fault_was_write = false;
+    task->cpu.trapno = 0;
+    task->cpu.tcti_exit_reason = 0;
+    task->cpu.exclusive_addr = 0;
+    task->cpu.exclusive_size = 0;
+    task->cpu.exclusive_valid = 0;
+
     // MM and mem - MUST be NULL initially, caller must use task_set_mm()
     task->mm = NULL;
     task->mem = NULL;
@@ -734,7 +764,7 @@ void task_start(struct task *task)
     task_start_validation_checkpoint("task.proof.before_pthread", task);
 
     int pthread_err = pthread_create(&task->thread, &task_thread_attr, task_thread, task);
-    if (pthread_err < 0)
+    if (pthread_err != 0)
         die("could not create thread");
 
     // PROOF POINT #3: Right after pthread_create returns
