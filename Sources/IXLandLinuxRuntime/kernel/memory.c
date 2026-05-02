@@ -349,11 +349,89 @@ void *mem_ptr(struct mem *mem, addr_t addr, int type)
     page_t page = PAGE(addr);
 
     struct page_desc *desc = page_map_lookup(&mem->pages, page);
-    if (!desc)
-        return NULL;
+    if (!desc) {
+        struct vm_area *grow = NULL;
+        for (struct vm_area *vma = mem->vmas.head; vma; vma = vma->next) {
+            if (vma->start > addr) {
+                grow = vma;
+                break;
+            }
+        }
+        if (!grow || !(grow->flags & P_GROWSDOWN))
+            return NULL;
+        unsigned grow_flags = grow->flags;
 
-    if (type == MEM_WRITE && !P_WRITABLE(desc->flags))
-        return NULL;
+        read_wrunlock(&mem->lock);
+        write_wrlock(&mem->lock);
+
+        if (!page_map_lookup(&mem->pages, page)) {
+            unsigned flags = grow_flags;
+            if (!(flags & P_WRITE))
+                flags |= P_WRITE;
+            (void)pt_map_nothing(mem, page, 1, flags);
+        }
+
+        write_wrunlock(&mem->lock);
+        read_wrlock(&mem->lock);
+
+        desc = page_map_lookup(&mem->pages, page);
+        if (!desc)
+            return NULL;
+    }
+
+    if (type == MEM_WRITE || type == MEM_WRITE_PTRACE) {
+        if (type != MEM_WRITE_PTRACE && !(desc->flags & P_WRITE))
+            return NULL;
+
+        if (type == MEM_WRITE_PTRACE && !(desc->flags & P_WRITE)) {
+            read_wrunlock(&mem->lock);
+            write_wrlock(&mem->lock);
+            desc = page_map_lookup(&mem->pages, page);
+            if (desc)
+                desc->flags |= P_WRITE | P_COW;
+            mem_bump_generation(mem);
+            write_wrunlock(&mem->lock);
+            read_wrlock(&mem->lock);
+            desc = page_map_lookup(&mem->pages, page);
+            if (!desc)
+                return NULL;
+        }
+
+        if (desc->flags & P_COW) {
+            void *guest_ptr = (char *)desc->obj->host_base + desc->offset;
+            void *host_base = (void *)HOST_ROUND_DOWN((uintptr_t)guest_ptr);
+            size_t host_off = (uintptr_t)guest_ptr - (uintptr_t)host_base;
+            unsigned flags = desc->flags & ~P_COW;
+            void *copy = mmap(NULL, real_page_size, PROT_READ | PROT_WRITE,
+                              MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+            if (copy == MAP_FAILED)
+                return NULL;
+            memcpy(copy, host_base, real_page_size);
+
+            read_wrunlock(&mem->lock);
+            write_wrlock(&mem->lock);
+
+            desc = page_map_lookup(&mem->pages, page);
+            if (desc && (desc->flags & P_COW)) {
+                (void)pt_map(mem, page, 1, copy, host_off, flags);
+                copy = MAP_FAILED;
+            }
+
+            write_wrunlock(&mem->lock);
+            read_wrlock(&mem->lock);
+
+            if (copy != MAP_FAILED)
+                munmap(copy, real_page_size);
+
+            desc = page_map_lookup(&mem->pages, page);
+            if (!desc)
+                return NULL;
+        }
+
+        struct task *task = current;
+        if (task && task->cpu.mmu && task->cpu.mmu->block_cache)
+            a64_cache_invalidate_all(task->cpu.mmu->block_cache);
+    }
 
     if (desc->obj->kind == MEM_OBJ_SPECIAL)
         return NULL;
@@ -400,7 +478,15 @@ void mem_coredump(struct mem *mem, const char *file)
 static void *mem_mmu_translate(struct mmu *mmu, addr_t addr, int type)
 {
     struct mem *mem = container_of(mmu, struct mem, mmu);
-    return mem_ptr(mem, addr, type);
+    page_t page = PAGE(addr);
+    struct page_desc *desc = page_map_lookup(&mem->pages, page);
+    if (!desc)
+        return NULL;
+    if (type == MEM_WRITE && !P_WRITABLE(desc->flags))
+        return NULL;
+    if (desc->obj->kind == MEM_OBJ_SPECIAL)
+        return NULL;
+    return (char *)desc->obj->host_base + desc->offset + PGOFFSET(addr);
 }
 
 static struct mmu_ops mem_mmu_ops = {
