@@ -1037,3 +1037,78 @@ uint64_t tcti_harness_case_relocation_fault_path_uses_loaded_x5(void)
     mem_destroy(&mem);
     return result;
 }
+
+uint64_t tcti_harness_case_musl_snprintf_file_wpos_init(void)
+{
+    enum {
+        stack_top = 0x130000,
+        stack_ptr = stack_top - 0x100,
+        expected_wpos = stack_top,
+    };
+
+    struct mem mem;
+    mem_init(&mem);
+    if (pt_map_nothing(&mem, PAGE(stack_ptr), 1, P_READ | P_WRITE) < 0) {
+        mem_destroy(&mem);
+        return UINT64_MAX;
+    }
+
+    struct tlb tlb = {};
+    tlb_refresh(&tlb, &mem.mmu);
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.mmu = &mem.mmu;
+    cpu.tlb = &tlb;
+    cpu.sp = stack_top;
+
+    static const uint32_t init_file[] = {
+        0xa9b07bfd, // stp x29, x30, [sp, #-0x100]!
+        0x910003fd, // mov x29, sp
+        0xa90d0fe2, // stp x2, x3, [sp, #0xd0]
+        0x910403e2, // add x2, sp, #0x100
+        0xa9030be2, // stp x2, x2, [sp, #0x30]
+        0x910343e2, // add x2, sp, #0xd0
+        0x3dc00fff, // ldr q31, [sp, #0x30]
+        0xf90023e2, // str x2, [sp, #0x40]
+        0x128005e2, // mov w2, #-0x30
+        0xb9004be2, // str w2, [sp, #0x48]
+        0x12800fe2, // mov w2, #-0x80
+        0xb9004fe2, // str w2, [sp, #0x4c]
+        0x3d8007ff, // str q31, [sp, #0x10]
+        0x910043e2, // add x2, sp, #0x10
+        0x3dc013ff, // ldr q31, [sp, #0x40]
+        0xa90e17e4, // stp x4, x5, [sp, #0xe0]
+        0xa90f1fe6, // stp x6, x7, [sp, #0xf0]
+        0xad0287e0, // stp q0, q1, [sp, #0x50]
+        0xad038fe2, // stp q2, q3, [sp, #0x70]
+        0xad0497e4, // stp q4, q5, [sp, #0x90]
+        0xad059fe6, // stp q6, q7, [sp, #0xb0]
+        0x3d80045f, // str q31, [x2, #0x10]
+    };
+
+    if (tcti_harness_run_generated_block(&cpu, 0x55a1c, init_file,
+                                         sizeof(init_file) / sizeof(init_file[0])) < 0) {
+        mem_destroy(&mem);
+        return UINT64_MAX - 1;
+    }
+
+    uint64_t wpos = 0;
+    uint64_t copied_rpos = 0;
+    uint64_t packed_flags = 0;
+    int ret1 = a64_guest_read64(&cpu, cpu.tlb, stack_ptr + 0x38, &wpos);
+    int ret2 = a64_guest_read64(&cpu, cpu.tlb, stack_ptr + 0x18, &copied_rpos);
+    int ret3 = a64_guest_read64(&cpu, cpu.tlb, stack_ptr + 0x48, &packed_flags);
+
+    mem_destroy(&mem);
+
+    if (ret1 != A64_MEM_OK || ret2 != A64_MEM_OK || ret3 != A64_MEM_OK)
+        return UINT64_MAX - 2;
+    if (wpos != expected_wpos)
+        return wpos;
+    if (copied_rpos != expected_wpos)
+        return 0x1000000000000000ULL | copied_rpos;
+    if (packed_flags != 0xffffff80ffffffd0ULL)
+        return 0x2000000000000000ULL | (packed_flags & 0x0fffffffffffffffULL);
+    return 0;
+}

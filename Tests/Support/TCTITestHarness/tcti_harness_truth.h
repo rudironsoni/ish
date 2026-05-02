@@ -42,6 +42,7 @@ uint64_t tcti_harness_case_dynamic_tag_scaled_store_uses_full_index(void);
 uint64_t tcti_harness_case_pltrel_rela_stride_selector(void);
 uint64_t tcti_harness_case_relocation_loop_preserves_loaded_x5(void);
 uint64_t tcti_harness_case_relocation_fault_path_uses_loaded_x5(void);
+uint64_t tcti_harness_case_musl_snprintf_file_wpos_init(void);
 
 #ifdef __cplusplus
 }

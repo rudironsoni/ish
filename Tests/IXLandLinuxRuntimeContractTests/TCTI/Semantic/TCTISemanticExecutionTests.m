@@ -146,6 +146,13 @@
                     "into the final register-offset relocation load");
 }
 
+- (void)testSemanticExecutionContract_MuslSnprintfFILEWposInit
+{
+    XCTAssertEqual(tcti_harness_case_musl_snprintf_file_wpos_init(), 0ULL,
+                   @"TCTI must preserve musl's stack FILE wpos initialization across STP and "
+                    "SIMD copy setup before fwrite_unlocked calls memcpy");
+}
+
 - (void)testSemanticExecutionContract_ADDImmProducesCorrectResult
 {
     // Contract: ADD_IMM gadget MUST produce correct sum with immediate

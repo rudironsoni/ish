@@ -90,6 +90,7 @@ typedef enum {
 typedef enum {
     A64_SIMD_DUP_GPR = 1,        // DUP vector element from general register
     A64_SIMD_MOV_GPR_FROM_VEC = 2, // UMOV/MOV general register from vector element
+    A64_SIMD_MOVI_IMM = 3,       // MOVI/MVNI vector modified immediate
 } a64_simd_subtype_t;
 
 /* Indexing modes for load/store */

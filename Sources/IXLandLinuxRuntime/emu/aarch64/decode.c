@@ -879,6 +879,24 @@ int a64_decode_simd_fp(uint32_t insn, a64_instr_t *out)
 {
     int op0 = bits(insn, 28, 25);
 
+    // AdvSIMD modified immediate. This covers MOVI/MVNI vector constants used
+    // by musl to initialize stack FILE objects in vdprintf before terminal
+    // output is possible.
+    if ((insn & 0x9e000400) == 0x0e000400) {
+        unsigned cmode = bits(insn, 15, 12);
+        unsigned imm8 = bits(insn, 20, 16) << 3 | bits(insn, 7, 5);
+        bool op = bit(insn, 29);
+
+        out->cat = A64_SIMD;
+        out->subtype = A64_SIMD_MOVI_IMM;
+        out->is_vector = true;
+        out->Rd = bits(insn, 4, 0);
+        out->imm = op ? (uint8_t)~imm8 : imm8;
+        out->size = (cmode == 14) ? A64_SIZE_W : A64_SIZE_W;
+        out->is_64bit = bit(insn, 30);
+        return 0;
+    }
+
     if ((insn & 0xbfe0fc00) == 0x0e000c00) {
         int imm5 = bits(insn, 20, 16);
         if (imm5 == 0)
