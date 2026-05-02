@@ -177,7 +177,7 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 }
 #endif
 
-@interface TerminalViewController () <UIGestureRecognizerDelegate>
+@interface TerminalViewController ()
 
 @property UITapGestureRecognizer *tapRecognizer;
 @property (weak, nonatomic) IBOutlet TerminalView *termView;
@@ -364,19 +364,12 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
     self.view.accessibilityIdentifier = @"TerminalViewController";
     
     self.tapRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleTerminalTap:)];
-    self.tapRecognizer.delegate = self;
     self.tapRecognizer.cancelsTouchesInView = NO;
     [self.view addGestureRecognizer:self.tapRecognizer];
 
+    self.bottomConstraint.constant = 0;
+
     NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
-    [center addObserver:self
-               selector:@selector(keyboardDidSomething:)
-                   name:UIKeyboardWillChangeFrameNotification
-                 object:nil];
-    [center addObserver:self
-               selector:@selector(keyboardDidSomething:)
-                   name:UIKeyboardDidChangeFrameNotification
-                 object:nil];
     [center addObserver:self
                selector:@selector(_updateBadge)
                    name:FsUpdatedNotification
@@ -436,12 +429,16 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 
 - (void)viewDidAppear:(BOOL)animated {
     [super viewDidAppear:animated];
-    [self.termView becomeFirstResponder];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self.termView becomeFirstResponder];
+    });
 }
 
 - (void)handleTerminalTap:(UITapGestureRecognizer *)recognizer {
     if (recognizer.state == UIGestureRecognizerStateEnded) {
-        [self.termView becomeFirstResponder];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self.termView becomeFirstResponder];
+        });
     }
 }
 
@@ -1007,44 +1004,8 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 }
 
 - (void)keyboardDidSomething:(NSNotification *)notification {
-    if (self.ignoreKeyboardMotion)
-        return;
-
-    CGRect screenKeyboardFrame = [notification.userInfo[UIKeyboardFrameEndUserInfoKey] CGRectValue];
-    UIScreen *screen = UIScreen.mainScreen;
-    // notification.object is nil before iOS 16.1 and the correct UIScreen after iOS 16.1
-    if (notification.object != nil)
-        screen = notification.object;
-    CGRect keyboardFrame = [self.view convertRect:screenKeyboardFrame fromCoordinateSpace:screen.coordinateSpace];
-    if (CGRectEqualToRect(keyboardFrame, CGRectZero))
-        return;
-    CGRect intersection = CGRectIntersection(keyboardFrame, self.view.bounds);
-    keyboardFrame = intersection;
-    self.hasExternalKeyboard = keyboardFrame.size.height < 100;
-    CGFloat pad = CGRectGetMaxY(self.view.bounds) - CGRectGetMinY(keyboardFrame);
-    // The keyboard appears to be undocked. This means it can either be split or
-    // truly floating. In the former case we want to keep the pad, but in the
-    // latter we should fall back to the input accessory view instead of the
-    // keyboard.
-    if (pad != keyboardFrame.size.height && keyboardFrame.size.width != UIScreen.mainScreen.bounds.size.width) {
-        pad = MAX(self.view.safeAreaInsets.bottom, self.termView.inputAccessoryView.frame.size.height);
-    }
-    self.bottomConstraint.constant = pad;
-
-    BOOL initialLayout = self.termView.needsUpdateConstraints;
-    [self.view setNeedsUpdateConstraints];
-    if (!initialLayout) {
-        // if initial layout hasn't happened yet, the terminal view is going to be at a really weird place, so animating it is going to look really bad
-        NSNumber *interval = notification.userInfo[UIKeyboardAnimationDurationUserInfoKey];
-        NSNumber *curve = notification.userInfo[UIKeyboardAnimationCurveUserInfoKey];
-        [UIView animateWithDuration:interval.doubleValue
-                              delay:0
-                            options:curve.integerValue << 16
-                         animations:^{
-                             [self.view layoutIfNeeded];
-                         }
-                         completion:nil];
-    }
+    (void) notification;
+    self.bottomConstraint.constant = 0;
 }
 
 - (void)setHasExternalKeyboard:(BOOL)hasExternalKeyboard {
@@ -1231,10 +1192,6 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 
 - (BOOL)accessibilityActivate {
     return [self.termView becomeFirstResponder];
-}
-
-- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch {
-    return YES;
 }
 
 // Controller must not create window-level synthetic accessibility proxies.

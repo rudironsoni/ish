@@ -215,7 +215,7 @@ void Terminal_releaseBoundTTYData(nsobj_t terminal) {
         return NO;
     }
     self.focusRequestedBeforeLoad = NO;
-    return [self.webView becomeFirstResponder];
+    return [self.ghosttyTerminal focus];
 }
 
 - (void)updateFontSize:(CGFloat)fontSize {

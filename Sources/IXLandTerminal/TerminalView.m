@@ -238,7 +238,7 @@ struct rowcol {
     // installTerminalView: no logging in production/test code
     UIView *superview = self.terminal.webView.superview;
     if (superview != nil) {
-        NSAssert(superview == self.scrollbarView, @"installing terminal that is already installed elsewhere");
+        NSAssert(superview == self, @"installing terminal that is already installed elsewhere");
         return;
     }
 
@@ -251,8 +251,9 @@ struct rowcol {
     self.scrollbarView.backgroundColor = backgroundColor;
     terminalView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
 
-    self.scrollbarView.contentView = terminalView;
-    [self.scrollbarView addSubview:terminalView];
+    self.scrollbarView.contentView = nil;
+    [self addSubview:terminalView];
+    [self bringSubviewToFront:terminalView];
 }
 
 - (void)uninstallTerminalView {
@@ -262,7 +263,7 @@ struct rowcol {
 
     // remove old terminal
     UIView *superview = _terminal.webView.superview;
-    if (superview != self.scrollbarView) {
+    if (superview != self) {
         NSAssert(superview == nil, @"uninstalling terminal that is installed elsewhere");
         return;
     }
@@ -314,6 +315,8 @@ struct rowcol {
         self.uiTestInputField.enabled = YES;
         return [self.uiTestInputField becomeFirstResponder];
     }
+
+    self.terminalFocused = YES;
     BOOL focused = [super becomeFirstResponder];
     _terminalFocused = focused;
     [self reloadInputViews];

@@ -4,31 +4,64 @@ import GhosttyTerminal
 
 private final class IXLandGhosttyTerminalContainerView: UIView {
     let terminalView: GhosttyTerminal.TerminalView
+    private var focusTapRecognizer: UITapGestureRecognizer?
 
     init(terminalView: GhosttyTerminal.TerminalView) {
         self.terminalView = terminalView
         super.init(frame: .zero)
         backgroundColor = UIColor(red: 0x21 / 255.0, green: 0x21 / 255.0, blue: 0x21 / 255.0, alpha: 1.0)
         isOpaque = true
+        terminalView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(terminalView)
+        NSLayoutConstraint.activate([
+            terminalView.topAnchor.constraint(equalTo: topAnchor),
+            terminalView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            terminalView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            terminalView.bottomAnchor.constraint(equalTo: keyboardLayoutGuide.topAnchor),
+        ])
+
+        let focusTapRecognizer = UITapGestureRecognizer(target: self, action: #selector(refocusTerminal))
+        focusTapRecognizer.cancelsTouchesInView = false
+        focusTapRecognizer.delaysTouchesBegan = false
+        focusTapRecognizer.delaysTouchesEnded = false
+        addGestureRecognizer(focusTapRecognizer)
+        self.focusTapRecognizer = focusTapRecognizer
     }
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
-    override var canBecomeFirstResponder: Bool {
-        false
-    }
-
-    override func becomeFirstResponder() -> Bool {
-        false
+    @objc private func refocusTerminal() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self, window != nil else {
+                return
+            }
+            var responder: UIResponder? = self
+            while let current = responder {
+                if current.canBecomeFirstResponder {
+                    _ = current.becomeFirstResponder()
+                    current.reloadInputViews()
+                    return
+                }
+                responder = current.next
+            }
+        }
     }
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        terminalView.frame = bounds
         terminalView.fitToSize()
+    }
+
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        guard let hitView = super.hitTest(point, with: event) else {
+            return nil
+        }
+        if hitView === terminalView || hitView.isDescendant(of: terminalView) {
+            return self
+        }
+        return hitView
     }
 
     override func didMoveToWindow() {
@@ -81,8 +114,6 @@ public final class IXLandGhosttyHostTerminal: NSObject {
         terminalView.configuration = options
         terminalView.backgroundColor = .clear
         terminalView.isOpaque = false
-        terminalView.isUserInteractionEnabled = false
-        terminalView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
 
         self.terminalView = terminalView
         self.view = IXLandGhosttyTerminalContainerView(terminalView: terminalView)
@@ -103,6 +134,16 @@ public final class IXLandGhosttyHostTerminal: NSObject {
 
     @objc public func sendInput(_ data: Data) {
         session.sendInput(data)
+    }
+
+    @MainActor
+    @objc public func focus() -> Bool {
+        guard terminalView.window != nil else {
+            return false
+        }
+        let focused = view.becomeFirstResponder()
+        view.reloadInputViews()
+        return focused
     }
 
     @MainActor
