@@ -843,6 +843,28 @@ static int load_entry(struct prg_header ph, addr_t bias, struct fd *fd)
     return 0;
 }
 
+static addr_t align_up_addr(addr_t value, addr_t alignment)
+{
+    if (alignment <= 1)
+        return value;
+    return (value + alignment - 1) & ~(alignment - 1);
+}
+
+static addr_t elf_load_alignment(struct elf_header *header, struct prg_header *ph)
+{
+    addr_t alignment = PAGE_SIZE;
+    for (int i = 0; i < header->phent_count; i++) {
+        if (ph[i].type == PT_LOAD && ph[i].alignment > alignment)
+            alignment = ph[i].alignment;
+    }
+    return alignment;
+}
+
+static addr_t align_elf_load_bias(struct elf_header *header, struct prg_header *ph, addr_t bias)
+{
+    return align_up_addr(bias, elf_load_alignment(header, ph));
+}
+
 static addr_t find_hole_for_elf(struct elf_header *header, struct prg_header *ph)
 {
     struct prg_header *first = NULL, *last = NULL;
@@ -856,14 +878,18 @@ static addr_t find_hole_for_elf(struct elf_header *header, struct prg_header *ph
     pages_t size = 0;
     addr_t base = 0;
     if (first != NULL) {
+        addr_t alignment = elf_load_alignment(header, ph);
         pages_t a = PAGE_ROUND_UP(last->vaddr + last->memsize);
         pages_t b = PAGE(first->vaddr);
         size = a - b;
         page_t min_page = PAGE(first->vaddr);
-        page_t hole_page = vma_tree_find_hole_above(&current->mem->vmas, min_page, size);
+        page_t align_slack = PAGE_ROUND_UP(alignment);
+        page_t hole_page =
+            vma_tree_find_hole_above(&current->mem->vmas, min_page, size + align_slack);
         if (hole_page == (page_t)-1)
             hole_page = min_page;
         base = (hole_page << PAGE_BITS) - first->vaddr;
+        base = align_up_addr(base, alignment);
     }
     return base;
 }
@@ -1087,7 +1113,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
         if (!load_addr_set && header.type == ELF_DYNAMIC) {
             // see giant comment in linux/fs/binfmt_elf.c, around line 950
             if (interp_name)
-                bias = 0x56555000; // I have no idea how this number was arrived at
+                bias = align_elf_load_bias(&header, ph, 0x56555000);
             else
                 bias = find_hole_for_elf(&header, ph);
         }
@@ -1206,7 +1232,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
             addr_t interp_first_map =
                 interp_base + (PAGE(interp_lowest_pt_load_vaddr) << PAGE_BITS);
             if (interp_first_map < PAGE_SIZE)
-                interp_base += (PAGE_SIZE - interp_first_map);
+                interp_base = align_elf_load_bias(&interp_header, interp_ph, PAGE_SIZE);
 
             char ev[320];
             snprintf(
