@@ -100,6 +100,12 @@ static void trace_handle_interrupt_checkpoint(const char *name, int interrupt, i
 static void trace_a64_syscall_entry(const struct cpu_state *cpu, uint64_t syscall_num)
 {
     ixland_guest_trace_field_t fields[] = {
+        { .key = "pid",
+          .kind = IXLAND_GUEST_TRACE_FIELD_U64_DEC,
+          .u64_value = current ? current->pid : 0 },
+        { .key = "tgid",
+          .kind = IXLAND_GUEST_TRACE_FIELD_U64_DEC,
+          .u64_value = current ? current->tgid : 0 },
         { .key = "pc", .kind = IXLAND_GUEST_TRACE_FIELD_U64_HEX, .u64_value = cpu->pc },
         { .key = "num", .kind = IXLAND_GUEST_TRACE_FIELD_U64_DEC, .u64_value = syscall_num },
         { .key = "name",
@@ -123,6 +129,12 @@ static void trace_a64_syscall_return(const struct cpu_state *cpu, uint64_t sysca
     int64_t signed_ret = (int64_t)ret;
     int64_t errno_value = signed_ret < 0 && signed_ret >= -4095 ? -signed_ret : 0;
     ixland_guest_trace_field_t fields[] = {
+        { .key = "pid",
+          .kind = IXLAND_GUEST_TRACE_FIELD_U64_DEC,
+          .u64_value = current ? current->pid : 0 },
+        { .key = "tgid",
+          .kind = IXLAND_GUEST_TRACE_FIELD_U64_DEC,
+          .u64_value = current ? current->tgid : 0 },
         { .key = "pc", .kind = IXLAND_GUEST_TRACE_FIELD_U64_HEX, .u64_value = cpu->pc },
         { .key = "num", .kind = IXLAND_GUEST_TRACE_FIELD_U64_DEC, .u64_value = syscall_num },
         { .key = "name",
@@ -252,6 +264,14 @@ const char *a64_syscall_name(uint64_t num)
         [A64_SYS_getpid] = "getpid",
         [A64_SYS_getppid] = "getppid", [A64_SYS_getuid] = "getuid",
         [A64_SYS_getgid] = "getgid",
+        [A64_SYS_gettid] = "gettid",
+        [A64_SYS_clone] = "clone",
+        [A64_SYS_wait4] = "wait4",
+        [A64_SYS_futex] = "futex",
+        [A64_SYS_set_robust_list] = "set_robust_list",
+        [A64_SYS_get_robust_list] = "get_robust_list",
+        [A64_SYS_rt_sigaction] = "rt_sigaction",
+        [A64_SYS_rt_sigprocmask] = "rt_sigprocmask",
     };
 
     if (num >= sizeof(syscall_names) / sizeof(syscall_names[0]))

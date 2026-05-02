@@ -156,7 +156,13 @@ A64_WRAP3(sys_mprotect, A64_RET_S64, addr_t, uint64_t, int64_t)
 A64_WRAP2(sys_munmap, A64_RET_S64, addr_t, uint64_t)
 A64_WRAP4(sys_mremap, A64_RET_S64, addr_t, uint32_t, uint32_t, uint32_t)
 A64_WRAP3(sys_madvise, A64_RET_S32, addr_t, uint32_t, uint32_t)
-A64_WRAP5(sys_clone, A64_RET_S32, uint32_t, addr_t, addr_t, addr_t, addr_t)
+static uint64_t a64_wrap_sys_clone(uint64_t flags, uint64_t stack, uint64_t parent_tid,
+                                   uint64_t child_tid, uint64_t tls, uint64_t a5)
+{
+    (void)a5;
+    return A64_RET_S32(sys_clone((uint32_t)flags, (addr_t)stack, (addr_t)parent_tid,
+                                 (addr_t)tls, (addr_t)child_tid));
+}
 A64_WRAP0(sys_fork, A64_RET_S32)
 A64_WRAP0(sys_vfork, A64_RET_S32)
 A64_WRAP1(sys_exit, A64_RET_S32, uint32_t)
