@@ -1,5 +1,7 @@
 #import <XCTest/XCTest.h>
 #import <IXLandLinuxRuntime/kernel/errno.h>
+#import <IXLandLinuxRuntime/kernel/memory.h>
+#import <IXLandLinuxRuntime/kernel/vma.h>
 
 // Guest.MemoryManagement System Tests
 // Tests guest-visible memory management syscall contracts
@@ -16,6 +18,19 @@
     // System: Anonymous mmap with valid parameters
     // Contract: Returns valid address or MAP_FAILED
     XCTAssert(true, "Mmap contract: returns valid address or error");
+}
+
+// Contract: kernel-selected mmap must not allocate the low guard region
+// Owner: kernel/memory.c:pt_find_hole
+- (void)testMemoryContract_MmapNullStartsAboveLowGuard {
+    struct mem mem;
+    mem_init(&mem);
+
+    page_t page = pt_find_hole(&mem, 1);
+
+    XCTAssertEqual(page, (page_t)A64_MMAP_BASE_PAGE,
+                   "mmap(NULL, ...) must start at the configured guest mmap base");
+    mem_destroy(&mem);
 }
 
 // Contract: MMAP_ANONYMOUS zero-initialized

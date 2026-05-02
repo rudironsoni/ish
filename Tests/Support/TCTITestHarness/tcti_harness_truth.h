@@ -52,7 +52,12 @@ uint64_t tcti_harness_case_musl_load_library_detects_libc_self(void);
 uint64_t tcti_harness_case_musl_gnu_hash_malloc(void);
 uint64_t tcti_harness_case_musl_gnu_lookup_filtered_malloc(void);
 uint64_t tcti_harness_case_musl_gnu_lookup_dls2b_chain(void);
+uint64_t tcti_harness_case_musl_find_sym_dls2b_from_ldso(void);
 uint64_t tcti_harness_case_musl_find_sym_accepts_global_func(void);
+uint64_t tcti_harness_case_add_shifted_hot_uses_scratch_carrier(void);
+uint64_t tcti_harness_case_add_extended_uxtw_uses_32bit_operand(void);
+uint64_t tcti_harness_case_logical_imm_memory_backed_source_uses_distinct_scratch(void);
+uint64_t tcti_harness_case_musl_malloc_sizeclass_rbit_clz(void);
 
 #ifdef __cplusplus
 }

@@ -7,7 +7,8 @@
  * Deterministic requirements:
  * 1. Same PC + valid mapping → same instruction word
  * 2. Invalid PC → deterministic -EFAULT fault
- * 3. Cross-page → deterministic behavior (word or fault)
+ * 3. Unaligned PC → deterministic -EFAULT fault
+ * 4. Cross-page → deterministic behavior (word or fault)
  */
 
 #ifndef A64_FETCH_H

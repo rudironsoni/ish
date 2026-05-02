@@ -218,11 +218,47 @@
                     "entries so ldso can resolve its own __dls2b symbol");
 }
 
+- (void)testSemanticExecutionContract_MuslFindSymDls2bFromLdso
+{
+    XCTAssertEqual(tcti_harness_case_musl_find_sym_dls2b_from_ldso(), 0ULL,
+                   @"TCTI must execute musl find_sym over ldso's own DSO, GNU hash table, "
+                    "and dynamic symbol metadata so __dls2b resolves before guest startup");
+}
+
 - (void)testSemanticExecutionContract_MuslFindSymAcceptsGlobalFunc
 {
     XCTAssertEqual(tcti_harness_case_musl_find_sym_accepts_global_func(), 0ULL,
                    @"TCTI must execute musl find_sym's st_shndx, st_value, type, and binding "
                     "checks so valid global function symbols are not rejected");
+}
+
+- (void)testSemanticExecutionContract_ADDShiftedHotUsesScratchCarrier
+{
+    XCTAssertEqual(tcti_harness_case_add_shifted_hot_uses_scratch_carrier(), 0ULL,
+                   @"TCTI ADD shifted-register must use scratch carriers without losing the "
+                    "shifted operand or corrupting hot destination registers");
+}
+
+- (void)testSemanticExecutionContract_ADDExtendedUXTWUses32BitOperand
+{
+    XCTAssertEqual(tcti_harness_case_add_extended_uxtw_uses_32bit_operand(), 0ULL,
+                   @"TCTI ADD extended-register must zero-extend Wm and add it to Xn before "
+                    "GNU hash chain address calculation");
+}
+
+- (void)testSemanticExecutionContract_LogicalImmediateMemoryBackedSourceUsesDistinctScratch
+{
+    XCTAssertEqual(tcti_harness_case_logical_imm_memory_backed_source_uses_distinct_scratch(),
+                   0x8ULL,
+                   @"TCTI logical-immediate lowering must not overwrite a memory-backed source "
+                    "scratch while materializing the immediate operand");
+}
+
+- (void)testSemanticExecutionContract_MuslMallocSizeclassRBITCLZ
+{
+    XCTAssertEqual(tcti_harness_case_musl_malloc_sizeclass_rbit_clz(), 0x0000001000000011ULL,
+                   @"TCTI must execute musl malloc's RBIT/CLZ size-class calculation without "
+                    "routing one-source data-processing instructions through CSEL lowering");
 }
 
 - (void)testSemanticExecutionContract_ADDImmProducesCorrectResult

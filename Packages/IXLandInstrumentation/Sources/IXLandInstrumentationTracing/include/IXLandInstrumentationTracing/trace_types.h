@@ -37,6 +37,21 @@ typedef struct {
     const char *value;
 } trace_attribute_t;
 
+typedef enum {
+    TRACE_FIELD_STRING = 0,
+    TRACE_FIELD_I64_DEC = 1,
+    TRACE_FIELD_U64_DEC = 2,
+    TRACE_FIELD_U64_HEX = 3,
+} trace_field_kind_t;
+
+typedef struct {
+    const char *key;
+    trace_field_kind_t kind;
+    const char *string_value;
+    int64_t i64_value;
+    uint64_t u64_value;
+} trace_field_t;
+
 /* ============================================
  * Trace levels
  * ============================================ */

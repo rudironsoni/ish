@@ -8,7 +8,8 @@ Each gadget implements one aarch64 instruction variant.
 Based on UTM's TCTI approach:
 - Gadgets are naked functions with inline assembly
 - Each gadget ends with epilogue that chains to next gadget
-- Register mapping: x1-x15 = guest x0-x14, x28 = bytecode pointer
+- Register mapping: x1-x13 = guest x0-x12, x14-x15 = TCTI scratch carriers,
+  x28 = bytecode pointer
 """
 
 import argparse
@@ -18,7 +19,7 @@ from datetime import datetime
 
 # Configuration
 GADGET_VERSION = "1.0.0"
-MAX_TCTI_REGS = 15  # x0-x14 are TCTI-mapped, x15-x30 are memory-backed
+MAX_TCTI_REGS = 15  # carrier table entries: guest x0-x12 plus scratch carriers x13/x14
 
 # Template for generated header file
 HEADER_TEMPLATE = """/*
@@ -138,6 +139,13 @@ extern const tcti_gadget_t gadget_subs_reg[16][16][16];
 // Table: gadget_cmp_reg[src1][src2]
 extern const tcti_gadget_t gadget_cmp_reg[16][16];
 
+// RBIT/CLZ one-source operations
+// Tables: gadget_<op>_<width>reg[dst][src]
+extern const tcti_gadget_t gadget_rbit_wreg[16][16];
+extern const tcti_gadget_t gadget_rbit_xreg[16][16];
+extern const tcti_gadget_t gadget_clz_wreg[16][16];
+extern const tcti_gadget_t gadget_clz_xreg[16][16];
+
 // ============================================================================
 // Branch Gadgets
 // ============================================================================
@@ -200,16 +208,16 @@ extern tcti_gadget_t gadget_str_x;
 // Memory-Backed Register Load/Store (defined in gadgets_memory.c)
 // ============================================================================
 //
-// Guest registers x15-x30 and SP are stored in memory (cpu_state struct).
-// To operate on them, we load into temp registers (x14-x18), execute,
+// Guest registers x13-x30 and SP are stored in memory (cpu_state struct).
+// To operate on them, we load into temp carriers x14/x15, execute,
 // then store back.
 
-// Load guest x[15 + n] (n=0-15) into host temp register
-// Table index 0 = x15, 15 = x30
-extern const tcti_gadget_t gadget_load_xreg_16_to_30[16];
+// Load guest x[13 + n] (n=0-17) into host temp register
+// Table index 0 = x13, 17 = x30
+extern const tcti_gadget_t gadget_load_xreg_16_to_30[18];
 
-// Store host temp register back to guest x[15 + n]
-extern const tcti_gadget_t gadget_store_xreg_16_to_30[16];
+// Store host temp register back to guest x[13 + n]
+extern const tcti_gadget_t gadget_store_xreg_16_to_30[18];
 
 // SP load/store - uses x18 as temp
 // These are naked functions, not function pointers
@@ -366,8 +374,8 @@ struct atomic_cmp_capture {{
 // ============================================================================
 // Register Mapping
 // ============================================================================
-// Guest x0-x14  -> Host x1-x15 (direct mapping)
-// Guest x15-x30 -> Memory backed (access via load/store gadgets)
+// Guest x0-x12  -> Host x1-x13 (direct mapping)
+// Guest x13-x30 -> Memory backed (access via load/store gadgets)
 // Guest SP (x31)-> Memory backed (access via load/store gadgets)
 // Host x28      -> Bytecode pointer (gadget stream)
 // Host x29      -> CPU state pointer
@@ -444,6 +452,12 @@ struct atomic_cmp_capture {{
 // ============================================================================
 
 {cmp_reg_gadgets}
+
+// ============================================================================
+// One-Source Register Gadgets
+// ============================================================================
+
+{one_source_reg_gadgets}
 
 // ============================================================================
 // Gadget Lookup Tables
@@ -704,6 +718,35 @@ __attribute__((naked)) void {func_name}(void) {{
     return "\n\n".join(gadgets)
 
 
+def generate_one_source_reg_gadgets():
+    """Generate RBIT/CLZ register gadgets."""
+    gadgets = []
+    operations = [
+        ("rbit_wreg", "rbit", "w"),
+        ("rbit_xreg", "rbit", "x"),
+        ("clz_wreg", "clz", "w"),
+        ("clz_xreg", "clz", "x"),
+    ]
+
+    for table_name, mnemonic, width in operations:
+        for rd in range(MAX_TCTI_REGS):
+            for rn in range(MAX_TCTI_REGS):
+                host_rd = rd + 1
+                host_rn = rn + 1
+                func_name = f"gadget_{table_name}_{rd}_{rn}"
+                gadget = f"""// {mnemonic.upper()} {width}{rd}, {width}{rn}
+__attribute__((naked)) void {func_name}(void) {{
+    asm volatile(
+        "{mnemonic} {width}{host_rd}, {width}{host_rn}\\n\\t"
+        "ldr x27, [x28], #8\\n\\t"
+        "br x27\\n\\t"
+    );
+}}"""
+                gadgets.append(gadget)
+
+    return "\n\n".join(gadgets)
+
+
 def generate_adds_reg_gadgets():
     """Generate ADDS register gadgets (ADDS Rd, Rn, Rm)."""
     gadgets = []
@@ -907,8 +950,18 @@ def generate_lookup_tables():
         entries = [f"gadget_cmp_reg_{rn}_{rm}" for rm in range(MAX_TCTI_REGS)]
         tables.append("    {" + ", ".join(entries) + "},")
     tables.append("};")
+    tables.append("")
 
-    return "\n".join(tables)
+    for table_name in ["rbit_wreg", "rbit_xreg", "clz_wreg", "clz_xreg"]:
+        tables.append(f"// {table_name} lookup table: gadget_{table_name}[dst][src]")
+        tables.append(f"const tcti_gadget_t gadget_{table_name}[16][16] = {{")
+        for rd in range(MAX_TCTI_REGS):
+            entries = [f"gadget_{table_name}_{rd}_{rn}" for rn in range(MAX_TCTI_REGS)]
+            tables.append("    {" + ", ".join(entries) + "},")
+        tables.append("};")
+        tables.append("")
+
+    return "\n".join(tables).rstrip()
 
 
 def generate_gadgets(output_dir, generator_hash="unknown"):
@@ -949,6 +1002,7 @@ def generate_gadgets(output_dir, generator_hash="unknown"):
     adds_reg_gadgets = generate_adds_reg_gadgets()
     subs_reg_gadgets = generate_subs_reg_gadgets()
     cmp_reg_gadgets = generate_cmp_reg_gadgets()
+    one_source_reg_gadgets = generate_one_source_reg_gadgets()
 
     print("Generating lookup tables...")
     lookup_tables = generate_lookup_tables()
@@ -969,6 +1023,7 @@ def generate_gadgets(output_dir, generator_hash="unknown"):
         adds_reg_gadgets=adds_reg_gadgets,
         subs_reg_gadgets=subs_reg_gadgets,
         cmp_reg_gadgets=cmp_reg_gadgets,
+        one_source_reg_gadgets=one_source_reg_gadgets,
         lookup_tables=lookup_tables,
     )
 
@@ -978,11 +1033,11 @@ def generate_gadgets(output_dir, generator_hash="unknown"):
     print(f"Generated: {impl_path}")
 
     print("\nStatistics:")
-    print(f"  TCTI-mapped registers: x0-x14 ({MAX_TCTI_REGS})")
+    print("  TCTI-mapped registers: x0-x12 (13)")
     print(
         f"  Total gadgets: ~{16 * 16 + 16 * 16 * 16 + 16 * 16 * 16 + 16 + 16 * 16 * 16 + 16 * 16 * 16:,}"
     )
-    print(f"  Memory-backed: x15-x30, SP (16)")
+    print("  Memory-backed: x13-x30, SP (18)")
 
 
 def compute_file_hash(filepath):

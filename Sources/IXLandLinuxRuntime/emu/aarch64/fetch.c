@@ -15,6 +15,12 @@
 
 int a64_fetch_insn(struct cpu_state *cpu, struct tlb *tlb, uint64_t pc, uint32_t *insn)
 {
+    if ((pc & 3) != 0) {
+        cpu->fault_addr = pc;
+        cpu->fault_was_write = 0;
+        return _EFAULT;
+    }
+
     // Use iSH's TLB for fast lookup
     void *ptr = __tlb_read_ptr(tlb, pc);
     if (ptr == NULL) {

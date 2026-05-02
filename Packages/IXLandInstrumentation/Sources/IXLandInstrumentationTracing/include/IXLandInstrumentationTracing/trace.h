@@ -58,6 +58,13 @@ bool trace_is_active(void);
 bool trace_should_emit_event(const char *event_name);
 
 /*
+ * Return whether TCTI should route memory accesses through the traced helper path.
+ * The tracing package owns this policy so emulator code does not inspect levels
+ * or build macros directly.
+ */
+bool trace_tcti_memory_access_tracing_enabled(void);
+
+/*
  * Set the trace level from a stable textual policy value.
  * Accepted values: off, info, boundary, debug.
  */
@@ -70,6 +77,15 @@ void trace_config_set_level_from_string(const char *value);
  * @param event_name The semantic event name (dotted notation, e.g., "task.created")
  */
 void trace_record_event(int origin, const char *event_name);
+
+/*
+ * Record a semantic event with typed fields.
+ *
+ * Trace level policy and field serialization are owned by the tracing package.
+ * Callers should pass facts, not preformatted event payload strings.
+ */
+void trace_record_event_fields(int origin, const char *event_name, const trace_field_t *fields,
+                               uint32_t field_count);
 
 /*
  * Begin a timed interval.

@@ -121,6 +121,8 @@ typedef enum {
     A64_DP_REG_CCMP_IMM = 41,   // Conditional compare (immediate)
     A64_DP_REG_UDIV = 42,       // Unsigned divide
     A64_DP_REG_SDIV = 43,       // Signed divide
+    A64_DP_REG_RBIT = 44,       // Reverse bits
+    A64_DP_REG_CLZ = 45,        // Count leading zeros
 } a64_dp_reg_subtype_t;
 
 /* Condition codes for conditional instructions */

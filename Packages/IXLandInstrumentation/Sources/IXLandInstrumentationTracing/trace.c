@@ -88,6 +88,11 @@ bool trace_should_emit_event(const char *event_name)
     return trace_is_active() && trace_get_level() >= trace_level_for_event_name(event_name);
 }
 
+bool trace_tcti_memory_access_tracing_enabled(void)
+{
+    return trace_should_emit_event("tcti.mem.access");
+}
+
 static void trace_record_event_at_level(trace_origin_t origin, trace_level_t level,
                                         const char *event_name)
 {
@@ -101,6 +106,66 @@ void trace_record_event(int origin, const char *event_name)
     if (!trace_should_emit_event(event_name))
         return;
     ixland_instrumentation_record_event((ixland_instrumentation_origin_t)origin, event_name);
+}
+
+void trace_record_event_fields(int origin, const char *event_name, const trace_field_t *fields,
+                               uint32_t field_count)
+{
+    if (!trace_should_emit_event(event_name))
+        return;
+
+    if (!fields || field_count == 0) {
+        ixland_instrumentation_record_event((ixland_instrumentation_origin_t)origin, event_name);
+        return;
+    }
+
+    if (field_count > 32)
+        field_count = 32;
+
+    char value_bufs[32][32];
+    const char *values[32];
+    for (uint32_t i = 0; i < field_count; i++) {
+        switch (fields[i].kind) {
+        case TRACE_FIELD_STRING:
+            values[i] = fields[i].string_value ? fields[i].string_value : "";
+            break;
+        case TRACE_FIELD_I64_DEC:
+            snprintf(value_bufs[i], sizeof(value_bufs[i]), "%lld",
+                     (long long)fields[i].i64_value);
+            values[i] = value_bufs[i];
+            break;
+        case TRACE_FIELD_U64_DEC:
+            snprintf(value_bufs[i], sizeof(value_bufs[i]), "%llu",
+                     (unsigned long long)fields[i].u64_value);
+            values[i] = value_bufs[i];
+            break;
+        case TRACE_FIELD_U64_HEX:
+            snprintf(value_bufs[i], sizeof(value_bufs[i]), "0x%llx",
+                     (unsigned long long)fields[i].u64_value);
+            values[i] = value_bufs[i];
+            break;
+        }
+    }
+
+    char event_buf[2048];
+    size_t used = 0;
+    int written = snprintf(event_buf, sizeof(event_buf), "%s=", event_name);
+    if (written < 0)
+        return;
+    used = (size_t)written < sizeof(event_buf) ? (size_t)written : sizeof(event_buf) - 1;
+
+    for (uint32_t i = 0; i < field_count && used < sizeof(event_buf) - 1; i++) {
+        const char *key = fields[i].key ? fields[i].key : "";
+        const char *value = values[i] ? values[i] : "";
+        written = snprintf(event_buf + used, sizeof(event_buf) - used, "%s%s:%s",
+                           i == 0 ? "" : ",", key, value);
+        if (written < 0)
+            break;
+        used += (size_t)written < sizeof(event_buf) - used ? (size_t)written
+                                                           : sizeof(event_buf) - used - 1;
+    }
+
+    ixland_instrumentation_record_event((ixland_instrumentation_origin_t)origin, event_buf);
 }
 
 uint64_t trace_begin_interval(int origin, const char *interval_name, const void *attrs,

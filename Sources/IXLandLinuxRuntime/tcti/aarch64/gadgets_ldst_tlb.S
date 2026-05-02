@@ -7,7 +7,7 @@
  * - Zero overhead for cache hits
  * 
  * Register mapping during load/store:
- *   x0-x14  -> Guest x0-x14 (TCTI-mapped) - preserved
+ *   x0-x12  -> Guest x0-x12 (TCTI-mapped) - preserved
  *   x16     -> Base address calculation temp
  *   x17     -> Computed guest address
  *   x19     -> TLB entry address
@@ -95,9 +95,9 @@ gadget_ldr_tlb_64:
     ldr     x27, [x28], #8          // x27 = next gadget
     
     // Load base register value
-    cmp     x17, #15
-    b.ge    .Lbase_mem_backed       // x15-x30 are memory-backed
-    // TCTI-mapped registers x0-x14 are in host x1-x15
+    cmp     x17, #13
+    b.ge    .Lbase_mem_backed       // x13-x30 are memory-backed
+    // TCTI-mapped registers x0-x12 are in host x1-x13
     // Guest x[Rn] is in host x[Rn+1]
     add     x17, x17, #1
     lsl     x19, x17, #3            // offset in register file
@@ -106,7 +106,7 @@ gadget_ldr_tlb_64:
     b       .Lbase_loaded
 .Lbase_mem_backed:
     // Load from memory-backed register
-    sub     x19, x17, #15
+    sub     x19, x17, #13
     lsl     x19, x19, #3
     add     x19, x19, #144
     add     x19, x29, x19

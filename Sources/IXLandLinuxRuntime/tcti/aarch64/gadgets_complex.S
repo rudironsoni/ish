@@ -143,7 +143,7 @@ gadget_str_imm:
     ldp     x11, x12, [x29, #96]
     ldp     x13, x14, [x29, #112]
     ldp     x15, x16, [x29, #128]
-    cmp     x19, #15
+    cmp     x19, #13
     b.hs    1f
     mov     x26, x19
     bl      _tcti_sync_hot_reg_from_cpu

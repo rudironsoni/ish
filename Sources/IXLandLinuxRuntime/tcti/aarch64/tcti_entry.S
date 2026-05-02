@@ -2,7 +2,8 @@
  * TCTI Entry/Exit - Following QEMU's proven design
  * 
  * Register mapping:
- *   x1-x15  -> Guest x0-x14 (TCTI-mapped)
+ *   x1-x13  -> Guest x0-x12 (TCTI-mapped)
+ *   x14-x15 -> TCTI scratch carriers
  *   x17     -> Temp (used by load/store sequences)
  *   x19     -> Temp (used by load/store sequences)
  *   x24     -> TCTI temp
@@ -41,7 +42,7 @@ tcti_entry_block:
     mov     x0, #0xABCD
     str     x0, [sp, #-16]!
     
-    // Load guest x0-x14 into host x1-x15.
+    // Load guest x0-x12 into host x1-x13.
     // Host x16 is an ABI/scratch register and must not hold persistent guest state.
     // x[0] at CPU_OFFSET_x0, x[1] at CPU_OFFSET_x1, etc.
     ldr     x1, [x29, #CPU_OFFSET_x0]   // Guest x0 -> host x1
@@ -57,15 +58,15 @@ tcti_entry_block:
     ldr     x11, [x29, #CPU_OFFSET_x10] // Guest x10 -> host x11
     ldr     x12, [x29, #CPU_OFFSET_x11] // Guest x11 -> host x12
     ldr     x13, [x29, #CPU_OFFSET_x12] // Guest x12 -> host x13
-    ldr     x14, [x29, #CPU_OFFSET_x13] // Guest x13 -> host x14
-    ldr     x15, [x29, #CPU_OFFSET_x14] // Guest x14 -> host x15
+    mov     x14, #0                     // TCTI scratch carrier
+    mov     x15, #0                     // TCTI scratch carrier
 
     // Restore guest condition flags on every block entry. Interrupt/syscall
     // handlers update cpu->pstate in C before returning to translated code.
     ldr     x17, [x29, #CPU_OFFSET_pstate]
     msr     nzcv, x17
     
-    // Guest x15-x30 and SP stay in memory.
+    // Guest x13-x30 and SP stay in memory.
 
     // Load first gadget pointer after register restoration
     ldr     x27, [x28], #8
@@ -153,12 +154,12 @@ tcti_exit_block:
     cbz     x19, 2f
 2:
     
-    cmp     x0,  #15
+    cmp     x0,  #13
     b.lo    1f
     // Debug shadow-stores removed - instrumentation handled by ISHInstrumentation
 1:
     
-    // Save guest x0-x14 from host x1-x15 back to memory.
+    // Save guest x0-x12 from host x1-x13 back to memory.
     str     x1,  [x29, #CPU_OFFSET_x0]   // Host x1 -> guest x0
     str     x2,  [x29, #CPU_OFFSET_x1]   // Host x2 -> guest x1
     str     x3,  [x29, #CPU_OFFSET_x2]   // Host x3 -> guest x2
@@ -172,11 +173,10 @@ tcti_exit_block:
     str     x11, [x29, #CPU_OFFSET_x10]  // Host x11 -> guest x10
     str     x12, [x29, #CPU_OFFSET_x11]  // Host x12 -> guest x11
     str     x13, [x29, #CPU_OFFSET_x12]  // Host x13 -> guest x12
-    str     x14, [x29, #CPU_OFFSET_x13]  // Host x14 -> guest x13
-    str     x15, [x29, #CPU_OFFSET_x14]  // Host x15 -> guest x14
+    // Host x14/x15 are scratch carriers and must not be written as guest x13/x14.
     // Note: NZCV was saved at the top of this function before any flag-setting instructions
 
-    // Guest x15-x30 and SP already in memory (never loaded to host regs)
+    // Guest x13-x30 and SP already in memory (never loaded to host regs)
     
     // Debug: Store x29 value before restoring from stack to check for corruption
     mov     x17, x29
@@ -196,29 +196,29 @@ tcti_exit_block:
     ldp     x0, x1, [sp], #16
     ret
 
-// Load memory-backed register (x15-x30) into temp x17
-// Index 0-15 in x0 (corresponds to x15-x30)
+// Load memory-backed register (x13-x30) into temp x17
+// Index 0-17 in x0 (corresponds to x13-x30)
 .global _tcti_load_xreg
 .global tcti_load_xreg
 _tcti_load_xreg:
 tcti_load_xreg:
-    // x0 = register index (0=x15, 1=x16, ..., 15=x30)
-    // Load x[15 + index] into x17
-    add     x0, x0, #15             // Convert to actual register number
+    // x0 = register index (0=x13, 1=x14, ..., 17=x30)
+    // Load x[13 + index] into x17
+    add     x0, x0, #13             // Convert to actual register number
     add     x17, x29, #CPU_OFFSET_x // Base of x[] array
-    add     x17, x17, x0, lsl #3    // x17 = &cpu->x[15+index]
+    add     x17, x17, x0, lsl #3    // x17 = &cpu->x[13+index]
     ldr     x17, [x17]              // Load value
     ret
 
-// Store temp x17 to memory-backed register (x15-x30)
-// Index 0-15 in x0 (corresponds to x15-x30)
+// Store temp x17 to memory-backed register (x13-x30)
+// Index 0-17 in x0 (corresponds to x13-x30)
 .global _tcti_store_xreg
 .global tcti_store_xreg
 _tcti_store_xreg:
 tcti_store_xreg:
-    add     x0, x0, #15             // Convert to actual register number
+    add     x0, x0, #13             // Convert to actual register number
     add     x27, x29, #CPU_OFFSET_x // Base of x[] array
-    add     x27, x27, x0, lsl #3    // x27 = &cpu->x[15+index]
+    add     x27, x27, x0, lsl #3    // x27 = &cpu->x[13+index]
     str     x17, [x27]              // Store value
     ret
 

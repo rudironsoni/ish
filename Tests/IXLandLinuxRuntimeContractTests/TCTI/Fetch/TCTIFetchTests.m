@@ -79,6 +79,18 @@
         invalid_pc, result);
 }
 
+- (void)test_TCTIFetchContract_UnalignedGuestPC_ReturnsFault {
+    uint64_t unaligned_pc = 0x1003;
+    uint32_t insn = 0xfeedface;
+
+    int result = a64_fetch_insn(_cpu, _tlb, unaligned_pc, &insn);
+
+    XCTAssertEqual(result, -14, @"AArch64 instruction fetch must fault on unaligned PC");
+    XCTAssertEqual(_cpu->fault_addr, unaligned_pc,
+                   @"Unaligned fetch fault must report the actual guest PC");
+    XCTAssertFalse(_cpu->fault_was_write, @"Instruction fetch faults are read faults");
+}
+
 // Contract: Fetch is deterministic for same input
 // Owner: fetch.c
 - (void)test_TCTIFetchContract_SameInput_ProducesSameOutput {

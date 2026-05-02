@@ -127,7 +127,7 @@ void mem_destroy(struct mem *mem)
 
 page_t pt_find_hole(struct mem *mem, pages_t size)
 {
-    uint64_t page = vma_tree_find_hole(&mem->vmas, size);
+    uint64_t page = vma_tree_find_hole_above(&mem->vmas, A64_MMAP_BASE_PAGE, size);
     return (page_t)page;
 }
 

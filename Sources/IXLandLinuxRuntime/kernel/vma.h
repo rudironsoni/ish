@@ -31,6 +31,13 @@
 #define A64_TASK_SIZE    ((1ULL << A64_USER_VA_BITS) - 1)
 #define A64_USER_TOP     (1ULL << A64_USER_VA_BITS)
 
+/*
+ * Default base for kernel-selected user mappings.
+ * MAP_FIXED and ELF loaders may deliberately map below this; mmap(NULL, ...)
+ * must not hand page zero or the low guard region to guest allocators.
+ */
+#define A64_MMAP_BASE_PAGE 0x40000ULL
+
 struct vm_area {
     uint64_t start;         /* inclusive guest VA start (page-aligned) */
     uint64_t end;           /* exclusive guest VA end (page-aligned) */

@@ -54,72 +54,6 @@ static bool a64_conservative_mode_enabled(void)
     return enabled;
 }
 
-typedef struct {
-    int valid;
-    uint64_t writer_pc;
-    uint32_t writer_raw;
-    char writer_mnemonic[128];
-    int writer_rd;
-    int writer_rn;
-    uint64_t x3_before;
-    uint64_t x3_after;
-    uint64_t block_start;
-    uint64_t block_end;
-} base6a628_last_writer_t;
-
-typedef struct {
-    int valid;
-    uint64_t writer_pc;
-    uint32_t writer_raw;
-    char writer_mnemonic[128];
-    int writer_rd;
-    int writer_rn;
-    uint64_t x0_before;
-    uint64_t x0_after;
-    uint64_t block_start;
-    uint64_t block_end;
-} x0chain_last_writer_t;
-
-typedef struct {
-    int valid;
-    uint64_t writer_pc;
-    uint32_t writer_raw;
-    char writer_mnemonic[128];
-    int writer_rd;
-    int writer_rn;
-    int writer_rm;
-    int writer_idx_mode;
-    int64_t writer_imm;
-    uint64_t x2_before;
-    uint64_t x2_after;
-    uint64_t block_start;
-    uint64_t block_end;
-} str6a650_last_writer_t;
-
-typedef struct {
-    int valid;
-    uint64_t writer_pc;
-    uint32_t writer_raw;
-    char writer_mnemonic[128];
-    int writer_rd;
-    int writer_rn;
-    int writer_rm;
-    int writer_idx_mode;
-    int64_t writer_imm;
-    uint64_t x7_before;
-    uint64_t x7_after;
-    uint64_t block_start;
-    uint64_t block_end;
-} x7chain_last_writer_t;
-
-static base6a628_last_writer_t g_base6a628_last_writer;
-static int g_base6a628_trace_budget = 32;
-static x0chain_last_writer_t g_x0chain_last_writer;
-static int g_x0chain_trace_budget = 32;
-static str6a650_last_writer_t g_str6a650_last_writer;
-static int g_str6a650_trace_budget = 64;
-static x7chain_last_writer_t g_x7chain_last_writer;
-static int g_x7chain_trace_budget = 96;
 static int g_insn64_trace_budget = 128;
 static int g_guest_first_user_pc_emitted = 0;
 
@@ -129,14 +63,14 @@ static uint64_t a64_extend_index(uint64_t value, int extend_type);
 static bool a64_ldst_uses_register_offset(uint32_t raw, const a64_instr_t *instr);
 static const char *trace_ldst_mnemonic(int is_load, int size, int is_signed);
 
-static bool a64_trace_enabled(trace_level_t level)
+static bool a64_trace_enabled(const char *event_name)
 {
-    return trace_get_level() >= level;
+    return trace_should_emit_event(event_name);
 }
 
-static void a64_trace_event(trace_level_t level, const char *format, ...)
+static void a64_trace_event(const char *event_name, const char *format, ...)
 {
-    if (!a64_trace_enabled(level))
+    if (!a64_trace_enabled(event_name))
         return;
 
     char event[512];
@@ -151,7 +85,7 @@ static void a64_trace_event(trace_level_t level, const char *format, ...)
 static void a64_trace_block_registers(const char *phase, const struct cpu_state *cpu,
                                       const struct a64_block *block)
 {
-    if (!phase || !cpu || !block || trace_get_level() < TRACE_LEVEL_DEBUG)
+    if (!phase || !cpu || !block || !trace_should_emit_event("tcti.block.regs"))
         return;
 
     char event[900];
@@ -189,6 +123,145 @@ static void a64_trace_block_registers(const char *phase, const struct cpu_state 
              (unsigned long long)cpu->sp, (unsigned long long)cpu->pstate,
              cpu->tcti_exit_reason);
     trace_record_event(TRACE_ORIGIN_EXEC, event);
+}
+
+static uint64_t a64_trace_read_reg_or_sp_const(const struct cpu_state *cpu, int reg,
+                                               bool is_64bit)
+{
+    if (!cpu)
+        return 0;
+    if (reg == 31)
+        return cpu->sp;
+    if (reg < 0 || reg > 30)
+        return 0;
+    return is_64bit ? cpu->x[reg] : (uint32_t)cpu->x[reg];
+}
+
+static uint64_t a64_trace_read_reg_or_zr_const(const struct cpu_state *cpu, int reg)
+{
+    if (!cpu || reg == 31 || reg < 0 || reg > 30)
+        return 0;
+    return cpu->x[reg];
+}
+
+#define A64_TRACE_BLOCK_HISTORY_SIZE 16
+
+typedef struct {
+    uint64_t before_pc;
+    uint64_t after_pc;
+    uint64_t block_start;
+    uint64_t block_end;
+    uint64_t branch_target;
+    uint64_t rd_value;
+    uint64_t rn_value;
+    uint64_t rm_value;
+    uint64_t sp;
+    uint64_t x21;
+    uint64_t x26;
+    uint64_t x30;
+    uint32_t raw;
+    int cat;
+    int subtype;
+    int rd;
+    int rn;
+    int rm;
+    int exit_reason;
+    int explicit_pc;
+    int branch_reg;
+} a64_trace_block_history_entry_t;
+
+static a64_trace_block_history_entry_t
+    g_a64_trace_block_history[A64_TRACE_BLOCK_HISTORY_SIZE];
+static unsigned g_a64_trace_block_history_next = 0;
+static unsigned g_a64_trace_block_history_count = 0;
+static uint64_t g_a64_last_compile_failure_pc = UINT64_MAX;
+static unsigned g_a64_compile_failure_repeat_count = 0;
+
+static void a64_trace_record_block_transition(uint64_t before_pc, uint64_t after_pc,
+                                              const struct a64_block *block, uint32_t raw,
+                                              const a64_instr_t *decoded, int exit_reason,
+                                              int branch_reg, uint64_t branch_target,
+                                              const struct cpu_state *cpu)
+{
+    a64_trace_block_history_entry_t *entry =
+        &g_a64_trace_block_history[g_a64_trace_block_history_next];
+
+    memset(entry, 0, sizeof(*entry));
+    entry->before_pc = before_pc;
+    entry->after_pc = after_pc;
+    entry->block_start = block ? block->start_pc : 0;
+    entry->block_end = block ? block->end_pc : 0;
+    entry->raw = raw;
+    entry->exit_reason = exit_reason;
+    entry->explicit_pc = block && block->explicit_pc_on_exit ? 1 : 0;
+    entry->branch_reg = branch_reg;
+    entry->branch_target = branch_target;
+    entry->sp = cpu ? cpu->sp : 0;
+    entry->x21 = cpu ? cpu->x[21] : 0;
+    entry->x26 = cpu ? cpu->x[26] : 0;
+    entry->x30 = cpu ? cpu->x[30] : 0;
+
+    if (decoded) {
+        entry->cat = decoded->cat;
+        entry->subtype = decoded->subtype;
+        entry->rd = decoded->Rd;
+        entry->rn = decoded->Rn;
+        entry->rm = decoded->Rm;
+        entry->rd_value = a64_trace_read_reg_or_zr_const(cpu, decoded->Rd);
+        entry->rn_value = a64_trace_read_reg_or_sp_const(cpu, decoded->Rn, true);
+        entry->rm_value = a64_trace_read_reg_or_zr_const(cpu, decoded->Rm);
+    } else {
+        entry->cat = -1;
+        entry->subtype = -1;
+        entry->rd = -1;
+        entry->rn = -1;
+        entry->rm = -1;
+    }
+
+    g_a64_trace_block_history_next =
+        (g_a64_trace_block_history_next + 1) % A64_TRACE_BLOCK_HISTORY_SIZE;
+    if (g_a64_trace_block_history_count < A64_TRACE_BLOCK_HISTORY_SIZE)
+        g_a64_trace_block_history_count++;
+}
+
+static bool a64_trace_should_emit_compile_failure(uint64_t pc)
+{
+    if (g_a64_last_compile_failure_pc != pc) {
+        g_a64_last_compile_failure_pc = pc;
+        g_a64_compile_failure_repeat_count = 0;
+        return true;
+    }
+
+    g_a64_compile_failure_repeat_count++;
+    return g_a64_compile_failure_repeat_count < 4 ||
+           (g_a64_compile_failure_repeat_count & (g_a64_compile_failure_repeat_count - 1)) == 0;
+}
+
+static void a64_trace_emit_block_history(uint64_t failure_pc)
+{
+    if (!a64_trace_enabled("tcti.block.history"))
+        return;
+
+    for (unsigned i = 0; i < g_a64_trace_block_history_count; i++) {
+        unsigned index = (g_a64_trace_block_history_next + A64_TRACE_BLOCK_HISTORY_SIZE -
+                          g_a64_trace_block_history_count + i) %
+                         A64_TRACE_BLOCK_HISTORY_SIZE;
+        const a64_trace_block_history_entry_t *entry = &g_a64_trace_block_history[index];
+
+        a64_trace_event("tcti.block.history", "tcti.block.history=failure_pc:0x%llx,slot:%u,before:0x%llx,after:0x%llx,"
+            "reason:%d,start:0x%llx,end:0x%llx,explicit:%d,raw:0x%08x,cat:%d,sub:%d,"
+            "rd:%d,rn:%d,rm:%d,rd_val:0x%llx,rn_val:0x%llx,rm_val:0x%llx,"
+            "branch_reg:%d,branch_target:0x%llx,sp:0x%llx,x21:0x%llx,x26:0x%llx,x30:0x%llx",
+            (unsigned long long)failure_pc, i, (unsigned long long)entry->before_pc,
+            (unsigned long long)entry->after_pc, entry->exit_reason,
+            (unsigned long long)entry->block_start, (unsigned long long)entry->block_end,
+            entry->explicit_pc, entry->raw, entry->cat, entry->subtype, entry->rd, entry->rn,
+            entry->rm, (unsigned long long)entry->rd_value, (unsigned long long)entry->rn_value,
+            (unsigned long long)entry->rm_value, entry->branch_reg,
+            (unsigned long long)entry->branch_target, (unsigned long long)entry->sp,
+            (unsigned long long)entry->x21, (unsigned long long)entry->x26,
+            (unsigned long long)entry->x30);
+    }
 }
 
 typedef struct {
@@ -386,76 +459,6 @@ static void trace_guest_first_fault_events(void)
                                   exit_attrs, sizeof(exit_attrs) / sizeof(exit_attrs[0]));
 }
 
-static void trace_base6a628_event(const char *name, const char *payload)
-{
-    if (!name || !payload || g_base6a628_trace_budget <= 0)
-        return;
-
-    char ev[768];
-    snprintf(ev, sizeof(ev), "%s=%s", name, payload);
-    trace_record_event(TRACE_ORIGIN_EXEC, ev);
-    g_base6a628_trace_budget--;
-}
-
-static void trace_x0chain_event(const char *name, const char *payload)
-{
-    if (!name || !payload || g_x0chain_trace_budget <= 0)
-        return;
-
-    char ev[768];
-    snprintf(ev, sizeof(ev), "%s=%s", name, payload);
-    trace_record_event(TRACE_ORIGIN_EXEC, ev);
-    g_x0chain_trace_budget--;
-}
-
-static void __attribute__((unused)) trace_str6a650_event(const char *name, const char *payload)
-{
-    if (!name || !payload || g_str6a650_trace_budget <= 0)
-        return;
-
-    ixland_instrumentation_attribute_t attrs[] = {
-        { .key = "payload", .value = payload },
-    };
-    ixland_guest_trace_emit_attrs(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR, name, attrs,
-                                  sizeof(attrs) / sizeof(attrs[0]));
-    g_str6a650_trace_budget--;
-}
-
-static void trace_str6a650_event_fields(const char *name, const ixland_guest_trace_field_t *fields,
-                                        uint32_t field_count)
-{
-    if (!name || !fields || field_count == 0 || g_str6a650_trace_budget <= 0)
-        return;
-
-    ixland_guest_trace_emit_structured(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR, name, fields,
-                                       field_count);
-    g_str6a650_trace_budget--;
-}
-
-static void __attribute__((unused)) trace_x7chain_event(const char *name, const char *payload)
-{
-    if (!name || !payload || g_x7chain_trace_budget <= 0)
-        return;
-
-    ixland_instrumentation_attribute_t attrs[] = {
-        { .key = "payload", .value = payload },
-    };
-    ixland_guest_trace_emit_attrs(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR, name, attrs,
-                                  sizeof(attrs) / sizeof(attrs[0]));
-    g_x7chain_trace_budget--;
-}
-
-static void trace_x7chain_event_fields(const char *name, const ixland_guest_trace_field_t *fields,
-                                       uint32_t field_count)
-{
-    if (!name || !fields || field_count == 0 || g_x7chain_trace_budget <= 0)
-        return;
-
-    ixland_guest_trace_emit_structured(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR, name, fields,
-                                       field_count);
-    g_x7chain_trace_budget--;
-}
-
 static void __attribute__((unused)) trace_insn64_event(const char *name, const char *payload)
 {
     if (!name || !payload || g_insn64_trace_budget <= 0)
@@ -478,6 +481,133 @@ static void __attribute__((unused)) trace_insn64_event(const char *name, const c
 #define TRACE_FIELD_U64_HEX(key_, value_)                                                          \
     { .key = (key_), .kind = IXLAND_GUEST_TRACE_FIELD_U64_HEX, .u64_value = (uint64_t)(value_) }
 
+#define A64_TRACE_MEM_HISTORY_SIZE 2048
+
+typedef struct {
+    uint64_t pc;
+    uint64_t addr;
+    uint64_t value;
+    uint64_t rn_value;
+    uint64_t rm_value;
+    uint32_t raw;
+    uint16_t sequence;
+    uint8_t width;
+    uint8_t is_load;
+    int rt;
+    int rn;
+    int rm;
+    int idx_mode;
+} a64_trace_mem_history_entry_t;
+
+static a64_trace_mem_history_entry_t g_a64_trace_mem_history[A64_TRACE_MEM_HISTORY_SIZE];
+static uint16_t g_a64_trace_mem_history_next = 0;
+static uint16_t g_a64_trace_mem_history_count = 0;
+static uint16_t g_a64_trace_mem_history_sequence = 0;
+
+static void a64_trace_record_mem_access(const struct cpu_state *cpu, const a64_instr_t *instr,
+                                        uint64_t addr, uint64_t value, uint8_t width,
+                                        bool is_load)
+{
+    if (!cpu || !instr)
+        return;
+
+    a64_trace_mem_history_entry_t *entry =
+        &g_a64_trace_mem_history[g_a64_trace_mem_history_next];
+    memset(entry, 0, sizeof(*entry));
+    entry->pc = cpu->pc;
+    entry->addr = addr;
+    entry->value = value;
+    entry->raw = instr->raw;
+    entry->sequence = g_a64_trace_mem_history_sequence++;
+    entry->width = width;
+    entry->is_load = is_load ? 1 : 0;
+    entry->rt = instr->Rd;
+    entry->rn = instr->Rn;
+    entry->rm = instr->Rm;
+    entry->idx_mode = instr->idx_mode;
+    entry->rn_value = a64_trace_read_reg_or_sp_const(cpu, instr->Rn, true);
+    entry->rm_value = a64_trace_read_reg_or_zr_const(cpu, instr->Rm);
+
+    g_a64_trace_mem_history_next =
+        (uint16_t)((g_a64_trace_mem_history_next + 1) % A64_TRACE_MEM_HISTORY_SIZE);
+    if (g_a64_trace_mem_history_count < A64_TRACE_MEM_HISTORY_SIZE)
+        g_a64_trace_mem_history_count++;
+}
+
+static void a64_trace_emit_mem_history_entry(const char *event_name, uint32_t slot,
+                                             const a64_trace_mem_history_entry_t *entry,
+                                             int value_match_reg)
+{
+    if (!event_name || !entry)
+        return;
+
+    trace_field_t fields[] = {
+        { .key = "slot", .kind = TRACE_FIELD_U64_DEC, .u64_value = slot },
+        { .key = "sequence", .kind = TRACE_FIELD_U64_DEC, .u64_value = entry->sequence },
+        { .key = "guest_pc", .kind = TRACE_FIELD_U64_HEX, .u64_value = entry->pc },
+        { .key = "raw_opcode", .kind = TRACE_FIELD_U64_HEX, .u64_value = entry->raw },
+        { .key = "addr", .kind = TRACE_FIELD_U64_HEX, .u64_value = entry->addr },
+        { .key = "value", .kind = TRACE_FIELD_U64_HEX, .u64_value = entry->value },
+        { .key = "width", .kind = TRACE_FIELD_U64_DEC, .u64_value = entry->width },
+        { .key = "is_load", .kind = TRACE_FIELD_I64_DEC, .i64_value = entry->is_load },
+        { .key = "rt", .kind = TRACE_FIELD_I64_DEC, .i64_value = entry->rt },
+        { .key = "rn", .kind = TRACE_FIELD_I64_DEC, .i64_value = entry->rn },
+        { .key = "rm", .kind = TRACE_FIELD_I64_DEC, .i64_value = entry->rm },
+        { .key = "idx_mode", .kind = TRACE_FIELD_I64_DEC, .i64_value = entry->idx_mode },
+        { .key = "rn_value", .kind = TRACE_FIELD_U64_HEX, .u64_value = entry->rn_value },
+        { .key = "rm_value", .kind = TRACE_FIELD_U64_HEX, .u64_value = entry->rm_value },
+        { .key = "value_match_reg", .kind = TRACE_FIELD_I64_DEC, .i64_value = value_match_reg },
+    };
+    trace_record_event_fields(TRACE_ORIGIN_EMULATOR, event_name, fields,
+                              sizeof(fields) / sizeof(fields[0]));
+}
+
+static int a64_trace_find_matching_reg_value(const struct cpu_state *cpu, uint64_t value)
+{
+    if (!cpu || value == 0)
+        return -1;
+
+    for (int reg = 0; reg <= 30; reg++) {
+        if (cpu->x[reg] == value)
+            return reg;
+    }
+    if (cpu->sp == value)
+        return 31;
+    return -1;
+}
+
+static void a64_trace_emit_mem_history_on_fault(const struct cpu_state *cpu, uint64_t fault_addr)
+{
+    if (!trace_should_emit_event("tcti.mem.history"))
+        return;
+
+    const uint32_t recent_limit = 96;
+    uint32_t emitted_recent = 0;
+    uint32_t emitted_matches = 0;
+
+    for (uint32_t i = 0; i < g_a64_trace_mem_history_count; i++) {
+        uint32_t index = (uint32_t)((g_a64_trace_mem_history_next + A64_TRACE_MEM_HISTORY_SIZE -
+                                     g_a64_trace_mem_history_count + i) %
+                                    A64_TRACE_MEM_HISTORY_SIZE);
+        const a64_trace_mem_history_entry_t *entry = &g_a64_trace_mem_history[index];
+        uint32_t remaining = g_a64_trace_mem_history_count - i;
+        int value_match_reg = a64_trace_find_matching_reg_value(cpu, entry->value);
+        bool addr_match = entry->addr == fault_addr;
+
+        if ((addr_match || value_match_reg >= 0) && emitted_matches < 96) {
+            a64_trace_emit_mem_history_entry("tcti.mem.history.match", i, entry,
+                                             value_match_reg);
+            emitted_matches++;
+        }
+
+        if (remaining <= recent_limit && emitted_recent < recent_limit) {
+            a64_trace_emit_mem_history_entry("tcti.mem.history.recent", emitted_recent, entry,
+                                             value_match_reg);
+            emitted_recent++;
+        }
+    }
+}
+
 static void trace_insn64_event_fields(const char *name, const ixland_guest_trace_field_t *fields,
                                       uint32_t field_count)
 {
@@ -491,7 +621,7 @@ static void trace_insn64_event_fields(const char *name, const ixland_guest_trace
 
 static void trace_block_bytecode(struct a64_block *block)
 {
-    if (!block || !block->gadgets || trace_get_level() < TRACE_LEVEL_DEBUG)
+    if (!block || !block->gadgets || !trace_should_emit_event("tcti.block.bytecode"))
         return;
 
     ixland_guest_trace_field_t start_fields[] = {
@@ -551,72 +681,6 @@ static bool a64_ldst_uses_register_offset(uint32_t raw, const a64_instr_t *instr
         return false;
 
     return bit(raw, 24) == 0 && bits(raw, 11, 10) == 2;
-}
-
-static uint64_t trace_ldst_effective_address(struct cpu_state *cpu, uint32_t raw,
-                                             const a64_instr_t *instr, uint64_t rn_val,
-                                             uint64_t rm_val)
-{
-    if (!cpu || !instr)
-        return 0;
-
-    if (instr->subtype != A64_LDST_SINGLE)
-        return cpu->fault_addr;
-
-    if (a64_ldst_uses_register_offset(raw, instr)) {
-        uint64_t off = a64_extend_index(rm_val, instr->extend_type);
-        return rn_val + (off << instr->imm_shift);
-    }
-
-    switch (instr->idx_mode) {
-    case A64_PRE_INDEX:
-        return rn_val + instr->imm;
-    case A64_POST_INDEX:
-        return rn_val;
-    case A64_INDEX_OFFSET:
-    default:
-        return rn_val + instr->imm;
-    }
-}
-
-static bool trace_instr_writes_rd(const a64_instr_t *instr, uint32_t raw)
-{
-    if (!instr)
-        return false;
-
-    switch (instr->cat) {
-    case A64_BRANCH:
-    case A64_BRANCH2:
-        return false;
-
-    case A64_DP_REG:
-    case A64_DP_REG2:
-    case A64_DP_REG3:
-    case A64_DP_REG4:
-        // CCMN/CCMP update flags only; they do not write Rd.
-        if (instr->subtype == A64_DP_REG_CCMN || instr->subtype == A64_DP_REG_CCMP ||
-            instr->subtype == A64_DP_REG_CCMN_IMM || instr->subtype == A64_DP_REG_CCMP_IMM)
-            return false;
-        return instr->Rd >= 0 && instr->Rd <= 31;
-
-    case A64_LD_ST:
-        // Single/pair forms share bit 22 as load/store selector.
-        if (instr->subtype == A64_LDST_SINGLE || instr->subtype == A64_LDST_PAIR)
-            return bit(raw, 22) != 0;
-        if (instr->subtype == A64_LDST_LITERAL)
-            return true;
-        return false;
-
-    case A64_SIMD:
-    case A64_SIMD2:
-    case A64_SIMD0:
-    case A64_DP_IMM:
-    case A64_DP_IMM2:
-        return instr->Rd >= 0 && instr->Rd <= 31;
-
-    default:
-        return false;
-    }
 }
 
 static const char *trace_page0_obj_kind_name(enum mem_object_kind kind)
@@ -801,7 +865,7 @@ static void __attribute__((unused)) trace_cpu_layout_checkpoint(const char *name
 static void trace_cpu_run_checkpoint(const char *name, struct task *task, struct cpu_state *cpu,
                                      int exit_reason)
 {
-    if (trace_get_level() < TRACE_LEVEL_DEBUG)
+    if (!trace_should_emit_event(name))
         return;
 
     char task_buf[32];
@@ -894,251 +958,6 @@ static void trace_insn_decode_checkpoint(const char *name, uint64_t pc, uint32_t
 }
 
 
-static void trace_69650_block_window(struct cpu_state *cpu, struct tlb *tlb,
-                                     struct a64_block *block)
-{
-    static int captured = 0;
-    static int captured_69634 = 0;
-    if (captured || !cpu || !tlb || !block)
-        return;
-    int has_69650 = (block->start_pc <= 0x69650ULL && 0x69650ULL < block->end_pc);
-    int has_69634 = (block->start_pc <= 0x69634ULL && 0x69634ULL < block->end_pc);
-    if (!has_69650 && !has_69634)
-        return;
-
-    if (has_69650)
-        captured = 1;
-
-    char block_start_buf[24];
-    char block_end_buf[24];
-    char x0_buf[24];
-    char x1_buf[24];
-    char x2_buf[24];
-    char x3_buf[24];
-    char x4_buf[24];
-    char x5_buf[24];
-    char sp_buf[24];
-    char pc_buf[24];
-
-    snprintf(block_start_buf, sizeof(block_start_buf), "0x%llx",
-             (unsigned long long)block->start_pc);
-    snprintf(block_end_buf, sizeof(block_end_buf), "0x%llx", (unsigned long long)block->end_pc);
-    snprintf(x0_buf, sizeof(x0_buf), "0x%llx", (unsigned long long)cpu->x[0]);
-    snprintf(x1_buf, sizeof(x1_buf), "0x%llx", (unsigned long long)cpu->x[1]);
-    snprintf(x2_buf, sizeof(x2_buf), "0x%llx", (unsigned long long)cpu->x[2]);
-    snprintf(x3_buf, sizeof(x3_buf), "0x%llx", (unsigned long long)cpu->x[3]);
-    snprintf(x4_buf, sizeof(x4_buf), "0x%llx", (unsigned long long)cpu->x[4]);
-    snprintf(x5_buf, sizeof(x5_buf), "0x%llx", (unsigned long long)cpu->x[5]);
-    snprintf(sp_buf, sizeof(sp_buf), "0x%llx", (unsigned long long)cpu->sp);
-    snprintf(pc_buf, sizeof(pc_buf), "0x%llx", (unsigned long long)cpu->pc);
-
-    {
-        char ev[320];
-        snprintf(ev, sizeof(ev),
-                 "task.proof.69650.block_entry=block_start:%s,block_end:%s,x0:%s,x1:%s,x2:%s,x3:%s,"
-                 "x4:%s,x5:%s,x7:0x%llx,sp:%s,pc:%s",
-                 block_start_buf, block_end_buf, x0_buf, x1_buf, x2_buf, x3_buf, x4_buf, x5_buf,
-                 (unsigned long long)cpu->x[7], sp_buf, pc_buf);
-        trace_record_event(TRACE_ORIGIN_EXEC, ev);
-    }
-
-    if (has_69650) {
-        uint64_t prev_pc = 0;
-        uint64_t next_pc = 0x69654ULL;
-        uint64_t last_x2_write_pc = 0;
-        uint32_t last_x2_write_raw = 0;
-        a64_instr_t last_x2_write_decoded = { 0 };
-        int have_last_x2_write = 0;
-
-        uint64_t start_pc = block->start_pc;
-        if (start_pc + 8 * 4 < 0x69650ULL)
-            start_pc = 0x69650ULL - 8 * 4;
-
-        for (uint64_t insn_pc = start_pc; insn_pc <= 0x69650ULL; insn_pc += 4) {
-            uint32_t raw = 0;
-            a64_instr_t decoded = { 0 };
-            if (a64_fetch_insn(cpu, tlb, insn_pc, &raw) != 0 || a64_decode(raw, &decoded) != 0)
-                continue;
-
-            if (insn_pc == 0x69650ULL && insn_pc >= 4)
-                prev_pc = insn_pc - 4;
-
-            if (decoded.Rd == 2) {
-                last_x2_write_pc = insn_pc;
-                last_x2_write_raw = raw;
-                last_x2_write_decoded = decoded;
-                have_last_x2_write = 1;
-            }
-
-            char ev[256];
-            snprintf(
-                ev, sizeof(ev),
-                "task.proof.69650.window.insn=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%"
-                "d,idx:%d,size:%d,imm:%lld",
-                (unsigned long long)insn_pc, raw, decoded.cat, decoded.subtype, decoded.Rd,
-                decoded.Rn, decoded.Rm, decoded.idx_mode, decoded.size, (long long)decoded.imm);
-            trace_record_event(TRACE_ORIGIN_EXEC, ev);
-        }
-
-        {
-            char ev[224];
-            snprintf(
-                ev, sizeof(ev),
-                "task.proof.69650.window.flow=prev_pc:0x%llx,current_pc:0x69650,next_pc:0x%llx,"
-                "block_start:0x%llx,block_end:0x%llx,x2_block_entry:0x%llx,x7_block_entry:0x%llx",
-                (unsigned long long)prev_pc, (unsigned long long)next_pc,
-                (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
-                (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[7]);
-            trace_record_event(TRACE_ORIGIN_EXEC, ev);
-        }
-
-        if (have_last_x2_write) {
-            char ev[256];
-            snprintf(
-                ev, sizeof(ev),
-                "task.proof.69650.window.last_x2_write=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,"
-                "rn:%d,rm:%d,idx:%d,size:%d,imm:%lld",
-                (unsigned long long)last_x2_write_pc, last_x2_write_raw, last_x2_write_decoded.cat,
-                last_x2_write_decoded.subtype, last_x2_write_decoded.Rd, last_x2_write_decoded.Rn,
-                last_x2_write_decoded.Rm, last_x2_write_decoded.idx_mode,
-                last_x2_write_decoded.size, (long long)last_x2_write_decoded.imm);
-            trace_record_event(TRACE_ORIGIN_EXEC, ev);
-        }
-    }
-
-    if (!captured_69634 && block->start_pc <= 0x69634ULL && 0x69634ULL < block->end_pc) {
-        captured_69634 = 1;
-
-        int guest_pid = current ? current->pid : -1;
-        int attempt_id = -1;
-
-        char ev[320];
-        snprintf(ev, sizeof(ev),
-                 "ldr69634.block_entry=attempt:%d,guest_pid:%d,block_start:0x%llx,block_end:0x%llx,"
-                 "x2:0x%llx,w2:0x%x,x3:0x%llx,x7:0x%llx,sp:0x%llx,pc:0x%llx",
-                 attempt_id, guest_pid, (unsigned long long)block->start_pc,
-                 (unsigned long long)block->end_pc, (unsigned long long)cpu->x[2],
-                 (unsigned)((uint32_t)cpu->x[2]), (unsigned long long)cpu->x[3],
-                 (unsigned long long)cpu->x[7], (unsigned long long)cpu->sp,
-                 (unsigned long long)cpu->pc);
-        trace_record_event(TRACE_ORIGIN_EXEC, ev);
-
-        uint64_t last_x2_pc = 0;
-        uint32_t last_x2_raw = 0;
-        a64_instr_t last_x2_decoded = { 0 };
-        int have_last_69634_x2 = 0;
-
-        uint64_t last_x3_pc = 0;
-        uint32_t last_x3_raw = 0;
-        a64_instr_t last_x3_decoded = { 0 };
-        int have_last_69634_x3 = 0;
-
-        uint64_t last_w2_pc_before_69630 = 0;
-        uint32_t last_w2_raw_before_69630 = 0;
-        a64_instr_t last_w2_decoded_before_69630 = { 0 };
-        int have_last_w2_before_69630 = 0;
-
-        for (uint64_t insn_pc = block->start_pc; insn_pc <= 0x69634ULL; insn_pc += 4) {
-            uint32_t raw = 0;
-            a64_instr_t decoded = { 0 };
-            if (a64_fetch_insn(cpu, tlb, insn_pc, &raw) != 0 || a64_decode(raw, &decoded) != 0)
-                continue;
-            if (decoded.Rd == 2) {
-                last_x2_pc = insn_pc;
-                last_x2_raw = raw;
-                last_x2_decoded = decoded;
-                have_last_69634_x2 = 1;
-                if (insn_pc < 0x69630ULL) {
-                    last_w2_pc_before_69630 = insn_pc;
-                    last_w2_raw_before_69630 = raw;
-                    last_w2_decoded_before_69630 = decoded;
-                    have_last_w2_before_69630 = 1;
-                }
-            }
-            if (decoded.Rd == 3) {
-                last_x3_pc = insn_pc;
-                last_x3_raw = raw;
-                last_x3_decoded = decoded;
-                have_last_69634_x3 = 1;
-            }
-        }
-
-        if (have_last_69634_x2) {
-            snprintf(ev, sizeof(ev),
-                     "ldr69634.last_x2_writer=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,"
-                     "rm:%d,idx:%d,size:%d,imm:%lld",
-                     (unsigned long long)last_x2_pc, last_x2_raw, last_x2_decoded.cat,
-                     last_x2_decoded.subtype, last_x2_decoded.Rd, last_x2_decoded.Rn,
-                     last_x2_decoded.Rm, last_x2_decoded.idx_mode, last_x2_decoded.size,
-                     (long long)last_x2_decoded.imm);
-            trace_record_event(TRACE_ORIGIN_EXEC, ev);
-
-            snprintf(
-                ev, sizeof(ev),
-                "x2.provenance.last_writer=attempt:%d,guest_pid:%d,pc:0x%llx,raw:0x%08x,"
-                "cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,idx:%d,size:%d,imm:%lld,x2_block_entry:0x%llx,"
-                "w2_block_entry:0x%x,x3_block_entry:0x%llx",
-                attempt_id, guest_pid, (unsigned long long)last_x2_pc, last_x2_raw,
-                last_x2_decoded.cat, last_x2_decoded.subtype, last_x2_decoded.Rd,
-                last_x2_decoded.Rn, last_x2_decoded.Rm, last_x2_decoded.idx_mode,
-                last_x2_decoded.size, (long long)last_x2_decoded.imm, (unsigned long long)cpu->x[2],
-                (unsigned)((uint32_t)cpu->x[2]), (unsigned long long)cpu->x[3]);
-            trace_record_event(TRACE_ORIGIN_EXEC, ev);
-        }
-
-        if (have_last_69634_x3) {
-            snprintf(
-                ev, sizeof(ev),
-                "x3.provenance.last_writer=attempt:%d,guest_pid:%d,pc:0x%llx,raw:0x%08x,"
-                "cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,idx:%d,size:%d,imm:%lld,x3_block_entry:0x%llx",
-                attempt_id, guest_pid, (unsigned long long)last_x3_pc, last_x3_raw,
-                last_x3_decoded.cat, last_x3_decoded.subtype, last_x3_decoded.Rd,
-                last_x3_decoded.Rn, last_x3_decoded.Rm, last_x3_decoded.idx_mode,
-                last_x3_decoded.size, (long long)last_x3_decoded.imm,
-                (unsigned long long)cpu->x[3]);
-            trace_record_event(TRACE_ORIGIN_EXEC, ev);
-        }
-
-        {
-            uint32_t raw_69630 = 0;
-            a64_instr_t dec_69630 = { 0 };
-            int have_69630 = (a64_fetch_insn(cpu, tlb, 0x69630ULL, &raw_69630) == 0 &&
-                              a64_decode(raw_69630, &dec_69630) == 0);
-            uint32_t w2_pre = (uint32_t)cpu->x[2];
-            uint64_t x2_post = (uint64_t)(int64_t)(int32_t)w2_pre;
-
-            snprintf(
-                ev, sizeof(ev),
-                "w2.provenance.pre_69630=attempt:%d,guest_pid:%d,pc:0x69630,raw:0x%08x,"
-                "canonical:sbfm x2,x2,#0,#31,alias:sxtw x2,w2,w2_pre:0x%x,x2_pre:0x%llx,"
-                "last_w2_writer_pc:0x%llx,last_w2_writer_raw:0x%08x,last_w2_writer_cat:%d,"
-                "last_w2_writer_sub:%d,last_w2_writer_rd:%d,last_w2_writer_rn:%d,last_w2_writer_rm:"
-                "%d",
-                attempt_id, guest_pid, raw_69630, (unsigned)w2_pre, (unsigned long long)cpu->x[2],
-                (unsigned long long)(have_last_w2_before_69630 ? last_w2_pc_before_69630 : 0ULL),
-                have_last_w2_before_69630 ? last_w2_raw_before_69630 : 0U,
-                have_last_w2_before_69630 ? last_w2_decoded_before_69630.cat : -1,
-                have_last_w2_before_69630 ? last_w2_decoded_before_69630.subtype : -1,
-                have_last_w2_before_69630 ? last_w2_decoded_before_69630.Rd : -1,
-                have_last_w2_before_69630 ? last_w2_decoded_before_69630.Rn : -1,
-                have_last_w2_before_69630 ? last_w2_decoded_before_69630.Rm : -1);
-            trace_record_event(TRACE_ORIGIN_EXEC, ev);
-
-            snprintf(ev, sizeof(ev),
-                     "w2.provenance.post_69630=attempt:%d,guest_pid:%d,pc:0x69630,raw:0x%08x,"
-                     "canonical:sbfm x2,x2,#0,#31,alias:sxtw x2,w2,w2_post:0x%x,x2_post:0x%llx,"
-                     "decode_cat:%d,decode_sub:%d,decode_rd:%d,decode_rn:%d,decode_rm:%d,decode_"
-                     "imm:%lld",
-                     attempt_id, guest_pid, raw_69630, (unsigned)w2_pre,
-                     (unsigned long long)x2_post, have_69630 ? dec_69630.cat : -1,
-                     have_69630 ? dec_69630.subtype : -1, have_69630 ? dec_69630.Rd : -1,
-                     have_69630 ? dec_69630.Rn : -1, have_69630 ? dec_69630.Rm : -1,
-                     (long long)(have_69630 ? dec_69630.imm : 0));
-            trace_record_event(TRACE_ORIGIN_EXEC, ev);
-        }
-    }
-}
-
 void a64_cpu_init(struct task *task, struct cpu_state *cpu, int err)
 {
     trace_cpu_init_checkpoint("task.proof.a64_cpu_init.entry", task, cpu, err);
@@ -1176,8 +995,7 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
     struct a64_block *block;
     bool explicit_pc_on_exit = false;
 
-    a64_trace_event(TRACE_LEVEL_DEBUG,
-                    "tcti.compile.entry=pc:0x%llx,tlb:%d,mmu_gen:%llu,fault:0x%llx",
+    a64_trace_event("tcti.compile.entry", "tcti.compile.entry=pc:0x%llx,tlb:%d,mmu_gen:%llu,fault:0x%llx",
                     (unsigned long long)pc, tlb ? 1 : 0,
                     (tlb && tlb->mmu) ? (unsigned long long)tlb->mmu->generation : 0ULL,
                     cpu ? (unsigned long long)cpu->fault_addr : 0ULL);
@@ -1193,7 +1011,7 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
 
     int ret = a64_gen_init(&gen_state, buffer, A64_MAX_GADGETS_PER_BLOCK);
     if (ret != A64_GEN_OK) {
-        a64_trace_event(TRACE_LEVEL_DEBUG, "tcti.compile.init_fail=pc:0x%llx,ret:%d",
+        a64_trace_event("tcti.compile.init_fail", "tcti.compile.init_fail=pc:0x%llx,ret:%d",
                         (unsigned long long)pc, ret);
         return NULL;
     }
@@ -1215,8 +1033,7 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
                 direct = mem_ptr(current->mem, gen_state.guest_pc, MEM_READ);
                 read_wrunlock(&current->mem->lock);
             }
-            a64_trace_event(TRACE_LEVEL_DEBUG,
-                            "tcti.compile.fetch_fail=start:0x%llx,pc:0x%llx,ret:%d,"
+            a64_trace_event("tcti.compile.fetch_fail", "tcti.compile.fetch_fail=start:0x%llx,pc:0x%llx,ret:%d,"
                             "fault:0x%llx,was_write:%d,tlb_gen:%llu,mmu_gen:%llu,direct:%d",
                             (unsigned long long)pc, (unsigned long long)gen_state.guest_pc, ret,
                             (unsigned long long)cpu->fault_addr, cpu->fault_was_write ? 1 : 0,
@@ -1235,8 +1052,7 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
         // Generate TCTI instruction - load/store and bitfield now have inline TCTI support
         ret = a64_gen_instruction(&gen_state, insn, gen_state.guest_pc);
 
-        a64_trace_event(TRACE_LEVEL_DEBUG,
-                        "tcti.compile.instruction=start:0x%llx,pc:0x%llx,raw:0x%08x,ret:%d,"
+        a64_trace_event("tcti.compile.instruction", "tcti.compile.instruction=start:0x%llx,pc:0x%llx,raw:0x%08x,ret:%d,"
                         "cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld,is_complete:%d,count:%d",
                         (unsigned long long)pc, (unsigned long long)gen_state.guest_pc, insn, ret,
                         decode_ret == 0 ? decoded_info.cat : -1,
@@ -1281,11 +1097,15 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
     if (insns_decoded == 0) {
         // No instructions could be decoded - this is a fatal error in 100% TCTI mode
         uint32_t failing_insn = 0;
-        a64_fetch_insn(cpu, tlb, pc, &failing_insn);
-        a64_trace_event(TRACE_LEVEL_DEBUG,
-                        "tcti.compile.no_insns=pc:0x%llx,raw:0x%08x,fault:0x%llx",
-                        (unsigned long long)pc, failing_insn,
-                        (unsigned long long)cpu->fault_addr);
+        int fetch_ret = a64_fetch_insn(cpu, tlb, pc, &failing_insn);
+        if (a64_trace_should_emit_compile_failure(pc)) {
+            a64_trace_event("tcti.compile.no_insns", "tcti.compile.no_insns=pc:0x%llx,raw:0x%08x,fetch_ret:%d,"
+                            "aligned:%d,fault:0x%llx,repeat:%u",
+                            (unsigned long long)pc, failing_insn, fetch_ret,
+                            (pc & 3) == 0 ? 1 : 0, (unsigned long long)cpu->fault_addr,
+                            g_a64_compile_failure_repeat_count);
+            a64_trace_emit_block_history(pc);
+        }
         trace_emit_u32(TRACE_EVENT_UNSUPPORTED_INSTRUCTION, pc, failing_insn);
         return NULL;
     }
@@ -1293,8 +1113,7 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
     // Finalize the block
     int finalize_ret = a64_gen_finalize(&gen_state);
     if (finalize_ret != A64_GEN_OK) {
-        a64_trace_event(TRACE_LEVEL_DEBUG,
-                        "tcti.compile.finalize_fail=pc:0x%llx,ret:%d,gadgets:%zu",
+        a64_trace_event("tcti.compile.finalize_fail", "tcti.compile.finalize_fail=pc:0x%llx,ret:%d,gadgets:%zu",
                         (unsigned long long)pc, finalize_ret, gen_state.num_gadgets);
         return NULL;
     }
@@ -1338,34 +1157,9 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
 
     // Trace: Block compilation end
     trace_emit_block_compile_end(pc, gen_state.end_pc, (uint32_t)insns_decoded);
-    a64_trace_event(TRACE_LEVEL_DEBUG,
-                    "tcti.compile.exit=start:0x%llx,end:0x%llx,insns:%d,gadgets:%zu,explicit:%d",
+    a64_trace_event("tcti.compile.exit", "tcti.compile.exit=start:0x%llx,end:0x%llx,insns:%d,gadgets:%zu,explicit:%d",
                     (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
                     insns_decoded, block->num_gadgets, block->explicit_pc_on_exit ? 1 : 0);
-
-    if (block->start_pc < 0x6d1b0ULL && block->end_pc > 0x6d190ULL) {
-        char start_buf[24];
-        char end_buf[24];
-        char insns_buf[16];
-        char gadgets_buf[16];
-        char explicit_pc_buf[8];
-        snprintf(start_buf, sizeof(start_buf), "0x%llx", (unsigned long long)block->start_pc);
-        snprintf(end_buf, sizeof(end_buf), "0x%llx", (unsigned long long)block->end_pc);
-        snprintf(insns_buf, sizeof(insns_buf), "%d", insns_decoded);
-        snprintf(gadgets_buf, sizeof(gadgets_buf), "%zu", block->num_gadgets);
-        snprintf(explicit_pc_buf, sizeof(explicit_pc_buf), "%d",
-                 block->explicit_pc_on_exit ? 1 : 0);
-        trace_attribute_t attrs[] = {
-            { "start", start_buf },
-            { "end", end_buf },
-            { "insns", insns_buf },
-            { "gadgets", gadgets_buf },
-            { "explicit_pc", explicit_pc_buf },
-        };
-        (void)trace_begin_interval(TRACE_ORIGIN_EXEC, "task.proof.interpreter.seamblock.compile",
-                                   attrs, sizeof(attrs) / sizeof(attrs[0]));
-    }
-
 
     trace_block_bytecode(block);
 
@@ -1382,7 +1176,7 @@ __attribute__((no_stack_protector)) int a64_execute_block(struct cpu_state *cpu,
                                                           struct a64_block *block)
 {
     // Trace: Register snapshot if at block level
-    if (trace_get_level() >= TRACE_LEVEL_DEBUG) {
+    if (trace_should_emit_event("tcti.block.register_snapshot")) {
         uint64_t regs[6] = { cpu->x[0], cpu->x[1], cpu->x[2], cpu->x[3], cpu->x[4], cpu->x[5] };
         trace_emit_register_snapshot(block->start_pc, regs, 0x3F);
     }
@@ -1425,197 +1219,9 @@ __attribute__((no_stack_protector)) int a64_execute_block(struct cpu_state *cpu,
 
     if (setjmp(guest_fault_jmpbuf) == 0) {
         // Normal execution path
-        if (block->start_pc < 0x6d1b0ULL && block->end_pc > 0x6d190ULL) {
-            char start_buf[24];
-            char end_buf[24];
-            char pc_buf[24];
-            char x0_buf[24];
-            char x1_buf[24];
-            char x2_buf[24];
-            char x3_buf[24];
-            char x21_buf[24];
-            char nzcv_buf[8];
-            char gadgets_buf[16];
-            char ev[320];
-            snprintf(start_buf, sizeof(start_buf), "0x%llx", (unsigned long long)block->start_pc);
-            snprintf(end_buf, sizeof(end_buf), "0x%llx", (unsigned long long)block->end_pc);
-            snprintf(pc_buf, sizeof(pc_buf), "0x%llx", (unsigned long long)cpu->pc);
-            snprintf(x0_buf, sizeof(x0_buf), "0x%llx", (unsigned long long)cpu->x[0]);
-            snprintf(x1_buf, sizeof(x1_buf), "0x%llx", (unsigned long long)cpu->x[1]);
-            snprintf(x2_buf, sizeof(x2_buf), "0x%llx", (unsigned long long)cpu->x[2]);
-            snprintf(x3_buf, sizeof(x3_buf), "0x%llx", (unsigned long long)cpu->x[3]);
-            snprintf(x21_buf, sizeof(x21_buf), "0x%llx", (unsigned long long)cpu->x[21]);
-            snprintf(nzcv_buf, sizeof(nzcv_buf), "%d%d%d%d", cpu->n ? 1 : 0, cpu->z ? 1 : 0,
-                     cpu->c ? 1 : 0, cpu->v ? 1 : 0);
-            snprintf(gadgets_buf, sizeof(gadgets_buf), "%zu", block->num_gadgets);
-            trace_attribute_t attrs[] = {
-                { "start", start_buf },     { "end", end_buf }, { "pc", pc_buf },
-                { "x0", x0_buf },           { "x1", x1_buf },   { "x2", x2_buf },
-                { "x3", x3_buf },           { "x21", x21_buf }, { "nzcv", nzcv_buf },
-                { "gadgets", gadgets_buf },
-            };
-            (void)trace_begin_interval(TRACE_ORIGIN_EXEC,
-                                       "task.proof.interpreter.seamblock.execute", attrs,
-                                       sizeof(attrs) / sizeof(attrs[0]));
-            snprintf(ev, sizeof(ev),
-                     "task.proof.interpreter.seamblock.pre=block_start:0x%llx,block_end:0x%llx,"
-                     "pc:0x%llx,x0:0x%llx,x1:0x%llx,x2:0x%llx,x3:0x%llx,x21:0x%llx,nzcv:%d%d%d%d",
-                     (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
-                     (unsigned long long)cpu->pc, (unsigned long long)cpu->x[0],
-                     (unsigned long long)cpu->x[1], (unsigned long long)cpu->x[2],
-                     (unsigned long long)cpu->x[3], (unsigned long long)cpu->x[21], cpu->n ? 1 : 0,
-                     cpu->z ? 1 : 0, cpu->c ? 1 : 0, cpu->v ? 1 : 0);
-            trace_record_event(TRACE_ORIGIN_EXEC, ev);
-        }
-
-
-        if (block->start_pc == 0x6a628ULL) {
-            char payload[512];
-            snprintf(payload, sizeof(payload),
-                     "attempt:-1,guest_pid:%d,guest_pc:0x%llx,block_start:0x%llx,block_end:0x%llx,"
-                     "arch_base_reg:3,arch_base_val:0x%llx,carrier_val:0x%llx,cpu_slot_val:0x%llx,"
-                     "is_zero:%d,helper_path_reached:0,signal_immediate:0",
-                     current ? current->pid : -1, (unsigned long long)cpu->pc,
-                     (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
-                     (unsigned long long)cpu->x[3], (unsigned long long)cpu->x[3],
-                     (unsigned long long)cpu->x[3], cpu->x[3] == 0 ? 1 : 0);
-            trace_base6a628_event("base6a628.pre_sync", payload);
-        }
-        if (block->start_pc == 0x6a620ULL) {
-            char payload[512];
-            snprintf(payload, sizeof(payload),
-                     "attempt:-1,guest_pid:%d,guest_pc:0x%llx,block_start:0x%llx,block_end:0x%llx,"
-                     "x0_val:0x%llx,carrier_val:0x%llx,cpu_slot_val:0x%llx,is_zero:%d",
-                     current ? current->pid : -1, (unsigned long long)cpu->pc,
-                     (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
-                     (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[0],
-                     (unsigned long long)cpu->x[0], cpu->x[0] == 0 ? 1 : 0);
-            trace_x0chain_event("x0chain.pre_sync", payload);
-        }
-        if (block->start_pc == 0x6a650ULL) {
-            ixland_guest_trace_field_t fields[] = {
-                TRACE_FIELD_U64_HEX("guest_pc", cpu->pc),
-                TRACE_FIELD_U64_HEX("raw_opcode", cpu->pc == 0x6a650ULL ? 0xf800845fU : 0),
-                TRACE_FIELD_STR("mnemonic", "str"),
-                TRACE_FIELD_I64("base_reg", 2),
-                TRACE_FIELD_U64_HEX("base_val", cpu->x[2]),
-                TRACE_FIELD_I64("src_reg", 31),
-                TRACE_FIELD_U64_HEX("src_val", 0),
-                TRACE_FIELD_I64("signal_follow_immediate", 0),
-            };
-            trace_str6a650_event_fields("str6a650.pre_sync", fields,
-                                        sizeof(fields) / sizeof(fields[0]));
-        }
-        if (block->start_pc == 0x6a640ULL) {
-            ixland_guest_trace_field_t fields[] = {
-                TRACE_FIELD_U64_HEX("guest_pc", 0x6a640ULL),
-                TRACE_FIELD_U64_HEX("raw_opcode", 0x910023e7ULL),
-                TRACE_FIELD_STR("mnemonic", "add x7,sp,#8"),
-                TRACE_FIELD_U64_HEX("sp", cpu->sp),
-                TRACE_FIELD_U64_HEX("x7", cpu->x[7]),
-                TRACE_FIELD_U64_HEX("x2", cpu->x[2]),
-                TRACE_FIELD_U64_HEX("block_start", block->start_pc),
-                TRACE_FIELD_U64_HEX("block_end", block->end_pc),
-            };
-            trace_insn64_event_fields("insn6a640.pre_sync", fields,
-                                      sizeof(fields) / sizeof(fields[0]));
-        }
-        if (block->start_pc == 0x6a64cULL) {
-            ixland_guest_trace_field_t fields[] = {
-                TRACE_FIELD_U64_HEX("guest_pc", cpu->pc),
-                TRACE_FIELD_U64_HEX("raw_opcode", 0xaa0703e2U),
-                TRACE_FIELD_STR("mnemonic", "mov_x2_x7"),
-                TRACE_FIELD_U64_HEX("x7", cpu->x[7]),
-                TRACE_FIELD_U64_HEX("x2", cpu->x[2]),
-                TRACE_FIELD_U64_HEX("block_start", block->start_pc),
-                TRACE_FIELD_U64_HEX("block_end", block->end_pc),
-            };
-            trace_x7chain_event_fields("mov6a64c.pre_sync", fields,
-                                       sizeof(fields) / sizeof(fields[0]));
-        }
         a64_trace_block_registers("entry", cpu, block);
         tcti_entry_block(block->gadgets, cpu);
         a64_trace_block_registers("exit", cpu, block);
-        if (block->start_pc == 0x6a628ULL) {
-            char payload[512];
-            snprintf(payload, sizeof(payload),
-                     "attempt:-1,guest_pid:%d,guest_pc:0x%llx,block_start:0x%llx,block_end:0x%llx,"
-                     "arch_base_reg:3,arch_base_val:0x%llx,carrier_val:0x%llx,cpu_slot_val:0x%llx,"
-                     "is_zero:%d,helper_path_reached:1,signal_immediate:%d",
-                     current ? current->pid : -1, (unsigned long long)cpu->pc,
-                     (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
-                     (unsigned long long)cpu->x[3], (unsigned long long)cpu->x[3],
-                     (unsigned long long)cpu->x[3], cpu->x[3] == 0 ? 1 : 0,
-                     cpu->tcti_exit_reason == TCTI_EXIT_FAULT ? 1 : 0);
-            trace_base6a628_event("base6a628.post_sync", payload);
-        }
-        if (block->start_pc == 0x6a620ULL) {
-            char payload[512];
-            snprintf(payload, sizeof(payload),
-                     "attempt:-1,guest_pid:%d,guest_pc:0x%llx,block_start:0x%llx,block_end:0x%llx,"
-                     "x0_val:0x%llx,carrier_val:0x%llx,cpu_slot_val:0x%llx,is_zero:%d",
-                     current ? current->pid : -1, (unsigned long long)cpu->pc,
-                     (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
-                     (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[0],
-                     (unsigned long long)cpu->x[0], cpu->x[0] == 0 ? 1 : 0);
-            trace_x0chain_event("x0chain.post_sync", payload);
-        }
-        if (block->start_pc == 0x6a650ULL) {
-            ixland_guest_trace_field_t fields[] = {
-                TRACE_FIELD_U64_HEX("guest_pc", cpu->pc),
-                TRACE_FIELD_U64_HEX("raw_opcode", cpu->pc == 0x6a650ULL ? 0xf800845fU : 0),
-                TRACE_FIELD_STR("mnemonic", "str"),
-                TRACE_FIELD_I64("base_reg", 2),
-                TRACE_FIELD_U64_HEX("base_val", cpu->x[2]),
-                TRACE_FIELD_I64("src_reg", 31),
-                TRACE_FIELD_U64_HEX("src_val", 0),
-                TRACE_FIELD_I64("translation_fault", cpu->tcti_exit_reason == TCTI_EXIT_FAULT),
-                TRACE_FIELD_I64("signal_follow_immediate",
-                                cpu->tcti_exit_reason == TCTI_EXIT_FAULT),
-            };
-            trace_str6a650_event_fields("str6a650.post_sync", fields,
-                                        sizeof(fields) / sizeof(fields[0]));
-        }
-        if (block->start_pc == 0x6a640ULL) {
-            ixland_guest_trace_field_t fields[] = {
-                TRACE_FIELD_U64_HEX("guest_pc", 0x6a640ULL),
-                TRACE_FIELD_U64_HEX("raw_opcode", 0x910023e7ULL),
-                TRACE_FIELD_STR("mnemonic", "add x7,sp,#8"),
-                TRACE_FIELD_U64_HEX("sp", cpu->sp),
-                TRACE_FIELD_U64_HEX("x7", cpu->x[7]),
-                TRACE_FIELD_U64_HEX("x2", cpu->x[2]),
-                TRACE_FIELD_U64_HEX("block_start", block->start_pc),
-                TRACE_FIELD_U64_HEX("block_end", block->end_pc),
-            };
-            trace_insn64_event_fields("insn6a640.post_sync", fields,
-                                      sizeof(fields) / sizeof(fields[0]));
-        }
-        if (block->start_pc == 0x6a64cULL) {
-            ixland_guest_trace_field_t fields[] = {
-                TRACE_FIELD_U64_HEX("guest_pc", cpu->pc),
-                TRACE_FIELD_U64_HEX("raw_opcode", 0xaa0703e2U),
-                TRACE_FIELD_STR("mnemonic", "mov_x2_x7"),
-                TRACE_FIELD_U64_HEX("x7", cpu->x[7]),
-                TRACE_FIELD_U64_HEX("x2", cpu->x[2]),
-                TRACE_FIELD_U64_HEX("block_start", block->start_pc),
-                TRACE_FIELD_U64_HEX("block_end", block->end_pc),
-            };
-            trace_x7chain_event_fields("mov6a64c.post_sync", fields,
-                                       sizeof(fields) / sizeof(fields[0]));
-        }
-        if (block->start_pc < 0x6d1b0ULL && block->end_pc > 0x6d190ULL) {
-            char ev[352];
-            snprintf(ev, sizeof(ev),
-                     "task.proof.interpreter.seamblock.post=block_start:0x%llx,block_end:0x%llx,"
-                     "pc:0x%llx,x0:0x%llx,x1:0x%llx,x2:0x%llx,x3:0x%llx,x21:0x%llx,nzcv:%d%d%d%d,"
-                     "exit_reason:%d",
-                     (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
-                     (unsigned long long)cpu->pc, (unsigned long long)cpu->x[0],
-                     (unsigned long long)cpu->x[1], (unsigned long long)cpu->x[2],
-                     (unsigned long long)cpu->x[3], (unsigned long long)cpu->x[21], cpu->n ? 1 : 0,
-                     cpu->z ? 1 : 0, cpu->c ? 1 : 0, cpu->v ? 1 : 0, cpu->tcti_exit_reason);
-            trace_record_event(TRACE_ORIGIN_EXEC, ev);
-        }
     } else {
         // Fault containment path - signal was caught
         cpu->tcti_exit_reason = TCTI_EXIT_FAULT;
@@ -1696,32 +1302,6 @@ static uint64_t trace_ldst_reg_or_zr(struct cpu_state *cpu, int reg)
     if (reg < 0 || reg > 30)
         return 0;
     return cpu->x[reg];
-}
-
-static const char *trace_ldst_extend_name(int extend_type)
-{
-    switch (extend_type) {
-    case A64_EXT_UXTB:
-        return "uxtb";
-    case A64_EXT_UXTH:
-        return "uxth";
-    case A64_EXT_UXTW:
-        return "uxtw";
-    case A64_EXT_UXTX:
-        return "uxtx";
-    case A64_EXT_SXTB:
-        return "sxtb";
-    case A64_EXT_SXTH:
-        return "sxth";
-    case A64_EXT_SXTW:
-        return "sxtw";
-    case A64_EXT_SXTX:
-        return "sxtx";
-    case A64_EXT_LSL:
-        return "lsl";
-    default:
-        return "unknown";
-    }
 }
 
 static const char *trace_ldst_mnemonic(int is_load, int size, int is_signed)
@@ -1822,60 +1402,49 @@ static void trace_first_live_ldst_fault(struct cpu_state *cpu, int host_signal)
     void *host_ptr_probe = a64_guest_to_host(cpu, cpu->tlb, guest_ea, is_load ? 0 : 1);
     int mem_probe_ret = host_ptr_probe ? A64_MEM_OK : A64_MEM_FAULT;
 
-    char ev[320];
-    snprintf(ev, sizeof(ev), "task.proof.ldr_first_fault.pc=0x%llx", (unsigned long long)cpu->pc);
-    trace_record_event(TRACE_ORIGIN_EXEC, ev);
-
-    snprintf(ev, sizeof(ev), "task.proof.ldr_first_fault.raw=0x%08x", raw);
-    trace_record_event(TRACE_ORIGIN_EXEC, ev);
-
-    snprintf(ev, sizeof(ev),
-             "task.proof.ldr_first_fault.decode=cat:%d,sub:%d,is_load:%d,rt:%d,rn:%d,rm:%d,size:%d,"
-             "idx:%d,ext:%d,shift:%d,imm:%lld,regoff:%d",
-             decoded.cat, decoded.subtype, is_load, decoded.Rd, rm >= 0 ? decoded.Rn : decoded.Rn,
-             rm, decoded.size, decoded.idx_mode, decoded.extend_type, decoded.imm_shift,
-             (long long)decoded.imm, is_reg_offset);
-    trace_record_event(TRACE_ORIGIN_EXEC, ev);
-
-    if (is_reg_offset) {
-        snprintf(ev, sizeof(ev), "task.proof.ldr_first_fault.human=%s x%d,[x%d,x%d,%s #%d]",
-                 trace_ldst_mnemonic(is_load, decoded.size, decoded.is_signed ? 1 : 0), decoded.Rd,
-                 decoded.Rn, decoded.Rm, trace_ldst_extend_name(decoded.extend_type),
-                 decoded.imm_shift);
-    } else {
-        snprintf(ev, sizeof(ev), "task.proof.ldr_first_fault.human=%s x%d,[x%d,#%lld],idx:%d",
-                 trace_ldst_mnemonic(is_load, decoded.size, decoded.is_signed ? 1 : 0), decoded.Rd,
-                 decoded.Rn, (long long)decoded.imm, decoded.idx_mode);
-    }
-    trace_record_event(TRACE_ORIGIN_EXEC, ev);
-
-    snprintf(ev, sizeof(ev),
-             "task.proof.ldr_first_fault.regs=rt_val:0x%llx,rn_val:0x%llx,rm_val:0x%llx",
-             (unsigned long long)rt_val, (unsigned long long)rn_val, (unsigned long long)rm_val);
-    trace_record_event(TRACE_ORIGIN_EXEC, ev);
-
-    snprintf(ev, sizeof(ev),
-             "task.proof.ldr_first_fault.address=offset_pre_shift:0x%llx,computed_offset:0x%llx,"
-             "guest_ea:0x%llx",
-             (unsigned long long)offset_before_shift, (unsigned long long)computed_offset,
-             (unsigned long long)guest_ea);
-    trace_record_event(TRACE_ORIGIN_EXEC, ev);
-
-    snprintf(ev, sizeof(ev),
-             "task.proof.ldr_first_fault.translation=page_lookup:%s,host_ptr_page:0x%llx,"
-             "host_ptr_probe:0x%llx,mem_ret:%d",
-             desc ? "hit" : "miss", (unsigned long long)host_ptr_page,
-             (unsigned long long)(uintptr_t)host_ptr_probe, mem_probe_ret);
-    trace_record_event(TRACE_ORIGIN_EXEC, ev);
-
-    snprintf(ev, sizeof(ev), "task.proof.ldr_first_fault.writeback=expected:%d,val:0x%llx",
-             writeback_expected, (unsigned long long)writeback_val);
-    trace_record_event(TRACE_ORIGIN_EXEC, ev);
-
-    snprintf(ev, sizeof(ev),
-             "task.proof.ldr_first_fault.exit=exit_reason:%d,interrupt:%d,host_signal:%d",
-             TCTI_EXIT_FAULT, INT_GPF, host_signal);
-    trace_record_event(TRACE_ORIGIN_EXEC, ev);
+    trace_field_t fields[] = {
+        { .key = "guest_pc", .kind = TRACE_FIELD_U64_HEX, .u64_value = cpu->pc },
+        { .key = "raw_opcode", .kind = TRACE_FIELD_U64_HEX, .u64_value = raw },
+        { .key = "mnemonic",
+          .kind = TRACE_FIELD_STRING,
+          .string_value = trace_ldst_mnemonic(is_load, decoded.size,
+                                              decoded.is_signed ? 1 : 0) },
+        { .key = "cat", .kind = TRACE_FIELD_I64_DEC, .i64_value = decoded.cat },
+        { .key = "subtype", .kind = TRACE_FIELD_I64_DEC, .i64_value = decoded.subtype },
+        { .key = "is_load", .kind = TRACE_FIELD_I64_DEC, .i64_value = is_load },
+        { .key = "rt", .kind = TRACE_FIELD_I64_DEC, .i64_value = decoded.Rd },
+        { .key = "rn", .kind = TRACE_FIELD_I64_DEC, .i64_value = decoded.Rn },
+        { .key = "rm", .kind = TRACE_FIELD_I64_DEC, .i64_value = rm },
+        { .key = "size", .kind = TRACE_FIELD_I64_DEC, .i64_value = decoded.size },
+        { .key = "idx_mode", .kind = TRACE_FIELD_I64_DEC, .i64_value = decoded.idx_mode },
+        { .key = "extend_type", .kind = TRACE_FIELD_I64_DEC, .i64_value = decoded.extend_type },
+        { .key = "imm_shift", .kind = TRACE_FIELD_I64_DEC, .i64_value = decoded.imm_shift },
+        { .key = "imm", .kind = TRACE_FIELD_I64_DEC, .i64_value = decoded.imm },
+        { .key = "is_reg_offset", .kind = TRACE_FIELD_I64_DEC, .i64_value = is_reg_offset },
+        { .key = "rt_val", .kind = TRACE_FIELD_U64_HEX, .u64_value = rt_val },
+        { .key = "rn_val", .kind = TRACE_FIELD_U64_HEX, .u64_value = rn_val },
+        { .key = "rm_val", .kind = TRACE_FIELD_U64_HEX, .u64_value = rm_val },
+        { .key = "offset_pre_shift", .kind = TRACE_FIELD_U64_HEX, .u64_value = offset_before_shift },
+        { .key = "computed_offset", .kind = TRACE_FIELD_U64_HEX, .u64_value = computed_offset },
+        { .key = "guest_ea", .kind = TRACE_FIELD_U64_HEX, .u64_value = guest_ea },
+        { .key = "page_lookup",
+          .kind = TRACE_FIELD_STRING,
+          .string_value = desc ? "hit" : "miss" },
+        { .key = "host_ptr_page", .kind = TRACE_FIELD_U64_HEX, .u64_value = host_ptr_page },
+        { .key = "host_ptr_probe",
+          .kind = TRACE_FIELD_U64_HEX,
+          .u64_value = (uint64_t)(uintptr_t)host_ptr_probe },
+        { .key = "mem_ret", .kind = TRACE_FIELD_I64_DEC, .i64_value = mem_probe_ret },
+        { .key = "writeback_expected",
+          .kind = TRACE_FIELD_I64_DEC,
+          .i64_value = writeback_expected },
+        { .key = "writeback_val", .kind = TRACE_FIELD_U64_HEX, .u64_value = writeback_val },
+        { .key = "exit_reason", .kind = TRACE_FIELD_I64_DEC, .i64_value = TCTI_EXIT_FAULT },
+        { .key = "interrupt", .kind = TRACE_FIELD_I64_DEC, .i64_value = INT_GPF },
+        { .key = "host_signal", .kind = TRACE_FIELD_I64_DEC, .i64_value = host_signal },
+    };
+    trace_record_event_fields(TRACE_ORIGIN_EMULATOR, "guest.first_fault.ldst", fields,
+                              sizeof(fields) / sizeof(fields[0]));
 }
 
 /*
@@ -2098,196 +1667,6 @@ static void trace_interpreter_edge_checkpoint(const char *name, struct cpu_state
                                sizeof(attrs) / sizeof(attrs[0]));
 }
 
-static void trace_interpreter_store_edge_checkpoint(const char *name, struct cpu_state *cpu,
-                                                    int repeat_count)
-{
-    char pc_buf[32];
-    char x2_buf[32];
-    char computed_addr_buf[32];
-    char sp_buf[32];
-    char x0_buf[32];
-    char x1_buf[32];
-    char tpidr_buf[32];
-    char repeat_count_buf[16];
-
-    uint64_t computed_addr = cpu->x[2];
-
-    snprintf(pc_buf, sizeof(pc_buf), "0x%llx", (unsigned long long)cpu->pc);
-    snprintf(x2_buf, sizeof(x2_buf), "0x%llx", (unsigned long long)cpu->x[2]);
-    snprintf(computed_addr_buf, sizeof(computed_addr_buf), "0x%llx",
-             (unsigned long long)computed_addr);
-    snprintf(sp_buf, sizeof(sp_buf), "0x%llx", (unsigned long long)cpu->sp);
-    snprintf(x0_buf, sizeof(x0_buf), "0x%llx", (unsigned long long)cpu->x[0]);
-    snprintf(x1_buf, sizeof(x1_buf), "0x%llx", (unsigned long long)cpu->x[1]);
-    snprintf(tpidr_buf, sizeof(tpidr_buf), "0x%llx", (unsigned long long)cpu->tpidr_el0);
-    snprintf(repeat_count_buf, sizeof(repeat_count_buf), "%d", repeat_count);
-
-    trace_attribute_t attrs[] = {
-        { "pc", pc_buf },
-        { "x2", x2_buf },
-        { "computed_addr", computed_addr_buf },
-        { "sp", sp_buf },
-        { "x0", x0_buf },
-        { "x1", x1_buf },
-        { "tpidr_el0", tpidr_buf },
-        { "repeat_count", repeat_count_buf },
-    };
-
-    (void)trace_begin_interval(TRACE_ORIGIN_EMULATOR, name, attrs,
-                               sizeof(attrs) / sizeof(attrs[0]));
-}
-
-static uint64_t trace_cpu_reg_value(struct cpu_state *cpu, int reg)
-{
-    if (reg == 31)
-        return cpu->sp;
-    if (reg >= 0 && reg < 31)
-        return cpu->x[reg];
-    return 0;
-}
-
-static void trace_interpreter_loop_predicate_checkpoint(const char *name, struct cpu_state *cpu,
-                                                        struct tlb *tlb, uint64_t block_start,
-                                                        uint64_t block_end, int repeat_count)
-{
-    uint64_t compare_pc = 0;
-    uint64_t branch_pc = 0;
-    uint32_t compare_raw = 0;
-    uint32_t branch_raw = 0;
-    a64_instr_t compare_decoded = { 0 };
-    uint64_t branch_target = 0;
-    uint64_t compare_lhs = 0;
-    uint64_t compare_rhs = 0;
-    uint64_t bound_value = 0;
-    int branch_taken = 0;
-
-    for (uint64_t insn_pc = block_start; insn_pc < block_end; insn_pc += 4) {
-        uint32_t raw = 0;
-        a64_instr_t decoded = { 0 };
-        if (a64_fetch_insn(cpu, tlb, insn_pc, &raw) != 0 || a64_decode(raw, &decoded) != 0)
-            continue;
-        if (decoded.cat == A64_BRANCH) {
-            uint64_t target = insn_pc + decoded.imm;
-            if (target == block_start) {
-                branch_pc = insn_pc;
-                branch_raw = raw;
-                branch_target = target;
-                branch_taken = (cpu->pc == target);
-                break;
-            }
-        }
-    }
-
-    if (branch_pc != 0 && branch_pc >= 4) {
-        compare_pc = branch_pc - 4;
-        if (a64_fetch_insn(cpu, tlb, compare_pc, &compare_raw) == 0 &&
-            a64_decode(compare_raw, &compare_decoded) == 0) {
-            compare_lhs = trace_cpu_reg_value(cpu, compare_decoded.Rn);
-            if (compare_decoded.cat == A64_DP_IMM || compare_decoded.cat == A64_DP_IMM2) {
-                compare_rhs = (uint64_t)compare_decoded.imm;
-                bound_value = compare_rhs;
-            } else {
-                compare_rhs = trace_cpu_reg_value(cpu, compare_decoded.Rm);
-                bound_value = compare_rhs;
-            }
-        }
-    }
-
-    char pc_buf[32];
-    char x2_buf[32];
-    char compare_pc_buf[32];
-    char compare_raw_buf[32];
-    char branch_pc_buf[32];
-    char branch_raw_buf[32];
-    char compare_lhs_buf[32];
-    char compare_rhs_buf[32];
-    char bound_buf[32];
-    char branch_target_buf[32];
-    char branch_taken_buf[8];
-    char repeat_count_buf[16];
-
-    snprintf(pc_buf, sizeof(pc_buf), "0x%llx", (unsigned long long)cpu->pc);
-    snprintf(x2_buf, sizeof(x2_buf), "0x%llx", (unsigned long long)cpu->x[2]);
-    snprintf(compare_pc_buf, sizeof(compare_pc_buf), "0x%llx", (unsigned long long)compare_pc);
-    snprintf(compare_raw_buf, sizeof(compare_raw_buf), "0x%08x", compare_raw);
-    snprintf(branch_pc_buf, sizeof(branch_pc_buf), "0x%llx", (unsigned long long)branch_pc);
-    snprintf(branch_raw_buf, sizeof(branch_raw_buf), "0x%08x", branch_raw);
-    snprintf(compare_lhs_buf, sizeof(compare_lhs_buf), "0x%llx", (unsigned long long)compare_lhs);
-    snprintf(compare_rhs_buf, sizeof(compare_rhs_buf), "0x%llx", (unsigned long long)compare_rhs);
-    snprintf(bound_buf, sizeof(bound_buf), "0x%llx", (unsigned long long)bound_value);
-    snprintf(branch_target_buf, sizeof(branch_target_buf), "0x%llx",
-             (unsigned long long)branch_target);
-    snprintf(branch_taken_buf, sizeof(branch_taken_buf), "%d", branch_taken);
-    snprintf(repeat_count_buf, sizeof(repeat_count_buf), "%d", repeat_count);
-
-    trace_attribute_t attrs[] = {
-        { "pc", pc_buf },
-        { "x2", x2_buf },
-        { "compare_pc", compare_pc_buf },
-        { "compare_raw", compare_raw_buf },
-        { "branch_pc", branch_pc_buf },
-        { "branch_raw", branch_raw_buf },
-        { "compare_lhs", compare_lhs_buf },
-        { "compare_rhs", compare_rhs_buf },
-        { "bound_value", bound_buf },
-        { "branch_target", branch_target_buf },
-        { "branch_taken", branch_taken_buf },
-        { "repeat_count", repeat_count_buf },
-    };
-
-    (void)trace_begin_interval(TRACE_ORIGIN_EMULATOR, name, attrs,
-                               sizeof(attrs) / sizeof(attrs[0]));
-}
-
-struct tcti_asm_probe {
-    uint64_t pc_value;
-    uint64_t x29_value;
-    uint64_t host_x3;
-    uint64_t host_x6;
-    uint64_t nzcv_value;
-    uint8_t captured;
-};
-
-extern struct tcti_asm_probe tcti_asm_probe;
-
-static void trace_interpreter_cmp_entry_asm_checkpoint(const char *name, uint64_t block_start,
-                                                       uint64_t block_end, int repeat_count)
-{
-    char pc_buf[32];
-    char block_start_buf[32];
-    char block_end_buf[32];
-    char host_x3_buf[32];
-    char host_x6_buf[32];
-    char x29_buf[32];
-    char nzcv_buf[32];
-    char repeat_count_buf[16];
-
-    snprintf(pc_buf, sizeof(pc_buf), "0x%llx", (unsigned long long)tcti_asm_probe.pc_value);
-    snprintf(block_start_buf, sizeof(block_start_buf), "0x%llx", (unsigned long long)block_start);
-    snprintf(block_end_buf, sizeof(block_end_buf), "0x%llx", (unsigned long long)block_end);
-    snprintf(host_x3_buf, sizeof(host_x3_buf), "0x%llx",
-             (unsigned long long)tcti_asm_probe.host_x3);
-    snprintf(host_x6_buf, sizeof(host_x6_buf), "0x%llx",
-             (unsigned long long)tcti_asm_probe.host_x6);
-    snprintf(x29_buf, sizeof(x29_buf), "0x%llx", (unsigned long long)tcti_asm_probe.x29_value);
-    snprintf(nzcv_buf, sizeof(nzcv_buf), "0x%llx", (unsigned long long)tcti_asm_probe.nzcv_value);
-    snprintf(repeat_count_buf, sizeof(repeat_count_buf), "%d", repeat_count);
-
-    trace_attribute_t attrs[] = {
-        { "pc", pc_buf },
-        { "block_start", block_start_buf },
-        { "block_end", block_end_buf },
-        { "host_x3", host_x3_buf },
-        { "host_x6", host_x6_buf },
-        { "x29_value", x29_buf },
-        { "raw_nzcv", nzcv_buf },
-        { "repeat_count", repeat_count_buf },
-    };
-
-    (void)trace_begin_interval(TRACE_ORIGIN_EMULATOR, name, attrs,
-                               sizeof(attrs) / sizeof(attrs[0]));
-}
-
 /*
  * Run the CPU until interrupted
  * This is the main entry point from the kernel
@@ -2316,7 +1695,7 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
     // Initialize tracing from environment
     trace_config_t trace_config;
     trace_config_from_env(&trace_config);
-    if (trace_init(&trace_config) == 0 && trace_get_level() >= TRACE_LEVEL_SUMMARY) {
+    if (trace_init(&trace_config) == 0 && trace_should_emit_event("guest.process.entry")) {
         trace_emit_process_entry(cpu->pc, cpu->sp, cpu->x[0], cpu->x[1]);
     }
 
@@ -2418,15 +1797,6 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
         }
 
         uint64_t pc = cpu->pc;
-        if ((pc >= 0x6a9d0ULL && pc <= 0x6aa00ULL) ||
-            (pc >= 0x3e300ULL && pc <= 0x3e380ULL)) {
-            char ev[192];
-            snprintf(ev, sizeof(ev),
-                     "task.proof.tcti.loop.focus=pc:0x%llx,iteration:%d,total:%d,ctx_active:%d",
-                     (unsigned long long)pc, iteration_count, total_blocks_executed,
-                     ctx && ctx->active ? 1 : 0);
-            trace_record_event(TRACE_ORIGIN_EXEC, ev);
-        }
         if (first_block_lookup) {
             trace_cpu_run_checkpoint("task.proof.a64_cpu_run.before_first_block_lookup", current,
                                      cpu, 0);
@@ -2484,13 +1854,11 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
                         trace_cpu_run_checkpoint("task.proof.a64_cpu_run.before_first_compile",
                                                  current, cpu, 0);
                     }
-                    a64_trace_event(
-                        TRACE_LEVEL_DEBUG, "tcti.dispatch.compile.call=pc:0x%llx,total:%d,mmu_gen:%llu",
+                    a64_trace_event("tcti.dispatch.compile.call", "tcti.dispatch.compile.call=pc:0x%llx,total:%d,mmu_gen:%llu",
                         (unsigned long long)pc, total_blocks_executed,
                         cpu && cpu->mmu ? (unsigned long long)cpu->mmu->generation : 0ULL);
                     block = a64_compile_block(cpu, pc, tlb);
-                    a64_trace_event(TRACE_LEVEL_DEBUG,
-                                    "tcti.dispatch.compile.return=pc:0x%llx,block:%d,fault:0x%llx,"
+                    a64_trace_event("tcti.dispatch.compile.return", "tcti.dispatch.compile.return=pc:0x%llx,block:%d,fault:0x%llx,"
                                     "was_write:%d,total:%d",
                                     (unsigned long long)pc, block ? 1 : 0,
                                     (unsigned long long)cpu->fault_addr,
@@ -2533,8 +1901,7 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
             first_block_lookup = false;
         }
 
-        a64_trace_event(TRACE_LEVEL_DEBUG,
-                        "tcti.dispatch.lookup=pc:0x%llx,block:%d,start:0x%llx,end:0x%llx,"
+        a64_trace_event("tcti.dispatch.lookup", "tcti.dispatch.lookup=pc:0x%llx,block:%d,start:0x%llx,end:0x%llx,"
                         "gadgets:%zu,explicit:%d,total_before:%d",
                         (unsigned long long)pc, block ? 1 : 0,
                         block ? (unsigned long long)block->start_pc : 0ULL,
@@ -2580,7 +1947,6 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
         // Execute the block via TCTI
         // NOTE: Execution runs directly on cpu_state (authoritative state owner)
         // ctx->frame.cpu is RESERVED for future fiber work, not used today
-        trace_69650_block_window(cpu, tlb, block);
         trace_cpu_run_checkpoint("task.proof.a64_cpu_run.before_block_execute", current, cpu,
                                  (int)block->start_pc);
         if (first_execute) {
@@ -2588,549 +1954,23 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
                                      0);
         }
         uint64_t pc_before_execute = cpu->pc;
-        uint64_t sp_before_execute = cpu->sp;
-        uint64_t x3_before_execute = cpu->x[3];
-        uint64_t x0_before_execute = cpu->x[0];
-        uint64_t x2_before_execute = cpu->x[2];
-        uint64_t x7_before_execute = cpu->x[7];
-        bool writer_candidate = false;
-        bool x0_writer_candidate = false;
-        bool x2_writer_candidate = false;
-        bool x7_writer_candidate = false;
         uint32_t writer_raw = 0;
         a64_instr_t writer_decoded;
         memset(&writer_decoded, 0, sizeof(writer_decoded));
+        bool writer_decoded_valid = false;
+        int branch_reg = -1;
+        uint64_t branch_target_before_execute = 0;
 
         if (a64_fetch_insn(cpu, cpu->tlb, pc_before_execute, &writer_raw) == 0 &&
             a64_decode(writer_raw, &writer_decoded) == 0) {
-            if (pc_before_execute == 0x6a970ULL || pc_before_execute == 0x6a990ULL) {
-                char ev[256];
-                snprintf(ev, sizeof(ev),
-                         "task.proof.6a970.block_entry=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,"
-                         "rd:%d,rn:%d,imm:%lld,x0:0x%llx,x3:0x%llx,block_start:0x%llx,"
-                         "block_end:0x%llx,explicit:%d",
-                         (unsigned long long)pc_before_execute, writer_raw, writer_decoded.cat,
-                         writer_decoded.subtype, writer_decoded.Rd, writer_decoded.Rn,
-                         (long long)writer_decoded.imm, (unsigned long long)x0_before_execute,
-                         (unsigned long long)x3_before_execute,
-                         (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
-                         block->explicit_pc_on_exit ? 1 : 0);
-                trace_record_event(TRACE_ORIGIN_EXEC, ev);
-            }
-
-            if (pc_before_execute == 0x6a640ULL || pc_before_execute == 0x6a64cULL) {
-                const char *mnemonic =
-                    pc_before_execute == 0x6a640ULL ? "add x7,sp,#8" : "orr x2,xzr,x7 (mov x2,x7)";
-                const char *expected = pc_before_execute == 0x6a640ULL ? "x7=sp+imm" : "x2=x7";
-                const char *rn31_interp =
-                    (pc_before_execute == 0x6a640ULL && writer_decoded.Rn == 31) ? "SP" : "XZR";
-
-                ixland_guest_trace_field_t entry_fields[] = {
-                    TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
-                    TRACE_FIELD_U64_HEX("raw_opcode", writer_raw),
-                    TRACE_FIELD_STR("mnemonic", mnemonic),
-                    TRACE_FIELD_U64_HEX("sp", sp_before_execute),
-                    TRACE_FIELD_U64_HEX("x7", x7_before_execute),
-                    TRACE_FIELD_U64_HEX("x2", x2_before_execute),
-                    TRACE_FIELD_U64_HEX("block_start", block->start_pc),
-                    TRACE_FIELD_U64_HEX("block_end", block->end_pc),
-                };
-                trace_insn64_event_fields(pc_before_execute == 0x6a640ULL ? "insn6a640.block_entry"
-                                                                          : "insn6a64c.block_entry",
-                                          entry_fields,
-                                          sizeof(entry_fields) / sizeof(entry_fields[0]));
-
-                ixland_guest_trace_field_t decode_fields[] = {
-                    TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
-                    TRACE_FIELD_U64_HEX("raw_opcode", writer_raw),
-                    TRACE_FIELD_STR("mnemonic", mnemonic),
-                    TRACE_FIELD_I64("cat", writer_decoded.cat),
-                    TRACE_FIELD_I64("subtype", writer_decoded.subtype),
-                    TRACE_FIELD_I64("rd", writer_decoded.Rd),
-                    TRACE_FIELD_I64("rn", writer_decoded.Rn),
-                    TRACE_FIELD_I64("rm", writer_decoded.Rm),
-                    TRACE_FIELD_I64("imm", writer_decoded.imm),
-                    TRACE_FIELD_STR("rn31_interp", rn31_interp),
-                    TRACE_FIELD_STR("expected", expected),
-                };
-                trace_insn64_event_fields(
-                    pc_before_execute == 0x6a640ULL ? "insn6a640.decode" : "insn6a64c.decode",
-                    decode_fields, sizeof(decode_fields) / sizeof(decode_fields[0]));
-
-                ixland_guest_trace_field_t pre_exec_fields[] = {
-                    TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
-                    TRACE_FIELD_U64_HEX("raw_opcode", writer_raw),
-                    TRACE_FIELD_STR("mnemonic", mnemonic),
-                    TRACE_FIELD_U64_HEX("sp", sp_before_execute),
-                    TRACE_FIELD_U64_HEX("x7", x7_before_execute),
-                    TRACE_FIELD_U64_HEX("x2", x2_before_execute),
-                };
-                trace_insn64_event_fields(
-                    pc_before_execute == 0x6a640ULL ? "insn6a640.pre_exec" : "insn6a64c.pre_exec",
-                    pre_exec_fields, sizeof(pre_exec_fields) / sizeof(pre_exec_fields[0]));
-
-                if (pc_before_execute == 0x6a640ULL && block && block->gadgets &&
-                    block->num_gadgets >= 4) {
-                    uint64_t inline_imm = 0;
-                    Dl_info info;
-                    const char *sym = "unknown";
-                    const char *load_sp_sym = "unknown";
-                    if (dladdr((void *)block->gadgets[0], &info) != 0 && info.dli_sname)
-                        load_sp_sym = info.dli_sname;
-                    if (dladdr((void *)block->gadgets[1], &info) != 0 && info.dli_sname)
-                        sym = info.dli_sname;
-                    if (strstr(sym, "gadget_mov_imm_14") != NULL)
-                        inline_imm = (uint64_t)(uintptr_t)block->gadgets[2];
-
-                    uint64_t temp_x14_before = cpu->x[13];
-                    uint64_t temp_x15_before = cpu->x[14];
-                    ixland_guest_trace_field_t mov_pre_fields[] = {
-                        TRACE_FIELD_U64_HEX("guest_pc", 0x6a640ULL),
-                        TRACE_FIELD_STR("gadget", "gadget_mov_imm_14"),
-                        TRACE_FIELD_U64_HEX("temp_x15_before", temp_x15_before),
-                        TRACE_FIELD_U64_HEX("consumed_imm", inline_imm),
-                        TRACE_FIELD_U64_HEX("sp", cpu->sp),
-                        TRACE_FIELD_U64_HEX("x7", cpu->x[7]),
-                        TRACE_FIELD_U64_HEX("x2", cpu->x[2]),
-                    };
-                    trace_insn64_event_fields("gadget6a640.mov_imm.pre", mov_pre_fields,
-                                              sizeof(mov_pre_fields) / sizeof(mov_pre_fields[0]));
-
-                    ixland_guest_trace_field_t load_sp_post_fields[] = {
-                        TRACE_FIELD_U64_HEX("guest_pc", 0x6a640ULL),
-                        TRACE_FIELD_STR("gadget", load_sp_sym),
-                        TRACE_FIELD_U64_HEX("x14", temp_x14_before),
-                        TRACE_FIELD_U64_HEX("x15", temp_x15_before),
-                        TRACE_FIELD_U64_HEX("x8", x7_before_execute),
-                        TRACE_FIELD_U64_HEX("x7", cpu->x[7]),
-                        TRACE_FIELD_U64_HEX("x2", cpu->x[2]),
-                        TRACE_FIELD_U64_HEX("sp", cpu->sp),
-                        TRACE_FIELD_U64_HEX("cpu_state_x7", cpu->x[7]),
-                        TRACE_FIELD_U64_HEX("cpu_state_x2", cpu->x[2]),
-                        TRACE_FIELD_U64_HEX("cpu_state_sp", cpu->sp),
-                    };
-                    trace_insn64_event_fields("gadget6a640.load_sp.post", load_sp_post_fields,
-                                              sizeof(load_sp_post_fields) /
-                                                  sizeof(load_sp_post_fields[0]));
-
-                    ixland_guest_trace_field_t add_pre_fields[] = {
-                        TRACE_FIELD_U64_HEX("guest_pc", 0x6a640ULL),
-                        TRACE_FIELD_STR("gadget", "gadget_add_reg_7_13_14"),
-                        TRACE_FIELD_U64_HEX("src_x14", temp_x14_before),
-                        TRACE_FIELD_U64_HEX("src_x15", temp_x15_before),
-                        TRACE_FIELD_U64_HEX("dst_x8_before", x7_before_execute),
-                        TRACE_FIELD_U64_HEX("sp", cpu->sp),
-                        TRACE_FIELD_U64_HEX("x7", cpu->x[7]),
-                        TRACE_FIELD_U64_HEX("x2", cpu->x[2]),
-                    };
-                    trace_insn64_event_fields("gadget6a640.add_reg.pre", add_pre_fields,
-                                              sizeof(add_pre_fields) / sizeof(add_pre_fields[0]));
-                }
-            }
-            if (pc_before_execute == 0x6a628ULL) {
-                char pretty[192] = { 0 };
-                snprintf(pretty, sizeof(pretty), "cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld",
-                         (int)writer_decoded.cat, (int)writer_decoded.subtype, writer_decoded.Rd,
-                         writer_decoded.Rn, writer_decoded.Rm, (long long)writer_decoded.imm);
-
-                char payload[640];
-                snprintf(
-                    payload, sizeof(payload),
-                    "attempt:-1,guest_pid:%d,guest_pc:0x%llx,block_start:0x%llx,block_end:0x%llx,"
-                    "arch_base_reg:%d,arch_base_val:0x%llx,carrier_val:0x%llx,cpu_slot_val:0x%llx,"
-                    "is_zero:%d",
-                    current ? current->pid : -1, (unsigned long long)pc_before_execute,
-                    (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
-                    writer_decoded.Rn, (unsigned long long)cpu->x[writer_decoded.Rn],
-                    (unsigned long long)cpu->x[writer_decoded.Rn],
-                    (unsigned long long)cpu->x[writer_decoded.Rn],
-                    cpu->x[writer_decoded.Rn] == 0 ? 1 : 0);
-                trace_base6a628_event("base6a628.block_entry", payload);
-
-                snprintf(payload, sizeof(payload),
-                         "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
-                         "addr_mode:%d,base_reg:%d,target_reg:%d,writeback:%d,sequencing:access_"
-                         "before_writeback",
-                         current ? current->pid : -1, (unsigned long long)pc_before_execute,
-                         writer_raw, pretty, (int)writer_decoded.idx_mode, writer_decoded.Rn,
-                         writer_decoded.Rd,
-                         (writer_decoded.idx_mode == A64_POST_INDEX ||
-                          writer_decoded.idx_mode == A64_PRE_INDEX)
-                             ? 1
-                             : 0);
-                trace_base6a628_event("base6a628.decode", payload);
-
-                if (g_base6a628_last_writer.valid) {
-                    snprintf(payload, sizeof(payload),
-                             "attempt:-1,guest_pid:%d,guest_pc:0x%llx,last_writer_pc:0x%llx,last_"
-                             "writer_raw:0x%08x,"
-                             "last_writer_mnemonic:%s,last_writer_rd:%d,last_writer_rn:%d,"
-                             "block_start:0x%llx,block_end:0x%llx,x3_before:0x%llx,x3_after:0x%llx,"
-                             "is_zero_after:%d",
-                             current ? current->pid : -1, (unsigned long long)pc_before_execute,
-                             (unsigned long long)g_base6a628_last_writer.writer_pc,
-                             g_base6a628_last_writer.writer_raw,
-                             g_base6a628_last_writer.writer_mnemonic,
-                             g_base6a628_last_writer.writer_rd, g_base6a628_last_writer.writer_rn,
-                             (unsigned long long)g_base6a628_last_writer.block_start,
-                             (unsigned long long)g_base6a628_last_writer.block_end,
-                             (unsigned long long)g_base6a628_last_writer.x3_before,
-                             (unsigned long long)g_base6a628_last_writer.x3_after,
-                             g_base6a628_last_writer.x3_after == 0 ? 1 : 0);
-                } else {
-                    snprintf(payload, sizeof(payload),
-                             "attempt:-1,guest_pid:%d,guest_pc:0x%llx,last_writer_pc:none",
-                             current ? current->pid : -1, (unsigned long long)pc_before_execute);
-                }
-                trace_base6a628_event("base6a628.last_writer", payload);
-            }
-
-            if (pc_before_execute == 0x6a620ULL) {
-                char payload[640];
-                snprintf(
-                    payload, sizeof(payload),
-                    "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:mov x3,x0,"
-                    "x0_val:0x%llx,x3_val:0x%llx,x3_produced:0x%llx,is_x0_zero:%d,"
-                    "block_start:0x%llx,block_end:0x%llx",
-                    current ? current->pid : -1, (unsigned long long)pc_before_execute, writer_raw,
-                    (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[3],
-                    (unsigned long long)cpu->x[0], cpu->x[0] == 0 ? 1 : 0,
-                    (unsigned long long)block->start_pc, (unsigned long long)block->end_pc);
-                trace_x0chain_event("x0chain.consumer_at_0x6a620", payload);
-
-                snprintf(
-                    payload, sizeof(payload),
-                    "attempt:-1,guest_pid:%d,guest_pc:0x%llx,block_start:0x%llx,block_end:0x%llx,"
-                    "x0_val:0x%llx,carrier_val:0x%llx,cpu_slot_val:0x%llx,is_zero:%d",
-                    current ? current->pid : -1, (unsigned long long)pc_before_execute,
-                    (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
-                    (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[0],
-                    (unsigned long long)cpu->x[0], cpu->x[0] == 0 ? 1 : 0);
-                trace_x0chain_event("x0chain.block_entry", payload);
-
-                if (g_x0chain_last_writer.valid) {
-                    snprintf(payload, sizeof(payload),
-                             "attempt:-1,guest_pid:%d,guest_pc:0x%llx,last_writer_pc:0x%llx,last_"
-                             "writer_raw:0x%08x,"
-                             "last_writer_mnemonic:%s,last_writer_rd:%d,last_writer_rn:%d,"
-                             "block_start:0x%llx,block_end:0x%llx,x0_before:0x%llx,x0_after:0x%llx,"
-                             "is_zero_after:%d",
-                             current ? current->pid : -1, (unsigned long long)pc_before_execute,
-                             (unsigned long long)g_x0chain_last_writer.writer_pc,
-                             g_x0chain_last_writer.writer_raw,
-                             g_x0chain_last_writer.writer_mnemonic, g_x0chain_last_writer.writer_rd,
-                             g_x0chain_last_writer.writer_rn,
-                             (unsigned long long)g_x0chain_last_writer.block_start,
-                             (unsigned long long)g_x0chain_last_writer.block_end,
-                             (unsigned long long)g_x0chain_last_writer.x0_before,
-                             (unsigned long long)g_x0chain_last_writer.x0_after,
-                             g_x0chain_last_writer.x0_after == 0 ? 1 : 0);
-                } else {
-                    snprintf(payload, sizeof(payload),
-                             "attempt:-1,guest_pid:%d,guest_pc:0x%llx,last_writer_pc:none",
-                             current ? current->pid : -1, (unsigned long long)pc_before_execute);
-                }
-                trace_x0chain_event("x0chain.last_writer", payload);
-            }
-
-            if (pc_before_execute == 0x6a650ULL) {
-                uint64_t base_val = a64_read_reg_or_sp(cpu, writer_decoded.Rn, true);
-                uint64_t src_val = trace_ldst_reg_or_zr(cpu, writer_decoded.Rd);
-                uint64_t idx_val = trace_ldst_reg_or_zr(cpu, writer_decoded.Rm);
-                uint64_t guest_ea = trace_ldst_effective_address(cpu, writer_raw, &writer_decoded,
-                                                                 base_val, idx_val);
-                const char *mnemonic = trace_ldst_mnemonic(bit(writer_raw, 22), writer_decoded.size,
-                                                           writer_decoded.is_signed ? 1 : 0);
-
-                ixland_guest_trace_field_t block_entry_fields[] = {
-                    TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
-                    TRACE_FIELD_U64_HEX("raw_opcode", writer_raw),
-                    TRACE_FIELD_STR("mnemonic", mnemonic),
-                    TRACE_FIELD_I64("base_reg", writer_decoded.Rn),
-                    TRACE_FIELD_U64_HEX("base_val", base_val),
-                    TRACE_FIELD_I64("src_reg", writer_decoded.Rd),
-                    TRACE_FIELD_U64_HEX("src_val", src_val),
-                    TRACE_FIELD_I64("idx_reg", writer_decoded.Rm),
-                    TRACE_FIELD_U64_HEX("idx_val", idx_val),
-                    TRACE_FIELD_I64("imm", writer_decoded.imm),
-                    TRACE_FIELD_I64("idx_mode", writer_decoded.idx_mode),
-                    TRACE_FIELD_U64_HEX("guest_ea", guest_ea),
-                    TRACE_FIELD_STR("host_probe", "pending"),
-                    TRACE_FIELD_STR("translation_fault", "pending"),
-                    TRACE_FIELD_I64("signal_follow_immediate", 0),
-                };
-                trace_str6a650_event_fields("str6a650.block_entry", block_entry_fields,
-                                            sizeof(block_entry_fields) /
-                                                sizeof(block_entry_fields[0]));
-
-                ixland_guest_trace_field_t consumer_fields[] = {
-                    TRACE_FIELD_U64_HEX("guest_pc", 0x6a650ULL),
-                    TRACE_FIELD_U64_HEX("raw_opcode", writer_raw),
-                    TRACE_FIELD_STR("mnemonic", "str"),
-                    TRACE_FIELD_U64_HEX("sp", cpu->sp),
-                    TRACE_FIELD_U64_HEX("x7", cpu->x[7]),
-                    TRACE_FIELD_U64_HEX("x2", cpu->x[2]),
-                    TRACE_FIELD_U64_HEX("guest_ea", guest_ea),
-                };
-                trace_insn64_event_fields("insn6a650.consumer", consumer_fields,
-                                          sizeof(consumer_fields) / sizeof(consumer_fields[0]));
-
-                ixland_guest_trace_field_t decode_fields[] = {
-                    TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
-                    TRACE_FIELD_U64_HEX("raw_opcode", writer_raw),
-                    TRACE_FIELD_STR("mnemonic", mnemonic),
-                    TRACE_FIELD_I64("base_reg", writer_decoded.Rn),
-                    TRACE_FIELD_I64("src_reg", writer_decoded.Rd),
-                    TRACE_FIELD_I64("idx_reg", writer_decoded.Rm),
-                    TRACE_FIELD_I64("imm", writer_decoded.imm),
-                    TRACE_FIELD_I64("idx_mode", writer_decoded.idx_mode),
-                    TRACE_FIELD_I64("is_load", bit(writer_raw, 22) ? 1 : 0),
-                    TRACE_FIELD_STR("sequencing", "access_before_writeback"),
-                    TRACE_FIELD_I64("writeback", (writer_decoded.idx_mode == A64_POST_INDEX ||
-                                                  writer_decoded.idx_mode == A64_PRE_INDEX)
-                                                     ? 1
-                                                     : 0),
-                };
-                trace_str6a650_event_fields("str6a650.decode", decode_fields,
-                                            sizeof(decode_fields) / sizeof(decode_fields[0]));
-
-                ixland_guest_trace_field_t pre_access_fields[] = {
-                    TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
-                    TRACE_FIELD_U64_HEX("raw_opcode", writer_raw),
-                    TRACE_FIELD_STR("mnemonic", mnemonic),
-                    TRACE_FIELD_I64("base_reg", writer_decoded.Rn),
-                    TRACE_FIELD_U64_HEX("base_val", base_val),
-                    TRACE_FIELD_I64("src_reg", writer_decoded.Rd),
-                    TRACE_FIELD_U64_HEX("src_val", src_val),
-                    TRACE_FIELD_I64("idx_reg", writer_decoded.Rm),
-                    TRACE_FIELD_U64_HEX("idx_val", idx_val),
-                    TRACE_FIELD_I64("imm", writer_decoded.imm),
-                    TRACE_FIELD_I64("idx_mode", writer_decoded.idx_mode),
-                    TRACE_FIELD_U64_HEX("guest_ea", guest_ea),
-                };
-                trace_str6a650_event_fields("str6a650.pre_access", pre_access_fields,
-                                            sizeof(pre_access_fields) /
-                                                sizeof(pre_access_fields[0]));
-
-                if (g_str6a650_last_writer.valid) {
-                    ixland_guest_trace_field_t fields[] = {
-                        TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
-                        TRACE_FIELD_U64_HEX("last_writer_pc", g_str6a650_last_writer.writer_pc),
-                        TRACE_FIELD_U64_HEX("last_writer_raw", g_str6a650_last_writer.writer_raw),
-                        TRACE_FIELD_STR("last_writer_mnemonic",
-                                        g_str6a650_last_writer.writer_mnemonic),
-                        TRACE_FIELD_I64("last_writer_rd", g_str6a650_last_writer.writer_rd),
-                        TRACE_FIELD_I64("last_writer_rn", g_str6a650_last_writer.writer_rn),
-                        TRACE_FIELD_I64("last_writer_rm", g_str6a650_last_writer.writer_rm),
-                        TRACE_FIELD_I64("last_writer_idx_mode",
-                                        g_str6a650_last_writer.writer_idx_mode),
-                        TRACE_FIELD_I64("last_writer_imm", g_str6a650_last_writer.writer_imm),
-                        TRACE_FIELD_U64_HEX("block_start", g_str6a650_last_writer.block_start),
-                        TRACE_FIELD_U64_HEX("block_end", g_str6a650_last_writer.block_end),
-                        TRACE_FIELD_U64_HEX("x2_before", g_str6a650_last_writer.x2_before),
-                        TRACE_FIELD_U64_HEX("x2_after", g_str6a650_last_writer.x2_after),
-                        TRACE_FIELD_I64("is_zero_after",
-                                        g_str6a650_last_writer.x2_after == 0 ? 1 : 0),
-                    };
-                    trace_str6a650_event_fields("str6a650.last_base_writer", fields,
-                                                sizeof(fields) / sizeof(fields[0]));
-                } else {
-                    ixland_guest_trace_field_t fields[] = {
-                        TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
-                        TRACE_FIELD_STR("last_writer_pc", "none"),
-                    };
-                    trace_str6a650_event_fields("str6a650.last_base_writer", fields,
-                                                sizeof(fields) / sizeof(fields[0]));
-                }
-
-                if (g_x7chain_last_writer.valid) {
-                    ixland_guest_trace_field_t fields[] = {
-                        TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
-                        TRACE_FIELD_U64_HEX("last_writer_pc", g_x7chain_last_writer.writer_pc),
-                        TRACE_FIELD_U64_HEX("last_writer_raw", g_x7chain_last_writer.writer_raw),
-                        TRACE_FIELD_STR("last_writer_mnemonic",
-                                        g_x7chain_last_writer.writer_mnemonic),
-                        TRACE_FIELD_I64("last_writer_rd", g_x7chain_last_writer.writer_rd),
-                        TRACE_FIELD_I64("last_writer_rn", g_x7chain_last_writer.writer_rn),
-                        TRACE_FIELD_I64("last_writer_rm", g_x7chain_last_writer.writer_rm),
-                        TRACE_FIELD_I64("last_writer_idx_mode",
-                                        g_x7chain_last_writer.writer_idx_mode),
-                        TRACE_FIELD_I64("last_writer_imm", g_x7chain_last_writer.writer_imm),
-                        TRACE_FIELD_U64_HEX("block_start", g_x7chain_last_writer.block_start),
-                        TRACE_FIELD_U64_HEX("block_end", g_x7chain_last_writer.block_end),
-                        TRACE_FIELD_U64_HEX("x7_before", g_x7chain_last_writer.x7_before),
-                        TRACE_FIELD_U64_HEX("x7_after", g_x7chain_last_writer.x7_after),
-                        TRACE_FIELD_I64("is_one_after",
-                                        g_x7chain_last_writer.x7_after == 1 ? 1 : 0),
-                        TRACE_FIELD_I64("is_zero_after",
-                                        g_x7chain_last_writer.x7_after == 0 ? 1 : 0),
-                    };
-                    trace_x7chain_event_fields("x7chain.last_writer", fields,
-                                               sizeof(fields) / sizeof(fields[0]));
-                } else {
-                    ixland_guest_trace_field_t fields[] = {
-                        TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
-                        TRACE_FIELD_STR("last_writer_pc", "none"),
-                    };
-                    trace_x7chain_event_fields("x7chain.last_writer", fields,
-                                               sizeof(fields) / sizeof(fields[0]));
-                }
-
-                ixland_guest_trace_field_t x7_block_entry_fields[] = {
-                    TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
-                    TRACE_FIELD_U64_HEX("raw_opcode", writer_raw),
-                    TRACE_FIELD_STR("mnemonic", "mov_x2_x7"),
-                    TRACE_FIELD_I64("src_reg", 7),
-                    TRACE_FIELD_I64("dst_reg", 2),
-                    TRACE_FIELD_U64_HEX("x7", cpu->x[7]),
-                    TRACE_FIELD_U64_HEX("x2", cpu->x[2]),
-                    TRACE_FIELD_U64_HEX("block_start", block->start_pc),
-                    TRACE_FIELD_U64_HEX("block_end", block->end_pc),
-                    TRACE_FIELD_I64("is_x7_one", cpu->x[7] == 1 ? 1 : 0),
-                    TRACE_FIELD_I64("is_x2_one", cpu->x[2] == 1 ? 1 : 0),
-                };
-                trace_x7chain_event_fields("x7chain.block_entry", x7_block_entry_fields,
-                                           sizeof(x7_block_entry_fields) /
-                                               sizeof(x7_block_entry_fields[0]));
-
-                if (writer_raw == 0xaa0703e2U) {
-                    ixland_guest_trace_field_t decode_fields[] = {
-                        TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
-                        TRACE_FIELD_U64_HEX("raw_opcode", writer_raw),
-                        TRACE_FIELD_STR("mnemonic", "orr x2,xzr,x7 (mov x2,x7)"),
-                        TRACE_FIELD_I64("src_reg", 7),
-                        TRACE_FIELD_I64("dst_reg", 2),
-                        TRACE_FIELD_STR("expected_result", "x2_after_equals_x7_before"),
-                    };
-                    trace_x7chain_event_fields("mov6a64c.decode", decode_fields,
-                                               sizeof(decode_fields) / sizeof(decode_fields[0]));
-
-                    ixland_guest_trace_field_t pre_exec_fields[] = {
-                        TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
-                        TRACE_FIELD_U64_HEX("raw_opcode", writer_raw),
-                        TRACE_FIELD_STR("mnemonic", "mov_x2_x7"),
-                        TRACE_FIELD_U64_HEX("x7_before", x7_before_execute),
-                        TRACE_FIELD_U64_HEX("x2_before", x2_before_execute),
-                        TRACE_FIELD_U64_HEX("block_start", block->start_pc),
-                        TRACE_FIELD_U64_HEX("block_end", block->end_pc),
-                    };
-                    trace_x7chain_event_fields("mov6a64c.pre_exec", pre_exec_fields,
-                                               sizeof(pre_exec_fields) /
-                                                   sizeof(pre_exec_fields[0]));
-                }
-
-                if (g_str6a650_last_writer.writer_pc == 0x6a64cULL &&
-                    g_str6a650_last_writer.writer_raw == 0xaa0703e2U) {
-                    ixland_guest_trace_field_t consumer_fields[] = {
-                        TRACE_FIELD_U64_HEX("guest_pc", 0x6a650ULL),
-                        TRACE_FIELD_U64_HEX("raw_opcode", 0xf800845fULL),
-                        TRACE_FIELD_STR("mnemonic", "str"),
-                        TRACE_FIELD_U64_HEX("x7", cpu->x[7]),
-                        TRACE_FIELD_U64_HEX("x2", cpu->x[2]),
-                        TRACE_FIELD_U64_HEX("x7_before_mov", g_str6a650_last_writer.x2_after),
-                        TRACE_FIELD_U64_HEX("x2_after_mov", g_str6a650_last_writer.x2_after),
-                        TRACE_FIELD_I64("x2_after_eq_x7_before",
-                                        cpu->x[2] == g_str6a650_last_writer.x2_after ? 1 : 0),
-                    };
-                    trace_x7chain_event_fields("mov6a64c.consumer_at_6a650", consumer_fields,
-                                               sizeof(consumer_fields) /
-                                                   sizeof(consumer_fields[0]));
-                }
-            }
-
-            if (trace_instr_writes_rd(&writer_decoded, writer_raw) && writer_decoded.Rd == 3 &&
-                pc_before_execute < 0x6a628ULL) {
-                writer_candidate = true;
-                char pretty[192] = { 0 };
-                snprintf(pretty, sizeof(pretty), "cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld",
-                         (int)writer_decoded.cat, (int)writer_decoded.subtype, writer_decoded.Rd,
-                         writer_decoded.Rn, writer_decoded.Rm, (long long)writer_decoded.imm);
-                char payload[640];
-                snprintf(
-                    payload, sizeof(payload),
-                    "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
-                    "arch_base_reg:3,arch_base_val:0x%llx,carrier_val:0x%llx,cpu_slot_val:0x%llx,"
-                    "block_start:0x%llx,block_end:0x%llx,is_zero:%d",
-                    current ? current->pid : -1, (unsigned long long)pc_before_execute, writer_raw,
-                    pretty, (unsigned long long)x3_before_execute,
-                    (unsigned long long)x3_before_execute, (unsigned long long)x3_before_execute,
-                    (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
-                    x3_before_execute == 0 ? 1 : 0);
-                trace_base6a628_event("base6a628.pre_writer_regs", payload);
-            }
-
-            if (trace_instr_writes_rd(&writer_decoded, writer_raw) && writer_decoded.Rd == 0 &&
-                pc_before_execute < 0x6a620ULL) {
-                x0_writer_candidate = true;
-                char pretty[192] = { 0 };
-                snprintf(pretty, sizeof(pretty), "cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld",
-                         (int)writer_decoded.cat, (int)writer_decoded.subtype, writer_decoded.Rd,
-                         writer_decoded.Rn, writer_decoded.Rm, (long long)writer_decoded.imm);
-                char payload[640];
-                snprintf(payload, sizeof(payload),
-                         "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
-                         "x0_val:0x%llx,carrier_val:0x%llx,cpu_slot_val:0x%llx,"
-                         "block_start:0x%llx,block_end:0x%llx,is_zero:%d",
-                         current ? current->pid : -1, (unsigned long long)pc_before_execute,
-                         writer_raw, pretty, (unsigned long long)x0_before_execute,
-                         (unsigned long long)x0_before_execute,
-                         (unsigned long long)x0_before_execute, (unsigned long long)block->start_pc,
-                         (unsigned long long)block->end_pc, x0_before_execute == 0 ? 1 : 0);
-                trace_x0chain_event("x0chain.pre_writer_regs", payload);
-            }
-
-            if (trace_instr_writes_rd(&writer_decoded, writer_raw) && writer_decoded.Rd == 2 &&
-                pc_before_execute < 0x6a650ULL) {
-                x2_writer_candidate = true;
-                char pretty[192] = { 0 };
-                snprintf(pretty, sizeof(pretty), "cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld",
-                         (int)writer_decoded.cat, (int)writer_decoded.subtype, writer_decoded.Rd,
-                         writer_decoded.Rn, writer_decoded.Rm, (long long)writer_decoded.imm);
-                ixland_guest_trace_field_t fields[] = {
-                    TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
-                    TRACE_FIELD_U64_HEX("raw_opcode", writer_raw),
-                    TRACE_FIELD_STR("mnemonic", pretty),
-                    TRACE_FIELD_I64("base_reg", 2),
-                    TRACE_FIELD_U64_HEX("base_val", x2_before_execute),
-                    TRACE_FIELD_I64("src_reg", writer_decoded.Rd),
-                    TRACE_FIELD_U64_HEX("src_val", trace_ldst_reg_or_zr(cpu, writer_decoded.Rd)),
-                    TRACE_FIELD_I64("idx_reg", writer_decoded.Rm),
-                    TRACE_FIELD_U64_HEX("idx_val", trace_ldst_reg_or_zr(cpu, writer_decoded.Rm)),
-                    TRACE_FIELD_I64("imm", writer_decoded.imm),
-                    TRACE_FIELD_I64("idx_mode", writer_decoded.idx_mode),
-                    TRACE_FIELD_STR("guest_ea", "na"),
-                    TRACE_FIELD_STR("host_probe", "na"),
-                    TRACE_FIELD_STR("translation_fault", "na"),
-                    TRACE_FIELD_I64("signal_follow_immediate", 0),
-                };
-                trace_str6a650_event_fields("str6a650.pre_writer_regs", fields,
-                                            sizeof(fields) / sizeof(fields[0]));
-            }
-
-            if (trace_instr_writes_rd(&writer_decoded, writer_raw) && writer_decoded.Rd == 7 &&
-                pc_before_execute < 0x6a64cULL) {
-                x7_writer_candidate = true;
-                char pretty[192] = { 0 };
-                snprintf(pretty, sizeof(pretty), "cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld",
-                         (int)writer_decoded.cat, (int)writer_decoded.subtype, writer_decoded.Rd,
-                         writer_decoded.Rn, writer_decoded.Rm, (long long)writer_decoded.imm);
-                ixland_guest_trace_field_t fields[] = {
-                    TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
-                    TRACE_FIELD_U64_HEX("raw_opcode", writer_raw),
-                    TRACE_FIELD_STR("mnemonic", pretty),
-                    TRACE_FIELD_U64_HEX("x7", x7_before_execute),
-                    TRACE_FIELD_U64_HEX("x2", x2_before_execute),
-                    TRACE_FIELD_U64_HEX("block_start", block->start_pc),
-                    TRACE_FIELD_U64_HEX("block_end", block->end_pc),
-                    TRACE_FIELD_I64("is_x7_one", x7_before_execute == 1 ? 1 : 0),
-                    TRACE_FIELD_I64("is_x7_zero", x7_before_execute == 0 ? 1 : 0),
-                };
-                trace_x7chain_event_fields("x7chain.pre_writer_regs", fields,
-                                           sizeof(fields) / sizeof(fields[0]));
+            writer_decoded_valid = true;
+            if ((writer_decoded.cat == A64_BRANCH || writer_decoded.cat == A64_BRANCH2) &&
+                writer_decoded.subtype == A64_BRANCH_REG) {
+                branch_reg = writer_decoded.Rn;
+                branch_target_before_execute = a64_read_reg_or_sp(cpu, branch_reg, true);
             }
         }
-        a64_trace_event(TRACE_LEVEL_DEBUG,
-                        "tcti.block.entry=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,"
+        a64_trace_event("tcti.block.entry", "tcti.block.entry=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,"
                         "imm:%lld,start:0x%llx,end:0x%llx,gadgets:%zu,explicit:%d,sp:0x%llx,"
                         "x0:0x%llx,x1:0x%llx,x2:0x%llx,x3:0x%llx,x4:0x%llx,x5:0x%llx,"
                         "x6:0x%llx,x7:0x%llx,x8:0x%llx,x9:0x%llx,x10:0x%llx,x11:0x%llx,"
@@ -3160,8 +2000,20 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
                         (unsigned long long)cpu->x[27], (unsigned long long)cpu->x[28],
                         (unsigned long long)cpu->x[29], (unsigned long long)cpu->x[30]);
         int exit_reason = a64_execute_block(cpu, block);
-        a64_trace_event(TRACE_LEVEL_DEBUG,
-                        "tcti.block.exit=before:0x%llx,after:0x%llx,reason:%d,start:0x%llx,end:0x%llx,"
+        a64_trace_record_block_transition(
+            pc_before_execute, cpu->pc, block, writer_raw,
+            writer_decoded_valid ? &writer_decoded : NULL, exit_reason, branch_reg,
+            branch_target_before_execute, cpu);
+        if (branch_reg >= 0) {
+            a64_trace_event("tcti.branch.reg", "tcti.branch.reg=before:0x%llx,after:0x%llx,reason:%d,raw:0x%08x,"
+                            "rn:%d,target_before:0x%llx,aligned:%d,link_x30:0x%llx",
+                            (unsigned long long)pc_before_execute, (unsigned long long)cpu->pc,
+                            exit_reason, writer_raw, branch_reg,
+                            (unsigned long long)branch_target_before_execute,
+                            (branch_target_before_execute & 3) == 0 ? 1 : 0,
+                            (unsigned long long)cpu->x[30]);
+        }
+        a64_trace_event("tcti.block.exit", "tcti.block.exit=before:0x%llx,after:0x%llx,reason:%d,start:0x%llx,end:0x%llx,"
                         "explicit:%d,sp:0x%llx,pstate:0x%llx,x0:0x%llx,x1:0x%llx,x2:0x%llx,"
                         "x3:0x%llx,x4:0x%llx,x5:0x%llx,x6:0x%llx,x7:0x%llx,x8:0x%llx,"
                         "x9:0x%llx,x10:0x%llx,x11:0x%llx,x12:0x%llx,x13:0x%llx,x14:0x%llx,"
@@ -3188,388 +2040,8 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
                         (unsigned long long)cpu->x[26], (unsigned long long)cpu->x[27],
                         (unsigned long long)cpu->x[28], (unsigned long long)cpu->x[29],
                         (unsigned long long)cpu->x[30]);
-        if ((pc_before_execute >= 0x6b3f0ULL && pc_before_execute <= 0x6b438ULL) ||
-            (pc_before_execute >= 0x6c400ULL && pc_before_execute <= 0x6c438ULL)) {
-            static int dls3_loop_prehandle_budget = 96;
-            if (dls3_loop_prehandle_budget > 0) {
-                uint32_t raw_after = 0;
-                (void)a64_fetch_insn(cpu, cpu->tlb, cpu->pc, &raw_after);
-                char ev[320];
-                snprintf(ev, sizeof(ev),
-                         "task.proof.dls3.prehandle=before:0x%llx,after:0x%llx,reason:%d,start:"
-                         "0x%llx,end:0x%llx,explicit:%d,x0:0x%llx,x1:0x%llx,x3:0x%llx,"
-                         "pstate:0x%llx,next_raw:0x%08x",
-                         (unsigned long long)pc_before_execute, (unsigned long long)cpu->pc,
-                         exit_reason, (unsigned long long)block->start_pc,
-                         (unsigned long long)block->end_pc, block->explicit_pc_on_exit ? 1 : 0,
-                         (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[1],
-                         (unsigned long long)cpu->x[3], (unsigned long long)cpu->pstate,
-                         raw_after);
-                trace_record_event(TRACE_ORIGIN_EXEC, ev);
-                dls3_loop_prehandle_budget--;
-            }
-        }
-        if (pc_before_execute >= 0x6a9d0ULL && pc_before_execute <= 0x6aa58ULL) {
-            uint32_t raw_after = 0;
-            char ev[320];
-            int fetch_after = a64_fetch_insn(cpu, cpu->tlb, cpu->pc, &raw_after);
-            snprintf(ev, sizeof(ev),
-                     "task.proof.dlstart.loop.step=before:0x%llx,after:0x%llx,reason:%d,start:"
-                     "0x%llx,end:0x%llx,explicit:%d,x1:0x%llx,x2:0x%llx,x3:0x%llx,x8:0x%llx,"
-                     "x11:0x%llx,x12:0x%llx,pstate:0x%llx,next_raw:0x%08x,next_fetch:%d",
-                     (unsigned long long)pc_before_execute, (unsigned long long)cpu->pc,
-                     exit_reason, (unsigned long long)block->start_pc,
-                     (unsigned long long)block->end_pc, block->explicit_pc_on_exit ? 1 : 0,
-                     (unsigned long long)cpu->x[1], (unsigned long long)cpu->x[2],
-                     (unsigned long long)cpu->x[3], (unsigned long long)cpu->x[8],
-                     (unsigned long long)cpu->x[11], (unsigned long long)cpu->x[12],
-                     (unsigned long long)cpu->pstate, raw_after, fetch_after);
-            trace_record_event(TRACE_ORIGIN_EXEC, ev);
-        }
-        uint64_t sp_after_execute = cpu->sp;
-        uint64_t x7_after_execute = cpu->x[7];
-        uint64_t x2_after_execute = cpu->x[2];
-
-        if (pc_before_execute == 0x6a640ULL || pc_before_execute == 0x6a64cULL) {
-            const char *mnemonic =
-                pc_before_execute == 0x6a640ULL ? "add x7,sp,#8" : "orr x2,xzr,x7 (mov x2,x7)";
-            ixland_guest_trace_field_t post_exec_fields[] = {
-                TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
-                TRACE_FIELD_U64_HEX("raw_opcode", writer_raw),
-                TRACE_FIELD_STR("mnemonic", mnemonic),
-                TRACE_FIELD_U64_HEX("sp", sp_after_execute),
-                TRACE_FIELD_U64_HEX("x7", x7_after_execute),
-                TRACE_FIELD_U64_HEX("x2", x2_after_execute),
-                TRACE_FIELD_I64("x2_after_eq_x7_before", x2_after_execute == x7_before_execute),
-                TRACE_FIELD_I64("exit_reason", exit_reason),
-            };
-            trace_insn64_event_fields(
-                pc_before_execute == 0x6a640ULL ? "insn6a640.post_exec" : "insn6a64c.post_exec",
-                post_exec_fields, sizeof(post_exec_fields) / sizeof(post_exec_fields[0]));
-
-            if (pc_before_execute == 0x6a640ULL && block && block->gadgets &&
-                block->num_gadgets >= 4) {
-                uint64_t inline_imm = 0;
-                Dl_info info;
-                const char *sym = "unknown";
-                const char *next_sym = "unknown";
-                if (dladdr((void *)block->gadgets[1], &info) != 0 && info.dli_sname)
-                    sym = info.dli_sname;
-                if (block->num_gadgets >= 5 && dladdr((void *)block->gadgets[4], &info) != 0 &&
-                    info.dli_sname)
-                    next_sym = info.dli_sname;
-                if (strstr(sym, "gadget_mov_imm_14") != NULL)
-                    inline_imm = (uint64_t)(uintptr_t)block->gadgets[2];
-
-                uint64_t temp_x14_after = cpu->x[13];
-                uint64_t temp_x15_after = cpu->x[14];
-                uint64_t expected_add = temp_x14_after + temp_x15_after;
-
-                ixland_guest_trace_field_t mov_post_fields[] = {
-                    TRACE_FIELD_U64_HEX("guest_pc", 0x6a640ULL),
-                    TRACE_FIELD_STR("gadget", "gadget_mov_imm_14"),
-                    TRACE_FIELD_U64_HEX("temp_x15_after", temp_x15_after),
-                    TRACE_FIELD_U64_HEX("consumed_imm", inline_imm),
-                    TRACE_FIELD_I64("post_eq_imm", temp_x15_after == inline_imm),
-                    TRACE_FIELD_U64_HEX("sp", cpu->sp),
-                    TRACE_FIELD_U64_HEX("x7", cpu->x[7]),
-                    TRACE_FIELD_U64_HEX("x2", cpu->x[2]),
-                };
-                trace_insn64_event_fields("gadget6a640.mov_imm.post", mov_post_fields,
-                                          sizeof(mov_post_fields) / sizeof(mov_post_fields[0]));
-
-                ixland_guest_trace_field_t add_post_fields[] = {
-                    TRACE_FIELD_U64_HEX("guest_pc", 0x6a640ULL),
-                    TRACE_FIELD_STR("gadget", "gadget_add_reg_7_13_14"),
-                    TRACE_FIELD_U64_HEX("src_x14", temp_x14_after),
-                    TRACE_FIELD_U64_HEX("src_x15", temp_x15_after),
-                    TRACE_FIELD_U64_HEX("dst_x8_after", x7_after_execute),
-                    TRACE_FIELD_U64_HEX("expected_add", expected_add),
-                    TRACE_FIELD_I64("equal_add", x7_after_execute == expected_add),
-                    TRACE_FIELD_I64("equal_sp_plus8", x7_after_execute == (cpu->sp + 8ULL)),
-                    TRACE_FIELD_U64_HEX("sp", cpu->sp),
-                    TRACE_FIELD_U64_HEX("x7", cpu->x[7]),
-                    TRACE_FIELD_U64_HEX("x2", cpu->x[2]),
-                };
-                trace_insn64_event_fields("gadget6a640.add_reg.post", add_post_fields,
-                                          sizeof(add_post_fields) / sizeof(add_post_fields[0]));
-
-                ixland_guest_trace_field_t consistency_fields[] = {
-                    TRACE_FIELD_U64_HEX("guest_pc", 0x6a640ULL),
-                    TRACE_FIELD_U64_HEX("dst_x8_after", x7_after_execute),
-                    TRACE_FIELD_U64_HEX("arch_x7", cpu->x[7]),
-                    TRACE_FIELD_U64_HEX("carrier_x7", cpu->x[7]),
-                    TRACE_FIELD_U64_HEX("cpu_state_x7", cpu->x[7]),
-                    TRACE_FIELD_I64("all_equal", x7_after_execute == cpu->x[7]),
-                };
-                trace_insn64_event_fields("gadget6a640.consistency", consistency_fields,
-                                          sizeof(consistency_fields) /
-                                              sizeof(consistency_fields[0]));
-
-                ixland_guest_trace_field_t next_gadget_fields[] = {
-                    TRACE_FIELD_U64_HEX("guest_pc", 0x6a640ULL),
-                    TRACE_FIELD_STR("gadget", "gadget_add_reg_7_13_14"),
-                    TRACE_FIELD_STR("next_gadget", next_sym),
-                    TRACE_FIELD_U64_HEX("next_addr", block->num_gadgets >= 5
-                                                         ? (uint64_t)(uintptr_t)block->gadgets[4]
-                                                         : 0),
-                    TRACE_FIELD_U64_HEX("x14", temp_x14_after),
-                    TRACE_FIELD_U64_HEX("x15", temp_x15_after),
-                    TRACE_FIELD_U64_HEX("x8", x7_after_execute),
-                    TRACE_FIELD_U64_HEX("x7", cpu->x[7]),
-                    TRACE_FIELD_U64_HEX("x2", cpu->x[2]),
-                    TRACE_FIELD_U64_HEX("sp", cpu->sp),
-                    TRACE_FIELD_U64_HEX("cpu_state_x7", cpu->x[7]),
-                    TRACE_FIELD_U64_HEX("cpu_state_x2", cpu->x[2]),
-                    TRACE_FIELD_U64_HEX("cpu_state_sp", cpu->sp),
-                };
-                trace_insn64_event_fields("gadget6a640.next_gadget.pre", next_gadget_fields,
-                                          sizeof(next_gadget_fields) /
-                                              sizeof(next_gadget_fields[0]));
-            }
-        }
-
-        if (writer_candidate) {
-            char pretty[192] = { 0 };
-            snprintf(pretty, sizeof(pretty), "cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld",
-                     (int)writer_decoded.cat, (int)writer_decoded.subtype, writer_decoded.Rd,
-                     writer_decoded.Rn, writer_decoded.Rm, (long long)writer_decoded.imm);
-
-            g_base6a628_last_writer.valid = 1;
-            g_base6a628_last_writer.writer_pc = pc_before_execute;
-            g_base6a628_last_writer.writer_raw = writer_raw;
-            strncpy(g_base6a628_last_writer.writer_mnemonic, pretty,
-                    sizeof(g_base6a628_last_writer.writer_mnemonic) - 1);
-            g_base6a628_last_writer
-                .writer_mnemonic[sizeof(g_base6a628_last_writer.writer_mnemonic) - 1] = '\0';
-            g_base6a628_last_writer.writer_rd = writer_decoded.Rd;
-            g_base6a628_last_writer.writer_rn = writer_decoded.Rn;
-            g_base6a628_last_writer.x3_before = x3_before_execute;
-            g_base6a628_last_writer.x3_after = cpu->x[3];
-            g_base6a628_last_writer.block_start = block->start_pc;
-            g_base6a628_last_writer.block_end = block->end_pc;
-
-            char payload[640];
-            snprintf(payload, sizeof(payload),
-                     "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
-                     "arch_base_reg:3,arch_base_val:0x%llx,carrier_val:0x%llx,cpu_slot_val:0x%llx,"
-                     "block_start:0x%llx,block_end:0x%llx,is_zero:%d",
-                     current ? current->pid : -1, (unsigned long long)pc_before_execute, writer_raw,
-                     pretty, (unsigned long long)cpu->x[3], (unsigned long long)cpu->x[3],
-                     (unsigned long long)cpu->x[3], (unsigned long long)block->start_pc,
-                     (unsigned long long)block->end_pc, cpu->x[3] == 0 ? 1 : 0);
-            trace_base6a628_event("base6a628.post_writer_regs", payload);
-        }
-
-        if (x0_writer_candidate) {
-            char pretty[192] = { 0 };
-            snprintf(pretty, sizeof(pretty), "cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld",
-                     (int)writer_decoded.cat, (int)writer_decoded.subtype, writer_decoded.Rd,
-                     writer_decoded.Rn, writer_decoded.Rm, (long long)writer_decoded.imm);
-
-            g_x0chain_last_writer.valid = 1;
-            g_x0chain_last_writer.writer_pc = pc_before_execute;
-            g_x0chain_last_writer.writer_raw = writer_raw;
-            strncpy(g_x0chain_last_writer.writer_mnemonic, pretty,
-                    sizeof(g_x0chain_last_writer.writer_mnemonic) - 1);
-            g_x0chain_last_writer
-                .writer_mnemonic[sizeof(g_x0chain_last_writer.writer_mnemonic) - 1] = '\0';
-            g_x0chain_last_writer.writer_rd = writer_decoded.Rd;
-            g_x0chain_last_writer.writer_rn = writer_decoded.Rn;
-            g_x0chain_last_writer.x0_before = x0_before_execute;
-            g_x0chain_last_writer.x0_after = cpu->x[0];
-            g_x0chain_last_writer.block_start = block->start_pc;
-            g_x0chain_last_writer.block_end = block->end_pc;
-
-            char payload[640];
-            snprintf(payload, sizeof(payload),
-                     "attempt:-1,guest_pid:%d,guest_pc:0x%llx,raw_opcode:0x%08x,mnemonic:%s,"
-                     "x0_val:0x%llx,carrier_val:0x%llx,cpu_slot_val:0x%llx,"
-                     "block_start:0x%llx,block_end:0x%llx,is_zero:%d",
-                     current ? current->pid : -1, (unsigned long long)pc_before_execute, writer_raw,
-                     pretty, (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[0],
-                     (unsigned long long)cpu->x[0], (unsigned long long)block->start_pc,
-                     (unsigned long long)block->end_pc, cpu->x[0] == 0 ? 1 : 0);
-            trace_x0chain_event("x0chain.post_writer_regs", payload);
-        }
-
-        if (x2_writer_candidate) {
-            char pretty[192] = { 0 };
-            snprintf(pretty, sizeof(pretty), "cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld",
-                     (int)writer_decoded.cat, (int)writer_decoded.subtype, writer_decoded.Rd,
-                     writer_decoded.Rn, writer_decoded.Rm, (long long)writer_decoded.imm);
-
-            g_str6a650_last_writer.valid = 1;
-            g_str6a650_last_writer.writer_pc = pc_before_execute;
-            g_str6a650_last_writer.writer_raw = writer_raw;
-            strncpy(g_str6a650_last_writer.writer_mnemonic, pretty,
-                    sizeof(g_str6a650_last_writer.writer_mnemonic) - 1);
-            g_str6a650_last_writer
-                .writer_mnemonic[sizeof(g_str6a650_last_writer.writer_mnemonic) - 1] = '\0';
-            g_str6a650_last_writer.writer_rd = writer_decoded.Rd;
-            g_str6a650_last_writer.writer_rn = writer_decoded.Rn;
-            g_str6a650_last_writer.writer_rm = writer_decoded.Rm;
-            g_str6a650_last_writer.writer_idx_mode = writer_decoded.idx_mode;
-            g_str6a650_last_writer.writer_imm = writer_decoded.imm;
-            g_str6a650_last_writer.x2_before = x2_before_execute;
-            g_str6a650_last_writer.x2_after = cpu->x[2];
-            g_str6a650_last_writer.block_start = block->start_pc;
-            g_str6a650_last_writer.block_end = block->end_pc;
-
-            ixland_guest_trace_field_t fields[] = {
-                TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
-                TRACE_FIELD_U64_HEX("raw_opcode", writer_raw),
-                TRACE_FIELD_STR("mnemonic", pretty),
-                TRACE_FIELD_I64("base_reg", 2),
-                TRACE_FIELD_U64_HEX("base_val", cpu->x[2]),
-                TRACE_FIELD_I64("src_reg", writer_decoded.Rd),
-                TRACE_FIELD_U64_HEX("src_val", trace_ldst_reg_or_zr(cpu, writer_decoded.Rd)),
-                TRACE_FIELD_I64("idx_reg", writer_decoded.Rm),
-                TRACE_FIELD_U64_HEX("idx_val", trace_ldst_reg_or_zr(cpu, writer_decoded.Rm)),
-                TRACE_FIELD_I64("imm", writer_decoded.imm),
-                TRACE_FIELD_I64("idx_mode", writer_decoded.idx_mode),
-                TRACE_FIELD_STR("guest_ea", "na"),
-                TRACE_FIELD_STR("host_probe", "na"),
-                TRACE_FIELD_STR("translation_fault", "na"),
-                TRACE_FIELD_I64("signal_follow_immediate", 0),
-            };
-            trace_str6a650_event_fields("str6a650.post_writer_regs", fields,
-                                        sizeof(fields) / sizeof(fields[0]));
-
-            if (pc_before_execute == 0x6a64cULL && writer_raw == 0xaa0703e2U) {
-                ixland_guest_trace_field_t fields[] = {
-                    TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
-                    TRACE_FIELD_U64_HEX("raw_opcode", writer_raw),
-                    TRACE_FIELD_STR("mnemonic", "mov_x2_x7"),
-                    TRACE_FIELD_U64_HEX("x7_before", x7_before_execute),
-                    TRACE_FIELD_U64_HEX("x2_after", cpu->x[2]),
-                    TRACE_FIELD_U64_HEX("block_start", block->start_pc),
-                    TRACE_FIELD_U64_HEX("block_end", block->end_pc),
-                    TRACE_FIELD_I64("x2_after_eq_x7_before",
-                                    cpu->x[2] == x7_before_execute ? 1 : 0),
-                };
-                trace_x7chain_event_fields("mov6a64c.post_exec", fields,
-                                           sizeof(fields) / sizeof(fields[0]));
-            }
-        }
-
-        if (x7_writer_candidate) {
-            char pretty[192] = { 0 };
-            snprintf(pretty, sizeof(pretty), "cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld",
-                     (int)writer_decoded.cat, (int)writer_decoded.subtype, writer_decoded.Rd,
-                     writer_decoded.Rn, writer_decoded.Rm, (long long)writer_decoded.imm);
-
-            g_x7chain_last_writer.valid = 1;
-            g_x7chain_last_writer.writer_pc = pc_before_execute;
-            g_x7chain_last_writer.writer_raw = writer_raw;
-            strncpy(g_x7chain_last_writer.writer_mnemonic, pretty,
-                    sizeof(g_x7chain_last_writer.writer_mnemonic) - 1);
-            g_x7chain_last_writer
-                .writer_mnemonic[sizeof(g_x7chain_last_writer.writer_mnemonic) - 1] = '\0';
-            g_x7chain_last_writer.writer_rd = writer_decoded.Rd;
-            g_x7chain_last_writer.writer_rn = writer_decoded.Rn;
-            g_x7chain_last_writer.writer_rm = writer_decoded.Rm;
-            g_x7chain_last_writer.writer_idx_mode = writer_decoded.idx_mode;
-            g_x7chain_last_writer.writer_imm = writer_decoded.imm;
-            g_x7chain_last_writer.x7_before = x7_before_execute;
-            g_x7chain_last_writer.x7_after = cpu->x[7];
-            g_x7chain_last_writer.block_start = block->start_pc;
-            g_x7chain_last_writer.block_end = block->end_pc;
-
-            ixland_guest_trace_field_t fields[] = {
-                TRACE_FIELD_U64_HEX("guest_pc", pc_before_execute),
-                TRACE_FIELD_U64_HEX("raw_opcode", writer_raw),
-                TRACE_FIELD_STR("mnemonic", pretty),
-                TRACE_FIELD_U64_HEX("x7", cpu->x[7]),
-                TRACE_FIELD_U64_HEX("x2", cpu->x[2]),
-                TRACE_FIELD_U64_HEX("block_start", block->start_pc),
-                TRACE_FIELD_U64_HEX("block_end", block->end_pc),
-                TRACE_FIELD_I64("is_x7_one", cpu->x[7] == 1 ? 1 : 0),
-                TRACE_FIELD_I64("is_x7_zero", cpu->x[7] == 0 ? 1 : 0),
-            };
-            trace_x7chain_event_fields("x7chain.post_writer_regs", fields,
-                                       sizeof(fields) / sizeof(fields[0]));
-        }
         trace_cpu_run_checkpoint("task.proof.a64_cpu_run.exit_reason_set", current, cpu,
                                  exit_reason);
-        if ((pc_before_execute >= 0x6a9d0ULL && pc_before_execute <= 0x6aa00ULL) ||
-            (pc_before_execute >= 0x6c400ULL && pc_before_execute <= 0x6c438ULL) ||
-            (pc_before_execute >= 0x3e300ULL && pc_before_execute <= 0x3e380ULL) ||
-            pc_before_execute == 0x6a970ULL || pc_before_execute == 0x6a990ULL) {
-            char ev[256];
-            snprintf(ev, sizeof(ev),
-                     "task.proof.tcti.exec.focus=before:0x%llx,after:0x%llx,reason:%d,"
-                     "x0:0x%llx,x1:0x%llx,x2:0x%llx,x3:0x%llx,x4:0x%llx,x5:0x%llx,x8:0x%llx,"
-                     "x30:0x%llx,block_start:0x%llx,block_end:0x%llx,explicit:%d",
-                     (unsigned long long)pc_before_execute, (unsigned long long)cpu->pc,
-                     exit_reason, (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[1],
-                     (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[3],
-                     (unsigned long long)cpu->x[4], (unsigned long long)cpu->x[5],
-                     (unsigned long long)cpu->x[8], (unsigned long long)cpu->x[30],
-                     (unsigned long long)block->start_pc,
-                     (unsigned long long)block->end_pc, block->explicit_pc_on_exit ? 1 : 0);
-            trace_record_event(TRACE_ORIGIN_EXEC, ev);
-        }
-        {
-            static int exit_reason_log_budget = 16;
-            if (exit_reason_log_budget > 0) {
-                char ev[96];
-                snprintf(ev, sizeof(ev), "task.proof.a64_cpu_run.exit_reason_value=%d",
-                         exit_reason);
-                trace_record_event(TRACE_ORIGIN_EXEC, ev);
-                exit_reason_log_budget--;
-            }
-        }
-
-        if (trace_is_active() && cpu->pc >= 0xf7fa4604 && cpu->pc <= 0xf7fa4650) {
-            interpreter_loop_active = true;
-            trace_interpreter_edge_checkpoint("task.proof.interpreter.edge", cpu, block->start_pc,
-                                              block->end_pc, same_block_repeat_count);
-
-            if (cpu->pc == 0xf7fa4604 || cpu->pc == 0xf7fa4650 || cpu->pc == 0x6d198 ||
-                cpu->pc == 0x6d1a0 || cpu->pc == 0x6d1a8 || cpu->pc == 0x6d1ac) {
-                uint32_t raw_insn = 0;
-                a64_instr_t decoded;
-                if (a64_fetch_insn(cpu, cpu->tlb, cpu->pc, &raw_insn) == 0 &&
-                    a64_decode(raw_insn, &decoded) == 0) {
-                    const char *decode_name =
-                        cpu->pc == 0xf7fa4604
-                            ? "task.proof.interpreter.edge.decode.entry"
-                            : (cpu->pc == 0xf7fa4650 ? "task.proof.interpreter.edge.decode.repeat"
-                                                     : "task.proof.interpreter.x1seam.decode");
-                    trace_insn_decode_checkpoint(decode_name, cpu->pc, raw_insn, decoded.cat,
-                                                 decoded.subtype, decoded.Rn, decoded.Rm,
-                                                 (int)decoded.imm);
-                    if (cpu->pc == 0xf7fa4650) {
-                        trace_interpreter_cmp_entry_asm_checkpoint(
-                            "task.proof.interpreter.cmp.entry.asm", block->start_pc, block->end_pc,
-                            same_block_repeat_count);
-                        trace_interpreter_store_edge_checkpoint("task.proof.interpreter.store.edge",
-                                                                cpu, same_block_repeat_count);
-                        trace_interpreter_loop_predicate_checkpoint(
-                            "task.proof.interpreter.loop.predicate", cpu, cpu->tlb, block->start_pc,
-                            block->end_pc, same_block_repeat_count);
-                    }
-                    if (cpu->pc == 0x6d198 || cpu->pc == 0x6d1a0 || cpu->pc == 0x6d1a8 ||
-                        cpu->pc == 0x6d1ac) {
-                        char ev[256];
-                        snprintf(
-                            ev, sizeof(ev),
-                            "task.proof.interpreter.x1seam=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,x0:"
-                            "0x%llx,x1:0x%llx,x2:0x%llx,x3:0x%llx,nzcv:%d%d%d%d,block_start:0x%llx,"
-                            "block_end:0x%llx",
-                            (unsigned long long)cpu->pc, raw_insn, decoded.cat, decoded.subtype,
-                            (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[1],
-                            (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[3],
-                            cpu->n ? 1 : 0, cpu->z ? 1 : 0, cpu->c ? 1 : 0, cpu->v ? 1 : 0,
-                            (unsigned long long)block->start_pc, (unsigned long long)block->end_pc);
-                        trace_record_event(TRACE_ORIGIN_EXEC, ev);
-                    }
-                }
-            }
-        } else if (interpreter_loop_active && !(cpu->pc >= 0xf7f3b000 && cpu->pc <= 0xf7ffdf10)) {
-            interpreter_loop_active = false;
-        }
 
         if (first_execute) {
             trace_cpu_run_checkpoint("task.proof.a64_cpu_run.after_first_execute", current, cpu,
@@ -3644,49 +2116,7 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
 
             // Emit first-fault proof before INT_GPF handling can terminate the task.
             trace_guest_first_fault_events();
-
-            if (cpu->pc == 0x6a650ULL && g_guest_first_fault.seen) {
-                const char *mnemonic = trace_guest_mnemonic(&g_guest_first_fault);
-                ixland_guest_trace_field_t pre_helper_fields[] = {
-                    TRACE_FIELD_U64_HEX("guest_pc", g_guest_first_fault.pc),
-                    TRACE_FIELD_U64_HEX("raw_opcode", g_guest_first_fault.raw),
-                    TRACE_FIELD_STR("mnemonic", mnemonic),
-                    TRACE_FIELD_I64("base_reg", g_guest_first_fault.rn),
-                    TRACE_FIELD_U64_HEX("base_val", g_guest_first_fault.rn_val),
-                    TRACE_FIELD_I64("src_reg", g_guest_first_fault.rd),
-                    TRACE_FIELD_U64_HEX("src_val", g_guest_first_fault.rt_val),
-                    TRACE_FIELD_I64("idx_reg", g_guest_first_fault.rm),
-                    TRACE_FIELD_U64_HEX("idx_val", g_guest_first_fault.rm_val),
-                    TRACE_FIELD_I64("idx_mode", g_guest_first_fault.idx_mode),
-                    TRACE_FIELD_U64_HEX("guest_ea", g_guest_first_fault.guest_ea),
-                    TRACE_FIELD_STR("host_probe", "pending"),
-                    TRACE_FIELD_STR("translation_fault", "pending"),
-                    TRACE_FIELD_I64("signal_follow_immediate", 1),
-                };
-                trace_str6a650_event_fields("str6a650.pre_helper", pre_helper_fields,
-                                            sizeof(pre_helper_fields) /
-                                                sizeof(pre_helper_fields[0]));
-
-                ixland_guest_trace_field_t translation_fields[] = {
-                    TRACE_FIELD_U64_HEX("guest_pc", g_guest_first_fault.pc),
-                    TRACE_FIELD_U64_HEX("raw_opcode", g_guest_first_fault.raw),
-                    TRACE_FIELD_STR("mnemonic", mnemonic),
-                    TRACE_FIELD_I64("base_reg", g_guest_first_fault.rn),
-                    TRACE_FIELD_U64_HEX("base_val", g_guest_first_fault.rn_val),
-                    TRACE_FIELD_I64("src_reg", g_guest_first_fault.rd),
-                    TRACE_FIELD_U64_HEX("src_val", g_guest_first_fault.rt_val),
-                    TRACE_FIELD_I64("idx_reg", g_guest_first_fault.rm),
-                    TRACE_FIELD_U64_HEX("idx_val", g_guest_first_fault.rm_val),
-                    TRACE_FIELD_I64("idx_mode", g_guest_first_fault.idx_mode),
-                    TRACE_FIELD_U64_HEX("guest_ea", g_guest_first_fault.guest_ea),
-                    TRACE_FIELD_U64_HEX("host_probe", g_guest_first_fault.host_ptr_probe),
-                    TRACE_FIELD_I64("translation_fault", g_guest_first_fault.translation_fault),
-                    TRACE_FIELD_I64("signal_follow_immediate", 1),
-                };
-                trace_str6a650_event_fields("str6a650.translation", translation_fields,
-                                            sizeof(translation_fields) /
-                                                sizeof(translation_fields[0]));
-            }
+            a64_trace_emit_mem_history_on_fault(cpu, cpu->fault_addr);
 
             // Mark context inactive before handling fault
             fiber_exec_ctx_put(ctx);
@@ -3697,28 +2127,6 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
                                      cpu, exit_reason);
             trace_cpu_run_checkpoint("task.proof.a64_cpu_run.after_handle_interrupt", current, cpu,
                                      exit_reason);
-
-            if (pc_before_execute == 0x6a650ULL && g_guest_first_fault.seen) {
-                const char *mnemonic = trace_guest_mnemonic(&g_guest_first_fault);
-                ixland_guest_trace_field_t exit_fields[] = {
-                    TRACE_FIELD_U64_HEX("guest_pc", g_guest_first_fault.pc),
-                    TRACE_FIELD_U64_HEX("raw_opcode", g_guest_first_fault.raw),
-                    TRACE_FIELD_STR("mnemonic", mnemonic),
-                    TRACE_FIELD_I64("base_reg", g_guest_first_fault.rn),
-                    TRACE_FIELD_U64_HEX("base_val", g_guest_first_fault.rn_val),
-                    TRACE_FIELD_I64("src_reg", g_guest_first_fault.rd),
-                    TRACE_FIELD_U64_HEX("src_val", g_guest_first_fault.rt_val),
-                    TRACE_FIELD_I64("idx_reg", g_guest_first_fault.rm),
-                    TRACE_FIELD_U64_HEX("idx_val", g_guest_first_fault.rm_val),
-                    TRACE_FIELD_I64("idx_mode", g_guest_first_fault.idx_mode),
-                    TRACE_FIELD_U64_HEX("guest_ea", g_guest_first_fault.guest_ea),
-                    TRACE_FIELD_U64_HEX("host_probe", g_guest_first_fault.host_ptr_probe),
-                    TRACE_FIELD_I64("translation_fault", g_guest_first_fault.translation_fault),
-                    TRACE_FIELD_I64("signal_follow_immediate", 1),
-                };
-                trace_str6a650_event_fields("str6a650.exit", exit_fields,
-                                            sizeof(exit_fields) / sizeof(exit_fields[0]));
-            }
         } else if (exit_reason == TCTI_EXIT_SIGNAL) {
             trace_cpu_run_checkpoint("task.proof.a64_cpu_run.exit_signal", current, cpu,
                                      exit_reason);
@@ -3777,105 +2185,11 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
                 trace_record_event(TRACE_ORIGIN_EXEC, ev);
                 normal_exit_flow_budget--;
             }
-
-            if ((pc_before_execute >= 0x6b3f0ULL && pc_before_execute <= 0x6b438ULL) ||
-                (pc_before_execute >= 0x6c400ULL && pc_before_execute <= 0x6c438ULL)) {
-                static int dls3_loop_budget = 96;
-                if (dls3_loop_budget > 0) {
-                    uint32_t raw_after = 0;
-                    (void)a64_fetch_insn(cpu, cpu->tlb, cpu->pc, &raw_after);
-                    char ev[320];
-                    snprintf(ev, sizeof(ev),
-                             "task.proof.dls3.loop=before:0x%llx,after:0x%llx,reason:%d,start:"
-                             "0x%llx,end:0x%llx,explicit:%d,x0:0x%llx,x1:0x%llx,x3:0x%llx,"
-                             "pstate:0x%llx,next_raw:0x%08x",
-                             (unsigned long long)pc_before_execute, (unsigned long long)cpu->pc,
-                             exit_reason, (unsigned long long)block->start_pc,
-                             (unsigned long long)block->end_pc,
-                             block->explicit_pc_on_exit ? 1 : 0, (unsigned long long)cpu->x[0],
-                             (unsigned long long)cpu->x[1], (unsigned long long)cpu->x[3],
-                             (unsigned long long)cpu->pstate, raw_after);
-                    trace_record_event(TRACE_ORIGIN_EXEC, ev);
-                    dls3_loop_budget--;
-                }
-            }
-
-            if (cpu->pc == 0x6967cULL) {
-                static int stuck_6967c_budget = 24;
-                if (stuck_6967c_budget > 0) {
-                    char ev[224];
-                    snprintf(ev, sizeof(ev),
-                             "task.proof.6967c.block=before:0x%llx,start:0x%llx,end:0x%llx,"
-                             "explicit:%d,after:0x%llx,reason:%d,pc_writer:%s",
-                             (unsigned long long)pc_before_execute,
-                             (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
-                             block->explicit_pc_on_exit ? 1 : 0, (unsigned long long)cpu->pc,
-                             exit_reason,
-                             block->explicit_pc_on_exit ? "terminal_gadget" : "cpu_run_end_pc");
-                    trace_record_event(TRACE_ORIGIN_EXEC, ev);
-                    stuck_6967c_budget--;
-                }
-            }
-
-            if (cpu->pc == 0x69650ULL) {
-                static int stuck_site_budget = 16;
-                if (stuck_site_budget > 0) {
-                    uint32_t stuck_raw = 0;
-                    if (a64_fetch_insn(cpu, cpu->tlb, cpu->pc, &stuck_raw) == 0) {
-                        char ev_raw[96];
-                        snprintf(ev_raw, sizeof(ev_raw),
-                                 "task.proof.a64_cpu_run.stuck_site.raw=0x%08x", stuck_raw);
-                        trace_record_event(TRACE_ORIGIN_EXEC, ev_raw);
-
-                        a64_instr_t stuck_decoded;
-                        if (a64_decode(stuck_raw, &stuck_decoded) == 0) {
-                            char ev_dec[192];
-                            snprintf(ev_dec, sizeof(ev_dec),
-                                     "task.proof.a64_cpu_run.stuck_site.decoded=cat:%d,sub:%d,rd:%"
-                                     "d,rn:%d,rm:%d,idx:%d,imm:%d",
-                                     stuck_decoded.cat, stuck_decoded.subtype, stuck_decoded.Rd,
-                                     stuck_decoded.Rn, stuck_decoded.Rm, stuck_decoded.idx_mode,
-                                     (int)stuck_decoded.imm);
-                            trace_record_event(TRACE_ORIGIN_EXEC, ev_dec);
-                        }
-                    }
-                    stuck_site_budget--;
-                }
-            }
-
-            if (cpu->pc == 0x69654ULL || cpu->pc == 0x69658ULL) {
-                static int loop_ctr_budget = 24;
-                if (loop_ctr_budget > 0) {
-                    uint32_t raw = 0;
-                    if (a64_fetch_insn(cpu, cpu->tlb, cpu->pc, &raw) == 0) {
-                        char ev_raw[160];
-                        snprintf(ev_raw, sizeof(ev_raw),
-                                 "task.proof.a64_cpu_run.loop_ctr.raw=pc:0x%llx,raw:0x%08x,x5:0x%llx,"
-                                 "x2:0x%llx,x3:0x%llx",
-                                 (unsigned long long)cpu->pc, raw, (unsigned long long)cpu->x[5],
-                                 (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[3]);
-                        trace_record_event(TRACE_ORIGIN_EXEC, ev_raw);
-
-                        a64_instr_t decoded;
-                        if (a64_decode(raw, &decoded) == 0) {
-                            char ev_dec[192];
-                            snprintf(ev_dec, sizeof(ev_dec),
-                                     "task.proof.a64_cpu_run.loop_ctr.decoded=pc:0x%llx,cat:%d,sub:%d,"
-                                     "rd:%d,rn:%d,rm:%d,idx:%d,imm:%d,nzcv:%d%d%d%d",
-                                     (unsigned long long)cpu->pc, decoded.cat, decoded.subtype,
-                                     decoded.Rd, decoded.Rn, decoded.Rm, decoded.idx_mode,
-                                     (int)decoded.imm, cpu->n ? 1 : 0, cpu->z ? 1 : 0,
-                                     cpu->c ? 1 : 0, cpu->v ? 1 : 0);
-                            trace_record_event(TRACE_ORIGIN_EXEC, ev_dec);
-                        }
-                    }
-                    loop_ctr_budget--;
-                }
-            }
         }
 
         if (exit_reason == TCTI_EXIT_NORMAL &&
-            ((trace_get_level() >= TRACE_LEVEL_DEBUG && total_blocks_executed % 10 == 0) ||
+            ((trace_should_emit_event("task.proof.a64_cpu_run.startup_progress") &&
+              total_blocks_executed % 10 == 0) ||
              total_blocks_executed == 1000 || total_blocks_executed == 10000 ||
              total_blocks_executed == 100000 || same_block_repeat_count == 1000 ||
              same_block_repeat_count == 10000)) {
@@ -4021,6 +2335,8 @@ int a64_execute_ldst(struct cpu_state *cpu, struct tlb *tlb, const a64_instr_t *
                 instr->is_64bit ? *(uint64_t *)(ptr + width) : *(uint32_t *)(ptr + width);
             a64_write_reg_or_sp(cpu, instr->Rd, first, instr->is_64bit);
             a64_write_reg_or_sp(cpu, instr->Rm, second, instr->is_64bit);
+            a64_trace_record_mem_access(cpu, instr, addr, first, (uint8_t)width, true);
+            a64_trace_record_mem_access(cpu, instr, addr + width, second, (uint8_t)width, true);
         } else {
             uint64_t first = a64_read_reg_or_sp(cpu, instr->Rd, instr->is_64bit);
             uint64_t second = a64_read_reg_or_sp(cpu, instr->Rm, instr->is_64bit);
@@ -4031,6 +2347,8 @@ int a64_execute_ldst(struct cpu_state *cpu, struct tlb *tlb, const a64_instr_t *
                 *(uint32_t *)ptr = (uint32_t)first;
                 *(uint32_t *)(ptr + width) = (uint32_t)second;
             }
+            a64_trace_record_mem_access(cpu, instr, addr, first, (uint8_t)width, false);
+            a64_trace_record_mem_access(cpu, instr, addr + width, second, (uint8_t)width, false);
         }
 
         if (writeback) {
@@ -4073,6 +2391,7 @@ int a64_execute_ldst(struct cpu_state *cpu, struct tlb *tlb, const a64_instr_t *
         a64_write_reg_or_sp(cpu, instr->Rd, value,
                              instr->size == A64_SIZE_X ||
                                  (instr->is_signed && instr->is_64bit));
+        a64_trace_record_mem_access(cpu, instr, addr, value, (uint8_t)(1u << instr->size), true);
     } else {
         uint64_t value = a64_read_reg_or_sp(cpu, instr->Rd, instr->size == A64_SIZE_X);
         switch (instr->size) {
@@ -4091,6 +2410,7 @@ int a64_execute_ldst(struct cpu_state *cpu, struct tlb *tlb, const a64_instr_t *
         default:
             return -1;
         }
+        a64_trace_record_mem_access(cpu, instr, addr, value, (uint8_t)(1u << instr->size), false);
     }
 
     if (!is_literal && writeback) {
