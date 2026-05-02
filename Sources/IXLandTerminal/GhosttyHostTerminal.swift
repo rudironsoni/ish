@@ -81,6 +81,7 @@ public final class IXLandGhosttyHostTerminal: NSObject {
         terminalView.configuration = options
         terminalView.backgroundColor = .clear
         terminalView.isOpaque = false
+        terminalView.isUserInteractionEnabled = false
         terminalView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
 
         self.terminalView = terminalView

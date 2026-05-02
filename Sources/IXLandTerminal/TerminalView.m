@@ -53,6 +53,8 @@ struct rowcol {
     TerminalSurfaceAccessibilityElement *_terminalAccessibilityElement;
 }
 
+@synthesize inputAccessoryView = _inputAccessoryView;
+
 - (BOOL)isRunningUITests {
     NSDictionary *environment = NSProcessInfo.processInfo.environment;
     return environment[@"XCTestConfigurationFilePath"] != nil || environment[@"IXLAND_UI_TESTING"] != nil;
@@ -318,6 +320,22 @@ struct rowcol {
     return focused;
 }
 
+- (BOOL)isFirstResponder {
+    return [super isFirstResponder] || self.uiTestInputField.isFirstResponder;
+}
+
+- (UIInputView *)inputAccessoryView {
+    return _inputAccessoryView;
+}
+
+- (void)setInputAccessoryView:(UIInputView *)inputAccessoryView {
+    _inputAccessoryView = inputAccessoryView;
+    self.uiTestInputField.inputAccessoryView = inputAccessoryView;
+    if (self.uiTestInputField.isFirstResponder) {
+        [self.uiTestInputField reloadInputViews];
+    }
+}
+
 - (BOOL)textField:(UITextField *)textField shouldChangeCharactersInRange:(NSRange)range replacementString:(NSString *)string {
     if (string.length > 0) {
         [self insertText:string];
@@ -333,6 +351,9 @@ struct rowcol {
 }
 - (BOOL)resignFirstResponder {
     self.terminalFocused = NO;
+    if (self.uiTestInputField.isFirstResponder) {
+        return [self.uiTestInputField resignFirstResponder];
+    }
     return [super resignFirstResponder];
 }
 - (void)windowDidBecomeKey:(NSNotification *)notif {
@@ -707,12 +728,84 @@ static const char *metaKeys = "abcdefghijklmnopqrstuvwxyz0123456789-=[]\\;',./";
 
 - (void)pressesBegan:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event {
     if (@available(iOS 13.4, *)) {
-        UIKey *key = presses.anyObject.key;
-        if (UserPreferences.shared.overrideControlSpace &&
-            key.keyCode == UIKeyboardHIDUsageKeyboardSpacebar &&
-            key.modifierFlags & UIKeyModifierControl) {
-            return [self insertControlChar:' '];
+        NSMutableSet<UIPress *> *unhandledPresses = [presses mutableCopy];
+        for (UIPress *press in presses) {
+            UIKey *key = press.key;
+            if (key == nil)
+                continue;
+
+            BOOL handled = NO;
+            UIKeyModifierFlags modifiers = key.modifierFlags;
+            if (UserPreferences.shared.overrideControlSpace &&
+                key.keyCode == UIKeyboardHIDUsageKeyboardSpacebar &&
+                modifiers & UIKeyModifierControl) {
+                [self insertControlChar:' '];
+                handled = YES;
+            } else if (modifiers & UIKeyModifierCommand) {
+                handled = NO;
+            } else if (modifiers & UIKeyModifierControl) {
+                NSString *characters = key.charactersIgnoringModifiers;
+                if (characters.length == 1) {
+                    [self insertControlChar:(char) [characters characterAtIndex:0]];
+                    handled = YES;
+                }
+            } else {
+                switch (key.keyCode) {
+                    case UIKeyboardHIDUsageKeyboardReturnOrEnter:
+                    case UIKeyboardHIDUsageKeypadEnter:
+                        [self insertText:@"\n"];
+                        handled = YES;
+                        break;
+                    case UIKeyboardHIDUsageKeyboardDeleteOrBackspace:
+                        [self deleteBackward];
+                        handled = YES;
+                        break;
+                    case UIKeyboardHIDUsageKeyboardTab:
+                        [self insertText:@"\t"];
+                        handled = YES;
+                        break;
+                    case UIKeyboardHIDUsageKeyboardEscape:
+                        [self insertText:@"\x1b"];
+                        handled = YES;
+                        break;
+                    case UIKeyboardHIDUsageKeyboardUpArrow:
+                        [self insertText:[self.terminal arrow:'A']];
+                        handled = YES;
+                        break;
+                    case UIKeyboardHIDUsageKeyboardDownArrow:
+                        [self insertText:[self.terminal arrow:'B']];
+                        handled = YES;
+                        break;
+                    case UIKeyboardHIDUsageKeyboardLeftArrow:
+                        [self insertText:[self.terminal arrow:'D']];
+                        handled = YES;
+                        break;
+                    case UIKeyboardHIDUsageKeyboardRightArrow:
+                        [self insertText:[self.terminal arrow:'C']];
+                        handled = YES;
+                        break;
+                    default: {
+                        NSString *characters = key.characters;
+                        if (characters.length > 0) {
+                            if (modifiers & UIKeyModifierAlternate) {
+                                characters = [@"\x1b" stringByAppendingString:characters];
+                            }
+                            [self insertText:characters];
+                            handled = YES;
+                        }
+                        break;
+                    }
+                }
+            }
+
+            if (handled) {
+                [unhandledPresses removeObject:press];
+            }
         }
+        if (unhandledPresses.count == 0) {
+            return;
+        }
+        presses = unhandledPresses;
     }
     return [super pressesBegan:presses withEvent:event];
 }
