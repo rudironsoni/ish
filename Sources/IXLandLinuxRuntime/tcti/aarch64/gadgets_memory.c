@@ -3131,10 +3131,6 @@ __attribute__((naked)) void gadget_addsub_imm_fallback_impl(void)
                  "bl _tcti_addsub_imm_helper\n\t"
                  "add sp, sp, #16\n\t"
                  "bl _tcti_c_call_epilogue\n\t"
-                 "cbz x23, 2f\n\t"
-                 "ldr x17, [x29, #280]\n\t"
-                 "msr nzcv, x17\n\t"
-                 "2:\n\t"
                  "ldp x1, x2, [x29, #16]\n\t"
                  "ldp x3, x4, [x29, #32]\n\t"
                  "ldp x5, x6, [x29, #48]\n\t"
@@ -3148,6 +3144,10 @@ __attribute__((naked)) void gadget_addsub_imm_fallback_impl(void)
                  "mov x26, x19\n\t"
                  "bl _tcti_sync_hot_reg_from_cpu\n\t"
                  "1:\n\t"
+                 "cbz x23, 2f\n\t"
+                 "ldr x17, [x29, #280]\n\t"
+                 "msr nzcv, x17\n\t"
+                 "2:\n\t"
                  "ldr x27, [x28], #8\n\t"
                  "br x27\n\t");
 }
@@ -3245,10 +3245,6 @@ __attribute__((naked)) void gadget_addsub_reg_fallback_impl(void)
                  "bl _tcti_addsub_reg_helper\n\t"
                  "add sp, sp, #16\n\t"
                  "bl _tcti_c_call_epilogue\n\t"
-                 "cbz x25, 2f\n\t"
-                 "ldr x17, [x29, #280]\n\t"
-                 "msr nzcv, x17\n\t"
-                 "2:\n\t"
                  "ldp x1, x2, [x29, #16]\n\t"
                  "ldp x3, x4, [x29, #32]\n\t"
                  "ldp x5, x6, [x29, #48]\n\t"
@@ -3262,6 +3258,10 @@ __attribute__((naked)) void gadget_addsub_reg_fallback_impl(void)
                  "mov x26, x19\n\t"
                  "bl _tcti_sync_hot_reg_from_cpu\n\t"
                  "1:\n\t"
+                 "cbz x25, 2f\n\t"
+                 "ldr x17, [x29, #280]\n\t"
+                 "msr nzcv, x17\n\t"
+                 "2:\n\t"
                  "ldr x27, [x28], #8\n\t"
                  "br x27\n\t");
 }
@@ -3333,10 +3333,6 @@ __attribute__((naked)) void gadget_logical_imm_fallback_impl(void)
                  "mov x6, x24\n\t"
                  "bl _tcti_logical_imm_helper\n\t"
                  "bl _tcti_c_call_epilogue\n\t"
-                 "cbz x23, 2f\n\t"
-                 "ldr x17, [x29, #280]\n\t"
-                 "msr nzcv, x17\n\t"
-                 "2:\n\t"
                  "ldp x1, x2, [x29, #16]\n\t"
                  "ldp x3, x4, [x29, #32]\n\t"
                  "ldp x5, x6, [x29, #48]\n\t"
@@ -3350,6 +3346,10 @@ __attribute__((naked)) void gadget_logical_imm_fallback_impl(void)
                  "mov x26, x19\n\t"
                  "bl _tcti_sync_hot_reg_from_cpu\n\t"
                  "1:\n\t"
+                 "cbz x23, 2f\n\t"
+                 "ldr x17, [x29, #280]\n\t"
+                 "msr nzcv, x17\n\t"
+                 "2:\n\t"
                  "ldr x27, [x28], #8\n\t"
                  "br x27\n\t");
 }
@@ -3399,15 +3399,25 @@ __attribute__((used)) static void tcti_logical_reg_helper(struct cpu_state *cpu,
 
     uint64_t result;
     switch (subtype) {
-    case 0:
-    case 3:
+    case 0: // AND
+    case 3: // ANDS
         result = lhs & rhs;
         break;
-    case 1:
+    case 1: // ORR
         result = lhs | rhs;
         break;
-    case 2:
+    case 2: // EOR
         result = lhs ^ rhs;
+        break;
+    case 4: // BIC
+    case 7: // BICS
+        result = lhs & ~rhs;
+        break;
+    case 5: // ORN
+        result = lhs | ~rhs;
+        break;
+    case 6: // EON
+        result = lhs ^ ~rhs;
         break;
     default:
         return;
@@ -3457,10 +3467,6 @@ __attribute__((naked)) void gadget_logical_reg_fallback_impl(void)
                  "bl _tcti_logical_reg_helper\n\t"
                  "add sp, sp, #16\n\t"
                  "bl _tcti_c_call_epilogue\n\t"
-                 "cbz x25, 2f\n\t"
-                 "ldr x17, [x29, #280]\n\t"
-                 "msr nzcv, x17\n\t"
-                 "2:\n\t"
                  "ldp x1, x2, [x29, #16]\n\t"
                  "ldp x3, x4, [x29, #32]\n\t"
                  "ldp x5, x6, [x29, #48]\n\t"
@@ -3474,6 +3480,10 @@ __attribute__((naked)) void gadget_logical_reg_fallback_impl(void)
                  "mov x26, x19\n\t"
                  "bl _tcti_sync_hot_reg_from_cpu\n\t"
                  "1:\n\t"
+                 "cbz x25, 2f\n\t"
+                 "ldr x17, [x29, #280]\n\t"
+                 "msr nzcv, x17\n\t"
+                 "2:\n\t"
                  "ldr x27, [x28], #8\n\t"
                  "br x27\n\t");
 }
@@ -4186,6 +4196,9 @@ __attribute__((naked)) void gadget_ldr_x_impl(void)
         //   x25 = meta (extension type, etc.)
         // =========================================================================
 
+        "mrs x17, nzcv\n\t"
+        "str x17, [x29, %[pstate_off]]\n\t"
+
         // Load parameters from bytecode (AFTER all trace calls to avoid corruption)
         "ldr x19, [x28], #8\n\t" // fault_pc
         "ldr x20, [x28], #8\n\t" // Rt (destination reg)
@@ -4296,6 +4309,12 @@ __attribute__((naked)) void gadget_ldr_x_impl(void)
         "lsl x26, x26, #12\n\t" // x26 = (addr >> 12) << 12 = page base
         "cmp x27, x26\n\t"
         "b.ne 97f\n\t" // Branch to tlbmiss counter
+        "ldr x27, [x0, %[tlb_entry_generation_off]]\n\t"
+        "ldr x26, [x29, %[cpu_tlb_off]]\n\t"
+        "ldr x26, [x26, %[tlb_mmu_off]]\n\t"
+        "ldr x26, [x26, %[mmu_generation_off]]\n\t"
+        "cmp x27, x26\n\t"
+        "b.ne 97f\n\t" // Stale TLB entry: fall back through tlb_handle_miss.
 
         // Compute host address and load
         // data_minus_addr is at offset 16 in tlb_entry (after two 8-byte page fields)
@@ -4351,6 +4370,8 @@ __attribute__((naked)) void gadget_ldr_x_impl(void)
         "ldr x26, [x29, %[ldr_fast_hits_off]]\n\t"
         "add x26, x26, #1\n\t"
         "str x26, [x29, %[ldr_fast_hits_off]]\n\t"
+        "ldr x17, [x29, %[pstate_off]]\n\t"
+        "msr nzcv, x17\n\t"
         "ldr x27, [x28], #8\n\t"
         "br x27\n\t"
 
@@ -4417,6 +4438,8 @@ __attribute__((naked)) void gadget_ldr_x_impl(void)
         "stp x11, x12, [x29, #96]\n\t"
         "stp x13, x14, [x29, #112]\n\t"
         "stp x15, x16, [x29, #128]\n\t"
+        "ldr x17, [x29, %[pstate_off]]\n\t"
+        "msr nzcv, x17\n\t"
         "bl _tcti_c_call_prologue\n\t"
         "mov x0, x29\n\t"
         "mov x1, x19\n\t" // fault_pc
@@ -4462,9 +4485,13 @@ __attribute__((naked)) void gadget_ldr_x_impl(void)
         "bl _tcti_trace_resume_after_ldst\n\t"
         "bl _tcti_c_call_epilogue\n\t"
         "162:\n\t"
+        "ldr x17, [x29, %[pstate_off]]\n\t"
+        "msr nzcv, x17\n\t"
         "ldr x27, [x28], #8\n\t"
         "br x27\n\t"
         "1:\n\t"
+        "ldr x17, [x29, %[pstate_off]]\n\t"
+        "msr nzcv, x17\n\t"
         "b _tcti_exit_block\n\t"
         :
         : [cpu_tlb_off] "i"(CPU_TLB_OFFSET), [ldr_fast_hits_off] "i"(STAT_LDR_FAST_HITS_OFFSET),
@@ -4476,7 +4503,11 @@ __attribute__((naked)) void gadget_ldr_x_impl(void)
           [ldr_fallback_align_off] "i"(STAT_LDR_FALLBACK_ALIGN_OFFSET),
           [ldr_fallback_crosspg_off] "i"(STAT_LDR_FALLBACK_CROSSPG_OFFSET),
           [ldr_fallback_tlbmiss_off] "i"(STAT_LDR_FALLBACK_TLBMISS_OFFSET),
-          [ldr_fallback_notlb_off] "i"(STAT_LDR_FALLBACK_NOTLB_OFFSET)
+          [ldr_fallback_notlb_off] "i"(STAT_LDR_FALLBACK_NOTLB_OFFSET),
+          [tlb_mmu_off] "i"(TLB_MMU_OFFSET),
+          [tlb_entry_generation_off] "i"(TLB_ENTRY_GENERATION_OFFSET),
+          [mmu_generation_off] "i"(MMU_GENERATION_OFFSET),
+          [pstate_off] "i"(PSTATE_OFFSET)
         : "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x19", "x20", "x21", "x22", "x23", "x24",
           "x25", "x26", "x27", "memory");
 }
@@ -4486,6 +4517,9 @@ tcti_gadget_t gadget_ldr_x = gadget_ldr_x_impl;
 __attribute__((naked)) void gadget_str_x_impl(void)
 {
     asm volatile(
+        "mrs x17, nzcv\n\t"
+        "str x17, [x29, %[pstate_off]]\n\t"
+
         // Load parameters from bytecode
         "ldr x19, [x28], #8\n\t" // fault_pc
         "ldr x20, [x28], #8\n\t" // Rt (source reg)
@@ -4647,6 +4681,12 @@ __attribute__((naked)) void gadget_str_x_impl(void)
         "lsl x26, x26, #12\n\t" // x26 = (addr >> 12) << 12 = page base
         "cmp x27, x26\n\t"
         "b.ne 97f\n\t" // Branch to tlbmiss counter
+        "ldr x27, [x0, %[tlb_entry_generation_off]]\n\t"
+        "ldr x26, [x29, %[cpu_tlb_off]]\n\t"
+        "ldr x26, [x26, %[tlb_mmu_off]]\n\t"
+        "ldr x26, [x26, %[mmu_generation_off]]\n\t"
+        "cmp x27, x26\n\t"
+        "b.ne 97f\n\t" // Stale TLB entry: fall back through tlb_handle_miss.
 
         // Compute host address and store
         // data_minus_addr is at offset 16 in tlb_entry
@@ -4701,6 +4741,8 @@ __attribute__((naked)) void gadget_str_x_impl(void)
         "ldr x26, [x29, %[str_fast_hits_off]]\n\t"
         "add x26, x26, #1\n\t"
         "str x26, [x29, %[str_fast_hits_off]]\n\t"
+        "ldr x17, [x29, %[pstate_off]]\n\t"
+        "msr nzcv, x17\n\t"
         "ldr x27, [x28], #8\n\t"
         "br x27\n\t"
 
@@ -4766,6 +4808,8 @@ __attribute__((naked)) void gadget_str_x_impl(void)
         "stp x11, x12, [x29, #96]\n\t"
         "stp x13, x14, [x29, #112]\n\t"
         "stp x15, x16, [x29, #128]\n\t"
+        "ldr x17, [x29, %[pstate_off]]\n\t"
+        "msr nzcv, x17\n\t"
         "bl _tcti_c_call_prologue\n\t"
         "mov x0, x29\n\t"
         "mov x1, x19\n\t" // fault_pc
@@ -4794,9 +4838,13 @@ __attribute__((naked)) void gadget_str_x_impl(void)
         "mov x26, x21\n\t"
         "bl _tcti_sync_hot_reg_from_cpu\n\t"
         "160:\n\t"
+        "ldr x17, [x29, %[pstate_off]]\n\t"
+        "msr nzcv, x17\n\t"
         "ldr x27, [x28], #8\n\t"
         "br x27\n\t"
         "1:\n\t"
+        "ldr x17, [x29, %[pstate_off]]\n\t"
+        "msr nzcv, x17\n\t"
         "b _tcti_exit_block\n\t"
         :
         : [cpu_tlb_off] "i"(CPU_TLB_OFFSET), [str_fast_hits_off] "i"(STAT_STR_FAST_HITS_OFFSET),
@@ -4808,7 +4856,11 @@ __attribute__((naked)) void gadget_str_x_impl(void)
           [str_fallback_align_off] "i"(STAT_STR_FALLBACK_ALIGN_OFFSET),
           [str_fallback_crosspg_off] "i"(STAT_STR_FALLBACK_CROSSPG_OFFSET),
           [str_fallback_tlbmiss_off] "i"(STAT_STR_FALLBACK_TLBMISS_OFFSET),
-          [str_fallback_notlb_off] "i"(STAT_STR_FALLBACK_NOTLB_OFFSET)
+          [str_fallback_notlb_off] "i"(STAT_STR_FALLBACK_NOTLB_OFFSET),
+          [tlb_mmu_off] "i"(TLB_MMU_OFFSET),
+          [tlb_entry_generation_off] "i"(TLB_ENTRY_GENERATION_OFFSET),
+          [mmu_generation_off] "i"(MMU_GENERATION_OFFSET),
+          [pstate_off] "i"(PSTATE_OFFSET)
         : "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x19", "x20", "x21", "x22", "x23", "x24",
           "x25", "x26", "x27", "memory");
 }

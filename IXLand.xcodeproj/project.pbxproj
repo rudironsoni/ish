@@ -209,6 +209,7 @@
 		E8EEF2D28C799AA16EE4712C /* generic.c in Sources */ = {isa = PBXBuildFile; fileRef = FB729DB1B9FB41A3F3BDD112 /* generic.c */; };
 		E93CDE0D5A8A21FB18C48959 /* README.generated.md in Resources */ = {isa = PBXBuildFile; fileRef = C7FB05C896D845C6AA5F1398 /* README.generated.md */; };
 		E9A6676D462998601875CEE3 /* LinuxTTY.c in Sources */ = {isa = PBXBuildFile; fileRef = 9225C7278750CBA981A7D9CA /* LinuxTTY.c */; };
+		ED600E9DE4848D69C91B5DAB /* Aarch64SyscallTableTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 149D11C3FB93BB89F098E72A /* Aarch64SyscallTableTests.m */; };
 		ED9D3041081015F0053F7873 /* resource.c in Sources */ = {isa = PBXBuildFile; fileRef = 683857C797B0C2E327254A77 /* resource.c */; };
 		EE0AF117E54170777216140B /* timer.c in Sources */ = {isa = PBXBuildFile; fileRef = E1491C7C24DA49C49F35F53E /* timer.c */; };
 		F03EA524B0E8EB9CD935875A /* gadgets_complex.S in Sources */ = {isa = PBXBuildFile; fileRef = 85C61C918ABD750317FD3872 /* gadgets_complex.S */; };
@@ -324,6 +325,7 @@
 		135EE3B85DD1C8E37C011698 /* inode.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = inode.h; sourceTree = "<group>"; };
 		13ED649203C7A5C9BEAB80C6 /* vdso.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = vdso.h; sourceTree = "<group>"; };
 		142C7059858863CA4154679B /* dir.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = dir.c; sourceTree = "<group>"; };
+		149D11C3FB93BB89F098E72A /* Aarch64SyscallTableTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Aarch64SyscallTableTests.m; sourceTree = "<group>"; };
 		153A4C55FAE1DFF8060B8434 /* stat.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = stat.c; sourceTree = "<group>"; };
 		15AF3057431E43D0FA701DA0 /* ish.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ish.c; sourceTree = "<group>"; };
 		171CD2F6B1E0CC6138B024E2 /* 3d.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = 3d.png; sourceTree = "<group>"; };
@@ -932,6 +934,14 @@
 			path = aarch64;
 			sourceTree = "<group>";
 		};
+		641525B5C1212C6F744BA2DC /* AArch64 */ = {
+			isa = PBXGroup;
+			children = (
+				149D11C3FB93BB89F098E72A /* Aarch64SyscallTableTests.m */,
+			);
+			path = AArch64;
+			sourceTree = "<group>";
+		};
 		64C299699F2CFE9DCF1BEE92 /* ios */ = {
 			isa = PBXGroup;
 			children = (
@@ -953,6 +963,7 @@
 		667CAC325BE5C992259673D1 /* IXLandLinuxRuntimeContractTests */ = {
 			isa = PBXGroup;
 			children = (
+				641525B5C1212C6F744BA2DC /* AArch64 */,
 				2230D146C357D397F84D2C9F /* TCTI */,
 			);
 			path = IXLandLinuxRuntimeContractTests;
@@ -2041,6 +2052,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				ED600E9DE4848D69C91B5DAB /* Aarch64SyscallTableTests.m in Sources */,
 				B681F436AF8AC491EC0CF985 /* TCTIDecodeTests.m in Sources */,
 				B1D8D387C0AE2908ACD99092 /* TCTIDispatchPreservationTests.m in Sources */,
 				A3D2928F3F417585ADC954FD /* TCTIExitWritebackTests.m in Sources */,

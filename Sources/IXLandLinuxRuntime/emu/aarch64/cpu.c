@@ -145,7 +145,50 @@ static void a64_trace_event(trace_level_t level, const char *format, ...)
     vsnprintf(event, sizeof(event), format, args);
     va_end(args);
 
-    trace_record_event(TRACE_ORIGIN_TCTI, event);
+    trace_record_event(TRACE_ORIGIN_EXEC, event);
+}
+
+static void a64_trace_block_registers(const char *phase, const struct cpu_state *cpu,
+                                      const struct a64_block *block)
+{
+    if (!phase || !cpu || !block || trace_get_level() < TRACE_LEVEL_DEBUG)
+        return;
+
+    char event[900];
+    snprintf(event, sizeof(event),
+             "tcti.block.regs=phase:%s,pc:0x%llx,block_start:0x%llx,block_end:0x%llx,"
+             "x0:0x%llx,x1:0x%llx,x2:0x%llx,x3:0x%llx,x4:0x%llx,x5:0x%llx,"
+             "x6:0x%llx,x7:0x%llx,x8:0x%llx,x9:0x%llx,x10:0x%llx,x11:0x%llx,"
+             "x12:0x%llx,x13:0x%llx,x14:0x%llx,x15:0x%llx",
+             phase, (unsigned long long)cpu->pc, (unsigned long long)block->start_pc,
+             (unsigned long long)block->end_pc, (unsigned long long)cpu->x[0],
+             (unsigned long long)cpu->x[1], (unsigned long long)cpu->x[2],
+             (unsigned long long)cpu->x[3], (unsigned long long)cpu->x[4],
+             (unsigned long long)cpu->x[5], (unsigned long long)cpu->x[6],
+             (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[8],
+             (unsigned long long)cpu->x[9], (unsigned long long)cpu->x[10],
+             (unsigned long long)cpu->x[11], (unsigned long long)cpu->x[12],
+             (unsigned long long)cpu->x[13], (unsigned long long)cpu->x[14],
+             (unsigned long long)cpu->x[15]);
+    trace_record_event(TRACE_ORIGIN_EXEC, event);
+
+    snprintf(event, sizeof(event),
+             "tcti.block.regs.high=phase:%s,pc:0x%llx,block_start:0x%llx,block_end:0x%llx,"
+             "x16:0x%llx,x17:0x%llx,x18:0x%llx,x19:0x%llx,x20:0x%llx,x21:0x%llx,"
+             "x22:0x%llx,x23:0x%llx,x24:0x%llx,x25:0x%llx,x26:0x%llx,x27:0x%llx,"
+             "x28:0x%llx,x29:0x%llx,x30:0x%llx,sp:0x%llx,pstate:0x%llx,exit:%d",
+             phase, (unsigned long long)cpu->pc, (unsigned long long)block->start_pc,
+             (unsigned long long)block->end_pc, (unsigned long long)cpu->x[16],
+             (unsigned long long)cpu->x[17], (unsigned long long)cpu->x[18],
+             (unsigned long long)cpu->x[19], (unsigned long long)cpu->x[20],
+             (unsigned long long)cpu->x[21], (unsigned long long)cpu->x[22],
+             (unsigned long long)cpu->x[23], (unsigned long long)cpu->x[24],
+             (unsigned long long)cpu->x[25], (unsigned long long)cpu->x[26],
+             (unsigned long long)cpu->x[27], (unsigned long long)cpu->x[28],
+             (unsigned long long)cpu->x[29], (unsigned long long)cpu->x[30],
+             (unsigned long long)cpu->sp, (unsigned long long)cpu->pstate,
+             cpu->tcti_exit_reason);
+    trace_record_event(TRACE_ORIGIN_EXEC, event);
 }
 
 typedef struct {
@@ -1490,7 +1533,9 @@ __attribute__((no_stack_protector)) int a64_execute_block(struct cpu_state *cpu,
             trace_x7chain_event_fields("mov6a64c.pre_sync", fields,
                                        sizeof(fields) / sizeof(fields[0]));
         }
+        a64_trace_block_registers("entry", cpu, block);
         tcti_entry_block(block->gadgets, cpu);
+        a64_trace_block_registers("exit", cpu, block);
         if (block->start_pc == 0x6a628ULL) {
             char payload[512];
             snprintf(payload, sizeof(payload),
@@ -2414,16 +2459,18 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
             }
             fiber_stat_inc(ctx, STAT_TB_COMPILES);
         } else {
-            // L0 cache lookup (fast path via fiber_exec_ctx)
-            size_t l0_idx = ((pc ^ (pc >> 12)) & FIBER_EXEC_CTX_CACHE_MASK);
-            block = ctx->l0_cache[l0_idx];
+                // L0 cache lookup (fast path via fiber_exec_ctx)
+                size_t l0_idx = ((pc ^ (pc >> 12)) & FIBER_EXEC_CTX_CACHE_MASK);
+                block = ctx->l0_cache[l0_idx];
 
-            // Validate L0 cache hit (check PC matches)
-            if (block && block->start_pc == pc) {
-                fiber_stat_inc(ctx, STAT_TB_L0_HITS);
-            } else {
-                // L0 miss - fall back to MMU cache (L1)
-                block = NULL;
+                // Validate L0 cache hit against the same generation contract as L1.
+                if (block && block->start_pc == pc && !block->is_jetsam &&
+                    block->compile_generation == cpu->mmu->generation) {
+                    fiber_stat_inc(ctx, STAT_TB_L0_HITS);
+                } else {
+                    // L0 miss - fall back to MMU cache (L1)
+                    ctx->l0_cache[l0_idx] = NULL;
+                    block = NULL;
                 if (cpu->mmu->block_cache) {
                     block = a64_cache_lookup(cpu->mmu->block_cache, pc, cpu->mmu->generation);
                     if (block) {
@@ -3558,6 +3605,9 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
         } else if (exit_reason == TCTI_EXIT_FAULT) {
             trace_cpu_run_checkpoint("task.proof.a64_cpu_run.exit_fault", current, cpu,
                                      exit_reason);
+            trace_startup_progress_event("task.proof.tcti.fault.full_regs", cpu, block,
+                                         exit_reason, same_block_repeat_count,
+                                         total_blocks_executed);
 
             trace_guest_first_fault_capture(cpu, guest_fault_signal);
 

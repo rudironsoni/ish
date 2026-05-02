@@ -1391,11 +1391,13 @@ entry = interp_base + interp_header.entry_point;
     page_t vvar_page = aux_region + 1;
     page_t vdso_page = vvar_page + VVAR_PAGES + 1;
 
+    bool vdso_elf_available = vdso_has_elf_image();
     if ((err = pt_map(current->mem, vdso_page, vdso_pages, (void *)vdso_data, 0, 0)) < 0)
         goto beyond_hope;
     page_map_lookup(&current->mem->pages, vdso_page)->obj->name = "[vdso]";
-    current->mm->vdso = vdso_page << PAGE_BITS;
-    addr_t vdso_entry = current->mm->vdso + ((struct elf_header *)vdso_data)->entry_point;
+    current->mm->vdso = vdso_elf_available ? (vdso_page << PAGE_BITS) : 0;
+    addr_t vdso_entry =
+        vdso_elf_available ? current->mm->vdso + ((struct elf_header *)vdso_data)->entry_point : 0;
 
     // map empty "vvar" pages for VDSO compatibility
     if ((err = pt_map_nothing(current->mem, vvar_page, VVAR_PAGES, 0)) < 0)
@@ -1507,29 +1509,38 @@ entry = interp_base + interp_header.entry_point;
     // calculate how much space is needed for argv, envp, and auxv, subtract
     // that from sp, then align, then copy argv/envp/auxv from that down
 
-    // declare elf aux now so we can know how big it is
-    struct aux_ent aux[] = { { AX_SYSINFO, vdso_entry },
-                             { AX_SYSINFO_EHDR, current->mm->vdso },
-                             { AX_HWCAP, 0x00000000 }, // suck that
-                             { AX_PAGESZ, PAGE_SIZE },
-                             { AX_CLKTCK, 0x64 },
-                             { AX_PHDR, load_addr + header.prghead_off },
-                             { AX_PHENT, sizeof(struct prg_header) },
-                             { AX_PHNUM, header.phent_count },
-                             { AX_BASE, interp_base },
-                             { AX_FLAGS, 0 },
-                             { AX_ENTRY, bias + header.entry_point },
-                             { AX_DYNAMIC, dynamic_addr },
-                             { AX_UID, 0 },
-                             { AX_EUID, 0 },
-                             { AX_GID, 0 },
-                             { AX_EGID, 0 },
-                             { AX_SECURE, 0 },
-                             { AX_RANDOM, random_addr },
-                             { AX_HWCAP2, 0 }, // suck that too
-                             { AX_EXECFN, file_addr },
-                             { AX_PLATFORM, platform_addr },
-                             { 0, 0 } };
+    struct aux_ent aux[24];
+    size_t aux_count = 0;
+#define ADD_AUX(type_, value_)                                                                    \
+    do {                                                                                           \
+        aux[aux_count++] = (struct aux_ent){ (type_), (value_) };                                  \
+    } while (0)
+    if (vdso_elf_available) {
+        ADD_AUX(AX_SYSINFO, vdso_entry);
+        ADD_AUX(AX_SYSINFO_EHDR, current->mm->vdso);
+    }
+    ADD_AUX(AX_HWCAP, 0x00000000);
+    ADD_AUX(AX_PAGESZ, PAGE_SIZE);
+    ADD_AUX(AX_CLKTCK, 0x64);
+    ADD_AUX(AX_PHDR, load_addr + header.prghead_off);
+    ADD_AUX(AX_PHENT, sizeof(struct prg_header));
+    ADD_AUX(AX_PHNUM, header.phent_count);
+    ADD_AUX(AX_BASE, interp_base);
+    ADD_AUX(AX_FLAGS, 0);
+    ADD_AUX(AX_ENTRY, bias + header.entry_point);
+    ADD_AUX(AX_DYNAMIC, dynamic_addr);
+    ADD_AUX(AX_UID, 0);
+    ADD_AUX(AX_EUID, 0);
+    ADD_AUX(AX_GID, 0);
+    ADD_AUX(AX_EGID, 0);
+    ADD_AUX(AX_SECURE, 0);
+    ADD_AUX(AX_RANDOM, random_addr);
+    ADD_AUX(AX_HWCAP2, 0);
+    ADD_AUX(AX_EXECFN, file_addr);
+    ADD_AUX(AX_PLATFORM, platform_addr);
+    ADD_AUX(0, 0);
+#undef ADD_AUX
+    size_t aux_size = aux_count * sizeof(aux[0]);
     {
         char ev[256];
         snprintf(ev, sizeof(ev),
@@ -1541,7 +1552,7 @@ entry = interp_base + interp_header.entry_point;
     trace_auxv_essentials_checkpoint("task.proof.loader.auxv", aux);
     // AArch64 user stacks are LP64: argc/argv/envp slots are 64-bit wide.
     sp -= ((argv.count + 1) + (envp.count + 1) + 1) * stack_slot_size;
-    sp -= sizeof(aux);
+    sp -= aux_size;
     sp &= ~0xf;
 
     // now copy down, start using p so sp is preserved
@@ -1557,6 +1568,7 @@ entry = interp_base + interp_header.entry_point;
     p += stack_slot_size;
 
     // argv
+    addr_t null_addr = 0;
     size_t argc = argv.count;
     while (argc-- > 0) {
         if (user_put(p, argv_addr))
@@ -1564,6 +1576,8 @@ entry = interp_base + interp_header.entry_point;
         argv_addr += user_strlen(argv_addr) + 1;
         p += stack_slot_size;
     }
+    if (user_put(p, null_addr))
+        return _EFAULT;
     p += stack_slot_size;
 
     // envp
@@ -1574,17 +1588,19 @@ entry = interp_base + interp_header.entry_point;
         envp_addr += user_strlen(envp_addr) + 1;
         p += stack_slot_size;
     }
+    if (user_put(p, null_addr))
+        return _EFAULT;
     p += stack_slot_size;
 
     // copy auxv
     current->mm->auxv_start = p;
     trace_exec_checkpoint("task.proof.elf_exec.before_write_auxv", err);
-    if (user_put(p, aux)) {
+    if (user_write(p, aux, aux_size)) {
         trace_exec_checkpoint("task.proof.elf_exec.write_auxv_failed", err);
         goto beyond_hope;
     }
     trace_exec_checkpoint("task.proof.elf_exec.after_write_auxv", err);
-    p += sizeof(aux);
+    p += aux_size;
     current->mm->auxv_end = p;
 
     current->mm->stack_start = sp;

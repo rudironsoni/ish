@@ -160,11 +160,14 @@ struct cpu_state {
 // TLB structure offsets for inline TLB lookup in assembly
 // These must match the actual struct layouts
 #define CPU_TLB_OFFSET     CPU_OFFSET(tlb) // Offset of tlb pointer in cpu_state
+#define TLB_MMU_OFFSET     0               // Offset of mmu pointer in struct tlb
 #define TLB_ENTRIES_OFFSET 32              // Offset of entries in struct tlb
 #define TLB_ENTRY_SIZE 32 // Size of each tlb_entry
 #define TLB_ENTRY_PAGE_OFFSET 0
 #define TLB_ENTRY_PAGE_WRITABLE_OFFSET 8
 #define TLB_ENTRY_DATA_OFFSET 16
+#define TLB_ENTRY_GENERATION_OFFSET 24
+#define MMU_GENERATION_OFFSET offsetof(struct mmu, generation)
 #define PAGE_BITS             12 // Page size is 4KB
 
 // Statistics counter offsets for inline increment in assembly gadgets

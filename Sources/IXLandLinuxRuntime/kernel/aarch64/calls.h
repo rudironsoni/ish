@@ -101,7 +101,7 @@ typedef uint64_t (*a64_syscall_t)(uint64_t, uint64_t, uint64_t, uint64_t, uint64
 #define A64_SYS_sync_file_range   84
 
 // Memory management
-#define A64_SYS_brk      12
+#define A64_SYS_brk      214
 #define A64_SYS_munmap   215
 #define A64_SYS_mremap   216
 #define A64_SYS_mprotect 226

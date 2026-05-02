@@ -19,6 +19,7 @@
 
 // Forward declarations for syscall handlers
 extern syscall_t syscall_table[];
+const char *a64_syscall_name(uint64_t num);
 
 // Number of arguments for each syscall (for proper argument marshalling)
 // Initialized at runtime to avoid initializer override warnings
@@ -96,11 +97,44 @@ static void trace_handle_interrupt_checkpoint(const char *name, int interrupt, i
     (void)trace_begin_interval(TRACE_ORIGIN_TASK, name, attrs, sizeof(attrs) / sizeof(attrs[0]));
 }
 
-/*
- * Stage 3A.5: First post-exec syscall capture
- * Static flag to track first syscall after exec
- */
-static int post_exec_first_syscall = 1;
+static void trace_a64_syscall_entry(const struct cpu_state *cpu, uint64_t syscall_num)
+{
+    ixland_guest_trace_field_t fields[] = {
+        { .key = "pc", .kind = IXLAND_GUEST_TRACE_FIELD_U64_HEX, .u64_value = cpu->pc },
+        { .key = "num", .kind = IXLAND_GUEST_TRACE_FIELD_U64_DEC, .u64_value = syscall_num },
+        { .key = "name",
+          .kind = IXLAND_GUEST_TRACE_FIELD_STRING,
+          .string_value = a64_syscall_name(syscall_num) },
+        { .key = "x0", .kind = IXLAND_GUEST_TRACE_FIELD_U64_HEX, .u64_value = cpu->x[0] },
+        { .key = "x1", .kind = IXLAND_GUEST_TRACE_FIELD_U64_HEX, .u64_value = cpu->x[1] },
+        { .key = "x2", .kind = IXLAND_GUEST_TRACE_FIELD_U64_HEX, .u64_value = cpu->x[2] },
+        { .key = "x3", .kind = IXLAND_GUEST_TRACE_FIELD_U64_HEX, .u64_value = cpu->x[3] },
+        { .key = "x4", .kind = IXLAND_GUEST_TRACE_FIELD_U64_HEX, .u64_value = cpu->x[4] },
+        { .key = "x5", .kind = IXLAND_GUEST_TRACE_FIELD_U64_HEX, .u64_value = cpu->x[5] },
+    };
+    ixland_guest_trace_emit_structured(IXLAND_INSTRUMENTATION_ORIGIN_TASK,
+                                       "guest.syscall.enter", fields,
+                                       sizeof(fields) / sizeof(fields[0]));
+}
+
+static void trace_a64_syscall_return(const struct cpu_state *cpu, uint64_t syscall_num,
+                                     uint64_t ret)
+{
+    int64_t signed_ret = (int64_t)ret;
+    int64_t errno_value = signed_ret < 0 && signed_ret >= -4095 ? -signed_ret : 0;
+    ixland_guest_trace_field_t fields[] = {
+        { .key = "pc", .kind = IXLAND_GUEST_TRACE_FIELD_U64_HEX, .u64_value = cpu->pc },
+        { .key = "num", .kind = IXLAND_GUEST_TRACE_FIELD_U64_DEC, .u64_value = syscall_num },
+        { .key = "name",
+          .kind = IXLAND_GUEST_TRACE_FIELD_STRING,
+          .string_value = a64_syscall_name(syscall_num) },
+        { .key = "ret", .kind = IXLAND_GUEST_TRACE_FIELD_U64_HEX, .u64_value = ret },
+        { .key = "errno", .kind = IXLAND_GUEST_TRACE_FIELD_I64_DEC, .i64_value = errno_value },
+    };
+    ixland_guest_trace_emit_structured(IXLAND_INSTRUMENTATION_ORIGIN_TASK,
+                                       "guest.syscall.return", fields,
+                                       sizeof(fields) / sizeof(fields[0]));
+}
 
 /*
  * Handle an aarch64 syscall (SVC #0)
@@ -115,64 +149,14 @@ void a64_handle_syscall(struct cpu_state *cpu)
     // C flag in PSTATE = error indicator
 
     uint64_t syscall_num = cpu->x[8];
-    uint32_t pid = current ? current->pid : 0;
-
-    // Stage 3A.5: Capture FIRST syscall after exec - ENTRY
-    // This proves instrumentation is on the REAL AArch64 syscall path
-    if (trace_is_active()) {
-        char syscall_num_buf[32];
-        char pid_buf[32];
-        char x0_buf[32], x1_buf[32], x2_buf[32];
-        char fd_buf[32];
-        char is_first_buf[8];
-
-        snprintf(syscall_num_buf, sizeof(syscall_num_buf), "%llu", (unsigned long long)syscall_num);
-        snprintf(pid_buf, sizeof(pid_buf), "%u", (unsigned)pid);
-        snprintf(x0_buf, sizeof(x0_buf), "0x%llx", (unsigned long long)cpu->x[0]);
-        snprintf(x1_buf, sizeof(x1_buf), "0x%llx", (unsigned long long)cpu->x[1]);
-        snprintf(x2_buf, sizeof(x2_buf), "0x%llx", (unsigned long long)cpu->x[2]);
-        // For read/write/ioctl, x0 is the fd
-        snprintf(fd_buf, sizeof(fd_buf), "%llu", (unsigned long long)cpu->x[0]);
-        snprintf(is_first_buf, sizeof(is_first_buf), "%d", post_exec_first_syscall);
-
-        trace_attribute_t entry_attrs[] = {
-            { "task.proof.guest.syscall.number", syscall_num_buf },
-            { "task.proof.guest.syscall.pid", pid_buf },
-            { "task.proof.guest.syscall.arg0", x0_buf },
-            { "task.proof.guest.syscall.arg1", x1_buf },
-            { "task.proof.guest.syscall.arg2", x2_buf },
-            { "task.proof.guest.syscall.fd", fd_buf },
-            { "task.proof.guest.syscall.is_first_post_exec", is_first_buf },
-        };
-
-        trace_begin_interval(TRACE_ORIGIN_TASK, "task.proof.guest.syscall.entry", entry_attrs,
-                             sizeof(entry_attrs) / sizeof(entry_attrs[0]));
-
-        // If this is the first syscall after exec, emit special marker
-        if (post_exec_first_syscall) {
-            trace_record_event(TRACE_ORIGIN_TASK, "task.proof.guest.syscall.first_after_exec");
-            // Don't clear post_exec_first_syscall here - let it capture all syscalls until
-            // explicitly reset
-        }
-    }
+    trace_a64_syscall_entry(cpu, syscall_num);
 
     // Validate syscall number
     if (syscall_num >= A64_SYS_MAX || syscall_table_a64[syscall_num] == NULL) {
         // Unknown syscall - return ENOSYS
-        cpu->x[0] = -ENOSYS;
-        cpu->c = 1; // Set carry flag to indicate error
-
-        // Stage 3A.5: Record ENOSYS return
-        if (trace_is_active()) {
-            char ret_buf[32];
-            snprintf(ret_buf, sizeof(ret_buf), "-ENOSYS");
-            trace_attribute_t enosys_attrs[] = {
-                { "task.proof.guest.syscall.return", ret_buf },
-                { "task.proof.guest.syscall.status", "ENOSYS" },
-            };
-            trace_begin_interval(TRACE_ORIGIN_TASK, "task.proof.guest.syscall.return_enosys",
-                                 enosys_attrs, sizeof(enosys_attrs) / sizeof(enosys_attrs[0]));
-        }
+        cpu->x[0] = _ENOSYS;
+        cpu->c = 1;
+        trace_a64_syscall_return(cpu, syscall_num, cpu->x[0]);
         return;
     }
 
@@ -200,38 +184,7 @@ void a64_handle_syscall(struct cpu_state *cpu)
         cpu->c = 0;
     }
 
-    // Stage 3A.5: Capture syscall RETURN
-    if (trace_is_active()) {
-        char ret_buf[32];
-        char errno_buf[32];
-        char blocking_buf[16];
-
-        snprintf(ret_buf, sizeof(ret_buf), "%lld", (long long)ret);
-        if ((int64_t)ret < 0 && (int64_t)ret >= -4095) {
-            snprintf(errno_buf, sizeof(errno_buf), "%lld", (long long)-ret);
-        } else {
-            snprintf(errno_buf, sizeof(errno_buf), "0");
-        }
-        // Check if this looks like a blocking return (EAGAIN, EINTR, or positive values for partial
-        // reads)
-        int64_t sret = (int64_t)ret;
-        if (sret < 0 && (-sret == 11 || -sret == 4)) { // EAGAIN=11, EINTR=4
-            snprintf(blocking_buf, sizeof(blocking_buf), "BLOCKING");
-        } else if (sret == 0 && (syscall_num == A64_SYS_read || syscall_num == A64_SYS_write)) {
-            snprintf(blocking_buf, sizeof(blocking_buf), "EOF");
-        } else {
-            snprintf(blocking_buf, sizeof(blocking_buf), "OK");
-        }
-
-        trace_attribute_t return_attrs[] = {
-            { "task.proof.guest.syscall.return", ret_buf },
-            { "task.proof.guest.syscall.errno", errno_buf },
-            { "task.proof.guest.syscall.blocking_status", blocking_buf },
-        };
-
-        trace_begin_interval(TRACE_ORIGIN_TASK, "task.proof.guest.syscall.return", return_attrs,
-                             sizeof(return_attrs) / sizeof(return_attrs[0]));
-    }
+    trace_a64_syscall_return(cpu, syscall_num, ret);
 
     /*
      * The TCTI execution loop owns SVC PC advancement. It sets cpu->pc to the
@@ -289,7 +242,14 @@ const char *a64_syscall_name(uint64_t num)
         [A64_SYS_openat] = "openat",   [A64_SYS_close] = "close",
         [A64_SYS_exit] = "exit",       [A64_SYS_exit_group] = "exit_group",
         [A64_SYS_brk] = "brk",         [A64_SYS_mmap] = "mmap",
-        [A64_SYS_munmap] = "munmap",   [A64_SYS_getpid] = "getpid",
+        [A64_SYS_munmap] = "munmap",   [A64_SYS_mprotect] = "mprotect",
+        [A64_SYS_set_tid_address] = "set_tid_address",
+        [A64_SYS_ioctl] = "ioctl",
+        [A64_SYS_readlinkat] = "readlinkat",
+        [A64_SYS_newfstatat] = "newfstatat",
+        [A64_SYS_fstat] = "fstat",
+        [A64_SYS_faccessat] = "faccessat",
+        [A64_SYS_getpid] = "getpid",
         [A64_SYS_getppid] = "getppid", [A64_SYS_getuid] = "getuid",
         [A64_SYS_getgid] = "getgid",
     };

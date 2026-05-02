@@ -187,8 +187,8 @@ struct rowcol {
             if (_terminal.loaded) {
                 [self installTerminalView];
                 [self _updateStyle];
-                if (self.isFirstResponder)
-                    [self.terminal focusEditableSurface];
+                if (self.terminalFocused)
+                    [self becomeFirstResponder];
             }
             NSString *terminalText = [_terminal screenTextForTesting];
             self.terminalAccessibilityElement.accessibilityValue = terminalText.length > 0 ? terminalText : @"No terminal output";
@@ -304,12 +304,6 @@ struct rowcol {
 
 - (void)setTerminalFocused:(BOOL)terminalFocused {
     _terminalFocused = terminalFocused;
-    // In shell-only mode, terminal is nil - nothing to do.
-    if (self.terminal == nil || !self.terminal.loaded)
-        return;
-    if (terminalFocused) {
-        [self.terminal focusEditableSurface];
-    }
 }
 
 - (BOOL)becomeFirstResponder {
@@ -320,9 +314,6 @@ struct rowcol {
     }
     BOOL focused = [super becomeFirstResponder];
     _terminalFocused = focused;
-    if (focused && self.terminal) {
-        [self.terminal focusEditableSurface];
-    }
     [self reloadInputViews];
     return focused;
 }

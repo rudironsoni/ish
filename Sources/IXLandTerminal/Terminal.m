@@ -120,25 +120,30 @@ bool Terminal_bindGuestTTY(struct tty *tty, nsobj_t *terminal_out) {
     if (tty == NULL || terminal_out == NULL)
         return false;
 
-    Terminal *terminal = (__bridge Terminal *)tty->data;
+    Terminal *terminal = (__bridge Terminal *)tty->driver_data;
     if (terminal == NULL) {
         terminal = [Terminal terminalWithType:tty->type number:tty->num];
         if (terminal == NULL)
             return false;
 
         lock(&tty->lock);
-        if (tty->data == NULL) {
-            tty->data = (void *)CFBridgingRetain(terminal);
+        if (tty->driver_data == NULL) {
+            tty->driver_data = (void *)CFBridgingRetain(terminal);
             terminal.tty = tty;
         }
         unlock(&tty->lock);
-        terminal = (__bridge Terminal *)tty->data;
+        terminal = (__bridge Terminal *)tty->driver_data;
     } else {
         terminal.tty = tty;
     }
 
     *terminal_out = objc_get((__bridge nsobj_t)terminal);
     return *terminal_out != NULL;
+}
+
+void Terminal_releaseBoundTTYData(nsobj_t terminal) {
+    if (terminal != NULL)
+        CFBridgingRelease((void *)terminal);
 }
 
 - (void)setTty:(tty_t)tty {
@@ -473,7 +478,7 @@ static int ios_tty_init(struct tty *tty) {
     unlock(&ttys_lock);
     void (^init_block)(void) = ^{
         Terminal *terminal = [Terminal terminalWithType:tty->type number:tty->num];
-        tty->data = (void *) CFBridgingRetain(terminal);
+        tty->driver_data = (void *) CFBridgingRetain(terminal);
         terminal.tty = tty;
     };
     if ([NSThread isMainThread])
@@ -486,7 +491,7 @@ static int ios_tty_init(struct tty *tty) {
 }
 
 static int ios_tty_write(struct tty *tty, const void *buf, size_t len, bool blocking) {
-    Terminal *terminal = (__bridge Terminal *) tty->data;
+    Terminal *terminal = (__bridge Terminal *) tty->driver_data;
     NSMutableDictionary *attrs = [[terminal sessionTraceAttributesWithByteCount:(NSInteger)len
                                                                    pendingBefore:0] mutableCopy];
     attrs[@"blocking"] = @(blocking);
@@ -495,8 +500,8 @@ static int ios_tty_write(struct tty *tty, const void *buf, size_t len, bool bloc
 }
 
 static void ios_tty_cleanup(struct tty *tty) {
-    Terminal *terminal = CFBridgingRelease(tty->data);
-    tty->data = NULL;
+    Terminal *terminal = CFBridgingRelease(tty->driver_data);
+    tty->driver_data = NULL;
     terminal.tty = NULL;
 }
 

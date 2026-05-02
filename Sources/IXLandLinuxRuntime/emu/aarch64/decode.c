@@ -419,14 +419,14 @@ int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out)
     case 3: {
         int opc = bits(insn, 30, 29);
         int shift = bits(insn, 23, 22);
-        (void)bit(insn, 21); // N bit - not used in this encoding
+        int N = bit(insn, 21);
         out->Rd = bits(insn, 4, 0);
         out->Rn = bits(insn, 9, 5);
         out->Rm = bits(insn, 20, 16);
         out->imm_shift = bits(insn, 15, 10);
         out->shift_type = shift;
-        // opc: 00=AND, 01=ORR, 10=EOR, 11=ANDS
-        out->subtype = opc;
+        // opc: 00=AND/BIC, 01=ORR/ORN, 10=EOR/EON, 11=ANDS/BICS. N selects NOT Rm.
+        out->subtype = opc | (N ? 4 : 0);
         out->set_flags = (opc == 3); // ANDS sets flags
         return 0;
     }
@@ -665,7 +665,7 @@ static int a64_vector_mem_bytes(uint32_t insn)
     int size = bits(insn, 31, 30);
     int opc = bits(insn, 23, 22);
 
-    if (opc == 2 && size == 0)
+    if ((opc >> 1) == 1 && size == 0)
         return 16;
     if (opc == 1)
         return 8;

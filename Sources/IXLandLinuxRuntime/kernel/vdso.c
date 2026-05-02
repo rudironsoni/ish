@@ -1,5 +1,6 @@
 #import <IXLandLinuxRuntime/kernel/elf.h>
 #import <IXLandLinuxRuntime/kernel/vdso.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -29,6 +30,27 @@ static struct vdso_page_layout vdso_page;
 // that was never committed to the repo. This C-based approach provides the
 // same interface without the external dependency.
 const char vdso_data[VDSO_PAGES * (1 << 12)];
+
+bool vdso_has_elf_image(void)
+{
+    const struct elf_header *header = (const struct elf_header *)vdso_data;
+    if (memcmp(&header->magic, ELF_MAGIC, 4) != 0)
+        return false;
+    if (header->bitness != ELF_64BIT || header->endian != ELF_LITTLEENDIAN)
+        return false;
+    if (header->machine != ELF_AARCH64)
+        return false;
+    if (header->header_size < sizeof(struct elf_header))
+        return false;
+    if (header->phent_size != sizeof(struct prg_header))
+        return false;
+    if (header->phent_count == 0)
+        return false;
+    if (header->prghead_off + (elf_off_t)header->phent_count * sizeof(struct prg_header) >
+        sizeof(vdso_data))
+        return false;
+    return true;
+}
 
 int vdso_init(void)
 {

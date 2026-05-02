@@ -6,11 +6,16 @@
  */
 
 #import <IXLandLinuxRuntime/fs/sock.h>
+#import <IXLandLinuxRuntime/fs/fd.h>
+#import <IXLandLinuxRuntime/fs/path.h>
 #import <IXLandLinuxRuntime/kernel/aarch64/calls.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/kernel/errno.h>
+#import <IXLandLinuxRuntime/kernel/fs.h>
 #import <IXLandLinuxRuntime/kernel/signal.h>
 #include <stddef.h>
+#include <stdint.h>
+#include <string.h>
 
 // Stub for unimplemented syscalls
 static uint64_t sys_enosys_stub(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e,
@@ -26,7 +31,6 @@ static uint64_t sys_enosys_stub(uint64_t a, uint64_t b, uint64_t c, uint64_t d, 
 }
 
 // Forward declarations for syscalls referenced in table but not in standard headers
-extern uint32_t sys_newfstatat(fd_t, addr_t, addr_t, int64_t);
 extern uint32_t sys_pselect6(fd_t, addr_t, addr_t, addr_t, addr_t, addr_t);
 extern uint32_t sys_execveat(fd_t, addr_t, addr_t, addr_t, int64_t);
 extern uint32_t sys_rt_sigreturn_aarch64(void);
@@ -46,17 +50,6 @@ uint32_t sys_execveat(fd_t dirfd, addr_t pathname, addr_t argv, addr_t envp, int
     (void)envp;
     (void)flags;
     FIXME("TODO: sys_execveat NOT IMPLEMENTED - NEEDS PROPER AARCH64 PROCESS SUPPORT");
-    return _ENOSYS;
-}
-
-// TODO: STUB - sys_newfstatat needs proper implementation for AArch64 bring-up
-uint32_t sys_newfstatat(fd_t dirfd, addr_t pathname, addr_t statbuf, int64_t flags)
-{
-    (void)dirfd;
-    (void)pathname;
-    (void)statbuf;
-    (void)flags;
-    FIXME("TODO: sys_newfstatat NOT IMPLEMENTED - NEEDS PROPER AARCH64 FILE SUPPORT");
     return _ENOSYS;
 }
 
@@ -147,7 +140,7 @@ A64_WRAP3(sys_write, A64_RET_S32, fd_t, addr_t, uint32_t)
 A64_WRAP4(sys_openat, A64_RET_S32, fd_t, addr_t, uint32_t, mode_t_)
 A64_WRAP1(sys_close, A64_RET_S32, fd_t)
 A64_WRAP3(sys_lseek, A64_RET_S32, fd_t, uint32_t, uint32_t)
-A64_WRAP3(sys_ioctl, A64_RET_S32, fd_t, uint32_t, uint32_t)
+A64_WRAP3(sys_ioctl, A64_RET_S32, fd_t, uint32_t, addr_t)
 A64_WRAP3(sys_fcntl, A64_RET_S32, fd_t, uint32_t, uint32_t)
 A64_WRAP1(sys_dup, A64_RET_S32, fd_t)
 A64_WRAP3(sys_dup3, A64_RET_S32, fd_t, fd_t, int64_t)
@@ -179,6 +172,9 @@ A64_WRAP0(sys_getsid, A64_RET_S32)
 A64_WRAP0(sys_setsid, A64_RET_S32)
 A64_WRAP0(sys_gettid, A64_RET_S32)
 A64_WRAP1(sys_set_tid_address, A64_RET_S32, addr_t)
+A64_WRAP6(sys_futex, A64_RET_S32, addr_t, uint32_t, uint32_t, addr_t, addr_t, uint32_t)
+A64_WRAP2(sys_set_robust_list, A64_RET_S64, addr_t, uint32_t)
+A64_WRAP3(sys_get_robust_list, A64_RET_S64, pid_t_, addr_t, addr_t)
 A64_WRAP2(sys_nanosleep, A64_RET_S32, addr_t, addr_t)
 A64_WRAP2(sys_getrusage, A64_RET_S32, uint32_t, addr_t)
 A64_WRAP0(sys_sched_yield, A64_RET_S64)
@@ -201,8 +197,122 @@ static uint64_t a64_wrap_sys_setrlimit(uint64_t a0, uint64_t a1, uint64_t a2, ui
     (void)a5;
     return A64_RET_S32(sys_prlimit64(0, (uint32_t)a0, (addr_t)a1, 0));
 }
+
+struct a64_stat {
+    uint64_t dev;
+    uint64_t ino;
+    uint32_t mode;
+    uint32_t nlink;
+    uint32_t uid;
+    uint32_t gid;
+    uint64_t rdev;
+    uint64_t pad1;
+    int64_t size;
+    int32_t blksize;
+    int32_t pad2;
+    int64_t blocks;
+    int64_t atime;
+    uint64_t atime_nsec;
+    int64_t mtime;
+    uint64_t mtime_nsec;
+    int64_t ctime;
+    uint64_t ctime_nsec;
+    uint32_t unused4;
+    uint32_t unused5;
+} __attribute__((packed));
+
+typedef char a64_stat_must_match_linux_arm64_size[(sizeof(struct a64_stat) == 128) ? 1 : -1];
+
+static struct a64_stat a64_stat_from_statbuf(struct statbuf stat)
+{
+    return (struct a64_stat) {
+        .dev = stat.dev,
+        .ino = stat.inode,
+        .mode = stat.mode,
+        .nlink = stat.nlink,
+        .uid = stat.uid,
+        .gid = stat.gid,
+        .rdev = stat.rdev,
+        .size = (int64_t)stat.size,
+        .blksize = (int32_t)stat.blksize,
+        .blocks = (int64_t)stat.blocks,
+        .atime = stat.atime,
+        .atime_nsec = stat.atime_nsec,
+        .mtime = stat.mtime,
+        .mtime_nsec = stat.mtime_nsec,
+        .ctime = stat.ctime,
+        .ctime_nsec = stat.ctime_nsec,
+    };
+}
+
+static struct fd *a64_at_fd(fd_t f)
+{
+    if (f == AT_FDCWD_)
+        return AT_PWD;
+    return f_get(f);
+}
+
+static uint64_t a64_sys_newfstatat(uint64_t at_raw, uint64_t path_raw, uint64_t statbuf_raw,
+                                   uint64_t flags_raw, uint64_t unused0, uint64_t unused1)
+{
+    (void)unused0;
+    (void)unused1;
+
+    char path[MAX_PATH];
+    if (user_read_string((addr_t)path_raw, path, sizeof(path)))
+        return A64_RET_S32(_EFAULT);
+
+    fd_t at_f = (fd_t)at_raw;
+    struct fd *at = a64_at_fd(at_f);
+    if (at == NULL)
+        return A64_RET_S32(_EBADF);
+
+    int32_t flags = (int32_t)flags_raw;
+    struct statbuf stat = {};
+    int err;
+    if ((flags & AT_EMPTY_PATH_) && strcmp(path, "") == 0) {
+        err = at->mount->fs->fstat(at, &stat);
+    } else {
+        bool follow_links = !(flags & AT_SYMLINK_NOFOLLOW_);
+        err = generic_statat(at, path, &stat, follow_links);
+    }
+    if (err < 0)
+        return A64_RET_S32(err);
+
+    struct a64_stat a64_stat = a64_stat_from_statbuf(stat);
+    if (user_put((addr_t)statbuf_raw, a64_stat))
+        return A64_RET_S32(_EFAULT);
+    return 0;
+}
+
+static uint64_t a64_sys_fstat(uint64_t fd_raw, uint64_t statbuf_raw, uint64_t unused0,
+                              uint64_t unused1, uint64_t unused2, uint64_t unused3)
+{
+    (void)unused0;
+    (void)unused1;
+    (void)unused2;
+    (void)unused3;
+
+    struct fd *fd = f_get((fd_t)fd_raw);
+    if (fd == NULL)
+        return A64_RET_S32(_EBADF);
+
+    struct statbuf stat = {};
+    int err = fd->mount->fs->fstat(fd, &stat);
+    if (err < 0)
+        return A64_RET_S32(err);
+
+    struct a64_stat a64_stat = a64_stat_from_statbuf(stat);
+    if (user_put((addr_t)statbuf_raw, a64_stat))
+        return A64_RET_S32(_EFAULT);
+    return 0;
+}
+
 A64_WRAP2(sys_gettimeofday, A64_RET_S32, addr_t, addr_t)
 A64_WRAP2(sys_settimeofday, A64_RET_S32, addr_t, addr_t)
+A64_WRAP2(sys_clock_gettime, A64_RET_S32, int32_t, addr_t)
+A64_WRAP2(sys_clock_getres, A64_RET_S32, int32_t, addr_t)
+A64_WRAP4(sys_prlimit64, A64_RET_S32, pid_t_, int32_t, addr_t, addr_t)
 A64_WRAP1(sys_times, A64_RET_S32, addr_t)
 A64_WRAP1(sys_setuid, A64_RET_S64, uid_t)
 A64_WRAP0(sys_getuid, A64_RET_S32)
@@ -237,8 +347,6 @@ A64_WRAP5(sys_renameat2, A64_RET_S32, fd_t, addr_t, fd_t, addr_t, int64_t)
 A64_WRAP5(sys_fchownat, A64_RET_S32, fd_t, addr_t, uint32_t, uint32_t, int)
 A64_WRAP4(sys_faccessat, A64_RET_S32, fd_t, addr_t, mode_t_, uint32_t)
 A64_WRAP4(sys_readlinkat, A64_RET_S32, fd_t, addr_t, addr_t, uint32_t)
-A64_WRAP4(sys_newfstatat, A64_RET_S32, fd_t, addr_t, addr_t, int64_t)
-A64_WRAP2(sys_fstat64, A64_RET_S32, fd_t, addr_t)
 A64_WRAP2(sys_fstatfs, A64_RET_S32, fd_t, addr_t)
 A64_WRAP4(sys_utimensat, A64_RET_S32, fd_t, addr_t, addr_t, uint32_t)
 A64_WRAP3(sys_fchmodat, A64_RET_S32, fd_t, addr_t, uint32_t)
@@ -247,6 +355,7 @@ A64_WRAP2(sys_getcwd, A64_RET_S32, addr_t, uint32_t)
 A64_WRAP1(sys_chdir, A64_RET_S32, addr_t)
 A64_WRAP1(sys_chroot, A64_RET_S32, addr_t)
 A64_WRAP2(sys_statfs, A64_RET_S32, addr_t, addr_t)
+A64_WRAP5(sys_statx, A64_RET_S32, fd_t, addr_t, int32_t, uint32_t, addr_t)
 A64_WRAP2(sys_pipe2, A64_RET_S64, addr_t, int32_t)
 A64_WRAP1(sys_epoll_create, A64_RET_S64, int64_t)
 A64_WRAP4(sys_epoll_ctl, A64_RET_S64, fd_t, int64_t, fd_t, addr_t)
@@ -321,13 +430,19 @@ a64_syscall_t syscall_table_a64[A64_SYS_MAX] = {
     [A64_SYS_setsid] = A64_WRAP(sys_setsid),
     [A64_SYS_gettid] = A64_WRAP(sys_gettid),
     [A64_SYS_set_tid_address] = A64_WRAP(sys_set_tid_address),
+    [A64_SYS_futex] = A64_WRAP(sys_futex),
+    [A64_SYS_set_robust_list] = A64_WRAP(sys_set_robust_list),
+    [A64_SYS_get_robust_list] = A64_WRAP(sys_get_robust_list),
     [A64_SYS_nanosleep] = A64_WRAP(sys_nanosleep),
     [A64_SYS_getrusage] = A64_WRAP(sys_getrusage),
     [A64_SYS_sched_yield] = A64_WRAP(sys_sched_yield),
     [A64_SYS_setrlimit] = a64_wrap_sys_setrlimit,
     [A64_SYS_getrlimit] = a64_wrap_sys_getrlimit,
+    [A64_SYS_prlimit64] = A64_WRAP(sys_prlimit64),
     [A64_SYS_gettimeofday] = A64_WRAP(sys_gettimeofday),
     [A64_SYS_settimeofday] = A64_WRAP(sys_settimeofday),
+    [A64_SYS_clock_gettime] = A64_WRAP(sys_clock_gettime),
+    [A64_SYS_clock_getres] = A64_WRAP(sys_clock_getres),
     [A64_SYS_times] = A64_WRAP(sys_times),
 
     // Uid/gid
@@ -368,8 +483,8 @@ a64_syscall_t syscall_table_a64[A64_SYS_MAX] = {
     [A64_SYS_fchownat] = A64_WRAP(sys_fchownat),
     [A64_SYS_faccessat] = A64_WRAP(sys_faccessat),
     [A64_SYS_readlinkat] = A64_WRAP(sys_readlinkat),
-    [A64_SYS_newfstatat] = A64_WRAP(sys_newfstatat),
-    [A64_SYS_fstat] = A64_WRAP(sys_fstat64),
+    [A64_SYS_newfstatat] = a64_sys_newfstatat,
+    [A64_SYS_fstat] = a64_sys_fstat,
     [A64_SYS_fstatfs] = A64_WRAP(sys_fstatfs),
     [A64_SYS_utimensat] = A64_WRAP(sys_utimensat),
     [A64_SYS_fchmodat] = A64_WRAP(sys_fchmodat),
@@ -379,6 +494,7 @@ a64_syscall_t syscall_table_a64[A64_SYS_MAX] = {
     [A64_SYS_chroot] = A64_WRAP(sys_chroot),
     [A64_SYS_sync] = sys_enosys_stub,
     [A64_SYS_statfs] = A64_WRAP(sys_statfs),
+    [A64_SYS_statx] = A64_WRAP(sys_statx),
 
     // Pipes/sockets
     [A64_SYS_pipe2] = A64_WRAP(sys_pipe2),

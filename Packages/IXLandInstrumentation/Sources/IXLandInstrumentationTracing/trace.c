@@ -14,6 +14,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
@@ -190,10 +191,10 @@ static trace_level_t g_trace_level = TRACE_LEVEL_OFF;
 
 static trace_level_t default_trace_level(void)
 {
-#if DEBUG
-    return TRACE_LEVEL_DEBUG;
-#else
+#if defined(NDEBUG)
     return TRACE_LEVEL_OFF;
+#else
+    return TRACE_LEVEL_DEBUG;
 #endif
 }
 
@@ -303,17 +304,50 @@ void trace_emit_fault(uint64_t pc, uint64_t fault_addr, int is_write, int reason
 
 void trace_emit_syscall_enter(uint64_t pc, uint64_t num, uint64_t x0, uint64_t x1, uint64_t x2)
 {
-    (void)pc;
-    (void)num;
-    (void)x0;
-    (void)x1;
-    (void)x2;
+    char pc_buf[32];
+    char num_buf[32];
+    char x0_buf[32];
+    char x1_buf[32];
+    char x2_buf[32];
+
+    snprintf(pc_buf, sizeof(pc_buf), "0x%llx", (unsigned long long)pc);
+    snprintf(num_buf, sizeof(num_buf), "%llu", (unsigned long long)num);
+    snprintf(x0_buf, sizeof(x0_buf), "0x%llx", (unsigned long long)x0);
+    snprintf(x1_buf, sizeof(x1_buf), "0x%llx", (unsigned long long)x1);
+    snprintf(x2_buf, sizeof(x2_buf), "0x%llx", (unsigned long long)x2);
+
+    trace_attribute_t attrs[] = {
+        { "pc", pc_buf },
+        { "number", num_buf },
+        { "arg0", x0_buf },
+        { "arg1", x1_buf },
+        { "arg2", x2_buf },
+    };
+    (void)trace_begin_interval(TRACE_ORIGIN_TASK, "guest.syscall.enter", attrs,
+                               sizeof(attrs) / sizeof(attrs[0]));
 }
 
 void trace_emit_syscall_return(uint64_t pc, uint64_t retval)
 {
-    (void)pc;
-    (void)retval;
+    char pc_buf[32];
+    char retval_buf[32];
+    char errno_buf[32];
+
+    snprintf(pc_buf, sizeof(pc_buf), "0x%llx", (unsigned long long)pc);
+    snprintf(retval_buf, sizeof(retval_buf), "%lld", (long long)retval);
+    if ((int64_t)retval < 0 && (int64_t)retval >= -4095) {
+        snprintf(errno_buf, sizeof(errno_buf), "%lld", (long long)-((int64_t)retval));
+    } else {
+        snprintf(errno_buf, sizeof(errno_buf), "0");
+    }
+
+    trace_attribute_t attrs[] = {
+        { "pc", pc_buf },
+        { "retval", retval_buf },
+        { "errno", errno_buf },
+    };
+    (void)trace_begin_interval(TRACE_ORIGIN_TASK, "guest.syscall.return", attrs,
+                               sizeof(attrs) / sizeof(attrs[0]));
 }
 
 void trace_emit_process_entry(uint64_t entry_pc, uint64_t sp, uint64_t at_entry, uint64_t at_base)

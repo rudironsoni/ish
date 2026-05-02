@@ -482,18 +482,19 @@ int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr)
                 return ret;
         } else {
             // MOVN Xd, #imm - move negative immediate to register
-            // The decoder sets imm = imm16 << (hw * 16), then negates it
+            uint64_t value = instr->is_64bit ? ~((uint64_t)instr->imm)
+                                             : (uint32_t)~((uint32_t)instr->imm);
             // Emit immediate value in bytecode stream
             int ret;
 
             if (dst_is_memory) {
-                return emit_write_reg_imm(state, rd, (uint64_t)instr->imm, instr->is_64bit, 0);
+                return emit_write_reg_imm(state, rd, value, instr->is_64bit, 0);
             }
 
             ret = emit_gadget(state, gadget_mov_imm[eff_rd]);
             if (ret != A64_GEN_OK)
                 return ret;
-            ret = emit_u64(state, (uint64_t)instr->imm);
+            ret = emit_u64(state, value);
             if (ret != A64_GEN_OK)
                 return ret;
         }
@@ -998,7 +999,7 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr)
         int zero_src_for_rm = 13;
 
         if (!instr->is_64bit || src1_is_memory || src2_is_memory || dst_is_memory || dst_is_sp ||
-            rn == 31 || rm == 31 || instr->imm_shift != 0 ||
+            rn == 31 || rm == 31 || instr->imm_shift != 0 || instr->subtype >= 4 ||
             instr->shift_type != A64_SHIFT_LSL || instr->set_flags) {
             int logical_rn_arch = (rn == 31 && instr->subtype == 1) ? 31 : rn;
             return emit_logical_reg_fallback(state, rd, logical_rn_arch, rm, instr->shift_type,
@@ -1183,6 +1184,9 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr)
             gadget = (instr->subtype == 1) ? gadget_sub_reg[eff_rd][eff_rn_for_op][eff_rm_for_op]
                                            : gadget_add_reg[eff_rd][eff_rn_for_op][eff_rm_for_op];
         }
+    } else if ((op2 == 12 || op2 == 13) && !dpreg_ext_form) {
+        return emit_addsub_reg_fallback(state, rd, rn, rm, instr->shift_type, instr->imm_shift,
+                                        instr->subtype == 1, instr->set_flags, instr->is_64bit);
     } else if (op2 >= 8 && op2 <= 11) {
         int ret;
 
@@ -1312,42 +1316,14 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr)
         if (ret != A64_GEN_OK)
             return ret;
 
-        // Apply shift to second source (x14, index 13).
-        for (int i = 0; i < instr->imm_shift; i++) {
-            ret = emit_gadget(state, gadget_add_reg[13][13][13]);
-            if (ret != A64_GEN_OK)
-                return ret;
-        }
-
-        // Execute ADD/SUB: dest = Rn (+/-) shifted Rm
-        // If Rn was memory-backed or SP, it is in x15; otherwise use Rn directly.
         int eff_rn_for_op = (src1_is_memory || rn == 31) ? 14 : rn;
-
-        // Result goes to x14 (temp, index 13) if dst is memory-backed or SP, otherwise to Rd
         int eff_rd_for_op = (dst_is_memory || dst_is_sp) ? 13 : rd;
 
-        if (instr->set_flags) {
-            if (instr->subtype == 1 && rd == 31) {
-                // SUBS with XZR destination is CMP
-                ret = emit_gadget(state, gadget_cmp_reg[eff_rn_for_op][13]);
-                if (ret != A64_GEN_OK)
-                    return ret;
-            } else {
-                tcti_gadget_t op_gadget = (instr->subtype == 1)
-                                              ? gadget_subs_reg[eff_rd_for_op][eff_rn_for_op][13]
-                                              : gadget_adds_reg[eff_rd_for_op][eff_rn_for_op][13];
-                ret = emit_gadget(state, op_gadget);
-                if (ret != A64_GEN_OK)
-                    return ret;
-            }
-        } else {
-            tcti_gadget_t op_gadget = (instr->subtype == 1)
-                                          ? gadget_sub_reg[eff_rd_for_op][eff_rn_for_op][13]
-                                          : gadget_add_reg[eff_rd_for_op][eff_rn_for_op][13];
-            ret = emit_gadget(state, op_gadget);
-            if (ret != A64_GEN_OK)
-                return ret;
-        }
+        ret = emit_addsub_reg_fallback(state, eff_rd_for_op, eff_rn_for_op, 13, A64_SHIFT_LSL,
+                                       instr->imm_shift, instr->subtype == 1, instr->set_flags,
+                                       instr->is_64bit);
+        if (ret != A64_GEN_OK)
+            return ret;
 
         // Store result if destination is memory-backed
         if (dst_is_memory) {
@@ -1718,7 +1694,7 @@ static int a64_emit_simd_ldst(a64_gen_state_t *state, const a64_instr_t *instr)
     ret = emit_u64(state, instr->is_pair ? 1 : 0);
     if (ret != A64_GEN_OK)
         return ret;
-    return emit_u64(state, instr->is_pair ? bit(instr->raw, 22) : a64_ldst_raw_is_load(instr->raw));
+    return emit_u64(state, bit(instr->raw, 22));
 }
 
 int a64_gen_ldst(a64_gen_state_t *state, const a64_instr_t *instr)

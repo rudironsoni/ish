@@ -583,7 +583,7 @@ uint32_t sys_pwrite(fd_t f, addr_t buf_addr, uint32_t size, off_t_ off)
     return (uint32_t)res;
 }
 
-static int fd_ioctl(struct fd *fd, uint32_t cmd, uint32_t arg)
+static int fd_ioctl(struct fd *fd, uint32_t cmd, addr_t arg)
 {
     ssize_t size = -1;
     if (fd->ops->ioctl_size)
@@ -618,9 +618,9 @@ static int set_nonblock(struct fd *fd, addr_t nb_addr)
     return fd_setflags(fd, flags);
 }
 
-uint32_t sys_ioctl(fd_t f, uint32_t cmd, uint32_t arg)
+uint32_t sys_ioctl(fd_t f, uint32_t cmd, addr_t arg)
 {
-    STRACE("ioctl(%d, 0x%x, 0x%x)", f, cmd, arg);
+    STRACE("ioctl(%d, 0x%x, %#llx)", f, cmd, (unsigned long long)arg);
 
     // APPSIM-004 Stage 3A: Guest ioctl attempt tracing
     char pid_buf[32];

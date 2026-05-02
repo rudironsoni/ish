@@ -35,6 +35,7 @@ struct tty *tty_alloc(struct tty_driver *driver, int type, int num)
     tty->ever_opened = false;
     tty->session = 0;
     tty->fg_group = 0;
+    tty->driver_data = NULL;
     list_init(&tty->fds);
 
     tty->termios.iflags = ICRNL_ | IXON_;

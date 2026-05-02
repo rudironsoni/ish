@@ -137,6 +137,8 @@ struct tty {
     // this never nests with itself, except in pty_is_half_closed_master
     lock_t lock;
 
+    void *driver_data;
+
     union {
         pthread_t thread; // for real tty driver
         struct {

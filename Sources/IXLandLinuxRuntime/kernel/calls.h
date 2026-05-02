@@ -81,7 +81,7 @@ uint32_t sys__llseek(fd_t f, uint32_t off_high, uint32_t off_low, addr_t res_add
 uint32_t sys_lseek(fd_t f, uint32_t off, uint32_t whence);
 uint32_t sys_pread(fd_t f, addr_t buf_addr, uint32_t buf_size, off_t_ off);
 uint32_t sys_pwrite(fd_t f, addr_t buf_addr, uint32_t size, off_t_ off);
-uint32_t sys_ioctl(fd_t f, uint32_t cmd, uint32_t arg);
+uint32_t sys_ioctl(fd_t f, uint32_t cmd, addr_t arg);
 uint32_t sys_fcntl(fd_t f, uint32_t cmd, uint32_t arg);
 uint32_t sys_fcntl32(fd_t fd, uint32_t cmd, uint32_t arg);
 uint32_t sys_dup(fd_t fd);

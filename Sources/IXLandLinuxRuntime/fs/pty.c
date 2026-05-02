@@ -11,6 +11,7 @@
 
 typedef const void *nsobj_t;
 int Terminal_sendOutput_length(nsobj_t terminal, const char *data, int size) __attribute__((weak));
+void Terminal_releaseBoundTTYData(nsobj_t terminal) __attribute__((weak));
 
 extern struct tty_driver pty_slave;
 
@@ -64,6 +65,10 @@ static struct tty *pty_hangup_other(struct tty *tty)
 static void pty_slave_cleanup(struct tty *tty)
 {
     pty_hangup_other(tty);
+    if (tty->driver_data != NULL && Terminal_releaseBoundTTYData != NULL) {
+        Terminal_releaseBoundTTYData(tty->driver_data);
+        tty->driver_data = NULL;
+    }
 }
 
 static void pty_master_cleanup(struct tty *tty)
@@ -139,9 +144,9 @@ static int pty_write(struct tty *tty, const void *buf, size_t len, bool blocking
     if (len > INT_MAX)
         return _EINVAL;
 
-    if (tty->type == TTY_PSEUDO_SLAVE_MAJOR && tty->data != NULL && len > 0 &&
+    if (tty->type == TTY_PSEUDO_SLAVE_MAJOR && tty->driver_data != NULL && len > 0 &&
         Terminal_sendOutput_length != NULL) {
-        Terminal_sendOutput_length(tty->data, buf, (int)len);
+        Terminal_sendOutput_length(tty->driver_data, buf, (int)len);
     }
 
     if (tty->pty.other == NULL) {
@@ -217,22 +222,26 @@ int ptmx_open(struct fd *fd)
     return tty_open(master, fd);
 }
 
-struct tty *pty_open_guest_terminal(struct tty_driver *driver)
+struct tty *pty_open_guest_terminal(struct tty_driver *UNUSED(driver))
 {
     int pty_num = pty_reserve_next();
     if (pty_num == MAX_PTYS)
         return ERR_PTR(_ENOSPC);
-    // TODO this is a bit of a hack
-    driver->ttys = pty_slave.ttys;
-    driver->limit = pty_slave.limit;
-    driver->major = TTY_PSEUDO_SLAVE_MAJOR;
-    struct tty *tty = tty_get(driver, TTY_PSEUDO_SLAVE_MAJOR, pty_num);
-    if (IS_ERR(tty))
-        return tty;
-    // Guest PTY sessions use the slave side directly as the stdio endpoint.
-    // Clear the lock that is normally managed through the master-side setup.
+
+    lock(&ttys_lock);
+    struct tty *tty = tty_alloc(&pty_slave, TTY_PSEUDO_SLAVE_MAJOR, pty_num);
+    if (tty == NULL) {
+        pty_slave.ttys[pty_num] = NULL;
+        unlock(&ttys_lock);
+        return ERR_PTR(_ENOMEM);
+    }
+
+    tty->refcount = 1;
     tty->pty.locked = false;
+    tty->pty.other = NULL;
     pty_slave_init_inode(tty);
+    pty_slave.ttys[pty_num] = tty;
+    unlock(&ttys_lock);
     return tty;
 }
 
@@ -301,6 +310,7 @@ static int devpts_getpath(struct fd *fd, char *buf)
 
 static void devpts_stat_num(int pty_num, struct statbuf *stat)
 {
+    stat->dev = dev_make(TTY_PSEUDO_SLAVE_MAJOR, 0);
     if (pty_num == -1) {
         // root
         stat->mode = S_IFDIR | 0755;

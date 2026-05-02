@@ -18,11 +18,11 @@ private final class IXLandGhosttyTerminalContainerView: UIView {
     }
 
     override var canBecomeFirstResponder: Bool {
-        terminalView.canBecomeFirstResponder
+        false
     }
 
     override func becomeFirstResponder() -> Bool {
-        terminalView.becomeFirstResponder()
+        false
     }
 
     override func layoutSubviews() {
@@ -34,9 +34,6 @@ private final class IXLandGhosttyTerminalContainerView: UIView {
     override func didMoveToWindow() {
         super.didMoveToWindow()
         terminalView.fitToSize()
-        if window != nil {
-            _ = becomeFirstResponder()
-        }
     }
 }
 
@@ -50,6 +47,7 @@ public final class IXLandGhosttyHostTerminal: NSObject {
     @objc public private(set) var view: UIView!
     @objc public private(set) var terminalView: GhosttyTerminal.TerminalView!
     private var session: InMemoryTerminalSession!
+    private var isReceivingOutput = false
 
     @objc public weak var delegate: (any IXLandGhosttyHostTerminalDelegate)?
 
@@ -65,6 +63,7 @@ public final class IXLandGhosttyHostTerminal: NSObject {
 
         let session = InMemoryTerminalSession(write: { [weak self] data in
             guard let self else { return }
+            guard !self.isReceivingOutput else { return }
             self.delegate?.ghosttyHostTerminal(self, didReceiveInput: data)
         }, resize: { [weak self] viewport in
             guard let self else { return }
@@ -89,6 +88,8 @@ public final class IXLandGhosttyHostTerminal: NSObject {
     }
 
     @objc public func receiveOutput(_ data: Data) {
+        isReceivingOutput = true
+        defer { isReceivingOutput = false }
         session.receive(data)
     }
 

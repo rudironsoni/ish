@@ -3,6 +3,7 @@
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
 #import <IXLandLinuxRuntime/kernel/memory.h>
+#import <IXLandLinuxRuntime/kernel/vdso.h>
 #import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
 
 // Guest.BringupMatrix System Tests
@@ -302,6 +303,13 @@
     XCTAssertTrue(AX_PLATFORM > 0, "AX_PLATFORM must be defined");
     XCTAssertTrue(AX_HWCAP > 0, "AX_HWCAP must be defined");
     XCTAssertTrue(AX_CLKTCK > 0, "AX_CLKTCK must be defined");
+}
+
+// Contract: exec.c may advertise AT_SYSINFO_EHDR only for a real guest vDSO ELF
+// Owner: kernel/exec.c, kernel/vdso.c
+- (void)testBringupBehavior_VDSOAuxvRequiresValidELFImage {
+    XCTAssertFalse(vdso_has_elf_image(),
+                   "The current runtime has a signal trampoline page, not an ELF vDSO image");
 }
 
 // Contract: Dynamic ELF with PT_INTERP is detected and unsupported paths fail deterministically

@@ -247,6 +247,37 @@ int a64_gen_instruction(a64_gen_state_t *state, uint32_t insn, uint64_t pc);
     XCTAssertGreaterThan(state.num_gadgets, (size_t)0);
 }
 
+- (void)testLoweringContract_LogicalRegisterNotFormsPreserveNBit
+{
+    uint32_t eonX4X3X6 = 0xca260064;
+    uint32_t bicX0X0X3 = 0x8a230000;
+    a64_instr_t decoded;
+
+    XCTAssertEqual(a64_decode(eonX4X3X6, &decoded), 0);
+    XCTAssertEqual(decoded.subtype, 6);
+    XCTAssertEqual(decoded.Rd, 4);
+    XCTAssertEqual(decoded.Rn, 3);
+    XCTAssertEqual(decoded.Rm, 6);
+
+    XCTAssertEqual(a64_decode(bicX0X0X3, &decoded), 0);
+    XCTAssertEqual(decoded.subtype, 4);
+    XCTAssertEqual(decoded.Rd, 0);
+    XCTAssertEqual(decoded.Rn, 0);
+    XCTAssertEqual(decoded.Rm, 3);
+
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
+    a64_gen_state_t state;
+    XCTAssertEqual(a64_gen_init(&state, gadgets, A64_MAX_GADGETS_PER_BLOCK), A64_GEN_OK);
+    a64_gen_reset(&state, 0x5f9b4);
+
+    XCTAssertEqual(a64_gen_instruction(&state, eonX4X3X6, 0x5f9b4), A64_GEN_OK);
+    XCTAssertGreaterThan(state.num_gadgets, (size_t)0);
+
+    a64_gen_reset(&state, 0x5f9c4);
+    XCTAssertEqual(a64_gen_instruction(&state, bicX0X0X3, 0x5f9c4), A64_GEN_OK);
+    XCTAssertGreaterThan(state.num_gadgets, (size_t)0);
+}
+
 - (void)testLoweringContract_MSRTPIDREL0LowersThroughSysregGadget
 {
     uint32_t msrTpidrEl0X0 = 0xd51bd040;
@@ -454,6 +485,28 @@ int a64_gen_instruction(a64_gen_state_t *state, uint32_t insn, uint64_t pc);
     a64_gen_reset(&state, 0x18478);
 
     XCTAssertEqual(a64_gen_instruction(&state, strQ0X0Imm16, 0x18478), A64_GEN_OK);
+    XCTAssertGreaterThan(state.num_gadgets, (size_t)0);
+}
+
+- (void)testLoweringContract_SIMDLDRQUnsignedImmediateLowers
+{
+    uint32_t ldrQ31SPImm48 = 0x3dc00fff;
+    a64_instr_t decoded;
+    XCTAssertEqual(a64_decode(ldrQ31SPImm48, &decoded), 0);
+    XCTAssertEqual(decoded.cat, A64_LD_ST);
+    XCTAssertEqual(decoded.subtype, A64_LDST_SINGLE);
+    XCTAssertTrue(decoded.is_vector);
+    XCTAssertEqual(decoded.Rd, 31);
+    XCTAssertEqual(decoded.Rn, 31);
+    XCTAssertEqual(decoded.vec_bytes, 16);
+    XCTAssertEqual(decoded.imm, 48);
+
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
+    a64_gen_state_t state;
+    XCTAssertEqual(a64_gen_init(&state, gadgets, A64_MAX_GADGETS_PER_BLOCK), A64_GEN_OK);
+    a64_gen_reset(&state, 0x6ad7c);
+
+    XCTAssertEqual(a64_gen_instruction(&state, ldrQ31SPImm48, 0x6ad7c), A64_GEN_OK);
     XCTAssertGreaterThan(state.num_gadgets, (size_t)0);
 }
 
