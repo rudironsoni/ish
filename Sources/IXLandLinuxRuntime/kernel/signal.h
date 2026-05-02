@@ -27,10 +27,10 @@ typedef uint64_t sigset_t_;
 
 struct sigaction_ {
     addr_t handler;
-    uint32_t flags;
+    uint64_t flags;
     addr_t restorer;
     sigset_t_ mask;
-} __attribute__((packed));
+};
 
 #define NUM_SIGS 64
 

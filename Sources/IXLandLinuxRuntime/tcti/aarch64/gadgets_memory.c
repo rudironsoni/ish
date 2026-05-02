@@ -57,6 +57,10 @@ extern int _a64_tcti_str_x_helper(struct cpu_state *cpu, uint64_t fault_pc, uint
                                   uint64_t meta);
 
 static uint64_t tcti_extend_ldst_offset(struct cpu_state *cpu, int rm, int extend_type);
+static void tcti_trace_record_mem_access(struct cpu_state *cpu, uint64_t pc, uint32_t raw,
+                                         uint64_t addr, uint64_t value, uint64_t base,
+                                         uint64_t offset, uint8_t width, uint8_t is_load, int rt,
+                                         int rn, int rm, int idx_mode);
 
 // Stub functions retained for external diagnostic symbol compatibility.
 void dump_str_wb_diag(void) { }
@@ -293,11 +297,45 @@ __attribute__((used)) static int tcti_simd_ldst_helper(struct cpu_state *cpu, ui
     ret = tcti_simd_vec_access(cpu, addr, rt, vec_bytes, (int)is_load);
     if (ret != TCTI_EXIT_NORMAL)
         goto fault;
+    if (!is_load) {
+        uint64_t value = vec_bytes >= 8 ? cpu->vregs[rt].d[0] : 0;
+        if (vec_bytes == 4)
+            value = cpu->vregs[rt].s[0];
+        else if (vec_bytes == 2)
+            value = cpu->vregs[rt].h[0];
+        else if (vec_bytes == 1)
+            value = cpu->vregs[rt].b[0];
+        tcti_trace_record_mem_access(cpu, fault_pc, 0, addr, value, base, addr - base,
+                                     (uint8_t)(vec_bytes >= 8 ? 8 : vec_bytes), 0, (int)rt,
+                                     (int)rn, -1, (int)idx_mode);
+        if (vec_bytes == 16)
+            tcti_trace_record_mem_access(cpu, fault_pc, 0, addr + 8, cpu->vregs[rt].d[1], base,
+                                         addr + 8 - base, 8, 0, (int)rt, (int)rn, -1,
+                                         (int)idx_mode);
+    }
 
     if (is_pair) {
         ret = tcti_simd_vec_access(cpu, addr + vec_bytes, rt2, vec_bytes, (int)is_load);
         if (ret != TCTI_EXIT_NORMAL)
             goto fault;
+        if (!is_load) {
+            uint64_t value = vec_bytes >= 8 ? cpu->vregs[rt2].d[0] : 0;
+            if (vec_bytes == 4)
+                value = cpu->vregs[rt2].s[0];
+            else if (vec_bytes == 2)
+                value = cpu->vregs[rt2].h[0];
+            else if (vec_bytes == 1)
+                value = cpu->vregs[rt2].b[0];
+            tcti_trace_record_mem_access(cpu, fault_pc, 0, addr + vec_bytes, value, base,
+                                         addr + vec_bytes - base,
+                                         (uint8_t)(vec_bytes >= 8 ? 8 : vec_bytes), 0,
+                                         (int)rt2, (int)rn, -1, (int)idx_mode);
+            if (vec_bytes == 16)
+                tcti_trace_record_mem_access(cpu, fault_pc, 0, addr + vec_bytes + 8,
+                                             cpu->vregs[rt2].d[1], base,
+                                             addr + vec_bytes + 8 - base, 8, 0, (int)rt2,
+                                             (int)rn, -1, (int)idx_mode);
+        }
     }
 
     if (idx_mode == A64_PRE_INDEX || idx_mode == A64_POST_INDEX) {
@@ -609,6 +647,7 @@ static uint64_t tcti_extend_ldst_offset(struct cpu_state *cpu, int rm, int exten
 static uint64_t g_ldst_instance_id = 0;
 
 #define TCTI_TRACE_MEM_HISTORY_SIZE 2048
+#define TCTI_TRACE_STORE_HISTORY_SIZE 65536
 
 typedef struct {
     uint64_t pc;
@@ -626,10 +665,21 @@ typedef struct {
     int idx_mode;
 } tcti_trace_mem_history_entry_t;
 
+typedef struct {
+    tcti_trace_mem_history_entry_t access;
+    uint32_t store_sequence;
+} tcti_trace_store_history_entry_t;
+
 static tcti_trace_mem_history_entry_t g_tcti_trace_mem_history[TCTI_TRACE_MEM_HISTORY_SIZE];
 static uint16_t g_tcti_trace_mem_history_next = 0;
 static uint16_t g_tcti_trace_mem_history_count = 0;
 static uint16_t g_tcti_trace_mem_history_sequence = 0;
+
+static tcti_trace_store_history_entry_t
+    g_tcti_trace_store_history[TCTI_TRACE_STORE_HISTORY_SIZE];
+static uint32_t g_tcti_trace_store_history_next = 0;
+static uint32_t g_tcti_trace_store_history_count = 0;
+static uint32_t g_tcti_trace_store_history_sequence = 0;
 
 static void tcti_trace_record_mem_access(struct cpu_state *cpu, uint64_t pc, uint32_t raw,
                                          uint64_t addr, uint64_t value, uint64_t base,
@@ -658,6 +708,17 @@ static void tcti_trace_record_mem_access(struct cpu_state *cpu, uint64_t pc, uin
         (uint16_t)((g_tcti_trace_mem_history_next + 1) % TCTI_TRACE_MEM_HISTORY_SIZE);
     if (g_tcti_trace_mem_history_count < TCTI_TRACE_MEM_HISTORY_SIZE)
         g_tcti_trace_mem_history_count++;
+
+    if (!is_load) {
+        tcti_trace_store_history_entry_t *store =
+            &g_tcti_trace_store_history[g_tcti_trace_store_history_next];
+        store->access = *entry;
+        store->store_sequence = g_tcti_trace_store_history_sequence++;
+        g_tcti_trace_store_history_next =
+            (g_tcti_trace_store_history_next + 1) % TCTI_TRACE_STORE_HISTORY_SIZE;
+        if (g_tcti_trace_store_history_count < TCTI_TRACE_STORE_HISTORY_SIZE)
+            g_tcti_trace_store_history_count++;
+    }
 }
 
 static int tcti_trace_matching_reg(const struct cpu_state *cpu, uint64_t value)
@@ -696,6 +757,61 @@ static void tcti_trace_emit_mem_history_entry(const char *event_name, uint32_t s
                               sizeof(fields) / sizeof(fields[0]));
 }
 
+static const tcti_trace_store_history_entry_t *
+tcti_trace_find_last_store_covering(uint64_t addr, uint8_t width, uint32_t *slot_out)
+{
+    uint64_t end = addr + (width ? width : 1);
+
+    for (uint32_t scanned = 0; scanned < g_tcti_trace_store_history_count; scanned++) {
+        uint32_t slot = (uint32_t)((g_tcti_trace_store_history_next +
+                                    TCTI_TRACE_STORE_HISTORY_SIZE - 1 - scanned) %
+                                   TCTI_TRACE_STORE_HISTORY_SIZE);
+        const tcti_trace_store_history_entry_t *store = &g_tcti_trace_store_history[slot];
+        uint64_t store_start = store->access.addr;
+        uint64_t store_end = store_start + (store->access.width ? store->access.width : 1);
+
+        if (store_start < end && store_end > addr) {
+            if (slot_out)
+                *slot_out = slot;
+            return store;
+        }
+    }
+
+    return NULL;
+}
+
+static void tcti_trace_emit_store_source_entry(uint32_t source_slot, uint64_t source_addr,
+                                               uint64_t source_value,
+                                               const tcti_trace_store_history_entry_t *store,
+                                               uint32_t store_slot)
+{
+    trace_field_t fields[] = {
+        { .key = "source_slot", .kind = TRACE_FIELD_U64_DEC, .u64_value = source_slot },
+        { .key = "source_addr", .kind = TRACE_FIELD_U64_HEX, .u64_value = source_addr },
+        { .key = "source_value", .kind = TRACE_FIELD_U64_HEX, .u64_value = source_value },
+        { .key = "store_slot", .kind = TRACE_FIELD_U64_DEC, .u64_value = store_slot },
+        { .key = "store_sequence", .kind = TRACE_FIELD_U64_DEC,
+          .u64_value = store->store_sequence },
+        { .key = "store_guest_pc", .kind = TRACE_FIELD_U64_HEX,
+          .u64_value = store->access.pc },
+        { .key = "store_raw_opcode", .kind = TRACE_FIELD_U64_HEX,
+          .u64_value = store->access.raw },
+        { .key = "store_addr", .kind = TRACE_FIELD_U64_HEX, .u64_value = store->access.addr },
+        { .key = "store_value", .kind = TRACE_FIELD_U64_HEX,
+          .u64_value = store->access.value },
+        { .key = "store_base", .kind = TRACE_FIELD_U64_HEX, .u64_value = store->access.base },
+        { .key = "store_offset", .kind = TRACE_FIELD_U64_HEX,
+          .u64_value = store->access.offset },
+        { .key = "store_width", .kind = TRACE_FIELD_U64_DEC,
+          .u64_value = store->access.width },
+        { .key = "store_rt", .kind = TRACE_FIELD_I64_DEC, .i64_value = store->access.rt },
+        { .key = "store_rn", .kind = TRACE_FIELD_I64_DEC, .i64_value = store->access.rn },
+        { .key = "store_rm", .kind = TRACE_FIELD_I64_DEC, .i64_value = store->access.rm },
+    };
+    trace_record_event_fields(TRACE_ORIGIN_TCTI, "tcti.mem.history.source_store", fields,
+                              sizeof(fields) / sizeof(fields[0]));
+}
+
 static void tcti_trace_emit_mem_history_on_fault(struct cpu_state *cpu, uint64_t fault_addr)
 {
     if (!trace_should_emit_event("tcti.mem.history"))
@@ -713,6 +829,15 @@ static void tcti_trace_emit_mem_history_on_fault(struct cpu_state *cpu, uint64_t
         uint32_t remaining = g_tcti_trace_mem_history_count - i;
         int value_match_reg = tcti_trace_matching_reg(cpu, entry->value);
         bool addr_match = entry->addr == fault_addr;
+
+        if (entry->is_load && entry->value == fault_addr) {
+            uint32_t store_slot = 0;
+            const tcti_trace_store_history_entry_t *store =
+                tcti_trace_find_last_store_covering(entry->addr, entry->width, &store_slot);
+            if (store)
+                tcti_trace_emit_store_source_entry(i, entry->addr, entry->value, store,
+                                                   store_slot);
+        }
 
         if ((addr_match || value_match_reg >= 0) && emitted_matches < 96) {
             tcti_trace_emit_mem_history_entry("tcti.mem.history.match", i, entry,

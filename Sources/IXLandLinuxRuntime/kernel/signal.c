@@ -18,6 +18,46 @@
 #include <stdlib.h>
 #include <string.h>
 
+struct guest_kernel_sigaction {
+    addr_t handler;
+    uint64_t flags;
+    addr_t restorer;
+    sigset_t_ mask;
+} __attribute__((packed));
+
+static_assert(sizeof(struct guest_kernel_sigaction) == 32,
+              "AArch64 kernel rt_sigaction ABI must stay 32 bytes");
+
+static bool signal_number_valid(int sig)
+{
+    return sig > 0 && sig < NUM_SIGS;
+}
+
+static bool signal_action_mutable(int sig)
+{
+    return sig != SIGKILL_ && sig != SIGSTOP_;
+}
+
+static struct guest_kernel_sigaction signal_action_to_guest(struct sigaction_ action)
+{
+    return (struct guest_kernel_sigaction){
+        .handler = action.handler,
+        .flags = action.flags,
+        .restorer = action.restorer,
+        .mask = action.mask,
+    };
+}
+
+static struct sigaction_ signal_action_from_guest(struct guest_kernel_sigaction action)
+{
+    return (struct sigaction_){
+        .handler = action.handler,
+        .flags = action.flags,
+        .restorer = action.restorer,
+        .mask = action.mask,
+    };
+}
+
 /*
  * Create a new sighand structure
  */
@@ -364,22 +404,81 @@ int32_t sys_tgkill(pid_t_ tgid, pid_t_ tid, int32_t sig)
 int32_t sys_rt_sigaction(int32_t signum, addr_t action_addr, addr_t oldaction_addr,
                          uint32_t sigset_size)
 {
-    // Minimal implementation - just return success
-    (void)signum;
-    (void)action_addr;
-    (void)oldaction_addr;
-    (void)sigset_size;
+    if (current == NULL || current->sighand == NULL) {
+        return _EINVAL;
+    }
+    if (!signal_number_valid(signum) || sigset_size != sizeof(sigset_t_)) {
+        return _EINVAL;
+    }
+    if (action_addr != 0 && !signal_action_mutable(signum)) {
+        return _EINVAL;
+    }
+
+    struct guest_kernel_sigaction guest_new_action = { 0 };
+    if (action_addr != 0 && user_get(action_addr, guest_new_action)) {
+        return _EFAULT;
+    }
+
+    lock(&current->sighand->lock);
+    struct sigaction_ old_action = current->sighand->action[signum];
+    if (action_addr != 0) {
+        current->sighand->action[signum] = signal_action_from_guest(guest_new_action);
+    }
+    unlock(&current->sighand->lock);
+
+    if (oldaction_addr != 0) {
+        struct guest_kernel_sigaction guest_old_action = signal_action_to_guest(old_action);
+        if (user_put(oldaction_addr, guest_old_action)) {
+            return _EFAULT;
+        }
+    }
+
     return 0;
 }
 
 // sys_rt_sigprocmask - Examine and change blocked signals
 int32_t sys_rt_sigprocmask(int32_t how, addr_t set, addr_t oldset, uint32_t size)
 {
-    // Minimal implementation
-    (void)how;
-    (void)set;
-    (void)oldset;
-    (void)size;
+    if (current == NULL) {
+        return _EINVAL;
+    }
+    if (size != sizeof(sigset_t_)) {
+        return _EINVAL;
+    }
+
+    sigset_t_ old_mask = current->blocked;
+    sigset_t_ new_mask = 0;
+
+    if (set != 0 && user_get(set, new_mask)) {
+        return _EFAULT;
+    }
+
+    if (oldset != 0 && user_put(oldset, old_mask)) {
+        return _EFAULT;
+    }
+
+    if (set != 0) {
+        sigset_t_ blocked = current->blocked;
+        sigset_t_ unmaskable = sig_mask(SIGKILL_) | sig_mask(SIGSTOP_);
+        new_mask &= ~unmaskable;
+
+        switch (how) {
+        case SIG_BLOCK_:
+            blocked |= new_mask;
+            break;
+        case SIG_UNBLOCK_:
+            blocked &= ~new_mask;
+            break;
+        case SIG_SETMASK_:
+            blocked = new_mask;
+            break;
+        default:
+            return _EINVAL;
+        }
+
+        current->blocked = blocked;
+    }
+
     return 0;
 }
 
