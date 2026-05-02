@@ -531,6 +531,29 @@ static void trace_tcti_ldst_access(struct cpu_state *cpu, const char *event_name
                               sizeof(fields) / sizeof(fields[0]));
 }
 
+static void trace_tcti_atomic_access(struct cpu_state *cpu, uint64_t guest_pc, uint32_t raw_opcode,
+                                     uint64_t rt, uint64_t rn, uint64_t rs, uint64_t size,
+                                     uint64_t is_load, uint64_t addr, uint64_t value,
+                                     int mem_ret, int store_status)
+{
+    (void)cpu;
+    trace_field_t fields[] = {
+        { .key = "guest_pc", .kind = TRACE_FIELD_U64_HEX, .u64_value = guest_pc },
+        { .key = "raw_opcode", .kind = TRACE_FIELD_U64_HEX, .u64_value = raw_opcode },
+        { .key = "is_load", .kind = TRACE_FIELD_I64_DEC, .i64_value = is_load ? 1 : 0 },
+        { .key = "rt", .kind = TRACE_FIELD_I64_DEC, .i64_value = (int64_t)rt },
+        { .key = "rn", .kind = TRACE_FIELD_I64_DEC, .i64_value = (int64_t)rn },
+        { .key = "rs", .kind = TRACE_FIELD_I64_DEC, .i64_value = (int64_t)rs },
+        { .key = "size", .kind = TRACE_FIELD_U64_DEC, .u64_value = size },
+        { .key = "guest_ea", .kind = TRACE_FIELD_U64_HEX, .u64_value = addr },
+        { .key = "value", .kind = TRACE_FIELD_U64_HEX, .u64_value = value },
+        { .key = "mem_result", .kind = TRACE_FIELD_I64_DEC, .i64_value = mem_ret },
+        { .key = "store_status", .kind = TRACE_FIELD_I64_DEC, .i64_value = store_status },
+    };
+    trace_record_event_fields(TRACE_ORIGIN_TCTI, "tcti.atomic.access", fields,
+                              sizeof(fields) / sizeof(fields[0]));
+}
+
 static void tcti_write_base_reg_or_sp(struct cpu_state *cpu, int reg, uint64_t value, int is_64bit)
 {
     uint64_t masked = is_64bit ? value : (uint32_t)value;
@@ -565,6 +588,8 @@ static int tcti_atomic_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uin
                                    uint64_t rn, uint64_t rs, uint64_t size, uint64_t is_load)
 {
     uint64_t addr = tcti_read_base_reg_or_sp(cpu, (int)rn);
+    uint32_t raw_opcode = 0;
+    (void)a64_fetch_insn(cpu, cpu->tlb, fault_pc, &raw_opcode);
     int ret = A64_MEM_FAULT;
 
     if (is_load) {
@@ -615,6 +640,8 @@ static int tcti_atomic_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uin
             tcti_trace_record_mem_access(cpu, fault_pc, 0, addr, value, addr, 0, width, 1,
                                          (int)rt, (int)rn, -1, A64_INDEX_OFFSET);
         }
+        trace_tcti_atomic_access(cpu, fault_pc, raw_opcode, rt, rn, rs, size, is_load, addr,
+                                 value, ret, -1);
     } else {
         uint64_t value = tcti_read_reg_or_zr(cpu, (int)rt);
         uint8_t width = 0;
@@ -649,6 +676,8 @@ static int tcti_atomic_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uin
             }
             tcti_write_reg_or_zr(cpu, (int)rs, success ? 0 : 1, 0);
         }
+        trace_tcti_atomic_access(cpu, fault_pc, raw_opcode, rt, rn, rs, size, is_load, addr,
+                                 value, ret, success ? 0 : 1);
     }
 
     if (ret == A64_MEM_OK)
