@@ -90,7 +90,7 @@ bool trace_should_emit_event(const char *event_name)
 
 bool trace_tcti_memory_access_tracing_enabled(void)
 {
-    return trace_should_emit_event("tcti.mem.access");
+    return trace_get_level() >= trace_level_for_event_name("tcti.mem.access");
 }
 
 static void trace_record_event_at_level(trace_origin_t origin, trace_level_t level,

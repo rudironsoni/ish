@@ -1021,6 +1021,14 @@ int a64_decode_system(uint32_t insn, a64_instr_t *out)
         return 0;
     }
 
+    // DC ZVA, Xt. Architecturally zeroes one cache block at the address in Xt.
+    // Musl uses this in memset when DCZID_EL0 reports a 64-byte ZVA block.
+    if ((insn & 0xffffffe0) == 0xd50b7420) {
+        out->Rd = bits(insn, 4, 0);
+        out->subtype = A64_SYSTEM_DC_ZVA;
+        return 0;
+    }
+
     // SVC - System call
     if ((insn & 0xFFC00000) == 0xD4000000) {
         int op = bits(insn, 23, 21);

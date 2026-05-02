@@ -33,6 +33,7 @@ extern tcti_gadget_t gadget_pc_advance;
 extern tcti_gadget_t gadget_isb;
 extern tcti_gadget_t gadget_dsb;
 extern tcti_gadget_t gadget_dmb;
+extern tcti_gadget_t gadget_dc_zva;
 extern void gadget_csel_eq_0_1_2(void);
 extern void gadget_csel_ne_0_1_2(void);
 extern void gadget_csel_cs_0_1_2(void);
@@ -1983,6 +1984,11 @@ int a64_gen_system(a64_gen_state_t *state, const a64_instr_t *instr)
             return emit_gadget(state, gadget_nop);
         }
         return A64_GEN_UNSUPPORTED;
+    case A64_SYSTEM_DC_ZVA:
+        ret = emit_gadget(state, gadget_dc_zva);
+        if (ret != A64_GEN_OK)
+            return ret;
+        return emit_u64(state, instr->Rd);
     default:
         return A64_GEN_UNSUPPORTED;
     }

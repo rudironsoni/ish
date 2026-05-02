@@ -47,8 +47,8 @@ enum {
 enum {
     // 64-byte I-cache and D-cache minimum line sizes (16 words each).
     A64_SYSREG_CTR_EL0_VALUE = 0x00040004,
-    // DZP=1: DC ZVA is prohibited at EL0 in this runtime.
-    A64_SYSREG_DCZID_EL0_VALUE = 0x00000010,
+    // DZP=0, BS=4: DC ZVA is available and zeroes 64-byte blocks.
+    A64_SYSREG_DCZID_EL0_VALUE = 0x00000004,
 };
 
 const a64_sysreg_spec_t *a64_sysreg_lookup(uint16_t sysreg);

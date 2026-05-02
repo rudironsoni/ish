@@ -76,6 +76,7 @@ typedef enum {
     A64_SYSTEM_MSR_REG = 4,
     A64_SYSTEM_BARRIER = 5,
     A64_SYSTEM_HINT = 6,
+    A64_SYSTEM_DC_ZVA = 8,
 } a64_system_subtype_t;
 
 /* Subcategories for Loads and Stores */

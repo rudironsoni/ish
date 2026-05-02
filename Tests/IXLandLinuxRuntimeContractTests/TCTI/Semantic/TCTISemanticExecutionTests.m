@@ -62,6 +62,20 @@
                     "same flags");
 }
 
+- (void)testSemanticExecutionContract_CMPAddCSELNEPreservesZeroFlag
+{
+    XCTAssertEqual(tcti_harness_case_cmp_add_csel_ne_uses_preserved_zero_flag(), 0ULL,
+                   @"TCTI must preserve Z=1 from CMP across non-flag ADD so CSEL NE chooses "
+                    "XZR in musl sigaction");
+}
+
+- (void)testSemanticExecutionContract_CMPCCMPFalseImmediateClearsZero
+{
+    XCTAssertEqual(tcti_harness_case_cmp_ccmp_false_immediate_clears_zero(), 0x51f44ULL,
+                   @"CCMP with a false NE condition and NZCV immediate 0 must clear Z so "
+                    "musl sigaction does not copy an old action into a null pointer");
+}
+
 - (void)testSemanticExecutionContract_StrchrnulVectorMaskFindsDot
 {
     XCTAssertNotEqual(tcti_harness_case_strchrnul_vector_mask_finds_dot(), 0ULL,
@@ -181,6 +195,13 @@
     XCTAssertEqual(tcti_harness_case_musl_vdprintf_stack_file_zero_init(), 0ULL,
                    @"TCTI must lower AdvSIMD MOVI/MVNI immediates so musl's stack FILE starts "
                     "with zeroed buffer pointers before relocation diagnostics reach the PTY");
+}
+
+- (void)testSemanticExecutionContract_DCZVAZeroesCacheBlock
+{
+    XCTAssertEqual(tcti_harness_case_dc_zva_zeroes_cache_block(), 0ULL,
+                   @"TCTI must implement DC ZVA so musl memset zeroes large allocations used "
+                    "during BusyBox shell startup");
 }
 
 - (void)testSemanticExecutionContract_MuslStrncmpLibcReservedPrefix

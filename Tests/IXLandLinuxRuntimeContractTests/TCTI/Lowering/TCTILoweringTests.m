@@ -598,6 +598,24 @@ extern void gadget_br_impl(void);
     XCTAssertGreaterThan(state.num_gadgets, (size_t)0);
 }
 
+- (void)testLoweringContract_DCZVALowers
+{
+    uint32_t dcZvaX3 = 0xd50b7423;
+    a64_instr_t decoded;
+    XCTAssertEqual(a64_decode(dcZvaX3, &decoded), 0);
+    XCTAssertEqual(decoded.cat, A64_BRANCH);
+    XCTAssertEqual(decoded.subtype, A64_SYSTEM_DC_ZVA);
+    XCTAssertEqual(decoded.Rd, 3);
+
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
+    a64_gen_state_t state;
+    XCTAssertEqual(a64_gen_init(&state, gadgets, A64_MAX_GADGETS_PER_BLOCK), A64_GEN_OK);
+    a64_gen_reset(&state, 0x184e4);
+
+    XCTAssertEqual(a64_gen_instruction(&state, dcZvaX3, 0x184e4), A64_GEN_OK);
+    XCTAssertGreaterThan(state.num_gadgets, (size_t)0);
+}
+
 - (void)testLoweringContract_ADDExtendedSXTWLowers
 {
     uint32_t addX22X1W22SXTW = 0x8b36c036;

@@ -46,6 +46,9 @@ extern tcti_gadget_t gadget_str_x;
 extern void tcti_entry_block(void **gadgets, struct cpu_state *cpu);
 extern void tcti_exit_block(int reason);
 
+static int tcti_harness_run_generated_block(struct cpu_state *cpu, uint64_t pc,
+                                            const uint32_t *insns, size_t count);
+
 void tcti_harness_single_gadget_snapshot(void (*gadget)(void), const uint64_t *in_regs,
                                          uint64_t *out_regs);
 
@@ -349,6 +352,56 @@ uint64_t tcti_harness_case_csel_preserves_flags_for_bcond(void)
     cpu.x[0] = 0x123456789abcdef0ULL;
 
     tcti_entry_block(gadgets, &cpu);
+
+    return cpu.pc;
+}
+
+uint64_t tcti_harness_case_cmp_add_csel_ne_uses_preserved_zero_flag(void)
+{
+    enum {
+        stack_top = 0x200000,
+    };
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.sp = stack_top;
+    cpu.x[2] = 0x1111111111111111ULL;
+    cpu.x[4] = 0;
+
+    static const uint32_t insns[] = {
+        0xf100009f, // cmp x4, #0
+        0x910103e2, // add x2, sp, #0x40
+        0x9a9f1042, // csel x2, x2, xzr, ne
+        0xd28010c8, // mov x8, #134
+        0xd2800103, // mov x3, #8
+        0xd4000001, // svc #0
+    };
+
+    if (tcti_harness_run_generated_block(&cpu, 0x51f1c, insns,
+                                         sizeof(insns) / sizeof(insns[0])) < 0) {
+        return UINT64_MAX;
+    }
+
+    return cpu.x[2];
+}
+
+uint64_t tcti_harness_case_cmp_ccmp_false_immediate_clears_zero(void)
+{
+    static const uint32_t insns[] = {
+        0xf100009f, // cmp x4, #0
+        0x7a401800, // ccmp w0, #0, #0, ne
+        0x54000040, // b.eq +8
+    };
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.x[0] = 0;
+    cpu.x[4] = 0;
+
+    if (tcti_harness_run_generated_block(&cpu, 0x51f38, insns,
+                                         sizeof(insns) / sizeof(insns[0])) < 0) {
+        return UINT64_MAX;
+    }
 
     return cpu.pc;
 }
@@ -1353,6 +1406,59 @@ uint64_t tcti_harness_case_musl_vdprintf_stack_file_zero_init(void)
     }
     if (negative_flags != UINT64_MAX)
         return 0x2000000000000000ULL | (negative_flags & 0x0fffffffffffffffULL);
+    return 0;
+}
+
+uint64_t tcti_harness_case_dc_zva_zeroes_cache_block(void)
+{
+    enum {
+        page_addr = 0x140000,
+        zva_addr = page_addr + 0x80,
+    };
+
+    struct mem mem;
+    mem_init(&mem);
+    if (pt_map_nothing(&mem, PAGE(page_addr), 1, P_READ | P_WRITE) < 0) {
+        mem_destroy(&mem);
+        return UINT64_MAX;
+    }
+
+    struct tlb tlb = {};
+    tlb_refresh(&tlb, &mem.mmu);
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.mmu = &mem.mmu;
+    cpu.tlb = &tlb;
+    cpu.x[3] = zva_addr + 17;
+
+    for (uint64_t offset = 0; offset < 64; offset += 8) {
+        if (a64_guest_write64(&cpu, cpu.tlb, zva_addr + offset, 0xababababababababULL) !=
+            A64_MEM_OK) {
+            mem_destroy(&mem);
+            return UINT64_MAX - 1;
+        }
+    }
+
+    const uint32_t dc_zva_x3 = 0xd50b7423;
+    if (tcti_harness_run_generated_block(&cpu, 0x184e4, &dc_zva_x3, 1) < 0) {
+        mem_destroy(&mem);
+        return UINT64_MAX - 2;
+    }
+
+    uint64_t value = 0;
+    for (uint64_t offset = 0; offset < 64; offset += 8) {
+        if (a64_guest_read64(&cpu, cpu.tlb, zva_addr + offset, &value) != A64_MEM_OK) {
+            mem_destroy(&mem);
+            return UINT64_MAX - 3;
+        }
+        if (value != 0) {
+            mem_destroy(&mem);
+            return 0x1000000000000000ULL | offset | (value & 0x0000ffffffff0000ULL);
+        }
+    }
+
+    mem_destroy(&mem);
     return 0;
 }
 

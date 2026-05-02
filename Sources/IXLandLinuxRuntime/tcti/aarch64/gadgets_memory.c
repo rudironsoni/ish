@@ -364,6 +364,24 @@ static int a64_tcti_msr_helper(struct cpu_state *cpu, uint64_t sysreg, uint64_t 
     return a64_sysreg_write(cpu, (uint16_t)sysreg, rt);
 }
 
+static int a64_tcti_dc_zva_helper(struct cpu_state *cpu, uint64_t rt)
+{
+    uint64_t addr = tcti_read_reg_or_zr(cpu, (int)rt) & ~63ULL;
+
+    for (uint8_t offset = 0; offset < 64; offset += 8) {
+        int ret = a64_guest_write64(cpu, cpu->tlb, addr + offset, 0);
+        if (ret != A64_MEM_OK) {
+            cpu->fault_addr = addr + offset;
+            cpu->fault_was_write = true;
+            return TCTI_EXIT_FAULT;
+        }
+        tcti_trace_record_mem_access(cpu, cpu->pc, 0, addr + offset, 0, addr, offset, 8, 0,
+                                     (int)rt, (int)rt, -1, A64_INDEX_OFFSET);
+    }
+
+    return TCTI_EXIT_NORMAL;
+}
+
 /*
  * Get mnemonic string for load/store instructions
  */
@@ -550,31 +568,40 @@ static int tcti_atomic_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uin
     int ret = A64_MEM_FAULT;
 
     if (is_load) {
+        uint64_t value = 0;
+        uint8_t width = 0;
+
         switch (size) {
         case A64_SIZE_B: {
-            uint8_t value = 0;
-            ret = a64_guest_ldxr8(cpu, cpu->tlb, addr, &value);
+            uint8_t tmp = 0;
+            ret = a64_guest_ldxr8(cpu, cpu->tlb, addr, &tmp);
+            value = tmp;
+            width = 1;
             if (ret == A64_MEM_OK)
                 tcti_write_reg_or_zr(cpu, (int)rt, value, 0);
             break;
         }
         case A64_SIZE_H: {
-            uint16_t value = 0;
-            ret = a64_guest_ldxr16(cpu, cpu->tlb, addr, &value);
+            uint16_t tmp = 0;
+            ret = a64_guest_ldxr16(cpu, cpu->tlb, addr, &tmp);
+            value = tmp;
+            width = 2;
             if (ret == A64_MEM_OK)
                 tcti_write_reg_or_zr(cpu, (int)rt, value, 0);
             break;
         }
         case A64_SIZE_W: {
-            uint32_t value = 0;
-            ret = a64_guest_ldxr32(cpu, cpu->tlb, addr, &value);
+            uint32_t tmp = 0;
+            ret = a64_guest_ldxr32(cpu, cpu->tlb, addr, &tmp);
+            value = tmp;
+            width = 4;
             if (ret == A64_MEM_OK)
                 tcti_write_reg_or_zr(cpu, (int)rt, value, 0);
             break;
         }
         case A64_SIZE_X: {
-            uint64_t value = 0;
             ret = a64_guest_ldxr64(cpu, cpu->tlb, addr, &value);
+            width = 8;
             if (ret == A64_MEM_OK)
                 tcti_write_reg_or_zr(cpu, (int)rt, value, 1);
             break;
@@ -583,21 +610,31 @@ static int tcti_atomic_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uin
             ret = A64_MEM_FAULT;
             break;
         }
+
+        if (ret == A64_MEM_OK) {
+            tcti_trace_record_mem_access(cpu, fault_pc, 0, addr, value, addr, 0, width, 1,
+                                         (int)rt, (int)rn, -1, A64_INDEX_OFFSET);
+        }
     } else {
         uint64_t value = tcti_read_reg_or_zr(cpu, (int)rt);
+        uint8_t width = 0;
         int success = 0;
 
         switch (size) {
         case A64_SIZE_B:
+            width = 1;
             ret = a64_guest_stxr8(cpu, cpu->tlb, addr, (uint8_t)value, &success);
             break;
         case A64_SIZE_H:
+            width = 2;
             ret = a64_guest_stxr16(cpu, cpu->tlb, addr, (uint16_t)value, &success);
             break;
         case A64_SIZE_W:
+            width = 4;
             ret = a64_guest_stxr32(cpu, cpu->tlb, addr, (uint32_t)value, &success);
             break;
         case A64_SIZE_X:
+            width = 8;
             ret = a64_guest_stxr64(cpu, cpu->tlb, addr, value, &success);
             break;
         default:
@@ -605,8 +642,13 @@ static int tcti_atomic_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uin
             break;
         }
 
-        if (ret == A64_MEM_OK)
+        if (ret == A64_MEM_OK) {
+            if (success) {
+                tcti_trace_record_mem_access(cpu, fault_pc, 0, addr, value, addr, 0, width, 0,
+                                             (int)rt, (int)rn, -1, A64_INDEX_OFFSET);
+            }
             tcti_write_reg_or_zr(cpu, (int)rs, success ? 0 : 1, 0);
+        }
     }
 
     if (ret == A64_MEM_OK)
@@ -1030,34 +1072,12 @@ int a64_tcti_str_x_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64_t rt,
 int _a64_tcti_ldr_x_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64_t rt, uint64_t rn,
                            int64_t imm, uint64_t size, uint64_t idx_mode, uint64_t meta)
 {
-    static int ldr_helper_reach_budget = 0;
-    if (ldr_helper_reach_budget > 0) {
-        char ev[224];
-        snprintf(
-            ev, sizeof(ev),
-            "ldst.fault.helper_reach=kind:ldr,guest_pc:0x%llx,rt:%llu,rn:%llu,idx:%llu,imm:%lld",
-            (unsigned long long)fault_pc, (unsigned long long)rt, (unsigned long long)rn,
-            (unsigned long long)idx_mode, (long long)imm);
-        trace_record_event(TRACE_ORIGIN_EXEC, ev);
-        ldr_helper_reach_budget--;
-    }
     return a64_tcti_ldr_x_helper(cpu, fault_pc, rt, rn, imm, size, idx_mode, meta);
 }
 
 int _a64_tcti_str_x_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64_t rt, uint64_t rn,
                            int64_t imm, uint64_t size, uint64_t idx_mode, uint64_t meta)
 {
-    static int str_helper_reach_budget = 0;
-    if (str_helper_reach_budget > 0) {
-        char ev[224];
-        snprintf(
-            ev, sizeof(ev),
-            "ldst.fault.helper_reach=kind:str,guest_pc:0x%llx,rt:%llu,rn:%llu,idx:%llu,imm:%lld",
-            (unsigned long long)fault_pc, (unsigned long long)rt, (unsigned long long)rn,
-            (unsigned long long)idx_mode, (long long)imm);
-        trace_record_event(TRACE_ORIGIN_EXEC, ev);
-        str_helper_reach_budget--;
-    }
     return a64_tcti_str_x_helper(cpu, fault_pc, rt, rn, imm, size, idx_mode, meta);
 }
 
@@ -1354,8 +1374,6 @@ tcti_gadget_t gadget_b = gadget_b_impl;
     {                                                                                              \
         asm volatile("ldr x24, [x28], #8\n\t"                                                      \
                      "ldr x25, [x28], #8\n\t"                                                      \
-                     "ldr x26, [x29, #280]\n\t"                                                    \
-                     "msr nzcv, x26\n\t"                                                           \
                      "b." #cond " 1f\n\t"                                                          \
                      "mov x24, x25\n\t"                                                            \
                      "1:\n\t"                                                                      \
@@ -1364,7 +1382,7 @@ tcti_gadget_t gadget_b = gadget_b_impl;
                      "b _tcti_exit_block\n\t"                                                      \
                      :                                                                             \
                      : [pc_off] "i"(PC_OFFSET)                                                     \
-                     : "x24", "x25", "x26");                                                      \
+                     : "x24", "x25");                                                             \
     }
 
 GEN_BCOND(eq, eq);
@@ -4187,6 +4205,45 @@ __attribute__((visibility("default"))) int _a64_tcti_msr_helper(struct cpu_state
                                                                 uint64_t sysreg, uint64_t rt)
 {
     return a64_tcti_msr_helper(cpu, sysreg, rt);
+}
+
+__attribute__((naked)) void gadget_dc_zva_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t"
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "str x13, [x29, #112]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "bl _a64_tcti_dc_zva_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "ldp x1, x2, [x29, #16]\n\t"
+                 "ldp x3, x4, [x29, #32]\n\t"
+                 "ldp x5, x6, [x29, #48]\n\t"
+                 "ldp x7, x8, [x29, #64]\n\t"
+                 "ldp x9, x10, [x29, #80]\n\t"
+                 "ldp x11, x12, [x29, #96]\n\t"
+                 "ldr x13, [x29, #112]\n\t"
+                 "cmp x0, #0\n\t"
+                 "b.ne 1f\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t"
+                 "1:\n\t"
+                 "mov x0, #3\n\t"
+                 "b _tcti_exit_block\n\t");
+}
+
+tcti_gadget_t gadget_dc_zva = gadget_dc_zva_impl;
+
+__attribute__((visibility("default"))) int _a64_tcti_dc_zva_helper(struct cpu_state *cpu,
+                                                                   uint64_t rt)
+{
+    return a64_tcti_dc_zva_helper(cpu, rt);
 }
 
 __attribute__((naked)) void gadget_svc_impl(void)
