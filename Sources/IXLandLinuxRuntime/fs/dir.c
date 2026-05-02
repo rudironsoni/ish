@@ -74,6 +74,7 @@ int64_t sys_getdents_common(fd_t f, addr_t dirents, uint64_t count,
     long ptr;
     int err;
     int printed = 0;
+    bool rewind_to_last_entry = false;
     while (true) {
         ptr = fd_telldir(fd);
         struct dir_entry entry;
@@ -96,15 +97,18 @@ int64_t sys_getdents_common(fd_t f, addr_t dirents, uint64_t count,
             printed++;
         }
 
-        if (reclen > count)
+        if (reclen > count) {
+            rewind_to_last_entry = true;
             break;
+        }
         if (user_write(dirents, dirent_data, reclen))
             return _EFAULT;
         dirents += reclen;
         count -= reclen;
     }
 
-    fd_seekdir(fd, ptr);
+    if (rewind_to_last_entry)
+        fd_seekdir(fd, ptr);
     return orig_count - count;
 }
 

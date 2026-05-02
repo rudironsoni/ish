@@ -974,7 +974,7 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
         }
     }];
     UIView *oldBarView = self.termView.inputAccessoryView;
-    self.termView.inputAccessoryView = nil;
+    self.termView.inputAccessoryView = self.terminal.loaded ? self.terminal.webView.inputAccessoryView : nil;
     if (self.termView.inputAccessoryView != oldBarView && self.termView.isFirstResponder) {
         dispatch_async(dispatch_get_main_queue(), ^{
             self.ignoreKeyboardMotion = YES; // avoid infinite recursion
@@ -1156,6 +1156,7 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 - (void)setTerminal:(Terminal *)terminal {
     _terminal = terminal;
     self.termView.terminal = self.terminal;
+    self.termView.inputAccessoryView = self.terminal.loaded ? self.terminal.webView.inputAccessoryView : nil;
 }
 
 - (void)setSessionTerminal:(Terminal *)sessionTerminal {

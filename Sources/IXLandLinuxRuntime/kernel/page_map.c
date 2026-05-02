@@ -182,7 +182,7 @@ void page_map_iterate_range(struct page_map *map, uint64_t start_page, uint64_t 
 
         if (node->level < PAGE_MAP_LEVELS - 1) {
             uint64_t shift = PAGE_MAP_FANOUT * (PAGE_MAP_LEVELS - 1 - node->level);
-            uint64_t span = (uint64_t)PAGE_MAP_ENTRIES << shift;
+            uint64_t span = 1ULL << shift;
             for (unsigned i = 0; i < PAGE_MAP_ENTRIES; i++) {
                 if (!node->children[i])
                     continue;

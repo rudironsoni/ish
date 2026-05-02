@@ -298,46 +298,71 @@ int pt_set_flags(struct mem *mem, page_t start, pages_t pages, int flags)
     return 0;
 }
 
-int pt_copy_on_write(struct mem *src, struct mem *dst, page_t start, pages_t pages)
+struct cow_copy_ctx {
+    struct mem *src;
+    struct mem *dst;
+    int err;
+};
+
+static int pt_copy_on_write_page(uint64_t page, struct page_desc *src_desc, void *opaque)
 {
-    for (page_t page = start; page < start + pages; page++) {
-        struct page_desc *src_desc = page_map_lookup(&src->pages, page);
-        if (!src_desc)
-            continue;
+    struct cow_copy_ctx *ctx = opaque;
+    struct mem *src = ctx->src;
+    struct mem *dst = ctx->dst;
 
-        struct page_desc *old_dst = page_map_remove(&dst->pages, page);
-        if (old_dst) {
-            mem_object_retire(old_dst->obj);
-            retire_list_add(dst, old_dst->obj);
-            free(old_dst);
-        }
+    struct page_desc *old_dst = page_map_remove(&dst->pages, page);
+    if (old_dst) {
+        mem_object_retire(old_dst->obj);
+        retire_list_add(dst, old_dst->obj);
+        free(old_dst);
+    }
 
-        if (!(src_desc->flags & P_SHARED))
-            src_desc->flags |= P_COW;
+    if (!(src_desc->flags & P_SHARED))
+        src_desc->flags |= P_COW;
 
-        struct page_desc *dst_desc = malloc(sizeof(struct page_desc));
-        if (!dst_desc)
-            return _ENOMEM;
-        dst_desc->obj = src_desc->obj;
-        dst_desc->offset = src_desc->offset;
-        dst_desc->flags = src_desc->flags;
-        mem_object_retain(dst_desc->obj);
-        page_map_install(&dst->pages, page, dst_desc);
+    struct page_desc *dst_desc = malloc(sizeof(struct page_desc));
+    if (!dst_desc) {
+        ctx->err = _ENOMEM;
+        return 1;
+    }
+    dst_desc->obj = src_desc->obj;
+    dst_desc->offset = src_desc->offset;
+    dst_desc->flags = src_desc->flags;
+    if (page_map_install(&dst->pages, page, dst_desc) < 0) {
+        free(dst_desc);
+        ctx->err = _ENOMEM;
+        return 1;
+    }
 
-        struct vm_area *src_vma = vma_tree_find(&src->vmas, page << PAGE_BITS);
-        if (src_vma) {
-            struct vm_area *dst_vma = vma_tree_find(&dst->vmas, page << PAGE_BITS);
+    struct vm_area *src_vma = vma_tree_find(&src->vmas, page << PAGE_BITS);
+    if (src_vma) {
+        struct vm_area *dst_vma = vma_tree_find(&dst->vmas, page << PAGE_BITS);
+        if (!dst_vma) {
+            dst_vma = vma_alloc();
             if (!dst_vma) {
-                dst_vma = vma_alloc();
-                dst_vma->start = src_vma->start;
-                dst_vma->end = src_vma->end;
-                dst_vma->flags = src_vma->flags | P_COW;
-                dst_vma->obj = src_vma->obj;
-                dst_vma->obj_offset = src_vma->obj_offset;
-                vma_tree_insert(&dst->vmas, dst_vma);
+                ctx->err = _ENOMEM;
+                return 1;
             }
+            dst_vma->start = src_vma->start;
+            dst_vma->end = src_vma->end;
+            dst_vma->flags = src_vma->flags;
+            if (!(src_desc->flags & P_SHARED))
+                dst_vma->flags |= P_COW;
+            dst_vma->obj = src_vma->obj;
+            dst_vma->obj_offset = src_vma->obj_offset;
+            vma_tree_insert(&dst->vmas, dst_vma);
         }
     }
+
+    return 0;
+}
+
+int pt_copy_on_write(struct mem *src, struct mem *dst, page_t start, pages_t pages)
+{
+    struct cow_copy_ctx ctx = { .src = src, .dst = dst, .err = 0 };
+    page_map_iterate_range(&src->pages, start, pages, pt_copy_on_write_page, &ctx);
+    if (ctx.err < 0)
+        return ctx.err;
 
     mem_bump_generation(src);
     mem_bump_generation(dst);
