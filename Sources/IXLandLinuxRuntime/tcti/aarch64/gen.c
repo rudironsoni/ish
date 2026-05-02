@@ -838,7 +838,7 @@ int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr)
         if (ret != A64_GEN_OK)
             return ret;
 
-        // Emit current PC for interpreter fallback
+        // Emit current PC for diagnostics
         ret = emit_u64(state, state->guest_pc);
         if (ret != A64_GEN_OK)
             return ret;

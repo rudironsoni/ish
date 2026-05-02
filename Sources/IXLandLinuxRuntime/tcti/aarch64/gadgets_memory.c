@@ -33,6 +33,7 @@
 #import <IXLandLinuxRuntime/kernel/task.h>
 #import <IXLandLinuxRuntime/tcti/gadgets_tcti.h>
 #include <assert.h>
+#include <limits.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -2754,104 +2755,45 @@ const tcti_gadget_t gadget_tbnz_reg[16] = {
 
 __attribute__((naked)) void gadget_sbfm_impl(void)
 {
-    asm volatile(
-        // Save guest registers (x0-x15 in guest = x1-x16 in host) to cpu_state
-        "stp x1, x2, [x29, #16]\n\t"
-        "stp x3, x4, [x29, #32]\n\t"
-        "stp x5, x6, [x29, #48]\n\t"
-        "stp x7, x8, [x29, #64]\n\t"
-        "stp x9, x10, [x29, #80]\n\t"
-        "stp x11, x12, [x29, #96]\n\t"
-        "stp x13, x14, [x29, #112]\n\t"
-        "stp x15, x16, [x29, #128]\n\t"
-        // Load parameters (x19-x24 are preserved by ABI, safe to use)
-        "ldr x19, [x28], #8\n\t" // fault_pc
-        "ldr x20, [x28], #8\n\t" // rd
-        "ldr x21, [x28], #8\n\t" // rn
-        "ldr x22, [x28], #8\n\t" // immr
-        "ldr x23, [x28], #8\n\t" // imms
-        "ldr x24, [x28], #8\n\t" // is_64bit
-        // Load source operand (using x17 as temp, preserved by TCTI entry)
-        "cmp x21, #31\n\t"
-        "b.eq 1f\n\t"
-        "add x17, x29, #16\n\t"
-        "add x17, x17, x21, lsl #3\n\t"
-        "ldr x17, [x17]\n\t"
-        "b 2f\n\t"
-        "1:\n\t"
-        "ldr x17, [x29, #264]\n\t" // SP
-        "2:\n\t"
-        // Compute datasize_mask (x25)
-        "mov x0, #0xffffffff\n\t"
-        "mov x25, #-1\n\t"
-        "cmp x24, #0\n\t"
-        "csel x25, x0, x25, eq\n\t"
-        "and x17, x17, x25\n\t" // src &= datasize_mask
-        // Compute datasize (x26)
-        "cmp x24, #0\n\t"
-        "mov x0, #32\n\t"
-        "mov x26, #64\n\t"
-        "csel x26, x0, x26, eq\n\t"
-        // ROR(src, immr) - result in x17
-        // Use x19 as temp since params are already loaded
-        "sub x19, x26, x22\n\t" // x19 = datasize - immr (shift amount)
-        "lsr x0, x17, x22\n\t"  // x0 = src >> immr
-        "lsl x19, x17, x19\n\t" // x19 = src << (datasize - immr)
-        "orr x17, x19, x0\n\t"  // x17 = ROR result
-        "and x17, x17, x25\n\t" // mask to datasize
-        // Compute width = (imms - immr + 1) mod datasize
-        "cmp x23, x22\n\t"
-        "b.hs 3f\n\t"
-        "add x0, x23, #1\n\t"
-        "add x0, x0, x26\n\t"
-        "sub x0, x0, x22\n\t"
-        "b 4f\n\t"
-        "3:\n\t"
-        "sub x0, x23, x22\n\t"
-        "add x0, x0, #1\n\t"
-        "4:\n\t"
-        // Compute wmask = (1 << width) - 1, or all 1s if width == datasize
-        "cmp x0, x26\n\t"
-        "b.eq 5f\n\t"
-        "mov x25, #1\n\t"
-        "lsl x25, x25, x0\n\t"
-        "sub x25, x25, #1\n\t"
-        "b 6f\n\t"
-        "5:\n\t"
-        "mov x25, #-1\n\t"
-        "6:\n\t"
-        "and x17, x17, x25\n\t" // result = ROR & wmask
-        // Sign extend: if result[width-1] == 1, set bits [datasize-1:width]
-        "sub x0, x0, #1\n\t" // x0 = width - 1 (MSB position)
-        "mov x26, #1\n\t"
-        "lsl x26, x26, x0\n\t"  // x26 = 1 << (width-1)
-        "tst x17, x26\n\t"      // Test MSB
-        "b.eq 9f\n\t"           // MSB = 0, no sign extension
-        "sub x26, x26, #1\n\t"  // x26 = (1 << (width-1)) - 1 = lower mask
-        "mvn x26, x26\n\t"      // x26 = ~lower mask = upper bits set
-        "orr x17, x17, x26\n\t" // Set upper bits
-        "9:\n\t"
-        // Store result
-        "cmp x20, #31\n\t"
-        "b.eq 10f\n\t"
-        "add x0, x29, #16\n\t"
-        "add x0, x0, x20, lsl #3\n\t"
-        "str x17, [x0]\n\t"
-        "b 11f\n\t"
-        "10:\n\t"
-        "str x17, [x29, #264]\n\t" // xzr
-        "11:\n\t"
-        // Restore guest registers
-        "ldp x1, x2, [x29, #16]\n\t"
-        "ldp x3, x4, [x29, #32]\n\t"
-        "ldp x5, x6, [x29, #48]\n\t"
-        "ldp x7, x8, [x29, #64]\n\t"
-        "ldp x9, x10, [x29, #80]\n\t"
-        "ldp x11, x12, [x29, #96]\n\t"
-        "ldp x13, x14, [x29, #112]\n\t"
-        "ldp x15, x16, [x29, #128]\n\t"
-        "ldr x27, [x28], #8\n\t"
-        "br x27\n\t");
+    asm volatile("ldr x19, [x28], #8\n\t" // fault_pc
+                 "ldr x20, [x28], #8\n\t" // rd
+                 "ldr x21, [x28], #8\n\t" // rn
+                 "ldr x22, [x28], #8\n\t" // immr
+                 "ldr x23, [x28], #8\n\t" // imms
+                 "ldr x24, [x28], #8\n\t" // is_64bit
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "stp x13, x14, [x29, #112]\n\t"
+                 "stp x15, x16, [x29, #128]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x20\n\t"
+                 "mov x2, x21\n\t"
+                 "mov x3, x22\n\t"
+                 "mov x4, x23\n\t"
+                 "mov x5, x24\n\t"
+                 "mov x6, #11\n\t"
+                 "bl _tcti_bitfield_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "ldp x1, x2, [x29, #16]\n\t"
+                 "ldp x3, x4, [x29, #32]\n\t"
+                 "ldp x5, x6, [x29, #48]\n\t"
+                 "ldp x7, x8, [x29, #64]\n\t"
+                 "ldp x9, x10, [x29, #80]\n\t"
+                 "ldp x11, x12, [x29, #96]\n\t"
+                 "ldp x13, x14, [x29, #112]\n\t"
+                 "ldp x15, x16, [x29, #128]\n\t"
+                 "cmp x20, #16\n\t"
+                 "b.hs 1f\n\t"
+                 "mov x26, x20\n\t"
+                 "bl _tcti_sync_hot_reg_from_cpu\n\t"
+                 "1:\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
 }
 
 tcti_gadget_t gadget_sbfm = gadget_sbfm_impl;
@@ -2872,75 +2814,16 @@ __attribute__((naked)) void gadget_bfm_impl(void)
                  "stp x11, x12, [x29, #96]\n\t"
                  "stp x13, x14, [x29, #112]\n\t"
                  "stp x15, x16, [x29, #128]\n\t"
-                 "cmp x21, #31\n\t"
-                 "b.eq 1f\n\t"
-                 "add x0, x29, #16\n\t"
-                 "add x0, x0, x21, lsl #3\n\t"
-                 "ldr x0, [x0]\n\t"
-                 "b 2f\n\t"
-                 "1:\n\t"
-                 "ldr x0, [x29, #264]\n\t"
-                 "2:\n\t"
-                 "cmp x20, #31\n\t"
-                 "b.eq 12f\n\t"
-                 "add x1, x29, #16\n\t"
-                 "add x1, x1, x20, lsl #3\n\t"
-                 "ldr x1, [x1]\n\t"
-                 "b 13f\n\t"
-                 "12:\n\t"
-                 "ldr x1, [x29, #264]\n\t"
-                 "13:\n\t"
-                 "mov x2, #0xffffffff\n\t"
-                 "mov x3, #-1\n\t"
-                 "cmp x24, #0\n\t"
-                 "csel x3, x2, x3, eq\n\t"
-                 "cmp x24, #0\n\t"
-                 "mov x2, #32\n\t"
-                 "mov x4, #64\n\t"
-                 "csel x2, x2, x4, eq\n\t"
-                 "and x0, x0, x3\n\t"
-                 "and x1, x1, x3\n\t"
-                 "sub x4, x2, x22\n\t"
-                 "sub x5, x2, #1\n\t"
-                 "and x4, x4, x5\n\t"
-                 "lsr x6, x0, x22\n\t"
-                 "lsl x7, x0, x4\n\t"
-                 "orr x6, x6, x7\n\t"
-                 "and x6, x6, x3\n\t"
-                 "cmp x23, x22\n\t"
-                 "b.hs 3f\n\t"
-                 "add x9, x23, #1\n\t"
-                 "add x9, x9, x2\n\t"
-                 "sub x9, x9, x22\n\t"
-                 "b 4f\n\t"
-                 "3:\n\t"
-                 "sub x9, x23, x22\n\t"
-                 "add x9, x9, #1\n\t"
-                 "4:\n\t"
-                 "cmp x9, x2\n\t"
-                 "b.eq 5f\n\t"
-                 "mov x10, #1\n\t"
-                 "lsl x10, x10, x9\n\t"
-                 "sub x10, x10, #1\n\t"
-                 "b 6f\n\t"
-                 "5:\n\t"
-                 "mov x10, #-1\n\t"
-                 "6:\n\t"
-                 "and x10, x10, x3\n\t"
-                 "and x11, x6, x10\n\t"
-                 "mvn x12, x10\n\t"
-                 "and x1, x1, x12\n\t"
-                 "orr x11, x11, x1\n\t"
-                 "and x11, x11, x3\n\t"
-                 "cmp x20, #31\n\t"
-                 "b.eq 10f\n\t"
-                 "add x12, x29, #16\n\t"
-                 "add x12, x12, x20, lsl #3\n\t"
-                 "str x11, [x12]\n\t"
-                 "b 11f\n\t"
-                 "10:\n\t"
-                 "str x11, [x29, #264]\n\t"
-                 "11:\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x20\n\t"
+                 "mov x2, x21\n\t"
+                 "mov x3, x22\n\t"
+                 "mov x4, x23\n\t"
+                 "mov x5, x24\n\t"
+                 "mov x6, #12\n\t"
+                 "bl _tcti_bitfield_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
                  "ldp x1, x2, [x29, #16]\n\t"
                  "ldp x3, x4, [x29, #32]\n\t"
                  "ldp x5, x6, [x29, #48]\n\t"
@@ -2949,9 +2832,9 @@ __attribute__((naked)) void gadget_bfm_impl(void)
                  "ldp x11, x12, [x29, #96]\n\t"
                  "ldp x13, x14, [x29, #112]\n\t"
                  "ldp x15, x16, [x29, #128]\n\t"
-                 "cmp x19, #16\n\t"
+                 "cmp x20, #16\n\t"
                  "b.hs 1f\n\t"
-                 "mov x26, x19\n\t"
+                 "mov x26, x20\n\t"
                  "bl _tcti_sync_hot_reg_from_cpu\n\t"
                  "1:\n\t"
                  "ldr x27, [x28], #8\n\t"
@@ -2976,61 +2859,16 @@ __attribute__((naked)) void gadget_ubfm_impl(void)
                  "stp x11, x12, [x29, #96]\n\t"
                  "stp x13, x14, [x29, #112]\n\t"
                  "stp x15, x16, [x29, #128]\n\t"
-                 "cmp x21, #31\n\t"
-                 "b.eq 1f\n\t"
-                 "add x0, x29, #16\n\t"
-                 "add x0, x0, x21, lsl #3\n\t"
-                 "ldr x0, [x0]\n\t"
-                 "b 2f\n\t"
-                 "1:\n\t"
-                 "ldr x0, [x29, #264]\n\t"
-                 "2:\n\t"
-                 "mov x2, #0xffffffff\n\t"
-                 "mov x3, #-1\n\t"
-                 "cmp x24, #0\n\t"
-                 "csel x3, x2, x3, eq\n\t"
-                 "cmp x24, #0\n\t"
-                 "mov x2, #32\n\t"
-                 "mov x4, #64\n\t"
-                 "csel x2, x2, x4, eq\n\t"
-                 "and x0, x0, x3\n\t"
-                 "sub x4, x2, x22\n\t"
-                 "sub x5, x2, #1\n\t"
-                 "and x4, x4, x5\n\t"
-                 "lsr x6, x0, x22\n\t"
-                 "lsl x7, x0, x4\n\t"
-                 "orr x6, x6, x7\n\t"
-                 "and x6, x6, x3\n\t"
-                 "cmp x23, x22\n\t"
-                 "b.hs 3f\n\t"
-                 "add x9, x23, #1\n\t"
-                 "add x9, x9, x2\n\t"
-                 "sub x9, x9, x22\n\t"
-                 "b 4f\n\t"
-                 "3:\n\t"
-                 "sub x9, x23, x22\n\t"
-                 "add x9, x9, #1\n\t"
-                 "4:\n\t"
-                 "cmp x9, x2\n\t"
-                 "b.eq 5f\n\t"
-                 "mov x10, #1\n\t"
-                 "lsl x10, x10, x9\n\t"
-                 "sub x10, x10, #1\n\t"
-                 "b 6f\n\t"
-                 "5:\n\t"
-                 "mov x10, #-1\n\t"
-                 "6:\n\t"
-                 "and x10, x10, x3\n\t"
-                 "and x11, x6, x10\n\t"
-                 "cmp x20, #31\n\t"
-                 "b.eq 10f\n\t"
-                 "add x12, x29, #16\n\t"
-                 "add x12, x12, x20, lsl #3\n\t"
-                 "str x11, [x12]\n\t"
-                 "b 11f\n\t"
-                 "10:\n\t"
-                 "str x11, [x29, #264]\n\t"
-                 "11:\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x20\n\t"
+                 "mov x2, x21\n\t"
+                 "mov x3, x22\n\t"
+                 "mov x4, x23\n\t"
+                 "mov x5, x24\n\t"
+                 "mov x6, #13\n\t"
+                 "bl _tcti_bitfield_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
                  "ldp x1, x2, [x29, #16]\n\t"
                  "ldp x3, x4, [x29, #32]\n\t"
                  "ldp x5, x6, [x29, #48]\n\t"
@@ -3039,9 +2877,9 @@ __attribute__((naked)) void gadget_ubfm_impl(void)
                  "ldp x11, x12, [x29, #96]\n\t"
                  "ldp x13, x14, [x29, #112]\n\t"
                  "ldp x15, x16, [x29, #128]\n\t"
-                 "cmp x19, #16\n\t"
+                 "cmp x20, #16\n\t"
                  "b.hs 1f\n\t"
-                 "mov x26, x19\n\t"
+                 "mov x26, x20\n\t"
                  "bl _tcti_sync_hot_reg_from_cpu\n\t"
                  "1:\n\t"
                  "ldr x27, [x28], #8\n\t"
@@ -3812,6 +3650,109 @@ __attribute__((naked)) void gadget_div_fallback_impl(void)
 }
 
 tcti_gadget_t gadget_div_fallback = gadget_div_fallback_impl;
+
+static unsigned tcti_highest_set_bit32(uint32_t value)
+{
+    for (int bit = 31; bit >= 0; bit--) {
+        if (value & (1u << bit))
+            return (unsigned)bit;
+    }
+    return UINT_MAX;
+}
+
+static uint64_t tcti_ones(unsigned width)
+{
+    if (width >= 64)
+        return UINT64_MAX;
+    if (width == 0)
+        return 0;
+    return (1ULL << width) - 1ULL;
+}
+
+static uint64_t tcti_ror_width(uint64_t value, unsigned amount, unsigned width)
+{
+    uint64_t mask = tcti_ones(width);
+    value &= mask;
+    amount %= width;
+    if (amount == 0)
+        return value;
+    return ((value >> amount) | (value << (width - amount))) & mask;
+}
+
+static uint64_t tcti_replicate_element(uint64_t element, unsigned element_width,
+                                       unsigned register_width)
+{
+    uint64_t result = 0;
+    uint64_t mask = tcti_ones(element_width);
+    element &= mask;
+    for (unsigned bit = 0; bit < register_width; bit += element_width)
+        result |= element << bit;
+    return result & tcti_ones(register_width);
+}
+
+static int tcti_decode_bit_masks(unsigned n, unsigned imms, unsigned immr,
+                                 unsigned register_width, uint64_t *wmask,
+                                 uint64_t *tmask)
+{
+    uint32_t len_input = (uint32_t)((n << 6) | ((~imms) & 0x3f));
+    unsigned len = tcti_highest_set_bit32(len_input);
+    if (len == UINT_MAX || len < 1)
+        return -1;
+    if (register_width == 32 && len > 5)
+        return -1;
+
+    unsigned levels = (1u << len) - 1u;
+    unsigned s = imms & levels;
+    unsigned r = immr & levels;
+    unsigned diff = (s - r) & levels;
+    unsigned element_width = 1u << len;
+
+    uint64_t welem = tcti_ones(s + 1);
+    uint64_t telem = tcti_ones(diff + 1);
+    *wmask = tcti_replicate_element(tcti_ror_width(welem, r, element_width), element_width,
+                                    register_width);
+    *tmask = tcti_replicate_element(telem, element_width, register_width);
+    return 0;
+}
+
+__attribute__((used)) void tcti_bitfield_helper(struct cpu_state *cpu, uint64_t rd,
+                                                uint64_t rn, uint64_t immr, uint64_t imms,
+                                                uint64_t is_64bit, uint64_t subtype)
+{
+    unsigned register_width = is_64bit ? 64 : 32;
+    uint64_t width_mask = tcti_ones(register_width);
+    uint64_t src = tcti_read_reg_or_zr(cpu, (int)rn) & width_mask;
+    uint64_t dst = tcti_read_reg_or_zr(cpu, (int)rd) & width_mask;
+    uint64_t wmask = 0;
+    uint64_t tmask = 0;
+    unsigned n = is_64bit ? 1u : 0u;
+
+    if (tcti_decode_bit_masks(n, (unsigned)imms, (unsigned)immr, register_width, &wmask,
+                              &tmask) < 0)
+        return;
+
+    uint64_t bot = tcti_ror_width(src, (unsigned)immr, register_width) & wmask;
+    uint64_t result;
+
+    switch (subtype) {
+    case 11: { // SBFM
+        uint64_t sign = (src >> (imms & (register_width - 1))) & 1ULL;
+        uint64_t top = sign ? (width_mask & ~tmask) : 0;
+        result = top | bot;
+        break;
+    }
+    case 12: // BFM
+        result = (dst & ~wmask) | bot;
+        break;
+    case 13: // UBFM
+        result = bot;
+        break;
+    default:
+        return;
+    }
+
+    tcti_write_reg_or_zr(cpu, (int)rd, result & width_mask, is_64bit != 0);
+}
 
 static int tcti_cond_holds(uint64_t nzcv, uint64_t cond)
 {

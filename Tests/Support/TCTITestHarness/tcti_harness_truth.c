@@ -879,6 +879,24 @@ uint64_t tcti_harness_case_dynamic_tag_scaled_store_uses_full_index(void)
     return result;
 }
 
+uint64_t tcti_harness_case_musl_ubfiz_symbol_index_preserves_shifted_bits(void)
+{
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.x[4] = 0xaaaaaaaaaaaaaaaaULL;
+    cpu.x[6] = 0xffffffffULL;
+
+    static const uint32_t insns[] = {
+        0xd37d7cc4, // ubfiz x4, x6, #3, #32
+    };
+
+    if (tcti_harness_run_generated_block(&cpu, 0x698c0, insns,
+                                         sizeof(insns) / sizeof(insns[0])) < 0)
+        return UINT64_MAX;
+
+    return cpu.x[4];
+}
+
 uint64_t tcti_harness_case_pltrel_rela_stride_selector(void)
 {
     enum {

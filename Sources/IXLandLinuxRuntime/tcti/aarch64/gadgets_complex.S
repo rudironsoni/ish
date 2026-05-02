@@ -107,140 +107,62 @@ gadget_str_imm:
  *
  * Bytecode format:
  *   [gadget_sbfm, Rd, Rn, immr, imms, is_64bit, next_gadget]
+ *   [gadget_bfm,  Rd, Rn, immr, imms, is_64bit, next_gadget]
  *   [gadget_ubfm, Rd, Rn, immr, imms, is_64bit, next_gadget]
- *
- * SBFM: Signed bitfield move (replicates sign bit)
- * UBFM: Unsigned bitfield move (zero extends)
- *
- * Algorithm:
- *   1. Rotate right by immr
- *   2. Extract bits 0 to imms
- *   3. For SBFM: sign extend from bit imms
  */
 
-// SBFM - Signed bitfield move
+.macro bitfield_gadget subtype
+    ldr     x19, [x28], #8          // rd
+    ldr     x20, [x28], #8          // rn
+    ldr     x21, [x28], #8          // immr
+    ldr     x22, [x28], #8          // imms
+    ldr     x23, [x28], #8          // is_64bit
+    stp     x1, x2, [x29, #16]
+    stp     x3, x4, [x29, #32]
+    stp     x5, x6, [x29, #48]
+    stp     x7, x8, [x29, #64]
+    stp     x9, x10, [x29, #80]
+    stp     x11, x12, [x29, #96]
+    stp     x13, x14, [x29, #112]
+    stp     x15, x16, [x29, #128]
+    bl      _tcti_c_call_prologue
+    mov     x0, x29
+    mov     x1, x19
+    mov     x2, x20
+    mov     x3, x21
+    mov     x4, x22
+    mov     x5, x23
+    mov     x6, #\subtype
+    bl      _tcti_bitfield_helper
+    bl      _tcti_c_call_epilogue
+    ldp     x1, x2, [x29, #16]
+    ldp     x3, x4, [x29, #32]
+    ldp     x5, x6, [x29, #48]
+    ldp     x7, x8, [x29, #64]
+    ldp     x9, x10, [x29, #80]
+    ldp     x11, x12, [x29, #96]
+    ldp     x13, x14, [x29, #112]
+    ldp     x15, x16, [x29, #128]
+    cmp     x19, #16
+    b.hs    1f
+    mov     x26, x19
+    bl      _tcti_sync_hot_reg_from_cpu
+1:
+    ldr     x27, [x28], #8
+    br      x27
+.endm
+
 .global _gadget_sbfm
 gadget_sbfm:
-    // Load parameters
-    ldr     x0, [x28], #8           // x0 = Rd
-    ldr     x1, [x28], #8           // x1 = Rn
-    ldr     x2, [x28], #8           // x2 = immr (rotate amount)
-    ldr     x3, [x28], #8           // x3 = imms (field width - 1)
-    ldr     x4, [x28], #8           // x4 = is_64bit
-    ldr     x27, [x28], #8          // x27 = next gadget
-    
-    // Get source value from Rn
-    cmp     x1, #31
-    b.eq    1f
-    add     x5, x29, #CPU_OFFSET_x
-    lsl     x6, x1, #3
-    ldr     x5, [x5, x6]            // x5 = cpu->x[Rn]
-    b       2f
-1:
-    ldr     x5, [x29, #CPU_OFFSET_sp] // x5 = cpu->sp (XZR for source)
-    mov     x5, #0
-2:
-    
-    // Apply bitfield operation
-    // Step 1: Rotate right by immr
-    neg     x6, x2                  // x6 = -immr
-    cmp     x4, #0
-    b.eq    3f
-    // 64-bit rotate
-    ror     x5, x5, x2
-    b       4f
-3:
-    // 32-bit rotate (mask to 32 bits first)
-    and     x5, x5, #0xFFFFFFFF
-    ror     w5, w5, w2
-4:
-    
-    // Step 2: Extract field and sign extend
-    // Create mask: (1 << (imms + 1)) - 1
-    add     x6, x3, #1              // x6 = imms + 1
-    mov     x7, #1
-    lsl     x7, x7, x6              // x7 = 1 << (imms + 1)
-    sub     x7, x7, #1              // x7 = mask
-    
-    and     x5, x5, x7              // x5 = value & mask
-    
-    // Step 3: Sign extend if bit imms is set
-    lsl     x6, x5, #1
-    lsl     x6, x6, x3              // Shift left to check sign bit
-    cmp     x6, #0
-    b.ge    5f                      // If positive, no extension needed
-    
-    // Sign extend: set all bits above imms
-    neg     x6, x7                  // x6 = ~mask (bits above field)
-    sub     x6, x6, #1
-    orr     x5, x5, x6              // x5 = value | extension
-5:
-    
-    // Store result to Rd
-    cmp     x0, #31
-    b.eq    6f
-    add     x6, x29, #CPU_OFFSET_x
-    lsl     x7, x0, #3
-    str     x5, [x6, x7]            // cpu->x[Rd] = result
-    b       7f
-6:
-    str     x5, [x29, #CPU_OFFSET_sp] // cpu->sp = result
-7:
-    
-    // Continue to next gadget
-    br      x27
+    bitfield_gadget 11
 
-// UBFM - Unsigned bitfield move
+.global _gadget_bfm
+gadget_bfm:
+    bitfield_gadget 12
+
 .global _gadget_ubfm
 gadget_ubfm:
-    // Similar to SBFM but without sign extension
-    ldr     x0, [x28], #8           // x0 = Rd
-    ldr     x1, [x28], #8           // x1 = Rn
-    ldr     x2, [x28], #8           // x2 = immr
-    ldr     x3, [x28], #8           // x3 = imms
-    ldr     x4, [x28], #8           // x4 = is_64bit
-    ldr     x27, [x28], #8          // x27 = next gadget
-    
-    // Get source value
-    cmp     x1, #31
-    b.eq    1f
-    add     x5, x29, #CPU_OFFSET_x
-    lsl     x6, x1, #3
-    ldr     x5, [x5, x6]
-    b       2f
-1:
-    mov     x5, #0
-2:
-    
-    // Rotate and mask (no sign extension)
-    cmp     x4, #0
-    b.eq    3f
-    ror     x5, x5, x2
-    b       4f
-3:
-    and     x5, x5, #0xFFFFFFFF
-    ror     w5, w5, w2
-4:
-    
-    // Mask to field width
-    add     x6, x3, #1
-    mov     x7, #1
-    lsl     x7, x7, x6
-    sub     x7, x7, #1
-    and     x5, x5, x7
-    
-    // Store result
-    cmp     x0, #31
-    b.eq    5f
-    add     x6, x29, #CPU_OFFSET_x
-    lsl     x7, x0, #3
-    str     x5, [x6, x7]
-    b       6f
-5:
-    str     x5, [x29, #CPU_OFFSET_sp]
-6:
-    
-    br      x27
+    bitfield_gadget 13
 
 /* ============================================================================
  * CBZ/CBNZ Gadgets (Compare and Branch)

@@ -123,6 +123,14 @@
                     "without corrupting the DT_REL slot");
 }
 
+- (void)testSemanticExecutionContract_MuslUBFIZSymbolIndexPreservesShiftedBits
+{
+    XCTAssertEqual(tcti_harness_case_musl_ubfiz_symbol_index_preserves_shifted_bits(),
+                   0x00000007fffffff8ULL,
+                   @"TCTI UBFM/UBFIZ must use AArch64 bitmask semantics so musl dynlink keeps "
+                    "the high bits of shifted symbol table indexes");
+}
+
 - (void)testSemanticExecutionContract_PLTRELRELAStrideSelector
 {
     XCTAssertEqual(tcti_harness_case_pltrel_rela_stride_selector(), 3ULL,
