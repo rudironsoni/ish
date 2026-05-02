@@ -516,6 +516,27 @@ extern void gadget_br_impl(void);
     XCTAssertGreaterThan(state.num_gadgets, (size_t)0);
 }
 
+- (void)testLoweringContract_SIMDFMOVGPRToScalarLowers
+{
+    uint32_t fmovS31W3 = 0x1e27007f;
+    a64_instr_t decoded;
+    XCTAssertEqual(a64_decode(fmovS31W3, &decoded), 0);
+    XCTAssertEqual(decoded.cat, A64_SIMD);
+    XCTAssertEqual(decoded.subtype, A64_SIMD_FMOV_GPR);
+    XCTAssertEqual(decoded.Rd, 31);
+    XCTAssertEqual(decoded.Rn, 3);
+    XCTAssertEqual(decoded.vec_bytes, 4);
+    XCTAssertEqual(decoded.op, 1);
+
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
+    a64_gen_state_t state;
+    XCTAssertEqual(a64_gen_init(&state, gadgets, A64_MAX_GADGETS_PER_BLOCK), A64_GEN_OK);
+    a64_gen_reset(&state, 0x61a34);
+
+    XCTAssertEqual(a64_gen_instruction(&state, fmovS31W3, 0x61a34), A64_GEN_OK);
+    XCTAssertGreaterThan(state.num_gadgets, (size_t)0);
+}
+
 - (void)testLoweringContract_SIMDSTRQUnsignedImmediateLowers
 {
     uint32_t strQ0X0Imm16 = 0x3d800400;

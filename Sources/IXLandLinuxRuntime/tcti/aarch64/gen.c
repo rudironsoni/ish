@@ -52,6 +52,7 @@ extern tcti_gadget_t gadget_div_fallback;
 extern tcti_gadget_t gadget_simd_dup_gpr;
 extern tcti_gadget_t gadget_simd_mov_gpr_from_vec;
 extern tcti_gadget_t gadget_simd_movi_imm;
+extern tcti_gadget_t gadget_simd_fmov_gpr;
 extern tcti_gadget_t gadget_simd_ldst;
 extern tcti_gadget_t gadget_atomic_ldst;
 extern tcti_gadget_t gadget_extend_x14;
@@ -1917,6 +1918,21 @@ static int a64_gen_simd(a64_gen_state_t *state, const a64_instr_t *instr)
         if (ret != A64_GEN_OK)
             return ret;
         return emit_u64(state, instr->is_64bit ? 1 : 0);
+
+    case A64_SIMD_FMOV_GPR:
+        ret = emit_gadget(state, gadget_simd_fmov_gpr);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rd);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rn);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->vec_bytes);
+        if (ret != A64_GEN_OK)
+            return ret;
+        return emit_u64(state, instr->op ? 1 : 0);
 
     default:
         return A64_GEN_UNSUPPORTED;

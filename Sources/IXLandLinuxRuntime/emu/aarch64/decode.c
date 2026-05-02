@@ -958,6 +958,24 @@ int a64_decode_simd_fp(uint32_t insn, a64_instr_t *out)
         return 0;
     }
 
+    // Scalar floating-point move between general-purpose and FP/SIMD
+    // registers. Linux guest startup uses this class while entering musl shell
+    // code, so it must lower through TCTI rather than falling into the generic
+    // unsupported FP bucket.
+    if ((insn & 0xfffffc00u) == 0x1e270000u || // FMOV Sd, Wn
+        (insn & 0xfffffc00u) == 0x1e260000u || // FMOV Wd, Sn
+        (insn & 0xfffffc00u) == 0x9e670000u || // FMOV Dd, Xn
+        (insn & 0xfffffc00u) == 0x9e660000u) { // FMOV Xd, Dn
+        out->cat = bit(insn, 31) ? A64_SIMD2 : A64_SIMD;
+        out->subtype = A64_SIMD_FMOV_GPR;
+        out->Rd = bits(insn, 4, 0);
+        out->Rn = bits(insn, 9, 5);
+        out->vec_bytes = bit(insn, 31) ? 8 : 4;
+        out->is_64bit = bit(insn, 31);
+        out->op = bits(insn, 20, 16) == 7 ? 1 : 0; // 1: GPR -> FP, 0: FP -> GPR
+        return 0;
+    }
+
     // Floating point data processing (scalar)
     if (op0 == 0xE || op0 == 0xF) {
         (void)bit(insn, 31);            // M bit - part of encoding

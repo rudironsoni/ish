@@ -275,6 +275,36 @@ __attribute__((used)) static void tcti_simd_mov_gpr_from_vec_helper(struct cpu_s
     cpu->x[rd] = is_64bit ? value : (uint32_t)value;
 }
 
+__attribute__((used)) static void tcti_simd_fmov_gpr_helper(struct cpu_state *cpu, uint64_t rd,
+                                                            uint64_t rn,
+                                                            uint64_t vec_bytes,
+                                                            uint64_t gpr_to_fp)
+{
+    if (vec_bytes != 4 && vec_bytes != 8)
+        return;
+
+    if (gpr_to_fp) {
+        if (rd >= 32)
+            return;
+        uint64_t value = tcti_read_reg_or_zr(cpu, (int)rn);
+        if (vec_bytes == 4) {
+            cpu->vregs[rd].s[0] = (uint32_t)value;
+            return;
+        }
+        cpu->vregs[rd].d[0] = value;
+        return;
+    }
+
+    if (rd >= 31 || rn >= 32)
+        return;
+
+    if (vec_bytes == 4) {
+        cpu->x[rd] = cpu->vregs[rn].s[0];
+        return;
+    }
+    cpu->x[rd] = cpu->vregs[rn].d[0];
+}
+
 __attribute__((used)) static int tcti_simd_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc,
                                                       uint64_t rt, uint64_t rt2,
                                                       uint64_t rn, int64_t imm,
@@ -3956,6 +3986,46 @@ _tcti_simd_mov_gpr_from_vec_helper(struct cpu_state *cpu, uint64_t rd, uint64_t 
                                    uint64_t is_64bit)
 {
     tcti_simd_mov_gpr_from_vec_helper(cpu, rd, vn, vec_bytes, vec_index, is_64bit);
+}
+
+__attribute__((naked)) void gadget_simd_fmov_gpr_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t"
+                 "ldr x20, [x28], #8\n\t"
+                 "ldr x21, [x28], #8\n\t"
+                 "ldr x22, [x28], #8\n\t"
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "str x13, [x29, #112]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "mov x2, x20\n\t"
+                 "mov x3, x21\n\t"
+                 "mov x4, x22\n\t"
+                 "bl _tcti_simd_fmov_gpr_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "cbnz x22, 1f\n\t"
+                 "cmp x19, #13\n\t"
+                 "b.hs 1f\n\t"
+                 "mov x26, x19\n\t"
+                 "bl _tcti_sync_hot_reg_from_cpu\n\t"
+                 "1:\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
+tcti_gadget_t gadget_simd_fmov_gpr = gadget_simd_fmov_gpr_impl;
+
+__attribute__((visibility("default"))) void
+_tcti_simd_fmov_gpr_helper(struct cpu_state *cpu, uint64_t rd, uint64_t rn,
+                           uint64_t vec_bytes, uint64_t gpr_to_fp)
+{
+    tcti_simd_fmov_gpr_helper(cpu, rd, rn, vec_bytes, gpr_to_fp);
 }
 
 __attribute__((naked)) void gadget_atomic_ldst_impl(void)
