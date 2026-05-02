@@ -282,6 +282,20 @@
                     "routing one-source data-processing instructions through CSEL lowering");
 }
 
+- (void)testSemanticExecutionContract_MuslMutexLDAXRSTLXRRoundtripsLockWord
+{
+    XCTAssertEqual(tcti_harness_case_musl_mutex_ldaxr_stlxr_roundtrip(), 0ULL,
+                   @"TCTI must execute musl pthread mutex LDAXR/STLXR lock/unlock/relock "
+                    "sequences without leaving the lock word permanently busy");
+}
+
+- (void)testSemanticExecutionContract_MuslPthreadMutexLockFastPathReusesStatusRegister
+{
+    XCTAssertEqual(tcti_harness_case_musl_pthread_mutex_lock_fast_path(), 0ULL,
+                   @"TCTI must execute musl pthread_mutex_lock's fast LDAXR/STLXR path when "
+                    "the loaded register is reused as the exclusive-store status register");
+}
+
 - (void)testSemanticExecutionContract_ADDImmProducesCorrectResult
 {
     // Contract: ADD_IMM gadget MUST produce correct sum with immediate

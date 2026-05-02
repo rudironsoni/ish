@@ -2423,3 +2423,166 @@ uint64_t tcti_harness_case_musl_malloc_sizeclass_rbit_clz(void)
 
     return ((uint64_t)(uint32_t)cpu.x[2] << 32) | (uint32_t)cpu.x[3];
 }
+
+uint64_t tcti_harness_case_musl_mutex_ldaxr_stlxr_roundtrip(void)
+{
+    enum {
+        mutex_addr = 0x220104,
+        busy_value = 0x10,
+    };
+
+    struct mem mem;
+    mem_init(&mem);
+    if (pt_map_nothing(&mem, PAGE(mutex_addr), 1, P_READ | P_WRITE) < 0) {
+        mem_destroy(&mem);
+        return UINT64_MAX;
+    }
+
+    struct tlb tlb = {};
+    tlb_refresh(&tlb, &mem.mmu);
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.mmu = &mem.mmu;
+    cpu.tlb = &tlb;
+    cpu.x[1] = 0;
+    cpu.x[2] = busy_value;
+    cpu.x[3] = mutex_addr;
+    cpu.x[4] = mutex_addr;
+
+    if (a64_guest_write32(&cpu, cpu.tlb, mutex_addr, 0) != A64_MEM_OK) {
+        mem_destroy(&mem);
+        return UINT64_MAX - 1;
+    }
+
+    static const uint32_t lock_insns[] = {
+        0x885ffc80, // ldaxr w0, [x4]
+        0x8800fc82, // stlxr w0, w2, [x4]
+    };
+    int run_ret = tcti_harness_run_generated_block(&cpu, 0x632f4, lock_insns,
+                                                   sizeof(lock_insns) / sizeof(lock_insns[0]));
+    if (run_ret < 0) {
+        mem_destroy(&mem);
+        return 0x1000000000000000ULL | (uint64_t)(uint8_t)(-run_ret);
+    }
+
+    uint32_t lock_word = 0;
+    if (a64_guest_read32(&cpu, cpu.tlb, mutex_addr, &lock_word) != A64_MEM_OK) {
+        mem_destroy(&mem);
+        return UINT64_MAX - 2;
+    }
+    if ((uint32_t)cpu.x[0] != 0 || lock_word != busy_value) {
+        uint64_t result = 0x2000000000000000ULL | ((uint64_t)(uint32_t)cpu.x[0] << 32) |
+                          lock_word;
+        mem_destroy(&mem);
+        return result;
+    }
+
+    static const uint32_t unlock_insns[] = {
+        0x885ffc62, // ldaxr w2, [x3]
+        0x8800fc61, // stlxr w0, w1, [x3]
+    };
+    run_ret = tcti_harness_run_generated_block(&cpu, 0x63808, unlock_insns,
+                                               sizeof(unlock_insns) / sizeof(unlock_insns[0]));
+    if (run_ret < 0) {
+        mem_destroy(&mem);
+        return 0x3000000000000000ULL | (uint64_t)(uint8_t)(-run_ret);
+    }
+
+    if (a64_guest_read32(&cpu, cpu.tlb, mutex_addr, &lock_word) != A64_MEM_OK) {
+        mem_destroy(&mem);
+        return UINT64_MAX - 3;
+    }
+    if ((uint32_t)cpu.x[0] != 0 || (uint32_t)cpu.x[2] != busy_value || lock_word != 0) {
+        uint64_t result = 0x4000000000000000ULL | ((uint64_t)(uint32_t)cpu.x[0] << 32) |
+                          ((uint64_t)(uint32_t)cpu.x[2] << 16) | lock_word;
+        mem_destroy(&mem);
+        return result;
+    }
+
+    cpu.x[2] = busy_value;
+    run_ret = tcti_harness_run_generated_block(&cpu, 0x632f4, lock_insns,
+                                               sizeof(lock_insns) / sizeof(lock_insns[0]));
+    if (run_ret < 0) {
+        mem_destroy(&mem);
+        return 0x5000000000000000ULL | (uint64_t)(uint8_t)(-run_ret);
+    }
+
+    if (a64_guest_read32(&cpu, cpu.tlb, mutex_addr, &lock_word) != A64_MEM_OK) {
+        mem_destroy(&mem);
+        return UINT64_MAX - 4;
+    }
+
+    uint64_t result = 0;
+    result |= ((uint32_t)cpu.x[0] == 0) ? 0 : 1;
+    result |= (lock_word == busy_value) ? 0 : 2;
+
+    mem_destroy(&mem);
+    return result;
+}
+
+uint64_t tcti_harness_case_musl_pthread_mutex_lock_fast_path(void)
+{
+    enum {
+        mutex_addr = 0x230100,
+        lock_word_addr = mutex_addr + 4,
+        busy_value = 0x10,
+    };
+
+    struct mem mem;
+    mem_init(&mem);
+    if (pt_map_nothing(&mem, PAGE(mutex_addr), 1, P_READ | P_WRITE) < 0) {
+        mem_destroy(&mem);
+        return UINT64_MAX;
+    }
+
+    struct tlb tlb = {};
+    tlb_refresh(&tlb, &mem.mmu);
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.mmu = &mem.mmu;
+    cpu.tlb = &tlb;
+    cpu.x[0] = mutex_addr;
+
+    if (a64_guest_write32(&cpu, cpu.tlb, mutex_addr, 0) != A64_MEM_OK ||
+        a64_guest_write32(&cpu, cpu.tlb, lock_word_addr, 0) != A64_MEM_OK) {
+        mem_destroy(&mem);
+        return UINT64_MAX - 1;
+    }
+
+    static const uint32_t lock_insns[] = {
+        0xb9400001, // ldr w1, [x0]
+        0xf2400c3f, // tst x1, #0xf
+        0x54000141, // b.ne 0x632bc
+        0x91001001, // add x1, x0, #0x4
+        0x52800203, // mov w3, #0x10
+        0x885ffc22, // ldaxr w2, [x1]
+        0x350000a2, // cbnz w2, 0x632b8
+        0x8802fc23, // stlxr w2, w3, [x1]
+        0x35ffffa2, // cbnz w2, 0x632a0
+        0x52800000, // mov w0, #0
+    };
+
+    int run_ret =
+        tcti_harness_run_generated_block(&cpu, 0x6328c, lock_insns,
+                                         sizeof(lock_insns) / sizeof(lock_insns[0]));
+    if (run_ret < 0) {
+        mem_destroy(&mem);
+        return 0x1000000000000000ULL | (uint64_t)(uint8_t)(-run_ret);
+    }
+
+    uint32_t lock_word = 0;
+    if (a64_guest_read32(&cpu, cpu.tlb, lock_word_addr, &lock_word) != A64_MEM_OK) {
+        mem_destroy(&mem);
+        return UINT64_MAX - 2;
+    }
+
+    uint64_t result = 0;
+    result |= ((uint32_t)cpu.x[0] == 0) ? 0 : 1;
+    result |= ((uint32_t)cpu.x[2] == 0) ? 0 : 2;
+    result |= (lock_word == busy_value) ? 0 : 4;
+
+    mem_destroy(&mem);
+    return result;
+}

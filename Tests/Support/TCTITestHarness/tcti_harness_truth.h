@@ -61,6 +61,8 @@ uint64_t tcti_harness_case_add_shifted_hot_uses_scratch_carrier(void);
 uint64_t tcti_harness_case_add_extended_uxtw_uses_32bit_operand(void);
 uint64_t tcti_harness_case_logical_imm_memory_backed_source_uses_distinct_scratch(void);
 uint64_t tcti_harness_case_musl_malloc_sizeclass_rbit_clz(void);
+uint64_t tcti_harness_case_musl_mutex_ldaxr_stlxr_roundtrip(void);
+uint64_t tcti_harness_case_musl_pthread_mutex_lock_fast_path(void);
 
 #ifdef __cplusplus
 }
