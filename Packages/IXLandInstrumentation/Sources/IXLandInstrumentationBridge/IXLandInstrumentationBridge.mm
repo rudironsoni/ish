@@ -45,6 +45,34 @@ static void bridge_record_event(ixland_instrumentation_origin_t origin, const ch
     [ISHInstrumentation recordEvent:name];
 }
 
+static void bridge_record_event_attrs(ixland_instrumentation_origin_t origin,
+                                      const char *event_name,
+                                      const ixland_instrumentation_attribute_t *attrs,
+                                      uint32_t attr_count) {
+    (void)origin;
+
+    if (!atomic_load(&bridge_active)) {
+        return;
+    }
+
+    if (!event_name || strlen(event_name) == 0) {
+        return;
+    }
+
+    NSString *name = [NSString stringWithUTF8String:event_name];
+    NSMutableDictionary *attributes = nil;
+    if (attrs && attr_count > 0) {
+        attributes = [NSMutableDictionary dictionaryWithCapacity:attr_count];
+        for (uint32_t i = 0; i < attr_count; i++) {
+            NSString *key = attrs[i].key ? [NSString stringWithUTF8String:attrs[i].key] : @"";
+            NSString *value = attrs[i].value ? [NSString stringWithUTF8String:attrs[i].value] : @"";
+            attributes[key] = value;
+        }
+    }
+
+    [ISHInstrumentation recordEvent:name attributes:attributes];
+}
+
 static uint64_t bridge_begin_interval(ixland_instrumentation_origin_t origin, const char *interval_name,
                                       const ixland_instrumentation_attribute_t *attrs, uint32_t attr_count) {
     (void)origin;
@@ -101,6 +129,7 @@ static const ixland_instrumentation_sink_t bridge_sink = {
     .activate = bridge_activate,
     .is_active = bridge_is_active,
     .record_event = bridge_record_event,
+    .record_event_attrs = bridge_record_event_attrs,
     .begin_interval = bridge_begin_interval,
     .end_interval = bridge_end_interval,
 };

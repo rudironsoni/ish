@@ -29,6 +29,9 @@ typedef struct {
     void (*activate)(void);
     bool (*is_active)(void);
     void (*record_event)(ixland_instrumentation_origin_t origin, const char *event_name);
+    void (*record_event_attrs)(ixland_instrumentation_origin_t origin, const char *event_name,
+                               const ixland_instrumentation_attribute_t *attrs,
+                               uint32_t attr_count);
     uint64_t (*begin_interval)(ixland_instrumentation_origin_t origin, const char *interval_name,
                                const ixland_instrumentation_attribute_t *attrs,
                                uint32_t attr_count);
@@ -43,6 +46,10 @@ void ixland_instrumentation_activate(void);
 bool ixland_instrumentation_is_active(void);
 void ixland_instrumentation_record_event(ixland_instrumentation_origin_t origin,
                                          const char *event_name);
+void ixland_instrumentation_record_event_attrs(ixland_instrumentation_origin_t origin,
+                                               const char *event_name,
+                                               const ixland_instrumentation_attribute_t *attrs,
+                                               uint32_t attr_count);
 uint64_t ixland_instrumentation_begin_interval(ixland_instrumentation_origin_t origin,
                                                const char *interval_name,
                                                const ixland_instrumentation_attribute_t *attrs,

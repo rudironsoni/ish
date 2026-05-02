@@ -147,25 +147,14 @@ void trace_record_event_fields(int origin, const char *event_name, const trace_f
         }
     }
 
-    char event_buf[2048];
-    size_t used = 0;
-    int written = snprintf(event_buf, sizeof(event_buf), "%s=", event_name);
-    if (written < 0)
-        return;
-    used = (size_t)written < sizeof(event_buf) ? (size_t)written : sizeof(event_buf) - 1;
-
-    for (uint32_t i = 0; i < field_count && used < sizeof(event_buf) - 1; i++) {
-        const char *key = fields[i].key ? fields[i].key : "";
-        const char *value = values[i] ? values[i] : "";
-        written = snprintf(event_buf + used, sizeof(event_buf) - used, "%s%s:%s",
-                           i == 0 ? "" : ",", key, value);
-        if (written < 0)
-            break;
-        used += (size_t)written < sizeof(event_buf) - used ? (size_t)written
-                                                           : sizeof(event_buf) - used - 1;
+    ixland_instrumentation_attribute_t attrs[32];
+    for (uint32_t i = 0; i < field_count; i++) {
+        attrs[i].key = fields[i].key ? fields[i].key : "";
+        attrs[i].value = values[i] ? values[i] : "";
     }
 
-    ixland_instrumentation_record_event((ixland_instrumentation_origin_t)origin, event_buf);
+    ixland_instrumentation_record_event_attrs((ixland_instrumentation_origin_t)origin, event_name,
+                                              attrs, field_count);
 }
 
 uint64_t trace_begin_interval(int origin, const char *interval_name, const void *attrs,

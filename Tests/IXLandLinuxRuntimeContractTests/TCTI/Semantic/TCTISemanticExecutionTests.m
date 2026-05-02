@@ -62,6 +62,20 @@
                     "same flags");
 }
 
+- (void)testSemanticExecutionContract_VsnprintfZeroSizeCSETNEPreservesZeroFlag
+{
+    XCTAssertEqual(tcti_harness_case_vsnprintf_zero_size_cset_ne_preserves_zero_flag(), 0ULL,
+                   @"musl vsnprintf uses CMP; CSEL; CSET.NE; SUB for zero-size buffers. CSEL "
+                    "must preserve Z so CSET.NE stays 0 and the buffer length does not underflow");
+}
+
+- (void)testSemanticExecutionContract_GeneratedVsnprintfZeroSizeLengthDoesNotUnderflow
+{
+    XCTAssertEqual(tcti_harness_case_generated_vsnprintf_zero_size_length(), 0ULL,
+                   @"The generated TCTI block for musl vsnprintf zero-size setup must leave "
+                    "remaining length at 0, not UINT64_MAX");
+}
+
 - (void)testSemanticExecutionContract_CMPAddCSELNEPreservesZeroFlag
 {
     XCTAssertEqual(tcti_harness_case_cmp_add_csel_ne_uses_preserved_zero_flag(), 0ULL,
@@ -80,6 +94,20 @@
 {
     XCTAssertNotEqual(tcti_harness_case_strchrnul_vector_mask_finds_dot(), 0ULL,
                       @"The musl strchrnul word scan depends on EON and BIC, not just EOR and AND");
+}
+
+- (void)testSemanticExecutionContract_MuslMemsetDUPZeroesVectorStore
+{
+    XCTAssertEqual(tcti_harness_case_musl_memset_dup_zeroes_vector_store(), 0ULL,
+                   @"musl memset uses DUP v0.16b,w1 before vector stores; TCTI must update v0 "
+                    "so stale SIMD state cannot corrupt guest heap/list objects");
+}
+
+- (void)testSemanticExecutionContract_MuslMemsetDUPReplicatesByteFill
+{
+    XCTAssertEqual(tcti_harness_case_musl_memset_dup_replicates_byte_fill(), 0ULL,
+                   @"musl memset's DUP v0.16b,w1 must replicate the low byte across every byte, "
+                    "not decode as MOVI or replicate 32-bit lanes");
 }
 
 - (void)testSemanticExecutionContract_LogicalMOVRoundtripsMemoryBackedX19
@@ -294,6 +322,13 @@
     XCTAssertEqual(tcti_harness_case_musl_pthread_mutex_lock_fast_path(), 0ULL,
                    @"TCTI must execute musl pthread_mutex_lock's fast LDAXR/STLXR path when "
                     "the loaded register is reused as the exclusive-store status register");
+}
+
+- (void)testSemanticExecutionContract_MuslMutexUnlockNormalTypeBranchesToFastUnlock
+{
+    XCTAssertEqual(tcti_harness_case_musl_mutex_unlock_normal_type_branches_to_fast_unlock(), 0ULL,
+                   @"TCTI must preserve Z from ANDS across the following non-flag logical "
+                    "immediate so musl pthread_mutex_unlock reaches the normal unlock path");
 }
 
 - (void)testSemanticExecutionContract_ADDImmProducesCorrectResult

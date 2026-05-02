@@ -1917,16 +1917,8 @@ __attribute__((used)) static void tcti_write_reg_imm_helper(struct cpu_state *cp
             cpu->sp = value;
         return;
     }
-    if (rd < 31) {
+    if (rd < 31)
         cpu->x[rd] = value;
-        if (rd == 21) {
-            char ev[160];
-            snprintf(ev, sizeof(ev), "tcti.dpimm.write_reg=rd:%llu,value:0x%llx,is64:%llu",
-                     (unsigned long long)rd, (unsigned long long)value,
-                     (unsigned long long)is_64bit);
-            trace_record_event(TRACE_ORIGIN_EXEC, ev);
-        }
-    }
 }
 
 __attribute__((used)) static void tcti_addsub_imm_helper(struct cpu_state *cpu, uint64_t rd,
@@ -1975,15 +1967,6 @@ __attribute__((used)) static void tcti_addsub_imm_helper(struct cpu_state *cpu, 
     }
     if (rd < 31)
         cpu->x[rd] = result;
-    if ((rd == 2 && rn == 21) || rd == 21) {
-        char ev[192];
-        snprintf(ev, sizeof(ev),
-                 "tcti.dpimm.addsub=rd:%llu,rn:%llu,lhs:0x%llx,imm:0x%llx,result:0x%llx,is_sub:%llu",
-                 (unsigned long long)rd, (unsigned long long)rn, (unsigned long long)lhs,
-                 (unsigned long long)imm, (unsigned long long)result,
-                 (unsigned long long)is_sub);
-        trace_record_event(TRACE_ORIGIN_EXEC, ev);
-    }
 }
 
 __attribute__((naked)) void gadget_write_reg_imm_impl(void)
@@ -2019,6 +2002,8 @@ __attribute__((naked)) void gadget_write_reg_imm_impl(void)
                  "mov x26, x19\n\t"
                  "bl _tcti_sync_hot_reg_from_cpu\n\t"
                  "1:\n\t"
+                 "ldr x17, [x29, #280]\n\t"
+                 "msr nzcv, x17\n\t"
                  "ldr x27, [x28], #8\n\t"
                  "br x27\n\t");
 }
@@ -2067,10 +2052,8 @@ __attribute__((naked)) void gadget_addsub_imm_fallback_impl(void)
                  "mov x26, x19\n\t"
                  "bl _tcti_sync_hot_reg_from_cpu\n\t"
                  "1:\n\t"
-                 "cbz x23, 2f\n\t"
                  "ldr x17, [x29, #280]\n\t"
                  "msr nzcv, x17\n\t"
-                 "2:\n\t"
                  "ldr x27, [x28], #8\n\t"
                  "br x27\n\t");
 }
@@ -2179,10 +2162,8 @@ __attribute__((naked)) void gadget_addsub_reg_fallback_impl(void)
                  "mov x26, x19\n\t"
                  "bl _tcti_sync_hot_reg_from_cpu\n\t"
                  "1:\n\t"
-                 "cbz x25, 2f\n\t"
                  "ldr x17, [x29, #280]\n\t"
                  "msr nzcv, x17\n\t"
-                 "2:\n\t"
                  "ldr x27, [x28], #8\n\t"
                  "br x27\n\t");
 }
@@ -2265,10 +2246,8 @@ __attribute__((naked)) void gadget_logical_imm_fallback_impl(void)
                  "mov x26, x19\n\t"
                  "bl _tcti_sync_hot_reg_from_cpu\n\t"
                  "1:\n\t"
-                 "cbz x23, 2f\n\t"
                  "ldr x17, [x29, #280]\n\t"
                  "msr nzcv, x17\n\t"
-                 "2:\n\t"
                  "ldr x27, [x28], #8\n\t"
                  "br x27\n\t");
 }
@@ -2397,10 +2376,8 @@ __attribute__((naked)) void gadget_logical_reg_fallback_impl(void)
                  "mov x26, x19\n\t"
                  "bl _tcti_sync_hot_reg_from_cpu\n\t"
                  "1:\n\t"
-                 "cbz x25, 2f\n\t"
                  "ldr x17, [x29, #280]\n\t"
                  "msr nzcv, x17\n\t"
-                 "2:\n\t"
                  "ldr x27, [x28], #8\n\t"
                  "br x27\n\t");
 }
@@ -2488,8 +2465,12 @@ __attribute__((naked)) void gadget_multiply_add_fallback_impl(void)
                  "mov x26, x19\n\t"
                  "bl _tcti_sync_hot_reg_from_cpu\n\t"
                  "1:\n\t"
+                 "ldr x17, [x29, %[pstate_off]]\n\t"
+                 "msr nzcv, x17\n\t"
                  "ldr x27, [x28], #8\n\t"
-                 "br x27\n\t");
+                 "br x27\n\t"
+                 :
+                 : [pstate_off] "i"(PSTATE_OFFSET));
 }
 
 tcti_gadget_t gadget_multiply_add_fallback = gadget_multiply_add_fallback_impl;
@@ -2572,8 +2553,12 @@ __attribute__((naked)) void gadget_shift_reg_fallback_impl(void)
                  "mov x26, x19\n\t"
                  "bl _tcti_sync_hot_reg_from_cpu\n\t"
                  "1:\n\t"
+                 "ldr x17, [x29, %[pstate_off]]\n\t"
+                 "msr nzcv, x17\n\t"
                  "ldr x27, [x28], #8\n\t"
-                 "br x27\n\t");
+                 "br x27\n\t"
+                 :
+                 : [pstate_off] "i"(PSTATE_OFFSET));
 }
 
 tcti_gadget_t gadget_shift_reg_fallback = gadget_shift_reg_fallback_impl;
@@ -2800,6 +2785,27 @@ static int tcti_cond_holds(uint64_t nzcv, uint64_t cond)
     }
 }
 
+static void trace_tcti_csel_access(uint64_t rd, uint64_t rn, uint64_t rm, uint64_t cond,
+                                   uint64_t subtype, uint64_t is_64bit, uint64_t pstate,
+                                   uint64_t true_value, uint64_t false_value,
+                                   uint64_t selected_value)
+{
+    trace_field_t fields[] = {
+        { .key = "rd", .kind = TRACE_FIELD_U64_DEC, .u64_value = rd },
+        { .key = "rn", .kind = TRACE_FIELD_U64_DEC, .u64_value = rn },
+        { .key = "rm", .kind = TRACE_FIELD_U64_DEC, .u64_value = rm },
+        { .key = "cond", .kind = TRACE_FIELD_U64_DEC, .u64_value = cond },
+        { .key = "subtype", .kind = TRACE_FIELD_U64_DEC, .u64_value = subtype },
+        { .key = "is_64bit", .kind = TRACE_FIELD_U64_DEC, .u64_value = is_64bit },
+        { .key = "pstate", .kind = TRACE_FIELD_U64_HEX, .u64_value = pstate },
+        { .key = "true_value", .kind = TRACE_FIELD_U64_HEX, .u64_value = true_value },
+        { .key = "false_value", .kind = TRACE_FIELD_U64_HEX, .u64_value = false_value },
+        { .key = "selected_value", .kind = TRACE_FIELD_U64_HEX, .u64_value = selected_value },
+    };
+    trace_record_event_fields(TRACE_ORIGIN_TCTI, "tcti.csel.access", fields,
+                              sizeof(fields) / sizeof(fields[0]));
+}
+
 __attribute__((used)) static void tcti_csel_helper(struct cpu_state *cpu, uint64_t rd,
                                                        uint64_t rn, uint64_t rm, uint64_t cond,
                                                        uint64_t subtype, uint64_t is_64bit)
@@ -2828,6 +2834,8 @@ __attribute__((used)) static void tcti_csel_helper(struct cpu_state *cpu, uint64
     }
 
     uint64_t value = tcti_cond_holds(cpu->pstate, cond) ? true_value : false_value;
+    trace_tcti_csel_access(rd, rn, rm, cond, subtype, is_64bit, cpu->pstate, true_value,
+                           false_value, value);
     tcti_write_reg_or_zr(cpu, (int)rd, value, is_64bit != 0);
 }
 
@@ -2998,8 +3006,12 @@ __attribute__((naked)) void gadget_csel_fallback_impl(void)
                  "mov x26, x19\n\t"
                  "bl _tcti_sync_hot_reg_from_cpu\n\t"
                  "1:\n\t"
+                 "ldr x17, [x29, %[pstate_off]]\n\t"
+                 "msr nzcv, x17\n\t"
                  "ldr x27, [x28], #8\n\t"
-                 "br x27\n\t");
+                 "br x27\n\t"
+                 :
+                 : [pstate_off] "i"(PSTATE_OFFSET));
 }
 
 tcti_gadget_t gadget_csel_fallback = gadget_csel_fallback_impl;

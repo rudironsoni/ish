@@ -30,6 +30,8 @@ uint64_t tcti_harness_case_cmp_w20_ccmp_gt_bls_uses_32bit_flags(void);
 uint64_t tcti_harness_case_cmp_w2_w1_uxtb_csel_uses_w_width(void);
 uint64_t tcti_harness_case_csel_eq_selects_true_operand(void);
 uint64_t tcti_harness_case_csel_preserves_flags_for_bcond(void);
+uint64_t tcti_harness_case_vsnprintf_zero_size_cset_ne_preserves_zero_flag(void);
+uint64_t tcti_harness_case_generated_vsnprintf_zero_size_length(void);
 uint64_t tcti_harness_case_cmp_add_csel_ne_uses_preserved_zero_flag(void);
 uint64_t tcti_harness_case_cmp_ccmp_false_immediate_clears_zero(void);
 uint64_t tcti_harness_case_strchrnul_vector_mask_finds_dot(void);
@@ -63,6 +65,9 @@ uint64_t tcti_harness_case_logical_imm_memory_backed_source_uses_distinct_scratc
 uint64_t tcti_harness_case_musl_malloc_sizeclass_rbit_clz(void);
 uint64_t tcti_harness_case_musl_mutex_ldaxr_stlxr_roundtrip(void);
 uint64_t tcti_harness_case_musl_pthread_mutex_lock_fast_path(void);
+uint64_t tcti_harness_case_musl_mutex_unlock_normal_type_branches_to_fast_unlock(void);
+uint64_t tcti_harness_case_musl_memset_dup_zeroes_vector_store(void);
+uint64_t tcti_harness_case_musl_memset_dup_replicates_byte_fill(void);
 
 #ifdef __cplusplus
 }

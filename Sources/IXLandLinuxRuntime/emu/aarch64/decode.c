@@ -904,25 +904,6 @@ int a64_decode_simd_fp(uint32_t insn, a64_instr_t *out)
 {
     int op0 = bits(insn, 28, 25);
 
-    // AdvSIMD modified immediate. This covers MOVI/MVNI vector constants used
-    // by musl to initialize stack FILE objects in vdprintf before terminal
-    // output is possible.
-    if (a64_is_advsimd_modified_immediate(insn)) {
-        unsigned cmode = bits(insn, 15, 12);
-        unsigned imm8 = (bits(insn, 18, 16) << 5) | bits(insn, 9, 5);
-
-        out->cat = A64_SIMD;
-        out->subtype = A64_SIMD_MOVI_IMM;
-        out->is_vector = true;
-        out->Rd = bits(insn, 4, 0);
-        out->imm = imm8;
-        out->imm_shift = cmode;
-        out->op = bit(insn, 29);
-        out->size = A64_SIZE_W;
-        out->is_64bit = bit(insn, 30);
-        return 0;
-    }
-
     if ((insn & 0xbfe0fc00) == 0x0e000c00) {
         int imm5 = bits(insn, 20, 16);
         if (imm5 == 0)
@@ -952,6 +933,27 @@ int a64_decode_simd_fp(uint32_t insn, a64_instr_t *out)
         out->Rn = bits(insn, 9, 5);
         out->vec_bytes = 1 << element_shift;
         out->vec_index = imm5 >> (element_shift + 1);
+        out->is_64bit = bit(insn, 30);
+        return 0;
+    }
+
+    // AdvSIMD modified immediate. This covers MOVI/MVNI vector constants used
+    // by musl to initialize stack FILE objects in vdprintf before terminal
+    // output is possible. Keep this after the narrower DUP/UMOV patterns:
+    // the broad modified-immediate mask also matches DUP Vd.T, Rn forms such
+    // as musl memset's `dup v0.16b, w1`.
+    if (a64_is_advsimd_modified_immediate(insn)) {
+        unsigned cmode = bits(insn, 15, 12);
+        unsigned imm8 = (bits(insn, 18, 16) << 5) | bits(insn, 9, 5);
+
+        out->cat = A64_SIMD;
+        out->subtype = A64_SIMD_MOVI_IMM;
+        out->is_vector = true;
+        out->Rd = bits(insn, 4, 0);
+        out->imm = imm8;
+        out->imm_shift = cmode;
+        out->op = bit(insn, 29);
+        out->size = A64_SIZE_W;
         out->is_64bit = bit(insn, 30);
         return 0;
     }

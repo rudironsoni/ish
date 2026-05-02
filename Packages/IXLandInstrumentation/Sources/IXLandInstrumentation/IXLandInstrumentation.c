@@ -41,6 +41,19 @@ void ixland_instrumentation_record_event(ixland_instrumentation_origin_t origin,
     }
 }
 
+void ixland_instrumentation_record_event_attrs(ixland_instrumentation_origin_t origin,
+                                               const char *event_name,
+                                               const ixland_instrumentation_attribute_t *attrs,
+                                               uint32_t attr_count)
+{
+    if (registered_sink && registered_sink->record_event_attrs) {
+        registered_sink->record_event_attrs(origin, event_name, attrs, attr_count);
+        return;
+    }
+
+    ixland_instrumentation_record_event(origin, event_name);
+}
+
 uint64_t ixland_instrumentation_begin_interval(ixland_instrumentation_origin_t origin,
                                                const char *interval_name,
                                                const ixland_instrumentation_attribute_t *attrs,

@@ -131,7 +131,16 @@ static void log_with_level(os_log_t log, ISHLogLevel level, const char *eventNam
     
     switch (level) {
         case ISHLogLevelDebug:
+#if defined(NDEBUG)
             os_log_debug(log, "%{public}s: %{public}@", eventName ?: "unknown", attrStr);
+#else
+            /*
+             * The trace level remains TRACE_LEVEL_DEBUG. In Debug app builds, publish
+             * admitted Debug events as Info so simulator log capture can reliably
+             * retrieve full emulator traces without per-event probes.
+             */
+            os_log_info(log, "%{public}s: %{public}@", eventName ?: "unknown", attrStr);
+#endif
             break;
         case ISHLogLevelInfo:
             os_log_info(log, "%{public}s: %{public}@", eventName ?: "unknown", attrStr);
