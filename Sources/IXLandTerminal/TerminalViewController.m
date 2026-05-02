@@ -974,11 +974,7 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
         }
     }];
     UIView *oldBarView = self.termView.inputAccessoryView;
-    if (UserPreferences.shared.hideExtraKeysWithExternalKeyboard && self.hasExternalKeyboard) {
-        self.termView.inputAccessoryView = nil;
-    } else {
-        self.termView.inputAccessoryView = self.barView;
-    }
+    self.termView.inputAccessoryView = nil;
     if (self.termView.inputAccessoryView != oldBarView && self.termView.isFirstResponder) {
         dispatch_async(dispatch_get_main_queue(), ^{
             self.ignoreKeyboardMotion = YES; // avoid infinite recursion

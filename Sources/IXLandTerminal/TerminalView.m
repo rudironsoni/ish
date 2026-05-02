@@ -317,6 +317,13 @@ struct rowcol {
     }
 
     self.terminalFocused = YES;
+    if (self.terminal != nil && self.terminal.loaded) {
+        BOOL focused = [self.terminal becomeInputResponder];
+        _terminalFocused = focused;
+        if (focused)
+            return YES;
+    }
+
     BOOL focused = [super becomeFirstResponder];
     _terminalFocused = focused;
     [self reloadInputViews];
