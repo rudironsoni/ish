@@ -698,7 +698,7 @@ static int tcti_harness_run_generated_block(struct cpu_state *cpu, uint64_t pc,
     for (size_t i = 0; i < count; i++) {
         int ret = a64_gen_instruction(&gen, insns[i], gen.guest_pc);
         if (ret != A64_GEN_OK)
-            return -2;
+            return ret;
         if (gen.is_complete)
             break;
         gen.guest_pc += 4;
@@ -895,6 +895,158 @@ uint64_t tcti_harness_case_musl_ubfiz_symbol_index_preserves_shifted_bits(void)
         return UINT64_MAX;
 
     return cpu.x[4];
+}
+
+uint64_t tcti_harness_case_lsr_alias_uses_top_mask_not_rotate(void)
+{
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.x[1] = 0x8000000000000001ULL;
+
+    static const uint32_t insns[] = {
+        0xd341fc21, // lsr x1, x1, #1
+    };
+
+    if (tcti_harness_run_generated_block(&cpu, 0x6a79c, insns,
+                                         sizeof(insns) / sizeof(insns[0])) < 0)
+        return UINT64_MAX;
+
+    return cpu.x[1];
+}
+
+uint64_t tcti_harness_case_musl_relr_loop_terminates_at_table_end(void)
+{
+    enum {
+        text_base = 0x6a784,
+        text_end = 0x6a7f0,
+        interp_base = 0x1000,
+        stack_ptr = 0x130000,
+        relr_table = 0x14518,
+        relr_size = 0x30,
+        first_bitmap_base = 0xc0b08,
+        expected_final_base = 0xc14e0,
+        data_base = 0xc0000,
+        data_pages = 4,
+    };
+
+    static const uint32_t relr_loop_insns[] = {
+        0xf94117e7, // ldr x7, [sp, #0x228]
+        0xf94113e6, // ldr x6, [sp, #0x220]
+        0x8b070047, // add x7, x2, x7
+        0x8b0600e7, // add x7, x7, x6
+        0x1400000b, // b 0x6a7c0
+        0x91002063, // add x3, x3, #0x8
+        0xd341fc21, // lsr x1, x1, #1
+        0xb40000c1, // cbz x1, 0x6a7b8
+        0x3607ffa1, // tbz w1, #0, 0x6a798
+        0xf9400065, // ldr x5, [x3]
+        0x8b0200a5, // add x5, x5, x2
+        0xf9000065, // str x5, [x3]
+        0x17fffff9, // b 0x6a798
+        0x9107e084, // add x4, x4, #0x1f8
+        0xd10020c6, // sub x6, x6, #0x8
+        0xb4000166, // cbz x6, 0x6a7ec
+        0xcb0600e1, // sub x1, x7, x6
+        0xaa0403e3, // mov x3, x4
+        0xf9400021, // ldr x1, [x1]
+        0x3707fe61, // tbnz w1, #0, 0x6a79c
+        0xf8616843, // ldr x3, [x2, x1]
+        0x8b010044, // add x4, x2, x1
+        0x91002084, // add x4, x4, #0x8
+        0x8b020063, // add x3, x3, x2
+        0xf8216843, // str x3, [x2, x1]
+        0x17fffff5, // b 0x6a7bc
+    };
+
+    static const uint64_t relr_entries[] = {
+        0x00000000000bfb00ULL,
+        0xaaaaae7ffffff041ULL,
+        0x0000000000003f95ULL,
+        0x8c7c000002090001ULL,
+        0x11000068440001c1ULL,
+        0x000000005e000039ULL,
+    };
+
+    struct mem mem;
+    mem_init(&mem);
+    if (pt_map_nothing(&mem, PAGE(stack_ptr), 1, P_READ | P_WRITE) < 0 ||
+        pt_map_nothing(&mem, PAGE(relr_table), 1, P_READ | P_WRITE) < 0 ||
+        pt_map_nothing(&mem, PAGE(data_base), data_pages, P_READ | P_WRITE) < 0) {
+        mem_destroy(&mem);
+        return UINT64_MAX;
+    }
+
+    struct tlb tlb = {};
+    tlb_refresh(&tlb, &mem.mmu);
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.mmu = &mem.mmu;
+    cpu.tlb = &tlb;
+    cpu.pc = text_base;
+    cpu.sp = stack_ptr;
+    cpu.x[2] = interp_base;
+    cpu.x[4] = first_bitmap_base;
+
+    if (a64_guest_write64(&cpu, &tlb, stack_ptr + 0x228, relr_table - interp_base) !=
+            A64_MEM_OK ||
+        a64_guest_write64(&cpu, &tlb, stack_ptr + 0x220, relr_size) != A64_MEM_OK) {
+        mem_destroy(&mem);
+        return UINT64_MAX - 1;
+    }
+
+    for (size_t i = 0; i < sizeof(relr_entries) / sizeof(relr_entries[0]); i++) {
+        if (a64_guest_write64(&cpu, &tlb, relr_table + i * sizeof(uint64_t), relr_entries[i]) !=
+            A64_MEM_OK) {
+            mem_destroy(&mem);
+            return UINT64_MAX - 2;
+        }
+    }
+
+    for (uint64_t addr = data_base; addr < data_base + data_pages * 0x1000ULL; addr += 8) {
+        if (a64_guest_write64(&cpu, &tlb, addr, addr - interp_base) != A64_MEM_OK) {
+            mem_destroy(&mem);
+            return UINT64_MAX - 3;
+        }
+    }
+
+    for (unsigned step = 0; step < 4096; step++) {
+        if (cpu.pc == 0x6a7ec)
+            break;
+        if (cpu.pc < text_base || cpu.pc >= text_end) {
+            uint64_t result = 0x1000000000000000ULL | cpu.pc;
+            mem_destroy(&mem);
+            return result;
+        }
+        if (cpu.x[3] >= data_base + data_pages * 0x1000ULL) {
+            uint64_t result = 0x2000000000000000ULL | (cpu.x[3] & 0x0fffffffffffffffULL);
+            mem_destroy(&mem);
+            return result;
+        }
+
+        size_t index = (size_t)((cpu.pc - text_base) / 4);
+        uint64_t old_pc = cpu.pc;
+        int run_ret = tcti_harness_run_generated_block(&cpu, cpu.pc, &relr_loop_insns[index], 1);
+        if (run_ret < 0) {
+            uint64_t result = 0x3000000000000000ULL | ((uint64_t)(-run_ret) << 48) | old_pc;
+            mem_destroy(&mem);
+            return result;
+        }
+        if (cpu.pc == old_pc)
+            cpu.pc += 4;
+    }
+
+    uint64_t result = 0;
+    if (cpu.pc != 0x6a7ec)
+        result = 0x4000000000000000ULL | ((cpu.x[6] & 0xff) << 48) |
+                 ((cpu.x[1] & 0xffff) << 32) | (cpu.x[3] & 0xffffffffULL);
+    else if (cpu.x[6] != 0)
+        result = 0x5000000000000000ULL | cpu.x[6];
+    else if (cpu.x[4] != expected_final_base)
+        result = 0x6000000000000000ULL | cpu.x[4];
+
+    mem_destroy(&mem);
+    return result;
 }
 
 uint64_t tcti_harness_case_pltrel_rela_stride_selector(void)

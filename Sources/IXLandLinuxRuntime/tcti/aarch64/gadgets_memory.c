@@ -3745,7 +3745,7 @@ __attribute__((used)) void tcti_bitfield_helper(struct cpu_state *cpu, uint64_t 
         result = (dst & ~wmask) | bot;
         break;
     case 13: // UBFM
-        result = bot;
+        result = bot & tmask;
         break;
     default:
         return;

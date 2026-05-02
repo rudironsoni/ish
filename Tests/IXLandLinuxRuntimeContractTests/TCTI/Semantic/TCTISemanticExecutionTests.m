@@ -131,6 +131,21 @@
                     "the high bits of shifted symbol table indexes");
 }
 
+- (void)testSemanticExecutionContract_LSRAliasUsesTopMaskNotRotate
+{
+    XCTAssertEqual(tcti_harness_case_lsr_alias_uses_top_mask_not_rotate(),
+                   0x4000000000000000ULL,
+                   @"TCTI UBFM must apply the top mask so the LSR alias shifts instead of "
+                    "rotating high bits back into the result");
+}
+
+- (void)testSemanticExecutionContract_MuslRELRLoopTerminatesAtTableEnd
+{
+    XCTAssertEqual(tcti_harness_case_musl_relr_loop_terminates_at_table_end(), 0ULL,
+                   @"TCTI must execute musl _dlstart RELR bitmap relocation loop exactly once "
+                    "over RELRSZ without running relocation writes past the mapped data segment");
+}
+
 - (void)testSemanticExecutionContract_PLTRELRELAStrideSelector
 {
     XCTAssertEqual(tcti_harness_case_pltrel_rela_stride_selector(), 3ULL,
