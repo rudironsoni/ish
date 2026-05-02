@@ -111,6 +111,11 @@ static ISHLogLevel level_for_event_name(const char *eventName) {
         return ISHLogLevelFault;
     } else if ([lower containsString:@"error"] || [lower containsString:@"fail"]) {
         return ISHLogLevelError;
+    } else if ([lower hasPrefix:@"tcti."] || [lower hasPrefix:@"gadget."] ||
+               [lower hasPrefix:@"mem."] || [lower hasPrefix:@"guest."] ||
+               [lower hasPrefix:@"task.proof."] || [lower hasPrefix:@"boot.generic_openat."] ||
+               [lower hasPrefix:@"boot.mount_find."] || [lower hasPrefix:@"boot.construct_task."]) {
+        return ISHLogLevelDebug;
     } else if ([lower containsString:@"debug"] || [lower hasPrefix:@"trace."]) {
         return ISHLogLevelDebug;
     } else if ([lower containsString:@"ready"] || [lower containsString:@"complete"] ||
