@@ -41,7 +41,8 @@ tcti_entry_block:
     mov     x0, #0xABCD
     str     x0, [sp, #-16]!
     
-    // Load guest x0-x15 into host x1-x16
+    // Load guest x0-x14 into host x1-x15.
+    // Host x16 is an ABI/scratch register and must not hold persistent guest state.
     // x[0] at CPU_OFFSET_x0, x[1] at CPU_OFFSET_x1, etc.
     ldr     x1, [x29, #CPU_OFFSET_x0]   // Guest x0 -> host x1
     ldr     x2, [x29, #CPU_OFFSET_x1]   // Guest x1 -> host x2
@@ -58,14 +59,13 @@ tcti_entry_block:
     ldr     x13, [x29, #CPU_OFFSET_x12] // Guest x12 -> host x13
     ldr     x14, [x29, #CPU_OFFSET_x13] // Guest x13 -> host x14
     ldr     x15, [x29, #CPU_OFFSET_x14] // Guest x14 -> host x15
-    ldr     x16, [x29, #CPU_OFFSET_x15] // Guest x15 -> host x16
 
     // Restore guest condition flags on every block entry. Interrupt/syscall
     // handlers update cpu->pstate in C before returning to translated code.
     ldr     x17, [x29, #CPU_OFFSET_pstate]
     msr     nzcv, x17
     
-    // Guest x15-x30 and SP stay in memory
+    // Guest x15-x30 and SP stay in memory.
 
     // Load first gadget pointer after register restoration
     ldr     x27, [x28], #8
@@ -153,12 +153,12 @@ tcti_exit_block:
     cbz     x19, 2f
 2:
     
-    cmp     x0,  #16
+    cmp     x0,  #15
     b.lo    1f
     // Debug shadow-stores removed - instrumentation handled by ISHInstrumentation
 1:
     
-    // Save guest x0-x15 from host x1-x16 back to memory
+    // Save guest x0-x14 from host x1-x15 back to memory.
     str     x1,  [x29, #CPU_OFFSET_x0]   // Host x1 -> guest x0
     str     x2,  [x29, #CPU_OFFSET_x1]   // Host x2 -> guest x1
     str     x3,  [x29, #CPU_OFFSET_x2]   // Host x3 -> guest x2
@@ -174,10 +174,9 @@ tcti_exit_block:
     str     x13, [x29, #CPU_OFFSET_x12]  // Host x13 -> guest x12
     str     x14, [x29, #CPU_OFFSET_x13]  // Host x14 -> guest x13
     str     x15, [x29, #CPU_OFFSET_x14]  // Host x15 -> guest x14
-    str     x16, [x29, #CPU_OFFSET_x15]  // Host x16 -> guest x15
     // Note: NZCV was saved at the top of this function before any flag-setting instructions
 
-    // Guest x16-x30 and SP already in memory (never loaded to host regs)
+    // Guest x15-x30 and SP already in memory (never loaded to host regs)
     
     // Debug: Store x29 value before restoring from stack to check for corruption
     mov     x17, x29

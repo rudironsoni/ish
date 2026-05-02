@@ -1,15 +1,15 @@
 /*
  * Memory access gadgets for TCTI
  *
- * Memory-backed registers (x16-x30, SP) are stored in cpu_state memory.
+ * Memory-backed registers (x15-x30, SP) are stored in cpu_state memory.
  * To operate on them, we:
  *   1. Load into temp register (x14 for values, x15 for auxiliaries)
  *   2. Execute operation
  *   3. Store back to memory
  *
  * Register mapping:
- *   x0-x15 (guest)  -> x1-x16 (host)   [TCTI-mapped, always hot]
- *   x16-x30 (guest) -> memory only     [load/store via gadgets]
+ *   x0-x14 (guest)  -> x1-x15 (host)   [TCTI-mapped, always hot]
+ *   x15-x30 (guest) -> memory only     [load/store via gadgets]
  *   SP (guest)      -> memory only     [load/store via gadgets]
  *   x14-x15 (host)  -> temps           [for memory-backed register ops]
  *   x27-x29 (host)  -> TCTI internals  [gadget ptr, bytecode, cpu_state]
@@ -38,6 +38,10 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+
+#define TCTI_HOT_REG_COUNT 15
+#define TCTI_MEM_REG_BASE 15
+#define TCTI_MEM_REG_COUNT 16
 
 // ============================================================================
 // TCTI Helper Function Declarations
@@ -1019,7 +1023,7 @@ __attribute__((naked)) void gadget_probe_x7_x2_state(void)
                  "stp x9, x10, [x29, #80]\n\t"
                  "stp x11, x12, [x29, #96]\n\t"
                  "stp x13, x14, [x29, #112]\n\t"
-                 "stp x15, x16, [x29, #128]\n\t"
+                 "str x15, [x29, #128]\n\t"
                  "bl _tcti_c_call_prologue\n\t"
                  "mov x0, x29\n\t"
                  "mov x1, x19\n\t"
@@ -1032,8 +1036,8 @@ __attribute__((naked)) void gadget_probe_x7_x2_state(void)
                  "ldp x9, x10, [x29, #80]\n\t"
                  "ldp x11, x12, [x29, #96]\n\t"
                  "ldp x13, x14, [x29, #112]\n\t"
-                 "ldp x15, x16, [x29, #128]\n\t"
-                 "cmp x19, #16\n\t"
+                 "ldr x15, [x29, #128]\n\t"
+                 "cmp x19, #15\n\t"
                  "b.hs 1f\n\t"
                  "mov x26, x19\n\t"
                  "bl _tcti_sync_hot_reg_from_cpu\n\t"
@@ -2117,10 +2121,10 @@ tcti_gadget_t gadget_exit = gadget_exit_impl;
 //   - Advances to next gadget via x28 bytecode pointer
 //   - Branches to next gadget
 //
-// Index mapping: 0=x16, 1=x17, ..., 14=x30 (15 entries)
+// Index mapping: 0=x15, 1=x16, ..., 15=x30 (16 entries)
 // ============================================================================
 
-// Load guest x[16 + idx] into host temp x14
+// Load guest x[15 + idx] into host temp x14
 #define GEN_LOAD_XREG(idx)                                                                         \
     __attribute__((naked)) void gadget_load_x##idx##_impl(void)                                    \
     {                                                                                              \
@@ -2128,10 +2132,10 @@ tcti_gadget_t gadget_exit = gadget_exit_impl;
                      "ldr x27, [x28], #8\n\t"                                                      \
                      "br x27\n\t"                                                                  \
                      :                                                                             \
-                     : [off] "i"(XREG_OFFSET(16 + idx)));                                          \
+                     : [off] "i"(XREG_OFFSET(TCTI_MEM_REG_BASE + idx)));                           \
     }
 
-// Store host temp x14 to guest x[16 + idx]
+// Store host temp x14 to guest x[15 + idx]
 #define GEN_STORE_XREG(idx)                                                                        \
     __attribute__((naked)) void gadget_store_x##idx##_impl(void)                                   \
     {                                                                                              \
@@ -2139,42 +2143,44 @@ tcti_gadget_t gadget_exit = gadget_exit_impl;
                      "ldr x27, [x28], #8\n\t"                                                      \
                      "br x27\n\t"                                                                  \
                      :                                                                             \
-                     : [off] "i"(XREG_OFFSET(16 + idx)));                                          \
+                     : [off] "i"(XREG_OFFSET(TCTI_MEM_REG_BASE + idx)));                           \
     }
 
-// Generate load gadgets for x16-x30 (indices 0-14)
-GEN_LOAD_XREG(0)  // x16
-GEN_LOAD_XREG(1)  // x17
-GEN_LOAD_XREG(2)  // x13
-GEN_LOAD_XREG(3)  // x19
-GEN_LOAD_XREG(4)  // x20
-GEN_LOAD_XREG(5)  // x21
-GEN_LOAD_XREG(6)  // x22
-GEN_LOAD_XREG(7)  // x23
-GEN_LOAD_XREG(8)  // x24
-GEN_LOAD_XREG(9)  // x25
-GEN_LOAD_XREG(10) // x26
-GEN_LOAD_XREG(11) // x27
-GEN_LOAD_XREG(12) // x28
-GEN_LOAD_XREG(13) // x29
-GEN_LOAD_XREG(14) // x30
+// Generate load gadgets for x15-x30 (indices 0-15)
+GEN_LOAD_XREG(0)  // x15
+GEN_LOAD_XREG(1)  // x16
+GEN_LOAD_XREG(2)  // x17
+GEN_LOAD_XREG(3)  // x18
+GEN_LOAD_XREG(4)  // x19
+GEN_LOAD_XREG(5)  // x20
+GEN_LOAD_XREG(6)  // x21
+GEN_LOAD_XREG(7)  // x22
+GEN_LOAD_XREG(8)  // x23
+GEN_LOAD_XREG(9)  // x24
+GEN_LOAD_XREG(10) // x25
+GEN_LOAD_XREG(11) // x26
+GEN_LOAD_XREG(12) // x27
+GEN_LOAD_XREG(13) // x28
+GEN_LOAD_XREG(14) // x29
+GEN_LOAD_XREG(15) // x30
 
-// Generate store gadgets for x16-x30 (indices 0-14)
-GEN_STORE_XREG(0)  // x16
-GEN_STORE_XREG(1)  // x17
-GEN_STORE_XREG(2)  // x13
-GEN_STORE_XREG(3)  // x19
-GEN_STORE_XREG(4)  // x20
-GEN_STORE_XREG(5)  // x21
-GEN_STORE_XREG(6)  // x22
-GEN_STORE_XREG(7)  // x23
-GEN_STORE_XREG(8)  // x24
-GEN_STORE_XREG(9)  // x25
-GEN_STORE_XREG(10) // x26
-GEN_STORE_XREG(11) // x27
-GEN_STORE_XREG(12) // x28
-GEN_STORE_XREG(13) // x29
-GEN_STORE_XREG(14) // x30
+// Generate store gadgets for x15-x30 (indices 0-15)
+GEN_STORE_XREG(0)  // x15
+GEN_STORE_XREG(1)  // x16
+GEN_STORE_XREG(2)  // x17
+GEN_STORE_XREG(3)  // x18
+GEN_STORE_XREG(4)  // x19
+GEN_STORE_XREG(5)  // x20
+GEN_STORE_XREG(6)  // x21
+GEN_STORE_XREG(7)  // x22
+GEN_STORE_XREG(8)  // x23
+GEN_STORE_XREG(9)  // x24
+GEN_STORE_XREG(10) // x25
+GEN_STORE_XREG(11) // x26
+GEN_STORE_XREG(12) // x27
+GEN_STORE_XREG(13) // x28
+GEN_STORE_XREG(14) // x29
+GEN_STORE_XREG(15) // x30
 
 // x30 (LR) load/store uses the same x14 temp contract as the table gadgets
 __attribute__((naked)) void gadget_load_x30_impl(void)
@@ -2218,45 +2224,47 @@ __attribute__((naked)) void gadget_store_sp(void)
 // ============================================================================
 // Function pointer tables for load/store
 //
-// These are indexed by (guest_reg - 16) for x16-x30
+// These are indexed by (guest_reg - 15) for x15-x30
 // ============================================================================
 
-// Load table: index 0=x16, 14=x30
-const tcti_gadget_t gadget_load_xreg_16_to_30[15] = {
-    gadget_load_x0_impl,  // x16
-    gadget_load_x1_impl,  // x17
-    gadget_load_x2_impl,  // x13
-    gadget_load_x3_impl,  // x19
-    gadget_load_x4_impl,  // x20
-    gadget_load_x5_impl,  // x21
-    gadget_load_x6_impl,  // x22
-    gadget_load_x7_impl,  // x23
-    gadget_load_x8_impl,  // x24
-    gadget_load_x9_impl,  // x25
-    gadget_load_x10_impl, // x26
-    gadget_load_x11_impl, // x27
-    gadget_load_x12_impl, // x28
-    gadget_load_x13_impl, // x29
-    gadget_load_x14_impl, // x30
+// Load table: index 0=x15, 15=x30.
+const tcti_gadget_t gadget_load_xreg_16_to_30[TCTI_MEM_REG_COUNT] = {
+    gadget_load_x0_impl,  // x15
+    gadget_load_x1_impl,  // x16
+    gadget_load_x2_impl,  // x17
+    gadget_load_x3_impl,  // x18
+    gadget_load_x4_impl,  // x19
+    gadget_load_x5_impl,  // x20
+    gadget_load_x6_impl,  // x21
+    gadget_load_x7_impl,  // x22
+    gadget_load_x8_impl,  // x23
+    gadget_load_x9_impl,  // x24
+    gadget_load_x10_impl, // x25
+    gadget_load_x11_impl, // x26
+    gadget_load_x12_impl, // x27
+    gadget_load_x13_impl, // x28
+    gadget_load_x14_impl, // x29
+    gadget_load_x15_impl, // x30
 };
 
-// Store table: index 0=x16, 14=x30
-const tcti_gadget_t gadget_store_xreg_16_to_30[15] = {
-    gadget_store_x0_impl,  // x16
-    gadget_store_x1_impl,  // x17
-    gadget_store_x2_impl,  // x13
-    gadget_store_x3_impl,  // x19
-    gadget_store_x4_impl,  // x20
-    gadget_store_x5_impl,  // x21
-    gadget_store_x6_impl,  // x22
-    gadget_store_x7_impl,  // x23
-    gadget_store_x8_impl,  // x24
-    gadget_store_x9_impl,  // x25
-    gadget_store_x10_impl, // x26
-    gadget_store_x11_impl, // x27
-    gadget_store_x12_impl, // x28
-    gadget_store_x13_impl, // x29
-    gadget_store_x14_impl, // x30
+// Store table: index 0=x15, 15=x30.
+const tcti_gadget_t gadget_store_xreg_16_to_30[TCTI_MEM_REG_COUNT] = {
+    gadget_store_x0_impl,  // x15
+    gadget_store_x1_impl,  // x16
+    gadget_store_x2_impl,  // x17
+    gadget_store_x3_impl,  // x18
+    gadget_store_x4_impl,  // x19
+    gadget_store_x5_impl,  // x20
+    gadget_store_x6_impl,  // x21
+    gadget_store_x7_impl,  // x22
+    gadget_store_x8_impl,  // x23
+    gadget_store_x9_impl,  // x24
+    gadget_store_x10_impl, // x25
+    gadget_store_x11_impl, // x26
+    gadget_store_x12_impl, // x27
+    gadget_store_x13_impl, // x28
+    gadget_store_x14_impl, // x29
+    gadget_store_x15_impl, // x30
 };
 
 // SP accessors - these match the header declarations as function prototypes
@@ -2421,7 +2429,7 @@ __attribute__((naked)) void gadget_br_impl(void)
                  "ldr x17, [x28], #8\n\t"
                  "cmp x0, #31\n\t"
                  "b.eq 31f\n\t"
-                 "cmp x0, #16\n\t"
+                 "cmp x0, #15\n\t"
                  "b.hs 32f\n\t"
                  "adr x27, 10f\n\t"
                  "add x27, x27, x0, lsl #2\n\t"
@@ -2768,7 +2776,7 @@ __attribute__((naked)) void gadget_sbfm_impl(void)
                  "stp x9, x10, [x29, #80]\n\t"
                  "stp x11, x12, [x29, #96]\n\t"
                  "stp x13, x14, [x29, #112]\n\t"
-                 "stp x15, x16, [x29, #128]\n\t"
+                 "str x15, [x29, #128]\n\t"
                  "bl _tcti_c_call_prologue\n\t"
                  "mov x0, x29\n\t"
                  "mov x1, x20\n\t"
@@ -2786,8 +2794,8 @@ __attribute__((naked)) void gadget_sbfm_impl(void)
                  "ldp x9, x10, [x29, #80]\n\t"
                  "ldp x11, x12, [x29, #96]\n\t"
                  "ldp x13, x14, [x29, #112]\n\t"
-                 "ldp x15, x16, [x29, #128]\n\t"
-                 "cmp x20, #16\n\t"
+                 "ldr x15, [x29, #128]\n\t"
+                 "cmp x20, #15\n\t"
                  "b.hs 1f\n\t"
                  "mov x26, x20\n\t"
                  "bl _tcti_sync_hot_reg_from_cpu\n\t"
@@ -2813,7 +2821,7 @@ __attribute__((naked)) void gadget_bfm_impl(void)
                  "stp x9, x10, [x29, #80]\n\t"
                  "stp x11, x12, [x29, #96]\n\t"
                  "stp x13, x14, [x29, #112]\n\t"
-                 "stp x15, x16, [x29, #128]\n\t"
+                 "str x15, [x29, #128]\n\t"
                  "bl _tcti_c_call_prologue\n\t"
                  "mov x0, x29\n\t"
                  "mov x1, x20\n\t"
@@ -2831,8 +2839,8 @@ __attribute__((naked)) void gadget_bfm_impl(void)
                  "ldp x9, x10, [x29, #80]\n\t"
                  "ldp x11, x12, [x29, #96]\n\t"
                  "ldp x13, x14, [x29, #112]\n\t"
-                 "ldp x15, x16, [x29, #128]\n\t"
-                 "cmp x20, #16\n\t"
+                 "ldr x15, [x29, #128]\n\t"
+                 "cmp x20, #15\n\t"
                  "b.hs 1f\n\t"
                  "mov x26, x20\n\t"
                  "bl _tcti_sync_hot_reg_from_cpu\n\t"
@@ -2858,7 +2866,7 @@ __attribute__((naked)) void gadget_ubfm_impl(void)
                  "stp x9, x10, [x29, #80]\n\t"
                  "stp x11, x12, [x29, #96]\n\t"
                  "stp x13, x14, [x29, #112]\n\t"
-                 "stp x15, x16, [x29, #128]\n\t"
+                 "str x15, [x29, #128]\n\t"
                  "bl _tcti_c_call_prologue\n\t"
                  "mov x0, x29\n\t"
                  "mov x1, x20\n\t"
@@ -2876,8 +2884,8 @@ __attribute__((naked)) void gadget_ubfm_impl(void)
                  "ldp x9, x10, [x29, #80]\n\t"
                  "ldp x11, x12, [x29, #96]\n\t"
                  "ldp x13, x14, [x29, #112]\n\t"
-                 "ldp x15, x16, [x29, #128]\n\t"
-                 "cmp x20, #16\n\t"
+                 "ldr x15, [x29, #128]\n\t"
+                 "cmp x20, #15\n\t"
                  "b.hs 1f\n\t"
                  "mov x26, x20\n\t"
                  "bl _tcti_sync_hot_reg_from_cpu\n\t"
@@ -2981,7 +2989,7 @@ __attribute__((naked)) void gadget_write_reg_imm_impl(void)
                  "stp x9, x10, [x29, #80]\n\t"
                  "stp x11, x12, [x29, #96]\n\t"
                  "stp x13, x14, [x29, #112]\n\t"
-                 "stp x15, x16, [x29, #128]\n\t"
+                 "str x15, [x29, #128]\n\t"
                  "bl _tcti_c_call_prologue\n\t"
                  "mov x0, x29\n\t"
                  "mov x1, x19\n\t"
@@ -2997,8 +3005,8 @@ __attribute__((naked)) void gadget_write_reg_imm_impl(void)
                  "ldp x9, x10, [x29, #80]\n\t"
                  "ldp x11, x12, [x29, #96]\n\t"
                  "ldp x13, x14, [x29, #112]\n\t"
-                 "ldp x15, x16, [x29, #128]\n\t"
-                 "cmp x19, #16\n\t"
+                 "ldr x15, [x29, #128]\n\t"
+                 "cmp x19, #15\n\t"
                  "b.hs 1f\n\t"
                  "mov x26, x19\n\t"
                  "bl _tcti_sync_hot_reg_from_cpu\n\t"
@@ -3026,7 +3034,7 @@ __attribute__((naked)) void gadget_addsub_imm_fallback_impl(void)
                  "stp x9, x10, [x29, #80]\n\t"
                  "stp x11, x12, [x29, #96]\n\t"
                  "stp x13, x14, [x29, #112]\n\t"
-                 "stp x15, x16, [x29, #128]\n\t"
+                 "str x15, [x29, #128]\n\t"
                  "bl _tcti_c_call_prologue\n\t"
                  "mov x0, x29\n\t"
                  "mov x1, x19\n\t"
@@ -3047,8 +3055,8 @@ __attribute__((naked)) void gadget_addsub_imm_fallback_impl(void)
                  "ldp x9, x10, [x29, #80]\n\t"
                  "ldp x11, x12, [x29, #96]\n\t"
                  "ldp x13, x14, [x29, #112]\n\t"
-                 "ldp x15, x16, [x29, #128]\n\t"
-                 "cmp x19, #16\n\t"
+                 "ldr x15, [x29, #128]\n\t"
+                 "cmp x19, #15\n\t"
                  "b.hs 1f\n\t"
                  "mov x26, x19\n\t"
                  "bl _tcti_sync_hot_reg_from_cpu\n\t"
@@ -3140,7 +3148,7 @@ __attribute__((naked)) void gadget_addsub_reg_fallback_impl(void)
                  "stp x9, x10, [x29, #80]\n\t"
                  "stp x11, x12, [x29, #96]\n\t"
                  "stp x13, x14, [x29, #112]\n\t"
-                 "stp x15, x16, [x29, #128]\n\t"
+                 "str x15, [x29, #128]\n\t"
                  "bl _tcti_c_call_prologue\n\t"
                  "mov x0, x29\n\t"
                  "mov x1, x19\n\t"
@@ -3161,8 +3169,8 @@ __attribute__((naked)) void gadget_addsub_reg_fallback_impl(void)
                  "ldp x9, x10, [x29, #80]\n\t"
                  "ldp x11, x12, [x29, #96]\n\t"
                  "ldp x13, x14, [x29, #112]\n\t"
-                 "ldp x15, x16, [x29, #128]\n\t"
-                 "cmp x19, #16\n\t"
+                 "ldr x15, [x29, #128]\n\t"
+                 "cmp x19, #15\n\t"
                  "b.hs 1f\n\t"
                  "mov x26, x19\n\t"
                  "bl _tcti_sync_hot_reg_from_cpu\n\t"
@@ -3231,7 +3239,7 @@ __attribute__((naked)) void gadget_logical_imm_fallback_impl(void)
                  "stp x9, x10, [x29, #80]\n\t"
                  "stp x11, x12, [x29, #96]\n\t"
                  "stp x13, x14, [x29, #112]\n\t"
-                 "stp x15, x16, [x29, #128]\n\t"
+                 "str x15, [x29, #128]\n\t"
                  "bl _tcti_c_call_prologue\n\t"
                  "mov x0, x29\n\t"
                  "mov x1, x19\n\t"
@@ -3249,8 +3257,8 @@ __attribute__((naked)) void gadget_logical_imm_fallback_impl(void)
                  "ldp x9, x10, [x29, #80]\n\t"
                  "ldp x11, x12, [x29, #96]\n\t"
                  "ldp x13, x14, [x29, #112]\n\t"
-                 "ldp x15, x16, [x29, #128]\n\t"
-                 "cmp x19, #16\n\t"
+                 "ldr x15, [x29, #128]\n\t"
+                 "cmp x19, #15\n\t"
                  "b.hs 1f\n\t"
                  "mov x26, x19\n\t"
                  "bl _tcti_sync_hot_reg_from_cpu\n\t"
@@ -3362,7 +3370,7 @@ __attribute__((naked)) void gadget_logical_reg_fallback_impl(void)
                  "stp x9, x10, [x29, #80]\n\t"
                  "stp x11, x12, [x29, #96]\n\t"
                  "stp x13, x14, [x29, #112]\n\t"
-                 "stp x15, x16, [x29, #128]\n\t"
+                 "str x15, [x29, #128]\n\t"
                  "bl _tcti_c_call_prologue\n\t"
                  "mov x0, x29\n\t"
                  "mov x1, x19\n\t"
@@ -3383,8 +3391,8 @@ __attribute__((naked)) void gadget_logical_reg_fallback_impl(void)
                  "ldp x9, x10, [x29, #80]\n\t"
                  "ldp x11, x12, [x29, #96]\n\t"
                  "ldp x13, x14, [x29, #112]\n\t"
-                 "ldp x15, x16, [x29, #128]\n\t"
-                 "cmp x19, #16\n\t"
+                 "ldr x15, [x29, #128]\n\t"
+                 "cmp x19, #15\n\t"
                  "b.hs 1f\n\t"
                  "mov x26, x19\n\t"
                  "bl _tcti_sync_hot_reg_from_cpu\n\t"
@@ -3458,7 +3466,7 @@ __attribute__((naked)) void gadget_multiply_add_fallback_impl(void)
                  "stp x9, x10, [x29, #80]\n\t"
                  "stp x11, x12, [x29, #96]\n\t"
                  "stp x13, x14, [x29, #112]\n\t"
-                 "stp x15, x16, [x29, #128]\n\t"
+                 "str x15, [x29, #128]\n\t"
                  "bl _tcti_c_call_prologue\n\t"
                  "mov x0, x29\n\t"
                  "mov x1, x19\n\t"
@@ -3476,8 +3484,8 @@ __attribute__((naked)) void gadget_multiply_add_fallback_impl(void)
                  "ldp x9, x10, [x29, #80]\n\t"
                  "ldp x11, x12, [x29, #96]\n\t"
                  "ldp x13, x14, [x29, #112]\n\t"
-                 "ldp x15, x16, [x29, #128]\n\t"
-                 "cmp x19, #16\n\t"
+                 "ldr x15, [x29, #128]\n\t"
+                 "cmp x19, #15\n\t"
                  "b.hs 1f\n\t"
                  "mov x26, x19\n\t"
                  "bl _tcti_sync_hot_reg_from_cpu\n\t"
@@ -3545,7 +3553,7 @@ __attribute__((naked)) void gadget_shift_reg_fallback_impl(void)
                  "stp x9, x10, [x29, #80]\n\t"
                  "stp x11, x12, [x29, #96]\n\t"
                  "stp x13, x14, [x29, #112]\n\t"
-                 "stp x15, x16, [x29, #128]\n\t"
+                 "str x15, [x29, #128]\n\t"
                  "bl _tcti_c_call_prologue\n\t"
                  "mov x0, x29\n\t"
                  "mov x1, x19\n\t"
@@ -3562,8 +3570,8 @@ __attribute__((naked)) void gadget_shift_reg_fallback_impl(void)
                  "ldp x9, x10, [x29, #80]\n\t"
                  "ldp x11, x12, [x29, #96]\n\t"
                  "ldp x13, x14, [x29, #112]\n\t"
-                 "ldp x15, x16, [x29, #128]\n\t"
-                 "cmp x19, #16\n\t"
+                 "ldr x15, [x29, #128]\n\t"
+                 "cmp x19, #15\n\t"
                  "b.hs 1f\n\t"
                  "mov x26, x19\n\t"
                  "bl _tcti_sync_hot_reg_from_cpu\n\t"
@@ -3622,7 +3630,7 @@ __attribute__((naked)) void gadget_div_fallback_impl(void)
                  "stp x9, x10, [x29, #80]\n\t"
                  "stp x11, x12, [x29, #96]\n\t"
                  "stp x13, x14, [x29, #112]\n\t"
-                 "stp x15, x16, [x29, #128]\n\t"
+                 "str x15, [x29, #128]\n\t"
                  "bl _tcti_c_call_prologue\n\t"
                  "mov x0, x29\n\t"
                  "mov x1, x19\n\t"
@@ -3639,8 +3647,8 @@ __attribute__((naked)) void gadget_div_fallback_impl(void)
                  "ldp x9, x10, [x29, #80]\n\t"
                  "ldp x11, x12, [x29, #96]\n\t"
                  "ldp x13, x14, [x29, #112]\n\t"
-                 "ldp x15, x16, [x29, #128]\n\t"
-                 "cmp x19, #16\n\t"
+                 "ldr x15, [x29, #128]\n\t"
+                 "cmp x19, #15\n\t"
                  "b.hs 1f\n\t"
                  "mov x26, x19\n\t"
                  "bl _tcti_sync_hot_reg_from_cpu\n\t"
@@ -3897,7 +3905,7 @@ __attribute__((naked)) void gadget_bcond_fallback_impl(void)
                  "stp x9, x10, [x29, #80]\n\t"
                  "stp x11, x12, [x29, #96]\n\t"
                  "stp x13, x14, [x29, #112]\n\t"
-                 "stp x15, x16, [x29, #128]\n\t"
+                 "str x15, [x29, #128]\n\t"
                  "bl _tcti_c_call_prologue\n\t"
                  "mov x0, x29\n\t"
                  "mov x1, x19\n\t"
@@ -3912,7 +3920,7 @@ __attribute__((naked)) void gadget_bcond_fallback_impl(void)
                  "ldp x9, x10, [x29, #80]\n\t"
                  "ldp x11, x12, [x29, #96]\n\t"
                  "ldp x13, x14, [x29, #112]\n\t"
-                 "ldp x15, x16, [x29, #128]\n\t"
+                 "ldr x15, [x29, #128]\n\t"
                  "mov x0, #0\n\t"
                  "b _tcti_exit_block\n\t");
 }
@@ -3935,7 +3943,7 @@ __attribute__((naked)) void gadget_ccmp_fallback_impl(void)
                  "stp x9, x10, [x29, #80]\n\t"
                  "stp x11, x12, [x29, #96]\n\t"
                  "stp x13, x14, [x29, #112]\n\t"
-                 "stp x15, x16, [x29, #128]\n\t"
+                 "str x15, [x29, #128]\n\t"
                  "bl _tcti_c_call_prologue\n\t"
                  "mov x0, x29\n\t"
                  "mov x1, x19\n\t"
@@ -3956,7 +3964,7 @@ __attribute__((naked)) void gadget_ccmp_fallback_impl(void)
                  "ldp x9, x10, [x29, #80]\n\t"
                  "ldp x11, x12, [x29, #96]\n\t"
                  "ldp x13, x14, [x29, #112]\n\t"
-                 "ldp x15, x16, [x29, #128]\n\t"
+                 "ldr x15, [x29, #128]\n\t"
                  "ldr x27, [x28], #8\n\t"
                  "br x27\n\t");
 }
@@ -3978,7 +3986,7 @@ __attribute__((naked)) void gadget_csel_fallback_impl(void)
                  "stp x9, x10, [x29, #80]\n\t"
                  "stp x11, x12, [x29, #96]\n\t"
                  "stp x13, x14, [x29, #112]\n\t"
-                 "stp x15, x16, [x29, #128]\n\t"
+                 "str x15, [x29, #128]\n\t"
                  "bl _tcti_c_call_prologue\n\t"
                  "mov x0, x29\n\t"
                  "mov x1, x19\n\t"
@@ -3996,8 +4004,8 @@ __attribute__((naked)) void gadget_csel_fallback_impl(void)
                  "ldp x9, x10, [x29, #80]\n\t"
                  "ldp x11, x12, [x29, #96]\n\t"
                  "ldp x13, x14, [x29, #112]\n\t"
-                 "ldp x15, x16, [x29, #128]\n\t"
-                 "cmp x19, #16\n\t"
+                 "ldr x15, [x29, #128]\n\t"
+                 "cmp x19, #15\n\t"
                  "b.hs 1f\n\t"
                  "mov x26, x19\n\t"
                  "bl _tcti_sync_hot_reg_from_cpu\n\t"
@@ -4016,7 +4024,7 @@ __attribute__((naked)) void gadget_movk_impl(void)
                  "ldr x23, [x28], #8\n\t" // is_64bit
                  "cmp x20, #31\n\t"
                  "b.eq 99f\n\t"
-                 "cmp x20, #16\n\t"
+                 "cmp x20, #15\n\t"
                  "b.hs 30f\n\t"
                  "adr x27, 1f\n\t"
                  "add x27, x27, x20, lsl #2\n\t"
@@ -4066,7 +4074,7 @@ __attribute__((naked)) void gadget_movk_impl(void)
                  "cbnz x23, 41f\n\t"
                  "mov w0, w0\n\t"
                  "41:\n\t"
-                 "cmp x20, #16\n\t"
+                 "cmp x20, #15\n\t"
                  "b.hs 70f\n\t"
                  "adr x27, 50f\n\t"
                  "add x27, x27, x20, lsl #2\n\t"
@@ -4140,7 +4148,7 @@ void tcti_trace_branch_target(uint64_t target, uint64_t is_link, uint64_t ret_pc
 
 __attribute__((naked)) void tcti_sync_hot_reg_from_cpu(void)
 {
-    asm volatile("cmp x26, #16\n\t"
+    asm volatile("cmp x26, #15\n\t"
                  "b.hs 99f\n\t"
                  "add x27, x29, #16\n\t"
                  "ldr x17, [x27, x26, lsl #3]\n\t"
@@ -4221,10 +4229,10 @@ __attribute__((naked)) void gadget_ldr_x_impl(void)
         "ldr x25, [x28], #8\n\t" // meta
 
         // Patch 1B.1: Hot-hot fast path
-        // Requirements: both Rn and Rt in 0-15, 64-bit, offset mode, meta=0
-        "cmp x20, #16\n\t" // Is Rt hot (0-15)?
+        // Requirements: both Rn and Rt in 0-14, 64-bit, offset mode, meta=0
+        "cmp x20, #15\n\t" // Is Rt hot (0-14)?
         "b.hs 91f\n\t"     // Branch to nonhot counter
-        "cmp x21, #16\n\t" // Is Rn hot (0-15)?
+        "cmp x21, #15\n\t" // Is Rn hot (0-14)?
         "b.hs 91f\n\t"
         "cmp x23, #3\n\t" // Is size 64-bit?
         "b.ne 92f\n\t"    // Branch to size counter
@@ -4238,8 +4246,8 @@ __attribute__((naked)) void gadget_ldr_x_impl(void)
         "cmp x24, #0\n\t"
         "b.ne 99f\n\t"
 
-        // Get base register value (hot, in x1-x16) using computed goto
-        // Branch table for Rn 0-15
+        // Get base register value (hot, in x1-x15) using computed goto
+        // Branch table for Rn 0-14
         "adr x26, 70f\n\t"              // x26 = base of branch table
         "add x26, x26, x21, lsl #2\n\t" // x26 = &table[Rn] (b instructions are 4 bytes)
         "br x26\n\t"
@@ -4261,7 +4269,7 @@ __attribute__((naked)) void gadget_ldr_x_impl(void)
         "b 102f\n\t" // Rn=12 -> load from x13
         "b 103f\n\t" // Rn=13 -> load from x14
         "b 104f\n\t" // Rn=14 -> load from x15
-        "b 105f\n\t" // Rn=15 -> load from x16
+        "b 105f\n\t" // Rn=15 -> memory-backed path before this table
 
         // Load base register value into x17
         "80:\n\tmov x17, x1\n\tb 110f\n\t"
@@ -4335,7 +4343,7 @@ __attribute__((naked)) void gadget_ldr_x_impl(void)
         "ldr x0, [x17]\n\t"      // x0 = loaded value
 
         // Store to hot destination register using computed goto
-        // x20 still holds original Rt (0-15)
+        // x20 still holds original Rt (0-14)
         "adr x26, 120f\n\t"             // x26 = base of store table
         "add x26, x26, x20, lsl #2\n\t" // x26 = &table[Rt] (b instructions are 4 bytes)
         "br x26\n\t"
@@ -4449,7 +4457,7 @@ __attribute__((naked)) void gadget_ldr_x_impl(void)
         "stp x9, x10, [x29, #80]\n\t"
         "stp x11, x12, [x29, #96]\n\t"
         "stp x13, x14, [x29, #112]\n\t"
-        "stp x15, x16, [x29, #128]\n\t"
+        "str x15, [x29, #128]\n\t"
         "ldr x17, [x29, %[pstate_off]]\n\t"
         "msr nzcv, x17\n\t"
         "bl _tcti_c_call_prologue\n\t"
@@ -4470,17 +4478,17 @@ __attribute__((naked)) void gadget_ldr_x_impl(void)
         "ldp x9, x10, [x29, #80]\n\t"
         "ldp x11, x12, [x29, #96]\n\t"
         "ldp x13, x14, [x29, #112]\n\t"
-        "ldp x15, x16, [x29, #128]\n\t"
+        "ldr x15, [x29, #128]\n\t"
         "cmp x0, #0\n\t"
         "b.ne 1f\n\t"
-        "cmp x20, #16\n\t"
+        "cmp x20, #15\n\t"
         "b.hs 160f\n\t"
         "mov x26, x20\n\t"
         "bl _tcti_sync_hot_reg_from_cpu\n\t"
         "160:\n\t"
         "cmp x24, #0\n\t"
         "b.eq 161f\n\t"
-        "cmp x21, #16\n\t"
+        "cmp x21, #15\n\t"
         "b.hs 161f\n\t"
         "mov x26, x21\n\t"
         "bl _tcti_sync_hot_reg_from_cpu\n\t"
@@ -4544,7 +4552,7 @@ __attribute__((naked)) void gadget_str_x_impl(void)
         // Fast path supports aligned 64-bit offset stores with hot base registers.
         // Writeback forms stay on the helper path so architectural base updates and
         // host fault handling remain centralized.
-        "cmp x21, #16\n\t" // Is Rn hot (0-15)?
+        "cmp x21, #15\n\t" // Is Rn hot (0-14)?
         "b.hs 91f\n\t"
         "cmp x23, #3\n\t" // Is size 64-bit?
         "b.ne 92f\n\t"
@@ -4552,15 +4560,15 @@ __attribute__((naked)) void gadget_str_x_impl(void)
         "b.ne 93f\n\t"
         "cmp x25, #0\n\t" // No register offset / extension metadata.
         "b.ne 94f\n\t"
-        "cmp x20, #16\n\t" // Rt hot is supported.
+        "cmp x20, #15\n\t" // Rt hot is supported.
         "b.lo 60f\n\t"
         "cmp x20, #31\n\t" // XZR zero stores are supported.
         "b.ne 91f\n\t"
 
         "60:\n\t"
 
-        // Get base register value (hot, in x1-x16) using computed goto
-        // Branch table for Rn 0-15
+        // Get base register value (hot, in x1-x15) using computed goto
+        // Branch table for Rn 0-14
         "adr x26, 70f\n\t"              // x26 = base of branch table
         "add x26, x26, x21, lsl #2\n\t" // x26 = &table[Rn] (b instructions are 4 bytes)
         "br x26\n\t"
@@ -4582,7 +4590,7 @@ __attribute__((naked)) void gadget_str_x_impl(void)
         "b 102f\n\t" // Rn=12 -> load from x13
         "b 103f\n\t" // Rn=13 -> load from x14
         "b 104f\n\t" // Rn=14 -> load from x15
-        "b 105f\n\t" // Rn=15 -> load from x16
+        "b 105f\n\t" // Rn=15 -> memory-backed path before this table
 
         // Load base register value into x17
         "80:\n\tmov x17, x1\n\tb 110f\n\t"
@@ -4618,8 +4626,8 @@ __attribute__((naked)) void gadget_str_x_impl(void)
 
         "b 150f\n\t"
 
-        // Get source register value (Rt, hot, in x1-x16) using computed goto
-        // x20 still holds original Rt (0-15)
+        // Get source register value (Rt, hot, in x1-x15) using computed goto
+        // x20 still holds original Rt (0-14)
         "119:\n\t"
         "cmp x20, #31\n\t"
         "b.eq 146f\n\t"
@@ -4644,7 +4652,7 @@ __attribute__((naked)) void gadget_str_x_impl(void)
         "b 142f\n\t" // Rt=12 -> load from x13
         "b 143f\n\t" // Rt=13 -> load from x14
         "b 144f\n\t" // Rt=14 -> load from x15
-        "b 145f\n\t" // Rt=15 -> load from x16
+        "b 145f\n\t" // Rt=15 -> memory-backed path before this table
 
         // Load source register value into x0
         "130:\n\tmov x0, x1\n\tb 151f\n\t"
@@ -4819,7 +4827,7 @@ __attribute__((naked)) void gadget_str_x_impl(void)
         "stp x9, x10, [x29, #80]\n\t"
         "stp x11, x12, [x29, #96]\n\t"
         "stp x13, x14, [x29, #112]\n\t"
-        "stp x15, x16, [x29, #128]\n\t"
+        "str x15, [x29, #128]\n\t"
         "ldr x17, [x29, %[pstate_off]]\n\t"
         "msr nzcv, x17\n\t"
         "bl _tcti_c_call_prologue\n\t"
@@ -4840,12 +4848,12 @@ __attribute__((naked)) void gadget_str_x_impl(void)
         "ldp x9, x10, [x29, #80]\n\t"
         "ldp x11, x12, [x29, #96]\n\t"
         "ldp x13, x14, [x29, #112]\n\t"
-        "ldp x15, x16, [x29, #128]\n\t"
+        "ldr x15, [x29, #128]\n\t"
         "cmp x0, #0\n\t" // x0 still has return value from helper
         "b.ne 1f\n\t"
         "cmp x24, #0\n\t"
         "b.eq 160f\n\t"
-        "cmp x21, #16\n\t"
+        "cmp x21, #15\n\t"
         "b.hs 160f\n\t"
         "mov x26, x21\n\t"
         "bl _tcti_sync_hot_reg_from_cpu\n\t"
@@ -4891,7 +4899,7 @@ __attribute__((naked)) void gadget_simd_dup_gpr_impl(void)
                  "stp x9, x10, [x29, #80]\n\t"
                  "stp x11, x12, [x29, #96]\n\t"
                  "stp x13, x14, [x29, #112]\n\t"
-                 "stp x15, x16, [x29, #128]\n\t"
+                 "str x15, [x29, #128]\n\t"
                  "bl _tcti_c_call_prologue\n\t"
                  "mov x0, x29\n\t"
                  "mov x1, x19\n\t"
@@ -4927,7 +4935,7 @@ __attribute__((naked)) void gadget_simd_movi_imm_impl(void)
                  "stp x9, x10, [x29, #80]\n\t"
                  "stp x11, x12, [x29, #96]\n\t"
                  "stp x13, x14, [x29, #112]\n\t"
-                 "stp x15, x16, [x29, #128]\n\t"
+                 "str x15, [x29, #128]\n\t"
                  "bl _tcti_c_call_prologue\n\t"
                  "mov x0, x29\n\t"
                  "mov x1, x19\n\t"
@@ -4964,7 +4972,7 @@ __attribute__((naked)) void gadget_simd_mov_gpr_from_vec_impl(void)
                  "stp x9, x10, [x29, #80]\n\t"
                  "stp x11, x12, [x29, #96]\n\t"
                  "stp x13, x14, [x29, #112]\n\t"
-                 "stp x15, x16, [x29, #128]\n\t"
+                 "str x15, [x29, #128]\n\t"
                  "bl _tcti_c_call_prologue\n\t"
                  "mov x0, x29\n\t"
                  "mov x1, x19\n\t"
@@ -4974,7 +4982,7 @@ __attribute__((naked)) void gadget_simd_mov_gpr_from_vec_impl(void)
                  "mov x5, x23\n\t"
                  "bl _tcti_simd_mov_gpr_from_vec_helper\n\t"
                  "bl _tcti_c_call_epilogue\n\t"
-                 "cmp x19, #16\n\t"
+                 "cmp x19, #15\n\t"
                  "b.hs 1f\n\t"
                  "mov x26, x19\n\t"
                  "bl _tcti_sync_hot_reg_from_cpu\n\t"
@@ -5008,7 +5016,7 @@ __attribute__((naked)) void gadget_atomic_ldst_impl(void)
                  "stp x9, x10, [x29, #80]\n\t"
                  "stp x11, x12, [x29, #96]\n\t"
                  "stp x13, x14, [x29, #112]\n\t"
-                 "stp x15, x16, [x29, #128]\n\t"
+                 "str x15, [x29, #128]\n\t"
                  "bl _tcti_c_call_prologue\n\t"
                  "mov x0, x29\n\t"
                  "mov x1, x19\n\t"
@@ -5021,12 +5029,12 @@ __attribute__((naked)) void gadget_atomic_ldst_impl(void)
                  "bl _tcti_c_call_epilogue\n\t"
                  "cmp x0, #0\n\t"
                  "b.ne 3f\n\t"
-                 "cmp x20, #16\n\t"
+                 "cmp x20, #15\n\t"
                  "b.hs 1f\n\t"
                  "mov x26, x20\n\t"
                  "bl _tcti_sync_hot_reg_from_cpu\n\t"
                  "1:\n\t"
-                 "cmp x22, #16\n\t"
+                 "cmp x22, #15\n\t"
                  "b.hs 2f\n\t"
                  "mov x26, x22\n\t"
                  "bl _tcti_sync_hot_reg_from_cpu\n\t"
@@ -5064,7 +5072,7 @@ __attribute__((naked)) void gadget_simd_ldst_impl(void)
                  "stp x9, x10, [x29, #80]\n\t"
                  "stp x11, x12, [x29, #96]\n\t"
                  "stp x13, x14, [x29, #112]\n\t"
-                 "stp x15, x16, [x29, #128]\n\t"
+                 "str x15, [x29, #128]\n\t"
                  "bl _tcti_c_call_prologue\n\t"
                  "mov x0, x29\n\t"
                  "mov x1, x19\n\t"
@@ -5080,7 +5088,7 @@ __attribute__((naked)) void gadget_simd_ldst_impl(void)
                  "bl _tcti_c_call_epilogue\n\t"
                  "cmp x0, #0\n\t"
                  "b.ne 2f\n\t"
-                 "cmp x22, #16\n\t"
+                 "cmp x22, #15\n\t"
                  "b.hs 1f\n\t"
                  "mov x26, x22\n\t"
                  "bl _tcti_sync_hot_reg_from_cpu\n\t"
@@ -5205,7 +5213,7 @@ __attribute__((naked)) void gadget_mrs_impl(void)
                  "stp x9, x10, [x29, #80]\n\t"
                  "stp x11, x12, [x29, #96]\n\t"
                  "stp x13, x14, [x29, #112]\n\t"
-                 "stp x15, x16, [x29, #128]\n\t"
+                 "str x15, [x29, #128]\n\t"
                  "bl _tcti_c_call_prologue\n\t"
                  "mov x0, x29\n\t"
                  "mov x1, x19\n\t"
@@ -5219,10 +5227,10 @@ __attribute__((naked)) void gadget_mrs_impl(void)
                  "ldp x9, x10, [x29, #80]\n\t"
                  "ldp x11, x12, [x29, #96]\n\t"
                  "ldp x13, x14, [x29, #112]\n\t"
-                 "ldp x15, x16, [x29, #128]\n\t"
+                 "ldr x15, [x29, #128]\n\t"
                  "cmp x0, #0\n\t"
                  "b.ne 1f\n\t"
-                 "cmp x20, #16\n\t"
+                 "cmp x20, #15\n\t"
                  "b.hs 2f\n\t"
                  "mov x26, x20\n\t"
                  "bl _tcti_sync_hot_reg_from_cpu\n\t"
@@ -5252,7 +5260,7 @@ __attribute__((naked)) void gadget_msr_impl(void)
                  "stp x9, x10, [x29, #80]\n\t"
                  "stp x11, x12, [x29, #96]\n\t"
                  "stp x13, x14, [x29, #112]\n\t"
-                 "stp x15, x16, [x29, #128]\n\t"
+                 "str x15, [x29, #128]\n\t"
                  "bl _tcti_c_call_prologue\n\t"
                  "mov x0, x29\n\t"
                  "mov x1, x19\n\t"
@@ -5266,7 +5274,7 @@ __attribute__((naked)) void gadget_msr_impl(void)
                  "ldp x9, x10, [x29, #80]\n\t"
                  "ldp x11, x12, [x29, #96]\n\t"
                  "ldp x13, x14, [x29, #112]\n\t"
-                 "ldp x15, x16, [x29, #128]\n\t"
+                 "ldr x15, [x29, #128]\n\t"
                  "mov x22, #0x5a10\n\t"
                  "cmp x19, x22\n\t"
                  "b.ne 0f\n\t"

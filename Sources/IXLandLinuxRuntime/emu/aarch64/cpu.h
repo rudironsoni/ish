@@ -180,7 +180,7 @@ struct cpu_state {
 // Fallback reason codes for data-driven optimization
 // These match the counter array indices
 enum tcti_fallback_reason {
-    TCTI_FALLBACK_NONHOT = 0, // Non-hot registers (Rt/Rn not in 0-15)
+    TCTI_FALLBACK_NONHOT = 0, // Non-hot registers (Rt/Rn not in 0-14)
     TCTI_FALLBACK_SIZE,       // Non-64-bit size
     TCTI_FALLBACK_IDXMODE,    // Non-offset indexing mode (writeback, etc.)
     TCTI_FALLBACK_META,       // Non-zero meta field

@@ -61,7 +61,7 @@ __attribute__((naked)) void gadget_tst_legacy_0_1(void) {
 // Load memory-backed register into x0 (for operations)
 __attribute__((naked)) void gadget_load_xreg(int reg) {
     // Load x[reg+16] from cpu state into x0
-    // reg is in range 0-15 (maps to x16-x30) or -1 for SP
+    // reg is in range 0-15 (maps to x15-x30) or -1 for SP
     asm volatile(
         "cmp x0, #-1\n\t"
         "b.eq 1f\n\t"               // SP case

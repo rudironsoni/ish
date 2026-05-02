@@ -51,6 +51,7 @@ uint64_t tcti_harness_case_musl_strncmp_libc_reserved_prefix(void);
 uint64_t tcti_harness_case_musl_load_library_detects_libc_self(void);
 uint64_t tcti_harness_case_musl_gnu_hash_malloc(void);
 uint64_t tcti_harness_case_musl_gnu_lookup_filtered_malloc(void);
+uint64_t tcti_harness_case_musl_gnu_lookup_dls2b_chain(void);
 uint64_t tcti_harness_case_musl_find_sym_accepts_global_func(void);
 
 #ifdef __cplusplus

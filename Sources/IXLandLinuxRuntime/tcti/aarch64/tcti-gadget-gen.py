@@ -8,7 +8,7 @@ Each gadget implements one aarch64 instruction variant.
 Based on UTM's TCTI approach:
 - Gadgets are naked functions with inline assembly
 - Each gadget ends with epilogue that chains to next gadget
-- Register mapping: x1-x16 = guest x0-x15, x28 = bytecode pointer
+- Register mapping: x1-x15 = guest x0-x14, x28 = bytecode pointer
 """
 
 import argparse
@@ -18,7 +18,7 @@ from datetime import datetime
 
 # Configuration
 GADGET_VERSION = "1.0.0"
-MAX_TCTI_REGS = 16  # x0-x15 are TCTI-mapped, x16-x30 are memory-backed
+MAX_TCTI_REGS = 15  # x0-x14 are TCTI-mapped, x15-x30 are memory-backed
 
 # Template for generated header file
 HEADER_TEMPLATE = """/*
@@ -149,7 +149,7 @@ extern tcti_gadget_t gadget_b;
 // Table: gadget_bcond[cond]
 extern const tcti_gadget_t gadget_bcond[16];
 
-// Compare and branch on zero / non-zero for hot x0-x15 regs
+// Compare and branch on zero / non-zero for hot x0-x14 regs
 // Tables: gadget_cbz_reg[reg], gadget_cbnz_reg[reg]
 extern const tcti_gadget_t gadget_cbz_reg[16];
 extern const tcti_gadget_t gadget_cbnz_reg[16];
@@ -200,16 +200,16 @@ extern tcti_gadget_t gadget_str_x;
 // Memory-Backed Register Load/Store (defined in gadgets_memory.c)
 // ============================================================================
 //
-// Guest registers x16-x30 and SP are stored in memory (cpu_state struct).
+// Guest registers x15-x30 and SP are stored in memory (cpu_state struct).
 // To operate on them, we load into temp registers (x14-x18), execute,
 // then store back.
 
-// Load guest x[16 + n] (n=0-14) into host temp register
-// Table index 0 = x16, 14 = x30
-extern const tcti_gadget_t gadget_load_xreg_16_to_30[15];
+// Load guest x[15 + n] (n=0-15) into host temp register
+// Table index 0 = x15, 15 = x30
+extern const tcti_gadget_t gadget_load_xreg_16_to_30[16];
 
-// Store host temp register back to guest x[16 + n]
-extern const tcti_gadget_t gadget_store_xreg_16_to_30[15];
+// Store host temp register back to guest x[15 + n]
+extern const tcti_gadget_t gadget_store_xreg_16_to_30[16];
 
 // SP load/store - uses x18 as temp
 // These are naked functions, not function pointers
@@ -366,8 +366,8 @@ struct atomic_cmp_capture {{
 // ============================================================================
 // Register Mapping
 // ============================================================================
-// Guest x0-x15  -> Host x1-x16 (direct mapping)
-// Guest x16-x30 -> Memory backed (access via load/store gadgets)
+// Guest x0-x14  -> Host x1-x15 (direct mapping)
+// Guest x15-x30 -> Memory backed (access via load/store gadgets)
 // Guest SP (x31)-> Memory backed (access via load/store gadgets)
 // Host x28      -> Bytecode pointer (gadget stream)
 // Host x29      -> CPU state pointer
@@ -978,11 +978,11 @@ def generate_gadgets(output_dir, generator_hash="unknown"):
     print(f"Generated: {impl_path}")
 
     print("\nStatistics:")
-    print(f"  TCTI-mapped registers: x0-x15 ({MAX_TCTI_REGS})")
+    print(f"  TCTI-mapped registers: x0-x14 ({MAX_TCTI_REGS})")
     print(
         f"  Total gadgets: ~{16 * 16 + 16 * 16 * 16 + 16 * 16 * 16 + 16 + 16 * 16 * 16 + 16 * 16 * 16:,}"
     )
-    print(f"  Memory-backed: x16-x30, SP (16)")
+    print(f"  Memory-backed: x15-x30, SP (16)")
 
 
 def compute_file_hash(filepath):

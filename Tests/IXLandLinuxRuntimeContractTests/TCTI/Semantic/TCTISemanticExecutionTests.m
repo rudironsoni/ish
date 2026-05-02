@@ -211,6 +211,13 @@
                     "libc symbols through bloom filters, hash buckets, and symbol strings");
 }
 
+- (void)testSemanticExecutionContract_MuslGNULookupDls2bChain
+{
+    XCTAssertEqual(tcti_harness_case_musl_gnu_lookup_dls2b_chain(), 0ULL,
+                   @"TCTI must execute musl's GNU hash chain walk across false-positive "
+                    "entries so ldso can resolve its own __dls2b symbol");
+}
+
 - (void)testSemanticExecutionContract_MuslFindSymAcceptsGlobalFunc
 {
     XCTAssertEqual(tcti_harness_case_musl_find_sym_accepts_global_func(), 0ULL,

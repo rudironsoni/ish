@@ -5,7 +5,7 @@
  * No runtime code generation - just emits arrays of function pointers.
  *
  * 100% TCTI implementation - handles all instructions including
- * memory-backed registers (x16-x30, SP) via load/store sequences.
+ * memory-backed registers (x15-x30, SP) via load/store sequences.
  */
 
 #import <IXLandLinuxRuntime/emu/aarch64/decode.h>
@@ -55,9 +55,15 @@ extern tcti_gadget_t gadget_atomic_ldst;
 extern tcti_gadget_t gadget_extend_x14;
 extern void gadget_br_impl(void);
 
-// Map guest registers 0-15 to our pre-generated gadget tables
-// Registers 16-30 and sp are handled differently (in memory)
-#define IS_TCTI_REG(r) ((r) >= 0 && (r) < 16)
+// Host x16 is reserved for ABI/linker scratch and TCTI internals. Keep only
+// guest x0-x14 hot; guest x15-x30 are memory-backed through helper gadgets.
+#define TCTI_HOT_REG_COUNT 15
+#define TCTI_MEM_REG_BASE 15
+#define TCTI_MEM_REG_COUNT (31 - TCTI_MEM_REG_BASE)
+#define IS_TCTI_REG(r) ((r) >= 0 && (r) < TCTI_HOT_REG_COUNT)
+#define IS_MEM_REG(r) ((r) >= TCTI_MEM_REG_BASE && (r) <= 30)
+#define MEM_REG_INDEX(r) ((r) - TCTI_MEM_REG_BASE)
+#define VALID_MEM_REG_INDEX(i) ((i) >= 0 && (i) < TCTI_MEM_REG_COUNT)
 
 // Initialization
 int a64_gen_init(a64_gen_state_t *state, tcti_gadget_t *buffer, size_t max)
@@ -438,10 +444,10 @@ static int emit_unconditional_branch(a64_gen_state_t *state, uint64_t target_pc,
  *
  * Handles: ADR, ADRP, ADD, SUB, MOVZ, MOVN, MOVK, bitfield, logical imm
  *
- * For memory-backed registers (x16-x30), we emit load/store sequences:
- *   Load x[16-30]  -> gadget_load_xreg_16_to_30[n] (loads to x14/x15)
+ * For memory-backed registers (x15-x30), we emit load/store sequences:
+ *   Load x[15-30]  -> gadget_load_xreg_16_to_30[n] (loads to x14/x15)
  *   Operate         -> operation gadget
- *   Store x[16-30] -> gadget_store_xreg_16_to_30[n] (stores from x14/x15)
+ *   Store x[15-30] -> gadget_store_xreg_16_to_30[n] (stores from x14/x15)
  * ============================================================================
  */
 int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr)
@@ -449,11 +455,11 @@ int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr)
     int rd = instr->Rd;
     int rn = instr->Rn;
 
-    // Check if registers are memory-backed (x16-x30) or TCTI-mapped (x0-x15)
+    // Check if registers are memory-backed (x15-x30) or TCTI-mapped (x0-x14)
     // x31 is SP (for loads/stores) or XZR (for most other ops)
     int rd_is_zero = (instr->set_flags && rd == 31);
-    int src_is_memory = (rn >= 16 && rn <= 30);
-    int dst_is_memory = (rd >= 16 && rd <= 30);
+    int src_is_memory = IS_MEM_REG(rn);
+    int dst_is_memory = IS_MEM_REG(rd);
     int src_is_sp = (rn == 31);
     int dst_is_sp = (rd == 31 && !rd_is_zero);
 
@@ -505,7 +511,7 @@ int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr)
         }
         // Emit store if destination is memory-backed
         if (dst_is_memory) {
-            int store_idx = rd - 16;
+            int store_idx = MEM_REG_INDEX(rd);
             int ret = emit_gadget(state, gadget_store_xreg_16_to_30[store_idx]);
             if (ret != A64_GEN_OK)
                 return ret;
@@ -550,7 +556,7 @@ int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr)
         }
         // Emit store if destination is memory-backed
         if (dst_is_memory) {
-            int store_idx = rd - 16;
+            int store_idx = MEM_REG_INDEX(rd);
             int ret = emit_gadget(state, gadget_store_xreg_16_to_30[store_idx]);
             if (ret != A64_GEN_OK)
                 return ret;
@@ -597,8 +603,8 @@ int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr)
                 return A64_GEN_UNSUPPORTED;
 
             if (src_is_memory) {
-                int load_idx = rn - 16;
-                if (load_idx < 0 || load_idx > 14)
+                int load_idx = MEM_REG_INDEX(rn);
+                if (!VALID_MEM_REG_INDEX(load_idx))
                     return A64_GEN_UNSUPPORTED;
                 ret = emit_gadget(state, gadget_load_xreg_16_to_30[load_idx]);
                 if (ret != A64_GEN_OK)
@@ -624,8 +630,8 @@ int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr)
             int work_dst = dst_is_memory || dst_is_sp ? 13 : rd;
 
             if (src_is_memory) {
-                int load_idx = rn - 16;
-                if (load_idx < 0 || load_idx > 14)
+                int load_idx = MEM_REG_INDEX(rn);
+                if (!VALID_MEM_REG_INDEX(load_idx))
                     return A64_GEN_UNSUPPORTED;
                 ret = emit_gadget(state, gadget_load_xreg_16_to_30[load_idx]);
                 if (ret != A64_GEN_OK)
@@ -657,8 +663,8 @@ int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr)
             }
 
             if (dst_is_memory) {
-                int store_idx = rd - 16;
-                if (store_idx < 0 || store_idx > 14)
+                int store_idx = MEM_REG_INDEX(rd);
+                if (!VALID_MEM_REG_INDEX(store_idx))
                     return A64_GEN_UNSUPPORTED;
                 ret = emit_gadget(state, gadget_store_xreg_16_to_30[store_idx]);
                 if (ret != A64_GEN_OK)
@@ -709,8 +715,8 @@ int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr)
 
             // Emit load if source is memory-backed
             if (src_is_memory) {
-                int load_idx = rn - 16;
-                if (load_idx < 0 || load_idx > 14)
+                int load_idx = MEM_REG_INDEX(rn);
+                if (!VALID_MEM_REG_INDEX(load_idx))
                     return A64_GEN_UNSUPPORTED;
                 ret = emit_gadget(state, gadget_load_xreg_16_to_30[load_idx]);
                 if (ret != A64_GEN_OK)
@@ -732,8 +738,8 @@ int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr)
 
             // Emit store if destination is memory-backed
             if (dst_is_memory) {
-                int store_idx = rd - 16;
-                if (store_idx < 0 || store_idx > 14)
+                int store_idx = MEM_REG_INDEX(rd);
+                if (!VALID_MEM_REG_INDEX(store_idx))
                     return A64_GEN_UNSUPPORTED;
                 ret = emit_gadget(state, gadget_store_xreg_16_to_30[store_idx]);
                 if (ret != A64_GEN_OK)
@@ -757,8 +763,8 @@ int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr)
         }
 
         if (src_is_memory) {
-            int load_idx = rn - 16;
-            if (load_idx < 0 || load_idx > 14)
+            int load_idx = MEM_REG_INDEX(rn);
+            if (!VALID_MEM_REG_INDEX(load_idx))
                 return A64_GEN_UNSUPPORTED;
             ret = emit_gadget(state, gadget_load_xreg_16_to_30[load_idx]);
             if (ret != A64_GEN_OK)
@@ -791,8 +797,8 @@ int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr)
             return ret;
 
         if (dst_is_memory) {
-            int store_idx = rd - 16;
-            if (store_idx < 0 || store_idx > 14)
+            int store_idx = MEM_REG_INDEX(rd);
+            if (!VALID_MEM_REG_INDEX(store_idx))
                 return A64_GEN_UNSUPPORTED;
             ret = emit_gadget(state, gadget_store_xreg_16_to_30[store_idx]);
             if (ret != A64_GEN_OK)
@@ -878,10 +884,10 @@ int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr)
     if (!gadget)
         return A64_GEN_UNSUPPORTED;
 
-    // Emit load if source is memory-backed (x16-x30)
+    // Emit load if source is memory-backed (x15-x30)
     if (src_is_memory) {
-        int load_idx = rn - 16; // x16=0, x17=1, ..., x30=14
-        if (load_idx < 0 || load_idx > 14)
+        int load_idx = MEM_REG_INDEX(rn); // x15=0, x16=1, ..., x30=15
+        if (!VALID_MEM_REG_INDEX(load_idx))
             return A64_GEN_UNSUPPORTED;
 
         int ret = emit_gadget(state, gadget_load_xreg_16_to_30[load_idx]);
@@ -894,10 +900,10 @@ int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr)
     if (ret != A64_GEN_OK)
         return ret;
 
-    // Emit store if destination is memory-backed (x16-x30)
+    // Emit store if destination is memory-backed (x15-x30)
     if (dst_is_memory) {
-        int store_idx = rd - 16;
-        if (store_idx < 0 || store_idx > 14)
+        int store_idx = MEM_REG_INDEX(rd);
+        if (!VALID_MEM_REG_INDEX(store_idx))
             return A64_GEN_UNSUPPORTED;
 
         ret = emit_gadget(state, gadget_store_xreg_16_to_30[store_idx]);
@@ -919,10 +925,10 @@ int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr)
  * Data Processing - Register
  *
  * Handles register operations with support for memory-backed registers.
- * For memory-backed registers (x16-x30), emits load/store sequences:
- *   Load x[16-30] -> temp register (x14 for first source, x15 for second)
+ * For memory-backed registers (x15-x30), emits load/store sequences:
+ *   Load x[15-30] -> temp register (x14 for first source, x15 for second)
  *   Execute operation
- *   Store result -> x[16-30] from temp (x14)
+ *   Store result -> x[15-30] from temp (x14)
  *
  * Temp register allocation:
  *   x14: Primary temp for first source / destination
@@ -939,16 +945,16 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr)
     int dpreg_ext_form = bit(instr->raw, 21);
     int rd_is_zero = (instr->set_flags && rd == 31);
 
-    // Determine which registers are memory-backed (x16-x30)
-    int src1_is_memory = (rn >= 16 && rn <= 30);
-    int src2_is_memory = (rm >= 16 && rm <= 30);
-    int dst_is_memory = (rd >= 16 && rd <= 30);
+    // Determine which registers are memory-backed (x15-x30)
+    int src1_is_memory = IS_MEM_REG(rn);
+    int src2_is_memory = IS_MEM_REG(rm);
+    int dst_is_memory = IS_MEM_REG(rd);
     int dst_is_sp = (rd == 31 && !rd_is_zero);
 
     // Allocate temp registers:
     // x14 (index 13) = primary temp (destination or first source)
     // x15 (index 14) = secondary temp (second source if needed)
-    // gadget indices: 0-15 map to x1-x16, so x14=13, x15=14
+    // gadget indices: 0-14 map to x1-x15, so x14=13, x15=14
     int eff_rd, eff_rn, eff_rm;
 
     if (dst_is_memory || dst_is_sp) {
@@ -1097,8 +1103,8 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr)
             }
 
             if (src2_is_memory) {
-                int load_idx = rm - 16;
-                if (load_idx < 0 || load_idx > 14)
+                int load_idx = MEM_REG_INDEX(rm);
+                if (!VALID_MEM_REG_INDEX(load_idx))
                     return A64_GEN_UNSUPPORTED;
                 ret = emit_gadget(state, gadget_load_xreg_16_to_30[load_idx]);
                 if (ret != A64_GEN_OK)
@@ -1139,8 +1145,8 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr)
                 return ret;
 
             if (dst_is_memory) {
-                int store_idx = rd - 16;
-                if (store_idx < 0 || store_idx > 14)
+                int store_idx = MEM_REG_INDEX(rd);
+                if (!VALID_MEM_REG_INDEX(store_idx))
                     return A64_GEN_UNSUPPORTED;
                 ret = emit_gadget(state, gadget_store_xreg_16_to_30[store_idx]);
                 if (ret != A64_GEN_OK)
@@ -1216,8 +1222,8 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr)
             }
 
             if (src2_is_memory) {
-                int load_idx = rm - 16;
-                if (load_idx < 0 || load_idx > 14)
+                int load_idx = MEM_REG_INDEX(rm);
+                if (!VALID_MEM_REG_INDEX(load_idx))
                     return A64_GEN_UNSUPPORTED;
                 ret = emit_gadget(state, gadget_load_xreg_16_to_30[load_idx]);
                 if (ret != A64_GEN_OK)
@@ -1258,8 +1264,8 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr)
                 return ret;
 
             if (dst_is_memory) {
-                int store_idx = rd - 16;
-                if (store_idx < 0 || store_idx > 14)
+                int store_idx = MEM_REG_INDEX(rd);
+                if (!VALID_MEM_REG_INDEX(store_idx))
                     return A64_GEN_UNSUPPORTED;
                 ret = emit_gadget(state, gadget_store_xreg_16_to_30[store_idx]);
                 if (ret != A64_GEN_OK)
@@ -1289,8 +1295,8 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr)
             if (ret != A64_GEN_OK)
                 return ret;
         } else if (src1_is_memory) {
-            int load_idx = rn - 16;
-            if (load_idx < 0 || load_idx > 14)
+            int load_idx = MEM_REG_INDEX(rn);
+            if (!VALID_MEM_REG_INDEX(load_idx))
                 return A64_GEN_UNSUPPORTED;
             ret = emit_gadget(state, gadget_load_xreg_16_to_30[load_idx]);
             if (ret != A64_GEN_OK)
@@ -1302,8 +1308,8 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr)
 
         // Load Rm (second source) into x14 if memory-backed or hot.
         if (src2_is_memory) {
-            int load_idx = rm - 16;
-            if (load_idx < 0 || load_idx > 14)
+            int load_idx = MEM_REG_INDEX(rm);
+            if (!VALID_MEM_REG_INDEX(load_idx))
                 return A64_GEN_UNSUPPORTED;
             ret = emit_gadget(state, gadget_load_xreg_16_to_30[load_idx]);
             if (ret != A64_GEN_OK)
@@ -1332,8 +1338,8 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr)
 
         // Store result if destination is memory-backed
         if (dst_is_memory) {
-            int store_idx = rd - 16;
-            if (store_idx < 0 || store_idx > 14)
+            int store_idx = MEM_REG_INDEX(rd);
+            if (!VALID_MEM_REG_INDEX(store_idx))
                 return A64_GEN_UNSUPPORTED;
             ret = emit_gadget(state, gadget_store_xreg_16_to_30[store_idx]);
             if (ret != A64_GEN_OK)
@@ -1357,8 +1363,8 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr)
 
     // Emit load for first source if memory-backed
     if (src1_is_memory) {
-        int load_idx = rn - 16; // x16=0, ..., x30=14
-        if (load_idx < 0 || load_idx > 14)
+        int load_idx = MEM_REG_INDEX(rn); // x15=0, ..., x30=15
+        if (!VALID_MEM_REG_INDEX(load_idx))
             return A64_GEN_UNSUPPORTED;
 
         int ret = emit_gadget(state, gadget_load_xreg_16_to_30[load_idx]);
@@ -1373,8 +1379,8 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr)
 
     // Emit load for second source if memory-backed.
     if (src2_is_memory) {
-        int load_idx = rm - 16;
-        if (load_idx < 0 || load_idx > 14)
+        int load_idx = MEM_REG_INDEX(rm);
+        if (!VALID_MEM_REG_INDEX(load_idx))
             return A64_GEN_UNSUPPORTED;
 
         int ret = emit_gadget(state, gadget_load_xreg_16_to_30[load_idx]);
@@ -1394,8 +1400,8 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr)
 
     // Emit store if destination is memory-backed
     if (dst_is_memory) {
-        int store_idx = rd - 16;
-        if (store_idx < 0 || store_idx > 14)
+        int store_idx = MEM_REG_INDEX(rd);
+        if (!VALID_MEM_REG_INDEX(store_idx))
             return A64_GEN_UNSUPPORTED;
 
         ret = emit_gadget(state, gadget_store_xreg_16_to_30[store_idx]);
@@ -1452,8 +1458,8 @@ int a64_gen_branch(a64_gen_state_t *state, const a64_instr_t *instr)
             return A64_GEN_OK;
         }
 
-        if (cmp_reg >= 16) {
-            ret = emit_gadget(state, gadget_load_xreg_16_to_30[cmp_reg - 16]);
+        if (IS_MEM_REG(cmp_reg)) {
+            ret = emit_gadget(state, gadget_load_xreg_16_to_30[MEM_REG_INDEX(cmp_reg)]);
             if (ret != A64_GEN_OK)
                 return ret;
             cmp_reg = 13;
@@ -1492,8 +1498,8 @@ int a64_gen_branch(a64_gen_state_t *state, const a64_instr_t *instr)
             return A64_GEN_OK;
         }
 
-        if (test_reg >= 16) {
-            ret = emit_gadget(state, gadget_load_xreg_16_to_30[test_reg - 16]);
+        if (IS_MEM_REG(test_reg)) {
+            ret = emit_gadget(state, gadget_load_xreg_16_to_30[MEM_REG_INDEX(test_reg)]);
             if (ret != A64_GEN_OK)
                 return ret;
             test_reg = 13;
@@ -1620,8 +1626,8 @@ static int a64_emit_base_writeback(a64_gen_state_t *state, int rn, int64_t imm)
     if (imm == 0)
         return A64_GEN_OK;
 
-    if (rn >= 16 && rn <= 30) {
-        int load_idx = rn - 16;
+    if (IS_MEM_REG(rn)) {
+        int load_idx = MEM_REG_INDEX(rn);
         ret = emit_gadget(state, gadget_load_xreg_16_to_30[load_idx]);
         if (ret != A64_GEN_OK)
             return ret;
