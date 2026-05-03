@@ -654,13 +654,13 @@ static int load_entry(struct prg_header ph, addr_t bias, struct fd *fd)
             uint16_t *host_short = (uint16_t *)((char *)verify_desc->obj->host_base + 0x36);
             char ev[256];
             snprintf(ev, sizeof(ev),
-                     "loader.interp.first_pt_load_verify=bias:0x%lx,host_base:%p,bytes_at_0x36:0x%04x,expected:0x0038",
+                     "loader.interp.first_pt_load_verify=bias:0x%lx,host_base:%p,bytes_at_0x36:0x%"
+                     "04x,expected:0x0038",
                      (unsigned long)bias, verify_desc->obj->host_base, (unsigned int)*host_short);
             trace_record_event(TRACE_ORIGIN_KERNEL, ev);
 
             uint32_t *host_int = (uint32_t *)((char *)verify_desc->obj->host_base + 0x38);
-            snprintf(ev, sizeof(ev),
-                     "loader.interp.first_pt_load_verify2=bytes_at_0x38:0x%08x",
+            snprintf(ev, sizeof(ev), "loader.interp.first_pt_load_verify2=bytes_at_0x38:0x%08x",
                      (unsigned int)*host_int);
             trace_record_event(TRACE_ORIGIN_KERNEL, ev);
         }
@@ -831,8 +831,8 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
         {
             char ev[256];
             int open_err = IS_ERR(interp_fd) ? (int)PTR_ERR(interp_fd) : 0;
-            snprintf(ev, sizeof(ev), "loader.interp.open.result=err:%d,path:%s,present:1",
-                     open_err, interp_name ? interp_name : "none");
+            snprintf(ev, sizeof(ev), "loader.interp.open.result=err:%d,path:%s,present:1", open_err,
+                     interp_name ? interp_name : "none");
             trace_record_event(TRACE_ORIGIN_KERNEL, ev);
         }
         if (IS_ERR(interp_fd)) {
@@ -1081,8 +1081,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
                 interp_dynamic_vaddr = interp_ph[i].vaddr;
             if (interp_ph[i].type != PT_LOAD)
                 continue;
-            if (!interp_lowest_pt_load_seen ||
-                interp_ph[i].vaddr < interp_lowest_pt_load_vaddr) {
+            if (!interp_lowest_pt_load_seen || interp_ph[i].vaddr < interp_lowest_pt_load_vaddr) {
                 interp_lowest_pt_load_seen = true;
                 interp_lowest_pt_load_vaddr = interp_ph[i].vaddr;
                 interp_lowest_pt_load_off = interp_ph[i].offset;
@@ -1177,14 +1176,14 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
             trace_begin_interval(TRACE_ORIGIN_KERNEL, "task.proof.exec.load.segment", load_attrs,
                                  sizeof(load_attrs) / sizeof(load_attrs[0]));
         }
-entry = interp_base + interp_header.entry_point;
+        entry = interp_base + interp_header.entry_point;
 
-// Note: x1/AT_DYNAMIC must point to the MAIN EXECUTABLE's _DYNAMIC, not the
-// interpreter's. The dynamic linker uses this to find the main program's
-// relocation table. dynamic_addr was already set from main's PT_DYNAMIC at
-// lines 1015-1020. Do not overwrite it with interpreter's _DYNAMIC.
+        // Note: x1/AT_DYNAMIC must point to the MAIN EXECUTABLE's _DYNAMIC, not the
+        // interpreter's. The dynamic linker uses this to find the main program's
+        // relocation table. dynamic_addr was already set from main's PT_DYNAMIC at
+        // lines 1015-1020. Do not overwrite it with interpreter's _DYNAMIC.
 
-// Trace interpreter mapping for APPSIM-004 diagnosis
+        // Trace interpreter mapping for APPSIM-004 diagnosis
         char interp_base_buf[32];
         char interp_entry_buf[32];
 
@@ -1212,7 +1211,7 @@ entry = interp_base + interp_header.entry_point;
             for (page_t pg = start_page; pg <= end_page; pg++) {
                 struct page_desc *desc = page_map_lookup(&current->mem->pages, pg);
                 if (desc && desc->obj && !desc->obj->name) {
-                    desc->obj->name = "[interpreter]";
+                    desc->obj->name = strdup("[interpreter]");
                 }
             }
         }
@@ -1275,7 +1274,7 @@ entry = interp_base + interp_header.entry_point;
     bool vdso_elf_available = vdso_has_elf_image();
     if ((err = pt_map(current->mem, vdso_page, vdso_pages, (void *)vdso_data, 0, 0)) < 0)
         goto beyond_hope;
-    page_map_lookup(&current->mem->pages, vdso_page)->obj->name = "[vdso]";
+    page_map_lookup(&current->mem->pages, vdso_page)->obj->name = strdup("[vdso]");
     current->mm->vdso = vdso_elf_available ? (vdso_page << PAGE_BITS) : 0;
     addr_t vdso_entry =
         vdso_elf_available ? current->mm->vdso + ((struct elf_header *)vdso_data)->entry_point : 0;
@@ -1283,7 +1282,7 @@ entry = interp_base + interp_header.entry_point;
     // map empty "vvar" pages for VDSO compatibility
     if ((err = pt_map_nothing(current->mem, vvar_page, VVAR_PAGES, 0)) < 0)
         goto beyond_hope;
-    page_map_lookup(&current->mem->pages, vvar_page)->obj->name = "[vvar]";
+    page_map_lookup(&current->mem->pages, vvar_page)->obj->name = strdup("[vvar]");
 
     trace_loader_page_zero_locked("task.proof.loader.page0");
 
@@ -1392,7 +1391,7 @@ entry = interp_base + interp_header.entry_point;
 
     struct aux_ent aux[24];
     size_t aux_count = 0;
-#define ADD_AUX(type_, value_)                                                                    \
+#define ADD_AUX(type_, value_)                                                                     \
     do {                                                                                           \
         aux[aux_count++] = (struct aux_ent){ (type_), (value_) };                                  \
     } while (0)
@@ -1485,14 +1484,15 @@ entry = interp_base + interp_header.entry_point;
 
     current->mm->stack_start = sp;
     trace_exec_checkpoint("task.proof.elf_exec.after_stack_setup", err);
-    
+
     // STACK PROOF: Log stack layout before CPU setup
     {
         char stack_proof[512];
         snprintf(stack_proof, sizeof(stack_proof),
-                 "stack.proof.layout=sp:0x%lx,argc:%zu,argv_addr:0x%lx,envp_addr:0x%lx,auxv_start:0x%lx,auxv_end:0x%lx",
-                 (unsigned long)sp, (size_t)argv.count, (unsigned long)argv_addr, 
-                 (unsigned long)envp_addr, (unsigned long)current->mm->auxv_start, 
+                 "stack.proof.layout=sp:0x%lx,argc:%zu,argv_addr:0x%lx,envp_addr:0x%lx,auxv_start:"
+                 "0x%lx,auxv_end:0x%lx",
+                 (unsigned long)sp, (size_t)argv.count, (unsigned long)argv_addr,
+                 (unsigned long)envp_addr, (unsigned long)current->mm->auxv_start,
                  (unsigned long)current->mm->auxv_end);
         trace_record_event(TRACE_ORIGIN_KERNEL, stack_proof);
     }

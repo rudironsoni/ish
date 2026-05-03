@@ -34,6 +34,8 @@ static int mm_clone_vmas(struct mm *src, struct mm *dst)
         clone->end = vma->end;
         clone->flags = vma->flags;
         clone->obj = vma->obj;
+        if (clone->obj != NULL)
+            mem_object_retain(clone->obj);
         clone->obj_offset = vma->obj_offset;
         vma_tree_insert(&dst->mem.vmas, clone);
     }
