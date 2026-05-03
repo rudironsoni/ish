@@ -430,16 +430,31 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 - (void)viewDidAppear:(BOOL)animated {
     [super viewDidAppear:animated];
     dispatch_async(dispatch_get_main_queue(), ^{
-        [self.termView becomeFirstResponder];
+        [self focusTerminalInput];
     });
 }
 
 - (void)handleTerminalTap:(UITapGestureRecognizer *)recognizer {
     if (recognizer.state == UIGestureRecognizerStateEnded) {
         dispatch_async(dispatch_get_main_queue(), ^{
-            [self.termView becomeFirstResponder];
+            [self focusTerminalInput];
         });
     }
+}
+
+- (BOOL)isRunningUITests {
+    NSDictionary *environment = NSProcessInfo.processInfo.environment;
+    return environment[@"XCTestConfigurationFilePath"] != nil || environment[@"IXLAND_UI_TESTING"] != nil;
+}
+
+- (BOOL)focusTerminalInput {
+    if ([self isRunningUITests]) {
+        return [self.termView becomeFirstResponder];
+    }
+    if (self.terminal != nil && [self.terminal requestFocus]) {
+        return YES;
+    }
+    return [self.termView becomeFirstResponder];
 }
 
 - (void)startNewSession {

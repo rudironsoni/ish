@@ -2200,6 +2200,125 @@ __attribute__((naked)) void gadget_addsub_reg_fallback_impl(void)
 
 tcti_gadget_t gadget_addsub_reg_fallback = gadget_addsub_reg_fallback_impl;
 
+static uint64_t tcti_extend_addsub_operand(uint64_t value, uint64_t extend_type)
+{
+    switch (extend_type) {
+    case A64_EXT_UXTB:
+        return value & 0xff;
+    case A64_EXT_UXTH:
+        return value & 0xffff;
+    case A64_EXT_UXTW:
+        return (uint32_t)value;
+    case A64_EXT_SXTB:
+        return (uint64_t)(int64_t)(int8_t)value;
+    case A64_EXT_SXTH:
+        return (uint64_t)(int64_t)(int16_t)value;
+    case A64_EXT_SXTW:
+        return (uint64_t)(int64_t)(int32_t)value;
+    case A64_EXT_SXTX:
+    case A64_EXT_UXTX:
+    case A64_EXT_LSL:
+        return value;
+    default:
+        return value;
+    }
+}
+
+__attribute__((used)) static void tcti_addsub_ext_helper(struct cpu_state *cpu, uint64_t rd,
+                                                            uint64_t rn, uint64_t rm,
+                                                            uint64_t extend_type,
+                                                            uint64_t imm_shift,
+                                                            uint64_t mode)
+{
+    int is_sub = (mode & (1ULL << 0)) != 0;
+    int set_flags = (mode & (1ULL << 1)) != 0;
+    int is_64bit = (mode & (1ULL << 2)) != 0;
+    int rd_is_sp = (mode & (1ULL << 3)) != 0;
+    int rn_is_sp = (mode & (1ULL << 4)) != 0;
+    uint64_t mask = is_64bit ? UINT64_MAX : UINT32_MAX;
+    uint64_t lhs = rn_is_sp ? tcti_read_base_reg_or_sp(cpu, (int)rn)
+                            : tcti_read_reg_or_zr(cpu, (int)rn);
+    uint64_t rhs = tcti_extend_addsub_operand(tcti_read_reg_or_zr(cpu, (int)rm), extend_type);
+    unsigned shift = (unsigned)(imm_shift & 0x7);
+
+    lhs &= mask;
+    rhs = (rhs << shift) & mask;
+
+    uint64_t result = is_sub ? ((lhs - rhs) & mask) : ((lhs + rhs) & mask);
+
+    if (set_flags) {
+        uint64_t sign_bit = is_64bit ? (1ULL << 63) : (1ULL << 31);
+        uint64_t nzcv = 0;
+        if (result & sign_bit)
+            nzcv |= 0x80000000ULL;
+        if (result == 0)
+            nzcv |= 0x40000000ULL;
+        if (is_sub) {
+            if (lhs >= rhs)
+                nzcv |= 0x20000000ULL;
+            if (((lhs ^ rhs) & (lhs ^ result) & sign_bit) != 0)
+                nzcv |= 0x10000000ULL;
+        } else {
+            if (result < lhs)
+                nzcv |= 0x20000000ULL;
+            if (((~(lhs ^ rhs)) & (lhs ^ result) & sign_bit) != 0)
+                nzcv |= 0x10000000ULL;
+        }
+        cpu->pstate = nzcv;
+    }
+
+    if (rd_is_sp) {
+        tcti_write_base_reg_or_sp(cpu, (int)rd, result, is_64bit);
+    } else {
+        tcti_write_reg_or_zr(cpu, (int)rd, result, is_64bit);
+    }
+}
+
+__attribute__((naked)) void gadget_addsub_ext_fallback_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t" // rd
+                 "ldr x20, [x28], #8\n\t" // rn
+                 "ldr x21, [x28], #8\n\t" // rm
+                 "ldr x22, [x28], #8\n\t" // extend_type
+                 "ldr x23, [x28], #8\n\t" // imm_shift
+                 "ldr x24, [x28], #8\n\t" // mode flags
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "str x13, [x29, #112]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "mov x2, x20\n\t"
+                 "mov x3, x21\n\t"
+                 "mov x4, x22\n\t"
+                 "mov x5, x23\n\t"
+                 "mov x6, x24\n\t"
+                 "bl _tcti_addsub_ext_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "ldp x1, x2, [x29, #16]\n\t"
+                 "ldp x3, x4, [x29, #32]\n\t"
+                 "ldp x5, x6, [x29, #48]\n\t"
+                 "ldp x7, x8, [x29, #64]\n\t"
+                 "ldp x9, x10, [x29, #80]\n\t"
+                 "ldp x11, x12, [x29, #96]\n\t"
+                 "ldr x13, [x29, #112]\n\t"
+                 "cmp x19, #13\n\t"
+                 "b.hs 1f\n\t"
+                 "mov x26, x19\n\t"
+                 "bl _tcti_sync_hot_reg_from_cpu\n\t"
+                 "1:\n\t"
+                 "ldr x17, [x29, #280]\n\t"
+                 "msr nzcv, x17\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
+tcti_gadget_t gadget_addsub_ext_fallback = gadget_addsub_ext_fallback_impl;
+
 __attribute__((used)) static void tcti_logical_imm_helper(struct cpu_state *cpu, uint64_t rd,
                                                             uint64_t rn, uint64_t imm,
                                                             uint64_t subtype, uint64_t set_flags,
@@ -3317,11 +3436,12 @@ __attribute__((naked)) void gadget_ldr_x_impl(void)
         "ldr x26, [x29, %[cpu_tlb_off]]\n\t" // x26 = cpu->tlb
         "cbz x26, 98f\n\t"                   // Branch to notlb counter
 
-        // TLB index: ((addr >> 12) & 1023) ^ (addr >> 22)
+        // TLB index: (((addr >> 12) & 1023) ^ (addr >> 22)) & 1023
         "lsr x27, x17, #12\n\t"
         "and x27, x27, #1023\n\t"
         "lsr x0, x17, #22\n\t"
         "eor x27, x27, x0\n\t"
+        "and x27, x27, #1023\n\t"
 
         // Load tlb entry at &entries[index]
         // entries is at offset 32 in struct tlb.
@@ -3675,11 +3795,12 @@ __attribute__((naked)) void gadget_str_x_impl(void)
         "ldr x26, [x29, %[cpu_tlb_off]]\n\t" // x26 = cpu->tlb
         "cbz x26, 98f\n\t"                   // Branch to notlb counter
 
-        // TLB index: ((addr >> 12) & 1023) ^ (addr >> 22)
+        // TLB index: (((addr >> 12) & 1023) ^ (addr >> 22)) & 1023
         "lsr x27, x17, #12\n\t"
         "and x27, x27, #1023\n\t"
         "lsr x0, x17, #22\n\t"
         "eor x27, x27, x0\n\t"
+        "and x27, x27, #1023\n\t"
 
         // Load tlb entry at &entries[index]
         // entries is at offset 32 in struct tlb.

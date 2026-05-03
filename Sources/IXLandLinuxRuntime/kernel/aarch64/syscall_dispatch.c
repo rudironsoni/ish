@@ -139,6 +139,7 @@ A64_WRAP3(sys_read, A64_RET_S32, fd_t, addr_t, uint32_t)
 A64_WRAP3(sys_write, A64_RET_S32, fd_t, addr_t, uint32_t)
 A64_WRAP4(sys_openat, A64_RET_S32, fd_t, addr_t, uint32_t, mode_t_)
 A64_WRAP1(sys_close, A64_RET_S32, fd_t)
+A64_WRAP3(sys_getdents64, A64_RET_S64, fd_t, addr_t, uint64_t)
 A64_WRAP3(sys_lseek, A64_RET_S32, fd_t, uint32_t, uint32_t)
 A64_WRAP3(sys_ioctl, A64_RET_S32, fd_t, uint32_t, addr_t)
 A64_WRAP3(sys_fcntl, A64_RET_S32, fd_t, uint32_t, uint32_t)
@@ -399,6 +400,7 @@ a64_syscall_t syscall_table_a64[A64_SYS_MAX] = {
     [A64_SYS_write] = A64_WRAP(sys_write),
     [A64_SYS_openat] = A64_WRAP(sys_openat),
     [A64_SYS_close] = A64_WRAP(sys_close),
+    [A64_SYS_getdents64] = A64_WRAP(sys_getdents64),
     [A64_SYS_lseek] = A64_WRAP(sys_lseek),
     [A64_SYS_ioctl] = A64_WRAP(sys_ioctl),
     [A64_SYS_fcntl] = A64_WRAP(sys_fcntl),

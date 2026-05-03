@@ -33,7 +33,7 @@
  *   offset 16: data_minus_addr (uintptr_t) - host pointer - guest address
  *
  * TLB index calculation:
- *   TLB_INDEX(addr) = (((addr >> 12) & 1023) ^ (addr >> 22))
+ *   TLB_INDEX(addr) = (((addr >> 12) & 1023) ^ (addr >> 22)) & 1023
  *   where PAGE_BITS = 12, TLB_BITS = 10, TLB_SIZE = 1024
  *
  * TLB is accessed via cpu->mem->tlb
@@ -48,11 +48,12 @@
  * Clobbers: x16, x26
  */
 .macro tlb_compute_entry
-    // TLB index = (((addr >> 12) & 1023) ^ (addr >> 22))
+    // TLB index = (((addr >> 12) & 1023) ^ (addr >> 22)) & 1023
     lsr     x16, x17, #12           // addr >> PAGE_BITS
     and     x26, x16, #1023         // & (TLB_SIZE - 1)
     lsr     x16, x17, #22           // addr >> (PAGE_BITS + TLB_BITS)
-    eor     x26, x26, x16           // XOR for final index
+    eor     x26, x26, x16
+    and     x26, x26, #1023         // & (TLB_SIZE - 1)
     
     // entry = &tlb->entries[index]
     // entries array starts at entries offset in struct tlb

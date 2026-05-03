@@ -1042,8 +1042,9 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
             load_addr_set = true;
         }
 
-        // we have to know where the brk starts
-        addr_t brk = bias + ph[i].vaddr + ph[i].memsize;
+        // Linux seeds the program break at ELF_PAGEALIGN(elf_brk), not at the
+        // raw segment end. Guest allocators assume this page-aligned contract.
+        addr_t brk = (PAGE_ROUND_UP(bias + ph[i].vaddr + ph[i].memsize) << PAGE_BITS);
         if (brk > current->mm->start_brk)
             current->mm->start_brk = current->mm->brk = brk;
     }

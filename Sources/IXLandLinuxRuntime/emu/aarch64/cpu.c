@@ -38,9 +38,10 @@ extern void tcti_entry_block(void *gadgets, struct cpu_state *cpu);
 static jmp_buf exit_jmpbuf __attribute__((unused));
 
 // Fault containment state for guest execution
-static jmp_buf guest_fault_jmpbuf;
-static volatile int guest_fault_signal = 0;
-static volatile uintptr_t guest_fault_host_addr = 0;
+static __thread sigjmp_buf guest_fault_jmpbuf;
+static __thread volatile int guest_fault_active = 0;
+static __thread volatile int guest_fault_signal = 0;
+static __thread volatile uintptr_t guest_fault_host_addr = 0;
 
 static bool a64_conservative_mode_enabled(void)
 {
@@ -747,7 +748,8 @@ static void guest_fault_handler(int sig, siginfo_t *info, void *context)
     (void)context;
     guest_fault_signal = sig;
     guest_fault_host_addr = info ? (uintptr_t)info->si_addr : 0;
-    longjmp(guest_fault_jmpbuf, 1);
+    if (guest_fault_active)
+        siglongjmp(guest_fault_jmpbuf, 1);
 }
 
 // Forward declarations
@@ -1175,6 +1177,15 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
 __attribute__((no_stack_protector)) int a64_execute_block(struct cpu_state *cpu,
                                                           struct a64_block *block)
 {
+    if (!cpu || !block) {
+        if (cpu)
+            cpu->tcti_exit_reason = TCTI_EXIT_FAULT;
+        return TCTI_EXIT_FAULT;
+    }
+
+    struct cpu_state *volatile fault_cpu = cpu;
+    struct a64_block *volatile fault_block = block;
+
     // Trace: Register snapshot if at block level
     if (trace_should_emit_event("tcti.block.register_snapshot")) {
         uint64_t regs[6] = { cpu->x[0], cpu->x[1], cpu->x[2], cpu->x[3], cpu->x[4], cpu->x[5] };
@@ -1186,9 +1197,6 @@ __attribute__((no_stack_protector)) int a64_execute_block(struct cpu_state *cpu,
     // Validate pointers before calling
     if (!block->gadgets) {
         cpu->tcti_exit_reason = TCTI_EXIT_FAULT;
-        return TCTI_EXIT_FAULT;
-    }
-    if (!cpu) {
         return TCTI_EXIT_FAULT;
     }
 
@@ -1217,17 +1225,25 @@ __attribute__((no_stack_protector)) int a64_execute_block(struct cpu_state *cpu,
     sigaction(SIGILL, &sa, &old_ill);
     sigaction(SIGFPE, &sa, &old_fpe);
 
-    if (setjmp(guest_fault_jmpbuf) == 0) {
+    if (sigsetjmp(guest_fault_jmpbuf, 1) == 0) {
         // Normal execution path
+        guest_fault_active = 1;
         a64_trace_block_registers("entry", cpu, block);
         tcti_entry_block(block->gadgets, cpu);
         a64_trace_block_registers("exit", cpu, block);
     } else {
         // Fault containment path - signal was caught
-        cpu->tcti_exit_reason = TCTI_EXIT_FAULT;
-        cpu->fault_was_write = false;
-        trace_first_live_ldst_fault(cpu, guest_fault_signal);
+        struct cpu_state *faulted_cpu = fault_cpu;
+        if (faulted_cpu) {
+            faulted_cpu->tcti_exit_reason = TCTI_EXIT_FAULT;
+            faulted_cpu->fault_was_write = false;
+            trace_first_live_ldst_fault(faulted_cpu, guest_fault_signal);
+        }
     }
+    guest_fault_active = 0;
+
+    cpu = fault_cpu;
+    block = fault_block;
 
     // Restore original signal handlers
     sigaction(SIGSEGV, &old_segv, NULL);
@@ -1795,6 +1811,15 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
                 break;
             }
         }
+
+        if (cpu->mmu == NULL) {
+            trace_emit(TRACE_EVENT_FAULT, cpu->pc);
+            handle_interrupt(INT_GPF);
+            stop_reason = "missing_mmu";
+            break;
+        }
+        tlb_refresh(tlb, cpu->mmu);
+        cpu->tlb = tlb;
 
         uint64_t pc = cpu->pc;
         if (first_block_lookup) {

@@ -42,6 +42,7 @@ extern tcti_gadget_t gadget_movk;
 extern tcti_gadget_t gadget_write_reg_imm;
 extern tcti_gadget_t gadget_addsub_imm_fallback;
 extern tcti_gadget_t gadget_addsub_reg_fallback;
+extern tcti_gadget_t gadget_addsub_ext_fallback;
 extern tcti_gadget_t gadget_logical_imm_fallback;
 extern tcti_gadget_t gadget_logical_reg_fallback;
 extern tcti_gadget_t gadget_multiply_add_fallback;
@@ -242,6 +243,38 @@ static int emit_addsub_reg_fallback(a64_gen_state_t *state, int rd, int rn, int 
     if (ret != A64_GEN_OK)
         return ret;
     return emit_u64(state, is_64bit ? 1 : 0);
+}
+
+static int emit_addsub_ext_fallback(a64_gen_state_t *state, int rd, int rn, int rm,
+                                    int extend_type, int imm_shift, int is_sub, int set_flags,
+                                    int is_64bit, int rd_is_sp, int rn_is_sp)
+{
+    uint64_t mode = 0;
+    mode |= is_sub ? (1ULL << 0) : 0;
+    mode |= set_flags ? (1ULL << 1) : 0;
+    mode |= is_64bit ? (1ULL << 2) : 0;
+    mode |= rd_is_sp ? (1ULL << 3) : 0;
+    mode |= rn_is_sp ? (1ULL << 4) : 0;
+
+    int ret = emit_gadget(state, gadget_addsub_ext_fallback);
+    if (ret != A64_GEN_OK)
+        return ret;
+    ret = emit_u64(state, (uint64_t)rd);
+    if (ret != A64_GEN_OK)
+        return ret;
+    ret = emit_u64(state, (uint64_t)rn);
+    if (ret != A64_GEN_OK)
+        return ret;
+    ret = emit_u64(state, (uint64_t)rm);
+    if (ret != A64_GEN_OK)
+        return ret;
+    ret = emit_u64(state, (uint64_t)extend_type);
+    if (ret != A64_GEN_OK)
+        return ret;
+    ret = emit_u64(state, (uint64_t)imm_shift);
+    if (ret != A64_GEN_OK)
+        return ret;
+    return emit_u64(state, mode);
 }
 
 static int emit_logical_imm_fallback(a64_gen_state_t *state, int rd, int rn, uint64_t imm,
@@ -1324,96 +1357,13 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr)
             return A64_GEN_OK;
         }
 
-        // Extended-register add/sub uses SP semantics for Rn/Rd and register
-        // semantics for Rm. Keep Rm in x14 and materialize SP/memory Rn in x15.
         if (rm == 31)
             return A64_GEN_UNSUPPORTED;
         if (instr->imm_shift < 0 || instr->imm_shift > 4)
             return A64_GEN_UNSUPPORTED;
-
-        // Load Rn (first source) if memory-backed or SP.
-        if (rn == 31) {
-            ret = emit_gadget(state, (tcti_gadget_t)gadget_load_sp);
-            if (ret != A64_GEN_OK)
-                return ret;
-            ret = emit_gadget(state, gadget_mov_reg[14][13]);
-            if (ret != A64_GEN_OK)
-                return ret;
-        } else if (src1_is_memory) {
-            int load_idx = MEM_REG_INDEX(rn);
-            if (!VALID_MEM_REG_INDEX(load_idx))
-                return A64_GEN_UNSUPPORTED;
-            ret = emit_gadget(state, gadget_load_xreg_16_to_30[load_idx]);
-            if (ret != A64_GEN_OK)
-                return ret;
-            ret = emit_gadget(state, gadget_mov_reg[14][13]);
-            if (ret != A64_GEN_OK)
-                return ret;
-        }
-
-        // Load Rm (second source) into x14 if memory-backed or hot.
-        if (src2_is_memory) {
-            int load_idx = MEM_REG_INDEX(rm);
-            if (!VALID_MEM_REG_INDEX(load_idx))
-                return A64_GEN_UNSUPPORTED;
-            ret = emit_gadget(state, gadget_load_xreg_16_to_30[load_idx]);
-            if (ret != A64_GEN_OK)
-                return ret;
-        } else {
-            ret = emit_gadget(state, gadget_mov_reg[13][rm]);
-            if (ret != A64_GEN_OK)
-                return ret;
-        }
-
-        ret = emit_gadget(state, gadget_extend_x14);
-        if (ret != A64_GEN_OK)
-            return ret;
-        ret = emit_u64(state, instr->extend_type);
-        if (ret != A64_GEN_OK)
-            return ret;
-        for (int i = 0; i < instr->imm_shift; i++) {
-            ret = emit_gadget(state, gadget_add_reg[13][13][13]);
-            if (ret != A64_GEN_OK)
-                return ret;
-        }
-
-        int eff_rn_for_op = (src1_is_memory || rn == 31) ? 14 : rn;
-        int eff_rd_for_op = (dst_is_memory || dst_is_sp) ? 13 : rd;
-
-        if (instr->set_flags) {
-            if (instr->subtype == 1 && rd == 31) {
-                ret = emit_gadget(state, gadget_cmp_reg[eff_rn_for_op][13]);
-            } else {
-                ret = emit_gadget(state, (instr->subtype == 1)
-                                             ? gadget_subs_reg[eff_rd_for_op][eff_rn_for_op][13]
-                                             : gadget_adds_reg[eff_rd_for_op][eff_rn_for_op][13]);
-            }
-        } else {
-            ret = emit_gadget(state, (instr->subtype == 1)
-                                         ? gadget_sub_reg[eff_rd_for_op][eff_rn_for_op][13]
-                                         : gadget_add_reg[eff_rd_for_op][eff_rn_for_op][13]);
-        }
-        if (ret != A64_GEN_OK)
-            return ret;
-
-        // Store result if destination is memory-backed
-        if (dst_is_memory) {
-            int store_idx = MEM_REG_INDEX(rd);
-            if (!VALID_MEM_REG_INDEX(store_idx))
-                return A64_GEN_UNSUPPORTED;
-            ret = emit_gadget(state, gadget_store_xreg_16_to_30[store_idx]);
-            if (ret != A64_GEN_OK)
-                return ret;
-        }
-
-        // Store result if destination is SP
-        if (dst_is_sp) {
-            ret = emit_gadget(state, (tcti_gadget_t)gadget_store_sp);
-            if (ret != A64_GEN_OK)
-                return ret;
-        }
-
-        return A64_GEN_OK;
+        return emit_addsub_ext_fallback(state, rd, rn, rm, instr->extend_type, instr->imm_shift,
+                                        instr->subtype == 1, instr->set_flags, instr->is_64bit,
+                                        dst_is_sp, rn == 31);
     } else {
         return A64_GEN_UNSUPPORTED;
     }
@@ -1666,9 +1616,6 @@ static int a64_emit_ldst_single(a64_gen_state_t *state, uint64_t fault_pc, int r
         meta |= ((uint64_t)(imm_shift & 0xff)) << 32;
     }
     if (state->conservative_mode) {
-        meta |= 1ULL << 63;
-    }
-    if (trace_tcti_memory_access_tracing_enabled()) {
         meta |= 1ULL << 63;
     }
     if (load_writes_64) {

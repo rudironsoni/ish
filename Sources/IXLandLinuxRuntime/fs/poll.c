@@ -20,6 +20,7 @@ struct real_poll_event {
     struct kevent real;
 };
 static void *rpe_data(struct real_poll_event *rpe);
+static int rpe_fd(struct real_poll_event *rpe);
 static int rpe_events(struct real_poll_event *rpe);
 static int real_poll_wait(struct real_poll *real, struct real_poll_event *events, int max,
                           struct timespec *timeout);
@@ -56,6 +57,20 @@ static struct poll_fd *poll_find_fd(struct poll *poll, struct fd *fd)
     list_for_each_entry_safe(&poll->poll_fds, poll_fd, tmp, fds)
     {
         if (poll_fd->fd == fd)
+            return poll_fd;
+    }
+    return NULL;
+}
+
+static struct poll_fd *poll_find_real_event(struct poll *poll, int real_fd, void *data)
+{
+    struct poll_fd *poll_fd;
+    list_for_each_entry (&poll->poll_fds, poll_fd, fds) {
+        if (!poll_fd_is_real(poll_fd))
+            continue;
+        if (real_fd >= 0 && poll_fd->fd->real_fd == real_fd)
+            return poll_fd;
+        if (data != NULL && data == poll_fd)
             return poll_fd;
     }
     return NULL;
@@ -302,7 +317,8 @@ int poll_wait(struct poll *poll_, poll_callback_t callback, void *context, struc
 
         // dead with any edge-triggered notifications
         for (int i = 0; i < err; i++) {
-            struct poll_fd *triggered_poll_fd = rpe_data(&e[i]);
+            struct poll_fd *triggered_poll_fd =
+                poll_find_real_event(poll_, rpe_fd(&e[i]), rpe_data(&e[i]));
             if (triggered_poll_fd != NULL && triggered_poll_fd->poll != NULL &&
                 triggered_poll_fd->types & POLL_EDGETRIGGERED) {
                 triggered_poll_fd->triggered_types &= ~rpe_events(&e[i]);
@@ -388,6 +404,11 @@ static void *rpe_data(struct real_poll_event *rpe)
 {
     return rpe->real.data.ptr;
 }
+static int rpe_fd(struct real_poll_event *rpe)
+{
+    (void)rpe;
+    return -1;
+}
 static int rpe_events(struct real_poll_event *rpe)
 {
     return rpe->real.events;
@@ -435,6 +456,10 @@ static int real_poll_wait(struct real_poll *real, struct real_poll_event *events
 static void *rpe_data(struct real_poll_event *rpe)
 {
     return rpe->real.udata;
+}
+static int rpe_fd(struct real_poll_event *rpe)
+{
+    return (int)rpe->real.ident;
 }
 static int rpe_events(struct real_poll_event *rpe)
 {

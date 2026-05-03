@@ -36,6 +36,7 @@ extern const tcti_gadget_t gadget_add_reg[16][16][16];
 extern const tcti_gadget_t gadget_mov_reg[16][16];
 extern const tcti_gadget_t gadget_bcond[16];
 extern tcti_gadget_t gadget_addsub_imm_fallback;
+extern tcti_gadget_t gadget_addsub_ext_fallback;
 extern tcti_gadget_t gadget_addsub_reg_fallback;
 extern tcti_gadget_t gadget_ccmp_fallback;
 extern tcti_gadget_t gadget_csel_fallback;
@@ -262,18 +263,13 @@ uint64_t tcti_harness_case_cmp_w2_w1_uxtb_csel_uses_w_width(void)
     };
 
     void *gadgets[] = {
-        (void *)gadget_mov_reg[13][1],
-        (void *)gadget_extend_x14,
-        (void *)A64_EXT_UXTB,
-        (void *)gadget_addsub_reg_fallback,
+        (void *)gadget_addsub_ext_fallback,
         (void *)31, // rd: WZR
         (void *)2,  // rn: W2
-        (void *)13, // rm: extended W1 in x14
-        (void *)A64_SHIFT_LSL,
+        (void *)1,  // rm: W1
+        (void *)A64_EXT_UXTB,
         (void *)0, // imm_shift
-        (void *)1, // is_sub
-        (void *)1, // set_flags
-        (void *)0, // is_64bit
+        (void *)((1ULL << 0) | (1ULL << 1)), // SUBS, 32-bit
         (void *)gadget_csel_fallback,
         (void *)0,             // rd
         (void *)0,             // rn

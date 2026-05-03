@@ -11,7 +11,7 @@
 
 // Global thread-local storage for execution contexts
 // In a multi-threaded system, this would be __thread or pthread_getspecific
-static struct fiber_exec_ctx *g_fiber_ctx = NULL;
+static __thread struct fiber_exec_ctx *g_fiber_ctx = NULL;
 
 /*
  * Get execution context for a CPU

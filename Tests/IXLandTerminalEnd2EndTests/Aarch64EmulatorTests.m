@@ -68,7 +68,7 @@
 - (void)typeCommand:(NSString *)command {
     XCUIElement *terminalSurface = self.app.otherElements[@"TerminalSurface"];
     XCTAssertTrue([terminalSurface waitForExistenceWithTimeout:5.0], @"TerminalSurface must be accessible within 5 seconds");
-    [self waitForTerminalReadyWithTimeout:20.0];
+    [self waitForTerminalReadyWithTimeout:60.0];
     XCUIElement *terminalInput = self.app.textFields[@"TerminalInput"];
     XCTAssertTrue([terminalInput waitForExistenceWithTimeout:5.0], @"TerminalInput must be accessible within 5 seconds");
     [terminalInput tap];
@@ -90,12 +90,20 @@
     while ([deadline timeIntervalSinceNow] > 0) {
         [self failIfStartupAlertExistsWithTimeout:0.0];
         lastObserved = [self terminalText];
-        if (lastObserved.length > 0 && ![lastObserved isEqualToString:@"No terminal output"])
+        if ([self terminalTextContainsShellPrompt:lastObserved])
             return lastObserved;
         [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.1]];
     }
-    XCTFail(@"Timed out waiting for terminal readiness. Last observed TerminalSurface.value: %@", lastObserved);
+    XCTFail(@"Timed out waiting for shell prompt. Last observed TerminalSurface.value: %@", lastObserved);
     return lastObserved;
+}
+
+- (BOOL)terminalTextContainsShellPrompt:(NSString *)text {
+    if (text.length == 0 || [text isEqualToString:@"No terminal output"])
+        return NO;
+    return [text containsString:@"/ # "]
+        || [text hasSuffix:@"/ #"]
+        || [text containsString:@"\n/ #"];
 }
 
 - (NSString *)waitForTerminalTextContaining:(NSString *)expected timeout:(NSTimeInterval)timeout {

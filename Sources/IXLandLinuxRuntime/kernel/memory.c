@@ -32,17 +32,13 @@ void mem_init(struct mem *mem)
     wrlock_init(&mem->lock);
 }
 
-static void retire_list_add(struct mem *mem, struct mem_object *obj)
+static void retire_page_desc(struct mem *mem, struct page_desc *desc)
 {
-    // CRITICAL: Initialize list node before adding
-    // If retire_link is already in a list, list_add_tail will corrupt
-    obj->retire_link.next = NULL;
-    obj->retire_link.prev = NULL;
-    obj->retire_generation = mem->mmu.generation;
-    list_add_tail(&mem->retire_list, &obj->retire_link);
-    if (!mem->retire_tail)
-        mem->retire_tail = obj;
-    mem->retire_count++;
+    (void)mem;
+    if (desc == NULL)
+        return;
+    mem_object_release(desc->obj);
+    free(desc);
 }
 
 void mem_drain_retired(struct mem *mem)
@@ -55,15 +51,13 @@ void mem_drain_retired(struct mem *mem)
         struct list *next = cur->next;
         if (obj->retire_generation < current) {
             list_remove(cur);
+            obj->retire_generation = 0;
             if (mem->retire_tail == obj) {
                 mem->retire_tail = cur->prev != head
                                        ? container_of(cur->prev, struct mem_object, retire_link)
                                        : NULL;
             }
             mem->retire_count--;
-
-            // CRITICAL FIX: Use mem_object_release to properly handle refcount
-            // instead of directly freeing. The object may be shared.
             mem_object_release(obj);
         }
         cur = next;
@@ -74,13 +68,7 @@ static int mem_destroy_page_cb(uint64_t page, struct page_desc *desc, void *ctx)
 {
     (void)page;
     struct mem *mem = (struct mem *)ctx;
-    // CRITICAL FIX: Remove broken mem_object_retire call that used NULL list head
-    // Only use retire_list_add which properly uses mem->retire_list
-    // IMPORTANT: Do NOT call mem_object_release here - the object must stay alive
-    // until mem_drain_retired removes it from the list and releases it there.
-    // Calling release here causes use-after-free: object freed but still in list.
-    retire_list_add(mem, desc->obj);
-    free(desc);
+    retire_page_desc(mem, desc);
     return 0;
 }
 
@@ -133,16 +121,18 @@ page_t pt_find_hole(struct mem *mem, pages_t size)
 
 bool pt_is_hole(struct mem *mem, page_t start, pages_t pages)
 {
+    if (pages == 0)
+        return true;
+
     uint64_t addr = start << PAGE_BITS;
     uint64_t end_addr = (start + pages) << PAGE_BITS;
 
-    struct vm_area *vma = vma_tree_find(&mem->vmas, addr);
-    if (vma)
-        return false;
-
-    vma = vma_tree_find_exact(&mem->vmas, start);
-    if (vma && vma->start < (end_addr >> PAGE_BITS))
-        return false;
+    for (struct vm_area *vma = mem->vmas.head; vma; vma = vma->next) {
+        if (vma->start >= end_addr)
+            return true;
+        if (vma->end > addr)
+            return false;
+    }
 
     return true;
 }
@@ -175,12 +165,7 @@ int pt_map(struct mem *mem, page_t start, pages_t pages, void *memory, size_t of
         page_t pg_end = removed[i]->end >> PAGE_BITS;
         for (page_t pg = pg_start; pg < pg_end; pg++) {
             struct page_desc *old_desc = page_map_remove(&mem->pages, pg);
-            if (old_desc) {
-                // CRITICAL FIX: Remove broken mem_object_retire call
-                // retire_list_add already sets retire_generation and adds to list
-                retire_list_add(mem, old_desc->obj);
-                free(old_desc);
-            }
+            retire_page_desc(mem, old_desc);
         }
         mem_object_release(removed[i]->obj);
         vma_free(removed[i]);
@@ -203,11 +188,7 @@ int pt_map(struct mem *mem, page_t start, pages_t pages, void *memory, size_t of
         if (!desc) {
             for (page_t pg = start; pg < page; pg++) {
                 struct page_desc *d = page_map_remove(&mem->pages, pg);
-                if (d) {
-                    mem_object_retire(d->obj);
-                    retire_list_add(mem, d->obj);
-                    free(d);
-                }
+                retire_page_desc(mem, d);
             }
             vma_tree_remove(&mem->vmas, vma);
             mem_object_release(obj);
@@ -251,11 +232,7 @@ int pt_unmap_always(struct mem *mem, page_t start, pages_t pages)
 
     for (page_t page = start; page < start + pages; page++) {
         struct page_desc *desc = page_map_remove(&mem->pages, page);
-        if (desc) {
-            mem_object_retire(desc->obj);
-            retire_list_add(mem, desc->obj);
-            free(desc);
-        }
+        retire_page_desc(mem, desc);
     }
 
     struct vm_area *removed[64];
@@ -311,11 +288,7 @@ static int pt_copy_on_write_page(uint64_t page, struct page_desc *src_desc, void
     struct mem *dst = ctx->dst;
 
     struct page_desc *old_dst = page_map_remove(&dst->pages, page);
-    if (old_dst) {
-        mem_object_retire(old_dst->obj);
-        retire_list_add(dst, old_dst->obj);
-        free(old_dst);
-    }
+    retire_page_desc(dst, old_dst);
 
     if (!(src_desc->flags & P_SHARED))
         src_desc->flags |= P_COW;

@@ -185,44 +185,91 @@ int64_t sys_mremap(addr_t addr, uint32_t old_len, uint32_t new_len, uint32_t fla
     STRACE("mremap(%#x, %#x, %#x, %d)", addr, old_len, new_len, flags);
     if (PGOFFSET(addr) != 0)
         return _EINVAL;
+    if (old_len == 0 || new_len == 0)
+        return _EINVAL;
     if (flags & ~(MREMAP_MAYMOVE_ | MREMAP_FIXED_))
         return _EINVAL;
     if (flags & MREMAP_FIXED_) {
         FIXME("missing MREMAP_FIXED");
         return _EINVAL;
     }
-    pages_t old_pages = PAGE(old_len);
-    pages_t new_pages = PAGE(new_len);
+    pages_t old_pages = PAGE_ROUND_UP(old_len);
+    pages_t new_pages = PAGE_ROUND_UP(new_len);
+
+    write_wrlock(&current->mem->lock);
 
     // shrinking always works
     if (new_pages <= old_pages) {
         int err = pt_unmap(current->mem, PAGE(addr) + new_pages, old_pages - new_pages);
-        if (err < 0)
+        if (err < 0) {
+            write_wrunlock(&current->mem->lock);
             return _EFAULT;
+        }
+        write_wrunlock(&current->mem->lock);
         return addr;
     }
 
     struct vm_area *vma = vma_tree_find(&current->mem->vmas, addr);
-    if (!vma || vma->start != addr)
+    if (!vma || vma->start != addr) {
+        write_wrunlock(&current->mem->lock);
         return _EFAULT;
+    }
     unsigned pt_flags = vma->flags;
     for (page_t page = PAGE(addr); page < PAGE(addr) + old_pages; page++) {
         struct page_desc *desc = page_map_lookup(&current->mem->pages, page);
-        if (!desc || desc->obj != vma->obj || desc->flags != pt_flags)
+        if (!desc || desc->obj != vma->obj || desc->flags != pt_flags) {
+            write_wrunlock(&current->mem->lock);
             return _EFAULT;
+        }
     }
     if (!(pt_flags & P_ANONYMOUS)) {
         FIXME("mremap grow on file mappings");
+        write_wrunlock(&current->mem->lock);
         return _EFAULT;
     }
     page_t extra_start = PAGE(addr) + old_pages;
     pages_t extra_pages = new_pages - old_pages;
-    if (!pt_is_hole(current->mem, extra_start, extra_pages))
+    if (pt_is_hole(current->mem, extra_start, extra_pages)) {
+        int err = pt_map_nothing(current->mem, extra_start, extra_pages, pt_flags);
+        write_wrunlock(&current->mem->lock);
+        if (err < 0)
+            return err;
+        return addr;
+    }
+
+    if (!(flags & MREMAP_MAYMOVE_)) {
+        write_wrunlock(&current->mem->lock);
         return _ENOMEM;
-    int err = pt_map_nothing(current->mem, extra_start, extra_pages, pt_flags);
-    if (err < 0)
+    }
+
+    page_t new_page = pt_find_hole(current->mem, new_pages);
+    if (new_page == BAD_PAGE) {
+        write_wrunlock(&current->mem->lock);
+        return _ENOMEM;
+    }
+
+    int err = pt_map_nothing(current->mem, new_page, new_pages, pt_flags);
+    if (err < 0) {
+        write_wrunlock(&current->mem->lock);
         return err;
-    return addr;
+    }
+
+    for (pages_t page = 0; page < old_pages; page++) {
+        struct page_desc *old_desc = page_map_lookup(&current->mem->pages, PAGE(addr) + page);
+        struct page_desc *new_desc = page_map_lookup(&current->mem->pages, new_page + page);
+        if (!old_desc || !new_desc) {
+            pt_unmap_always(current->mem, new_page, new_pages);
+            write_wrunlock(&current->mem->lock);
+            return _EFAULT;
+        }
+
+        memcpy((char *)new_desc->obj->host_base + new_desc->offset,
+               (char *)old_desc->obj->host_base + old_desc->offset, PAGE_SIZE);
+    }
+
+    pt_unmap_always(current->mem, PAGE(addr), old_pages);
+    write_wrunlock(&current->mem->lock);
+    return new_page << PAGE_BITS;
 }
 
 int64_t sys_mprotect(addr_t addr, uint64_t len, int64_t prot)
@@ -280,14 +327,17 @@ addr_t sys_brk(addr_t new_brk)
         pages_t size = PAGE_ROUND_UP(new_brk) - PAGE_ROUND_UP(old_brk);
         if (!pt_is_hole(&mm->mem, start, size))
             goto out;
-        int err = pt_map_nothing(&mm->mem, start, size, P_WRITE);
+        int err = pt_map_nothing(&mm->mem, start, size, P_READ | P_WRITE);
         if (err < 0)
             goto out;
     } else if (new_brk < old_brk) {
         // shrink heap: unmap region from new_brk to old_brk
-        // first page to unmap is PAGE(new_brk)
+        // first page to unmap is the page after the last byte below the new brk
         // last page to unmap is PAGE(old_brk)
-        pt_unmap_always(&mm->mem, PAGE(new_brk), PAGE(old_brk) - PAGE(new_brk));
+        page_t start = PAGE_ROUND_UP(new_brk);
+        page_t end = PAGE_ROUND_UP(old_brk);
+        if (end > start)
+            pt_unmap_always(&mm->mem, start, end - start);
     }
 
     mm->brk = new_brk;

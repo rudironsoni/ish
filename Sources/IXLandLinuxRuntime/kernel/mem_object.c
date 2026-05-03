@@ -34,20 +34,16 @@ void mem_object_release(struct mem_object *obj)
     if (!obj)
         return;
     if (atomic_fetch_sub(&obj->refcount, 1) == 1) {
-        /* Last reference. If not retired, munmap and free now.
-           If retired, the drain path already handled it. */
-        if (obj->retire_generation == 0) {
-            if (obj->host_base != MAP_FAILED && obj->host_base != NULL) {
-                /* VDSO and static mappings are not mmap'd */
-                munmap(obj->host_base, obj->host_size);
-            }
-            if (obj->fd) {
-                /* fd_close would go here but avoid circular deps;
-                   caller is responsible for fd lifecycle */
-            }
-            free((void *)obj->name);
-            free(obj);
+        if (obj->host_base != MAP_FAILED && obj->host_base != NULL) {
+            /* VDSO and static mappings are not mmap'd */
+            munmap(obj->host_base, obj->host_size);
         }
+        if (obj->fd) {
+            /* fd_close would go here but avoid circular deps;
+               caller is responsible for fd lifecycle */
+        }
+        free((void *)obj->name);
+        free(obj);
     }
 }
 

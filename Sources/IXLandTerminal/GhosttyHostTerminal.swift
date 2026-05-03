@@ -8,7 +8,7 @@ import GhosttyTerminal
     func ghosttyHostTerminal(_ terminal: IXLandGhosttyHostTerminal, didResize columns: Int, rows: Int)
 }
 
-public final class IXLandGhosttyHostTerminal: NSObject, UIGestureRecognizerDelegate {
+public final class IXLandGhosttyHostTerminal: NSObject {
     @objc public private(set) var view: UIView!
     @objc public private(set) var terminalView: GhosttyTerminal.TerminalView!
     private var session: InMemoryTerminalSession!
@@ -91,36 +91,11 @@ public final class IXLandGhosttyHostTerminal: NSObject, UIGestureRecognizerDeleg
         guard terminalView.window != nil else {
             return false
         }
+        terminalView.isUserInteractionEnabled = true
         let focused = terminalView.becomeFirstResponder()
         terminalView.reloadInputViews()
         installNavigationAccessoryButton()
         return focused
-    }
-
-    @MainActor
-    private func installFocusTapRecognizer() {
-        guard focusTapRecognizer == nil else {
-            return
-        }
-        let recognizer = UITapGestureRecognizer(target: self, action: #selector(handleTerminalSurfaceTap(_:)))
-        recognizer.cancelsTouchesInView = true
-        recognizer.delaysTouchesEnded = true
-        recognizer.delegate = self
-        terminalView.addGestureRecognizer(recognizer)
-        focusTapRecognizer = recognizer
-    }
-
-    @MainActor
-    @objc private func handleTerminalSurfaceTap(_ recognizer: UITapGestureRecognizer) {
-        guard recognizer.state == .ended else {
-            return
-        }
-        _ = focus()
-    }
-
-    public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
-                                  shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-        return false
     }
 
     @MainActor
@@ -131,6 +106,26 @@ public final class IXLandGhosttyHostTerminal: NSObject, UIGestureRecognizerDeleg
             context: terminalView.configuration.context
         )
         terminalView.fitToSize()
+    }
+
+    @MainActor
+    private func installFocusTapRecognizer() {
+        let recognizer = UITapGestureRecognizer(target: self, action: #selector(handleFocusTap(_:)))
+        recognizer.cancelsTouchesInView = false
+        recognizer.delaysTouchesBegan = false
+        recognizer.delaysTouchesEnded = false
+        terminalView.addGestureRecognizer(recognizer)
+        focusTapRecognizer = recognizer
+    }
+
+    @MainActor
+    @objc private func handleFocusTap(_ recognizer: UITapGestureRecognizer) {
+        guard recognizer.state == .ended else {
+            return
+        }
+        DispatchQueue.main.async { [weak self] in
+            _ = self?.focus()
+        }
     }
 
     @MainActor

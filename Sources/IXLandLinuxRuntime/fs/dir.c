@@ -35,13 +35,19 @@ struct linux_dirent64_ {
     char name[];
 } __attribute__((packed));
 
+static size_t dirent_align(size_t reclen, size_t alignment)
+{
+    return (reclen + alignment - 1) & ~(alignment - 1);
+}
+
 size_t fill_dirent_32(void *dirent_data, ino_t inode, off_t_ offset, const char *name, int type)
 {
     struct linux_dirent_ *dirent = dirent_data;
     dirent->inode = (uint32_t)inode;
     dirent->offset = (uint32_t)offset;
-    dirent->reclen =
-        offsetof(struct linux_dirent_, name) + strlen(name) + 2; // name, null terminator, type
+    dirent->reclen = (uint16_t)dirent_align(
+        offsetof(struct linux_dirent_, name) + strlen(name) + 2, 4); // name, null, type
+    memset(dirent_data, 0, dirent->reclen);
     strcpy(dirent->name, name);
     *((char *)dirent + dirent->reclen - 1) = type;
     return dirent->reclen;
@@ -52,8 +58,9 @@ size_t fill_dirent_64(void *dirent_data, ino_t inode, off_t_ offset, const char 
     struct linux_dirent64_ *dirent = dirent_data;
     dirent->inode = inode;
     dirent->offset = offset;
-    dirent->reclen =
-        offsetof(struct linux_dirent64_, name) + strlen(name) + 1; // name, null terminator
+    dirent->reclen = (uint16_t)dirent_align(
+        offsetof(struct linux_dirent64_, name) + strlen(name) + 1, 8); // name, null terminator
+    memset(dirent_data, 0, dirent->reclen);
     dirent->type = type;
     strcpy(dirent->name, name);
     return dirent->reclen;
@@ -84,7 +91,7 @@ int64_t sys_getdents_common(fd_t f, addr_t dirents, uint64_t count,
         if (err == 0)
             break;
 
-        size_t max_reclen = sizeof(struct linux_dirent64_) + strlen(entry.name) + 4;
+        size_t max_reclen = dirent_align(sizeof(struct linux_dirent64_) + strlen(entry.name) + 4, 8);
         char dirent_data[max_reclen];
         ino_t inode = entry.inode;
         off_t_ offset = fd_telldir(fd);
