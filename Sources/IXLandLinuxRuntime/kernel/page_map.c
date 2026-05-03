@@ -71,7 +71,7 @@ int page_map_install(struct page_map *map, uint64_t page, struct page_desc *desc
     if (!map->root) {
         map->root = alloc_node(0);
         if (!map->root)
-            return -1;
+            return PAGE_MAP_INSTALL_ERR_NOMEM;
     }
 
     struct page_map_node *node = map->root;
@@ -81,23 +81,19 @@ int page_map_install(struct page_map *map, uint64_t page, struct page_desc *desc
         if (!node->children[idx]) {
             node->children[idx] = alloc_node(level + 1);
             if (!node->children[idx])
-                return -1;
+                return PAGE_MAP_INSTALL_ERR_NOMEM;
         }
         node = node->children[idx];
     }
 
     unsigned leaf_idx = PAGE_MAP_INDEX(page, PAGE_MAP_LEVELS - 1);
 
-    /* Replace existing entry if present */
-    struct page_desc *old = node->leaves[leaf_idx];
-    if (old) {
-        mem_object_release(old->obj);
-        free(old);
-    }
+    if (node->leaves[leaf_idx])
+        return PAGE_MAP_INSTALL_ERR_EXISTS;
 
     node->leaves[leaf_idx] = desc;
     mem_object_retain(desc->obj);
-    return 0;
+    return PAGE_MAP_INSTALL_OK;
 }
 
 struct page_desc *page_map_remove(struct page_map *map, uint64_t page)

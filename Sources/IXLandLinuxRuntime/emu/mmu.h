@@ -66,6 +66,8 @@ struct mmu_ops {
 
 static inline void *mmu_translate(struct mmu *mmu, addr_t addr, int type)
 {
+    if (mmu == NULL || mmu->ops == NULL || mmu->ops->translate == NULL)
+        return NULL;
     return mmu->ops->translate(mmu, addr, type);
 }
 

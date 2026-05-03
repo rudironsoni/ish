@@ -20,14 +20,14 @@ extern "C" {
 #pragma mark - Test Helpers
 
 static uint32_t encode_movz(int rd, uint16_t imm, int hw, int sf) {
-    int opc = 1;
-    return ((sf & 1) << 31) | ((opc & 3) << 30) | (0x12 << 24) |
+    int opc = 2;
+    return ((sf & 1) << 31) | ((opc & 3) << 29) | (0x25 << 23) |
            ((hw & 3) << 21) | ((imm & 0xFFFF) << 5) | (rd & 0x1F);
 }
 
 static uint32_t encode_movn(int rd, uint16_t imm, int hw, int sf) {
     int opc = 0;
-    return ((sf & 1) << 31) | ((opc & 3) << 30) | (0x12 << 24) |
+    return ((sf & 1) << 31) | ((opc & 3) << 29) | (0x25 << 23) |
            ((hw & 3) << 21) | ((imm & 0xFFFF) << 5) | (rd & 0x1F);
 }
 
@@ -292,7 +292,7 @@ static uint32_t encode_mrs(int Rt, int sysreg) {
     a64_instr_t instr;
     uint32_t insn = encode_tbz(1, 0, -12, 0);
     XCTAssertEqual(a64_decode(insn, &instr), 0);
-    XCTAssertEqual(instr.cat, A64_BRANCH2);
+    XCTAssertEqual(instr.cat, A64_BRANCH);
     XCTAssertEqual(instr.subtype, A64_BRANCH_TEST);
     XCTAssertEqual(instr.Rd, 1);
     XCTAssertEqual(instr.op, 0);
@@ -303,7 +303,7 @@ static uint32_t encode_mrs(int Rt, int sysreg) {
     a64_instr_t instr;
     uint32_t insn = encode_tbz(1, 0, -52, 1);
     XCTAssertEqual(a64_decode(insn, &instr), 0);
-    XCTAssertEqual(instr.cat, A64_BRANCH2);
+    XCTAssertEqual(instr.cat, A64_BRANCH);
     XCTAssertEqual(instr.subtype, A64_BRANCH_TEST);
     XCTAssertEqual(instr.Rd, 1);
     XCTAssertEqual(instr.op, 1);

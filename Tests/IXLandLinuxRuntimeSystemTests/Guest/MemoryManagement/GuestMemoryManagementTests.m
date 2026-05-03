@@ -1,6 +1,7 @@
 #import <XCTest/XCTest.h>
 #import <IXLandLinuxRuntime/kernel/errno.h>
 #import <IXLandLinuxRuntime/kernel/memory.h>
+#import <IXLandLinuxRuntime/kernel/mm.h>
 #import <IXLandLinuxRuntime/kernel/vma.h>
 
 // Guest.MemoryManagement System Tests
@@ -107,6 +108,53 @@
 
     XCTAssertEqual(pt_unmap_always(&mem, start, 2), 0);
     mem_destroy(&mem);
+}
+
+- (void)testMemoryContract_MMCopyPreservesVMAsForMappedPages {
+    struct mm *mm = mm_new();
+    XCTAssertNotEqual(mm, NULL);
+    if (mm == NULL)
+        return;
+
+    page_t start = (page_t)A64_MMAP_BASE_PAGE;
+    XCTAssertEqual(pt_map_nothing(&mm->mem, start, 2, P_READ | P_WRITE), 0);
+
+    struct mm *copy = mm_copy(mm);
+    XCTAssertNotEqual(copy, NULL);
+    if (copy != NULL) {
+        struct vm_area *vma = vma_tree_find(&copy->mem.vmas, start << PAGE_BITS);
+        XCTAssertNotEqual(vma, NULL,
+                          @"mm_copy must preserve VMA metadata for inherited mappings");
+        if (vma != NULL) {
+            XCTAssertEqual(vma->start, start << PAGE_BITS);
+            XCTAssertEqual(vma->end, (start + 2) << PAGE_BITS);
+        }
+        mm_release(copy);
+    }
+
+    mm_release(mm);
+}
+
+- (void)testMemoryContract_MMCopyFindHoleSkipsCopiedMappings {
+    struct mm *mm = mm_new();
+    XCTAssertNotEqual(mm, NULL);
+    if (mm == NULL)
+        return;
+
+    page_t start = (page_t)A64_MMAP_BASE_PAGE;
+    XCTAssertEqual(pt_map_nothing(&mm->mem, start, 2, P_READ | P_WRITE), 0);
+
+    struct mm *copy = mm_copy(mm);
+    XCTAssertNotEqual(copy, NULL);
+    if (copy != NULL) {
+        page_t hole = pt_find_hole(&copy->mem, 1);
+        XCTAssertEqual(hole, start + 2,
+                       @"child hole-finding must skip COW-inherited pages instead of reusing "
+                        "the mmap base");
+        mm_release(copy);
+    }
+
+    mm_release(mm);
 }
 
 // System: Complete mmap/munmap/mprotect boundary

@@ -55,6 +55,12 @@ struct page_map {
     struct page_map_node *root;
 };
 
+enum {
+    PAGE_MAP_INSTALL_OK = 0,
+    PAGE_MAP_INSTALL_ERR_NOMEM = -1,
+    PAGE_MAP_INSTALL_ERR_EXISTS = -2,
+};
+
 /* Initialize an empty page map */
 void page_map_init(struct page_map *map);
 
@@ -72,7 +78,9 @@ struct page_desc *page_map_lookup(struct page_map *map, uint64_t page);
  * Install a page descriptor at the given guest page number.
  * Allocates intermediate nodes as needed.
  * Takes a reference on desc->obj.
- * Returns 0 on success, -1 on allocation failure.
+ * Returns PAGE_MAP_INSTALL_OK on success, PAGE_MAP_INSTALL_ERR_NOMEM on
+ * allocation failure, or PAGE_MAP_INSTALL_ERR_EXISTS if a mapping already
+ * exists for the page.
  */
 int page_map_install(struct page_map *map, uint64_t page, struct page_desc *desc);
 

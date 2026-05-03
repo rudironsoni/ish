@@ -57,8 +57,11 @@ void *tlb_handle_miss(struct tlb *tlb, addr_t addr, int type);
 
 forceinline __no_instrument void *__tlb_read_ptr(struct tlb *tlb, addr_t addr)
 {
+    if (tlb == NULL || tlb->mmu == NULL)
+        return NULL;
     struct tlb_entry entry = tlb->entries[TLB_INDEX(addr)];
-    if (entry.page == TLB_PAGE(addr) && entry.generation == tlb->mmu->generation) {
+    if (entry.page != 0 && entry.page != TLB_PAGE_EMPTY && entry.page == TLB_PAGE(addr) &&
+        entry.generation == tlb->mmu->generation) {
         void *address = (void *)(entry.data_minus_addr + addr);
         posit(address != NULL);
         return address;
@@ -81,8 +84,11 @@ forceinline __no_instrument bool tlb_read(struct tlb *tlb, addr_t addr, void *ou
 
 forceinline __no_instrument void *__tlb_write_ptr(struct tlb *tlb, addr_t addr)
 {
+    if (tlb == NULL || tlb->mmu == NULL)
+        return NULL;
     struct tlb_entry entry = tlb->entries[TLB_INDEX(addr)];
-    if (entry.page_if_writable == TLB_PAGE(addr) && entry.generation == tlb->mmu->generation) {
+    if (entry.page_if_writable != 0 && entry.page_if_writable != TLB_PAGE_EMPTY &&
+        entry.page_if_writable == TLB_PAGE(addr) && entry.generation == tlb->mmu->generation) {
         tlb->dirty_page = TLB_PAGE(addr);
         void *address = (void *)(entry.data_minus_addr + addr);
         posit(address != NULL);

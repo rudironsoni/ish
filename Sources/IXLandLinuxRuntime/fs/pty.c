@@ -21,9 +21,10 @@ extern struct tty_driver pty_slave;
 
 static void pty_slave_init_inode(struct tty *tty)
 {
-    tty->pty.uid = current->euid;
+    struct task *task = current;
+    tty->pty.uid = task ? task->euid : 0;
     // TODO make these mount options
-    tty->pty.gid = current->egid;
+    tty->pty.gid = task ? task->egid : 0;
     tty->pty.perms = 0620;
 }
 

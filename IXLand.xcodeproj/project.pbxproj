@@ -638,6 +638,7 @@
 		FBD4F4203EF17AE231313CFC /* tcti_harness_truth.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = tcti_harness_truth.c; sourceTree = "<group>"; };
 		FC5918DF7B26FC6631033835 /* init.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = init.h; sourceTree = "<group>"; };
 		FCBAA3B6AA42972686C4067A /* DelayedUITask.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DelayedUITask.h; sourceTree = "<group>"; };
+		FCD544804580CD35D651EA38 /* gadgets_tcti.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = gadgets_tcti.h; sourceTree = "<group>"; };
 		FD58558ADB6A07FB74BA202E /* platform.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = platform.h; sourceTree = "<group>"; };
 		FE3E2C19351BACE9A7E0C543 /* sock_bridge.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sock_bridge.c; sourceTree = "<group>"; };
 		FF34CA2F59C85D5329FA2CC8 /* GuestTerminalRuntimeTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GuestTerminalRuntimeTests.m; sourceTree = "<group>"; };
@@ -1126,6 +1127,7 @@
 				41C916EF6FD504EBE1ADDBB2 /* frame.c */,
 				8624F7CE994E5B1C6A238B17 /* frame.h */,
 				35A16CBCB50B9696548B010A /* gadgets_tcti_impl.c */,
+				FCD544804580CD35D651EA38 /* gadgets_tcti.h */,
 			);
 			path = tcti;
 			sourceTree = "<group>";

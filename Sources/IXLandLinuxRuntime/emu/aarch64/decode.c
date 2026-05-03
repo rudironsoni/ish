@@ -72,6 +72,7 @@ int a64_decode(uint32_t insn, a64_instr_t *out)
     // These have top 8 bits = 0xD4 or 0xD5 (exception and system)
     uint8_t top_byte = (insn >> 24) & 0xFF;
     if (top_byte == 0xD4 || top_byte == 0xD5) {
+        out->cat = A64_BRANCH;
         return a64_decode_system(insn, out);
     }
 
@@ -92,8 +93,7 @@ int a64_decode(uint32_t insn, a64_instr_t *out)
     case A64_DP_REG2: // 0x5 (most register ops)
     case A64_DP_REG3: // 0x6
     case A64_DP_REG4: // 0x7
-        if (a64_is_advsimd_modified_immediate(insn) ||
-            (insn & 0xbfe0fc00) == 0x0e000c00 ||
+        if (a64_is_advsimd_modified_immediate(insn) || (insn & 0xbfe0fc00) == 0x0e000c00 ||
             (insn & 0xbfe0fc00) == 0x0e003c00) {
             out->cat = A64_SIMD;
             return a64_decode_simd_fp(insn, out);
@@ -251,8 +251,8 @@ int a64_decode_dp_imm(uint32_t insn, a64_instr_t *out)
         int immr = bits(insn, 21, 16);
         int imms = bits(insn, 15, 10);
         uint64_t imm;
-        if (!decode_logical_bitmask((unsigned)N, (unsigned)imms, (unsigned)immr,
-                                    out->is_64bit, &imm))
+        if (!decode_logical_bitmask((unsigned)N, (unsigned)imms, (unsigned)immr, out->is_64bit,
+                                    &imm))
             return -1;
         out->imm = (int64_t)imm;
         // Map to subtypes 7-10 to avoid collision with MOVN/MOVZ/MOVK (0-2)
@@ -761,9 +761,9 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out)
     // space as the imm9 single-register forms. Decode them first so LDAXR/STLXR do
     // not corrupt guest state by falling through as pre-indexed LDR/STR.
     if (bits(insn, 29, 24) == 0x08 && (op3 == 0xE || op3 == 0xF)) {
-        out->Rd = bits(insn, 4, 0);      // Rt
-        out->Rn = bits(insn, 9, 5);      // Rn
-        out->Rm = bits(insn, 20, 16);    // Rs for stores, ZR encoding for loads
+        out->Rd = bits(insn, 4, 0);   // Rt
+        out->Rn = bits(insn, 9, 5);   // Rn
+        out->Rm = bits(insn, 20, 16); // Rs for stores, ZR encoding for loads
         out->imm = 0;
         out->is_pair = false;
         out->is_signed = false;
@@ -1083,11 +1083,9 @@ int a64_decode_system(uint32_t insn, a64_instr_t *out)
     }
 
     if ((insn & 0xFFD80000) == 0xD5100000) { // MSR (imm)
-        int op1 = bits(insn, 18, 16);
-        (void)bits(insn, 11, 8); // CRm - sysreg field
-        (void)bits(insn, 7, 5);  // op2 - sysreg field
+        int sysreg = bits(insn, 19, 5);
         int imm = bits(insn, 4, 0);
-        out->op = op1;
+        out->sysreg = sysreg;
         out->imm = imm;
         out->subtype = A64_SYSTEM_MSR_IMM;
         return 0;

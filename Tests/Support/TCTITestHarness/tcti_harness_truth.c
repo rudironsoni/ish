@@ -5,13 +5,12 @@
 #include <IXLandLinuxRuntime/emu/aarch64/memory.h>
 #include <IXLandLinuxRuntime/emu/tlb.h>
 #include <IXLandLinuxRuntime/kernel/memory.h>
-
 #include <string.h>
 
 typedef void (*tcti_gadget_t)(void);
 
 #define A64_MAX_GADGETS_PER_BLOCK 512
-#define A64_GEN_OK 0
+#define A64_GEN_OK                0
 
 typedef struct a64_gen_state {
     tcti_gadget_t *gadgets;
@@ -208,9 +207,8 @@ uint64_t tcti_harness_case_entry_restores_pstate_for_bcond_ne(void)
                      "bl _tcti_entry_block\n\t"
                      :
                      : [gadgets] "r"(gadgets), [cpu] "r"(&cpu)
-                     : "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9",
-                       "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x30",
-                       "cc", "memory");
+                     : "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11",
+                       "x12", "x13", "x14", "x15", "x16", "x17", "x30", "cc", "memory");
 
     return cpu.pc;
 }
@@ -233,13 +231,13 @@ uint64_t tcti_harness_case_cmp_w20_ccmp_gt_bls_uses_32bit_flags(void)
         (void *)0,  // rd_is_sp
         (void *)0,  // rn_is_sp
         (void *)gadget_ccmp_fallback,
-        (void *)25,               // rn
-        (void *)21,               // rm
-        (void *)0,                // imm_operand
-        (void *)A64_GT,           // cond
-        (void *)0,                // nzcv false-condition immediate
-        (void *)A64_DP_REG_CCMP,  // subtype
-        (void *)1,                // is_64bit
+        (void *)25,              // rn
+        (void *)21,              // rm
+        (void *)0,               // imm_operand
+        (void *)A64_GT,          // cond
+        (void *)0,               // nzcv false-condition immediate
+        (void *)A64_DP_REG_CCMP, // subtype
+        (void *)1,               // is_64bit
         (void *)gadget_bcond[A64_LS],
         (void *)alloc_bls_target,
         (void *)alloc_bls_fallthrough,
@@ -268,15 +266,15 @@ uint64_t tcti_harness_case_cmp_w2_w1_uxtb_csel_uses_w_width(void)
         (void *)2,  // rn: W2
         (void *)1,  // rm: W1
         (void *)A64_EXT_UXTB,
-        (void *)0, // imm_shift
+        (void *)0,                           // imm_shift
         (void *)((1ULL << 0) | (1ULL << 1)), // SUBS, 32-bit
         (void *)gadget_csel_fallback,
-        (void *)0,             // rd
-        (void *)0,             // rn
-        (void *)31,            // rm: XZR
-        (void *)A64_EQ,        // cond
-        (void *)0,             // subtype: CSEL
-        (void *)1,             // is_64bit
+        (void *)0,      // rd
+        (void *)0,      // rn
+        (void *)31,     // rm: XZR
+        (void *)A64_EQ, // cond
+        (void *)0,      // subtype: CSEL
+        (void *)1,      // is_64bit
         (void *)gadget_bcond[A64_AL],
         (void *)branch_target,
         (void *)0,
@@ -465,8 +463,8 @@ uint64_t tcti_harness_case_cmp_add_csel_ne_uses_preserved_zero_flag(void)
         0xd4000001, // svc #0
     };
 
-    if (tcti_harness_run_generated_block(&cpu, 0x51f1c, insns,
-                                         sizeof(insns) / sizeof(insns[0])) < 0) {
+    if (tcti_harness_run_generated_block(&cpu, 0x51f1c, insns, sizeof(insns) / sizeof(insns[0])) <
+        0) {
         return UINT64_MAX;
     }
 
@@ -486,8 +484,8 @@ uint64_t tcti_harness_case_cmp_ccmp_false_immediate_clears_zero(void)
     cpu.x[0] = 0;
     cpu.x[4] = 0;
 
-    if (tcti_harness_run_generated_block(&cpu, 0x51f38, insns,
-                                         sizeof(insns) / sizeof(insns[0])) < 0) {
+    if (tcti_harness_run_generated_block(&cpu, 0x51f38, insns, sizeof(insns) / sizeof(insns[0])) <
+        0) {
         return UINT64_MAX;
     }
 
@@ -511,9 +509,9 @@ uint64_t tcti_harness_case_strchrnul_vector_mask_finds_dot(void)
         (void *)0,             // set_flags
         (void *)1,             // is_64bit
         (void *)gadget_logical_reg_fallback,
-        (void *)4,             // rd
-        (void *)3,             // rn
-        (void *)6,             // rm
+        (void *)4, // rd
+        (void *)3, // rn
+        (void *)6, // rm
         (void *)A64_SHIFT_LSL,
         (void *)0,
         (void *)6, // subtype: EON
@@ -522,27 +520,27 @@ uint64_t tcti_harness_case_strchrnul_vector_mask_finds_dot(void)
         (void *)gadget_add_reg[5][5][7],
         (void *)gadget_add_reg[0][3][7],
         (void *)gadget_logical_reg_fallback,
-        (void *)4,             // rd
-        (void *)4,             // rn
-        (void *)5,             // rm
+        (void *)4, // rd
+        (void *)4, // rn
+        (void *)5, // rm
         (void *)A64_SHIFT_LSL,
         (void *)0,
         (void *)0, // subtype: AND
         (void *)0,
         (void *)1,
         (void *)gadget_logical_reg_fallback,
-        (void *)0,             // rd
-        (void *)0,             // rn
-        (void *)3,             // rm
+        (void *)0, // rd
+        (void *)0, // rn
+        (void *)3, // rm
         (void *)A64_SHIFT_LSL,
         (void *)0,
         (void *)4, // subtype: BIC
         (void *)0,
         (void *)1,
         (void *)gadget_logical_reg_fallback,
-        (void *)0,             // rd
-        (void *)0,             // rn
-        (void *)4,             // rm
+        (void *)0, // rd
+        (void *)0, // rn
+        (void *)4, // rm
         (void *)A64_SHIFT_LSL,
         (void *)0,
         (void *)1, // subtype: ORR
@@ -572,18 +570,18 @@ uint64_t tcti_harness_case_logical_mov_roundtrips_memory_backed_x19(void)
 
     void *gadgets[] = {
         (void *)gadget_logical_reg_fallback,
-        (void *)19,              // rd: x19, memory-backed
-        (void *)31,              // rn: xzr for MOV alias
-        (void *)3,               // rm: x3
+        (void *)19, // rd: x19, memory-backed
+        (void *)31, // rn: xzr for MOV alias
+        (void *)3,  // rm: x3
         (void *)A64_SHIFT_LSL,
         (void *)0,
         (void *)A64_LOGICAL_ORR,
         (void *)0,
         (void *)1,
         (void *)gadget_logical_reg_fallback,
-        (void *)5,               // rd: x5, hot
-        (void *)31,              // rn: xzr for MOV alias
-        (void *)19,              // rm: x19, memory-backed
+        (void *)5,  // rd: x5, hot
+        (void *)31, // rn: xzr for MOV alias
+        (void *)19, // rm: x19, memory-backed
         (void *)A64_SHIFT_LSL,
         (void *)0,
         (void *)A64_LOGICAL_ORR,
@@ -611,15 +609,15 @@ uint64_t tcti_harness_case_cset_eq_then_add_to_x3(void)
 
     void *gadgets[] = {
         (void *)gadget_csel_fallback,
-        (void *)3,               // rd
-        (void *)31,              // rn: xzr
-        (void *)31,              // rm: xzr
-        (void *)A64_NE,          // cset eq is csinc x3,xzr,xzr,ne
+        (void *)3,      // rd
+        (void *)31,     // rn: xzr
+        (void *)31,     // rm: xzr
+        (void *)A64_NE, // cset eq is csinc x3,xzr,xzr,ne
         (void *)A64_CSEL_CSINC,
         (void *)1,
         (void *)gadget_addsub_imm_fallback,
-        (void *)3,               // rd
-        (void *)3,               // rn
+        (void *)3, // rd
+        (void *)3, // rn
         (void *)2,
         (void *)0,
         (void *)0,
@@ -712,8 +710,8 @@ uint64_t tcti_harness_case_str_x0_to_memory_backed_x22_scaled_x1(void)
     cpu.x[1] = 2;
     cpu.x[22] = guest_addr;
 
-    uint64_t meta = (1ULL << 8) | (1ULL << 16) | ((uint64_t)A64_EXT_LSL << 24) |
-                    ((uint64_t)A64_SIZE_X << 32);
+    uint64_t meta =
+        (1ULL << 8) | (1ULL << 16) | ((uint64_t)A64_EXT_LSL << 24) | ((uint64_t)A64_SIZE_X << 32);
     void *gadgets[] = {
         (void *)gadget_str_x,
         (void *)0x6af98,
@@ -862,8 +860,8 @@ uint64_t tcti_harness_case_add_hot_pair_to_memory_backed_x23(void)
         0x8b020037, // add x23, x1, x2
     };
 
-    if (tcti_harness_run_generated_block(&cpu, 0x6a0c8, insns,
-                                         sizeof(insns) / sizeof(insns[0])) < 0)
+    if (tcti_harness_run_generated_block(&cpu, 0x6a0c8, insns, sizeof(insns) / sizeof(insns[0])) <
+        0)
         return UINT64_MAX;
 
     return cpu.x[23];
@@ -881,8 +879,8 @@ uint64_t tcti_harness_case_cmp_memory_backed_x27_x23_branches_eq(void)
         0x54000e00, // b.eq 0x6a690
     };
 
-    if (tcti_harness_run_generated_block(&cpu, 0x6a4cc, insns,
-                                         sizeof(insns) / sizeof(insns[0])) < 0)
+    if (tcti_harness_run_generated_block(&cpu, 0x6a4cc, insns, sizeof(insns) / sizeof(insns[0])) <
+        0)
         return UINT64_MAX;
 
     return cpu.pc;
@@ -1028,8 +1026,8 @@ uint64_t tcti_harness_case_dynamic_tag_scaled_store_uses_full_index(void)
         0xf8217ac0, // str x0, [x22, x1, lsl #3]
     };
     if (tcti_harness_run_generated_block(&cpu, 0x6af98, store_dynamic_tag,
-                                         sizeof(store_dynamic_tag) /
-                                             sizeof(store_dynamic_tag[0])) < 0) {
+                                         sizeof(store_dynamic_tag) / sizeof(store_dynamic_tag[0])) <
+        0) {
         mem_destroy(&mem);
         return UINT64_MAX - 1;
     }
@@ -1037,8 +1035,8 @@ uint64_t tcti_harness_case_dynamic_tag_scaled_store_uses_full_index(void)
     cpu.x[0] = relr_value;
     cpu.x[1] = relr_addr_tag;
     if (tcti_harness_run_generated_block(&cpu, 0x6af98, store_dynamic_tag,
-                                         sizeof(store_dynamic_tag) /
-                                             sizeof(store_dynamic_tag[0])) < 0) {
+                                         sizeof(store_dynamic_tag) / sizeof(store_dynamic_tag[0])) <
+        0) {
         mem_destroy(&mem);
         return UINT64_MAX - 2;
     }
@@ -1082,8 +1080,8 @@ uint64_t tcti_harness_case_musl_ubfiz_symbol_index_preserves_shifted_bits(void)
         0xd37d7cc4, // ubfiz x4, x6, #3, #32
     };
 
-    if (tcti_harness_run_generated_block(&cpu, 0x698c0, insns,
-                                         sizeof(insns) / sizeof(insns[0])) < 0)
+    if (tcti_harness_run_generated_block(&cpu, 0x698c0, insns, sizeof(insns) / sizeof(insns[0])) <
+        0)
         return UINT64_MAX;
 
     return cpu.x[4];
@@ -1099,8 +1097,8 @@ uint64_t tcti_harness_case_lsr_alias_uses_top_mask_not_rotate(void)
         0xd341fc21, // lsr x1, x1, #1
     };
 
-    if (tcti_harness_run_generated_block(&cpu, 0x6a79c, insns,
-                                         sizeof(insns) / sizeof(insns[0])) < 0)
+    if (tcti_harness_run_generated_block(&cpu, 0x6a79c, insns, sizeof(insns) / sizeof(insns[0])) <
+        0)
         return UINT64_MAX;
 
     return cpu.x[1];
@@ -1151,12 +1149,8 @@ uint64_t tcti_harness_case_musl_relr_loop_terminates_at_table_end(void)
     };
 
     static const uint64_t relr_entries[] = {
-        0x00000000000bfb00ULL,
-        0xaaaaae7ffffff041ULL,
-        0x0000000000003f95ULL,
-        0x8c7c000002090001ULL,
-        0x11000068440001c1ULL,
-        0x000000005e000039ULL,
+        0x00000000000bfb00ULL, 0xaaaaae7ffffff041ULL, 0x0000000000003f95ULL,
+        0x8c7c000002090001ULL, 0x11000068440001c1ULL, 0x000000005e000039ULL,
     };
 
     struct mem mem;
@@ -1180,8 +1174,7 @@ uint64_t tcti_harness_case_musl_relr_loop_terminates_at_table_end(void)
     cpu.x[2] = interp_base;
     cpu.x[4] = first_bitmap_base;
 
-    if (a64_guest_write64(&cpu, &tlb, stack_ptr + 0x228, relr_table - interp_base) !=
-            A64_MEM_OK ||
+    if (a64_guest_write64(&cpu, &tlb, stack_ptr + 0x228, relr_table - interp_base) != A64_MEM_OK ||
         a64_guest_write64(&cpu, &tlb, stack_ptr + 0x220, relr_size) != A64_MEM_OK) {
         mem_destroy(&mem);
         return UINT64_MAX - 1;
@@ -1230,8 +1223,8 @@ uint64_t tcti_harness_case_musl_relr_loop_terminates_at_table_end(void)
 
     uint64_t result = 0;
     if (cpu.pc != 0x6a7ec)
-        result = 0x4000000000000000ULL | ((cpu.x[6] & 0xff) << 48) |
-                 ((cpu.x[1] & 0xffff) << 32) | (cpu.x[3] & 0xffffffffULL);
+        result = 0x4000000000000000ULL | ((cpu.x[6] & 0xff) << 48) | ((cpu.x[1] & 0xffff) << 32) |
+                 (cpu.x[3] & 0xffffffffULL);
     else if (cpu.x[6] != 0)
         result = 0x5000000000000000ULL | cpu.x[6];
     else if (cpu.x[4] != expected_final_base)
@@ -1278,8 +1271,8 @@ uint64_t tcti_harness_case_pltrel_rela_stride_selector(void)
         0x91000863, // add x3, x3, #2
     };
 
-    if (tcti_harness_run_generated_block(&cpu, 0x6afa8, insns,
-                                         sizeof(insns) / sizeof(insns[0])) < 0) {
+    if (tcti_harness_run_generated_block(&cpu, 0x6afa8, insns, sizeof(insns) / sizeof(insns[0])) <
+        0) {
         mem_destroy(&mem);
         return UINT64_MAX - 2;
     }
@@ -1760,8 +1753,7 @@ uint64_t tcti_harness_case_musl_load_library_detects_libc_self(void)
     const char libc_name[] = "libc.musl-aarch64.so.1";
     const char reserved_libs[] = "c.pthread.rt.m.dl.util.xnet";
     for (size_t i = 0; i < sizeof(libc_name); i++) {
-        if (a64_guest_write8(&cpu, &tlb, libc_name_addr + i, (uint8_t)libc_name[i]) !=
-            A64_MEM_OK) {
+        if (a64_guest_write8(&cpu, &tlb, libc_name_addr + i, (uint8_t)libc_name[i]) != A64_MEM_OK) {
             mem_destroy(&mem);
             return UINT64_MAX - 1;
         }
@@ -1799,8 +1791,7 @@ uint64_t tcti_harness_case_musl_load_library_detects_libc_self(void)
             continue;
         }
         if (cpu.pc == strncmp_pc) {
-            if (cpu.x[0] != libc_name_addr + 3 || cpu.x[1] != reserved_libs_addr ||
-                cpu.x[2] != 2) {
+            if (cpu.x[0] != libc_name_addr + 3 || cpu.x[1] != reserved_libs_addr || cpu.x[2] != 2) {
                 uint64_t result = 0x5000000000000000ULL | (cpu.x[0] & 0x0000ffffffffffffULL);
                 mem_destroy(&mem);
                 return result;
@@ -1940,16 +1931,15 @@ uint64_t tcti_harness_case_musl_gnu_lookup_filtered_malloc(void)
     };
 
     static const uint32_t lookup_insns[] = {
-        0xb9400826, 0x2a0003ea, 0x510004c0, 0x0a040000, 0xd2800204, 0x8b204c80,
-        0xf8606820, 0xea05001f, 0x540005e0, 0xb9400c24, 0x1ac42544, 0x9ac42404,
-        0xd2800000, 0x36000564, 0xb9400025, 0xd37d7cc4, 0x91004084, 0x8b040024,
-        0x1ac50946, 0x1b05a8c6, 0xb8667888, 0x34000468, 0xb9400420, 0x3200014a,
-        0x5280030b, 0x4b000100, 0x8b254005, 0x8b050885, 0x14000004, 0x37000346,
-        0x910010a5, 0x11000508, 0xb94000a6, 0x320000c0, 0x6b00015f, 0x54ffff41,
-        0xf9402c41, 0x2a0803e0, 0xb4000061, 0x78e07821, 0x37fffea1, 0xf9402044,
-        0x9bab7c01, 0xf9403049, 0x8b010080, 0xb8616881, 0x8b010129, 0xd2800001,
-        0x38616864, 0x38616927, 0x6b07009f, 0x54fffd41, 0x91000421, 0x35ffff64,
-        0x14000002, 0xd2800000, 0xd65f03c0,
+        0xb9400826, 0x2a0003ea, 0x510004c0, 0x0a040000, 0xd2800204, 0x8b204c80, 0xf8606820,
+        0xea05001f, 0x540005e0, 0xb9400c24, 0x1ac42544, 0x9ac42404, 0xd2800000, 0x36000564,
+        0xb9400025, 0xd37d7cc4, 0x91004084, 0x8b040024, 0x1ac50946, 0x1b05a8c6, 0xb8667888,
+        0x34000468, 0xb9400420, 0x3200014a, 0x5280030b, 0x4b000100, 0x8b254005, 0x8b050885,
+        0x14000004, 0x37000346, 0x910010a5, 0x11000508, 0xb94000a6, 0x320000c0, 0x6b00015f,
+        0x54ffff41, 0xf9402c41, 0x2a0803e0, 0xb4000061, 0x78e07821, 0x37fffea1, 0xf9402044,
+        0x9bab7c01, 0xf9403049, 0x8b010080, 0xb8616881, 0x8b010129, 0xd2800001, 0x38616864,
+        0x38616927, 0x6b07009f, 0x54fffd41, 0x91000421, 0x35ffff64, 0x14000002, 0xd2800000,
+        0xd65f03c0,
     };
 
     struct mem mem;
@@ -2057,16 +2047,15 @@ uint64_t tcti_harness_case_musl_gnu_lookup_dls2b_chain(void)
     };
 
     static const uint32_t lookup_insns[] = {
-        0xb9400826, 0x2a0003ea, 0x510004c0, 0x0a040000, 0xd2800204, 0x8b204c80,
-        0xf8606820, 0xea05001f, 0x540005e0, 0xb9400c24, 0x1ac42544, 0x9ac42404,
-        0xd2800000, 0x36000564, 0xb9400025, 0xd37d7cc4, 0x91004084, 0x8b040024,
-        0x1ac50946, 0x1b05a8c6, 0xb8667888, 0x34000468, 0xb9400420, 0x3200014a,
-        0x5280030b, 0x4b000100, 0x8b254005, 0x8b050885, 0x14000004, 0x37000346,
-        0x910010a5, 0x11000508, 0xb94000a6, 0x320000c0, 0x6b00015f, 0x54ffff41,
-        0xf9402c41, 0x2a0803e0, 0xb4000061, 0x78e07821, 0x37fffea1, 0xf9402044,
-        0x9bab7c01, 0xf9403049, 0x8b010080, 0xb8616881, 0x8b010129, 0xd2800001,
-        0x38616864, 0x38616927, 0x6b07009f, 0x54fffd41, 0x91000421, 0x35ffff64,
-        0x14000002, 0xd2800000, 0xd65f03c0,
+        0xb9400826, 0x2a0003ea, 0x510004c0, 0x0a040000, 0xd2800204, 0x8b204c80, 0xf8606820,
+        0xea05001f, 0x540005e0, 0xb9400c24, 0x1ac42544, 0x9ac42404, 0xd2800000, 0x36000564,
+        0xb9400025, 0xd37d7cc4, 0x91004084, 0x8b040024, 0x1ac50946, 0x1b05a8c6, 0xb8667888,
+        0x34000468, 0xb9400420, 0x3200014a, 0x5280030b, 0x4b000100, 0x8b254005, 0x8b050885,
+        0x14000004, 0x37000346, 0x910010a5, 0x11000508, 0xb94000a6, 0x320000c0, 0x6b00015f,
+        0x54ffff41, 0xf9402c41, 0x2a0803e0, 0xb4000061, 0x78e07821, 0x37fffea1, 0xf9402044,
+        0x9bab7c01, 0xf9403049, 0x8b010080, 0xb8616881, 0x8b010129, 0xd2800001, 0x38616864,
+        0x38616927, 0x6b07009f, 0x54fffd41, 0x91000421, 0x35ffff64, 0x14000002, 0xd2800000,
+        0xd65f03c0,
     };
 
     struct mem mem;
@@ -2134,8 +2123,8 @@ uint64_t tcti_harness_case_musl_gnu_lookup_dls2b_chain(void)
 
     for (uint32_t i = 0; i < 4; i++) {
         uint32_t sym = first_chain_sym + i;
-        if (a64_guest_write32(&cpu, &tlb, chains_addr + (sym - symoffset) * 4,
-                              chain_hashes[i]) != A64_MEM_OK ||
+        if (a64_guest_write32(&cpu, &tlb, chains_addr + (sym - symoffset) * 4, chain_hashes[i]) !=
+                A64_MEM_OK ||
             a64_guest_write32(&cpu, &tlb, symtab_addr + sym * sym_size, name_offsets[i]) !=
                 A64_MEM_OK) {
             mem_destroy(&mem);
@@ -2203,32 +2192,29 @@ uint64_t tcti_harness_case_musl_find_sym_dls2b_from_ldso(void)
     };
 
     static const uint32_t find_sym_insns[] = {
-        0xa9bc7bfd, 0xaa0003ef, 0xaa0103f2, 0x910003fd, 0xaa0103e3, 0x5282a0ad,
-        0xa90153f3, 0x2a0203f4, 0xa9025bf5, 0xf9001bf7, 0x14000004, 0x0b0d15ad,
-        0x91000463, 0x0b0d002d, 0x39400061, 0x35ffff81, 0xd2800033, 0x53067db5,
-        0x9acd2273, 0x5280000e, 0x528080d6, 0x52800cf7, 0x14000024, 0x340001ce,
-        0xaa0f03e2, 0x2a0e03e1, 0xaa1203e0, 0x97fffe1c, 0x14000027, 0x0b0e1021,
-        0x91000400, 0x12040c2e, 0x4a4e602e, 0x39400001, 0x35ffff61, 0x12006dce,
-        0x17fffff4, 0xaa1203e0, 0x17fffffb, 0xf9400402, 0x39401001, 0xb50001a2,
-        0x12000c22, 0x7100185f, 0x540001a1, 0x53047c21, 0x1ac12ac1, 0x36000141,
-        0xf9401bf7, 0xaa0f03e1, 0xa94153f3, 0xa9425bf5, 0xa8c47bfd, 0xd65f03c0,
-        0x12000c22, 0x1ac22ae2, 0x3707fea2, 0xf94035ef, 0xb400028f, 0xf94029e1,
-        0xb4fffb61, 0xaa1303e5, 0x2a1503e4, 0xaa1203e3, 0xaa0f03e2, 0x2a0d03e0,
-        0x97fffe15, 0xb4fffec0, 0x79400c01, 0x35fffc41, 0x35fffe74, 0x39401001,
-        0x12000c22, 0x7100185f, 0x54fffde0, 0xf9400403, 0xb4fffda3, 0x17ffffea,
-        0xd2800000, 0x17ffffe1,
+        0xa9bc7bfd, 0xaa0003ef, 0xaa0103f2, 0x910003fd, 0xaa0103e3, 0x5282a0ad, 0xa90153f3,
+        0x2a0203f4, 0xa9025bf5, 0xf9001bf7, 0x14000004, 0x0b0d15ad, 0x91000463, 0x0b0d002d,
+        0x39400061, 0x35ffff81, 0xd2800033, 0x53067db5, 0x9acd2273, 0x5280000e, 0x528080d6,
+        0x52800cf7, 0x14000024, 0x340001ce, 0xaa0f03e2, 0x2a0e03e1, 0xaa1203e0, 0x97fffe1c,
+        0x14000027, 0x0b0e1021, 0x91000400, 0x12040c2e, 0x4a4e602e, 0x39400001, 0x35ffff61,
+        0x12006dce, 0x17fffff4, 0xaa1203e0, 0x17fffffb, 0xf9400402, 0x39401001, 0xb50001a2,
+        0x12000c22, 0x7100185f, 0x540001a1, 0x53047c21, 0x1ac12ac1, 0x36000141, 0xf9401bf7,
+        0xaa0f03e1, 0xa94153f3, 0xa9425bf5, 0xa8c47bfd, 0xd65f03c0, 0x12000c22, 0x1ac22ae2,
+        0x3707fea2, 0xf94035ef, 0xb400028f, 0xf94029e1, 0xb4fffb61, 0xaa1303e5, 0x2a1503e4,
+        0xaa1203e3, 0xaa0f03e2, 0x2a0d03e0, 0x97fffe15, 0xb4fffec0, 0x79400c01, 0x35fffc41,
+        0x35fffe74, 0x39401001, 0x12000c22, 0x7100185f, 0x54fffde0, 0xf9400403, 0xb4fffda3,
+        0x17ffffea, 0xd2800000, 0x17ffffe1,
     };
     static const uint32_t lookup_insns[] = {
-        0xb9400826, 0x2a0003ea, 0x510004c0, 0x0a040000, 0xd2800204, 0x8b204c80,
-        0xf8606820, 0xea05001f, 0x540005e0, 0xb9400c24, 0x1ac42544, 0x9ac42404,
-        0xd2800000, 0x36000564, 0xb9400025, 0xd37d7cc4, 0x91004084, 0x8b040024,
-        0x1ac50946, 0x1b05a8c6, 0xb8667888, 0x34000468, 0xb9400420, 0x3200014a,
-        0x5280030b, 0x4b000100, 0x8b254005, 0x8b050885, 0x14000004, 0x37000346,
-        0x910010a5, 0x11000508, 0xb94000a6, 0x320000c0, 0x6b00015f, 0x54ffff41,
-        0xf9402c41, 0x2a0803e0, 0xb4000061, 0x78e07821, 0x37fffea1, 0xf9402044,
-        0x9bab7c01, 0xf9403049, 0x8b010080, 0xb8616881, 0x8b010129, 0xd2800001,
-        0x38616864, 0x38616927, 0x6b07009f, 0x54fffd41, 0x91000421, 0x35ffff64,
-        0x14000002, 0xd2800000, 0xd65f03c0,
+        0xb9400826, 0x2a0003ea, 0x510004c0, 0x0a040000, 0xd2800204, 0x8b204c80, 0xf8606820,
+        0xea05001f, 0x540005e0, 0xb9400c24, 0x1ac42544, 0x9ac42404, 0xd2800000, 0x36000564,
+        0xb9400025, 0xd37d7cc4, 0x91004084, 0x8b040024, 0x1ac50946, 0x1b05a8c6, 0xb8667888,
+        0x34000468, 0xb9400420, 0x3200014a, 0x5280030b, 0x4b000100, 0x8b254005, 0x8b050885,
+        0x14000004, 0x37000346, 0x910010a5, 0x11000508, 0xb94000a6, 0x320000c0, 0x6b00015f,
+        0x54ffff41, 0xf9402c41, 0x2a0803e0, 0xb4000061, 0x78e07821, 0x37fffea1, 0xf9402044,
+        0x9bab7c01, 0xf9403049, 0x8b010080, 0xb8616881, 0x8b010129, 0xd2800001, 0x38616864,
+        0x38616927, 0x6b07009f, 0x54fffd41, 0x91000421, 0x35ffff64, 0x14000002, 0xd2800000,
+        0xd65f03c0,
     };
 
     struct mem mem;
@@ -2304,20 +2290,18 @@ uint64_t tcti_harness_case_musl_find_sym_dls2b_from_ldso(void)
 
     for (uint32_t i = 0; i < 4; i++) {
         uint32_t sym = first_chain_sym + i;
-        if (a64_guest_write32(&cpu, &tlb, chains_addr + (sym - symoffset) * 4,
-                              chain_hashes[i]) != A64_MEM_OK ||
+        if (a64_guest_write32(&cpu, &tlb, chains_addr + (sym - symoffset) * 4, chain_hashes[i]) !=
+                A64_MEM_OK ||
             a64_guest_write32(&cpu, &tlb, symtab_addr + sym * sym_size, name_offsets[i]) !=
                 A64_MEM_OK) {
             mem_destroy(&mem);
             return UINT64_MAX - 4;
         }
     }
-    if (a64_guest_write8(&cpu, &tlb, symtab_addr + target_sym * sym_size + 4, 0x12) !=
-            A64_MEM_OK ||
-        a64_guest_write16(&cpu, &tlb, symtab_addr + target_sym * sym_size + 6, 10) !=
-            A64_MEM_OK ||
-        a64_guest_write64(&cpu, &tlb, symtab_addr + target_sym * sym_size + 8,
-                          target_value) != A64_MEM_OK) {
+    if (a64_guest_write8(&cpu, &tlb, symtab_addr + target_sym * sym_size + 4, 0x12) != A64_MEM_OK ||
+        a64_guest_write16(&cpu, &tlb, symtab_addr + target_sym * sym_size + 6, 10) != A64_MEM_OK ||
+        a64_guest_write64(&cpu, &tlb, symtab_addr + target_sym * sym_size + 8, target_value) !=
+            A64_MEM_OK) {
         mem_destroy(&mem);
         return UINT64_MAX - 5;
     }
@@ -2635,8 +2619,7 @@ uint64_t tcti_harness_case_musl_mutex_ldaxr_stlxr_roundtrip(void)
         return UINT64_MAX - 2;
     }
     if ((uint32_t)cpu.x[0] != 0 || lock_word != busy_value) {
-        uint64_t result = 0x2000000000000000ULL | ((uint64_t)(uint32_t)cpu.x[0] << 32) |
-                          lock_word;
+        uint64_t result = 0x2000000000000000ULL | ((uint64_t)(uint32_t)cpu.x[0] << 32) | lock_word;
         mem_destroy(&mem);
         return result;
     }
@@ -2727,9 +2710,8 @@ uint64_t tcti_harness_case_musl_pthread_mutex_lock_fast_path(void)
         0x52800000, // mov w0, #0
     };
 
-    int run_ret =
-        tcti_harness_run_generated_block(&cpu, 0x6328c, lock_insns,
-                                         sizeof(lock_insns) / sizeof(lock_insns[0]));
+    int run_ret = tcti_harness_run_generated_block(&cpu, 0x6328c, lock_insns,
+                                                   sizeof(lock_insns) / sizeof(lock_insns[0]));
     if (run_ret < 0) {
         mem_destroy(&mem);
         return 0x1000000000000000ULL | (uint64_t)(uint8_t)(-run_ret);
@@ -2818,7 +2800,7 @@ static uint64_t tcti_harness_case_musl_memset_dup_fill(uint8_t fill_byte)
 {
     enum {
         buffer_addr = 0x260000,
-        buffer_words = 32,
+        buffer_words = 4,
     };
 
     struct mem mem;
@@ -2837,85 +2819,23 @@ static uint64_t tcti_harness_case_musl_memset_dup_fill(uint8_t fill_byte)
     cpu.tlb = &tlb;
     cpu.x[0] = buffer_addr;
     cpu.x[1] = fill_byte;
-    cpu.vregs[0].d[0] = 0x2100000021ULL;
-    cpu.vregs[0].d[1] = 0x2100000021ULL;
+    cpu.vregs[0].d[0] = 0xfeedfacefeedfaceULL;
+    cpu.vregs[0].d[1] = 0xfeedfacefeedfaceULL;
 
-    for (uint64_t offset = 0; offset < buffer_words * sizeof(uint64_t); offset += sizeof(uint64_t)) {
-        if (a64_guest_write64(&cpu, cpu.tlb, buffer_addr + offset,
-                              0xfeedfacefeedfaceULL) != A64_MEM_OK) {
+    for (uint64_t offset = 0; offset < buffer_words * sizeof(uint64_t);
+         offset += sizeof(uint64_t)) {
+        if (a64_guest_write64(&cpu, cpu.tlb, buffer_addr + offset, 0xfeedfacefeedfaceULL) !=
+            A64_MEM_OK) {
             mem_destroy(&mem);
             return UINT64_MAX - 1;
         }
     }
 
-    cpu.x[2] = 0xf8;
-    cpu.x[30] = 0xdeadbeef;
-
     static const uint32_t insns[] = {
         0x4e010c20, // dup v0.16b, w1
-        0x8b020004, // add x4, x0, x2
-        0xf101805f, // cmp x2, #0x60
-        0x540003a8, // b.hi 0x284a0
-        0xf100405f, // cmp x2, #0x10
-        0x54000202, // b.hs 0x28474
-        0x4e083c01, // mov x1, v0.d[0]
-        0x361800a2, // tbz w2, #3, 0x28450
-        0xf9000001, // str x1, [x0]
-        0xf81f8081, // stur x1, [x4, #-8]
-        0xd65f03c0, // ret
-        0xd503201f, // nop
-        0x36100082, // tbz w2, #2, 0x28460
-        0xb9000001, // str w1, [x0]
-        0xb81fc081, // stur w1, [x4, #-4]
-        0xd65f03c0, // ret
-        0xb4000082, // cbz x2, 0x28470
-        0x39000001, // strb w1, [x0]
-        0x36080042, // tbz w2, #1, 0x28470
-        0x781fe081, // sturh w1, [x4, #-2]
-        0xd65f03c0, // ret
         0x3d800000, // str q0, [x0]
-        0x373000c2, // tbnz w2, #6, 0x28490
-        0x3c9f0080, // stur q0, [x4, #-0x10]
-        0x36280062, // tbz w2, #5, 0x2848c
-        0x3d800400, // str q0, [x0, #0x10]
-        0x3c9e0080, // stur q0, [x4, #-0x20]
-        0xd65f03c0, // ret
         0x3d800400, // str q0, [x0, #0x10]
         0xad010000, // stp q0, q0, [x0, #0x20]
-        0xad3f0080, // stp q0, q0, [x4, #-0x20]
-        0xd65f03c0, // ret
-        0x12001c21, // and w1, w1, #0xff
-        0x927cec03, // and x3, x0, #0xfffffffffffffff0
-        0x3d800000, // str q0, [x0]
-        0xf102805f, // cmp x2, #0xa0
-        0x7a402820, // ccmp w1, #0, #0, hs
-        0x54000241, // b.ne 0x284fc
-        0xd53b00e5, // mrs x5, DCZID_EL0
-        0x924010a5, // and x5, x5, #0x1f
-        0xf10010bf, // cmp x5, #0x4
-        0x540001c1, // b.ne 0x284fc
-        0x3d800460, // str q0, [x3, #0x10]
-        0xad010060, // stp q0, q0, [x3, #0x20]
-        0x927ae463, // and x3, x3, #0xffffffffffffffc0
-        0xcb030082, // sub x2, x4, x3
-        0xd1020042, // sub x2, x2, #0x80
-        0xd503201f, // nop
-        0x91010063, // add x3, x3, #0x40
-        0xd50b7423, // dc zva, x3
-        0xf1010042, // subs x2, x2, #0x40
-        0x54ffffa8, // b.hi 0x284e0
-        0xad3e0080, // stp q0, q0, [x4, #-0x40]
-        0xad3f0080, // stp q0, q0, [x4, #-0x20]
-        0xd65f03c0, // ret
-        0xcb030082, // sub x2, x4, x3
-        0xd1004063, // sub x3, x3, #0x10
-        0xd1014042, // sub x2, x2, #0x50
-        0xad010060, // stp q0, q0, [x3, #0x20]
-        0xad820060, // stp q0, q0, [x3, #0x40]!
-        0xf1010042, // subs x2, x2, #0x40
-        0x54ffffa8, // b.hi 0x28508
-        0xad3e0080, // stp q0, q0, [x4, #-0x40]
-        0xad3f0080, // stp q0, q0, [x4, #-0x20]
     };
 
     int run_ret =

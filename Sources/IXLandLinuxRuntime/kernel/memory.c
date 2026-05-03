@@ -11,6 +11,7 @@
 #import <IXLandLinuxRuntime/emu/aarch64/block-cache.h>
 #import <IXLandLinuxRuntime/fs/fd.h>
 #import <IXLandLinuxRuntime/kernel/errno.h>
+#import <IXLandLinuxRuntime/kernel/guest_trace_context.h>
 #import <IXLandLinuxRuntime/kernel/memory.h>
 #import <IXLandLinuxRuntime/kernel/signal.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
@@ -18,6 +19,43 @@
 #import <IXLandLinuxRuntime/util/debug.h>
 
 static struct mmu_ops mem_mmu_ops;
+
+static void trace_mem_failure(const char *event_name, const char *reason, page_t page,
+                              pages_t pages, int64_t err)
+{
+    ixland_guest_trace_field_t fields[] = {
+        { .key = "reason", .kind = IXLAND_GUEST_TRACE_FIELD_STRING, .string_value = reason },
+        { .key = "page", .kind = IXLAND_GUEST_TRACE_FIELD_U64_HEX, .u64_value = page },
+        { .key = "pages", .kind = IXLAND_GUEST_TRACE_FIELD_U64_DEC, .u64_value = pages },
+        { .key = "return_value", .kind = IXLAND_GUEST_TRACE_FIELD_I64_DEC, .i64_value = err },
+    };
+    ixland_guest_trace_emit_structured(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, event_name, fields,
+                                       sizeof(fields) / sizeof(fields[0]));
+}
+
+struct page_range_probe_ctx {
+    uint64_t first_page;
+    bool found;
+};
+
+static int page_range_probe_cb(uint64_t page, struct page_desc *desc, void *ctx)
+{
+    (void)desc;
+    struct page_range_probe_ctx *probe = ctx;
+    probe->first_page = page;
+    probe->found = true;
+    return 1;
+}
+
+static bool page_map_range_is_empty(struct page_map *map, uint64_t start_page, uint64_t num_pages,
+                                    uint64_t *first_mapped_page)
+{
+    struct page_range_probe_ctx probe = {};
+    page_map_iterate_range(map, start_page, num_pages, page_range_probe_cb, &probe);
+    if (probe.found && first_mapped_page != NULL)
+        *first_mapped_page = probe.first_page;
+    return !probe.found;
+}
 
 void mem_init(struct mem *mem)
 {
@@ -115,8 +153,23 @@ void mem_destroy(struct mem *mem)
 
 page_t pt_find_hole(struct mem *mem, pages_t size)
 {
-    uint64_t page = vma_tree_find_hole_above(&mem->vmas, A64_MMAP_BASE_PAGE, size);
-    return (page_t)page;
+    uint64_t min_page = A64_MMAP_BASE_PAGE;
+
+    for (;;) {
+        uint64_t page = vma_tree_find_hole_above(&mem->vmas, min_page, size);
+        if (page == BAD_PAGE) {
+            trace_mem_failure("mem.pt_find_hole.failure", "no_vma_hole", min_page, size, _ENOMEM);
+            return BAD_PAGE;
+        }
+
+        uint64_t conflict_page = BAD_PAGE;
+        if (page_map_range_is_empty(&mem->pages, page, size, &conflict_page))
+            return (page_t)page;
+
+        trace_mem_failure("mem.pt_find_hole.retry", "page_map_conflict", conflict_page, size,
+                          _ENOMEM);
+        min_page = conflict_page + 1;
+    }
 }
 
 bool pt_is_hole(struct mem *mem, page_t start, pages_t pages)
@@ -140,8 +193,11 @@ bool pt_is_hole(struct mem *mem, page_t start, pages_t pages)
 int pt_map(struct mem *mem, page_t start, pages_t pages, void *memory, size_t offset,
            unsigned flags)
 {
-    if (memory == MAP_FAILED)
-        return errno_map();
+    if (memory == MAP_FAILED) {
+        int err = errno_map();
+        trace_mem_failure("mem.pt_map.failure", "host_mmap_failed", start, pages, err);
+        return err;
+    }
 
     assert((uintptr_t)memory % real_page_size == 0 || memory == vdso_data);
 
@@ -155,8 +211,10 @@ int pt_map(struct mem *mem, page_t start, pages_t pages, void *memory, size_t of
 
     struct mem_object *obj =
         mem_object_new(memory, HOST_ROUND_UP((size_t)pages * PAGE_SIZE + offset), kind);
-    if (!obj)
+    if (!obj) {
+        trace_mem_failure("mem.pt_map.failure", "mem_object_new_failed", start, pages, _ENOMEM);
         return _ENOMEM;
+    }
 
     struct vm_area *removed[64];
     int n_removed = vma_tree_remove_range(&mem->vmas, start, pages, removed, 64);
@@ -173,6 +231,7 @@ int pt_map(struct mem *mem, page_t start, pages_t pages, void *memory, size_t of
 
     struct vm_area *vma = vma_alloc();
     if (!vma) {
+        trace_mem_failure("mem.pt_map.failure", "vma_alloc_failed", start, pages, _ENOMEM);
         mem_object_release(obj);
         return _ENOMEM;
     }
@@ -187,6 +246,8 @@ int pt_map(struct mem *mem, page_t start, pages_t pages, void *memory, size_t of
     for (page_t page = start; page < start + pages; page++) {
         struct page_desc *desc = malloc(sizeof(struct page_desc));
         if (!desc) {
+            trace_mem_failure("mem.pt_map.failure", "page_desc_alloc_failed", page,
+                              start + pages - page, _ENOMEM);
             for (page_t pg = start; pg < page; pg++) {
                 struct page_desc *d = page_map_remove(&mem->pages, pg);
                 retire_page_desc(mem, d);
@@ -199,7 +260,13 @@ int pt_map(struct mem *mem, page_t start, pages_t pages, void *memory, size_t of
         desc->obj = obj;
         desc->offset = ((page - start) << PAGE_BITS) + offset;
         desc->flags = flags;
-        if (page_map_install(&mem->pages, page, desc) < 0) {
+        int install_err = page_map_install(&mem->pages, page, desc);
+        if (install_err < 0) {
+            trace_mem_failure("mem.pt_map.failure",
+                              install_err == PAGE_MAP_INSTALL_ERR_EXISTS
+                                  ? "page_map_conflict"
+                                  : "page_map_install_failed",
+                              page, start + pages - page, _ENOMEM);
             free(desc);
             for (page_t pg = start; pg < page; pg++) {
                 struct page_desc *d = page_map_remove(&mem->pages, pg);
@@ -295,7 +362,6 @@ struct cow_copy_ctx {
 static int pt_copy_on_write_page(uint64_t page, struct page_desc *src_desc, void *opaque)
 {
     struct cow_copy_ctx *ctx = opaque;
-    struct mem *src = ctx->src;
     struct mem *dst = ctx->dst;
 
     struct page_desc *old_dst = page_map_remove(&dst->pages, page);
@@ -312,30 +378,15 @@ static int pt_copy_on_write_page(uint64_t page, struct page_desc *src_desc, void
     dst_desc->obj = src_desc->obj;
     dst_desc->offset = src_desc->offset;
     dst_desc->flags = src_desc->flags;
-    if (page_map_install(&dst->pages, page, dst_desc) < 0) {
+    int install_err = page_map_install(&dst->pages, page, dst_desc);
+    if (install_err < 0) {
         free(dst_desc);
         ctx->err = _ENOMEM;
+        trace_mem_failure("mem.pt_copy_on_write.failure",
+                          install_err == PAGE_MAP_INSTALL_ERR_EXISTS ? "page_map_conflict"
+                                                                     : "page_map_install_failed",
+                          page, 1, ctx->err);
         return 1;
-    }
-
-    struct vm_area *src_vma = vma_tree_find(&src->vmas, page << PAGE_BITS);
-    if (src_vma) {
-        struct vm_area *dst_vma = vma_tree_find(&dst->vmas, page << PAGE_BITS);
-        if (!dst_vma) {
-            dst_vma = vma_alloc();
-            if (!dst_vma) {
-                ctx->err = _ENOMEM;
-                return 1;
-            }
-            dst_vma->start = src_vma->start;
-            dst_vma->end = src_vma->end;
-            dst_vma->flags = src_vma->flags;
-            if (!(src_desc->flags & P_SHARED))
-                dst_vma->flags |= P_COW;
-            dst_vma->obj = src_vma->obj;
-            dst_vma->obj_offset = src_vma->obj_offset;
-            vma_tree_insert(&dst->vmas, dst_vma);
-        }
     }
 
     return 0;

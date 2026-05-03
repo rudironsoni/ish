@@ -8,12 +8,12 @@
  * memory-backed registers (x13-x30, SP) via load/store sequences.
  */
 
+#import <IXLandInstrumentationTracing/trace.h>
 #import <IXLandLinuxRuntime/emu/aarch64/decode.h>
 #import <IXLandLinuxRuntime/emu/aarch64/sysreg.h>
 #import <IXLandLinuxRuntime/tcti/aarch64/gadgets_complex.h>
 #import <IXLandLinuxRuntime/tcti/aarch64/gen.h>
 #import <IXLandLinuxRuntime/util/debug.h>
-#import <IXLandInstrumentationTracing/trace.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -61,12 +61,12 @@ extern void gadget_br_impl(void);
 
 // Host x16 is reserved for ABI/linker scratch and TCTI internals. Keep only
 // guest x0-x12 hot; guest x13-x30 are memory-backed through helper gadgets.
-#define TCTI_HOT_REG_COUNT 13
-#define TCTI_MEM_REG_BASE 13
-#define TCTI_MEM_REG_COUNT (31 - TCTI_MEM_REG_BASE)
-#define IS_TCTI_REG(r) ((r) >= 0 && (r) < TCTI_HOT_REG_COUNT)
-#define IS_MEM_REG(r) ((r) >= TCTI_MEM_REG_BASE && (r) <= 30)
-#define MEM_REG_INDEX(r) ((r) - TCTI_MEM_REG_BASE)
+#define TCTI_HOT_REG_COUNT     13
+#define TCTI_MEM_REG_BASE      13
+#define TCTI_MEM_REG_COUNT     (31 - TCTI_MEM_REG_BASE)
+#define IS_TCTI_REG(r)         ((r) >= 0 && (r) < TCTI_HOT_REG_COUNT)
+#define IS_MEM_REG(r)          ((r) >= TCTI_MEM_REG_BASE && (r) <= 30)
+#define MEM_REG_INDEX(r)       ((r) - TCTI_MEM_REG_BASE)
 #define VALID_MEM_REG_INDEX(i) ((i) >= 0 && (i) < TCTI_MEM_REG_COUNT)
 
 // Initialization
@@ -214,9 +214,8 @@ static int emit_addsub_imm_fallback(a64_gen_state_t *state, int rd, int rn, uint
     return emit_u64(state, rn_is_sp ? 1 : 0);
 }
 
-static int emit_addsub_reg_fallback(a64_gen_state_t *state, int rd, int rn, int rm,
-                                    int shift_type, int imm_shift, int is_sub, int set_flags,
-                                    int is_64bit)
+static int emit_addsub_reg_fallback(a64_gen_state_t *state, int rd, int rn, int rm, int shift_type,
+                                    int imm_shift, int is_sub, int set_flags, int is_64bit)
 {
     int ret = emit_gadget(state, gadget_addsub_reg_fallback);
     if (ret != A64_GEN_OK)
@@ -245,9 +244,9 @@ static int emit_addsub_reg_fallback(a64_gen_state_t *state, int rd, int rn, int 
     return emit_u64(state, is_64bit ? 1 : 0);
 }
 
-static int emit_addsub_ext_fallback(a64_gen_state_t *state, int rd, int rn, int rm,
-                                    int extend_type, int imm_shift, int is_sub, int set_flags,
-                                    int is_64bit, int rd_is_sp, int rn_is_sp)
+static int emit_addsub_ext_fallback(a64_gen_state_t *state, int rd, int rn, int rm, int extend_type,
+                                    int imm_shift, int is_sub, int set_flags, int is_64bit,
+                                    int rd_is_sp, int rn_is_sp)
 {
     uint64_t mode = 0;
     mode |= is_sub ? (1ULL << 0) : 0;
@@ -301,9 +300,8 @@ static int emit_logical_imm_fallback(a64_gen_state_t *state, int rd, int rn, uin
     return emit_u64(state, is_64bit ? 1 : 0);
 }
 
-static int emit_logical_reg_fallback(a64_gen_state_t *state, int rd, int rn, int rm,
-                                     int shift_type, int imm_shift, int subtype, int set_flags,
-                                     int is_64bit)
+static int emit_logical_reg_fallback(a64_gen_state_t *state, int rd, int rn, int rm, int shift_type,
+                                     int imm_shift, int subtype, int set_flags, int is_64bit)
 {
     int ret = emit_gadget(state, gadget_logical_reg_fallback);
     if (ret != A64_GEN_OK)
@@ -398,8 +396,8 @@ static int emit_div_fallback(a64_gen_state_t *state, int rd, int rn, int rm, int
     return emit_u64(state, is_64bit ? 1 : 0);
 }
 
-static int emit_csel_fallback(a64_gen_state_t *state, int rd, int rn, int rm, int cond,
-                              int subtype, int is_64bit)
+static int emit_csel_fallback(a64_gen_state_t *state, int rd, int rn, int rm, int cond, int subtype,
+                              int is_64bit)
 {
     int ret = emit_gadget(state, gadget_csel_fallback);
     if (ret != A64_GEN_OK)
@@ -530,8 +528,8 @@ int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr)
                 return ret;
         } else {
             // MOVN Xd, #imm - move negative immediate to register
-            uint64_t value = instr->is_64bit ? ~((uint64_t)instr->imm)
-                                             : (uint32_t)~((uint32_t)instr->imm);
+            uint64_t value =
+                instr->is_64bit ? ~((uint64_t)instr->imm) : (uint32_t)~((uint32_t)instr->imm);
             // Emit immediate value in bytecode stream
             int ret;
 
@@ -628,8 +626,8 @@ int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr)
         int is_sub = (instr->subtype == 5 || instr->subtype == 6);
         int ret;
 
-        if (!instr->is_64bit || instr->imm >= 16 || src_is_memory || src_is_sp ||
-            dst_is_memory || dst_is_sp || instr->set_flags) {
+        if (!instr->is_64bit || instr->imm >= 16 || src_is_memory || src_is_sp || dst_is_memory ||
+            dst_is_sp || instr->set_flags) {
             return emit_addsub_imm_fallback(state, rd, rn, (uint64_t)instr->imm, is_sub,
                                             instr->set_flags, instr->is_64bit, dst_is_sp,
                                             src_is_sp);
@@ -1145,25 +1143,20 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr)
             return A64_GEN_UNSUPPORTED;
         if (instr->subtype < 0 || instr->subtype > 3)
             return A64_GEN_UNSUPPORTED;
-        return emit_csel_fallback(state, rd, rn, rm, instr->cond, instr->subtype,
-                                  instr->is_64bit);
+        return emit_csel_fallback(state, rd, rn, rm, instr->cond, instr->subtype, instr->is_64bit);
     } else if (op2 >= 4 && op2 <= 7) {
         if (!instr->is_64bit) {
-            return emit_addsub_reg_fallback(state, rd, rn, rm, instr->shift_type,
-                                            instr->imm_shift, instr->subtype == 1,
-                                            instr->set_flags, instr->is_64bit);
+            return emit_addsub_reg_fallback(state, rd, rn, rm, instr->shift_type, instr->imm_shift,
+                                            instr->subtype == 1, instr->set_flags, instr->is_64bit);
         }
         if (instr->set_flags) {
-            return emit_addsub_reg_fallback(state, rd, rn, rm, instr->shift_type,
-                                            instr->imm_shift, instr->subtype == 1,
-                                            instr->set_flags, instr->is_64bit);
+            return emit_addsub_reg_fallback(state, rd, rn, rm, instr->shift_type, instr->imm_shift,
+                                            instr->subtype == 1, instr->set_flags, instr->is_64bit);
         }
-        if (instr->imm_shift != 0 &&
-            (src1_is_memory || src2_is_memory || dst_is_memory ||
-             instr->shift_type != A64_SHIFT_LSL)) {
-            return emit_addsub_reg_fallback(state, rd, rn, rm, instr->shift_type,
-                                            instr->imm_shift, instr->subtype == 1,
-                                            instr->set_flags, instr->is_64bit);
+        if (instr->imm_shift != 0 && (src1_is_memory || src2_is_memory || dst_is_memory ||
+                                      instr->shift_type != A64_SHIFT_LSL)) {
+            return emit_addsub_reg_fallback(state, rd, rn, rm, instr->shift_type, instr->imm_shift,
+                                            instr->subtype == 1, instr->set_flags, instr->is_64bit);
         }
         if (instr->imm_shift != 0) {
             int ret;
@@ -1499,9 +1492,8 @@ int a64_gen_branch(a64_gen_state_t *state, const a64_instr_t *instr)
 
         const bool is_64bit = instr->imm_shift >= 32;
         if (test_reg == 31) {
-            ret = emit_unconditional_branch(state, instr->op ? state->guest_pc + 4
-                                                             : state->guest_pc + instr->imm,
-                                            0);
+            ret = emit_unconditional_branch(
+                state, instr->op ? state->guest_pc + 4 : state->guest_pc + instr->imm, 0);
             if (ret != A64_GEN_OK)
                 return ret;
             state->is_complete = 1;
@@ -1823,8 +1815,7 @@ int a64_gen_ldst(a64_gen_state_t *state, const a64_instr_t *instr)
     int ret = a64_emit_ldst_single(
         state, state->guest_pc, instr->Rd, instr->Rn, instr->imm, instr->size, instr->idx_mode,
         instr->is_signed, instr->Rm, instr->extend_type, instr->imm_shift,
-        !bit(instr->raw, 24) && bits(instr->raw, 11, 10) == 2,
-        a64_ldst_raw_is_load(instr->raw),
+        !bit(instr->raw, 24) && bits(instr->raw, 11, 10) == 2, a64_ldst_raw_is_load(instr->raw),
         instr->size == A64_SIZE_X || (instr->is_signed && instr->is_64bit));
     if (ret != A64_GEN_OK)
         return ret;
@@ -1951,6 +1942,19 @@ int a64_gen_system(a64_gen_state_t *state, const a64_instr_t *instr)
         if (ret != A64_GEN_OK)
             return ret;
         return emit_u64(state, instr->Rd);
+    case A64_SYSTEM_MSR_IMM:
+        if (a64_sysreg_route_for_access((uint16_t)instr->sysreg, 1) ==
+            A64_SYSREG_ROUTE_UNSUPPORTED) {
+            state->is_complete = 1;
+            return emit_gadget(state, gadget_sysreg_unsupported);
+        }
+        ret = emit_gadget(state, gadget_msr);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->sysreg);
+        if (ret != A64_GEN_OK)
+            return ret;
+        return emit_u64(state, instr->imm);
     case A64_SYSTEM_BARRIER:
         switch (instr->op) {
         case 4:
@@ -1993,10 +1997,11 @@ int a64_gen_instruction(a64_gen_state_t *state, uint32_t insn, uint64_t pc)
     state->raw_insn = insn;
     state->decoded = decoded;
 
-    // Handle system instructions that the decoder categorizes as A64_RESERVED (0)
-    // The decoder detects SVC/HVC/MRS/MSR by top byte (0xD4 or 0xD5) but doesn't set cat
+    // Handle system instructions detected by top byte (0xD4 or 0xD5).
+    // The decoder sets cat=A64_BRANCH for these, but they dispatch through
+    // a64_gen_system based on their system subtypes.
     uint8_t top_byte = (insn >> 24) & 0xFF;
-    if (decoded.cat == A64_RESERVED && (top_byte == 0xD4 || top_byte == 0xD5)) {
+    if (top_byte == 0xD4 || top_byte == 0xD5) {
         return a64_gen_system(state, &decoded);
     }
 

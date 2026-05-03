@@ -76,8 +76,8 @@ static int copy_task(struct task *task, uint32_t flags, addr_t stack, addr_t pti
         task_set_mm(task, parent_mm);
     } else {
         struct mm *new_mm = mm_copy(parent_mm);
-        if (IS_ERR(new_mm)) {
-            err = (int)PTR_ERR(new_mm);
+        if (new_mm == NULL) {
+            err = _ENOMEM;
             goto fail_free_mem;
         }
         task_set_mm(task, new_mm);

@@ -2,11 +2,43 @@
 #import <IXLandLinuxRuntime/fs/fd.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/kernel/errno.h>
+#import <IXLandLinuxRuntime/kernel/guest_trace_context.h>
 #import <IXLandLinuxRuntime/kernel/memory.h>
 #import <IXLandLinuxRuntime/kernel/mm.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
 #import <IXLandLinuxRuntime/util/debug.h>
 #include <string.h>
+
+static void trace_mm_copy_failure(const char *reason, int64_t err)
+{
+    ixland_guest_trace_field_t fields[] = {
+        { .key = "reason", .kind = IXLAND_GUEST_TRACE_FIELD_STRING, .string_value = reason },
+        { .key = "return_value", .kind = IXLAND_GUEST_TRACE_FIELD_I64_DEC, .i64_value = err },
+        { .key = "src_mm",
+          .kind = IXLAND_GUEST_TRACE_FIELD_U64_HEX,
+          .u64_value = (uint64_t)(current ? current->mm : NULL) },
+    };
+    ixland_guest_trace_emit_structured(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "mem.mm_copy.failure",
+                                       fields, sizeof(fields) / sizeof(fields[0]));
+}
+
+static int mm_clone_vmas(struct mm *src, struct mm *dst)
+{
+    for (struct vm_area *vma = src->mem.vmas.head; vma != NULL; vma = vma->next) {
+        struct vm_area *clone = vma_alloc();
+        if (clone == NULL) {
+            trace_mm_copy_failure("vma_alloc_failed", _ENOMEM);
+            return _ENOMEM;
+        }
+        clone->start = vma->start;
+        clone->end = vma->end;
+        clone->flags = vma->flags;
+        clone->obj = vma->obj;
+        clone->obj_offset = vma->obj_offset;
+        vma_tree_insert(&dst->mem.vmas, clone);
+    }
+    return 0;
+}
 
 struct mm *mm_new(void)
 {
@@ -25,18 +57,28 @@ struct mm *mm_copy(struct mm *mm)
 {
     trace_emit_mm_copy((uint64_t)mm, 0);
     struct mm *new_mm = malloc(sizeof(struct mm));
-    if (new_mm == NULL)
+    if (new_mm == NULL) {
+        trace_mm_copy_failure("mm_alloc_failed", _ENOMEM);
         return NULL;
+    }
     trace_emit_mm_copy((uint64_t)mm, (uint64_t)new_mm);
     *new_mm = *mm;
     // Fix wrlock_init failing because it thinks it's reinitializing the same lock
     memset(&new_mm->mem.lock, 0, sizeof(new_mm->mem.lock));
     new_mm->refcount = 1;
     mem_init(&new_mm->mem);
-    fd_retain(new_mm->exefile);
+    if (new_mm->exefile != NULL)
+        fd_retain(new_mm->exefile);
     write_wrlock(&mm->mem.lock);
-    pt_copy_on_write(&mm->mem, &new_mm->mem, 0, A64_USER_TOP >> PAGE_BITS);
+    int err = mm_clone_vmas(mm, new_mm);
+    if (err == 0)
+        err = pt_copy_on_write(&mm->mem, &new_mm->mem, 0, A64_USER_TOP >> PAGE_BITS);
     write_wrunlock(&mm->mem.lock);
+    if (err < 0) {
+        trace_mm_copy_failure(err == _ENOMEM ? "clone_failed" : "copy_on_write_failed", err);
+        mm_release(new_mm);
+        return NULL;
+    }
     return new_mm;
 }
 
