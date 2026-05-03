@@ -317,6 +317,13 @@
                     "routing one-source data-processing instructions through CSEL lowering");
 }
 
+- (void)testSemanticExecutionContract_MuslOpendirNonNullCallocSkipsErrorClose
+{
+    XCTAssertEqual(tcti_harness_case_musl_opendir_calloc_nonnull_skips_close_path(), 0ULL,
+                   @"musl opendir branches to close(2) only when calloc returns NULL; TCTI must "
+                    "execute the following CBZ X0 using the full 64-bit guest pointer value");
+}
+
 - (void)testSemanticExecutionContract_MuslMutexLDAXRSTLXRRoundtripsLockWord
 {
     XCTAssertEqual(tcti_harness_case_musl_mutex_ldaxr_stlxr_roundtrip(), 0ULL,

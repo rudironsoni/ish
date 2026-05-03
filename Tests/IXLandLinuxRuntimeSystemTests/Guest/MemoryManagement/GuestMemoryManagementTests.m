@@ -89,6 +89,26 @@
     XCTAssert(true, "Multiple-page mmap must be contiguous");
 }
 
+- (void)testMemoryContract_MultiPageMappingBalancesBackingObjectReferences {
+    struct mem mem;
+    mem_init(&mem);
+
+    page_t start = (page_t)A64_MMAP_BASE_PAGE;
+    XCTAssertEqual(pt_map_nothing(&mem, start, 2, P_READ | P_WRITE), 0);
+
+    struct page_desc *first = page_map_lookup(&mem.pages, start);
+    struct page_desc *second = page_map_lookup(&mem.pages, start + 1);
+    XCTAssertNotEqual(first, NULL);
+    XCTAssertNotEqual(second, NULL);
+    XCTAssertEqual(first->obj, second->obj);
+    XCTAssertEqual(atomic_load(&first->obj->refcount), 3U,
+                   @"A two-page mapping must hold one VMA reference plus one page-map "
+                    "reference per page, with no leaked constructor reference");
+
+    XCTAssertEqual(pt_unmap_always(&mem, start, 2), 0);
+    mem_destroy(&mem);
+}
+
 // System: Complete mmap/munmap/mprotect boundary
 // Owner: kernel/mmap.c syscall entry points
 - (void)testMemoryContract_MemoryLifecycleBoundary {

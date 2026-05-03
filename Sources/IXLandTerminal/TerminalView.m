@@ -254,6 +254,12 @@ struct rowcol {
     self.scrollbarView.contentView = nil;
     [self addSubview:terminalView];
     [self bringSubviewToFront:terminalView];
+    if (self.uiTestInputField != nil) {
+        [self bringSubviewToFront:self.uiTestInputField];
+    }
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self.terminal requestFocus];
+    });
 }
 
 - (void)uninstallTerminalView {
@@ -310,17 +316,25 @@ struct rowcol {
 }
 
 - (BOOL)becomeFirstResponder {
-    if ([self isRunningUITests] && self.uiTestInputField != nil) {
-        self.uiTestInputField.userInteractionEnabled = YES;
-        self.uiTestInputField.enabled = YES;
-        return [self.uiTestInputField becomeFirstResponder];
-    }
-
     self.terminalFocused = YES;
-    BOOL focused = [super becomeFirstResponder];
+    BOOL focused = NO;
+    if (self.terminal != nil && [self.terminal requestFocus]) {
+        focused = YES;
+    } else {
+        focused = [super becomeFirstResponder];
+    }
     _terminalFocused = focused;
     [self reloadInputViews];
     return focused;
+}
+
+- (BOOL)focusForTesting {
+    if (self.uiTestInputField == nil)
+        return [self becomeFirstResponder];
+    self.uiTestInputField.userInteractionEnabled = YES;
+    self.uiTestInputField.enabled = YES;
+    [self bringSubviewToFront:self.uiTestInputField];
+    return [self.uiTestInputField becomeFirstResponder];
 }
 
 - (BOOL)isFirstResponder {

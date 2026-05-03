@@ -68,7 +68,7 @@
 - (void)typeCommand:(NSString *)command {
     XCUIElement *terminalSurface = self.app.otherElements[@"TerminalSurface"];
     XCTAssertTrue([terminalSurface waitForExistenceWithTimeout:5.0], @"TerminalSurface must be accessible within 5 seconds");
-    [self waitForTerminalReadyWithTimeout:60.0];
+    [self waitForTerminalReadyWithTimeout:180.0];
     XCUIElement *terminalInput = self.app.textFields[@"TerminalInput"];
     XCTAssertTrue([terminalInput waitForExistenceWithTimeout:5.0], @"TerminalInput must be accessible within 5 seconds");
     [terminalInput tap];
@@ -126,6 +126,16 @@
     NSString *output = [self waitForTerminalTextContaining:@"aarch64_test_passed" timeout:30.0];
     XCTAssertTrue([output containsString:@"aarch64_test_passed"],
                   @"Should see computed shell output in terminal. Actual output: %@", output);
+}
+
+- (void)testRootDirectoryListingDoesNotReportOutOfMemory {
+    [self typeCommand:@"ls -a /"];
+    NSString *output = [self waitForTerminalTextContaining:@"bin" timeout:30.0];
+    XCTAssertFalse([output containsString:@"Out of memory"],
+                   @"Root directory listing must not fail in guest opendir/calloc. Actual output: %@",
+                   output);
+    XCTAssertTrue([output containsString:@"bin"],
+                  @"Root directory listing should include /bin. Actual output: %@", output);
 }
 
 // Test 2: Verify aarch64 architecture

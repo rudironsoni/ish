@@ -449,7 +449,7 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 
 - (BOOL)focusTerminalInput {
     if ([self isRunningUITests]) {
-        return [self.termView becomeFirstResponder];
+        return [self.termView focusForTesting];
     }
     if (self.terminal != nil && [self.terminal requestFocus]) {
         return YES;
@@ -1203,6 +1203,9 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 }
 
 - (BOOL)accessibilityActivate {
+    if ([self isRunningUITests]) {
+        return [self.termView focusForTesting];
+    }
     return [self.termView becomeFirstResponder];
 }
 

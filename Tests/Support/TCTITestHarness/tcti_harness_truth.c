@@ -2563,6 +2563,30 @@ uint64_t tcti_harness_case_musl_malloc_sizeclass_rbit_clz(void)
     return ((uint64_t)(uint32_t)cpu.x[2] << 32) | (uint32_t)cpu.x[3];
 }
 
+uint64_t tcti_harness_case_musl_opendir_calloc_nonnull_skips_close_path(void)
+{
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.pc = 0x1f8c8;
+    cpu.x[0] = 0x120820ULL;
+    cpu.x[2] = 3;
+
+    static const uint32_t insns[] = {
+        0xb4000080, // cbz x0, 0x1f8d8
+    };
+
+    int run_ret =
+        tcti_harness_run_generated_block(&cpu, cpu.pc, insns, sizeof(insns) / sizeof(insns[0]));
+    if (run_ret < 0)
+        return 0x1000000000000000ULL | (uint64_t)(uint8_t)(-run_ret);
+
+    if (cpu.pc != 0x1f8cc)
+        return 0x2000000000000000ULL | cpu.pc;
+    if (cpu.x[0] != 0x120820ULL)
+        return 0x3000000000000000ULL | cpu.x[0];
+    return 0;
+}
+
 uint64_t tcti_harness_case_musl_mutex_ldaxr_stlxr_roundtrip(void)
 {
     enum {

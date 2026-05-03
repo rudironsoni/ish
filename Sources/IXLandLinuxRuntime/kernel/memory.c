@@ -182,6 +182,7 @@ int pt_map(struct mem *mem, page_t start, pages_t pages, void *memory, size_t of
     vma->obj = obj;
     vma->obj_offset = offset;
     vma_tree_insert(&mem->vmas, vma);
+    mem_object_release(obj);
 
     for (page_t page = start; page < start + pages; page++) {
         struct page_desc *desc = malloc(sizeof(struct page_desc));
@@ -191,14 +192,24 @@ int pt_map(struct mem *mem, page_t start, pages_t pages, void *memory, size_t of
                 retire_page_desc(mem, d);
             }
             vma_tree_remove(&mem->vmas, vma);
-            mem_object_release(obj);
+            mem_object_release(vma->obj);
             vma_free(vma);
             return _ENOMEM;
         }
         desc->obj = obj;
         desc->offset = ((page - start) << PAGE_BITS) + offset;
         desc->flags = flags;
-        page_map_install(&mem->pages, page, desc);
+        if (page_map_install(&mem->pages, page, desc) < 0) {
+            free(desc);
+            for (page_t pg = start; pg < page; pg++) {
+                struct page_desc *d = page_map_remove(&mem->pages, pg);
+                retire_page_desc(mem, d);
+            }
+            vma_tree_remove(&mem->vmas, vma);
+            mem_object_release(vma->obj);
+            vma_free(vma);
+            return _ENOMEM;
+        }
     }
 
     mem_bump_generation(mem);

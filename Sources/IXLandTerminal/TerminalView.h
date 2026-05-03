@@ -59,6 +59,7 @@ enum OverrideAppearance {
 - (BOOL)hasText;
 - (void)insertText:(NSString *)text;
 - (void)deleteBackward;
+- (BOOL)focusForTesting;
 
 @end
 

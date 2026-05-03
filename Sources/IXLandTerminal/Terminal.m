@@ -44,6 +44,7 @@ typedef struct tty *tty_t;
 @property NSNumber *terminalsKey;
 @property NSUUID *uuid;
 @property (nonatomic) struct linux_tty *linuxTTY;
+@property (nonatomic) NSMutableData *pendingTerminalControlInput;
 
 @end
 
@@ -68,6 +69,7 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
             self.testingTranscript = [NSMutableString string];
             self.refreshTask = [[DelayedUITask alloc] initWithTarget:self action:@selector(refresh)];
             self.scrollToBottomTask = [[DelayedUITask alloc] initWithTarget:self action:@selector(scrollToBottom)];
+            self.pendingTerminalControlInput = [NSMutableData data];
             lock_init(&_dataLock);
             cond_init(&_dataConsumed);
 
@@ -251,6 +253,8 @@ void Terminal_releaseBoundTTYData(nsobj_t terminal) {
 
 
 - (int)sendOutput:(const void *)buf length:(int)len {
+    [self respondToTerminalStatusRequestsInOutput:buf length:len];
+
     // APPSIM-004 Stage 2: PTY byte detection
     // Record byte count at terminal input boundary
     NSDictionary *queueAttrs = [self sessionTraceAttributesWithByteCount:len
@@ -312,9 +316,29 @@ void Terminal_releaseBoundTTYData(nsobj_t terminal) {
     return len;
 }
 
+- (void)respondToTerminalStatusRequestsInOutput:(const void *)buf length:(int)len {
+    static const uint8_t dsrQuery[] = {0x1B, 0x5B, 0x36, 0x6E};
+    const uint8_t *bytes = buf;
+
+    for (int index = 0; index <= len - (int)sizeof(dsrQuery); index++) {
+        if (memcmp(bytes + index, dsrQuery, sizeof(dsrQuery)) != 0)
+            continue;
+
+        static const uint8_t cursorReport[] = {0x1B, 0x5B, 0x31, 0x3B, 0x31, 0x52};
+        NSData *response = [NSData dataWithBytes:cursorReport length:sizeof(cursorReport)];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self sendInput:response];
+        });
+    }
+}
+
 
 
 - (void)sendInput:(NSData *)input {
+    input = [self inputByFilteringTerminalControlRequests:input];
+    if (input.length == 0)
+        return;
+
     [ISHInstrumentation recordEvent:@"terminal.send_input.enter"];
     struct linux_tty *linuxTTY = nil;
     @synchronized (self) {
@@ -337,6 +361,42 @@ void Terminal_releaseBoundTTYData(nsobj_t terminal) {
         tty_input(self.tty, input.bytes, input.length, 0);
     [ISHInstrumentation recordEvent:@"terminal.after_tty_input"];
     [ISHInstrumentation endInterval:intervalId attributes:inputAttrs];
+}
+
+- (NSData *)inputByFilteringTerminalControlRequests:(NSData *)input {
+    NSMutableData *scanData = [NSMutableData dataWithCapacity:self.pendingTerminalControlInput.length + input.length];
+    if (self.pendingTerminalControlInput.length > 0)
+        [scanData appendData:self.pendingTerminalControlInput];
+    [scanData appendData:input];
+    [self.pendingTerminalControlInput setLength:0];
+
+    const uint8_t *bytes = scanData.bytes;
+    NSUInteger length = scanData.length;
+    NSMutableData *filtered = [NSMutableData dataWithCapacity:length];
+
+    for (NSUInteger index = 0; index < length;) {
+        NSUInteger remaining = length - index;
+        BOOL csi = bytes[index] == 0x9B;
+        BOOL escCsi = remaining >= 2 && bytes[index] == 0x1B && bytes[index + 1] == 0x5B;
+        if (csi || escCsi) {
+            NSUInteger cursor = index + (csi ? 1 : 2);
+            while (cursor < length && !(bytes[cursor] >= 0x40 && bytes[cursor] <= 0x7E))
+                cursor++;
+            if (cursor == length) {
+                [self.pendingTerminalControlInput appendBytes:bytes + index length:remaining];
+                break;
+            }
+            if (bytes[cursor] == 'n') {
+                index = cursor + 1;
+                continue;
+            }
+        }
+
+        [filtered appendBytes:bytes + index length:1];
+        index++;
+    }
+
+    return filtered;
 }
 
 - (void)scrollToBottom {
