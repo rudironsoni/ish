@@ -1,13 +1,11 @@
 #define DEFAULT_CHANNEL debug
+#import <IXLandInstrumentationTracing/trace.h>
 #import <IXLandLinuxRuntime/fs/devices.h>
 #import <IXLandLinuxRuntime/fs/poll.h>
 #import <IXLandLinuxRuntime/fs/tty.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/util/debug.h>
 #include <string.h>
-
-// Instrumentation bridge for kernel events
-#include <IXLandInstrumentation/IXLandInstrumentation.h>
 
 extern struct tty_driver pty_master;
 extern struct tty_driver pty_slave;
@@ -124,10 +122,14 @@ void tty_release(struct tty *tty)
 }
 
 // must call with tty lock
-static void tty_set_controlling(struct tgroup *group, struct tty *tty)
+void tty_set_controlling(struct tgroup *group, struct tty *tty)
 {
     lock(&group->lock);
     if (group->tty == NULL) {
+        if (group->sid == 0)
+            group->sid = group->leader->pid;
+        if (group->pgid == 0)
+            group->pgid = group->leader->pid;
         tty->refcount++;
         group->tty = tty;
         tty->session = group->sid;
@@ -149,19 +151,22 @@ int tty_open(struct tty *tty, struct fd *fd)
     unlock(&tty->fds_lock);
 
     if (!(fd->flags & O_NOCTTY_)) {
-        // Make this our controlling terminal if:
-        // - the terminal doesn't already have a session
-        // - we're a session leader
         lock(&pids_lock);
         lock(&tty->lock);
-        if (tty->session == 0 && current->group->sid == current->pid)
+        if (tty->session == 0 && current->group->sid == current->pid) {
             tty_set_controlling(current->group, tty);
+            trace_record_event(TRACE_ORIGIN_KERNEL, "tty.controlling_set");
+        } else {
+            trace_record_event(TRACE_ORIGIN_KERNEL, "tty.controlling_skipped");
+        }
         unlock(&tty->lock);
         unlock(&pids_lock);
     }
 
     return 0;
 }
+
+static struct tty *tty_find_session_tty_locked(pid_t_ sid);
 
 static int tty_device_open(int major, int minor, struct fd *fd)
 {
@@ -171,11 +176,22 @@ static int tty_device_open(int major, int minor, struct fd *fd)
             lock(&ttys_lock);
             lock(&current->group->lock);
             tty = current->group->tty;
-            unlock(&current->group->lock);
-            if (tty != NULL) {
+            if (tty == NULL)
+                tty = tty_find_session_tty_locked(current->group->sid);
+            if (tty != NULL && current->group->tty == NULL) {
                 lock(&tty->lock);
                 tty->refcount++;
                 unlock(&tty->lock);
+                current->group->tty = tty;
+            }
+            unlock(&current->group->lock);
+            if (tty != NULL) {
+                trace_record_event(TRACE_ORIGIN_KERNEL, "dev_tty.found_group_tty");
+                lock(&tty->lock);
+                tty->refcount++;
+                unlock(&tty->lock);
+            } else {
+                trace_record_event(TRACE_ORIGIN_KERNEL, "dev_tty.group_tty_null");
             }
             unlock(&ttys_lock);
             if (tty == NULL)
@@ -275,8 +291,7 @@ static bool tty_send_input_signal(struct tty *tty, char ch, sigset_t_ *queue)
 
 ssize_t tty_input(struct tty *tty, const char *input, size_t size, bool blocking)
 {
-    // Add at function entry
-    ixland_instrumentation_record_event(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "tty.input.entry");
+    trace_record_event(TRACE_ORIGIN_KERNEL, "kernel.tty.input");
     int err = 0;
     size_t done_size = 0;
     sigset_t_ queue = 0; // to prevent having to lock tty->lock and pids_lock at the same time
@@ -439,9 +454,29 @@ static bool pty_is_half_closed_master(struct tty *tty)
 static bool tty_is_current(struct tty *tty)
 {
     lock(&current->group->lock);
-    bool is_current = current->group->tty == tty;
+    bool is_current = current->group->sid != 0 && current->group->sid == tty->session;
     unlock(&current->group->lock);
     return is_current;
+}
+
+static struct tty *tty_find_session_tty_locked(pid_t_ sid)
+{
+    for (int major = 0; major < 256; major++) {
+        struct tty_driver *driver = tty_drivers[major];
+        if (driver == NULL)
+            continue;
+        for (unsigned num = 0; num < driver->limit; num++) {
+            struct tty *tty = driver->ttys[num];
+            if (tty == NULL || tty == (void *)1)
+                continue;
+            lock(&tty->lock);
+            bool matches = tty->session == sid && tty->type != TTY_PSEUDO_MASTER_MAJOR;
+            unlock(&tty->lock);
+            if (matches)
+                return tty;
+        }
+    }
+    return NULL;
 }
 
 static int tty_signal_if_background(struct tty *tty, pid_t_ current_pgid, int sig)
@@ -462,7 +497,6 @@ static int tty_signal_if_background(struct tty *tty, pid_t_ current_pgid, int si
 
 static ssize_t tty_read(struct fd *fd, void *buf, size_t bufsize)
 {
-    // important because otherwise we'll block
     if (bufsize == 0)
         return 0;
 
@@ -705,10 +739,16 @@ static int tiocgpgrp(struct tty *tty, pid_t_ *fg_group)
         lock(&slave->lock);
     }
 
-    if (tty == slave && (!tty_is_current(slave) || slave->fg_group == 0)) {
+    if (tty == slave && (slave->session == 0 || slave->session != current->group->sid)) {
+        trace_record_event(TRACE_ORIGIN_KERNEL, "tty.tiocgpgrp.not_current");
         err = _ENOTTY;
         goto error_no_ctrl_tty;
     }
+    if (tty == slave && slave->fg_group == 0) {
+        trace_record_event(TRACE_ORIGIN_KERNEL, "tty.tiocgpgrp.zero_fg");
+        slave->fg_group = slave->session;
+    }
+    trace_record_event(TRACE_ORIGIN_KERNEL, "tty.tiocgpgrp.success");
     *fg_group = slave->fg_group;
     STRACE("tty group = %d\n", slave->fg_group);
 
@@ -803,13 +843,27 @@ static int tty_ioctl(struct fd *fd, int cmd, void *arg)
         lock(&pids_lock);
         lock(&tty->lock);
         pid_t_ sid = current->group->sid;
-        unlock(&pids_lock);
-        if (!tty_is_current(tty) || sid != tty->session) {
+        if (tty->session == 0 || sid != tty->session) {
             err = _ENOTTY;
+            unlock(&pids_lock);
             break;
         }
-        // TODO group must be in the right session
-        tty->fg_group = *(uint32_t *)arg;
+        pid_t_ pgid = *(uint32_t *)arg;
+        struct pid *group_pid = pid_get(pgid);
+        if (group_pid == NULL || list_empty(&group_pid->pgroup)) {
+            err = _ESRCH;
+            unlock(&pids_lock);
+            break;
+        }
+        struct tgroup *group_first_tgroup =
+            list_first_entry(&group_pid->pgroup, struct tgroup, pgroup);
+        if (group_first_tgroup->sid != sid) {
+            err = _EPERM;
+            unlock(&pids_lock);
+            break;
+        }
+        tty->fg_group = pgid;
+        unlock(&pids_lock);
         STRACE("tty group set to = %d\n", tty->fg_group);
         break;
 

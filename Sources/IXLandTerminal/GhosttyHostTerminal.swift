@@ -16,6 +16,7 @@ public final class IXLandGhosttyHostTerminal: NSObject {
     private var navigationButton: IXLandGhosttyNavigationButton?
     private var focusTapRecognizer: UITapGestureRecognizer?
     private var pendingTerminalControlBytes = Data()
+    private var pendingTerminalStatusBytes = Data()
 
     @objc public weak var delegate: (any IXLandGhosttyHostTerminalDelegate)?
 
@@ -32,7 +33,6 @@ public final class IXLandGhosttyHostTerminal: NSObject {
         let session = InMemoryTerminalSession(write: { [weak self] data in
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                guard !self.isReceivingOutput else { return }
                 let userData = self.filterTerminalControlRequests(from: data)
                 if userData.isEmpty {
                     return
@@ -75,9 +75,14 @@ public final class IXLandGhosttyHostTerminal: NSObject {
     }
 
     @objc public func receiveOutput(_ data: Data) {
+        NSLog("ghostty.receive_output bytes=%lu", data.count)
         isReceivingOutput = true
         defer { isReceivingOutput = false }
-        session.receive(data)
+        let filtered = filterTerminalStatusRequests(from: data)
+        NSLog("ghostty.receive_output filtered=%lu", filtered.count)
+        if !filtered.isEmpty {
+            session.receive(filtered)
+        }
     }
 
     @objc public func receiveOutputString(_ string: String) {
@@ -88,16 +93,19 @@ public final class IXLandGhosttyHostTerminal: NSObject {
     }
 
     @objc public func sendInput(_ data: Data) {
+        NSLog("ghostty.send_input bytes=%lu", data.count)
         session.sendInput(data)
     }
 
     @MainActor
     @objc public func focus() -> Bool {
         guard terminalView.window != nil else {
+            NSLog("ghostty.focus skipped window=nil")
             return false
         }
         terminalView.isUserInteractionEnabled = true
         let focused = terminalView.becomeFirstResponder()
+        NSLog("ghostty.focus result=%d", focused)
         terminalView.reloadInputViews()
         installNavigationAccessoryButton()
         return focused
@@ -230,11 +238,53 @@ public final class IXLandGhosttyHostTerminal: NSObject {
                 if scanData[cursor] == 0x6E {
                     let response = "\u{1B}[1;1R"
                     if let responseData = response.data(using: .utf8) {
-                        receiveOutput(responseData)
+                        // Reply to the guest after the current output pass completes.
+                        DispatchQueue.main.async { [weak self] in
+                            self?.sendInput(responseData)
+                        }
                     }
                     index = scanData.index(after: cursor)
                     continue
                 }
+            }
+
+            output.append(scanData[index])
+            index = scanData.index(after: index)
+        }
+
+        return output
+    }
+
+    private func filterTerminalStatusRequests(from data: Data) -> Data {
+        var scanData = Data()
+        scanData.append(pendingTerminalStatusBytes)
+        scanData.append(data)
+        pendingTerminalStatusBytes.removeAll(keepingCapacity: true)
+
+        var output = Data()
+        var index = scanData.startIndex
+
+        while index < scanData.endIndex {
+            let remaining = scanData[index...]
+            let isDsr = remaining.count >= 4
+                && scanData[index] == 0x1B
+                && scanData[scanData.index(index, offsetBy: 1)] == 0x5B
+                && scanData[scanData.index(index, offsetBy: 2)] == 0x36
+                && scanData[scanData.index(index, offsetBy: 3)] == 0x6E
+            if isDsr {
+                let response = "\u{1B}[1;1R"
+                if let responseData = response.data(using: .utf8) {
+                    DispatchQueue.main.async { [weak self] in
+                        self?.sendInput(responseData)
+                    }
+                }
+                index = scanData.index(index, offsetBy: 4)
+                continue
+            }
+
+            if remaining.count < 4 {
+                pendingTerminalStatusBytes.append(remaining)
+                break
             }
 
             output.append(scanData[index])

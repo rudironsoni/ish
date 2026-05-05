@@ -5,9 +5,9 @@
  * to iSH syscall handlers.
  */
 
-#import <IXLandLinuxRuntime/fs/sock.h>
 #import <IXLandLinuxRuntime/fs/fd.h>
 #import <IXLandLinuxRuntime/fs/path.h>
+#import <IXLandLinuxRuntime/fs/sock.h>
 #import <IXLandLinuxRuntime/kernel/aarch64/calls.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/kernel/errno.h>
@@ -161,8 +161,8 @@ static uint64_t a64_wrap_sys_clone(uint64_t flags, uint64_t stack, uint64_t pare
                                    uint64_t child_tid, uint64_t tls, uint64_t a5)
 {
     (void)a5;
-    return A64_RET_S32(sys_clone((uint32_t)flags, (addr_t)stack, (addr_t)parent_tid,
-                                 (addr_t)tls, (addr_t)child_tid));
+    return A64_RET_S32(sys_clone((uint32_t)flags, (addr_t)stack, (addr_t)parent_tid, (addr_t)tls,
+                                 (addr_t)child_tid));
 }
 A64_WRAP0(sys_fork, A64_RET_S32)
 A64_WRAP0(sys_vfork, A64_RET_S32)
@@ -232,7 +232,7 @@ typedef char a64_stat_must_match_linux_arm64_size[(sizeof(struct a64_stat) == 12
 
 static struct a64_stat a64_stat_from_statbuf(struct statbuf stat)
 {
-    return (struct a64_stat) {
+    return (struct a64_stat){
         .dev = stat.dev,
         .ino = stat.inode,
         .mode = stat.mode,
@@ -277,14 +277,29 @@ static uint64_t a64_sys_newfstatat(uint64_t at_raw, uint64_t path_raw, uint64_t 
     int32_t flags = (int32_t)flags_raw;
     struct statbuf stat = {};
     int err;
+    if (strcmp(path, ".") == 0)
+        trace_record_event(TRACE_ORIGIN_KERNEL, "a64.newfstatat.dot.attempt");
     if ((flags & AT_EMPTY_PATH_) && strcmp(path, "") == 0) {
         err = at->mount->fs->fstat(at, &stat);
     } else {
         bool follow_links = !(flags & AT_SYMLINK_NOFOLLOW_);
         err = generic_statat(at, path, &stat, follow_links);
     }
-    if (err < 0)
+    if (err < 0) {
+        if (strcmp(path, ".") == 0) {
+            if (err == _ENOMEM)
+                trace_record_event(TRACE_ORIGIN_KERNEL, "a64.newfstatat.dot.fail.enomem");
+            trace_record_event(TRACE_ORIGIN_KERNEL, "a64.newfstatat.dot.fail");
+        }
         return A64_RET_S32(err);
+    }
+
+    if (strcmp(path, ".") == 0) {
+        char event[128];
+        snprintf(event, sizeof(event), "a64.newfstatat.dot.ok.blksize=%u,mode=0x%x", stat.blksize,
+                 stat.mode);
+        trace_record_event(TRACE_ORIGIN_KERNEL, event);
+    }
 
     struct a64_stat a64_stat = a64_stat_from_statbuf(stat);
     if (user_put((addr_t)statbuf_raw, a64_stat))
@@ -305,9 +320,19 @@ static uint64_t a64_sys_fstat(uint64_t fd_raw, uint64_t statbuf_raw, uint64_t un
         return A64_RET_S32(_EBADF);
 
     struct statbuf stat = {};
+    if ((fd_t)fd_raw >= 0)
+        trace_record_event(TRACE_ORIGIN_KERNEL, "a64.fstat.attempt");
     int err = fd->mount->fs->fstat(fd, &stat);
-    if (err < 0)
+    if (err < 0) {
+        if (err == _ENOMEM)
+            trace_record_event(TRACE_ORIGIN_KERNEL, "a64.fstat.fail.enomem");
+        trace_record_event(TRACE_ORIGIN_KERNEL, "a64.fstat.fail");
         return A64_RET_S32(err);
+    }
+
+    char event[128];
+    snprintf(event, sizeof(event), "a64.fstat.ok.blksize=%u,mode=0x%x", stat.blksize, stat.mode);
+    trace_record_event(TRACE_ORIGIN_KERNEL, event);
 
     struct a64_stat a64_stat = a64_stat_from_statbuf(stat);
     if (user_put((addr_t)statbuf_raw, a64_stat))

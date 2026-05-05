@@ -30,6 +30,10 @@ uint64_t tcti_harness_case_cmp_w20_ccmp_gt_bls_uses_32bit_flags(void);
 uint64_t tcti_harness_case_cmp_w2_w1_uxtb_csel_uses_w_width(void);
 uint64_t tcti_harness_case_csel_eq_selects_true_operand(void);
 uint64_t tcti_harness_case_csel_preserves_flags_for_bcond(void);
+uint64_t tcti_harness_case_cmp_csel_ls_hs_tracks_unsigned_minmax(void);
+uint64_t tcti_harness_case_cmp_csinv_ls_preserves_nonoverflow_size(void);
+uint64_t tcti_harness_case_cmp_csinv_ls_saturates_overflow_size(void);
+uint64_t tcti_harness_case_generated_cinc_ne_increments_only_on_ne(void);
 uint64_t tcti_harness_case_vsnprintf_zero_size_cset_ne_preserves_zero_flag(void);
 uint64_t tcti_harness_case_generated_vsnprintf_zero_size_length(void);
 uint64_t tcti_harness_case_cmp_add_csel_ne_uses_preserved_zero_flag(void);
@@ -70,6 +74,7 @@ uint64_t tcti_harness_case_musl_pthread_mutex_lock_fast_path(void);
 uint64_t tcti_harness_case_musl_mutex_unlock_normal_type_branches_to_fast_unlock(void);
 uint64_t tcti_harness_case_musl_memset_dup_zeroes_vector_store(void);
 uint64_t tcti_harness_case_musl_memset_dup_replicates_byte_fill(void);
+uint64_t tcti_harness_case_udiv_preserves_flags_for_csel_eq(void);
 
 #ifdef __cplusplus
 }

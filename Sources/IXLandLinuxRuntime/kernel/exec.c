@@ -2034,6 +2034,7 @@ uint32_t sys_execve(addr_t filename_addr, addr_t argv_addr, addr_t envp_addr)
     char filename[MAX_PATH];
     if (user_read_string(filename_addr, filename, sizeof(filename)))
         return _EFAULT;
+    trace_record_event(TRACE_ORIGIN_KERNEL, "kernel.execve.entry");
 
     int err = _ENOMEM;
     char *argv = malloc(ARGV_MAX);

@@ -92,28 +92,16 @@ void mm_retain(struct mm *mm)
 
 void mm_release(struct mm *mm)
 {
-    printk("[mm] mm_release: ENTRY, mm=%p, refcount=%d\n", mm, mm ? mm->refcount : -1);
-    if (mm == NULL) {
-        printk("[mm] ERROR: mm is NULL!\n");
+    if (mm == NULL)
         return;
-    }
-    printk("[mm] About to decrement refcount from %d\n", mm->refcount);
     uint32_t old_refcount = mm->refcount;
     trace_emit_mm_release((uint64_t)mm, old_refcount);
     if (--mm->refcount == 0) {
         trace_emit_mm_release_freed((uint64_t)mm);
-        printk("[mm] refcount reached 0, cleaning up\n");
-        if (mm->exefile != NULL) {
-            printk("[mm] Closing exefile\n");
+        if (mm->exefile != NULL)
             fd_close(mm->exefile);
-        }
-        printk("[mm] Destroying mem\n");
         mem_destroy(&mm->mem);
-        printk("[mm] Freeing mm\n");
         free(mm);
-        printk("[mm] mm_release complete\n");
-    } else {
-        printk("[mm] refcount now %d, not freeing\n", mm->refcount);
     }
 }
 
@@ -179,6 +167,8 @@ static addr_t mmap_common(addr_t addr, uint32_t len, uint32_t prot, uint32_t fla
     write_wrlock(&current->mem->lock);
     addr_t res = do_mmap(addr, len, prot, flags, fd_no, offset);
     write_wrunlock(&current->mem->lock);
+    if (res == _ENOMEM)
+        trace_record_event(TRACE_ORIGIN_KERNEL, "mmap.fail.enomem");
     return res;
 }
 
@@ -355,12 +345,13 @@ int64_t sys_msync(addr_t UNUSED(addr), uint32_t UNUSED(len), int64_t UNUSED(flag
 addr_t sys_brk(addr_t new_brk)
 {
     STRACE("brk(0x%x)", new_brk);
+    trace_record_event(TRACE_ORIGIN_KERNEL, "brk.call");
     struct mm *mm = current->mm;
+    addr_t old_brk = mm->brk;
 
     write_wrlock(&mm->mem.lock);
     if (new_brk < mm->start_brk)
         goto out;
-    addr_t old_brk = mm->brk;
 
     if (new_brk > old_brk) {
         // expand heap: map region from old_brk to new_brk
@@ -369,11 +360,15 @@ addr_t sys_brk(addr_t new_brk)
         // mapped, but it should be if the brk is 0x2001.
         page_t start = PAGE_ROUND_UP(old_brk);
         pages_t size = PAGE_ROUND_UP(new_brk) - PAGE_ROUND_UP(old_brk);
-        if (!pt_is_hole(&mm->mem, start, size))
+        if (!pt_is_hole(&mm->mem, start, size)) {
+            trace_record_event(TRACE_ORIGIN_KERNEL, "brk.fail.no_hole");
             goto out;
+        }
         int err = pt_map_nothing(&mm->mem, start, size, P_READ | P_WRITE);
-        if (err < 0)
+        if (err < 0) {
+            trace_record_event(TRACE_ORIGIN_KERNEL, "brk.fail.map");
             goto out;
+        }
     } else if (new_brk < old_brk) {
         // shrink heap: unmap region from new_brk to old_brk
         // first page to unmap is the page after the last byte below the new brk
@@ -385,8 +380,17 @@ addr_t sys_brk(addr_t new_brk)
     }
 
     mm->brk = new_brk;
+    if (new_brk > old_brk)
+        trace_record_event(TRACE_ORIGIN_KERNEL, "brk.grow.ok");
 out:;
     addr_t brk = mm->brk;
+    {
+        char ev[160];
+        snprintf(ev, sizeof(ev), "brk.state:start=0x%llx,old=0x%llx,new=0x%llx,res=0x%llx",
+                 (unsigned long long)mm->start_brk, (unsigned long long)old_brk,
+                 (unsigned long long)new_brk, (unsigned long long)brk);
+        trace_record_event(TRACE_ORIGIN_KERNEL, ev);
+    }
     write_wrunlock(&mm->mem.lock);
     return brk;
 }

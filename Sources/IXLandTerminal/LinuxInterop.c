@@ -118,6 +118,16 @@ void linux_start_session(const char *exe, const char *const *argv, const char *e
     if (err < 0)
         goto fail;
 
+    struct fd *stdio = current->files->files[0];
+    if (stdio == NULL || stdio->ops == NULL || stdio->ops->ioctl == NULL) {
+        err = -_ENOTTY;
+        goto fail;
+    }
+
+    err = stdio->ops->ioctl(stdio, TIOCSCTTY_, NULL);
+    if (err < 0)
+        goto fail;
+
     size_t argc = 0;
     char *flat_argv = flatten_argv(argv, &argc);
     if (flat_argv == NULL) {

@@ -26,7 +26,11 @@ static struct fd *fakefs_open(struct mount *mount, const char *path, int flags, 
     struct fd *fd = realfs.open(mount, path, flags, 0666);
     if (IS_ERR(fd))
         return fd;
-    db_begin_write(fs);
+    int needs_metadata_write = (flags & O_CREAT_) != 0;
+    if (needs_metadata_write)
+        db_begin_write(fs);
+    else
+        db_begin_read(fs);
     fd->fake_inode = path_get_inode(fs, path);
     if (flags & O_CREAT_) {
         struct ish_stat ishstat;

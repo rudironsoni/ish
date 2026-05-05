@@ -267,6 +267,8 @@ static int tmpfs_umount(struct mount *UNUSED(mount))
 
 static struct fd *tmpfs_open(struct mount *mount, const char *path, int flags, int mode)
 {
+    if (strcmp(path, "") == 0)
+        trace_record_event(TRACE_ORIGIN_KERNEL, "tmpfs.open.root.enter");
     struct tmp_dirent *dirent;
     if (flags & O_CREAT_) {
         // FIXME: will create a file when given a path that ends with a slash
@@ -311,9 +313,13 @@ out_creat:
 
     struct fd *fd = fd_create(&tmpfs_fdops);
     if (fd == NULL) {
+        if (strcmp(path, "") == 0)
+            trace_record_event(TRACE_ORIGIN_KERNEL, "tmpfs.open.root.fd_create_failed");
         tmp_dirent_release(dirent);
         return ERR_PTR(_ENOMEM);
     }
+    if (strcmp(path, "") == 0)
+        trace_record_event(TRACE_ORIGIN_KERNEL, "tmpfs.open.root.fd_create_ok");
     fd->tmpfs.dirent = dirent;
 
     fd->tmpfs.dir_pos = NULL;

@@ -1,3 +1,4 @@
+#import <IXLandInstrumentationTracing/trace.h>
 #import <IXLandLinuxRuntime/fs/fd.h>
 #import <IXLandLinuxRuntime/fs/tty.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
@@ -77,6 +78,7 @@ static int copy_task(struct task *task, uint32_t flags, addr_t stack, addr_t pti
     } else {
         struct mm *new_mm = mm_copy(parent_mm);
         if (new_mm == NULL) {
+            trace_record_event(TRACE_ORIGIN_KERNEL, "fork.mm_copy_failed");
             err = _ENOMEM;
             goto fail_free_mem;
         }
@@ -155,7 +157,7 @@ fail_free_mem:
 
 uint32_t sys_clone(uint32_t flags, addr_t stack, addr_t ptid, addr_t tls, addr_t ctid)
 {
-    STRACE("clone(0x%x, 0x%x, 0x%x, 0x%x, 0x%x)", flags, stack, ptid, tls, ctid);
+    trace_record_event(TRACE_ORIGIN_KERNEL, "fork.clone.entry");
     if (flags & ~CSIGNAL_ & ~IMPLEMENTED_FLAGS) {
         FIXME("unimplemented clone flags 0x%x", flags & ~CSIGNAL_ & ~IMPLEMENTED_FLAGS);
         return _EINVAL;
@@ -170,6 +172,7 @@ uint32_t sys_clone(uint32_t flags, addr_t stack, addr_t ptid, addr_t tls, addr_t
         return _ENOMEM;
     int err = copy_task(task, flags, stack, ptid, tls, ctid);
     if (err < 0) {
+        trace_record_event(TRACE_ORIGIN_KERNEL, "fork.copy_task.failed");
         // FIXME: there is a window between task_create_ and task_destroy where
         // some other thread could get a pointer to the task.
         // FIXME: task_destroy doesn't free all aspects of the task, which
@@ -198,6 +201,7 @@ uint32_t sys_clone(uint32_t flags, addr_t stack, addr_t ptid, addr_t tls, addr_t
     }
 
     task_start(task);
+    trace_record_event(TRACE_ORIGIN_KERNEL, "fork.task_started");
 
     if (flags & CLONE_VFORK_) {
         lock(&vfork.lock);

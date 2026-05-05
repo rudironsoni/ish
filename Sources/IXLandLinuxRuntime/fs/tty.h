@@ -166,6 +166,8 @@ ssize_t tty_get_buffer_content(struct tty *tty, char *out_buf, size_t out_size);
 struct tty *tty_get(struct tty_driver *driver, int type, int num);
 struct tty *tty_alloc(struct tty_driver *driver, int type, int num);
 int tty_open(struct tty *tty, struct fd *fd);
+struct tgroup;
+void tty_set_controlling(struct tgroup *group, struct tty *tty);
 extern lock_t ttys_lock;
 void tty_release(struct tty *tty); // must be called with ttys_lock
 

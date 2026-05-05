@@ -23,9 +23,9 @@
 #import <IXLandLinuxRuntime/tcti/frame.h>
 #import <IXLandLinuxRuntime/tcti/gadgets_tcti.h>
 #include <dlfcn.h>
-#include <stdarg.h>
 #include <setjmp.h>
 #include <signal.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -53,6 +53,23 @@ static bool a64_conservative_mode_enabled(void)
         initialized = 1;
     }
     return enabled;
+}
+
+static bool a64_verbose_block_trace_enabled(void)
+{
+    static int initialized = 0;
+    static bool enabled = false;
+    if (!initialized) {
+        const char *value = getenv("ISH_A64_VERBOSE_BLOCK_TRACE");
+        enabled = value && strcmp(value, "0") != 0;
+        initialized = 1;
+    }
+    return enabled;
+}
+
+static bool a64_hot_ldso_pc(uint64_t pc)
+{
+    return pc >= 0x79600 && pc < 0x7c300;
 }
 
 static int g_insn64_trace_budget = 128;
@@ -86,25 +103,25 @@ static void a64_trace_event(const char *event_name, const char *format, ...)
 static void a64_trace_block_registers(const char *phase, const struct cpu_state *cpu,
                                       const struct a64_block *block)
 {
-    if (!phase || !cpu || !block || !trace_should_emit_event("tcti.block.regs"))
+    if (!phase || !cpu || !block || !a64_verbose_block_trace_enabled() ||
+        !trace_should_emit_event("tcti.block.regs"))
         return;
 
     char event[900];
-    snprintf(event, sizeof(event),
-             "tcti.block.regs=phase:%s,pc:0x%llx,block_start:0x%llx,block_end:0x%llx,"
-             "x0:0x%llx,x1:0x%llx,x2:0x%llx,x3:0x%llx,x4:0x%llx,x5:0x%llx,"
-             "x6:0x%llx,x7:0x%llx,x8:0x%llx,x9:0x%llx,x10:0x%llx,x11:0x%llx,"
-             "x12:0x%llx,x13:0x%llx,x14:0x%llx,x15:0x%llx",
-             phase, (unsigned long long)cpu->pc, (unsigned long long)block->start_pc,
-             (unsigned long long)block->end_pc, (unsigned long long)cpu->x[0],
-             (unsigned long long)cpu->x[1], (unsigned long long)cpu->x[2],
-             (unsigned long long)cpu->x[3], (unsigned long long)cpu->x[4],
-             (unsigned long long)cpu->x[5], (unsigned long long)cpu->x[6],
-             (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[8],
-             (unsigned long long)cpu->x[9], (unsigned long long)cpu->x[10],
-             (unsigned long long)cpu->x[11], (unsigned long long)cpu->x[12],
-             (unsigned long long)cpu->x[13], (unsigned long long)cpu->x[14],
-             (unsigned long long)cpu->x[15]);
+    snprintf(
+        event, sizeof(event),
+        "tcti.block.regs=phase:%s,pc:0x%llx,block_start:0x%llx,block_end:0x%llx,"
+        "x0:0x%llx,x1:0x%llx,x2:0x%llx,x3:0x%llx,x4:0x%llx,x5:0x%llx,"
+        "x6:0x%llx,x7:0x%llx,x8:0x%llx,x9:0x%llx,x10:0x%llx,x11:0x%llx,"
+        "x12:0x%llx,x13:0x%llx,x14:0x%llx,x15:0x%llx",
+        phase, (unsigned long long)cpu->pc, (unsigned long long)block->start_pc,
+        (unsigned long long)block->end_pc, (unsigned long long)cpu->x[0],
+        (unsigned long long)cpu->x[1], (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[3],
+        (unsigned long long)cpu->x[4], (unsigned long long)cpu->x[5], (unsigned long long)cpu->x[6],
+        (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[8], (unsigned long long)cpu->x[9],
+        (unsigned long long)cpu->x[10], (unsigned long long)cpu->x[11],
+        (unsigned long long)cpu->x[12], (unsigned long long)cpu->x[13],
+        (unsigned long long)cpu->x[14], (unsigned long long)cpu->x[15]);
     trace_record_event(TRACE_ORIGIN_EXEC, event);
 
     snprintf(event, sizeof(event),
@@ -121,13 +138,11 @@ static void a64_trace_block_registers(const char *phase, const struct cpu_state 
              (unsigned long long)cpu->x[25], (unsigned long long)cpu->x[26],
              (unsigned long long)cpu->x[27], (unsigned long long)cpu->x[28],
              (unsigned long long)cpu->x[29], (unsigned long long)cpu->x[30],
-             (unsigned long long)cpu->sp, (unsigned long long)cpu->pstate,
-             cpu->tcti_exit_reason);
+             (unsigned long long)cpu->sp, (unsigned long long)cpu->pstate, cpu->tcti_exit_reason);
     trace_record_event(TRACE_ORIGIN_EXEC, event);
 }
 
-static uint64_t a64_trace_read_reg_or_sp_const(const struct cpu_state *cpu, int reg,
-                                               bool is_64bit)
+static uint64_t a64_trace_read_reg_or_sp_const(const struct cpu_state *cpu, int reg, bool is_64bit)
 {
     if (!cpu)
         return 0;
@@ -171,8 +186,7 @@ typedef struct {
     int branch_reg;
 } a64_trace_block_history_entry_t;
 
-static a64_trace_block_history_entry_t
-    g_a64_trace_block_history[A64_TRACE_BLOCK_HISTORY_SIZE];
+static a64_trace_block_history_entry_t g_a64_trace_block_history[A64_TRACE_BLOCK_HISTORY_SIZE];
 static unsigned g_a64_trace_block_history_next = 0;
 static unsigned g_a64_trace_block_history_count = 0;
 static uint64_t g_a64_last_compile_failure_pc = UINT64_MAX;
@@ -249,7 +263,9 @@ static void a64_trace_emit_block_history(uint64_t failure_pc)
                          A64_TRACE_BLOCK_HISTORY_SIZE;
         const a64_trace_block_history_entry_t *entry = &g_a64_trace_block_history[index];
 
-        a64_trace_event("tcti.block.history", "tcti.block.history=failure_pc:0x%llx,slot:%u,before:0x%llx,after:0x%llx,"
+        a64_trace_event(
+            "tcti.block.history",
+            "tcti.block.history=failure_pc:0x%llx,slot:%u,before:0x%llx,after:0x%llx,"
             "reason:%d,start:0x%llx,end:0x%llx,explicit:%d,raw:0x%08x,cat:%d,sub:%d,"
             "rd:%d,rn:%d,rm:%d,rd_val:0x%llx,rn_val:0x%llx,rm_val:0x%llx,"
             "branch_reg:%d,branch_target:0x%llx,sp:0x%llx,x21:0x%llx,x26:0x%llx,x30:0x%llx",
@@ -506,14 +522,12 @@ static uint16_t g_a64_trace_mem_history_count = 0;
 static uint16_t g_a64_trace_mem_history_sequence = 0;
 
 static void a64_trace_record_mem_access(const struct cpu_state *cpu, const a64_instr_t *instr,
-                                        uint64_t addr, uint64_t value, uint8_t width,
-                                        bool is_load)
+                                        uint64_t addr, uint64_t value, uint8_t width, bool is_load)
 {
     if (!cpu || !instr)
         return;
 
-    a64_trace_mem_history_entry_t *entry =
-        &g_a64_trace_mem_history[g_a64_trace_mem_history_next];
+    a64_trace_mem_history_entry_t *entry = &g_a64_trace_mem_history[g_a64_trace_mem_history_next];
     memset(entry, 0, sizeof(*entry));
     entry->pc = cpu->pc;
     entry->addr = addr;
@@ -596,8 +610,7 @@ static void a64_trace_emit_mem_history_on_fault(const struct cpu_state *cpu, uin
         bool addr_match = entry->addr == fault_addr;
 
         if ((addr_match || value_match_reg >= 0) && emitted_matches < 96) {
-            a64_trace_emit_mem_history_entry("tcti.mem.history.match", i, entry,
-                                             value_match_reg);
+            a64_trace_emit_mem_history_entry("tcti.mem.history.match", i, entry, value_match_reg);
             emitted_matches++;
         }
 
@@ -867,7 +880,7 @@ static void __attribute__((unused)) trace_cpu_layout_checkpoint(const char *name
 static void trace_cpu_run_checkpoint(const char *name, struct task *task, struct cpu_state *cpu,
                                      int exit_reason)
 {
-    if (!trace_should_emit_event(name))
+    if (!a64_verbose_block_trace_enabled() || !trace_should_emit_event(name))
         return;
 
     char task_buf[32];
@@ -923,10 +936,13 @@ static void trace_fault_origin_checkpoint(const char *name, uint64_t fault_pc, i
     snprintf(computed_buf, sizeof(computed_buf), "0x%llx", (unsigned long long)computed_addr);
 
     trace_attribute_t attrs[] = {
-        { "fault_pc", fault_pc_buf },           { "base_reg", base_reg_buf },
+        { "fault_pc", fault_pc_buf },
+        { "base_reg", base_reg_buf },
         { "base_reg_value", base_reg_value_buf },
-        { "index_reg", index_reg_buf },         { "index_reg_value", index_reg_value_buf },
-        { "imm_offset", imm_buf },              { "computed_addr", computed_buf },
+        { "index_reg", index_reg_buf },
+        { "index_reg_value", index_reg_value_buf },
+        { "imm_offset", imm_buf },
+        { "computed_addr", computed_buf },
     };
 
     (void)trace_begin_interval(TRACE_ORIGIN_EXEC, name, attrs, sizeof(attrs) / sizeof(attrs[0]));
@@ -997,7 +1013,8 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
     struct a64_block *block;
     bool explicit_pc_on_exit = false;
 
-    a64_trace_event("tcti.compile.entry", "tcti.compile.entry=pc:0x%llx,tlb:%d,mmu_gen:%llu,fault:0x%llx",
+    a64_trace_event("tcti.compile.entry",
+                    "tcti.compile.entry=pc:0x%llx,tlb:%d,mmu_gen:%llu,fault:0x%llx",
                     (unsigned long long)pc, tlb ? 1 : 0,
                     (tlb && tlb->mmu) ? (unsigned long long)tlb->mmu->generation : 0ULL,
                     cpu ? (unsigned long long)cpu->fault_addr : 0ULL);
@@ -1035,7 +1052,8 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
                 direct = mem_ptr(current->mem, gen_state.guest_pc, MEM_READ);
                 read_wrunlock(&current->mem->lock);
             }
-            a64_trace_event("tcti.compile.fetch_fail", "tcti.compile.fetch_fail=start:0x%llx,pc:0x%llx,ret:%d,"
+            a64_trace_event("tcti.compile.fetch_fail",
+                            "tcti.compile.fetch_fail=start:0x%llx,pc:0x%llx,ret:%d,"
                             "fault:0x%llx,was_write:%d,tlb_gen:%llu,mmu_gen:%llu,direct:%d",
                             (unsigned long long)pc, (unsigned long long)gen_state.guest_pc, ret,
                             (unsigned long long)cpu->fault_addr, cpu->fault_was_write ? 1 : 0,
@@ -1051,19 +1069,32 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
         int decode_ret = a64_decode(insn, &decoded_info);
         (void)decode_ret;
 
+        if (a64_hot_ldso_pc(gen_state.guest_pc)) {
+            char event[192];
+            snprintf(event, sizeof(event),
+                     "hot.ldso=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld",
+                     (unsigned long long)gen_state.guest_pc, insn,
+                     decode_ret == 0 ? decoded_info.cat : -1,
+                     decode_ret == 0 ? decoded_info.subtype : -1,
+                     decode_ret == 0 ? decoded_info.Rd : -1, decode_ret == 0 ? decoded_info.Rn : -1,
+                     decode_ret == 0 ? decoded_info.Rm : -1,
+                     decode_ret == 0 ? (long long)decoded_info.imm : 0LL);
+            trace_record_event(TRACE_ORIGIN_EXEC, event);
+        }
+
         // Generate TCTI instruction - load/store and bitfield now have inline TCTI support
         ret = a64_gen_instruction(&gen_state, insn, gen_state.guest_pc);
 
-        a64_trace_event("tcti.compile.instruction", "tcti.compile.instruction=start:0x%llx,pc:0x%llx,raw:0x%08x,ret:%d,"
-                        "cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld,is_complete:%d,count:%d",
-                        (unsigned long long)pc, (unsigned long long)gen_state.guest_pc, insn, ret,
-                        decode_ret == 0 ? decoded_info.cat : -1,
-                        decode_ret == 0 ? decoded_info.subtype : -1,
-                        decode_ret == 0 ? decoded_info.Rd : -1,
-                        decode_ret == 0 ? decoded_info.Rn : -1,
-                        decode_ret == 0 ? decoded_info.Rm : -1,
-                        decode_ret == 0 ? (long long)decoded_info.imm : 0LL,
-                        gen_state.is_complete, insns_decoded);
+        a64_trace_event(
+            "tcti.compile.instruction",
+            "tcti.compile.instruction=start:0x%llx,pc:0x%llx,raw:0x%08x,ret:%d,"
+            "cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld,is_complete:%d,count:%d",
+            (unsigned long long)pc, (unsigned long long)gen_state.guest_pc, insn, ret,
+            decode_ret == 0 ? decoded_info.cat : -1, decode_ret == 0 ? decoded_info.subtype : -1,
+            decode_ret == 0 ? decoded_info.Rd : -1, decode_ret == 0 ? decoded_info.Rn : -1,
+            decode_ret == 0 ? decoded_info.Rm : -1,
+            decode_ret == 0 ? (long long)decoded_info.imm : 0LL, gen_state.is_complete,
+            insns_decoded);
 
         if (ret < 0) {
             if (insns_decoded > 0) {
@@ -1101,10 +1132,11 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
         uint32_t failing_insn = 0;
         int fetch_ret = a64_fetch_insn(cpu, tlb, pc, &failing_insn);
         if (a64_trace_should_emit_compile_failure(pc)) {
-            a64_trace_event("tcti.compile.no_insns", "tcti.compile.no_insns=pc:0x%llx,raw:0x%08x,fetch_ret:%d,"
+            a64_trace_event("tcti.compile.no_insns",
+                            "tcti.compile.no_insns=pc:0x%llx,raw:0x%08x,fetch_ret:%d,"
                             "aligned:%d,fault:0x%llx,repeat:%u",
-                            (unsigned long long)pc, failing_insn, fetch_ret,
-                            (pc & 3) == 0 ? 1 : 0, (unsigned long long)cpu->fault_addr,
+                            (unsigned long long)pc, failing_insn, fetch_ret, (pc & 3) == 0 ? 1 : 0,
+                            (unsigned long long)cpu->fault_addr,
                             g_a64_compile_failure_repeat_count);
             a64_trace_emit_block_history(pc);
         }
@@ -1115,7 +1147,8 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
     // Finalize the block
     int finalize_ret = a64_gen_finalize(&gen_state);
     if (finalize_ret != A64_GEN_OK) {
-        a64_trace_event("tcti.compile.finalize_fail", "tcti.compile.finalize_fail=pc:0x%llx,ret:%d,gadgets:%zu",
+        a64_trace_event("tcti.compile.finalize_fail",
+                        "tcti.compile.finalize_fail=pc:0x%llx,ret:%d,gadgets:%zu",
                         (unsigned long long)pc, finalize_ret, gen_state.num_gadgets);
         return NULL;
     }
@@ -1159,7 +1192,8 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
 
     // Trace: Block compilation end
     trace_emit_block_compile_end(pc, gen_state.end_pc, (uint32_t)insns_decoded);
-    a64_trace_event("tcti.compile.exit", "tcti.compile.exit=start:0x%llx,end:0x%llx,insns:%d,gadgets:%zu,explicit:%d",
+    a64_trace_event("tcti.compile.exit",
+                    "tcti.compile.exit=start:0x%llx,end:0x%llx,insns:%d,gadgets:%zu,explicit:%d",
                     (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
                     insns_decoded, block->num_gadgets, block->explicit_pc_on_exit ? 1 : 0);
 
@@ -1423,8 +1457,7 @@ static void trace_first_live_ldst_fault(struct cpu_state *cpu, int host_signal)
         { .key = "raw_opcode", .kind = TRACE_FIELD_U64_HEX, .u64_value = raw },
         { .key = "mnemonic",
           .kind = TRACE_FIELD_STRING,
-          .string_value = trace_ldst_mnemonic(is_load, decoded.size,
-                                              decoded.is_signed ? 1 : 0) },
+          .string_value = trace_ldst_mnemonic(is_load, decoded.size, decoded.is_signed ? 1 : 0) },
         { .key = "cat", .kind = TRACE_FIELD_I64_DEC, .i64_value = decoded.cat },
         { .key = "subtype", .kind = TRACE_FIELD_I64_DEC, .i64_value = decoded.subtype },
         { .key = "is_load", .kind = TRACE_FIELD_I64_DEC, .i64_value = is_load },
@@ -1440,12 +1473,12 @@ static void trace_first_live_ldst_fault(struct cpu_state *cpu, int host_signal)
         { .key = "rt_val", .kind = TRACE_FIELD_U64_HEX, .u64_value = rt_val },
         { .key = "rn_val", .kind = TRACE_FIELD_U64_HEX, .u64_value = rn_val },
         { .key = "rm_val", .kind = TRACE_FIELD_U64_HEX, .u64_value = rm_val },
-        { .key = "offset_pre_shift", .kind = TRACE_FIELD_U64_HEX, .u64_value = offset_before_shift },
+        { .key = "offset_pre_shift",
+          .kind = TRACE_FIELD_U64_HEX,
+          .u64_value = offset_before_shift },
         { .key = "computed_offset", .kind = TRACE_FIELD_U64_HEX, .u64_value = computed_offset },
         { .key = "guest_ea", .kind = TRACE_FIELD_U64_HEX, .u64_value = guest_ea },
-        { .key = "page_lookup",
-          .kind = TRACE_FIELD_STRING,
-          .string_value = desc ? "hit" : "miss" },
+        { .key = "page_lookup", .kind = TRACE_FIELD_STRING, .string_value = desc ? "hit" : "miss" },
         { .key = "host_ptr_page", .kind = TRACE_FIELD_U64_HEX, .u64_value = host_ptr_page },
         { .key = "host_ptr_probe",
           .kind = TRACE_FIELD_U64_HEX,
@@ -1587,8 +1620,8 @@ static void trace_pre_syscall_checkpoint(const char *name, uint64_t pc, uint64_t
 }
 
 static void trace_startup_progress_event(const char *name, struct cpu_state *cpu,
-                                         struct a64_block *block, int exit_reason,
-                                         int loop_count, int block_count)
+                                         struct a64_block *block, int exit_reason, int loop_count,
+                                         int block_count)
 {
     uint32_t raw = 0;
     a64_instr_t decoded;
@@ -1597,52 +1630,38 @@ static void trace_startup_progress_event(const char *name, struct cpu_state *cpu
     int decoded_ok = fetched == 0 ? a64_decode(raw, &decoded) : -1;
 
     char ev[2048];
-    snprintf(ev, sizeof(ev),
-             "%s=pc:0x%llx,block_start:0x%llx,block_end:0x%llx,explicit:%d,exit:%d,"
-             "repeat:%d,blocks:%d,raw:0x%08x,fetch:%d,decode:%d,cat:%d,sub:%d,rd:%d,rn:%d,"
-             "rm:%d,imm:%lld,sp:0x%llx,"
-             "x0:0x%llx,x1:0x%llx,x2:0x%llx,x3:0x%llx,x4:0x%llx,x5:0x%llx,x6:0x%llx,"
-             "x7:0x%llx,x8:0x%llx,x9:0x%llx,x10:0x%llx,x11:0x%llx,x12:0x%llx,x13:0x%llx,"
-             "x14:0x%llx,x15:0x%llx,x16:0x%llx,x17:0x%llx,x18:0x%llx,x19:0x%llx,"
-             "x20:0x%llx,x21:0x%llx,x22:0x%llx,x23:0x%llx,x24:0x%llx,x25:0x%llx,"
-             "x26:0x%llx,x27:0x%llx,x28:0x%llx,x29:0x%llx,x30:0x%llx",
-             name, cpu ? (unsigned long long)cpu->pc : 0ULL,
-             block ? (unsigned long long)block->start_pc : 0ULL,
-             block ? (unsigned long long)block->end_pc : 0ULL,
-             block && block->explicit_pc_on_exit ? 1 : 0, exit_reason, loop_count, block_count,
-             raw, fetched, decoded_ok, decoded.cat, decoded.subtype, decoded.Rd, decoded.Rn,
-             decoded.Rm, (long long)decoded.imm, cpu ? (unsigned long long)cpu->sp : 0ULL,
-             cpu ? (unsigned long long)cpu->x[0] : 0ULL,
-             cpu ? (unsigned long long)cpu->x[1] : 0ULL,
-             cpu ? (unsigned long long)cpu->x[2] : 0ULL,
-             cpu ? (unsigned long long)cpu->x[3] : 0ULL,
-             cpu ? (unsigned long long)cpu->x[4] : 0ULL,
-             cpu ? (unsigned long long)cpu->x[5] : 0ULL,
-             cpu ? (unsigned long long)cpu->x[6] : 0ULL,
-             cpu ? (unsigned long long)cpu->x[7] : 0ULL,
-             cpu ? (unsigned long long)cpu->x[8] : 0ULL,
-             cpu ? (unsigned long long)cpu->x[9] : 0ULL,
-             cpu ? (unsigned long long)cpu->x[10] : 0ULL,
-             cpu ? (unsigned long long)cpu->x[11] : 0ULL,
-             cpu ? (unsigned long long)cpu->x[12] : 0ULL,
-             cpu ? (unsigned long long)cpu->x[13] : 0ULL,
-             cpu ? (unsigned long long)cpu->x[14] : 0ULL,
-             cpu ? (unsigned long long)cpu->x[15] : 0ULL,
-             cpu ? (unsigned long long)cpu->x[16] : 0ULL,
-             cpu ? (unsigned long long)cpu->x[17] : 0ULL,
-             cpu ? (unsigned long long)cpu->x[18] : 0ULL,
-             cpu ? (unsigned long long)cpu->x[19] : 0ULL,
-             cpu ? (unsigned long long)cpu->x[20] : 0ULL,
-             cpu ? (unsigned long long)cpu->x[21] : 0ULL,
-             cpu ? (unsigned long long)cpu->x[22] : 0ULL,
-             cpu ? (unsigned long long)cpu->x[23] : 0ULL,
-             cpu ? (unsigned long long)cpu->x[24] : 0ULL,
-             cpu ? (unsigned long long)cpu->x[25] : 0ULL,
-             cpu ? (unsigned long long)cpu->x[26] : 0ULL,
-             cpu ? (unsigned long long)cpu->x[27] : 0ULL,
-             cpu ? (unsigned long long)cpu->x[28] : 0ULL,
-             cpu ? (unsigned long long)cpu->x[29] : 0ULL,
-             cpu ? (unsigned long long)cpu->x[30] : 0ULL);
+    snprintf(
+        ev, sizeof(ev),
+        "%s=pc:0x%llx,block_start:0x%llx,block_end:0x%llx,explicit:%d,exit:%d,"
+        "repeat:%d,blocks:%d,raw:0x%08x,fetch:%d,decode:%d,cat:%d,sub:%d,rd:%d,rn:%d,"
+        "rm:%d,imm:%lld,sp:0x%llx,"
+        "x0:0x%llx,x1:0x%llx,x2:0x%llx,x3:0x%llx,x4:0x%llx,x5:0x%llx,x6:0x%llx,"
+        "x7:0x%llx,x8:0x%llx,x9:0x%llx,x10:0x%llx,x11:0x%llx,x12:0x%llx,x13:0x%llx,"
+        "x14:0x%llx,x15:0x%llx,x16:0x%llx,x17:0x%llx,x18:0x%llx,x19:0x%llx,"
+        "x20:0x%llx,x21:0x%llx,x22:0x%llx,x23:0x%llx,x24:0x%llx,x25:0x%llx,"
+        "x26:0x%llx,x27:0x%llx,x28:0x%llx,x29:0x%llx,x30:0x%llx",
+        name, cpu ? (unsigned long long)cpu->pc : 0ULL,
+        block ? (unsigned long long)block->start_pc : 0ULL,
+        block ? (unsigned long long)block->end_pc : 0ULL,
+        block && block->explicit_pc_on_exit ? 1 : 0, exit_reason, loop_count, block_count, raw,
+        fetched, decoded_ok, decoded.cat, decoded.subtype, decoded.Rd, decoded.Rn, decoded.Rm,
+        (long long)decoded.imm, cpu ? (unsigned long long)cpu->sp : 0ULL,
+        cpu ? (unsigned long long)cpu->x[0] : 0ULL, cpu ? (unsigned long long)cpu->x[1] : 0ULL,
+        cpu ? (unsigned long long)cpu->x[2] : 0ULL, cpu ? (unsigned long long)cpu->x[3] : 0ULL,
+        cpu ? (unsigned long long)cpu->x[4] : 0ULL, cpu ? (unsigned long long)cpu->x[5] : 0ULL,
+        cpu ? (unsigned long long)cpu->x[6] : 0ULL, cpu ? (unsigned long long)cpu->x[7] : 0ULL,
+        cpu ? (unsigned long long)cpu->x[8] : 0ULL, cpu ? (unsigned long long)cpu->x[9] : 0ULL,
+        cpu ? (unsigned long long)cpu->x[10] : 0ULL, cpu ? (unsigned long long)cpu->x[11] : 0ULL,
+        cpu ? (unsigned long long)cpu->x[12] : 0ULL, cpu ? (unsigned long long)cpu->x[13] : 0ULL,
+        cpu ? (unsigned long long)cpu->x[14] : 0ULL, cpu ? (unsigned long long)cpu->x[15] : 0ULL,
+        cpu ? (unsigned long long)cpu->x[16] : 0ULL, cpu ? (unsigned long long)cpu->x[17] : 0ULL,
+        cpu ? (unsigned long long)cpu->x[18] : 0ULL, cpu ? (unsigned long long)cpu->x[19] : 0ULL,
+        cpu ? (unsigned long long)cpu->x[20] : 0ULL, cpu ? (unsigned long long)cpu->x[21] : 0ULL,
+        cpu ? (unsigned long long)cpu->x[22] : 0ULL, cpu ? (unsigned long long)cpu->x[23] : 0ULL,
+        cpu ? (unsigned long long)cpu->x[24] : 0ULL, cpu ? (unsigned long long)cpu->x[25] : 0ULL,
+        cpu ? (unsigned long long)cpu->x[26] : 0ULL, cpu ? (unsigned long long)cpu->x[27] : 0ULL,
+        cpu ? (unsigned long long)cpu->x[28] : 0ULL, cpu ? (unsigned long long)cpu->x[29] : 0ULL,
+        cpu ? (unsigned long long)cpu->x[30] : 0ULL);
     trace_record_event(TRACE_ORIGIN_EXEC, ev);
 }
 
@@ -1854,18 +1873,18 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
             }
             fiber_stat_inc(ctx, STAT_TB_COMPILES);
         } else {
-                // L0 cache lookup (fast path via fiber_exec_ctx)
-                size_t l0_idx = ((pc ^ (pc >> 12)) & FIBER_EXEC_CTX_CACHE_MASK);
-                block = ctx->l0_cache[l0_idx];
+            // L0 cache lookup (fast path via fiber_exec_ctx)
+            size_t l0_idx = ((pc ^ (pc >> 12)) & FIBER_EXEC_CTX_CACHE_MASK);
+            block = ctx->l0_cache[l0_idx];
 
-                // Validate L0 cache hit against the same generation contract as L1.
-                if (block && block->start_pc == pc && !block->is_jetsam &&
-                    block->compile_generation == cpu->mmu->generation) {
-                    fiber_stat_inc(ctx, STAT_TB_L0_HITS);
-                } else {
-                    // L0 miss - fall back to MMU cache (L1)
-                    ctx->l0_cache[l0_idx] = NULL;
-                    block = NULL;
+            // Validate L0 cache hit against the same generation contract as L1.
+            if (block && block->start_pc == pc && !block->is_jetsam &&
+                block->compile_generation == cpu->mmu->generation) {
+                fiber_stat_inc(ctx, STAT_TB_L0_HITS);
+            } else {
+                // L0 miss - fall back to MMU cache (L1)
+                ctx->l0_cache[l0_idx] = NULL;
+                block = NULL;
                 if (cpu->mmu->block_cache) {
                     block = a64_cache_lookup(cpu->mmu->block_cache, pc, cpu->mmu->generation);
                     if (block) {
@@ -1879,11 +1898,14 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
                         trace_cpu_run_checkpoint("task.proof.a64_cpu_run.before_first_compile",
                                                  current, cpu, 0);
                     }
-                    a64_trace_event("tcti.dispatch.compile.call", "tcti.dispatch.compile.call=pc:0x%llx,total:%d,mmu_gen:%llu",
-                        (unsigned long long)pc, total_blocks_executed,
-                        cpu && cpu->mmu ? (unsigned long long)cpu->mmu->generation : 0ULL);
+                    a64_trace_event("tcti.dispatch.compile.call",
+                                    "tcti.dispatch.compile.call=pc:0x%llx,total:%d,mmu_gen:%llu",
+                                    (unsigned long long)pc, total_blocks_executed,
+                                    cpu && cpu->mmu ? (unsigned long long)cpu->mmu->generation
+                                                    : 0ULL);
                     block = a64_compile_block(cpu, pc, tlb);
-                    a64_trace_event("tcti.dispatch.compile.return", "tcti.dispatch.compile.return=pc:0x%llx,block:%d,fault:0x%llx,"
+                    a64_trace_event("tcti.dispatch.compile.return",
+                                    "tcti.dispatch.compile.return=pc:0x%llx,block:%d,fault:0x%llx,"
                                     "was_write:%d,total:%d",
                                     (unsigned long long)pc, block ? 1 : 0,
                                     (unsigned long long)cpu->fault_addr,
@@ -1926,13 +1948,14 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
             first_block_lookup = false;
         }
 
-        a64_trace_event("tcti.dispatch.lookup", "tcti.dispatch.lookup=pc:0x%llx,block:%d,start:0x%llx,end:0x%llx,"
+        a64_trace_event("tcti.dispatch.lookup",
+                        "tcti.dispatch.lookup=pc:0x%llx,block:%d,start:0x%llx,end:0x%llx,"
                         "gadgets:%zu,explicit:%d,total_before:%d",
                         (unsigned long long)pc, block ? 1 : 0,
                         block ? (unsigned long long)block->start_pc : 0ULL,
                         block ? (unsigned long long)block->end_pc : 0ULL,
-                        block ? block->num_gadgets : 0,
-                        block && block->explicit_pc_on_exit ? 1 : 0, total_blocks_executed);
+                        block ? block->num_gadgets : 0, block && block->explicit_pc_on_exit ? 1 : 0,
+                        total_blocks_executed);
 
         // Stage 3A.6: Track block execution progression
         total_blocks_executed++;
@@ -1995,76 +2018,82 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
                 branch_target_before_execute = a64_read_reg_or_sp(cpu, branch_reg, true);
             }
         }
-        a64_trace_event("tcti.block.entry", "tcti.block.entry=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,"
-                        "imm:%lld,start:0x%llx,end:0x%llx,gadgets:%zu,explicit:%d,sp:0x%llx,"
-                        "x0:0x%llx,x1:0x%llx,x2:0x%llx,x3:0x%llx,x4:0x%llx,x5:0x%llx,"
-                        "x6:0x%llx,x7:0x%llx,x8:0x%llx,x9:0x%llx,x10:0x%llx,x11:0x%llx,"
-                        "x12:0x%llx,x13:0x%llx,x14:0x%llx,x15:0x%llx,x16:0x%llx,x17:0x%llx,"
-                        "x18:0x%llx,x19:0x%llx,x20:0x%llx,x21:0x%llx,x22:0x%llx,x23:0x%llx,"
-                        "x24:0x%llx,x25:0x%llx,x26:0x%llx,x27:0x%llx,x28:0x%llx,x29:0x%llx,"
-                        "x30:0x%llx",
-                        (unsigned long long)pc_before_execute, writer_raw, writer_decoded.cat,
-                        writer_decoded.subtype, writer_decoded.Rd, writer_decoded.Rn,
-                        writer_decoded.Rm, (long long)writer_decoded.imm,
-                        (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
-                        block->num_gadgets, block->explicit_pc_on_exit ? 1 : 0,
-                        (unsigned long long)cpu->sp, (unsigned long long)cpu->x[0],
-                        (unsigned long long)cpu->x[1], (unsigned long long)cpu->x[2],
-                        (unsigned long long)cpu->x[3], (unsigned long long)cpu->x[4],
-                        (unsigned long long)cpu->x[5], (unsigned long long)cpu->x[6],
-                        (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[8],
-                        (unsigned long long)cpu->x[9], (unsigned long long)cpu->x[10],
-                        (unsigned long long)cpu->x[11], (unsigned long long)cpu->x[12],
-                        (unsigned long long)cpu->x[13], (unsigned long long)cpu->x[14],
-                        (unsigned long long)cpu->x[15], (unsigned long long)cpu->x[16],
-                        (unsigned long long)cpu->x[17], (unsigned long long)cpu->x[18],
-                        (unsigned long long)cpu->x[19], (unsigned long long)cpu->x[20],
-                        (unsigned long long)cpu->x[21], (unsigned long long)cpu->x[22],
-                        (unsigned long long)cpu->x[23], (unsigned long long)cpu->x[24],
-                        (unsigned long long)cpu->x[25], (unsigned long long)cpu->x[26],
-                        (unsigned long long)cpu->x[27], (unsigned long long)cpu->x[28],
-                        (unsigned long long)cpu->x[29], (unsigned long long)cpu->x[30]);
-        int exit_reason = a64_execute_block(cpu, block);
-        a64_trace_record_block_transition(
-            pc_before_execute, cpu->pc, block, writer_raw,
-            writer_decoded_valid ? &writer_decoded : NULL, exit_reason, branch_reg,
-            branch_target_before_execute, cpu);
-        if (branch_reg >= 0) {
-            a64_trace_event("tcti.branch.reg", "tcti.branch.reg=before:0x%llx,after:0x%llx,reason:%d,raw:0x%08x,"
-                            "rn:%d,target_before:0x%llx,aligned:%d,link_x30:0x%llx",
-                            (unsigned long long)pc_before_execute, (unsigned long long)cpu->pc,
-                            exit_reason, writer_raw, branch_reg,
-                            (unsigned long long)branch_target_before_execute,
-                            (branch_target_before_execute & 3) == 0 ? 1 : 0,
-                            (unsigned long long)cpu->x[30]);
+        if (a64_verbose_block_trace_enabled()) {
+            a64_trace_event("tcti.block.entry",
+                            "tcti.block.entry=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,"
+                            "imm:%lld,start:0x%llx,end:0x%llx,gadgets:%zu,explicit:%d,sp:0x%llx,"
+                            "x0:0x%llx,x1:0x%llx,x2:0x%llx,x3:0x%llx,x4:0x%llx,x5:0x%llx,"
+                            "x6:0x%llx,x7:0x%llx,x8:0x%llx,x9:0x%llx,x10:0x%llx,x11:0x%llx,"
+                            "x12:0x%llx,x13:0x%llx,x14:0x%llx,x15:0x%llx,x16:0x%llx,x17:0x%llx,"
+                            "x18:0x%llx,x19:0x%llx,x20:0x%llx,x21:0x%llx,x22:0x%llx,x23:0x%llx,"
+                            "x24:0x%llx,x25:0x%llx,x26:0x%llx,x27:0x%llx,x28:0x%llx,x29:0x%llx,"
+                            "x30:0x%llx",
+                            (unsigned long long)pc_before_execute, writer_raw, writer_decoded.cat,
+                            writer_decoded.subtype, writer_decoded.Rd, writer_decoded.Rn,
+                            writer_decoded.Rm, (long long)writer_decoded.imm,
+                            (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
+                            block->num_gadgets, block->explicit_pc_on_exit ? 1 : 0,
+                            (unsigned long long)cpu->sp, (unsigned long long)cpu->x[0],
+                            (unsigned long long)cpu->x[1], (unsigned long long)cpu->x[2],
+                            (unsigned long long)cpu->x[3], (unsigned long long)cpu->x[4],
+                            (unsigned long long)cpu->x[5], (unsigned long long)cpu->x[6],
+                            (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[8],
+                            (unsigned long long)cpu->x[9], (unsigned long long)cpu->x[10],
+                            (unsigned long long)cpu->x[11], (unsigned long long)cpu->x[12],
+                            (unsigned long long)cpu->x[13], (unsigned long long)cpu->x[14],
+                            (unsigned long long)cpu->x[15], (unsigned long long)cpu->x[16],
+                            (unsigned long long)cpu->x[17], (unsigned long long)cpu->x[18],
+                            (unsigned long long)cpu->x[19], (unsigned long long)cpu->x[20],
+                            (unsigned long long)cpu->x[21], (unsigned long long)cpu->x[22],
+                            (unsigned long long)cpu->x[23], (unsigned long long)cpu->x[24],
+                            (unsigned long long)cpu->x[25], (unsigned long long)cpu->x[26],
+                            (unsigned long long)cpu->x[27], (unsigned long long)cpu->x[28],
+                            (unsigned long long)cpu->x[29], (unsigned long long)cpu->x[30]);
         }
-        a64_trace_event("tcti.block.exit", "tcti.block.exit=before:0x%llx,after:0x%llx,reason:%d,start:0x%llx,end:0x%llx,"
-                        "explicit:%d,sp:0x%llx,pstate:0x%llx,x0:0x%llx,x1:0x%llx,x2:0x%llx,"
-                        "x3:0x%llx,x4:0x%llx,x5:0x%llx,x6:0x%llx,x7:0x%llx,x8:0x%llx,"
-                        "x9:0x%llx,x10:0x%llx,x11:0x%llx,x12:0x%llx,x13:0x%llx,x14:0x%llx,"
-                        "x15:0x%llx,x16:0x%llx,x17:0x%llx,x18:0x%llx,x19:0x%llx,x20:0x%llx,"
-                        "x21:0x%llx,x22:0x%llx,x23:0x%llx,x24:0x%llx,x25:0x%llx,x26:0x%llx,"
-                        "x27:0x%llx,x28:0x%llx,x29:0x%llx,x30:0x%llx",
-                        (unsigned long long)pc_before_execute, (unsigned long long)cpu->pc,
-                        exit_reason, (unsigned long long)block->start_pc,
-                        (unsigned long long)block->end_pc, block->explicit_pc_on_exit ? 1 : 0,
-                        (unsigned long long)cpu->sp, (unsigned long long)cpu->pstate,
-                        (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[1],
-                        (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[3],
-                        (unsigned long long)cpu->x[4], (unsigned long long)cpu->x[5],
-                        (unsigned long long)cpu->x[6], (unsigned long long)cpu->x[7],
-                        (unsigned long long)cpu->x[8], (unsigned long long)cpu->x[9],
-                        (unsigned long long)cpu->x[10], (unsigned long long)cpu->x[11],
-                        (unsigned long long)cpu->x[12], (unsigned long long)cpu->x[13],
-                        (unsigned long long)cpu->x[14], (unsigned long long)cpu->x[15],
-                        (unsigned long long)cpu->x[16], (unsigned long long)cpu->x[17],
-                        (unsigned long long)cpu->x[18], (unsigned long long)cpu->x[19],
-                        (unsigned long long)cpu->x[20], (unsigned long long)cpu->x[21],
-                        (unsigned long long)cpu->x[22], (unsigned long long)cpu->x[23],
-                        (unsigned long long)cpu->x[24], (unsigned long long)cpu->x[25],
-                        (unsigned long long)cpu->x[26], (unsigned long long)cpu->x[27],
-                        (unsigned long long)cpu->x[28], (unsigned long long)cpu->x[29],
-                        (unsigned long long)cpu->x[30]);
+        int exit_reason = a64_execute_block(cpu, block);
+        a64_trace_record_block_transition(pc_before_execute, cpu->pc, block, writer_raw,
+                                          writer_decoded_valid ? &writer_decoded : NULL,
+                                          exit_reason, branch_reg, branch_target_before_execute,
+                                          cpu);
+        if (branch_reg >= 0 && a64_verbose_block_trace_enabled()) {
+            a64_trace_event(
+                "tcti.branch.reg",
+                "tcti.branch.reg=before:0x%llx,after:0x%llx,reason:%d,raw:0x%08x,"
+                "rn:%d,target_before:0x%llx,aligned:%d,link_x30:0x%llx",
+                (unsigned long long)pc_before_execute, (unsigned long long)cpu->pc, exit_reason,
+                writer_raw, branch_reg, (unsigned long long)branch_target_before_execute,
+                (branch_target_before_execute & 3) == 0 ? 1 : 0, (unsigned long long)cpu->x[30]);
+        }
+        if (a64_verbose_block_trace_enabled()) {
+            a64_trace_event(
+                "tcti.block.exit",
+                "tcti.block.exit=before:0x%llx,after:0x%llx,reason:%d,start:0x%llx,end:0x%llx,"
+                "explicit:%d,sp:0x%llx,pstate:0x%llx,x0:0x%llx,x1:0x%llx,x2:0x%llx,"
+                "x3:0x%llx,x4:0x%llx,x5:0x%llx,x6:0x%llx,x7:0x%llx,x8:0x%llx,"
+                "x9:0x%llx,x10:0x%llx,x11:0x%llx,x12:0x%llx,x13:0x%llx,x14:0x%llx,"
+                "x15:0x%llx,x16:0x%llx,x17:0x%llx,x18:0x%llx,x19:0x%llx,x20:0x%llx,"
+                "x21:0x%llx,x22:0x%llx,x23:0x%llx,x24:0x%llx,x25:0x%llx,x26:0x%llx,"
+                "x27:0x%llx,x28:0x%llx,x29:0x%llx,x30:0x%llx",
+                (unsigned long long)pc_before_execute, (unsigned long long)cpu->pc, exit_reason,
+                (unsigned long long)block->start_pc, (unsigned long long)block->end_pc,
+                block->explicit_pc_on_exit ? 1 : 0, (unsigned long long)cpu->sp,
+                (unsigned long long)cpu->pstate, (unsigned long long)cpu->x[0],
+                (unsigned long long)cpu->x[1], (unsigned long long)cpu->x[2],
+                (unsigned long long)cpu->x[3], (unsigned long long)cpu->x[4],
+                (unsigned long long)cpu->x[5], (unsigned long long)cpu->x[6],
+                (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[8],
+                (unsigned long long)cpu->x[9], (unsigned long long)cpu->x[10],
+                (unsigned long long)cpu->x[11], (unsigned long long)cpu->x[12],
+                (unsigned long long)cpu->x[13], (unsigned long long)cpu->x[14],
+                (unsigned long long)cpu->x[15], (unsigned long long)cpu->x[16],
+                (unsigned long long)cpu->x[17], (unsigned long long)cpu->x[18],
+                (unsigned long long)cpu->x[19], (unsigned long long)cpu->x[20],
+                (unsigned long long)cpu->x[21], (unsigned long long)cpu->x[22],
+                (unsigned long long)cpu->x[23], (unsigned long long)cpu->x[24],
+                (unsigned long long)cpu->x[25], (unsigned long long)cpu->x[26],
+                (unsigned long long)cpu->x[27], (unsigned long long)cpu->x[28],
+                (unsigned long long)cpu->x[29], (unsigned long long)cpu->x[30]);
+        }
         trace_cpu_run_checkpoint("task.proof.a64_cpu_run.exit_reason_set", current, cpu,
                                  exit_reason);
 
@@ -2102,9 +2131,8 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
         } else if (exit_reason == TCTI_EXIT_FAULT) {
             trace_cpu_run_checkpoint("task.proof.a64_cpu_run.exit_fault", current, cpu,
                                      exit_reason);
-            trace_startup_progress_event("task.proof.tcti.fault.full_regs", cpu, block,
-                                         exit_reason, same_block_repeat_count,
-                                         total_blocks_executed);
+            trace_startup_progress_event("task.proof.tcti.fault.full_regs", cpu, block, exit_reason,
+                                         same_block_repeat_count, total_blocks_executed);
 
             trace_guest_first_fault_capture(cpu, guest_fault_signal);
 
@@ -2414,8 +2442,7 @@ int a64_execute_ldst(struct cpu_state *cpu, struct tlb *tlb, const a64_instr_t *
             return -1;
         }
         a64_write_reg_or_sp(cpu, instr->Rd, value,
-                             instr->size == A64_SIZE_X ||
-                                 (instr->is_signed && instr->is_64bit));
+                            instr->size == A64_SIZE_X || (instr->is_signed && instr->is_64bit));
         a64_trace_record_mem_access(cpu, instr, addr, value, (uint8_t)(1u << instr->size), true);
     } else {
         uint64_t value = a64_read_reg_or_sp(cpu, instr->Rd, instr->size == A64_SIZE_X);

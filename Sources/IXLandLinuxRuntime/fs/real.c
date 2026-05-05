@@ -73,6 +73,11 @@ struct fd *realfs_open(struct mount *mount, const char *path, int flags, int mod
     if (fd_no < 0)
         return ERR_PTR(errno_map());
     struct fd *fd = fd_create(&realfs_fdops);
+    if (fd == NULL) {
+        close(fd_no);
+        trace_record_event(TRACE_ORIGIN_KERNEL, "realfs.open.fd_create_fail.enomem");
+        return ERR_PTR(_ENOMEM);
+    }
     fd->real_fd = fd_no;
     fd->dir = NULL;
     return fd;

@@ -651,6 +651,8 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 
     // Full-guest mode: Normal session creation with PTY and Terminal
     BOOL isRestartPath = (self.lastExitedAttemptSequence != 0);
+    self.terminal = nil;
+    self.sessionTerminal = nil;
     [ISHInstrumentation recordEvent:@"app.session.start.enter"
                          attributes:@{ @"is_restart_path": @(isRestartPath),
                                        @"command_path": command.firstObject ?: @"",
@@ -1175,8 +1177,7 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 }
 
 - (void)setSessionTerminal:(Terminal *)sessionTerminal {
-    if (_terminal == nil || _terminal == _sessionTerminal)
-        self.terminal = sessionTerminal;
+    self.terminal = sessionTerminal;
     _sessionTerminal = sessionTerminal;
 }
 

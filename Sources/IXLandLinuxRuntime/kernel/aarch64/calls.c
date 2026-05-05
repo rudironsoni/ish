@@ -118,9 +118,8 @@ static void trace_a64_syscall_entry(const struct cpu_state *cpu, uint64_t syscal
         { .key = "x4", .kind = IXLAND_GUEST_TRACE_FIELD_U64_HEX, .u64_value = cpu->x[4] },
         { .key = "x5", .kind = IXLAND_GUEST_TRACE_FIELD_U64_HEX, .u64_value = cpu->x[5] },
     };
-    ixland_guest_trace_emit_structured(IXLAND_INSTRUMENTATION_ORIGIN_TASK,
-                                       "guest.syscall.enter", fields,
-                                       sizeof(fields) / sizeof(fields[0]));
+    ixland_guest_trace_emit_structured(IXLAND_INSTRUMENTATION_ORIGIN_TASK, "guest.syscall.enter",
+                                       fields, sizeof(fields) / sizeof(fields[0]));
 }
 
 static void trace_a64_syscall_return(const struct cpu_state *cpu, uint64_t syscall_num,
@@ -143,9 +142,8 @@ static void trace_a64_syscall_return(const struct cpu_state *cpu, uint64_t sysca
         { .key = "ret", .kind = IXLAND_GUEST_TRACE_FIELD_U64_HEX, .u64_value = ret },
         { .key = "errno", .kind = IXLAND_GUEST_TRACE_FIELD_I64_DEC, .i64_value = errno_value },
     };
-    ixland_guest_trace_emit_structured(IXLAND_INSTRUMENTATION_ORIGIN_TASK,
-                                       "guest.syscall.return", fields,
-                                       sizeof(fields) / sizeof(fields[0]));
+    ixland_guest_trace_emit_structured(IXLAND_INSTRUMENTATION_ORIGIN_TASK, "guest.syscall.return",
+                                       fields, sizeof(fields) / sizeof(fields[0]));
 }
 
 /*
@@ -186,15 +184,6 @@ void a64_handle_syscall(struct cpu_state *cpu)
 
     // Store return value
     cpu->x[0] = ret;
-
-    // Set carry flag if error (negative return value)
-    // Note: In Linux, errors are indicated by -4096 < ret < 0
-    // but for simplicity, we just check sign
-    if ((int64_t)ret < 0 && (int64_t)ret >= -4095) {
-        cpu->c = 1;
-    } else {
-        cpu->c = 0;
-    }
 
     trace_a64_syscall_return(cpu, syscall_num, ret);
 
@@ -250,14 +239,19 @@ const char *a64_syscall_name(uint64_t num)
         return "unknown";
 
     static const char *syscall_names[] = {
-        [A64_SYS_read] = "read",       [A64_SYS_write] = "write",
-        [A64_SYS_openat] = "openat",   [A64_SYS_close] = "close",
+        [A64_SYS_read] = "read",
+        [A64_SYS_write] = "write",
+        [A64_SYS_openat] = "openat",
+        [A64_SYS_close] = "close",
         [A64_SYS_getdents64] = "getdents64",
         [A64_SYS_lseek] = "lseek",
         [A64_SYS_fcntl] = "fcntl",
-        [A64_SYS_exit] = "exit",       [A64_SYS_exit_group] = "exit_group",
-        [A64_SYS_brk] = "brk",         [A64_SYS_mmap] = "mmap",
-        [A64_SYS_munmap] = "munmap",   [A64_SYS_mremap] = "mremap",
+        [A64_SYS_exit] = "exit",
+        [A64_SYS_exit_group] = "exit_group",
+        [A64_SYS_brk] = "brk",
+        [A64_SYS_mmap] = "mmap",
+        [A64_SYS_munmap] = "munmap",
+        [A64_SYS_mremap] = "mremap",
         [A64_SYS_mprotect] = "mprotect",
         [A64_SYS_set_tid_address] = "set_tid_address",
         [A64_SYS_ioctl] = "ioctl",
@@ -270,7 +264,8 @@ const char *a64_syscall_name(uint64_t num)
         [A64_SYS_fstat] = "fstat",
         [A64_SYS_faccessat] = "faccessat",
         [A64_SYS_getpid] = "getpid",
-        [A64_SYS_getppid] = "getppid", [A64_SYS_getuid] = "getuid",
+        [A64_SYS_getppid] = "getppid",
+        [A64_SYS_getuid] = "getuid",
         [A64_SYS_getgid] = "getgid",
         [A64_SYS_gettid] = "gettid",
         [A64_SYS_clone] = "clone",

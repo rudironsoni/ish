@@ -43,11 +43,13 @@ static size_t dirent_align(size_t reclen, size_t alignment)
 size_t fill_dirent_32(void *dirent_data, ino_t inode, off_t_ offset, const char *name, int type)
 {
     struct linux_dirent_ *dirent = dirent_data;
+    uint16_t reclen =
+        (uint16_t)dirent_align(offsetof(struct linux_dirent_, name) + strlen(name) + 2,
+                               4); // name, null, type
+    memset(dirent_data, 0, reclen);
     dirent->inode = (uint32_t)inode;
     dirent->offset = (uint32_t)offset;
-    dirent->reclen = (uint16_t)dirent_align(
-        offsetof(struct linux_dirent_, name) + strlen(name) + 2, 4); // name, null, type
-    memset(dirent_data, 0, dirent->reclen);
+    dirent->reclen = reclen;
     strcpy(dirent->name, name);
     *((char *)dirent + dirent->reclen - 1) = type;
     return dirent->reclen;
@@ -56,11 +58,12 @@ size_t fill_dirent_32(void *dirent_data, ino_t inode, off_t_ offset, const char 
 size_t fill_dirent_64(void *dirent_data, ino_t inode, off_t_ offset, const char *name, int type)
 {
     struct linux_dirent64_ *dirent = dirent_data;
+    uint16_t reclen = (uint16_t)dirent_align(
+        offsetof(struct linux_dirent64_, name) + strlen(name) + 1, 8); // name, null terminator
+    memset(dirent_data, 0, reclen);
     dirent->inode = inode;
     dirent->offset = offset;
-    dirent->reclen = (uint16_t)dirent_align(
-        offsetof(struct linux_dirent64_, name) + strlen(name) + 1, 8); // name, null terminator
-    memset(dirent_data, 0, dirent->reclen);
+    dirent->reclen = reclen;
     dirent->type = type;
     strcpy(dirent->name, name);
     return dirent->reclen;
@@ -71,10 +74,18 @@ int64_t sys_getdents_common(fd_t f, addr_t dirents, uint64_t count,
 {
     STRACE("getdents(%d, %#x, %#x)", f, dirents, count);
     struct fd *fd = f_get(f);
-    if (fd == NULL)
+    if (fd == NULL) {
+        trace_record_event(TRACE_ORIGIN_KERNEL, "getdents.fail.badfd");
         return _EBADF;
-    if (!S_ISDIR(fd->type) || fd->ops->readdir == NULL)
+    }
+    if (!S_ISDIR(fd->type) || fd->ops->readdir == NULL) {
+        trace_record_event(TRACE_ORIGIN_KERNEL, "getdents.fail.notdir");
         return _ENOTDIR;
+    }
+    char fd_path[MAX_PATH];
+    bool is_root_dir = generic_getpath(fd, fd_path) == 0 && strcmp(fd_path, "/") == 0;
+    if (is_root_dir)
+        trace_record_event(TRACE_ORIGIN_KERNEL, "getdents.root.enter");
 
     uint32_t orig_count = (uint32_t)count;
 
@@ -85,13 +96,22 @@ int64_t sys_getdents_common(fd_t f, addr_t dirents, uint64_t count,
     while (true) {
         ptr = fd_telldir(fd);
         struct dir_entry entry;
+        trace_record_event(TRACE_ORIGIN_KERNEL, "getdents.readdir.enter");
         err = fd->ops->readdir(fd, &entry);
-        if (err < 0)
+        if (err < 0) {
+            if (is_root_dir)
+                trace_record_event(TRACE_ORIGIN_KERNEL, "getdents.root.fail");
+            if (err == _ENOMEM)
+                trace_record_event(TRACE_ORIGIN_KERNEL, "getdents.fail.enomem");
+            trace_record_event(TRACE_ORIGIN_KERNEL, "getdents.fail.readdir");
             return err;
+        }
         if (err == 0)
             break;
+        trace_record_event(TRACE_ORIGIN_KERNEL, "getdents.readdir.ok");
 
-        size_t max_reclen = dirent_align(sizeof(struct linux_dirent64_) + strlen(entry.name) + 4, 8);
+        size_t max_reclen =
+            dirent_align(sizeof(struct linux_dirent64_) + strlen(entry.name) + 4, 8);
         char dirent_data[max_reclen];
         ino_t inode = entry.inode;
         off_t_ offset = fd_telldir(fd);
@@ -108,14 +128,19 @@ int64_t sys_getdents_common(fd_t f, addr_t dirents, uint64_t count,
             rewind_to_last_entry = true;
             break;
         }
-        if (user_write(dirents, dirent_data, reclen))
+        if (user_write(dirents, dirent_data, reclen)) {
+            trace_record_event(TRACE_ORIGIN_KERNEL, "getdents.fail.user_write");
             return _EFAULT;
+        }
         dirents += reclen;
         count -= reclen;
     }
 
     if (rewind_to_last_entry)
         fd_seekdir(fd, ptr);
+    if (is_root_dir)
+        trace_record_event(TRACE_ORIGIN_KERNEL, "getdents.root.ok");
+    trace_record_event(TRACE_ORIGIN_KERNEL, "getdents.ok");
     return orig_count - count;
 }
 

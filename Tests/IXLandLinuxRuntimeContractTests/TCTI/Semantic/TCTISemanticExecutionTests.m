@@ -62,6 +62,34 @@
                     "same flags");
 }
 
+- (void)testSemanticExecutionContract_CSELLSHSTracksUnsignedMinMax
+{
+    XCTAssertEqual(tcti_harness_case_cmp_csel_ls_hs_tracks_unsigned_minmax(), 0ULL,
+                   @"CMP followed by CSEL.LS and CSEL.HS must preserve unsigned carry/zero "
+                    "semantics so ld-musl computes segment bounds correctly");
+}
+
+- (void)testSemanticExecutionContract_CSINVLSPreservesNonOverflowAllocationSize
+{
+    XCTAssertEqual(tcti_harness_case_cmp_csinv_ls_preserves_nonoverflow_size(), 0x1234ULL,
+                   @"CSINV ..., LS must keep the computed size when the preceding unsigned CMP "
+                    "reports no overflow in ld-musl allocation sizing");
+}
+
+- (void)testSemanticExecutionContract_CSINVLSSaturatesOverflowAllocationSize
+{
+    XCTAssertEqual(tcti_harness_case_cmp_csinv_ls_saturates_overflow_size(), UINT64_MAX,
+                   @"CSINV ..., LS must saturate to all-ones when the preceding unsigned CMP "
+                    "detects overflow in ld-musl allocation sizing");
+}
+
+- (void)testSemanticExecutionContract_GeneratedCINCNEIncrementsOnlyOnNE
+{
+    XCTAssertEqual(tcti_harness_case_generated_cinc_ne_increments_only_on_ne(), 8ULL,
+                   @"The generated raw CINC alias from ld-musl must preserve x0 on EQ and "
+                    "increment it only when the preceding CMP is NE");
+}
+
 - (void)testSemanticExecutionContract_VsnprintfZeroSizeCSETNEPreservesZeroFlag
 {
     XCTAssertEqual(tcti_harness_case_vsnprintf_zero_size_cset_ne_preserves_zero_flag(), 0ULL,
@@ -343,6 +371,13 @@
     XCTAssertEqual(tcti_harness_case_musl_mutex_unlock_normal_type_branches_to_fast_unlock(), 0ULL,
                    @"TCTI must preserve Z from ANDS across the following non-flag logical "
                     "immediate so musl pthread_mutex_unlock reaches the normal unlock path");
+}
+
+- (void)testSemanticExecutionContract_UDIVPreservesFlagsForFollowingCSEL
+{
+    XCTAssertEqual(tcti_harness_case_udiv_preserves_flags_for_csel_eq(), 0x1111111111111111ULL,
+                   @"TCTI UDIV fallback must preserve NZCV so a following CSEL EQ observes the "
+                    "pre-divide flags instead of helper-call host flags");
 }
 
 - (void)testSemanticExecutionContract_ADDImmProducesCorrectResult

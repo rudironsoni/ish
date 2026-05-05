@@ -350,6 +350,164 @@ uint64_t tcti_harness_case_csel_preserves_flags_for_bcond(void)
     return cpu.pc;
 }
 
+uint64_t tcti_harness_case_cmp_csel_ls_hs_tracks_unsigned_minmax(void)
+{
+    void *gadgets[] = {
+        (void *)gadget_addsub_reg_fallback,
+        (void *)31, // rd: CMP alias writes XZR
+        (void *)4,  // rn
+        (void *)2,  // rm
+        (void *)0,  // shift_type
+        (void *)0,  // imm_shift
+        (void *)1,  // SUB
+        (void *)1,  // set_flags
+        (void *)1,  // is_64bit
+        (void *)gadget_csel_fallback,
+        (void *)4,      // rd
+        (void *)4,      // rn
+        (void *)2,      // rm
+        (void *)A64_LS, // select unsigned min(x4, x2)
+        (void *)0,
+        (void *)1,
+        (void *)gadget_addsub_reg_fallback,
+        (void *)31, // rd: CMP alias writes XZR
+        (void *)5,  // rn
+        (void *)2,  // rm
+        (void *)0,
+        (void *)0,
+        (void *)1,
+        (void *)1,
+        (void *)1,
+        (void *)gadget_csel_fallback,
+        (void *)5,      // rd
+        (void *)5,      // rn
+        (void *)2,      // rm
+        (void *)A64_CS, // select unsigned max(x5, x2)
+        (void *)0,
+        (void *)1,
+        (void *)tcti_exit_block,
+    };
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.x[2] = 0x4000ULL;
+    cpu.x[4] = 0x9000ULL;
+    cpu.x[5] = 0x1000ULL;
+
+    tcti_entry_block(gadgets, &cpu);
+
+    if (cpu.x[4] != 0x4000ULL)
+        return cpu.x[4];
+    if (cpu.x[5] != 0x4000ULL)
+        return cpu.x[5];
+    return 0ULL;
+}
+
+uint64_t tcti_harness_case_cmp_csinv_ls_preserves_nonoverflow_size(void)
+{
+    enum {
+        A64_CSEL_CSINV = 2,
+    };
+
+    void *gadgets[] = {
+        (void *)gadget_addsub_reg_fallback,
+        (void *)31, // rd: CMP alias writes XZR
+        (void *)3,  // rn
+        (void *)2,  // rm
+        (void *)0,
+        (void *)0,
+        (void *)1,
+        (void *)1,
+        (void *)1,
+        (void *)gadget_csel_fallback,
+        (void *)1,      // rd
+        (void *)1,      // rn
+        (void *)31,     // rm: XZR, so false arm becomes ~0
+        (void *)A64_LS, // keep x1 on non-overflow, saturate on overflow
+        (void *)A64_CSEL_CSINV,
+        (void *)1,
+        (void *)tcti_exit_block,
+    };
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.x[1] = 0x1234ULL;
+    cpu.x[2] = 0x20ULL;
+    cpu.x[3] = 0x10ULL;
+
+    tcti_entry_block(gadgets, &cpu);
+    return cpu.x[1];
+}
+
+uint64_t tcti_harness_case_cmp_csinv_ls_saturates_overflow_size(void)
+{
+    enum {
+        A64_CSEL_CSINV = 2,
+    };
+
+    void *gadgets[] = {
+        (void *)gadget_addsub_reg_fallback,
+        (void *)31, // rd: CMP alias writes XZR
+        (void *)3,  // rn
+        (void *)2,  // rm
+        (void *)0,
+        (void *)0,
+        (void *)1,
+        (void *)1,
+        (void *)1,
+        (void *)gadget_csel_fallback,
+        (void *)1,
+        (void *)1,
+        (void *)31,
+        (void *)A64_LS,
+        (void *)A64_CSEL_CSINV,
+        (void *)1,
+        (void *)tcti_exit_block,
+    };
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.x[1] = 0x1234ULL;
+    cpu.x[2] = 0x10ULL;
+    cpu.x[3] = 0x20ULL;
+
+    tcti_entry_block(gadgets, &cpu);
+    return cpu.x[1];
+}
+
+uint64_t tcti_harness_case_generated_cinc_ne_increments_only_on_ne(void)
+{
+    static const uint32_t equal_insns[] = {
+        0xf1100c5f, // cmp x2, #0x403
+        0x9a800400, // cinc x0, x0, ne
+    };
+    static const uint32_t notequal_insns[] = {
+        0xf110105f, // cmp x2, #0x404
+        0x9a800400, // cinc x0, x0, ne
+    };
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.x[0] = 7;
+    cpu.x[2] = 0x403;
+
+    if (tcti_harness_run_generated_block(&cpu, 0x6c284, equal_insns,
+                                         sizeof(equal_insns) / sizeof(equal_insns[0])) < 0) {
+        return UINT64_MAX;
+    }
+    if (cpu.x[0] != 7)
+        return cpu.x[0];
+
+    cpu.pc = 0x6c284;
+    cpu.x[0] = 7;
+    cpu.x[2] = 0x405;
+    if (tcti_harness_run_generated_block(&cpu, 0x6c284, notequal_insns,
+                                         sizeof(notequal_insns) / sizeof(notequal_insns[0])) < 0) {
+        return UINT64_MAX - 1;
+    }
+    return cpu.x[0];
+}
+
 uint64_t tcti_harness_case_vsnprintf_zero_size_cset_ne_preserves_zero_flag(void)
 {
     enum {
@@ -2875,4 +3033,31 @@ uint64_t tcti_harness_case_musl_memset_dup_zeroes_vector_store(void)
 uint64_t tcti_harness_case_musl_memset_dup_replicates_byte_fill(void)
 {
     return tcti_harness_case_musl_memset_dup_fill(0x21);
+}
+
+uint64_t tcti_harness_case_udiv_preserves_flags_for_csel_eq(void)
+{
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.pc = 0x7989c;
+    cpu.x[1] = 8;
+    cpu.x[5] = 0x1111111111111111ULL;
+    cpu.x[6] = 0x2222222222222222ULL;
+    cpu.x[7] = 2;
+    cpu.x[9] = 0;
+
+    static const uint32_t insns[] = {
+        0xeb09013f, // cmp x9, x9
+        0x1ac70823, // udiv w3, w1, w7
+        0x9a8600a4, // csel x4, x5, x6, eq
+    };
+
+    int run_ret =
+        tcti_harness_run_generated_block(&cpu, cpu.pc, insns, sizeof(insns) / sizeof(insns[0]));
+    if (run_ret < 0)
+        return 0x1000000000000000ULL | (uint64_t)(uint8_t)(-run_ret);
+
+    if (cpu.x[3] != 4)
+        return 0x2000000000000000ULL | cpu.x[3];
+    return cpu.x[4];
 }

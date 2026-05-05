@@ -1,3 +1,4 @@
+#import <IXLandInstrumentationTracing/trace.h>
 #import <IXLandLinuxRuntime/fs/tty.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
@@ -97,6 +98,8 @@ void task_leave_session(struct task *task)
         tty_release(group->tty);
         group->tty = NULL;
         unlock(&ttys_lock);
+    } else {
+        trace_record_event(TRACE_ORIGIN_KERNEL, "task_leave_session.no_tty");
     }
 }
 

@@ -4,12 +4,12 @@
 #import <IXLandLinuxRuntime/fs/real.h>
 #import <IXLandLinuxRuntime/fs/tty.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
+#import <IXLandLinuxRuntime/kernel/fs.h>
+#import <IXLandLinuxRuntime/kernel/guest_trace_context.h>
 #import <IXLandLinuxRuntime/kernel/init.h>
 #import <IXLandLinuxRuntime/kernel/personality.h>
-#import <IXLandLinuxRuntime/kernel/guest_trace_context.h>
-#import <IXLandLinuxRuntime/kernel/fs.h>
-#include <stdlib.h>
 #include <signal.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 
@@ -17,47 +17,73 @@ int mount_root(const struct fs_ops *fs, const char *source)
 {
     trace_record_event(TRACE_ORIGIN_KERNEL, "boot.mount_root.entry");
     ixland_guest_trace_field_t mr_fields[] = {
-        { .key = "source", .kind = IXLAND_GUEST_TRACE_FIELD_STRING, .string_value = (char *)source },
+        { .key = "source",
+          .kind = IXLAND_GUEST_TRACE_FIELD_STRING,
+          .string_value = (char *)source },
     };
-    ixland_guest_trace_emit_structured(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "boot.mount_root.entry", mr_fields,
-                                      sizeof(mr_fields) / sizeof(mr_fields[0]));
+    ixland_guest_trace_emit_structured(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
+                                       "boot.mount_root.entry", mr_fields,
+                                       sizeof(mr_fields) / sizeof(mr_fields[0]));
     char source_realpath[MAX_PATH + 1];
     if (realpath(source, source_realpath) == NULL) {
-    ixland_guest_trace_field_t fields[] = {
-        { .key = "source", .kind = IXLAND_GUEST_TRACE_FIELD_STRING, .string_value = (char *)source },
-        { .key = "errno", .kind = IXLAND_GUEST_TRACE_FIELD_I64_DEC, .i64_value = (int64_t)errno },
-    };
-    ixland_guest_trace_emit_structured(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "boot.mount_root.exit", fields,
-                                      sizeof(fields) / sizeof(fields[0]));
+        ixland_guest_trace_field_t fields[] = {
+            { .key = "source",
+              .kind = IXLAND_GUEST_TRACE_FIELD_STRING,
+              .string_value = (char *)source },
+            { .key = "errno",
+              .kind = IXLAND_GUEST_TRACE_FIELD_I64_DEC,
+              .i64_value = (int64_t)errno },
+        };
+        ixland_guest_trace_emit_structured(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
+                                           "boot.mount_root.exit", fields,
+                                           sizeof(fields) / sizeof(fields[0]));
         return errno_map();
     }
     int err = do_mount(fs, source_realpath, "", "", 0);
     if (err < 0) {
         ixland_guest_trace_field_t fields[] = {
-            { .key = "source", .kind = IXLAND_GUEST_TRACE_FIELD_STRING, .string_value = (char *)source_realpath },
-            { .key = "return_value", .kind = IXLAND_GUEST_TRACE_FIELD_I64_DEC, .i64_value = (int64_t)err },
+            { .key = "source",
+              .kind = IXLAND_GUEST_TRACE_FIELD_STRING,
+              .string_value = (char *)source_realpath },
+            { .key = "return_value",
+              .kind = IXLAND_GUEST_TRACE_FIELD_I64_DEC,
+              .i64_value = (int64_t)err },
         };
-        ixland_guest_trace_emit_structured(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "boot.mount_root.exit", fields,
-                                          sizeof(fields) / sizeof(fields[0]));
+        ixland_guest_trace_emit_structured(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
+                                           "boot.mount_root.exit", fields,
+                                           sizeof(fields) / sizeof(fields[0]));
         return err;
     }
     if (!mounts_is_non_empty()) {
         ixland_guest_trace_field_t fields[] = {
-            { .key = "source", .kind = IXLAND_GUEST_TRACE_FIELD_STRING, .string_value = (char *)source_realpath },
-            { .key = "return_value", .kind = IXLAND_GUEST_TRACE_FIELD_I64_DEC, .i64_value = (int64_t)_ENODEV },
-            { .key = "mounts_non_empty", .kind = IXLAND_GUEST_TRACE_FIELD_I64_DEC, .i64_value = (int64_t)0 },
+            { .key = "source",
+              .kind = IXLAND_GUEST_TRACE_FIELD_STRING,
+              .string_value = (char *)source_realpath },
+            { .key = "return_value",
+              .kind = IXLAND_GUEST_TRACE_FIELD_I64_DEC,
+              .i64_value = (int64_t)_ENODEV },
+            { .key = "mounts_non_empty",
+              .kind = IXLAND_GUEST_TRACE_FIELD_I64_DEC,
+              .i64_value = (int64_t)0 },
         };
-        ixland_guest_trace_emit_structured(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "boot.mount_root.exit", fields,
-                                          sizeof(fields) / sizeof(fields[0]));
+        ixland_guest_trace_emit_structured(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
+                                           "boot.mount_root.exit", fields,
+                                           sizeof(fields) / sizeof(fields[0]));
         return _ENODEV;
     }
     ixland_guest_trace_field_t ok_fields[] = {
-        { .key = "source", .kind = IXLAND_GUEST_TRACE_FIELD_STRING, .string_value = (char *)source_realpath },
-        { .key = "return_value", .kind = IXLAND_GUEST_TRACE_FIELD_I64_DEC, .i64_value = (int64_t)0 },
-        { .key = "mounts_non_empty", .kind = IXLAND_GUEST_TRACE_FIELD_I64_DEC, .i64_value = (int64_t)1 },
+        { .key = "source",
+          .kind = IXLAND_GUEST_TRACE_FIELD_STRING,
+          .string_value = (char *)source_realpath },
+        { .key = "return_value",
+          .kind = IXLAND_GUEST_TRACE_FIELD_I64_DEC,
+          .i64_value = (int64_t)0 },
+        { .key = "mounts_non_empty",
+          .kind = IXLAND_GUEST_TRACE_FIELD_I64_DEC,
+          .i64_value = (int64_t)1 },
     };
-    ixland_guest_trace_emit_structured(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "boot.mount_root.exit", ok_fields,
-                                      sizeof(ok_fields) / sizeof(ok_fields[0]));
+    ixland_guest_trace_emit_structured(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "boot.mount_root.exit",
+                                       ok_fields, sizeof(ok_fields) / sizeof(ok_fields[0]));
     return 0;
 }
 
@@ -104,12 +130,12 @@ static struct task *construct_task(struct task *parent)
     struct task *task = task_create_(parent);
     if (task && !IS_ERR(task))
         trace_record_event(TRACE_ORIGIN_KERNEL, "boot.construct_task.created_task_ptr");
-    if (task == NULL || IS_ERR(task))
-    {
+    if (task == NULL || IS_ERR(task)) {
         int err = task ? (int)PTR_ERR(task) : -ENOMEM;
         /* Emit structured instrumentation for task_create_ failure */
         ixland_guest_trace_emit_int(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
-                                    "boot.construct_task.error", "task_create_failure", (int64_t)err);
+                                    "boot.construct_task.error", "task_create_failure",
+                                    (int64_t)err);
         return ERR_PTR(err);
     }
 
@@ -137,7 +163,8 @@ static struct task *construct_task(struct task *parent)
     if (new_mm == NULL) {
         printk("ERROR: construct_task: mm_new() failed\n");
         ixland_guest_trace_emit_int(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
-                                    "boot.construct_task.error", "mm_new_failure", (int64_t)-ENOMEM);
+                                    "boot.construct_task.error", "mm_new_failure",
+                                    (int64_t)-ENOMEM);
         return ERR_PTR(-ENOMEM);
     }
     task_set_mm(task, new_mm);
@@ -165,12 +192,16 @@ static struct task *construct_task(struct task *parent)
     if (list_empty(&mounts)) {
         int is_testing = getenv("XCTestConfigurationFilePath") != NULL;
         ixland_guest_trace_field_t mf_fields[] = {
-            { .key = "mounts_count", .kind = IXLAND_GUEST_TRACE_FIELD_I64_DEC, .i64_value = (int64_t)0 },
-            { .key = "is_testing", .kind = IXLAND_GUEST_TRACE_FIELD_I64_DEC, .i64_value = (int64_t)is_testing },
+            { .key = "mounts_count",
+              .kind = IXLAND_GUEST_TRACE_FIELD_I64_DEC,
+              .i64_value = (int64_t)0 },
+            { .key = "is_testing",
+              .kind = IXLAND_GUEST_TRACE_FIELD_I64_DEC,
+              .i64_value = (int64_t)is_testing },
         };
         ixland_guest_trace_emit_structured(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
-                                          "boot.construct_task.mounts_empty", mf_fields,
-                                          sizeof(mf_fields) / sizeof(mf_fields[0]));
+                                           "boot.construct_task.mounts_empty", mf_fields,
+                                           sizeof(mf_fields) / sizeof(mf_fields[0]));
         unlock(&mounts_lock);
         ixland_guest_trace_emit_int(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
                                     "boot.construct_task.error", "mounts_empty", (int64_t)_ENODEV);
@@ -185,7 +216,8 @@ static struct task *construct_task(struct task *parent)
         int err = (int)PTR_ERR(task->fs->root);
         printk("ERROR: construct_task: generic_open(/) failed with %d\n", err);
         ixland_guest_trace_emit_int(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
-                                    "boot.construct_task.error", "generic_open_root_failure", (int64_t)err);
+                                    "boot.construct_task.error", "generic_open_root_failure",
+                                    (int64_t)err);
         return ERR_PTR(err);
     }
     trace_record_event(TRACE_ORIGIN_KERNEL, "boot.construct_task.root_open_ok");
@@ -209,8 +241,8 @@ static struct task *construct_task(struct task *parent)
                                    (uint64_t)task->mem);
 
     /* Emit structured instrumentation proving construct_task succeeded and the assigned pid */
-    ixland_guest_trace_emit_int(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
-                                "boot.construct_task.success", "assigned_pid", (int64_t)task->pid);
+    ixland_guest_trace_emit_int(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "boot.construct_task.success",
+                                "assigned_pid", (int64_t)task->pid);
     trace_record_event(TRACE_ORIGIN_KERNEL, "boot.construct_task.exit_success");
 
     return task;
@@ -251,7 +283,8 @@ int become_first_process(void)
                                     "boot.construct_task.error", "err", (int64_t)err);
         /* Also emit a summary event for the construct return with errno */
         ixland_guest_trace_emit_int(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
-                                    "boot.become_first_process.construct_return", "return_value", (int64_t)err);
+                                    "boot.become_first_process.construct_return", "return_value",
+                                    (int64_t)err);
         return err;
     }
 
@@ -262,9 +295,11 @@ int become_first_process(void)
     printk("become_first_process: current set successfully, current=%p\n", (void *)current);
     /* On success, emit the assigned PID as evidence that PID 1 exists. */
     ixland_guest_trace_emit_int(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
-                                "boot.become_first_process.construct_return", "return_value", (int64_t)0);
+                                "boot.become_first_process.construct_return", "return_value",
+                                (int64_t)0);
     ixland_guest_trace_emit_int(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
-                                "boot.become_first_process.construct_return", "assigned_pid", (int64_t)task->pid);
+                                "boot.become_first_process.construct_return", "assigned_pid",
+                                (int64_t)task->pid);
 
     printk("become_first_process: RETURN 0\n");
     return 0;
@@ -279,19 +314,24 @@ int become_new_init_child(void)
          * as a minimal robust recovery: call become_first_process() and
          * re-check the pid table. Emit structured instrumentation so UI
          * tests and logs record the retry and its result. */
-        ixland_guest_trace_emit(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "boot.init_child.no_init_task.attempt_reinit");
+        ixland_guest_trace_emit(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
+                                "boot.init_child.no_init_task.attempt_reinit");
         int err = become_first_process();
-        ixland_guest_trace_emit_int(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "boot.become_first_process.retry.return", "return_value", (int64_t)err);
+        ixland_guest_trace_emit_int(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
+                                    "boot.become_first_process.retry.return", "return_value",
+                                    (int64_t)err);
         if (err < 0) {
             /* If re-init failed, surface the error to caller */
-            ixland_guest_trace_emit(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "boot.become_first_process.retry.failed");
+            ixland_guest_trace_emit(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
+                                    "boot.become_first_process.retry.failed");
             return err;
         }
 
         /* Re-check pid table after attempted re-init */
         init = pid_get_task(1);
         if (init == NULL) {
-            ixland_guest_trace_emit(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "boot.init_child.pid1_still_missing_after_retry");
+            ixland_guest_trace_emit(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
+                                    "boot.init_child.pid1_still_missing_after_retry");
             return -1;
         }
     }
@@ -332,16 +372,19 @@ void set_console_device(int major, int minor)
 
 int create_stdio(const char *file, int major, int minor)
 {
-    struct fd *fd = generic_open(file, O_RDWR_, 0);
-    if (IS_ERR(fd)) {
-        // fallback to adhoc files for stdio
-        fd = adhoc_fd_create(NULL);
-        fd->stat.rdev = dev_make(major, minor);
-        fd->stat.mode = S_IFCHR | S_IRUSR;
-        fd->flags = O_RDWR_;
-        int err = dev_open(major, minor, DEV_CHAR, fd);
-        if (err < 0)
-            return err;
+    (void)file;
+    struct fd *fd = adhoc_fd_create(NULL);
+    if (fd == NULL)
+        return -_ENOMEM;
+
+    fd->stat.rdev = dev_make(major, minor);
+    fd->stat.mode = S_IFCHR | S_IRUSR;
+    fd->flags = O_RDWR_;
+
+    int err = dev_open(major, minor, DEV_CHAR, fd);
+    if (err < 0) {
+        fd_close(fd);
+        return err;
     }
 
     fd->refcount = 0;

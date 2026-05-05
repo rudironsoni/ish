@@ -40,7 +40,7 @@
 #include <string.h>
 
 #define TCTI_HOT_REG_COUNT 13
-#define TCTI_MEM_REG_BASE 13
+#define TCTI_MEM_REG_BASE  13
 #define TCTI_MEM_REG_COUNT (31 - TCTI_MEM_REG_BASE)
 
 // ============================================================================
@@ -63,10 +63,10 @@ static void tcti_trace_record_mem_access(struct cpu_state *cpu, uint64_t pc, uin
                                          int rn, int rm, int idx_mode);
 
 // Stub functions retained for external diagnostic symbol compatibility.
-void dump_str_wb_diag(void) { }
-void dump_cmp_capture(void) { }
-void dump_cmp_bcond_diag(void) { }
-void dump_runtime_diag(void) { }
+void dump_str_wb_diag(void) {}
+void dump_cmp_capture(void) {}
+void dump_cmp_bcond_diag(void) {}
+void dump_runtime_diag(void) {}
 
 // Verify offset assumptions at compile time
 #define XREG_OFFSET(n)   (offsetof(struct cpu_state, x[n]))
@@ -117,8 +117,8 @@ static uint64_t tcti_replicate32(uint32_t value)
 static int tcti_simd_vec_access(struct cpu_state *cpu, uint64_t addr, uint64_t vt,
                                 uint64_t vec_bytes, int is_load)
 {
-    if (vt >= 32 || (vec_bytes != 1 && vec_bytes != 2 && vec_bytes != 4 &&
-                     vec_bytes != 8 && vec_bytes != 16)) {
+    if (vt >= 32 ||
+        (vec_bytes != 1 && vec_bytes != 2 && vec_bytes != 4 && vec_bytes != 8 && vec_bytes != 16)) {
         return TCTI_EXIT_FAULT;
     }
 
@@ -128,8 +128,7 @@ static int tcti_simd_vec_access(struct cpu_state *cpu, uint64_t addr, uint64_t v
                            A64_MEM_OK
                        ? TCTI_EXIT_NORMAL
                        : TCTI_EXIT_FAULT;
-        return a64_guest_write(cpu, cpu->tlb, addr, cpu->vregs[vt].b, (int)vec_bytes) ==
-                       A64_MEM_OK
+        return a64_guest_write(cpu, cpu->tlb, addr, cpu->vregs[vt].b, (int)vec_bytes) == A64_MEM_OK
                    ? TCTI_EXIT_NORMAL
                    : TCTI_EXIT_FAULT;
     }
@@ -150,8 +149,7 @@ static int tcti_simd_vec_access(struct cpu_state *cpu, uint64_t addr, uint64_t v
 }
 
 __attribute__((used)) static void tcti_simd_dup_gpr_helper(struct cpu_state *cpu, uint64_t vd,
-                                                          uint64_t rn,
-                                                          uint64_t vec_bytes)
+                                                           uint64_t rn, uint64_t vec_bytes)
 {
     uint64_t value = tcti_read_reg_or_zr(cpu, (int)rn);
     if (vd >= 32)
@@ -180,8 +178,7 @@ __attribute__((used)) static void tcti_simd_dup_gpr_helper(struct cpu_state *cpu
     }
 }
 
-static uint64_t tcti_advsimd_modified_immediate64(uint64_t imm8_value, uint64_t cmode,
-                                                  uint64_t op)
+static uint64_t tcti_advsimd_modified_immediate64(uint64_t imm8_value, uint64_t cmode, uint64_t op)
 {
     uint8_t imm8 = (uint8_t)imm8_value;
 
@@ -228,8 +225,8 @@ static uint64_t tcti_advsimd_modified_immediate64(uint64_t imm8_value, uint64_t 
 }
 
 __attribute__((used)) static void tcti_simd_movi_imm_helper(struct cpu_state *cpu, uint64_t vd,
-                                                           uint64_t imm8, uint64_t cmode,
-                                                           uint64_t op, uint64_t q)
+                                                            uint64_t imm8, uint64_t cmode,
+                                                            uint64_t op, uint64_t q)
 {
     if (vd >= 32)
         return;
@@ -239,12 +236,9 @@ __attribute__((used)) static void tcti_simd_movi_imm_helper(struct cpu_state *cp
     cpu->vregs[vd].d[1] = q ? low : 0;
 }
 
-__attribute__((used)) static void tcti_simd_mov_gpr_from_vec_helper(struct cpu_state *cpu,
-                                                                   uint64_t rd,
-                                                                   uint64_t vn,
-                                                                   uint64_t vec_bytes,
-                                                                   uint64_t vec_index,
-                                                                   uint64_t is_64bit)
+__attribute__((used)) static void
+tcti_simd_mov_gpr_from_vec_helper(struct cpu_state *cpu, uint64_t rd, uint64_t vn,
+                                  uint64_t vec_bytes, uint64_t vec_index, uint64_t is_64bit)
 {
     uint64_t value = 0;
 
@@ -276,8 +270,7 @@ __attribute__((used)) static void tcti_simd_mov_gpr_from_vec_helper(struct cpu_s
 }
 
 __attribute__((used)) static void tcti_simd_fmov_gpr_helper(struct cpu_state *cpu, uint64_t rd,
-                                                            uint64_t rn,
-                                                            uint64_t vec_bytes,
+                                                            uint64_t rn, uint64_t vec_bytes,
                                                             uint64_t gpr_to_fp)
 {
     if (vec_bytes != 4 && vec_bytes != 8)
@@ -306,12 +299,10 @@ __attribute__((used)) static void tcti_simd_fmov_gpr_helper(struct cpu_state *cp
 }
 
 __attribute__((used)) static int tcti_simd_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc,
-                                                      uint64_t rt, uint64_t rt2,
-                                                      uint64_t rn, int64_t imm,
-                                                      uint64_t vec_bytes,
-                                                      uint64_t idx_mode,
-                                                      uint64_t is_pair,
-                                                      uint64_t is_load)
+                                                       uint64_t rt, uint64_t rt2, uint64_t rn,
+                                                       int64_t imm, uint64_t vec_bytes,
+                                                       uint64_t idx_mode, uint64_t is_pair,
+                                                       uint64_t is_load)
 {
     uint64_t base = tcti_read_base_reg_or_sp(cpu, (int)rn);
     uint64_t addr = base + (uint64_t)imm;
@@ -336,8 +327,8 @@ __attribute__((used)) static int tcti_simd_ldst_helper(struct cpu_state *cpu, ui
         else if (vec_bytes == 1)
             value = cpu->vregs[rt].b[0];
         tcti_trace_record_mem_access(cpu, fault_pc, 0, addr, value, base, addr - base,
-                                     (uint8_t)(vec_bytes >= 8 ? 8 : vec_bytes), 0, (int)rt,
-                                     (int)rn, -1, (int)idx_mode);
+                                     (uint8_t)(vec_bytes >= 8 ? 8 : vec_bytes), 0, (int)rt, (int)rn,
+                                     -1, (int)idx_mode);
         if (vec_bytes == 16)
             tcti_trace_record_mem_access(cpu, fault_pc, 0, addr + 8, cpu->vregs[rt].d[1], base,
                                          addr + 8 - base, 8, 0, (int)rt, (int)rn, -1,
@@ -356,15 +347,13 @@ __attribute__((used)) static int tcti_simd_ldst_helper(struct cpu_state *cpu, ui
                 value = cpu->vregs[rt2].h[0];
             else if (vec_bytes == 1)
                 value = cpu->vregs[rt2].b[0];
-            tcti_trace_record_mem_access(cpu, fault_pc, 0, addr + vec_bytes, value, base,
-                                         addr + vec_bytes - base,
-                                         (uint8_t)(vec_bytes >= 8 ? 8 : vec_bytes), 0,
-                                         (int)rt2, (int)rn, -1, (int)idx_mode);
+            tcti_trace_record_mem_access(
+                cpu, fault_pc, 0, addr + vec_bytes, value, base, addr + vec_bytes - base,
+                (uint8_t)(vec_bytes >= 8 ? 8 : vec_bytes), 0, (int)rt2, (int)rn, -1, (int)idx_mode);
             if (vec_bytes == 16)
-                tcti_trace_record_mem_access(cpu, fault_pc, 0, addr + vec_bytes + 8,
-                                             cpu->vregs[rt2].d[1], base,
-                                             addr + vec_bytes + 8 - base, 8, 0, (int)rt2,
-                                             (int)rn, -1, (int)idx_mode);
+                tcti_trace_record_mem_access(
+                    cpu, fault_pc, 0, addr + vec_bytes + 8, cpu->vregs[rt2].d[1], base,
+                    addr + vec_bytes + 8 - base, 8, 0, (int)rt2, (int)rn, -1, (int)idx_mode);
         }
     }
 
@@ -405,8 +394,8 @@ static int a64_tcti_dc_zva_helper(struct cpu_state *cpu, uint64_t rt)
             cpu->fault_was_write = true;
             return TCTI_EXIT_FAULT;
         }
-        tcti_trace_record_mem_access(cpu, cpu->pc, 0, addr + offset, 0, addr, offset, 8, 0,
-                                     (int)rt, (int)rt, -1, A64_INDEX_OFFSET);
+        tcti_trace_record_mem_access(cpu, cpu->pc, 0, addr + offset, 0, addr, offset, 8, 0, (int)rt,
+                                     (int)rt, -1, A64_INDEX_OFFSET);
     }
 
     return TCTI_EXIT_NORMAL;
@@ -527,34 +516,35 @@ static void trace_tcti_ldst_access(struct cpu_state *cpu, const char *event_name
         { .key = "instance_id", .kind = TRACE_FIELD_U64_DEC, .u64_value = instance_id },
         { .key = "guest_pc", .kind = TRACE_FIELD_U64_HEX, .u64_value = fault_pc },
         { .key = "raw_opcode", .kind = TRACE_FIELD_U64_HEX, .u64_value = raw_opcode },
-        { .key = "mnemonic", .kind = TRACE_FIELD_STRING,
+        { .key = "mnemonic",
+          .kind = TRACE_FIELD_STRING,
           .string_value = get_ldst_mnemonic((int)is_load, (int)size, (int)is_signed) },
         { .key = "is_load", .kind = TRACE_FIELD_I64_DEC, .i64_value = is_load ? 1 : 0 },
         { .key = "rt", .kind = TRACE_FIELD_I64_DEC, .i64_value = (int64_t)rt },
         { .key = "rn", .kind = TRACE_FIELD_I64_DEC, .i64_value = (int64_t)rn },
         { .key = "rm", .kind = TRACE_FIELD_I64_DEC, .i64_value = is_reg_offset ? rm : -1 },
-        { .key = "idx_mode", .kind = TRACE_FIELD_STRING,
+        { .key = "idx_mode",
+          .kind = TRACE_FIELD_STRING,
           .string_value = get_ldst_idx_mode_name(idx_mode) },
-        { .key = "extend", .kind = TRACE_FIELD_STRING,
+        { .key = "extend",
+          .kind = TRACE_FIELD_STRING,
           .string_value = is_reg_offset ? get_ldst_extend_name(extend_type) : "none" },
         { .key = "shift", .kind = TRACE_FIELD_I64_DEC, .i64_value = reg_shift },
         { .key = "imm", .kind = TRACE_FIELD_I64_DEC, .i64_value = imm },
         { .key = "base", .kind = TRACE_FIELD_U64_HEX, .u64_value = base },
         { .key = "rm_val", .kind = TRACE_FIELD_U64_HEX, .u64_value = rm_val },
-        { .key = "offset_before_shift", .kind = TRACE_FIELD_U64_HEX,
+        { .key = "offset_before_shift",
+          .kind = TRACE_FIELD_U64_HEX,
           .u64_value = offset_before_shift },
-        { .key = "computed_offset", .kind = TRACE_FIELD_U64_HEX,
-          .u64_value = computed_offset },
+        { .key = "computed_offset", .kind = TRACE_FIELD_U64_HEX, .u64_value = computed_offset },
         { .key = "guest_ea", .kind = TRACE_FIELD_U64_HEX, .u64_value = addr },
         { .key = "page", .kind = TRACE_FIELD_U64_HEX, .u64_value = page },
         { .key = "host_ptr", .kind = TRACE_FIELD_U64_HEX, .u64_value = host_ptr },
-        { .key = "page_lookup", .kind = TRACE_FIELD_STRING,
-          .string_value = desc ? "hit" : "miss" },
+        { .key = "page_lookup", .kind = TRACE_FIELD_STRING, .string_value = desc ? "hit" : "miss" },
         { .key = "value", .kind = TRACE_FIELD_U64_HEX, .u64_value = value },
         { .key = "mem_result", .kind = TRACE_FIELD_I64_DEC, .i64_value = mem_ret },
         { .key = "width", .kind = TRACE_FIELD_I64_DEC, .i64_value = width },
-        { .key = "writeback_enabled", .kind = TRACE_FIELD_I64_DEC,
-          .i64_value = writeback_enabled },
+        { .key = "writeback_enabled", .kind = TRACE_FIELD_I64_DEC, .i64_value = writeback_enabled },
         { .key = "writeback_value", .kind = TRACE_FIELD_U64_HEX, .u64_value = writeback_value },
     };
     trace_record_event_fields(TRACE_ORIGIN_TCTI, event_name, fields,
@@ -563,8 +553,8 @@ static void trace_tcti_ldst_access(struct cpu_state *cpu, const char *event_name
 
 static void trace_tcti_atomic_access(struct cpu_state *cpu, uint64_t guest_pc, uint32_t raw_opcode,
                                      uint64_t rt, uint64_t rn, uint64_t rs, uint64_t size,
-                                     uint64_t is_load, uint64_t addr, uint64_t value,
-                                     int mem_ret, int store_status)
+                                     uint64_t is_load, uint64_t addr, uint64_t value, int mem_ret,
+                                     int store_status)
 {
     (void)cpu;
     trace_field_t fields[] = {
@@ -667,11 +657,11 @@ static int tcti_atomic_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uin
         }
 
         if (ret == A64_MEM_OK) {
-            tcti_trace_record_mem_access(cpu, fault_pc, 0, addr, value, addr, 0, width, 1,
-                                         (int)rt, (int)rn, -1, A64_INDEX_OFFSET);
+            tcti_trace_record_mem_access(cpu, fault_pc, 0, addr, value, addr, 0, width, 1, (int)rt,
+                                         (int)rn, -1, A64_INDEX_OFFSET);
         }
-        trace_tcti_atomic_access(cpu, fault_pc, raw_opcode, rt, rn, rs, size, is_load, addr,
-                                 value, ret, -1);
+        trace_tcti_atomic_access(cpu, fault_pc, raw_opcode, rt, rn, rs, size, is_load, addr, value,
+                                 ret, -1);
     } else {
         uint64_t value = tcti_read_reg_or_zr(cpu, (int)rt);
         uint8_t width = 0;
@@ -706,8 +696,8 @@ static int tcti_atomic_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uin
             }
             tcti_write_reg_or_zr(cpu, (int)rs, success ? 0 : 1, 0);
         }
-        trace_tcti_atomic_access(cpu, fault_pc, raw_opcode, rt, rn, rs, size, is_load, addr,
-                                 value, ret, success ? 0 : 1);
+        trace_tcti_atomic_access(cpu, fault_pc, raw_opcode, rt, rn, rs, size, is_load, addr, value,
+                                 ret, success ? 0 : 1);
     }
 
     if (ret == A64_MEM_OK)
@@ -747,7 +737,7 @@ static uint64_t tcti_extend_ldst_offset(struct cpu_state *cpu, int rm, int exten
 
 static uint64_t g_ldst_instance_id = 0;
 
-#define TCTI_TRACE_MEM_HISTORY_SIZE 2048
+#define TCTI_TRACE_MEM_HISTORY_SIZE   2048
 #define TCTI_TRACE_STORE_HISTORY_SIZE 65536
 
 typedef struct {
@@ -776,8 +766,7 @@ static uint16_t g_tcti_trace_mem_history_next = 0;
 static uint16_t g_tcti_trace_mem_history_count = 0;
 static uint16_t g_tcti_trace_mem_history_sequence = 0;
 
-static tcti_trace_store_history_entry_t
-    g_tcti_trace_store_history[TCTI_TRACE_STORE_HISTORY_SIZE];
+static tcti_trace_store_history_entry_t g_tcti_trace_store_history[TCTI_TRACE_STORE_HISTORY_SIZE];
 static uint32_t g_tcti_trace_store_history_next = 0;
 static uint32_t g_tcti_trace_store_history_count = 0;
 static uint32_t g_tcti_trace_store_history_sequence = 0;
@@ -891,20 +880,16 @@ static void tcti_trace_emit_store_source_entry(uint32_t source_slot, uint64_t so
         { .key = "source_addr", .kind = TRACE_FIELD_U64_HEX, .u64_value = source_addr },
         { .key = "source_value", .kind = TRACE_FIELD_U64_HEX, .u64_value = source_value },
         { .key = "store_slot", .kind = TRACE_FIELD_U64_DEC, .u64_value = store_slot },
-        { .key = "store_sequence", .kind = TRACE_FIELD_U64_DEC,
+        { .key = "store_sequence",
+          .kind = TRACE_FIELD_U64_DEC,
           .u64_value = store->store_sequence },
-        { .key = "store_guest_pc", .kind = TRACE_FIELD_U64_HEX,
-          .u64_value = store->access.pc },
-        { .key = "store_raw_opcode", .kind = TRACE_FIELD_U64_HEX,
-          .u64_value = store->access.raw },
+        { .key = "store_guest_pc", .kind = TRACE_FIELD_U64_HEX, .u64_value = store->access.pc },
+        { .key = "store_raw_opcode", .kind = TRACE_FIELD_U64_HEX, .u64_value = store->access.raw },
         { .key = "store_addr", .kind = TRACE_FIELD_U64_HEX, .u64_value = store->access.addr },
-        { .key = "store_value", .kind = TRACE_FIELD_U64_HEX,
-          .u64_value = store->access.value },
+        { .key = "store_value", .kind = TRACE_FIELD_U64_HEX, .u64_value = store->access.value },
         { .key = "store_base", .kind = TRACE_FIELD_U64_HEX, .u64_value = store->access.base },
-        { .key = "store_offset", .kind = TRACE_FIELD_U64_HEX,
-          .u64_value = store->access.offset },
-        { .key = "store_width", .kind = TRACE_FIELD_U64_DEC,
-          .u64_value = store->access.width },
+        { .key = "store_offset", .kind = TRACE_FIELD_U64_HEX, .u64_value = store->access.offset },
+        { .key = "store_width", .kind = TRACE_FIELD_U64_DEC, .u64_value = store->access.width },
         { .key = "store_rt", .kind = TRACE_FIELD_I64_DEC, .i64_value = store->access.rt },
         { .key = "store_rn", .kind = TRACE_FIELD_I64_DEC, .i64_value = store->access.rn },
         { .key = "store_rm", .kind = TRACE_FIELD_I64_DEC, .i64_value = store->access.rm },
@@ -922,8 +907,7 @@ static void tcti_trace_emit_mem_history_on_fault(struct cpu_state *cpu, uint64_t
     uint32_t emitted_recent = 0;
     uint32_t emitted_matches = 0;
     for (uint32_t i = 0; i < g_tcti_trace_mem_history_count; i++) {
-        uint32_t index = (uint32_t)((g_tcti_trace_mem_history_next +
-                                     TCTI_TRACE_MEM_HISTORY_SIZE -
+        uint32_t index = (uint32_t)((g_tcti_trace_mem_history_next + TCTI_TRACE_MEM_HISTORY_SIZE -
                                      g_tcti_trace_mem_history_count + i) %
                                     TCTI_TRACE_MEM_HISTORY_SIZE);
         const tcti_trace_mem_history_entry_t *entry = &g_tcti_trace_mem_history[index];
@@ -936,13 +920,11 @@ static void tcti_trace_emit_mem_history_on_fault(struct cpu_state *cpu, uint64_t
             const tcti_trace_store_history_entry_t *store =
                 tcti_trace_find_last_store_covering(entry->addr, entry->width, &store_slot);
             if (store)
-                tcti_trace_emit_store_source_entry(i, entry->addr, entry->value, store,
-                                                   store_slot);
+                tcti_trace_emit_store_source_entry(i, entry->addr, entry->value, store, store_slot);
         }
 
         if ((addr_match || value_match_reg >= 0) && emitted_matches < 96) {
-            tcti_trace_emit_mem_history_entry("tcti.mem.history.match", i, entry,
-                                              value_match_reg);
+            tcti_trace_emit_mem_history_entry("tcti.mem.history.match", i, entry, value_match_reg);
             emitted_matches++;
         }
         if (remaining <= recent_limit && emitted_recent < recent_limit) {
@@ -1053,10 +1035,9 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
 
         if (mem_ret != A64_MEM_OK) {
             tcti_trace_emit_mem_history_on_fault(cpu, addr);
-            trace_tcti_ldst_access(cpu, "tcti.ldst.fault", instance_id, fault_pc,
-                                   fault_raw_opcode, rt, rn, imm, size, idx_mode, meta, is_load,
-                                   base, addr, value, mem_ret, width, writeback_enabled,
-                                   writeback_value);
+            trace_tcti_ldst_access(cpu, "tcti.ldst.fault", instance_id, fault_pc, fault_raw_opcode,
+                                   rt, rn, imm, size, idx_mode, meta, is_load, base, addr, value,
+                                   mem_ret, width, writeback_enabled, writeback_value);
             cpu->pc = fault_pc;
             cpu->fault_was_write = false;
             return TCTI_EXIT_FAULT;
@@ -1065,9 +1046,9 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
         tcti_trace_record_mem_access(cpu, fault_pc, fault_raw_opcode, addr, value, base,
                                      addr - base, (uint8_t)width, 1, (int)rt, (int)rn,
                                      is_reg_offset ? rm : -1, (int)idx_mode);
-        trace_tcti_ldst_access(cpu, "tcti.ldst.access", instance_id, fault_pc, fault_raw_opcode,
-                               rt, rn, imm, size, idx_mode, meta, is_load, base, addr, value,
-                               mem_ret, width, writeback_enabled, writeback_value);
+        trace_tcti_ldst_access(cpu, "tcti.ldst.access", instance_id, fault_pc, fault_raw_opcode, rt,
+                               rn, imm, size, idx_mode, meta, is_load, base, addr, value, mem_ret,
+                               width, writeback_enabled, writeback_value);
         tcti_write_reg_or_zr(cpu, (int)rt, value, size == A64_SIZE_X || load_writes_64);
     } else {
         uint64_t value = tcti_read_reg_or_zr(cpu, (int)rt);
@@ -1092,10 +1073,9 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
 
         if (mem_ret != A64_MEM_OK) {
             tcti_trace_emit_mem_history_on_fault(cpu, addr);
-            trace_tcti_ldst_access(cpu, "tcti.ldst.fault", instance_id, fault_pc,
-                                   fault_raw_opcode, rt, rn, imm, size, idx_mode, meta, is_load,
-                                   base, addr, value, mem_ret, width, writeback_enabled,
-                                   writeback_value);
+            trace_tcti_ldst_access(cpu, "tcti.ldst.fault", instance_id, fault_pc, fault_raw_opcode,
+                                   rt, rn, imm, size, idx_mode, meta, is_load, base, addr, value,
+                                   mem_ret, width, writeback_enabled, writeback_value);
             cpu->pc = fault_pc;
             cpu->fault_was_write = true;
             return TCTI_EXIT_FAULT;
@@ -1104,9 +1084,9 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
         tcti_trace_record_mem_access(cpu, fault_pc, fault_raw_opcode, addr, value, base,
                                      addr - base, (uint8_t)width, 0, (int)rt, (int)rn,
                                      is_reg_offset ? rm : -1, (int)idx_mode);
-        trace_tcti_ldst_access(cpu, "tcti.ldst.access", instance_id, fault_pc, fault_raw_opcode,
-                               rt, rn, imm, size, idx_mode, meta, is_load, base, addr, value,
-                               mem_ret, width, writeback_enabled, writeback_value);
+        trace_tcti_ldst_access(cpu, "tcti.ldst.access", instance_id, fault_pc, fault_raw_opcode, rt,
+                               rn, imm, size, idx_mode, meta, is_load, base, addr, value, mem_ret,
+                               width, writeback_enabled, writeback_value);
     }
 
     if (writeback_enabled)
@@ -1441,7 +1421,7 @@ tcti_gadget_t gadget_b = gadget_b_impl;
                      "b _tcti_exit_block\n\t"                                                      \
                      :                                                                             \
                      : [pc_off] "i"(PC_OFFSET)                                                     \
-                     : "x24", "x25");                                                             \
+                     : "x24", "x25");                                                              \
     }
 
 GEN_BCOND(eq, eq);
@@ -1536,7 +1516,7 @@ tcti_gadget_t gadget_br = gadget_br_impl;
     __attribute__((naked)) void gadget_##kind##_##idx##_impl(void)                                 \
     {                                                                                              \
         asm volatile("ldr x25, [x28], #8\n\t"                                                      \
-                     "ldr x26, [x28], #8\n\t" mnemonic " " reg_prefix #hostreg ", 1f\n\t"         \
+                     "ldr x26, [x28], #8\n\t" mnemonic " " reg_prefix #hostreg ", 1f\n\t"          \
                      "mov x25, x26\n\t"                                                            \
                      "1:\n\t"                                                                      \
                      "str x25, [x29, %[pc_off]]\n\t"                                               \
@@ -1674,7 +1654,7 @@ const tcti_gadget_t gadget_cbnz_reg[16] = {
         asm volatile("ldr x17, [x28], #8\n\t"                                                      \
                      "ldr x19, [x28], #8\n\t"                                                      \
                      "ldr x26, [x28], #8\n\t"                                                      \
-                     "lsr " reg_prefix "27, " reg_prefix #hostreg ", " reg_prefix "17\n\t"       \
+                     "lsr " reg_prefix "27, " reg_prefix #hostreg ", " reg_prefix "17\n\t"         \
                      "and x27, x27, #1\n\t" mnemonic " x27, 1f\n\t"                                \
                      "mov x19, x26\n\t"                                                            \
                      "1:\n\t"                                                                      \
@@ -1952,10 +1932,9 @@ __attribute__((used)) static void tcti_write_reg_imm_helper(struct cpu_state *cp
 }
 
 __attribute__((used)) static void tcti_addsub_imm_helper(struct cpu_state *cpu, uint64_t rd,
-                                                            uint64_t rn, uint64_t imm,
-                                                            uint64_t is_sub, uint64_t set_flags,
-                                                            uint64_t is_64bit, uint64_t rd_is_sp,
-                                                            uint64_t rn_is_sp)
+                                                         uint64_t rn, uint64_t imm, uint64_t is_sub,
+                                                         uint64_t set_flags, uint64_t is_64bit,
+                                                         uint64_t rd_is_sp, uint64_t rn_is_sp)
 {
     uint64_t mask = is_64bit ? UINT64_MAX : UINT32_MAX;
     uint64_t lhs = 0;
@@ -2091,11 +2070,10 @@ __attribute__((naked)) void gadget_addsub_imm_fallback_impl(void)
 tcti_gadget_t gadget_addsub_imm_fallback = gadget_addsub_imm_fallback_impl;
 
 __attribute__((used)) static void tcti_addsub_reg_helper(struct cpu_state *cpu, uint64_t rd,
-                                                            uint64_t rn, uint64_t rm,
-                                                            uint64_t shift_type,
-                                                            uint64_t imm_shift, uint64_t is_sub,
-                                                            uint64_t set_flags,
-                                                            uint64_t is_64bit)
+                                                         uint64_t rn, uint64_t rm,
+                                                         uint64_t shift_type, uint64_t imm_shift,
+                                                         uint64_t is_sub, uint64_t set_flags,
+                                                         uint64_t is_64bit)
 {
     uint64_t mask = is_64bit ? UINT64_MAX : UINT32_MAX;
     uint64_t lhs = tcti_read_reg_or_zr(cpu, (int)rn) & mask;
@@ -2225,10 +2203,9 @@ static uint64_t tcti_extend_addsub_operand(uint64_t value, uint64_t extend_type)
 }
 
 __attribute__((used)) static void tcti_addsub_ext_helper(struct cpu_state *cpu, uint64_t rd,
-                                                            uint64_t rn, uint64_t rm,
-                                                            uint64_t extend_type,
-                                                            uint64_t imm_shift,
-                                                            uint64_t mode)
+                                                         uint64_t rn, uint64_t rm,
+                                                         uint64_t extend_type, uint64_t imm_shift,
+                                                         uint64_t mode)
 {
     int is_sub = (mode & (1ULL << 0)) != 0;
     int set_flags = (mode & (1ULL << 1)) != 0;
@@ -2236,8 +2213,8 @@ __attribute__((used)) static void tcti_addsub_ext_helper(struct cpu_state *cpu, 
     int rd_is_sp = (mode & (1ULL << 3)) != 0;
     int rn_is_sp = (mode & (1ULL << 4)) != 0;
     uint64_t mask = is_64bit ? UINT64_MAX : UINT32_MAX;
-    uint64_t lhs = rn_is_sp ? tcti_read_base_reg_or_sp(cpu, (int)rn)
-                            : tcti_read_reg_or_zr(cpu, (int)rn);
+    uint64_t lhs =
+        rn_is_sp ? tcti_read_base_reg_or_sp(cpu, (int)rn) : tcti_read_reg_or_zr(cpu, (int)rn);
     uint64_t rhs = tcti_extend_addsub_operand(tcti_read_reg_or_zr(cpu, (int)rm), extend_type);
     unsigned shift = (unsigned)(imm_shift & 0x7);
 
@@ -2320,9 +2297,9 @@ __attribute__((naked)) void gadget_addsub_ext_fallback_impl(void)
 tcti_gadget_t gadget_addsub_ext_fallback = gadget_addsub_ext_fallback_impl;
 
 __attribute__((used)) static void tcti_logical_imm_helper(struct cpu_state *cpu, uint64_t rd,
-                                                            uint64_t rn, uint64_t imm,
-                                                            uint64_t subtype, uint64_t set_flags,
-                                                            uint64_t is_64bit)
+                                                          uint64_t rn, uint64_t imm,
+                                                          uint64_t subtype, uint64_t set_flags,
+                                                          uint64_t is_64bit)
 {
     uint64_t mask = is_64bit ? UINT64_MAX : UINT32_MAX;
     uint64_t lhs = tcti_read_reg_or_zr(cpu, (int)rn) & mask;
@@ -2404,12 +2381,10 @@ __attribute__((naked)) void gadget_logical_imm_fallback_impl(void)
 tcti_gadget_t gadget_logical_imm_fallback = gadget_logical_imm_fallback_impl;
 
 __attribute__((used)) static void tcti_logical_reg_helper(struct cpu_state *cpu, uint64_t rd,
-                                                             uint64_t rn, uint64_t rm,
-                                                             uint64_t shift_type,
-                                                             uint64_t imm_shift,
-                                                             uint64_t subtype,
-                                                             uint64_t set_flags,
-                                                             uint64_t is_64bit)
+                                                          uint64_t rn, uint64_t rm,
+                                                          uint64_t shift_type, uint64_t imm_shift,
+                                                          uint64_t subtype, uint64_t set_flags,
+                                                          uint64_t is_64bit)
 {
     uint64_t mask = is_64bit ? UINT64_MAX : UINT32_MAX;
     uint64_t lhs = tcti_read_reg_or_zr(cpu, (int)rn) & mask;
@@ -2534,9 +2509,8 @@ __attribute__((naked)) void gadget_logical_reg_fallback_impl(void)
 tcti_gadget_t gadget_logical_reg_fallback = gadget_logical_reg_fallback_impl;
 
 __attribute__((used)) static void tcti_multiply_add_helper(struct cpu_state *cpu, uint64_t rd,
-                                                               uint64_t rn, uint64_t rm,
-                                                               uint64_t ra, uint64_t subtype,
-                                                               uint64_t is_64bit)
+                                                           uint64_t rn, uint64_t rm, uint64_t ra,
+                                                           uint64_t subtype, uint64_t is_64bit)
 {
     uint64_t addend = tcti_read_reg_or_zr(cpu, (int)ra);
     uint64_t result;
@@ -2549,8 +2523,8 @@ __attribute__((used)) static void tcti_multiply_add_helper(struct cpu_state *cpu
         uint64_t rhs = tcti_read_reg_or_zr(cpu, (int)rm) & mask;
         uint64_t product = (lhs * rhs) & mask;
         addend &= mask;
-        result = subtype == A64_DP_REG_MSUB ? ((addend - product) & mask)
-                                            : ((addend + product) & mask);
+        result =
+            subtype == A64_DP_REG_MSUB ? ((addend - product) & mask) : ((addend + product) & mask);
         tcti_write_reg_or_zr(cpu, (int)rd, result, is_64bit != 0);
         return;
     }
@@ -2625,8 +2599,8 @@ __attribute__((naked)) void gadget_multiply_add_fallback_impl(void)
 tcti_gadget_t gadget_multiply_add_fallback = gadget_multiply_add_fallback_impl;
 
 __attribute__((used)) static void tcti_shift_reg_helper(struct cpu_state *cpu, uint64_t rd,
-                                                          uint64_t rn, uint64_t rm,
-                                                          uint64_t subtype, uint64_t is_64bit)
+                                                        uint64_t rn, uint64_t rm, uint64_t subtype,
+                                                        uint64_t is_64bit)
 {
     uint64_t mask = is_64bit ? UINT64_MAX : UINT32_MAX;
     unsigned amount_mask = is_64bit ? 63 : 31;
@@ -2712,9 +2686,8 @@ __attribute__((naked)) void gadget_shift_reg_fallback_impl(void)
 
 tcti_gadget_t gadget_shift_reg_fallback = gadget_shift_reg_fallback_impl;
 
-__attribute__((used)) static void tcti_div_helper(struct cpu_state *cpu, uint64_t rd,
-                                                    uint64_t rn, uint64_t rm, uint64_t subtype,
-                                                    uint64_t is_64bit)
+__attribute__((used)) static void tcti_div_helper(struct cpu_state *cpu, uint64_t rd, uint64_t rn,
+                                                  uint64_t rm, uint64_t subtype, uint64_t is_64bit)
 {
     uint64_t mask = is_64bit ? UINT64_MAX : UINT32_MAX;
     uint64_t divisor = tcti_read_reg_or_zr(cpu, (int)rm) & mask;
@@ -2781,8 +2754,12 @@ __attribute__((naked)) void gadget_div_fallback_impl(void)
                  "mov x26, x19\n\t"
                  "bl _tcti_sync_hot_reg_from_cpu\n\t"
                  "1:\n\t"
+                 "ldr x17, [x29, %[pstate_off]]\n\t"
+                 "msr nzcv, x17\n\t"
                  "ldr x27, [x28], #8\n\t"
-                 "br x27\n\t");
+                 "br x27\n\t"
+                 :
+                 : [pstate_off] "i"(PSTATE_OFFSET));
 }
 
 tcti_gadget_t gadget_div_fallback = gadget_div_fallback_impl;
@@ -2826,9 +2803,8 @@ static uint64_t tcti_replicate_element(uint64_t element, unsigned element_width,
     return result & tcti_ones(register_width);
 }
 
-static int tcti_decode_bit_masks(unsigned n, unsigned imms, unsigned immr,
-                                 unsigned register_width, uint64_t *wmask,
-                                 uint64_t *tmask)
+static int tcti_decode_bit_masks(unsigned n, unsigned imms, unsigned immr, unsigned register_width,
+                                 uint64_t *wmask, uint64_t *tmask)
 {
     uint32_t len_input = (uint32_t)((n << 6) | ((~imms) & 0x3f));
     unsigned len = tcti_highest_set_bit32(len_input);
@@ -2851,9 +2827,9 @@ static int tcti_decode_bit_masks(unsigned n, unsigned imms, unsigned immr,
     return 0;
 }
 
-__attribute__((used)) void tcti_bitfield_helper(struct cpu_state *cpu, uint64_t rd,
-                                                uint64_t rn, uint64_t immr, uint64_t imms,
-                                                uint64_t is_64bit, uint64_t subtype)
+__attribute__((used)) void tcti_bitfield_helper(struct cpu_state *cpu, uint64_t rd, uint64_t rn,
+                                                uint64_t immr, uint64_t imms, uint64_t is_64bit,
+                                                uint64_t subtype)
 {
     unsigned register_width = is_64bit ? 64 : 32;
     uint64_t width_mask = tcti_ones(register_width);
@@ -2863,8 +2839,8 @@ __attribute__((used)) void tcti_bitfield_helper(struct cpu_state *cpu, uint64_t 
     uint64_t tmask = 0;
     unsigned n = is_64bit ? 1u : 0u;
 
-    if (tcti_decode_bit_masks(n, (unsigned)imms, (unsigned)immr, register_width, &wmask,
-                              &tmask) < 0)
+    if (tcti_decode_bit_masks(n, (unsigned)imms, (unsigned)immr, register_width, &wmask, &tmask) <
+        0)
         return;
 
     uint64_t bot = tcti_ror_width(src, (unsigned)immr, register_width) & wmask;
@@ -2955,9 +2931,9 @@ static void trace_tcti_csel_access(uint64_t rd, uint64_t rn, uint64_t rm, uint64
                               sizeof(fields) / sizeof(fields[0]));
 }
 
-__attribute__((used)) static void tcti_csel_helper(struct cpu_state *cpu, uint64_t rd,
-                                                       uint64_t rn, uint64_t rm, uint64_t cond,
-                                                       uint64_t subtype, uint64_t is_64bit)
+__attribute__((used)) static void tcti_csel_helper(struct cpu_state *cpu, uint64_t rd, uint64_t rn,
+                                                   uint64_t rm, uint64_t cond, uint64_t subtype,
+                                                   uint64_t is_64bit)
 {
     uint64_t true_value = tcti_read_reg_or_zr(cpu, (int)rn);
     uint64_t false_value = tcti_read_reg_or_zr(cpu, (int)rm);
@@ -2989,8 +2965,7 @@ __attribute__((used)) static void tcti_csel_helper(struct cpu_state *cpu, uint64
 }
 
 __attribute__((used)) static void tcti_bcond_helper(struct cpu_state *cpu, uint64_t cond,
-                                                        uint64_t target_pc,
-                                                        uint64_t fallthrough_pc)
+                                                    uint64_t target_pc, uint64_t fallthrough_pc)
 {
     cpu->pc = tcti_cond_holds(cpu->pstate, cond) ? target_pc : fallthrough_pc;
 }
@@ -3022,10 +2997,10 @@ static uint64_t tcti_addsub_nzcv(uint64_t lhs, uint64_t rhs, uint64_t is_sub, ui
     return nzcv;
 }
 
-__attribute__((used)) static void tcti_ccmp_helper(struct cpu_state *cpu, uint64_t rn,
-                                                       uint64_t rm, uint64_t imm_operand,
-                                                       uint64_t cond, uint64_t nzcv,
-                                                       uint64_t subtype, uint64_t is_64bit)
+__attribute__((used)) static void tcti_ccmp_helper(struct cpu_state *cpu, uint64_t rn, uint64_t rm,
+                                                   uint64_t imm_operand, uint64_t cond,
+                                                   uint64_t nzcv, uint64_t subtype,
+                                                   uint64_t is_64bit)
 {
     uint64_t mask = is_64bit ? UINT64_MAX : UINT32_MAX;
     uint64_t next_nzcv;
@@ -3638,8 +3613,7 @@ __attribute__((naked)) void gadget_ldr_x_impl(void)
           [ldr_fallback_notlb_off] "i"(STAT_LDR_FALLBACK_NOTLB_OFFSET),
           [tlb_mmu_off] "i"(TLB_MMU_OFFSET),
           [tlb_entry_generation_off] "i"(TLB_ENTRY_GENERATION_OFFSET),
-          [mmu_generation_off] "i"(MMU_GENERATION_OFFSET),
-          [pstate_off] "i"(PSTATE_OFFSET)
+          [mmu_generation_off] "i"(MMU_GENERATION_OFFSET), [pstate_off] "i"(PSTATE_OFFSET)
         : "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x19", "x20", "x21", "x22", "x23", "x24",
           "x25", "x26", "x27", "memory");
 }
@@ -3827,11 +3801,11 @@ __attribute__((naked)) void gadget_str_x_impl(void)
         "add x17, x27, x17\n\t"  // x17 = host address
         "b 119b\n\t"             // Load source value after TLB scratch use.
         "151:\n\t"
-        "str x0, [x17]\n\t"      // store value from x0
+        "str x0, [x17]\n\t" // store value from x0
         "cmp x24, #1\n\t"
         "b.ne 152f\n\t"
-        "sub x17, x17, x27\n\t"  // Recover guest address from host address.
-        "add x17, x17, x22\n\t"  // Post-index writeback value.
+        "sub x17, x17, x27\n\t" // Recover guest address from host address.
+        "add x17, x17, x22\n\t" // Post-index writeback value.
         "adr x26, 170f\n\t"
         "add x26, x26, x21, lsl #2\n\t"
         "br x26\n\t"
@@ -3990,8 +3964,7 @@ __attribute__((naked)) void gadget_str_x_impl(void)
           [str_fallback_notlb_off] "i"(STAT_STR_FALLBACK_NOTLB_OFFSET),
           [tlb_mmu_off] "i"(TLB_MMU_OFFSET),
           [tlb_entry_generation_off] "i"(TLB_ENTRY_GENERATION_OFFSET),
-          [mmu_generation_off] "i"(MMU_GENERATION_OFFSET),
-          [pstate_off] "i"(PSTATE_OFFSET)
+          [mmu_generation_off] "i"(MMU_GENERATION_OFFSET), [pstate_off] "i"(PSTATE_OFFSET)
         : "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x19", "x20", "x21", "x22", "x23", "x24",
           "x25", "x26", "x27", "memory");
 }
@@ -4023,10 +3996,8 @@ __attribute__((naked)) void gadget_simd_dup_gpr_impl(void)
 
 tcti_gadget_t gadget_simd_dup_gpr = gadget_simd_dup_gpr_impl;
 
-__attribute__((visibility("default"))) void _tcti_simd_dup_gpr_helper(struct cpu_state *cpu,
-                                                                       uint64_t vd,
-                                                                       uint64_t rn,
-                                                                       uint64_t vec_bytes)
+__attribute__((visibility("default"))) void
+_tcti_simd_dup_gpr_helper(struct cpu_state *cpu, uint64_t vd, uint64_t rn, uint64_t vec_bytes)
 {
     tcti_simd_dup_gpr_helper(cpu, vd, rn, vec_bytes);
 }
@@ -4060,9 +4031,10 @@ __attribute__((naked)) void gadget_simd_movi_imm_impl(void)
 
 tcti_gadget_t gadget_simd_movi_imm = gadget_simd_movi_imm_impl;
 
-__attribute__((visibility("default"))) void
-_tcti_simd_movi_imm_helper(struct cpu_state *cpu, uint64_t vd, uint64_t imm8,
-                           uint64_t cmode, uint64_t op, uint64_t q)
+__attribute__((visibility("default"))) void _tcti_simd_movi_imm_helper(struct cpu_state *cpu,
+                                                                       uint64_t vd, uint64_t imm8,
+                                                                       uint64_t cmode, uint64_t op,
+                                                                       uint64_t q)
 {
     tcti_simd_movi_imm_helper(cpu, vd, imm8, cmode, op, q);
 }
@@ -4103,8 +4075,7 @@ tcti_gadget_t gadget_simd_mov_gpr_from_vec = gadget_simd_mov_gpr_from_vec_impl;
 
 __attribute__((visibility("default"))) void
 _tcti_simd_mov_gpr_from_vec_helper(struct cpu_state *cpu, uint64_t rd, uint64_t vn,
-                                   uint64_t vec_bytes, uint64_t vec_index,
-                                   uint64_t is_64bit)
+                                   uint64_t vec_bytes, uint64_t vec_index, uint64_t is_64bit)
 {
     tcti_simd_mov_gpr_from_vec_helper(cpu, rd, vn, vec_bytes, vec_index, is_64bit);
 }
@@ -4142,9 +4113,10 @@ __attribute__((naked)) void gadget_simd_fmov_gpr_impl(void)
 
 tcti_gadget_t gadget_simd_fmov_gpr = gadget_simd_fmov_gpr_impl;
 
-__attribute__((visibility("default"))) void
-_tcti_simd_fmov_gpr_helper(struct cpu_state *cpu, uint64_t rd, uint64_t rn,
-                           uint64_t vec_bytes, uint64_t gpr_to_fp)
+__attribute__((visibility("default"))) void _tcti_simd_fmov_gpr_helper(struct cpu_state *cpu,
+                                                                       uint64_t rd, uint64_t rn,
+                                                                       uint64_t vec_bytes,
+                                                                       uint64_t gpr_to_fp)
 {
     tcti_simd_fmov_gpr_helper(cpu, rd, rn, vec_bytes, gpr_to_fp);
 }
@@ -4194,9 +4166,10 @@ __attribute__((naked)) void gadget_atomic_ldst_impl(void)
 
 tcti_gadget_t gadget_atomic_ldst = gadget_atomic_ldst_impl;
 
-__attribute__((visibility("default"))) int _tcti_atomic_ldst_helper(
-    struct cpu_state *cpu, uint64_t fault_pc, uint64_t rt, uint64_t rn, uint64_t rs,
-    uint64_t size, uint64_t is_load)
+__attribute__((visibility("default"))) int _tcti_atomic_ldst_helper(struct cpu_state *cpu,
+                                                                    uint64_t fault_pc, uint64_t rt,
+                                                                    uint64_t rn, uint64_t rs,
+                                                                    uint64_t size, uint64_t is_load)
 {
     return tcti_atomic_ldst_helper(cpu, fault_pc, rt, rn, rs, size, is_load);
 }
@@ -4247,9 +4220,10 @@ __attribute__((naked)) void gadget_simd_ldst_impl(void)
 
 tcti_gadget_t gadget_simd_ldst = gadget_simd_ldst_impl;
 
-__attribute__((visibility("default"))) int _tcti_simd_ldst_helper(
-    struct cpu_state *cpu, uint64_t fault_pc, uint64_t rt, uint64_t rt2, uint64_t rn,
-    int64_t imm, uint64_t vec_bytes, uint64_t idx_mode, uint64_t is_pair, uint64_t is_load)
+__attribute__((visibility("default"))) int
+_tcti_simd_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64_t rt, uint64_t rt2,
+                       uint64_t rn, int64_t imm, uint64_t vec_bytes, uint64_t idx_mode,
+                       uint64_t is_pair, uint64_t is_load)
 {
     return tcti_simd_ldst_helper(cpu, fault_pc, rt, rt2, rn, imm, vec_bytes, idx_mode, is_pair,
                                  is_load);

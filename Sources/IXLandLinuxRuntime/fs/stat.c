@@ -90,16 +90,30 @@ int32_t sys_fstatat64(fd_t at, addr_t path_addr, addr_t statbuf_addr, int32_t fl
 int32_t sys_fstat64(fd_t fd_no, addr_t statbuf_addr)
 {
     STRACE("fstat64(%d, 0x%x)", fd_no, statbuf_addr);
+    trace_record_event(TRACE_ORIGIN_KERNEL, "fstat.attempt");
     struct fd *fd = f_get(fd_no);
     if (fd == NULL)
         return _EBADF;
+    char fd_path[MAX_PATH];
+    bool is_root_dir =
+        S_ISDIR(fd->type) && generic_getpath(fd, fd_path) == 0 && strcmp(fd_path, "/") == 0;
+    if (is_root_dir)
+        trace_record_event(TRACE_ORIGIN_KERNEL, "fstat.rootdir.attempt");
     struct statbuf stat = {};
     int err = fd->mount->fs->fstat(fd, &stat);
-    if (err < 0)
+    if (err < 0) {
+        if (is_root_dir)
+            trace_record_event(TRACE_ORIGIN_KERNEL, "fstat.rootdir.fail");
+        if (err == _ENOMEM)
+            trace_record_event(TRACE_ORIGIN_KERNEL, "fstat.fail.enomem");
         return err;
+    }
     struct newstat64 newstat = stat_convert_newstat64(stat);
     if (user_put(statbuf_addr, newstat))
         return _EFAULT;
+    if (is_root_dir)
+        trace_record_event(TRACE_ORIGIN_KERNEL, "fstat.rootdir.ok");
+    trace_record_event(TRACE_ORIGIN_KERNEL, "fstat.ok");
     return 0;
 }
 

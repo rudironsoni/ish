@@ -100,6 +100,8 @@ struct fd *generic_openat(struct fd *at, const char *path_raw, int flags, int mo
     err = fd->mount->fs->fstat(fd, &stat);
     trace_record_event(TRACE_ORIGIN_KERNEL, "boot.generic_openat.after_fstat");
     if (err < 0) {
+        if (err == _ENOMEM)
+            trace_record_event(TRACE_ORIGIN_KERNEL, "boot.generic_openat.fstat.fail.enomem");
         unlock(&inodes_lock);
         goto error;
     }

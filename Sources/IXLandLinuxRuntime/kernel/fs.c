@@ -77,6 +77,8 @@ fd_t sys_openat(fd_t at_f, addr_t path_addr, uint32_t flags, mode_t_ mode)
     if (user_read_string(path_addr, path, sizeof(path)))
         return _EFAULT;
     STRACE("openat(%d, \"%s\", 0x%x, 0x%x)", at_f, path, flags, mode);
+    if (strcmp(path, "/") == 0)
+        trace_record_event(TRACE_ORIGIN_KERNEL, "openat.root.attempt");
 
     if (flags & O_CREAT_)
         apply_umask(&mode);
@@ -85,9 +87,19 @@ fd_t sys_openat(fd_t at_f, addr_t path_addr, uint32_t flags, mode_t_ mode)
     if (at == NULL)
         return _EBADF;
     struct fd *fd = generic_openat(at, path, flags, mode);
-    if (IS_ERR(fd))
+    if (IS_ERR(fd)) {
+        if (strcmp(path, "/") == 0)
+            trace_record_event(TRACE_ORIGIN_KERNEL, "openat.root.fail");
+        if (PTR_ERR(fd) == _ENOMEM)
+            trace_record_event(TRACE_ORIGIN_KERNEL, "openat.fail.enomem.preinstall");
         return (fd_t)PTR_ERR(fd);
-    return (fd_t)f_install(fd, flags);
+    }
+    fd_t installed = (fd_t)f_install(fd, flags);
+    if (strcmp(path, "/") == 0 && installed >= 0)
+        trace_record_event(TRACE_ORIGIN_KERNEL, "openat.root.ok");
+    if (installed == _ENOMEM)
+        trace_record_event(TRACE_ORIGIN_KERNEL, "openat.fail.enomem.install");
+    return installed;
 }
 
 fd_t sys_open(addr_t path_addr, uint32_t flags, mode_t_ mode)
