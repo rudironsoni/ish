@@ -1,5 +1,6 @@
 build/
 xcuserdata/
+compile_commands.json
 .floo
 .tmp/
 

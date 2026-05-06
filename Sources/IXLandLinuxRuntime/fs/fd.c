@@ -313,16 +313,10 @@ uint32_t sys_fcntl(fd_t f, uint32_t cmd, uint32_t arg)
     struct fd *fd = f_get(f);
     if (fd == NULL)
         return _EBADF;
-    char fd_path[MAX_PATH];
-    bool is_root_dir = false;
-    if (S_ISDIR(fd->type) && generic_getpath(fd, fd_path) == 0 && strcmp(fd_path, "/") == 0)
-        is_root_dir = true;
     struct flock32_ flock32;
     struct flock_ flock;
     fd_t new_f;
     int err;
-    if (is_root_dir)
-        trace_record_event(TRACE_ORIGIN_KERNEL, "fcntl.rootdir.enter");
     switch (cmd) {
     case F_DUPFD_:
         STRACE("fcntl(%d, F_DUPFD, %d)", f, arg);
@@ -339,13 +333,9 @@ uint32_t sys_fcntl(fd_t f, uint32_t cmd, uint32_t arg)
 
     case F_GETFD_:
         STRACE("fcntl(%d, F_GETFD)", f);
-        if (is_root_dir)
-            trace_record_event(TRACE_ORIGIN_KERNEL, "fcntl.rootdir.getfd");
         return bit_test(f, table->cloexec);
     case F_SETFD_:
         STRACE("fcntl(%d, F_SETFD, 0x%x)", f, arg);
-        if (is_root_dir)
-            trace_record_event(TRACE_ORIGIN_KERNEL, "fcntl.rootdir.setfd");
         if (arg & 1)
             bit_set(f, table->cloexec);
         else
@@ -354,8 +344,6 @@ uint32_t sys_fcntl(fd_t f, uint32_t cmd, uint32_t arg)
 
     case F_GETFL_:
         STRACE("fcntl(%d, F_GETFL)", f);
-        if (is_root_dir)
-            trace_record_event(TRACE_ORIGIN_KERNEL, "fcntl.rootdir.getfl");
         return fd_getflags(fd);
     case F_SETFL_:
         STRACE("fcntl(%d, F_SETFL, %#x)", f, arg);

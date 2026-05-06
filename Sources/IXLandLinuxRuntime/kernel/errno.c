@@ -97,7 +97,7 @@ int err_map(int err)
     }
 #undef ERRCASE
     printk("unknown error %d\n", err);
-    return -(err | 0x1000);
+    return _EINVAL;
 }
 
 int errno_map(void)

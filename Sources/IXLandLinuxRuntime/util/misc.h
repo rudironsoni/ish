@@ -106,6 +106,6 @@ typedef int64_t int_t;
 
 #define ERR_PTR(err) ((void *)(intptr_t)(err))
 #define PTR_ERR(ptr) ((intptr_t)(ptr))
-#define IS_ERR(ptr)  ((uintptr_t)(ptr) > (uintptr_t)-0xfff)
+#define IS_ERR(ptr)  ((uintptr_t)(ptr) >= (uintptr_t)-0xfff)
 
 #endif

@@ -1,106 +1,30 @@
 # clangd configuration for ish
-# This file uses portable relative paths - no machine-specific hardcoding
+# compile_commands.json (from Xcode build) is the primary flag source.
+# This file provides fallback flags for files not in compile_commands.json
+# and diagnostic policy.
 #
-# IMPORTANT: This config works WITH compile_commands.json, not instead of it.
-# - compile_commands.json provides real per-file build context
-# - This .clangd file provides portable fallback flags and path-based policy
-# - clangd uses compile_commands.json when available, falls back to these flags
-#
-# compile_commands.json is generated locally and is intentionally not checked in.
+# Regenerate compile_commands.json:
+#   xcodebuild clean build -project IXLand.xcodeproj \
+#     -scheme IXLandRuntime-6.12-arm64 \
+#     -destination 'platform=iOS Simulator,name=iPhone 17' \
+#     -derivedDataPath /Volumes/1TB/Xcode/DerivedData \
+#     COMPILER_INDEX_STORE_ENABLE=NO
+#   Then: python3 tools/gen_compile_commands.py
 
----
-# Linux-owner paths: C-only, host-agnostic
-If:
-PathMatch:
-- ^Sources/IXLandLinuxRuntime/fs/.*\.(c|h)$
-- ^Sources/IXLandLinuxRuntime/kernel/.*\.(c|h)$
-- ^Sources/IXLandLinuxRuntime/emu/.*\.(c|h)$
-- ^Sources/IXLandLinuxRuntime/tcti/.*\.(c|h)$
-- ^Sources/IXLandLinuxRuntime/util/.*\.(c|h)$
-- ^Sources/IXLandLinuxRuntime/include/.*\.h$
-- ^include/ixland/.*\.h$
-  PathExclude:
-    - ^internal/ios/.*$
-    - ^Tests/.*$
-    - ^Sources/IXLandLinuxRuntime/platform/.*$
-  CompileFlags:
-    Add:
-      - -DIXLAND_LINUX_OWNER_FILE=1
-      - --include=include/ixland/clangd_owner_policy.h
-      - -std=gnu11
-      - -Ithird_party/linux-uapi/6.12/arm64/include
-      - -Iinclude
-      - -I.
-      - -D_XOPEN_SOURCE
-    Remove:
-      - -index-store-path
-      - -index-unit-output-path
-
----
-# Private iOS bridge paths
-If:
-  PathMatch:
-  - ^internal/ios/.*\.(c|h|m|mm)$
 CompileFlags:
   Add:
-  - -DIXLAND_HOST_BRIDGE_FILE=1
-  - -std=gnu11
-  - -Ithird_party/linux-uapi/6.12/arm64/include
-  - -Iinclude
-  - -ISources
-  - -I.
+    - -Ithird_party/linux-uapi/6.12/arm64/include
+    - -Iinclude
+    - -ISources
+    - -I.
+    - -IPackages/IXLandInstrumentation/Sources/IXLandInstrumentation/include
+    - -IPackages/IXLandInstrumentation/Sources/IXLandInstrumentationTracing/include
+  Remove:
+    - -index-store-path
+    - -index-unit-output-path
 
----
-# Private iOS Objective-C
-If:
-  PathMatch:
-    - ^internal/ios/.*\.m$
-  CompileFlags:
-    Add:
-      - -x
-      - objective-c
-      - -fobjc-arc
-
----
-# Private iOS Objective-C++
-If:
-  PathMatch:
-    - ^internal/ios/.*\.mm$
-  CompileFlags:
-    Add:
-      - -x
-      - objective-c++
-      - -fobjc-arc
-
----
-# Tests: Objective-C
-If:
-  PathMatch:
-    - ^Tests/.*\.m$
-  CompileFlags:
-    Add:
-      - -x
-      - objective-c
-      - -fobjc-arc
-      - -fmodules
-
----
-# Tests: Objective-C++
-If:
-  PathMatch:
-    - ^Tests/.*\.mm$
-  CompileFlags:
-    Add:
-      - -x
-      - objective-c++
-      - -fobjc-arc
-      - -fmodules
-
----
-# Tests: C with strict diagnostics
-If:
-  PathMatch:
-    - ^Tests/.*\.(c|h)$
-  Diagnostics:
-    ClangTidy:
-      FastCheckFilter: Strict
+Diagnostics:
+  Suppress:
+    - pp_file_not_found
+  ClangTidy:
+    FastCheckFilter: Strict
