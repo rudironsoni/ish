@@ -3,7 +3,7 @@
   "permission": {
     "edit": {
       "*": "allow",
-      "third_party/linux-uapi/**": "deny"
+      "third_party/linux/**": "deny"
     },
     "read": {
       "*": "allow"

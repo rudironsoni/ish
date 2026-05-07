@@ -555,7 +555,7 @@
                                                       options:NSDirectoryEnumerationSkipsHiddenFiles
                                                         error:nil];
             for (NSURL *groupDir in groupDirs) {
-                NSURL *rootsDir = [groupDir URLByAppendingPathComponent:@"roots/default/data"];
+                NSURL *rootsDir = [groupDir URLByAppendingPathComponent:@"roots/default"];
                 if ([fm fileExistsAtPath:rootsDir.path]) {
                     appGroupURL = rootsDir;
                     break;
@@ -721,7 +721,7 @@
                                                       options:NSDirectoryEnumerationSkipsHiddenFiles
                                                         error:nil];
             for (NSURL *groupDir in groupDirs) {
-                NSURL *rootsDir = [groupDir URLByAppendingPathComponent:@"roots/default/data"];
+                NSURL *rootsDir = [groupDir URLByAppendingPathComponent:@"roots/default"];
                 if ([fm fileExistsAtPath:rootsDir.path]) {
                     appGroupURL = rootsDir;
                     break;

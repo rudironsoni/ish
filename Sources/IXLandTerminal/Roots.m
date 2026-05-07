@@ -8,11 +8,8 @@
 #import <UIKit/UIKit.h>
 #import <FileProvider/FileProvider.h>
 #import "Roots.h"
-#import "AppGroup.h"
 #import "NSObject+SaneKVO.h"
-#import "fakefs.h"
-
-static NSString *kDefaultRoot = @"Default Root";
+#import "root_store.h"
 
 @interface Roots ()
 @property NSMutableOrderedSet<NSString *> *roots;
@@ -30,28 +27,7 @@ static NSString *kDefaultRoot = @"Default Root";
 
 // Production path: App Group-backed roots directory
 + (NSURL *)productionRootsDir {
-    static NSURL *rootsDir;
-    static dispatch_once_t token;
-    dispatch_once(&token, ^{
-        NSURL *containerURL = ContainerURL();
-        if (containerURL == nil) {
-            NSURL *cachesDir = [NSFileManager.defaultManager URLsForDirectory:NSCachesDirectory inDomains:NSUserDomainMask].firstObject;
-            rootsDir = [cachesDir URLByAppendingPathComponent:@"IXLandTestRoots"];
-            NSError *err = nil;
-            [[NSFileManager defaultManager] createDirectoryAtURL:rootsDir withIntermediateDirectories:YES attributes:@{} error:&err];
-            if (err) {
-                rootsDir = nil;
-            }
-            return;
-        }
-        rootsDir = [containerURL URLByAppendingPathComponent:@"roots"];
-        NSFileManager *manager = [NSFileManager defaultManager];
-        [manager createDirectoryAtURL:rootsDir
-          withIntermediateDirectories:YES
-                           attributes:@{}
-                                error:nil];
-    });
-    return rootsDir;
+    return ios_roots_production_directory();
 }
 
 // Factory method with production path (existing behavior)
@@ -86,19 +62,13 @@ static NSString *kDefaultRoot = @"Default Root";
         self.lastArchiveURLPresent = NO;
 
         NSError *error = nil;
-        NSArray<NSString *> *rootNames = [NSFileManager.defaultManager contentsOfDirectoryAtPath:rootsDirectory.path error:&error];
+        NSArray<NSString *> *rootNames = ios_root_store_list(rootsDirectory, &error);
         NSAssert(error == nil, @"couldn't list roots: %@", error);
         self.roots = [rootNames mutableCopy];
 
         if (!self.roots.count) {
             NSError *importError;
-            NSURL *archiveURL = [NSBundle.mainBundle URLForResource:@"root" withExtension:@"tar.gz"];
-            if (archiveURL == nil) {
-                NSURL *bundleArchiveURL = [NSBundle.mainBundle.bundleURL URLByAppendingPathComponent:@"root.tar.gz"];
-                if ([[NSFileManager defaultManager] fileExistsAtPath:bundleArchiveURL.path]) {
-                    archiveURL = bundleArchiveURL;
-                }
-            }
+            NSURL *archiveURL = ios_root_default_archive_url();
             self.lastArchiveURLPresent = archiveURL != nil;
             self.lastImportAttempted = YES;
 
@@ -127,19 +97,15 @@ static NSString *kDefaultRoot = @"Default Root";
 }
 
 - (NSString *)defaultRoot {
-    return [NSUserDefaults.standardUserDefaults stringForKey:kDefaultRoot];
+    return ios_root_store_default_root_name();
 }
 
-void root_progress_callback(void *cookie, double progress, const char *message, bool *should_cancel) {
-    id<ProgressReporter> reporter = (__bridge id<ProgressReporter>) cookie;
-    [reporter updateProgress:progress message:[NSString stringWithUTF8String:message]];
-}
 - (void)setDefaultRoot:(NSString *)defaultRoot {
-    [NSUserDefaults.standardUserDefaults setObject:defaultRoot forKey:kDefaultRoot];
+    ios_root_store_set_default_root_name(defaultRoot);
 }
 
 - (NSURL *)rootUrl:(NSString *)name {
-    return [self.rootsDirectory URLByAppendingPathComponent:name];
+    return ios_root_store_url(self.rootsDirectory, name);
 }
 
 - (void)syncFileProviderDomains {
@@ -197,37 +163,7 @@ void root_progress_callback(void *cookie, double progress, const char *message, 
 
 - (BOOL)importRootFromArchive:(NSURL *)archive name:(NSString *)name error:(NSError **)error progressReporter:(id<ProgressReporter> _Nullable)progress {
     NSAssert(![self.roots containsObject:name], @"root already exists: %@", name);
-    if (archive == nil) {
-        if (error != NULL) {
-            *error = [NSError errorWithDomain:NSPOSIXErrorDomain
-                                         code:ENOENT
-                                     userInfo:@{NSLocalizedDescriptionKey: @"root archive missing from app bundle"}];
-        }
-        return NO;
-    }
-    struct fakefsify_error fs_err;
-    NSURL *destination = [self rootUrl:name];
-    NSURL *tempDestination = [NSFileManager.defaultManager.temporaryDirectory
-                              URLByAppendingPathComponent:[NSProcessInfo.processInfo globallyUniqueString]];
-    if (tempDestination == nil)
-        return NO;
-    if (!fakefs_import(archive.fileSystemRepresentation,
-                       tempDestination.fileSystemRepresentation,
-                       &fs_err, (struct progress) {(__bridge void *) progress, root_progress_callback})) {
-        NSString *domain = NSPOSIXErrorDomain;
-        if (fs_err.type == ERR_SQLITE)
-            domain = @"SQLite";
-        *error = [NSError errorWithDomain:domain
-                                     code:fs_err.code
-                                 userInfo:@{NSLocalizedDescriptionKey:
-                                                [NSString stringWithFormat:@"%s, line %d", fs_err.message, fs_err.line]}];
-        if (fs_err.type == ERR_CANCELLED)
-            *error = nil;
-        free(fs_err.message);
-        [NSFileManager.defaultManager removeItemAtURL:tempDestination error:nil];
-        return NO;
-    }
-    if (![NSFileManager.defaultManager moveItemAtURL:tempDestination toURL:destination error:error])
+    if (!ios_root_store_import_archive(self.rootsDirectory, archive, name, progress, error))
         return NO;
 
     void (^addRoot)(void) = ^{
@@ -242,19 +178,7 @@ void root_progress_callback(void *cookie, double progress, const char *message, 
 
 - (BOOL)exportRootNamed:(NSString *)name toArchive:(NSURL *)archive error:(NSError **)error progressReporter:(id<ProgressReporter> _Nullable)progress {
     NSAssert([self.roots containsObject:name], @"trying to export a root that doesn't exist: %@", name);
-    struct fakefsify_error fs_err;
-    if (!fakefs_export([self rootUrl:name].fileSystemRepresentation,
-                       archive.fileSystemRepresentation,
-                       &fs_err, (struct progress) {(__bridge void *) progress, root_progress_callback})) {
-        NSString *domain = NSPOSIXErrorDomain;
-        if (fs_err.type == ERR_SQLITE)
-            domain = @"SQLite";
-        *error = [NSError errorWithDomain:domain
-                                     code:fs_err.code
-                                 userInfo:@{NSLocalizedDescriptionKey: [NSString stringWithUTF8String:fs_err.message]}];
-        if (fs_err.type == ERR_CANCELLED)
-            *error = nil;
-        free(fs_err.message);
+    if (!ios_root_store_export_archive(self.rootsDirectory, name, archive, progress, error)) {
         return NO;
     }
     return YES;
@@ -262,7 +186,7 @@ void root_progress_callback(void *cookie, double progress, const char *message, 
 
 - (BOOL)destroyRootNamed:(NSString *)name error:(NSError **)error {
     NSAssert([self.roots containsObject:name], @"trying to destroy a root that doesn't exist");
-    if (![NSFileManager.defaultManager removeItemAtURL:[self rootUrl:name] error:error])
+    if (!ios_root_store_destroy(self.rootsDirectory, name, error))
         return NO;
     [[self mutableOrderedSetValueForKey:@"roots"] removeObject:name];
     return YES;
@@ -270,7 +194,7 @@ void root_progress_callback(void *cookie, double progress, const char *message, 
 
 - (BOOL)renameRoot:(NSString *)name toName:(NSString *)newName error:(NSError **)error {
     NSAssert([self.roots containsObject:name], @"trying to rename a root that doesn't exist");
-    if (![NSFileManager.defaultManager moveItemAtURL:[self rootUrl:name] toURL:[self rootUrl:newName] error:error])
+    if (!ios_root_store_rename(self.rootsDirectory, name, newName, error))
         return NO;
     NSMutableOrderedSet *newRoots = [self.roots mutableCopy];
     NSUInteger index = [newRoots indexOfObject:name];

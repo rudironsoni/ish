@@ -5,7 +5,6 @@
 #import <IXLandLinuxRuntime/util/list.h>
 #import <IXLandLinuxRuntime/fs/stat.h>
 #import <IXLandLinuxRuntime/fs/dev.h>
-#import <IXLandLinuxRuntime/fs/fake-db.h>
 #import <IXLandLinuxRuntime/fs/fix_path.h>
 #import <IXLandLinuxRuntime/kernel/memory.h>
 #include <dirent.h>
@@ -80,10 +79,7 @@ struct mount {
     struct list mounts;
 
     int root_fd;
-    union {
-        void *data;
-        struct fakefs_db fakefs;
-    };
+    void *data;
 };
 extern lock_t mounts_lock;
 
@@ -173,7 +169,7 @@ bool is_adhoc_fd(struct fd *fd);
 
 // filesystems
 extern const struct fs_ops procfs;
-extern const struct fs_ops fakefs;
+extern const struct fs_ops rootfs;
 extern const struct fs_ops devptsfs;
 extern const struct fs_ops tmpfs;
 void fs_register(const struct fs_ops *fs);

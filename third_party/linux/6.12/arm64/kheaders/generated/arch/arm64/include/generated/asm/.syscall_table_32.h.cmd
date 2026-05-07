@@ -1,0 +1,1 @@
+savedcmd_arch/arm64/include/generated/asm/syscall_table_32.h := sh /private/var/folders/zx/_c0n8b957kz7t1q4668c93vh0000gn/T/vendor-linux-headers.18A0rz/linux-6.12/scripts/syscalltbl.sh  --abis common,32 /private/var/folders/zx/_c0n8b957kz7t1q4668c93vh0000gn/T/vendor-linux-headers.18A0rz/linux-6.12/arch/arm64/tools/syscall_32.tbl arch/arm64/include/generated/asm/syscall_table_32.h

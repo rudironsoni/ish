@@ -17,6 +17,7 @@
 #import "CurrentRoot.h"
 #import "ExceptionExfiltrator.h"
 #import "iOSFS.h"
+#import "root_registry.h"
 #import "SceneDelegate.h"
 #import "PasteboardDevice.h"
 #import "LocationDevice.h"
@@ -34,6 +35,7 @@
 #import <IXLandLinuxRuntime/fs/dyndev.h>
 #import <IXLandLinuxRuntime/fs/devices.h>
 #import <IXLandLinuxRuntime/fs/path.h>
+#import "root_bootstrap.h"
 #include <fcntl.h>
 
 @interface AppDelegate ()
@@ -146,7 +148,7 @@ static __weak AppDelegate *appDelegate;
 }
 
 + (BOOL)lastBootstrapRootsAvailable {
-    return Roots.instance.roots.count > 0;
+    return ios_root_has_available_roots();
 }
 
 + (BOOL)lastBootstrapArchiveURLPresent {
@@ -217,11 +219,11 @@ static __weak AppDelegate *appDelegate;
     lastBootstrapRootPresent = NO;
     lastBootstrapRootExists = NO;
     lastBootstrapRootDataExists = NO;
-    lastBootstrapRootsAvailable = Roots.instance.roots.count > 0;
-    lastBootstrapArchiveURLPresent = Roots.instance.lastArchiveURLPresent;
-    lastBootstrapImportAttempted = Roots.instance.lastImportAttempted;
-    lastBootstrapImportSucceeded = Roots.instance.lastImportSucceeded;
-    lastBootstrapImportErrorDescription = Roots.instance.lastImportErrorDescription;
+    lastBootstrapRootsAvailable = ios_root_has_available_roots();
+    lastBootstrapArchiveURLPresent = ios_root_last_archive_url_present();
+    lastBootstrapImportAttempted = ios_root_last_import_attempted();
+    lastBootstrapImportSucceeded = ios_root_last_import_succeeded();
+    lastBootstrapImportErrorDescription = ios_root_last_import_error_description();
     lastBootstrapMountRootCalled = NO;
     lastRootMountReturnValue = 0;
     lastMountsNonEmptyAfterRootMount = mounts_is_non_empty();
@@ -230,17 +232,17 @@ static __weak AppDelegate *appDelegate;
     lastBootstrapPID1ExistsAfterBecomeFirstProcess = pid_get_task(1) != NULL;
     lastBootstrapReturnValue = 0;
 
-    NSURL *root = [Roots.instance rootUrl:Roots.instance.defaultRoot];
-    NSURL *rootDataURL = root ? [root URLByAppendingPathComponent:@"data"] : nil;
+    NSURL *root = ios_root_default_url();
+    NSURL *rootDataURL = ios_root_default_data_url();
     BOOL rootExists = root ? [[NSFileManager defaultManager] fileExistsAtPath:root.path] : NO;
     BOOL rootDataExists = rootDataURL ? [[NSFileManager defaultManager] fileExistsAtPath:rootDataURL.path] : NO;
     BOOL isTesting = NSProcessInfo.processInfo.environment[@"XCTestConfigurationFilePath"] != nil;
     BOOL usingFallbackRoots = [root.path containsString:@"IXLandTestRoots"];
-    lastBootstrapRootsAvailable = Roots.instance.roots.count > 0;
-    lastBootstrapArchiveURLPresent = Roots.instance.lastArchiveURLPresent;
-    lastBootstrapImportAttempted = Roots.instance.lastImportAttempted;
-    lastBootstrapImportSucceeded = Roots.instance.lastImportSucceeded;
-    lastBootstrapImportErrorDescription = Roots.instance.lastImportErrorDescription;
+    lastBootstrapRootsAvailable = ios_root_has_available_roots();
+    lastBootstrapArchiveURLPresent = ios_root_last_archive_url_present();
+    lastBootstrapImportAttempted = ios_root_last_import_attempted();
+    lastBootstrapImportSucceeded = ios_root_last_import_succeeded();
+    lastBootstrapImportErrorDescription = ios_root_last_import_error_description();
     lastBootstrapRootPresent = root != nil;
     lastBootstrapRootExists = rootExists;
     lastBootstrapRootDataExists = rootDataExists;
@@ -278,7 +280,7 @@ static __weak AppDelegate *appDelegate;
         [ISHInstrumentation recordEvent:@"app.runtime.bootstrap.mount_root.enter"
                              attributes:@{ @"root_data_path": rootDataURL.path ?: @"",
                                            @"root_data_exists": @(rootDataExists) }];
-        int mountErr = mount_root(&fakefs, rootDataURL.fileSystemRepresentation);
+        int mountErr = ios_rootfs_mount(rootDataURL.fileSystemRepresentation);
         lastRootMountReturnValue = mountErr;
         lastMountsNonEmptyAfterRootMount = mounts_is_non_empty();
         [ISHInstrumentation recordEvent:@"app.runtime.bootstrap.mount_root.exit"

@@ -14,6 +14,7 @@
 #import "AboutViewController.h"
 #import "CurrentRoot.h"
 #import "Roots.h"
+#import "root_registry.h"
 #import "NSObject+SaneKVO.h"
 #import "LinuxInterop.h"
 #import "Instrumentation/ISHRuntimeFlags.h"
@@ -337,7 +338,7 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
     [ISHInstrumentation recordEvent:@"terminal.accessibility.controller.viewDidLoad.enter"];
     self.postPTYRestartBudget = 1;
 
-    NSURL *root = [Roots.instance rootUrl:Roots.instance.defaultRoot];
+    NSURL *root = ios_root_default_url();
     self.lastSessionFailureRootPath = root.path ?: @"";
     self.lastRootMountReturnValue = [AppDelegate lastRootMountReturnValue];
     self.lastTaskStartReturnText = @"unknown";
@@ -518,7 +519,7 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 
 - (int)startSession {
     [self recordSessionAttemptEvent:@"session.attempt.startSession.entry" extra:nil];
-    NSURL *root = [Roots.instance rootUrl:Roots.instance.defaultRoot];
+    NSURL *root = ios_root_default_url();
     self.lastSessionFailureRootPath = root.path ?: @"";
     NSArray<NSString *> *command = UserPreferences.shared.launchCommand;
 
@@ -664,7 +665,7 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
     BOOL mountsNonEmptyBeforeSession = mounts_is_non_empty();
     if (!mountsNonEmptyBeforeSession || pid_get_task(1) == NULL) {
         int bootstrapErr = [AppDelegate bootstrapRuntimeForSession];
-        NSURL *bootstrapRoot = [Roots.instance rootUrl:Roots.instance.defaultRoot];
+        NSURL *bootstrapRoot = ios_root_default_url();
         self.lastSessionFailureRootPath = bootstrapRoot.path ?: @"";
         self.lastRootMountReturnValue = [AppDelegate lastRootMountReturnValue];
         if (bootstrapErr < 0) {

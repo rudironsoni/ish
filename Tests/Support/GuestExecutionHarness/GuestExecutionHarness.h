@@ -70,13 +70,13 @@ struct tlb;
                                            bundle:(NSBundle *)bundle;
 
 // Run executable at rootfs path
-// rootPath: The fakefs root directory (e.g., .../roots/default/data/)
+// rootPath: The mounted root directory (e.g., .../roots/default/)
 // executablePath: Relative path within rootfs (e.g., "bin/busybox")
 - (GuestExecutionResult *)runExecutableAtRootPath:(NSString *)rootPath
                                    executablePath:(NSString *)executablePath;
 
 // Run executable with explicit argc/argv (for dynamic executables like /bin/login)
-// rootPath: The fakefs root directory (e.g., .../roots/default/data/)
+// rootPath: The mounted root directory (e.g., .../roots/default/)
 // executablePath: Relative path within rootfs (e.g., "bin/login")
 // argc: Argument count
 // argv: Null-separated argument strings (like convertCommand produces)

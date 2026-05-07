@@ -48,15 +48,13 @@ static inline int xX_main_Xx(int argc, char *const argv[], const char *envp) {
     int opt;
     const char *root = NULL;
     const char *workdir = NULL;
-    const struct fs_ops *fs = &realfs;
+    const struct fs_ops *fs = &rootfs;
     const char *console = "/dev/tty1";
     while ((opt = getopt(argc, argv, "+r:f:d:c:")) != -1) {
         switch (opt) {
             case 'r':
             case 'f':
                 root = optarg;
-                if (opt == 'f')
-                    fs = &fakefs;
                 break;
             case 'd':
                 workdir = optarg;
@@ -75,8 +73,6 @@ static inline int xX_main_Xx(int argc, char *const argv[], const char *envp) {
         perror(root);
         exit(1);
     }
-    if (fs == &fakefs)
-        strcat(root_realpath, "/data");
     int err = mount_root(fs, root_realpath);
     if (err < 0)
         return err;

@@ -296,7 +296,7 @@ extern bool exit_should_pthread_exit;
 }
 
 // Run executable at arbitrary path (e.g., from extracted rootfs)
-// NOTE: rootPath should be the fakefs root (e.g., .../roots/default/data/)
+// NOTE: rootPath should be the mounted root (e.g., .../roots/default/)
 // executablePath is the relative path within the rootfs (e.g., "bin/busybox")
 //
 // FIXED: Removed post-exit ownership hazard. The harness no longer captures

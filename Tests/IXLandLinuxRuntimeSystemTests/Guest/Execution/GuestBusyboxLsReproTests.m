@@ -4,7 +4,6 @@
 #import <IXLandLinuxRuntime/kernel/init.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/fs/tty.h>
-#import <IXLandLinuxRuntime/fs/fake.h>
 #import <IXLandLinuxRuntime/emu/tlb.h>
 #import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
 #import <IXLandTerminal/AppDelegate.h>
@@ -25,7 +24,7 @@ extern bool exit_should_pthread_exit;
         : @[];
 
     for (NSString *groupPath in groupPaths) {
-        NSString *rootPath = [groupPath stringByAppendingPathComponent:@"roots/default/data"];
+        NSString *rootPath = [groupPath stringByAppendingPathComponent:@"roots/default"];
         if ([fm fileExistsAtPath:rootPath]) {
             return rootPath;
         }
@@ -40,7 +39,7 @@ extern bool exit_should_pthread_exit;
         return;
     }
 
-    int mountErr = mount_root(&fakefs, rootPath.UTF8String);
+    int mountErr = mount_root(&rootfs, rootPath.UTF8String);
     XCTAssertTrue(mountErr == 0 || mountErr == -16, @"mount_root returned %d", mountErr);
 
     int initErr = become_first_process();
@@ -84,7 +83,7 @@ extern bool exit_should_pthread_exit;
         return;
     }
 
-    int mountErr = mount_root(&fakefs, rootPath.UTF8String);
+    int mountErr = mount_root(&rootfs, rootPath.UTF8String);
     XCTAssertTrue(mountErr == 0 || mountErr == -16, @"mount_root returned %d", mountErr);
 
     int initErr = become_first_process();
@@ -145,7 +144,7 @@ extern bool exit_should_pthread_exit;
         return;
     }
 
-    int mountErr = mount_root(&fakefs, rootPath.UTF8String);
+    int mountErr = mount_root(&rootfs, rootPath.UTF8String);
     XCTAssertTrue(mountErr == 0 || mountErr == -16, @"mount_root returned %d", mountErr);
 
     int initErr = become_first_process();
@@ -206,7 +205,7 @@ extern bool exit_should_pthread_exit;
         return;
     }
 
-    int mountErr = mount_root(&fakefs, rootPath.UTF8String);
+    int mountErr = mount_root(&rootfs, rootPath.UTF8String);
     XCTAssertTrue(mountErr == 0 || mountErr == -16, @"mount_root returned %d", mountErr);
 
     int initErr = become_first_process();
@@ -273,7 +272,7 @@ extern bool exit_should_pthread_exit;
         return;
     }
 
-    int mountErr = mount_root(&fakefs, rootPath.UTF8String);
+    int mountErr = mount_root(&rootfs, rootPath.UTF8String);
     XCTAssertTrue(mountErr == 0 || mountErr == -16, @"mount_root returned %d", mountErr);
 
     int initErr = become_first_process();
@@ -337,7 +336,7 @@ extern bool exit_should_pthread_exit;
         return;
     }
 
-    int mountErr = mount_root(&fakefs, rootPath.UTF8String);
+    int mountErr = mount_root(&rootfs, rootPath.UTF8String);
     XCTAssertTrue(mountErr == 0 || mountErr == -16, @"mount_root returned %d", mountErr);
 
     int initErr = become_first_process();
@@ -416,7 +415,7 @@ extern bool exit_should_pthread_exit;
         return;
     }
 
-    int mountErr = mount_root(&fakefs, rootPath.UTF8String);
+    int mountErr = mount_root(&rootfs, rootPath.UTF8String);
     XCTAssertTrue(mountErr == 0 || mountErr == -16, @"mount_root returned %d", mountErr);
 
     int initErr = become_first_process();
@@ -497,7 +496,7 @@ extern bool exit_should_pthread_exit;
         return;
     }
 
-    int mountErr = mount_root(&fakefs, rootPath.UTF8String);
+    int mountErr = mount_root(&rootfs, rootPath.UTF8String);
     XCTAssertTrue(mountErr == 0 || mountErr == -16, @"mount_root returned %d", mountErr);
 
     int initErr = become_first_process();
@@ -574,7 +573,7 @@ extern bool exit_should_pthread_exit;
         return;
     }
 
-    int mountErr = mount_root(&fakefs, rootPath.UTF8String);
+    int mountErr = mount_root(&rootfs, rootPath.UTF8String);
     XCTAssertTrue(mountErr == 0 || mountErr == -16, @"mount_root returned %d", mountErr);
 
     int initErr = become_first_process();
