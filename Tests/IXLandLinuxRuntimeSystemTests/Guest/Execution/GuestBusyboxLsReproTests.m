@@ -12,6 +12,7 @@
 #import <IXLandTerminal/AppDelegate.h>
 #import <IXLandTerminal/LinuxInterop.h>
 #import <IXLandTerminal/Terminal.h>
+#import <IXLandTerminal/TerminalView.h>
 #import "internal/ios/runtime/bootstrap_bridge.h"
 #import "internal/ios/runtime/session_bridge.h"
 #include <sys/stat.h>
@@ -146,6 +147,16 @@ extern bool exit_should_pthread_exit;
                                        envp:envp
                                    terminal:terminalOut
                                         pid:pidOut];
+}
+
+- (TerminalView *)configuredTerminalViewForTerminal:(Terminal *)terminal {
+    __block TerminalView *view = nil;
+    dispatch_sync(dispatch_get_main_queue(), ^{
+        view = [[TerminalView alloc] initWithFrame:CGRectMake(0, 0, 320, 480)];
+        view.terminal = terminal;
+        [view layoutIfNeeded];
+    });
+    return view;
 }
 
 - (NSString *)dataRootPath {
@@ -303,7 +314,7 @@ extern bool exit_should_pthread_exit;
     }
 
     dispatch_async(dispatch_get_main_queue(), ^{
-        [terminal sendInput:[@"ls -a /\n" dataUsingEncoding:NSUTF8StringEncoding]];
+        [terminal sendInput:[@"ls -a /\r" dataUsingEncoding:NSUTF8StringEncoding]];
     });
 
     NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:30.0];
@@ -546,7 +557,7 @@ extern bool exit_should_pthread_exit;
     }
 
     dispatch_async(dispatch_get_main_queue(), ^{
-        [terminal sendInput:[@"ls -a /\n" dataUsingEncoding:NSUTF8StringEncoding]];
+        [terminal sendInput:[@"ls -a /\r" dataUsingEncoding:NSUTF8StringEncoding]];
     });
 
     NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:30.0];
@@ -579,7 +590,7 @@ extern bool exit_should_pthread_exit;
     }
 
     dispatch_async(dispatch_get_main_queue(), ^{
-        [terminal sendInput:[@"exec /bin/busybox uname -m\n" dataUsingEncoding:NSUTF8StringEncoding]];
+        [terminal sendInput:[@"exec /bin/busybox uname -m\r" dataUsingEncoding:NSUTF8StringEncoding]];
     });
 
     NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:30.0];
@@ -607,14 +618,11 @@ extern bool exit_should_pthread_exit;
         return;
     }
 
-    dispatch_sync(dispatch_get_main_queue(), ^{
-        UIView *view = terminal.webView;
-        view.frame = CGRectMake(0, 0, 320, 480);
-        [view layoutIfNeeded];
-    });
+    TerminalView *view = [self configuredTerminalViewForTerminal:terminal];
 
     dispatch_async(dispatch_get_main_queue(), ^{
-        [terminal sendInput:[@"ls -a /\n" dataUsingEncoding:NSUTF8StringEncoding]];
+        (void)view;
+        [terminal sendInput:[@"ls -a /\r" dataUsingEncoding:NSUTF8StringEncoding]];
     });
 
     NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:30.0];
@@ -646,11 +654,10 @@ extern bool exit_should_pthread_exit;
         return;
     }
 
+    TerminalView *view = [self configuredTerminalViewForTerminal:terminal];
+
     dispatch_sync(dispatch_get_main_queue(), ^{
-        UIView *view = terminal.webView;
-        view.frame = CGRectMake(0, 0, 320, 480);
-        [view layoutIfNeeded];
-        [(id)view insertText:@"ls -a /\n"];
+        [view insertText:@"ls -a /\n"];
     });
 
     NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:30.0];
@@ -682,11 +689,7 @@ extern bool exit_should_pthread_exit;
         return;
     }
 
-    dispatch_sync(dispatch_get_main_queue(), ^{
-        UIView *view = terminal.webView;
-        view.frame = CGRectMake(0, 0, 320, 480);
-        [view layoutIfNeeded];
-    });
+    TerminalView *view = [self configuredTerminalViewForTerminal:terminal];
 
     NSDate *promptDeadline = [NSDate dateWithTimeIntervalSinceNow:60.0];
     NSString *promptText = @"";
@@ -701,7 +704,7 @@ extern bool exit_should_pthread_exit;
     XCTAssertTrue([promptText containsString:@"/ # "] || [promptText hasSuffix:@"/ #"], @"prompt must appear before typing. Last observed: %@", promptText);
 
     dispatch_async(dispatch_get_main_queue(), ^{
-        [(id)terminal.webView insertText:@"ls -a /\n"];
+        [view insertText:@"ls -a /\n"];
     });
 
     NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:30.0];
@@ -733,11 +736,7 @@ extern bool exit_should_pthread_exit;
         return;
     }
 
-    dispatch_sync(dispatch_get_main_queue(), ^{
-        UIView *view = terminal.webView;
-        view.frame = CGRectMake(0, 0, 320, 480);
-        [view layoutIfNeeded];
-    });
+    TerminalView *view = [self configuredTerminalViewForTerminal:terminal];
 
     NSDate *promptDeadline = [NSDate dateWithTimeIntervalSinceNow:60.0];
     while ([promptDeadline timeIntervalSinceNow] > 0) {
@@ -753,7 +752,7 @@ extern bool exit_should_pthread_exit;
         for (NSUInteger i = 0; i < command.length; i++) {
             unichar ch = [command characterAtIndex:i];
             NSString *piece = [NSString stringWithCharacters:&ch length:1];
-            [(id)terminal.webView insertText:piece];
+            [view insertText:piece];
         }
     });
 
@@ -786,11 +785,10 @@ extern bool exit_should_pthread_exit;
         return;
     }
 
+    TerminalView *view = [self configuredTerminalViewForTerminal:terminal];
+
     dispatch_sync(dispatch_get_main_queue(), ^{
-        UIView *view = terminal.webView;
-        view.frame = CGRectMake(0, 0, 320, 480);
-        [view layoutIfNeeded];
-        [terminal requestFocus];
+        [view focusForTesting];
     });
 
     NSDate *promptDeadline = [NSDate dateWithTimeIntervalSinceNow:60.0];
@@ -803,7 +801,7 @@ extern bool exit_should_pthread_exit;
     }
 
     dispatch_async(dispatch_get_main_queue(), ^{
-        [(id)terminal.webView insertText:@"ls -a /\n"];
+        [view insertText:@"ls -a /\n"];
     });
 
     NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:30.0];
@@ -836,9 +834,7 @@ extern bool exit_should_pthread_exit;
     }
 
     dispatch_sync(dispatch_get_main_queue(), ^{
-        UIView *view = terminal.webView;
-        view.frame = CGRectMake(0, 0, 320, 480);
-        [view layoutIfNeeded];
+        TerminalView *view = [self configuredTerminalViewForTerminal:terminal];
         UITextField *inputField = [view valueForKey:@"uiTestInputField"];
         XCTAssertNotNil(inputField, @"uiTestInputField must exist in test mode");
         [inputField becomeFirstResponder];
@@ -880,7 +876,7 @@ extern bool exit_should_pthread_exit;
     }
 
     dispatch_async(dispatch_get_main_queue(), ^{
-        [terminal sendInput:[@"ls -a /\n" dataUsingEncoding:NSUTF8StringEncoding]];
+        [terminal sendInput:[@"ls -a /\r" dataUsingEncoding:NSUTF8StringEncoding]];
     });
 
     NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:30.0];
@@ -912,12 +908,11 @@ extern bool exit_should_pthread_exit;
         return;
     }
 
+    TerminalView *view = [self configuredTerminalViewForTerminal:terminal];
+
     dispatch_sync(dispatch_get_main_queue(), ^{
-        UIView *view = terminal.webView;
-        view.frame = CGRectMake(0, 0, 320, 480);
-        [view layoutIfNeeded];
-        [terminal requestFocus];
-        [(id)view insertText:@"ls -a /\n"];
+        [view focusForTesting];
+        [view insertText:@"ls -a /\n"];
     });
 
     NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:30.0];

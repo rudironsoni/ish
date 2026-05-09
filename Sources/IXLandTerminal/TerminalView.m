@@ -87,6 +87,7 @@ struct rowcol {
 @property struct rowcol floatingCursor;
 @property CGSize floatingCursorSensitivity;
 @property CGSize actualFloatingCursorSensitivity;
+@property (nonatomic) BOOL didCommonInit;
 
 @end
 
@@ -157,29 +158,25 @@ struct rowcol {
 @synthesize inputDelegate;
 @synthesize tokenizer;
 
-- (void)layoutSubviews {
-    [super layoutSubviews];
-    if (self.terminal.loaded) {
-        [self.terminal syncWindowSizeIfPossible];
+- (instancetype)initWithFrame:(CGRect)frame {
+    if (self = [super initWithFrame:frame]) {
+        [self commonInit];
     }
-    if (self.terminalAccessibilityElement) {
-        self.terminalAccessibilityElement.accessibilityFrameInContainerSpace = self.bounds;
-        BOOL isTesting = NSProcessInfo.processInfo.environment[@"XCTestConfigurationFilePath"] != nil;
-        if (isTesting) {
-            if (self.window != nil) {
-                CGRect frameInScreen = [self.window convertRect:[self convertRect:self.bounds toView:self.window] toCoordinateSpace:UIScreen.mainScreen.coordinateSpace];
-                self.terminalAccessibilityElement.accessibilityFrame = frameInScreen;
-            }
-        }
-    }
+    return self;
 }
 
-- (BOOL)canBecomeFirstResponder {
-    return YES;
+- (instancetype)initWithCoder:(NSCoder *)coder {
+    if (self = [super initWithCoder:coder]) {
+        [self commonInit];
+    }
+    return self;
 }
 
-- (void)awakeFromNib {
-    [super awakeFromNib];
+- (void)commonInit {
+    if (self.didCommonInit)
+        return;
+    self.didCommonInit = YES;
+
     if ([self isRunningUITests]) {
         self.uiTestInputField = [[UITextField alloc] initWithFrame:self.bounds];
         self.uiTestInputField.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
@@ -226,18 +223,38 @@ struct rowcol {
     self.markedRange = [self terminalEmptyRange];
     self.selectedRange = [self terminalEmptyRange];
 
-    // By default the accessibility proxy (TerminalSurface) is created lazily
-    // after the terminal has content. For UI tests, pre-create the proxy so
-    // XCTest can discover and focus the terminal surface immediately. This is
-    // strictly a test-only visibility bridge and does not change runtime
-    // behavior outside XCTest runs.
     BOOL isTesting = NSProcessInfo.processInfo.environment[@"XCTestConfigurationFilePath"] != nil;
     if (isTesting) {
-        // Trigger the getter to allocate the accessibility element.
         (void) self.terminalAccessibilityElement;
     } else {
-        self.terminalAccessibilityElement = nil; // Explicit: nil until first terminal content
+        self.terminalAccessibilityElement = nil;
     }
+}
+
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    if (self.terminal.loaded) {
+        [self.terminal syncWindowSizeIfPossible];
+    }
+    if (self.terminalAccessibilityElement) {
+        self.terminalAccessibilityElement.accessibilityFrameInContainerSpace = self.bounds;
+        BOOL isTesting = NSProcessInfo.processInfo.environment[@"XCTestConfigurationFilePath"] != nil;
+        if (isTesting) {
+            if (self.window != nil) {
+                CGRect frameInScreen = [self.window convertRect:[self convertRect:self.bounds toView:self.window] toCoordinateSpace:UIScreen.mainScreen.coordinateSpace];
+                self.terminalAccessibilityElement.accessibilityFrame = frameInScreen;
+            }
+        }
+    }
+}
+
+- (BOOL)canBecomeFirstResponder {
+    return YES;
+}
+
+- (void)awakeFromNib {
+    [super awakeFromNib];
+    [self commonInit];
 }
 
 - (void)dealloc {
