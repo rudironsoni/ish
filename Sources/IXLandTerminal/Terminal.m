@@ -92,6 +92,7 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
         IXLandGhosttyHostTerminal *terminal = [[IXLandGhosttyHostTerminal alloc] initWithFontSize:fontSize];
         terminal.delegate = self;
         self.ghosttyTerminal = terminal;
+        [self updateAppearanceStyle];
         _webView = terminal.view;
         self.loaded = YES;
         [self flushPendingFocus];
@@ -163,6 +164,8 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
 
     UIView *view = self.webView;
     CGSize size = view.bounds.size;
+    if (size.width < 8 || size.height < 16)
+        return;
     NSUInteger cols = MAX(1, (NSUInteger) (size.width / 8));
     NSUInteger rows = MAX(1, (NSUInteger) (size.height / 16));
     struct linux_tty *linuxTTY = nil;
@@ -178,6 +181,16 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
     lock(&self.tty->lock);
     tty_set_winsize(self.tty, (struct winsize_) {.col = (uint16_t) cols, .row = (uint16_t) rows});
     unlock(&self.tty->lock);
+}
+
+- (void)syncWindowSizeIfPossible {
+    if (![NSThread isMainThread]) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self syncWindowSizeIfPossible];
+        });
+        return;
+    }
+    [self syncWindowSize];
 }
 
 - (BOOL)becomeInputResponder {
@@ -200,6 +213,17 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
 - (void)updateFontSize:(CGFloat)fontSize {
     dispatch_async(dispatch_get_main_queue(), ^{
         [self.ghosttyTerminal updateFontSize:fontSize];
+    });
+}
+
+- (void)updateAppearanceStyle {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        Palette *palette = UserPreferences.shared.palette;
+        [self.ghosttyTerminal updateAppearanceWithForegroundHex:palette.foregroundColor
+                                                  backgroundHex:palette.backgroundColor
+                                                      cursorHex:palette.cursorColor
+                                               paletteOverrides:palette.colorPaletteOverrides
+                                                 darkAppearance:UserPreferences.shared.requestingDarkAppearance];
     });
 }
 

@@ -14,6 +14,46 @@
 
 @class TerminalView;
 
+@interface TerminalTextPosition : UITextPosition
+@property (nonatomic) NSInteger offset;
++ (instancetype)positionWithOffset:(NSInteger)offset;
+@end
+
+@implementation TerminalTextPosition
++ (instancetype)positionWithOffset:(NSInteger)offset {
+    TerminalTextPosition *position = [TerminalTextPosition new];
+    position.offset = offset;
+    return position;
+}
+@end
+
+@interface TerminalTextRange : UITextRange
+@property (nonatomic) TerminalTextPosition *startPosition;
+@property (nonatomic) TerminalTextPosition *endPosition;
++ (instancetype)rangeWithStart:(NSInteger)start end:(NSInteger)end;
+@end
+
+@implementation TerminalTextRange
++ (instancetype)rangeWithStart:(NSInteger)start end:(NSInteger)end {
+    TerminalTextRange *range = [TerminalTextRange new];
+    range.startPosition = [TerminalTextPosition positionWithOffset:start];
+    range.endPosition = [TerminalTextPosition positionWithOffset:end];
+    return range;
+}
+
+- (UITextPosition *)start {
+    return self.startPosition;
+}
+
+- (UITextPosition *)end {
+    return self.endPosition;
+}
+
+- (BOOL)isEmpty {
+    return self.startPosition.offset == self.endPosition.offset;
+}
+@end
+
 @interface TerminalSurfaceAccessibilityElement : UIAccessibilityElement
 @property (nonatomic, weak) TerminalView *terminalView;
 @end
@@ -42,6 +82,7 @@ struct rowcol {
 @property (nullable) NSString *selectedText;
 @property UITextRange *markedRange;
 @property UITextRange *selectedRange;
+@property (nonatomic) BOOL suppressNextMarkedTextCommit;
 
 @property struct rowcol floatingCursor;
 @property CGSize floatingCursorSensitivity;
@@ -58,6 +99,26 @@ struct rowcol {
 - (BOOL)isRunningUITests {
     NSDictionary *environment = NSProcessInfo.processInfo.environment;
     return environment[@"XCTestConfigurationFilePath"] != nil || environment[@"IXLAND_UI_TESTING"] != nil;
+}
+
+- (TerminalTextPosition *)terminalDocumentPosition {
+    return [TerminalTextPosition positionWithOffset:0];
+}
+
+- (TerminalTextRange *)terminalEmptyRange {
+    return [TerminalTextRange rangeWithStart:0 end:0];
+}
+
+- (TerminalTextPosition *)terminalPositionFromUITextPosition:(UITextPosition *)position {
+    if ([position isKindOfClass:[TerminalTextPosition class]])
+        return (TerminalTextPosition *) position;
+    return [self terminalDocumentPosition];
+}
+
+- (TerminalTextRange *)terminalRangeFromUITextRange:(UITextRange *)range {
+    if ([range isKindOfClass:[TerminalTextRange class]])
+        return (TerminalTextRange *) range;
+    return [self terminalEmptyRange];
 }
 
 - (UIAccessibilityElement *)terminalAccessibilityElement {
@@ -98,6 +159,9 @@ struct rowcol {
 
 - (void)layoutSubviews {
     [super layoutSubviews];
+    if (self.terminal.loaded) {
+        [self.terminal syncWindowSizeIfPossible];
+    }
     if (self.terminalAccessibilityElement) {
         self.terminalAccessibilityElement.accessibilityFrameInContainerSpace = self.bounds;
         BOOL isTesting = NSProcessInfo.processInfo.environment[@"XCTestConfigurationFilePath"] != nil;
@@ -159,8 +223,8 @@ struct rowcol {
         });
     }];
 
-    self.markedRange = [UITextRange new];
-    self.selectedRange = [UITextRange new];
+    self.markedRange = [self terminalEmptyRange];
+    self.selectedRange = [self terminalEmptyRange];
 
     // By default the accessibility proxy (TerminalSurface) is created lazily
     // after the terminal has content. For UI tests, pre-create the proxy so
@@ -299,6 +363,7 @@ struct rowcol {
     if (_overrideFontSize == prefs.fontSize.doubleValue) {
         _overrideFontSize = 0;
     }
+    [self.terminal updateAppearanceStyle];
     [self.terminal updateFontSize:self.effectiveFontSize];
 }
 
@@ -510,11 +575,23 @@ struct rowcol {
 #pragma mark IME Input and Selection
 
 - (void)setMarkedText:(nullable NSString *)markedText selectedRange:(NSRange)selectedRange {
+    if (markedText.length == 1 && selectedRange.location == 1 && selectedRange.length == 0) {
+        self.suppressNextMarkedTextCommit = YES;
+        self.markedText = nil;
+        [self insertText:markedText];
+        return;
+    }
     self.markedText = markedText;
 }
 
 - (void)unmarkText {
+    if (self.suppressNextMarkedTextCommit) {
+        self.suppressNextMarkedTextCommit = NO;
+        self.markedText = nil;
+        return;
+    }
     [self insertText:self.markedText];
+    self.markedText = nil;
 }
 
 - (UITextRange *)markedTextRange {
@@ -846,25 +923,70 @@ static const char *metaKeys = "abcdefghijklmnopqrstuvwxyz0123456789-=[]\\;',./";
 
 - (NSWritingDirection)baseWritingDirectionForPosition:(nonnull UITextPosition *)position inDirection:(UITextStorageDirection)direction { LogStub(); return NSWritingDirectionLeftToRight; }
 - (void)setBaseWritingDirection:(NSWritingDirection)writingDirection forRange:(nonnull UITextRange *)range { LogStub(); }
-- (UITextPosition *)beginningOfDocument { LogStub(); return nil; }
+- (UITextPosition *)beginningOfDocument { LogStub(); return [self terminalDocumentPosition]; }
 - (CGRect)caretRectForPosition:(nonnull UITextPosition *)position { LogStub(); return CGRectZero; }
-- (nullable UITextRange *)characterRangeAtPoint:(CGPoint)point { LogStub(); return nil; }
-- (nullable UITextRange *)characterRangeByExtendingPosition:(nonnull UITextPosition *)position inDirection:(UITextLayoutDirection)direction { LogStub(); return nil; }
-- (nullable UITextPosition *)closestPositionToPoint:(CGPoint)point { LogStub(); return nil; }
-- (nullable UITextPosition *)closestPositionToPoint:(CGPoint)point withinRange:(nonnull UITextRange *)range { LogStub(); return nil; }
-- (NSComparisonResult)comparePosition:(nonnull UITextPosition *)position toPosition:(nonnull UITextPosition *)other { LogStub(); return NSOrderedSame; }
-- (UITextPosition *)endOfDocument { LogStub(); return nil; }
+- (nullable UITextRange *)characterRangeAtPoint:(CGPoint)point { LogStub(); return [self terminalEmptyRange]; }
+- (nullable UITextRange *)characterRangeByExtendingPosition:(nonnull UITextPosition *)position inDirection:(UITextLayoutDirection)direction { LogStub(); return [self terminalEmptyRange]; }
+- (nullable UITextPosition *)closestPositionToPoint:(CGPoint)point { LogStub(); return [self terminalDocumentPosition]; }
+- (nullable UITextPosition *)closestPositionToPoint:(CGPoint)point withinRange:(nonnull UITextRange *)range { LogStub(); return [self terminalDocumentPosition]; }
+- (NSComparisonResult)comparePosition:(nonnull UITextPosition *)position toPosition:(nonnull UITextPosition *)other {
+    LogStub();
+    NSInteger lhs = [self terminalPositionFromUITextPosition:position].offset;
+    NSInteger rhs = [self terminalPositionFromUITextPosition:other].offset;
+    if (lhs < rhs)
+        return NSOrderedAscending;
+    if (lhs > rhs)
+        return NSOrderedDescending;
+    return NSOrderedSame;
+}
+- (UITextPosition *)endOfDocument { LogStub(); return [self terminalDocumentPosition]; }
 - (CGRect)firstRectForRange:(nonnull UITextRange *)range { LogStub(); return CGRectZero; }
 - (NSDictionary<NSAttributedStringKey,id> *)markedTextStyle { LogStub(); return nil; }
 - (void)setMarkedTextStyle:(NSDictionary<NSAttributedStringKey,id> *)markedTextStyle { LogStub(); }
-- (NSInteger)offsetFromPosition:(nonnull UITextPosition *)from toPosition:(nonnull UITextPosition *)toPosition { LogStub(); return 0; }
-- (nullable UITextPosition *)positionFromPosition:(nonnull UITextPosition *)position inDirection:(UITextLayoutDirection)direction offset:(NSInteger)offset { LogStub(); return nil; }
-- (nullable UITextPosition *)positionFromPosition:(nonnull UITextPosition *)position offset:(NSInteger)offset { LogStub(); return nil; }
-- (nullable UITextPosition *)positionWithinRange:(nonnull UITextRange *)range farthestInDirection:(UITextLayoutDirection)direction { LogStub(); return nil; }
+- (NSInteger)offsetFromPosition:(nonnull UITextPosition *)from toPosition:(nonnull UITextPosition *)toPosition {
+    LogStub();
+    return [self terminalPositionFromUITextPosition:toPosition].offset -
+           [self terminalPositionFromUITextPosition:from].offset;
+}
+- (nullable UITextPosition *)positionFromPosition:(nonnull UITextPosition *)position inDirection:(UITextLayoutDirection)direction offset:(NSInteger)offset {
+    LogStub();
+    return [self positionFromPosition:position offset:offset];
+}
+- (nullable UITextPosition *)positionFromPosition:(nonnull UITextPosition *)position offset:(NSInteger)offset {
+    LogStub();
+    NSInteger base = [self terminalPositionFromUITextPosition:position].offset;
+    NSInteger next = MAX(0, base + offset);
+    return [TerminalTextPosition positionWithOffset:next];
+}
+- (nullable UITextPosition *)positionWithinRange:(nonnull UITextRange *)range farthestInDirection:(UITextLayoutDirection)direction {
+    LogStub();
+    TerminalTextRange *textRange = [self terminalRangeFromUITextRange:range];
+    switch (direction) {
+        case UITextLayoutDirectionLeft:
+        case UITextLayoutDirectionUp:
+            return textRange.start;
+        case UITextLayoutDirectionRight:
+        case UITextLayoutDirectionDown:
+            return textRange.end;
+    }
+}
 - (void)replaceRange:(nonnull UITextRange *)range withText:(nonnull NSString *)text { LogStub(); }
-- (void)setSelectedTextRange:(UITextRange *)selectedTextRange { LogStub(); }
+- (void)setSelectedTextRange:(UITextRange *)selectedTextRange {
+    LogStub();
+    self.selectedRange = selectedTextRange ?: [self terminalEmptyRange];
+}
 - (nonnull NSArray<UITextSelectionRect *> *)selectionRectsForRange:(nonnull UITextRange *)range { LogStub(); return @[]; }
-- (nullable UITextRange *)textRangeFromPosition:(nonnull UITextPosition *)fromPosition toPosition:(nonnull UITextPosition *)toPosition { LogStub(); return nil; }
+- (nullable UITextRange *)textRangeFromPosition:(nonnull UITextPosition *)fromPosition toPosition:(nonnull UITextPosition *)toPosition {
+    LogStub();
+    NSInteger from = [self terminalPositionFromUITextPosition:fromPosition].offset;
+    NSInteger to = [self terminalPositionFromUITextPosition:toPosition].offset;
+    if (to < from) {
+        NSInteger tmp = from;
+        from = to;
+        to = tmp;
+    }
+    return [TerminalTextRange rangeWithStart:from end:to];
+}
 
 - (BOOL)isAccessibilityElement {
     return NO;

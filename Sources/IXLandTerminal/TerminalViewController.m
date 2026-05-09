@@ -236,6 +236,8 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 
 @property BOOL ignoreKeyboardMotion;
 @property (nonatomic) BOOL hasExternalKeyboard;
+@property (nonatomic) BOOL sessionStartupReady;
+@property (nonatomic) BOOL terminalViewHasAppeared;
 
 @end
 
@@ -439,8 +441,9 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 
 - (void)viewDidAppear:(BOOL)animated {
     [super viewDidAppear:animated];
+    self.terminalViewHasAppeared = YES;
     dispatch_async(dispatch_get_main_queue(), ^{
-        if ([self isRunningUITests] && self.sessionTerminal == nil && !self.sessionStartInProgress) {
+        if (self.sessionStartupReady && self.sessionTerminal == nil && !self.sessionStartInProgress) {
             [self startNewSession];
         }
         [self focusTerminalInput];
@@ -516,6 +519,14 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
         [self recordSessionAttemptEvent:@"session.dialog.raise" extra:@{ @"return_value": @(err), @"message": @"could not start session", @"subtitle": subtitle ?: @"", @"is_restart_path": @(isRestartPath) }];
         [self showMessage:@"could not start session"
                  subtitle:subtitle];
+    }
+}
+
+- (void)markSessionStartupReady {
+    self.sessionStartupReady = YES;
+    [ISHInstrumentation recordEvent:@"session.startup.ready_for_visible_launch"];
+    if (self.terminalViewHasAppeared && self.sessionTerminal == nil && !self.sessionStartInProgress) {
+        [self startNewSession];
     }
 }
 

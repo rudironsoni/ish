@@ -756,6 +756,112 @@ uint64_t tcti_harness_case_strchrnul_vector_mask_finds_dot(void)
     return cpu.x[0] & 0x8080808080808080ULL;
 }
 
+uint64_t tcti_harness_case_strchrnul_byte_loop_stops_on_match_or_nul(void)
+{
+    enum {
+        text_base = 0x6e9dc,
+        mov_pc = 0x6e9f0,
+        ret_pc = 0x6e9f4,
+        data_base = 0x220000,
+        data_page = data_base & ~(PAGE_SIZE - 1),
+        max_block_entries = 16,
+    };
+
+    static const uint32_t loop_insns[] = {
+        0x91000442, // add x2, x2, #1
+        0x39400040, // ldrb w0, [x2]
+        0x7100001f, // cmp w0, #0
+        0x7a411004, // ccmp w0, w1, #4, ne
+        0x54ffff81, // b.ne 0x6e9dc
+    };
+    static const uint32_t mov_insn = 0xaa0203e0; // mov x0, x2
+    static const uint32_t ret_insn = 0xd65f03c0; // ret
+
+    struct mem mem;
+    mem_init(&mem);
+    if (pt_map_nothing(&mem, PAGE(data_page), 1, P_READ | P_WRITE) < 0) {
+        mem_destroy(&mem);
+        return UINT64_MAX;
+    }
+
+    struct tlb tlb = {};
+    tlb_refresh(&tlb, &mem.mmu);
+
+    uint64_t result = 0;
+    const struct {
+        const char bytes[4];
+        uint32_t needle;
+        uint64_t expected_addr;
+        uint64_t base_tag;
+    } cases[] = {
+        { { 'D', '\0', '\0', '\0' }, 'D', data_base, 0x1000000000000000ULL },
+        { { 'Z', '\0', '.', '\0' }, '.', data_base + 1, 0x2000000000000000ULL },
+    };
+
+    for (size_t case_index = 0; case_index < sizeof(cases) / sizeof(cases[0]); case_index++) {
+        struct cpu_state cpu;
+        memset(&cpu, 0, sizeof(cpu));
+        cpu.mmu = &mem.mmu;
+        cpu.tlb = &tlb;
+        cpu.pc = text_base;
+        cpu.x[1] = cases[case_index].needle;
+        cpu.x[2] = data_base - 1;
+        cpu.x[30] = 0;
+        cpu.pstate = 0;
+
+        for (size_t i = 0; i < sizeof(cases[case_index].bytes); i++) {
+            if (a64_guest_write8(&cpu, &tlb, data_base + i, (uint8_t)cases[case_index].bytes[i]) !=
+                A64_MEM_OK) {
+                mem_destroy(&mem);
+                return UINT64_MAX - 1;
+            }
+        }
+
+        bool finished = false;
+        for (size_t entry = 0; entry < max_block_entries; entry++) {
+            cpu.pc = text_base;
+            if (tcti_harness_run_generated_block(&cpu, text_base, loop_insns,
+                                                 sizeof(loop_insns) / sizeof(loop_insns[0])) < 0) {
+                mem_destroy(&mem);
+                return UINT64_MAX - 2;
+            }
+            if (cpu.pc == text_base)
+                continue;
+            if (cpu.pc != mov_pc)
+                break;
+
+            if (tcti_harness_run_generated_block(&cpu, mov_pc, &mov_insn, 1) < 0) {
+                mem_destroy(&mem);
+                return UINT64_MAX - 3;
+            }
+            if (cpu.pc == mov_pc)
+                cpu.pc = ret_pc;
+            if (cpu.pc != ret_pc)
+                break;
+
+            if (tcti_harness_run_generated_block(&cpu, ret_pc, &ret_insn, 1) < 0) {
+                mem_destroy(&mem);
+                return UINT64_MAX - 4;
+            }
+            if (cpu.pc == 0) {
+                finished = true;
+                break;
+            }
+            break;
+        }
+
+        if (!finished)
+            result |= cases[case_index].base_tag | 0x00ff000000000000ULL;
+        if (cpu.x[0] != cases[case_index].expected_addr)
+            result |= cases[case_index].base_tag | (cpu.x[0] & 0x0000ffffffffffffULL);
+        if (cpu.x[2] != cases[case_index].expected_addr)
+            result |= (cases[case_index].base_tag >> 4) | (cpu.x[2] & 0x0000ffffffffffffULL);
+    }
+
+    mem_destroy(&mem);
+    return result;
+}
+
 uint64_t tcti_harness_case_logical_mov_roundtrips_memory_backed_x19(void)
 {
     enum {
@@ -4187,6 +4293,109 @@ uint64_t tcti_harness_case_busybox_scandir_flatten_block_roundtrip(void)
                                         : (0x5000000000000000ULL |
                                            (cpu.x[20] & 0x0fffffffffffffffULL));
     result |= (cpu.x[0] == 0) ? 0 : (0x6000000000000000ULL | (cpu.x[0] & 0x0fffffffffffffffULL));
+
+    mem_destroy(&mem);
+    return result;
+}
+
+uint64_t tcti_harness_case_busybox_input_widechar_copy_loop_roundtrip(void)
+{
+    enum {
+        input_page = 0x190000,
+        input_addr = input_page + 1,
+        stack_top = 0x1a0000,
+        stack_page = stack_top - PAGE_SIZE,
+        max_chars = 36,
+    };
+
+    struct mem mem;
+    mem_init(&mem);
+    if (pt_map_nothing(&mem, PAGE(input_page), 2, P_READ | P_WRITE) < 0 ||
+        pt_map_nothing(&mem, PAGE(stack_page), 2, P_READ | P_WRITE) < 0) {
+        mem_destroy(&mem);
+        return UINT64_MAX;
+    }
+
+    struct tlb tlb = {};
+    tlb_refresh(&tlb, &mem.mmu);
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.mmu = &mem.mmu;
+    cpu.tlb = &tlb;
+    cpu.pc = 0x5bc90;
+    cpu.sp = stack_top;
+    cpu.x[0] = input_addr;
+    cpu.x[1] = stack_top + 8;
+    cpu.x[2] = 0;
+    cpu.x[3] = 0;
+
+    for (uint64_t i = 0; i < max_chars; i++) {
+        if (a64_guest_write16(&cpu, &tlb, input_addr + (i * 2), (uint16_t)(0x41 + i)) !=
+            A64_MEM_OK) {
+            mem_destroy(&mem);
+            return UINT64_MAX - 1;
+        }
+    }
+
+    unsigned step = 0;
+    for (; step < 512 && cpu.pc != 0x5bcb4; step++) {
+        uint32_t insn = 0;
+        switch (cpu.pc) {
+        case 0x5bc90: insn = 0xd2800002; break; // mov x2, #0
+        case 0x5bc94: insn = 0x78627803; break; // ldrh w3, [x0, x2, lsl #1]
+        case 0x5bc98: insn = 0x340000a3; break; // cbz w3, 0x5bcac
+        case 0x5bc9c: insn = 0xb8227823; break; // str w3, [x1, x2, lsl #2]
+        case 0x5bca0: insn = 0x91000442; break; // add x2, x2, #1
+        case 0x5bca4: insn = 0xf100905f; break; // cmp x2, #0x24
+        case 0x5bca8: insn = 0x54ffff61; break; // b.ne 0x5bc94
+        case 0x5bcac: insn = 0x910283e0; break; // add x0, sp, #0xa0
+        case 0x5bcb0: insn = 0xb822d83f; break; // str wzr, [x1, w2, sxtw #2]
+        default:
+            mem_destroy(&mem);
+            return 0x1000000000000000ULL | cpu.pc;
+        }
+
+        uint64_t old_pc = cpu.pc;
+        int run_ret = tcti_harness_run_generated_block(&cpu, cpu.pc, &insn, 1);
+        if (run_ret < 0) {
+            mem_destroy(&mem);
+            return 0x2000000000000000ULL | (((uint64_t)(uint8_t)(-run_ret)) << 48) |
+                   (old_pc & 0x0000ffffffffffffULL);
+        }
+        if (cpu.pc == old_pc)
+            cpu.pc += 4;
+    }
+
+    if (cpu.pc != 0x5bcb4) {
+        mem_destroy(&mem);
+        return 0x3000000000000000ULL | ((uint64_t)step << 32) | (cpu.pc & 0xffffffffULL);
+    }
+
+    uint64_t result = 0;
+    for (uint64_t i = 0; i < max_chars; i++) {
+        uint32_t copied = 0;
+        if (a64_guest_read32(&cpu, &tlb, stack_top + 8 + (i * 4), &copied) != A64_MEM_OK) {
+            mem_destroy(&mem);
+            return UINT64_MAX - 2;
+        }
+        if (copied != (uint32_t)(0x41 + i))
+            result |= 1ULL;
+    }
+
+    uint32_t terminator = UINT32_MAX;
+    if (a64_guest_read32(&cpu, &tlb, stack_top + 8 + (max_chars * 4), &terminator) !=
+        A64_MEM_OK) {
+        mem_destroy(&mem);
+        return UINT64_MAX - 3;
+    }
+
+    if (terminator != 0)
+        result |= 2ULL;
+    if (cpu.x[2] != max_chars)
+        result |= 4ULL;
+    if (cpu.x[0] != stack_top + 0xa0)
+        result |= 8ULL;
 
     mem_destroy(&mem);
     return result;

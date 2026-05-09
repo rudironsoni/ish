@@ -13,10 +13,12 @@ public final class IXLandGhosttyHostTerminal: NSObject {
     @objc public private(set) var terminalView: GhosttyTerminal.TerminalView!
     private var session: InMemoryTerminalSession!
     private var isReceivingOutput = false
+    private var isSurfaceReady = false
     private var navigationButton: IXLandGhosttyNavigationButton?
     private var focusTapRecognizer: UITapGestureRecognizer?
     private var pendingTerminalControlBytes = Data()
     private var pendingTerminalStatusBytes = Data()
+    private var pendingOutputBytes = Data()
 
     @objc public weak var delegate: (any IXLandGhosttyHostTerminalDelegate)?
 
@@ -44,6 +46,8 @@ public final class IXLandGhosttyHostTerminal: NSObject {
             let rows = Int(viewport.rows)
             Task { @MainActor [weak self] in
                 guard let self else { return }
+                self.isSurfaceReady = true
+                self.flushPendingOutputIfPossible()
                 self.delegate?.ghosttyHostTerminal(self, didResize: columns, rows: rows)
             }
         })
@@ -57,8 +61,8 @@ public final class IXLandGhosttyHostTerminal: NSObject {
         let terminalView = GhosttyTerminal.TerminalView(frame: .zero)
         terminalView.controller = controller
         terminalView.configuration = options
-        terminalView.backgroundColor = UIColor(red: 0x21 / 255.0, green: 0x21 / 255.0, blue: 0x21 / 255.0, alpha: 1.0)
-        terminalView.isOpaque = true
+        terminalView.backgroundColor = .clear
+        terminalView.isOpaque = false
         #if !targetEnvironment(macCatalyst)
         terminalView.inputAccessoryStyle = TerminalInputAccessoryStyle(
             regularBackground: UIColor(white: 0.16, alpha: 0.94),
@@ -75,14 +79,23 @@ public final class IXLandGhosttyHostTerminal: NSObject {
     }
 
     @objc public func receiveOutput(_ data: Data) {
-        NSLog("ghostty.receive_output bytes=%lu", data.count)
         isReceivingOutput = true
         defer { isReceivingOutput = false }
         let filtered = filterTerminalStatusRequests(from: data)
-        NSLog("ghostty.receive_output filtered=%lu", filtered.count)
-        if !filtered.isEmpty {
-            session.receive(filtered)
+        guard !filtered.isEmpty else {
+            return
         }
+
+        if terminalView.window == nil {
+            isSurfaceReady = false
+        }
+
+        if !isSurfaceReady {
+            pendingOutputBytes.append(filtered)
+            return
+        }
+
+        session.receive(filtered)
     }
 
     @objc public func receiveOutputString(_ string: String) {
@@ -93,21 +106,19 @@ public final class IXLandGhosttyHostTerminal: NSObject {
     }
 
     @objc public func sendInput(_ data: Data) {
-        NSLog("ghostty.send_input bytes=%lu", data.count)
         session.sendInput(data)
     }
 
     @MainActor
     @objc public func focus() -> Bool {
         guard terminalView.window != nil else {
-            NSLog("ghostty.focus skipped window=nil")
             return false
         }
         terminalView.isUserInteractionEnabled = true
         let focused = terminalView.becomeFirstResponder()
-        NSLog("ghostty.focus result=%d", focused)
         terminalView.reloadInputViews()
         installNavigationAccessoryButton()
+        flushPendingOutputIfPossible()
         return focused
     }
 
@@ -119,6 +130,40 @@ public final class IXLandGhosttyHostTerminal: NSObject {
             context: terminalView.configuration.context
         )
         terminalView.fitToSize()
+    }
+
+    @MainActor
+    @objc public func updateAppearance(
+        foregroundHex: String,
+        backgroundHex: String,
+        cursorHex: String?,
+        paletteOverrides: [String]?,
+        darkAppearance: Bool
+    ) {
+        let config = TerminalConfiguration { builder in
+            builder.withForeground(foregroundHex)
+            builder.withBackground(backgroundHex)
+            if let cursorHex, !cursorHex.isEmpty {
+                builder.withCursorColor(cursorHex)
+            }
+            for (index, color) in (paletteOverrides ?? []).enumerated() {
+                builder.withPalette(index, color: color)
+            }
+        }
+        controller.setTheme(TerminalTheme(light: config, dark: config))
+        controller.setColorScheme(darkAppearance ? .dark : .light)
+        terminalView.backgroundColor = .clear
+        terminalView.isOpaque = false
+    }
+
+    @MainActor
+    private func flushPendingOutputIfPossible() {
+        guard isSurfaceReady, terminalView.window != nil, !pendingOutputBytes.isEmpty else {
+            return
+        }
+        let bufferedOutput = pendingOutputBytes
+        pendingOutputBytes.removeAll(keepingCapacity: true)
+        session.receive(bufferedOutput)
     }
 
     @MainActor

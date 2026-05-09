@@ -64,7 +64,7 @@ static BOOL is_non_ui_xctest_session(void) {
         }
 
         if (session.stateRestorationActivity == nil) {
-            [strongViewController startNewSession];
+            [strongViewController markSessionStartupReady];
         } else {
             strongSelf.terminalUUID = session.stateRestorationActivity.userInfo[TerminalUUID];
             [strongViewController reconnectSessionFromTerminalUUID:

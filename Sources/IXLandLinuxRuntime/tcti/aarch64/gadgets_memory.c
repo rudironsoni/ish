@@ -2959,6 +2959,25 @@ static int tcti_cond_holds(uint64_t nzcv, uint64_t cond)
     }
 }
 
+static void trace_tcti_ccmp_access(uint64_t pstate_before, uint64_t cond, uint64_t nzcv_imm,
+                                   uint64_t subtype, uint64_t is_64bit, uint64_t lhs,
+                                   uint64_t rhs, uint64_t cond_result, uint64_t next_nzcv)
+{
+    trace_field_t fields[] = {
+        { .key = "pstate_before", .kind = TRACE_FIELD_U64_HEX, .u64_value = pstate_before },
+        { .key = "cond", .kind = TRACE_FIELD_U64_DEC, .u64_value = cond },
+        { .key = "nzcv_imm", .kind = TRACE_FIELD_U64_HEX, .u64_value = nzcv_imm },
+        { .key = "subtype", .kind = TRACE_FIELD_U64_DEC, .u64_value = subtype },
+        { .key = "is_64bit", .kind = TRACE_FIELD_U64_DEC, .u64_value = is_64bit },
+        { .key = "lhs", .kind = TRACE_FIELD_U64_HEX, .u64_value = lhs },
+        { .key = "rhs", .kind = TRACE_FIELD_U64_HEX, .u64_value = rhs },
+        { .key = "cond_result", .kind = TRACE_FIELD_U64_DEC, .u64_value = cond_result },
+        { .key = "next_nzcv", .kind = TRACE_FIELD_U64_HEX, .u64_value = next_nzcv },
+    };
+    trace_record_event_fields(TRACE_ORIGIN_TCTI, "tcti.ccmp.access", fields,
+                              sizeof(fields) / sizeof(fields[0]));
+}
+
 static void trace_tcti_csel_access(uint64_t rd, uint64_t rn, uint64_t rm, uint64_t cond,
                                    uint64_t subtype, uint64_t is_64bit, uint64_t pstate,
                                    uint64_t true_value, uint64_t false_value,
@@ -3053,18 +3072,24 @@ __attribute__((used)) static void tcti_ccmp_helper(struct cpu_state *cpu, uint64
 {
     uint64_t mask = is_64bit ? UINT64_MAX : UINT32_MAX;
     uint64_t next_nzcv;
+    uint64_t pstate_before = cpu->pstate;
+    uint64_t lhs = 0;
+    uint64_t rhs = 0;
+    uint64_t cond_result = tcti_cond_holds(pstate_before, cond);
 
-    if (tcti_cond_holds(cpu->pstate, cond)) {
-        uint64_t lhs = tcti_read_reg_or_zr(cpu, (int)rn) & mask;
-        uint64_t rhs = (subtype == A64_DP_REG_CCMN_IMM || subtype == A64_DP_REG_CCMP_IMM)
-                           ? (imm_operand & mask)
-                           : (tcti_read_reg_or_zr(cpu, (int)rm) & mask);
+    if (cond_result) {
+        lhs = tcti_read_reg_or_zr(cpu, (int)rn) & mask;
+        rhs = (subtype == A64_DP_REG_CCMN_IMM || subtype == A64_DP_REG_CCMP_IMM)
+                  ? (imm_operand & mask)
+                  : (tcti_read_reg_or_zr(cpu, (int)rm) & mask);
         uint64_t is_sub = (subtype == A64_DP_REG_CCMP || subtype == A64_DP_REG_CCMP_IMM);
         next_nzcv = tcti_addsub_nzcv(lhs, rhs, is_sub, is_64bit);
     } else {
         next_nzcv = (nzcv & 0xf) << 28;
     }
 
+    trace_tcti_ccmp_access(pstate_before, cond, nzcv, subtype, is_64bit, lhs, rhs, cond_result,
+                           next_nzcv);
     cpu->pstate = next_nzcv;
 }
 

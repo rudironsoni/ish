@@ -131,6 +131,14 @@
                       @"The musl strchrnul word scan depends on EON and BIC, not just EOR and AND");
 }
 
+- (void)testSemanticExecutionContract_StrchrnulByteLoopStopsOnMatchOrNul
+{
+    XCTAssertEqual(tcti_harness_case_strchrnul_byte_loop_stops_on_match_or_nul(), 0ULL,
+                   @"TCTI must preserve musl strchrnul's live ADD/LDRB/CMP/CCMP/B.NE byte loop "
+                    "so the loader stops on the matching byte or trailing NUL instead of "
+                    "spinning past the string boundary.");
+}
+
 - (void)testSemanticExecutionContract_MuslMemsetDUPZeroesVectorStore
 {
     XCTAssertEqual(tcti_harness_case_musl_memset_dup_zeroes_vector_store(), 0ULL,
@@ -548,6 +556,15 @@
                    @"TCTI must preserve BusyBox's linked-list flatten block when x19/x20 are "
                     "memory-backed guest registers, because the live Alpine ls path stores list "
                     "nodes into the qsort array through that exact block.");
+}
+
+- (void)testSemanticExecutionContract_BusyboxInputWidecharCopyLoopRoundtrip
+{
+    XCTAssertEqual(tcti_harness_case_busybox_input_widechar_copy_loop_roundtrip(), 0ULL,
+                   @"TCTI must preserve BusyBox's typed-input widechar copy loop, including "
+                    "unaligned LDRH and the final STR WZR register-offset terminator store, "
+                    "because the live simulator keyboard path enters this block before the "
+                    "interactive shell can execute typed commands.");
 }
 
 - (void)testSemanticExecutionContract_MuslQsortTBZW0SignbitBranch
