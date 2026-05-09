@@ -558,6 +558,22 @@
                     "BusyBox pointer array.");
 }
 
+- (void)testSemanticExecutionContract_MuslQsortTBNZW0SignbitBranches
+{
+    XCTAssertEqual(tcti_harness_case_musl_qsort_tbnz_w0_signbit_branches(), 0ULL,
+                   @"TCTI must honor the live musl qsort tbnz w0,#31 branches, because a wrong "
+                    "negative-compare branch can materialize the next comparator window from the "
+                    "wrong side of the BusyBox pointer array.");
+}
+
+- (void)testSemanticExecutionContract_MuslQsortCSINCTSTGateKeepsExpectedPath
+{
+    XCTAssertEqual(tcti_harness_case_musl_qsort_csinc_tst_gate_keeps_expected_path(), 0ULL,
+                   @"TCTI must preserve musl qsort's csinc/tst gate, because that exact block "
+                    "decides whether the next comparator window advances or jumps into the "
+                    "alternate heap-progression path.");
+}
+
 - (void)testSemanticExecutionContract_LogicalMOVMemoryToMemoryRoundtrip
 {
     XCTAssertEqual(tcti_harness_case_logical_mov_memory_to_memory_roundtrip(), 0ULL,
