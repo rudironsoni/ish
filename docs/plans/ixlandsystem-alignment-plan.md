@@ -2,187 +2,67 @@
 
 ## Purpose
 
-This document is the current migration plan for aligning this `ish` checkout with the refactored upstream `IXLandSystem` architecture on `main`.
+This document is the current execution baseline for aligning this `ish` checkout with the refactored upstream `IXLandSystem` architecture on `main`.
 
-The important upstream change is that `IXLandSystem` is no longer planned or described as one undifferentiated runtime tree. It is now explicitly split into:
+Upstream is now explicitly split into:
 
 - `IXLandKernel`
 - `IXLandHostAdapter`
 - `IXLandKernelTests`
 - `IXLandHostAdapterTests`
 
-That split changes what “alignment” means in this repo.
+That split is the target architecture for this repo as well.
 
-The goal is not to cosmetically imitate folder names. The goal is to reshape this `ish` checkout so that a future merge with `IXLandKernel` is technically plausible:
+The local goal is not folder-name imitation. The local goal is to make a future merge with upstream technically plausible by correcting ownership:
 
-- Linux-shaped behavior must converge toward kernel-owned semantics.
-- iOS and Darwin mediation must converge toward a host-adapter-owned boundary.
-- app/UI code must stop acting as an ambient runtime substrate.
-- test ownership must distinguish Linux semantics proof from host seam proof.
-- TCTI-only guest execution must remain intact throughout the migration.
-
-This plan is intentionally detailed so a fresh agent session can use it as an execution baseline without needing to rediscover the architecture from scratch.
-
-## Why This Plan Changed
-
-The earlier local plan assumed a simpler end-state:
-
-- tuple-based Linux vendoring,
-- a general `internal/ios` boundary,
-- a synthetic VFS replacement,
-- and eventual deletion of `fakefs` / `realfs` / `fake-db`.
-
-That is still directionally correct, but it is no longer specific enough.
-
-Upstream `IXLandSystem` now encodes stronger architectural rules:
-
-- Linux semantics are owned by `IXLandKernel`, not by generic runtime code and not by host bridges.
-- host mechanics are owned by `IXLandHostAdapter/internal/ios/**`, not sprinkled through kernel-owner paths.
-- proof is split into Linux-facing kernel proof and private host-bridge proof.
-- vendored Linux headers include both UAPI and kernel-header surfaces.
-- XcodeGen and the generated Xcode project are the only authoritative build description.
-
-Therefore this local plan must now optimize for future structural compatibility with a two-side split:
-
-1. a future `ish` kernel side that can merge toward `IXLandKernel`
-2. a future `ish` host mediation side that can merge toward `IXLandHostAdapter`
+- Linux semantics must converge toward a kernel-owned side.
+- Darwin and iOS mechanics must converge toward a private host-adapter side.
+- app and UI code must stop acting as an ambient runtime substrate.
+- tests must distinguish Linux semantic proof from host seam proof.
+- TCTI-only guest execution must remain intact throughout.
 
 ## Upstream Reference Snapshot
 
-This section captures the relevant current upstream truth from `https://github.com/rudironsoni/IXLandSystem/tree/main`.
+This plan is grounded against the current upstream repository:
 
-### Top-level split
+- `https://github.com/rudironsoni/IXLandSystem/tree/main`
 
-Upstream currently has these top-level components:
+Relevant upstream structure:
 
 - `IXLandKernel/`
 - `IXLandHostAdapter/`
 - `IXLandKernelTests/`
 - `IXLandHostAdapterTests/`
 - `project.yml`
-- `IXLandKernel.xcodeproj/`
 - `Makefile`
-- `third_party/linux/...`
+- `third_party/linux/<version>/<arch>/...`
 
-### Upstream kernel ownership
+Important upstream kernel-owner patterns:
 
-The Linux-owner side lives under `IXLandKernel/` and currently includes:
+- `IXLandKernel/fs/**`
+- `IXLandKernel/kernel/**`
+- `IXLandKernel/runtime/**`
+- vendored Linux headers under `uapi/include`, `kheaders/source`, and `kheaders/generated`
 
-- `IXLandKernel/fs/`
-- `IXLandKernel/kernel/`
-- `IXLandKernel/runtime/`
-- `IXLandKernel/include/`
-- `IXLandKernel/internal/private/`
-- `IXLandKernel/observability/`
+Important upstream host-adapter patterns:
 
-Important current upstream kernel-owner surfaces include:
+- `IXLandHostAdapter/internal/ios/fs/**`
+- `IXLandHostAdapter/internal/ios/kernel/**`
+- `IXLandHostAdapter/internal/ios/runtime/**`
+- narrow subsystem files such as `path_host.c`, `errno_host.c`, and `open_flags.c`
 
-- `IXLandKernel/fs/vfs.c`
-- `IXLandKernel/fs/fdtable.c`
-- `IXLandKernel/fs/open.c`
-- `IXLandKernel/fs/read_write.c`
-- `IXLandKernel/fs/stat.c`
-- `IXLandKernel/fs/fcntl.c`
-- `IXLandKernel/fs/ioctl.c`
-- `IXLandKernel/fs/namei.c`
-- `IXLandKernel/fs/readdir.c`
-- `IXLandKernel/fs/eventpoll.c`
-- `IXLandKernel/fs/mount.c`
-- `IXLandKernel/fs/inode.c`
-- `IXLandKernel/fs/super.c`
-- `IXLandKernel/fs/path.c`
-- `IXLandKernel/fs/exec.c`
-- `IXLandKernel/kernel/task.c`
-- `IXLandKernel/kernel/fork.c`
-- `IXLandKernel/kernel/exit.c`
-- `IXLandKernel/kernel/wait.c`
-- `IXLandKernel/kernel/pid.c`
-- `IXLandKernel/kernel/cred.c`
-- `IXLandKernel/kernel/signal.c`
-- `IXLandKernel/kernel/time.c`
-- `IXLandKernel/kernel/sync.c`
-- `IXLandKernel/kernel/init.c`
-- `IXLandKernel/kernel/sys.c`
-- `IXLandKernel/kernel/resource.c`
-- `IXLandKernel/kernel/random.c`
-- `IXLandKernel/runtime/syscall.c`
-- `IXLandKernel/runtime/native/registry.c`
+Important upstream proof split:
 
-### Upstream host-adapter ownership
+1. kernel semantics proof
+2. host-adapter seam proof
+3. header compile-smoke proof
+4. product-path proof
 
-The host-mechanics side lives under `IXLandHostAdapter/` and currently includes:
+All local decisions in this plan must stay compatible with those patterns.
 
-- `IXLandHostAdapter/include/`
-- `IXLandHostAdapter/internal/ios/fs/`
-- `IXLandHostAdapter/internal/ios/kernel/`
-- `IXLandHostAdapter/internal/ios/runtime/`
+## Current Local Baseline
 
-Important current upstream host-adapter files include:
-
-- `IXLandHostAdapter/internal/ios/fs/backing_io.m`
-- `IXLandHostAdapter/internal/ios/fs/backing_paths.m`
-- `IXLandHostAdapter/internal/ios/fs/path_host.c`
-- `IXLandHostAdapter/internal/ios/fs/errno_host.c`
-- `IXLandHostAdapter/internal/ios/fs/open_flags.c`
-- `IXLandHostAdapter/internal/ios/fs/memfd_host.c`
-- `IXLandHostAdapter/internal/ios/fs/epoll_bridge.c`
-- `IXLandHostAdapter/internal/ios/fs/sync.c`
-- `IXLandHostAdapter/internal/ios/kernel/signal_bridge.c`
-- `IXLandHostAdapter/internal/ios/kernel/clock.c`
-- `IXLandHostAdapter/internal/ios/kernel/sync.c`
-- `IXLandHostAdapter/internal/ios/runtime/sync.h`
-
-### Upstream build and header truth
-
-Upstream `project.yml` currently encodes:
-
-- target `IXLandKernel`
-- target `IXLandHostAdapter`
-- target `IXLandKernelTests`
-- target `IXLandHostAdapterTests`
-- scheme `IXLandKernel-6.12-arm64`
-- tuple-root Linux variables:
-  - `LINUX_VENDOR_ROOT`
-  - `LINUX_ROOT`
-  - `LINUX_UAPI_ROOT`
-  - `LINUX_UAPI_INCLUDE_ROOT`
-  - `LINUX_KHEADERS_ROOT`
-  - `LINUX_KHEADERS_SOURCE_ROOT`
-  - `LINUX_KHEADERS_GENERATED_ROOT`
-
-Upstream `Makefile` currently vendors:
-
-- `third_party/linux/<version>/<arch>/uapi/include`
-- `third_party/linux/<version>/<arch>/kheaders/source`
-- `third_party/linux/<version>/<arch>/kheaders/generated`
-- `source.json`
-- `README.md`
-- `manifest.sha256`
-
-This is more specific than the older local assumption that tuple vendoring only needed `uapi`, `srctree`, and `objtree`.
-
-For future mergeability, this repo must plan against the current upstream vendoring shape, not an older snapshot.
-
-### Upstream proof split
-
-Upstream now distinguishes:
-
-1. `IXLandKernelTests`
-   Linux-facing kernel semantics proof.
-
-2. `IXLandHostAdapterTests`
-   private iOS host-seam proof.
-
-3. Linux header compile-smoke coverage
-   header resolution proof, not runtime proof.
-
-This test split is not incidental. It is part of the architecture and must inform the local migration.
-
-## Local Repo Baseline
-
-This `ish` checkout is not yet split that way.
-
-### Current kernel-adjacent local surfaces
+### Local proto-kernel side
 
 The closest current local analogue to a future `IXLandKernel` side is:
 
@@ -193,514 +73,526 @@ The closest current local analogue to a future `IXLandKernel` side is:
 - `Sources/IXLandLinuxRuntime/include/`
 - `Sources/IXLandLinuxRuntime/util/`
 
-These paths currently mix several concerns:
+This side still mixes:
 
 - Linux-facing semantics
-- runtime ABI / syscall dispatch
-- guest execution substrate
-- legacy fakefs / realfs / fake-db behavior
-- some host leakage and historical iSH-shaped assumptions
+- syscall and runtime ABI ownership
+- guest PTY and session behavior
+- Darwin host mediation in places where it should not live
+- legacy iSH bootstrap assumptions
 
-### Current host-adapter-adjacent local surfaces
+### Local proto-host-adapter side
 
-The closest current local analogue to a future `IXLandHostAdapter` side is split across:
+The closest current local analogue to a future `IXLandHostAdapter` side is:
 
 - `internal/ios/fs/`
 - `internal/ios/kernel/`
 - `internal/ios/platform/`
-- app-owned runtime integration in `Sources/IXLandTerminal/`
 
-Important app/runtime files that currently carry host or bootstrap responsibilities include:
+This side has started to converge toward upstream shape. Current extracted files already include:
 
-- `Sources/IXLandTerminal/AppDelegate.m`
-- `Sources/IXLandTerminal/Roots.m`
-- `Sources/IXLandTerminal/iOSFS.m`
-- `Sources/IXLandTerminal/LinuxRoot.c`
-- `Sources/IXLandTerminal/LinuxPTY.c`
-- `Sources/IXLandTerminal/LinuxTTY.c`
-- `Sources/IXLandTerminal/GhosttyHostTerminal.swift`
-- `Sources/IXLandTerminal/Terminal.m`
+- `internal/ios/fs/path_host.c`
+- `internal/ios/fs/errno_host.c`
+- `internal/ios/fs/open_flags.c`
+- `internal/ios/fs/root_bootstrap.c`
+- `internal/ios/fs/root_archive.m`
+- `internal/ios/fs/root_registry.m`
+- `internal/ios/fs/root_store.m`
+- `internal/ios/fs/rootfs.c`
+- `internal/ios/fs/rootfs_metadata.c`
 
-This means host mediation is not only in `internal/ios/**`; it is also ambient in the app target today.
+### App shell side
 
-### Current local build and header state
+The app shell remains primarily under:
 
-Current local `project.yml` and vendoring layout now have partial upstream parity:
+- `Sources/IXLandTerminal/`
 
-- they point at `third_party/linux/<version>/<arch>`
-- they define `LINUX_KHEADERS_*` variables alongside the UAPI tuple variables
-- they still compile legacy fakefs helper sources into the terminal app
-- they still include `internal/ios` directly rather than via a dedicated host-adapter target
+Important runtime-adjacent app files still include:
 
-### Current local legacy blockers
+- `AppDelegate.m`
+- `TerminalViewController.m`
+- `Terminal.m`
+- `LinuxInterop.c`
+- `LinuxPTY.c`
+- `LinuxTTY.c`
+- `Roots.m`
+- `iOSFS.m`
 
-Major live blockers to future mergeability include:
+This is still too much ambient ownership for a repo that is supposed to converge toward a kernel/host-adapter split.
 
-- `Sources/IXLandLinuxRuntime/fs/fake.c`
+## Post-`fakefs` Reality
+
+The plan must be grounded in current repo truth, not the older migration story.
+
+Current truth:
+
+- `fakefs`, `fake-db`, and the old fakefs archive layout are no longer the live substrate contract.
+- `rootfs` is now the active root backing path.
+- Linux metadata is currently persisted through host-private overlay storage in `internal/ios/fs/rootfs_metadata.*`.
+- vendored Linux headers already follow the upstream-style tuple layout under `third_party/linux/6.12/arm64`.
+
+Therefore the primary remaining problem is no longer “remove fakefs.”
+The primary remaining problem is that Linux semantics, host mechanics, and app orchestration are still mixed across the wrong seams.
+
+## Current Merge Blockers
+
+The main blockers to future mergeability with upstream are now these specific ownership violations:
+
 - `Sources/IXLandLinuxRuntime/fs/real.c`
-- `Sources/IXLandLinuxRuntime/fs/fake-db.c`
-- `Sources/IXLandLinuxRuntime/fs/fake-rebuild.c`
-- `Sources/IXLandLinuxRuntime/fs/fake-migrate.c`
-- `Sources/IXLandLinuxRuntime/kernel/fs.h` fakefs ownership
-- `Sources/IXLandLinuxRuntime/kernel/xX_main_Xx.h` fakefs/realfs selection
-- `Sources/IXLandTerminal/iOSFS.m` direct realfs plumbing
-- `Sources/IXLandTerminal/Roots.m` fakefs import/export plumbing
-- `Sources/IXLandTerminal/AppDelegate.m` fakefs-root bootstrap assumptions
+  still owns too much Darwin-backed path, errno, fd, and filesystem behavior.
+- `Sources/IXLandLinuxRuntime/fs/tty-real.c`
+  still couples host TTY mechanics directly to Linux-owner runtime paths.
+- `internal/ios/fs/rootfs.c`
+  still mixes Linux-facing filesystem semantics with host-backed transport details.
+- `internal/ios/fs/rootfs_metadata.c`
+  is still part of a transitional contract and must remain host-private, not become Linux semantic truth.
+- `Sources/IXLandTerminal/LinuxInterop.c`
+  still mixes guest session semantics, PTY ownership, stdio setup, host terminal binding, and app-consumed bootstrap shape.
+- `Sources/IXLandTerminal/LinuxPTY.c`
+  still acts as an app-owned PTY bridge instead of a clearly bounded host-adapter seam.
+- `Sources/IXLandTerminal/LinuxTTY.c`
+  still participates in runtime-terminal ownership that should be narrowed.
+- `Sources/IXLandTerminal/Terminal.m`
+  still mixes UI terminal behavior with guest I/O bridge responsibilities.
+- `Sources/IXLandTerminal/TerminalViewController.m`
+  still owns too much runtime session policy and startup behavior.
+- `Sources/IXLandTerminal/AppDelegate.m`
+  still owns too much bootstrap and runtime readiness policy.
 
-## Alignment Objective
-
-The objective is to transform this repo from:
-
-- a monolithic `IXLandLinuxRuntime` plus app-owned bootstrap and host behavior
-
-into something that can later converge with:
-
-- `IXLandKernel` for Linux-owner semantics
-- `IXLandHostAdapter` for host mediation
-
-without abandoning the following local invariants:
-
-- TCTI-only guest AArch64 execution
-- guest PTY semantics
-- one active guest session
-- iPhone 17 simulator default
-- `project.yml` as build truth
-- upstream Swift Package use for `libarchive-for-swift` and `libghostty-spm`
-
-## Core Migration Thesis
-
-The correct long-term decomposition for this repo is:
-
-1. Linux-owner runtime side
-   This is the future-mergeable side that should converge toward `IXLandKernel`.
-
-2. host-adapter side
-   This is the private iOS mediation side that should converge toward `IXLandHostAdapter`.
-
-3. app shell side
-   This remains app/UI/bootstrap territory and should shrink, not expand, as a runtime owner.
-
-The migration is successful when runtime behavior stops depending on ambient app files and instead flows through a kernel/host-adapter split.
+These are the real remaining blockers. The plan must optimize around them.
 
 ## Non-Negotiable Constraints
 
 - Guest AArch64 execution remains TCTI-only.
-- Do not add or revive a fallback interpreter or alternate guest CPU path.
+- Do not introduce or revive an alternate guest CPU engine.
 - Linux-facing behavior must not be defined by Darwin semantics.
-- Host mechanics must be explicit and private.
-- Linux-owner refactoring must use the vendored Linux header tuple as the contract source:
-  - `third_party/linux/<version>/<arch>/uapi/include` for UAPI-facing work
-  - `third_party/linux/<version>/<arch>/kheaders/source` and `kheaders/generated` for kernel-header-facing work
+- Host mechanics must remain explicit and private.
 - `project.yml` remains the authoritative build specification.
-- iPhone 17 remains the default simulator target for proof.
-- `/Volumes/1TB/Xcode/DerivedData` remains the default DerivedData/build location.
-- plan work must optimize for future mergeability with upstream `IXLandKernel`, not just local cleanliness.
+- `iPhone 17` remains the default simulator proof target.
+- `/Volumes/1TB/Xcode/DerivedData` remains the default DerivedData path.
+- vendored Linux headers remain the contract source:
+  - `third_party/linux/<version>/<arch>/uapi/include`
+  - `third_party/linux/<version>/<arch>/kheaders/source`
+  - `third_party/linux/<version>/<arch>/kheaders/generated`
+- upstream `IXLandSystem` remains the mandatory structural reference.
 
-## Architectural Mapping for This Repo
+## Architectural Mapping
 
-This section tells a fresh agent how to think about the current tree during refactoring.
+### Linux-owner side
 
-### Proto-kernel side in this repo
-
-Treat these paths as the local proto-`IXLandKernel` side:
+Treat these local areas as the proto-`IXLandKernel` side:
 
 - `Sources/IXLandLinuxRuntime/fs/`
 - `Sources/IXLandLinuxRuntime/kernel/`
 - `Sources/IXLandLinuxRuntime/include/`
-- `Sources/IXLandLinuxRuntime/util/`
-- the Linux-facing part of `Sources/IXLandLinuxRuntime/tcti/`
-- the runtime ABI and guest execution entry surfaces in `Sources/IXLandLinuxRuntime/emu/`
+- Linux-facing parts of `Sources/IXLandLinuxRuntime/emu/`
+- Linux-facing parts of `Sources/IXLandLinuxRuntime/tcti/`
 
-These paths should move toward:
+This side must own:
 
-- Linux-shaped VFS ownership
-- Linux-shaped process/task/signal/credential semantics
-- Linux-owned syscall/runtime dispatch
-- Linux-owned PTY/job-control semantics
-- vendored Linux header truth
-- Linux include forms and constants derived from the vendored tuple instead of ad hoc local copies or Darwin substitutes
+- Linux VFS semantics
+- Linux task, session, credential, and signal semantics
+- syscall-facing runtime ownership
+- guest PTY and job-control semantics
+- Linux-defined flags, constants, structures, and ABI contracts
 
-They should move away from:
+This side must move away from:
 
-- direct host APIs
-- app-owned bootstrap logic
-- fakefs-root assumptions
-- generic “helper” escape hatches that smuggle host behavior into kernel-owner code
+- direct Darwin and iOS host APIs
+- app-owned bootstrap rules
+- host-driven policy decisions
+- ad hoc local Linux stand-ins when vendored headers already define the contract
 
-### Proto-host-adapter side in this repo
+### Host-adapter side
 
-Treat these paths as the local proto-`IXLandHostAdapter` side:
+Treat these local areas as the proto-`IXLandHostAdapter` side:
 
 - `internal/ios/fs/`
 - `internal/ios/kernel/`
 - `internal/ios/platform/`
-- host-only shims that should be moved out of `Sources/IXLandTerminal/`
 
-The target direction is:
+This side must own host mechanics only:
 
-- private host path discovery
+- host path mediation
 - host errno translation
-- host-backed IO and storage mediation
-- host clock/sync/signal bridge mechanics
-- host-only PTY/file-system support seams where the kernel side needs narrow mediation
+- host-backed storage mechanics
+- host-private metadata persistence
+- host signal, clock, and sync bridges
+- narrow PTY and terminal-object mediation for the app runtime
 
-### App shell side in this repo
+This side must not become the owner of Linux semantics.
 
-Treat `Sources/IXLandTerminal/` as app shell, not kernel owner and not generic host adapter.
+### App shell side
 
-Its responsibilities should shrink toward:
+Treat `Sources/IXLandTerminal/` as app shell.
 
-- UI and terminal presentation
-- lifecycle orchestration
-- rootfs packaging/user flows
-- wiring the app to a kernel/host-adapter substrate
+It may own:
 
-It should stop owning:
+- UI
+- lifecycle
+- terminal presentation
+- root catalog and import/export user flows
+- app startup and restart orchestration
 
-- fakefs-root semantic policy
-- realfs semantic policy
-- ambient host path translation
-- Linux-facing VFS rules
-- guest runtime semantics
+It must stop owning:
 
-## Vendored Header Rule For Refactoring
+- Linux semantic policy
+- ambient filesystem/runtime contracts
+- guest session semantic ownership
+- host path translation or host metadata rules
 
-This repo now has the current tuple-root Linux vendor shape locally:
+## Vendored Header Rule for Refactoring
 
-- `third_party/linux/6.12/arm64/uapi/include`
-- `third_party/linux/6.12/arm64/kheaders/source`
-- `third_party/linux/6.12/arm64/kheaders/generated`
+The vendored Linux tuple is now part of the refactoring contract, not just a build artifact.
 
-That must actively shape refactoring work.
+Fresh agents must follow these rules:
 
-Fresh agents must use the vendored tuple in these ways:
+1. Prefer vendored Linux-defined constants, structs, macros, and include forms over local redefinitions.
+2. If a contract is Linux-defined and already present in the vendored tuple, default ownership is kernel-owner unless a narrow host-mechanics reason exists.
+3. Do not introduce new local compatibility headers when the tuple already provides the contract surface.
+4. Preserve upstream-style include direction as much as possible to keep later file-level merges low-noise.
+5. Kernel-header-facing refactors must resolve against `LINUX_KHEADERS_SOURCE_ROOT` and `LINUX_KHEADERS_GENERATED_ROOT`, not invented alternate roots.
 
-1. When moving Linux-owner code toward upstream `IXLandKernel`, prefer Linux include forms and Linux-defined constants/types/macros from the vendored tuple over local hand-maintained stand-ins.
-2. When deciding whether a definition belongs to kernel-owner code or host-adapter code, ask whether the interface is Linux-defined and already present in the vendored tuple. If yes, the default assumption should be kernel-owner unless there is a narrow host-mechanics reason otherwise.
-3. Do not introduce new local compatibility headers, copied constant blocks, or Darwin-derived replacements when the vendored tuple already provides the contract surface.
-4. When merging or reshaping files to resemble upstream `IXLandKernel`, preserve upstream-style include direction as much as possible so later file-level merges remain low-noise.
-5. If a refactor needs kernel-header resolution, wire the code and tests against `LINUX_KHEADERS_SOURCE_ROOT` and `LINUX_KHEADERS_GENERATED_ROOT` rather than inventing alternative include roots.
+## Hosted Guest Session Boundary
 
-This does not mean every file should directly include deep vendored paths.
-It means the vendored Linux tuple is the source of truth that refactoring decisions must honor.
+The hosted guest-session path is now the highest-risk ownership seam in the repo.
+
+The plan must treat it as a first-class subsystem, not as incidental glue.
+
+Current relevant local files:
+
+- `Sources/IXLandTerminal/LinuxInterop.c`
+- `Sources/IXLandTerminal/LinuxPTY.c`
+- `Sources/IXLandTerminal/LinuxTTY.c`
+- `Sources/IXLandTerminal/Terminal.m`
+- `Sources/IXLandTerminal/TerminalViewController.m`
+- `Sources/IXLandTerminal/AppDelegate.m`
+
+### Intended ownership split
+
+Kernel-owner side must own:
+
+- Linux session semantics
+- PTY semantics
+- controlling-terminal semantics
+- stdio semantics
+- guest-visible input and output behavior
+- guest process startup and task/session transitions
+
+Host-adapter side must own:
+
+- PTY allocation bridges to iOS-hosted terminal objects
+- narrow host callbacks for byte transport, resize, and hangup
+- host-only wiring between guest TTY endpoints and app terminal instances
+- private host readiness, synchronization, and bridge mechanics
+
+App shell must own:
+
+- session start requests
+- view lifecycle
+- restart and presentation UX
+- wiring the active UI to a runtime session
+
+App shell must not own runtime semantic decisions.
+
+### Immediate local consequence
+
+`linux_start_session` is currently a mixed seam.
+
+It must be decomposed into:
+
+1. kernel-visible session/bootstrap behavior
+2. host-adapter PTY and terminal bridge behavior
+3. app-shell orchestration only
+
+The remaining hosted runtime failures should be debugged and fixed only through that split, not through more ad hoc repro variants.
+
+## `rootfs` End-State Contract
+
+`rootfs` is now the current transitional root backing contract.
+It is not a license to build a new permanent local filesystem taxonomy.
+
+Required interpretation:
+
+- `rootfs` is the current live substrate for guest root backing.
+- `rootfs.c` must stop accumulating Linux semantic decisions that belong in kernel-owner code.
+- host-private persistence details such as xattr-backed Linux metadata storage belong in host-adapter-private code.
+- Linux-facing inode, stat, mknod, setattr, and related behavior must move toward kernel-owner logic even if the underlying bytes remain host-backed for now.
+- no new branded abstraction stack should be introduced unless upstream has an equivalent pattern.
+
+This means the immediate objective is not to replace `rootfs` again.
+The immediate objective is to shrink its host-private role until future merge work is low-noise.
+
+## Local Build Target Split
+
+Current state:
+
+- one mixed local runtime target still compiles both kernel-owner and host-adapter-owner code
+- `internal/ios/**` is already included, but there is not yet a true local kernel/host-adapter target split
+
+Required future state:
+
+- a kernel-owner build product analogous to `IXLandKernel`
+- a host-adapter build product analogous to `IXLandHostAdapter`
+- kernel-facing tests separated from host-adapter-private tests
+
+Required migration order:
+
+1. keep source ownership clear before mass target churn
+2. move private host seams under `internal/ios/**`
+3. carve dedicated target membership in `project.yml`
+4. stop compiling app compatibility translation units as implementation owners
+5. regenerate the Xcode project only after `project.yml` truth is updated
+
+Compatibility files that should eventually disappear or become header-only shims include:
+
+- `Sources/IXLandTerminal/iOSFS.m`
+- any remaining app-layer translation units that exist only to preserve the old mixed layout
+
+## Canonical Test Layering
+
+The local proof model must now be decision-complete.
+
+### Layer 1: Linux semantic runtime tests
+
+These prove direct Linux-visible behavior, including:
+
+- rootfs open, readdir, stat, and fd behavior
+- session and PTY semantic behavior where the Linux side is the owner
+- syscall-adjacent and VFS-adjacent runtime semantics
+
+### Layer 2: Host-adapter seam tests
+
+These prove host-private mechanics, including:
+
+- path mediation
+- errno translation
+- open-flag translation
+- host metadata persistence
+- backing storage mechanics
+
+These do not substitute for Linux semantic proof.
+
+### Layer 3: Hosted session startup tests
+
+These prove the app-style session contract:
+
+- runtime bootstrap
+- `become_new_init_child`
+- `linux_start_session`
+- prompt appearance
+- non-interactive guest output
+- interactive input routing
+
+### Layer 4: Terminal E2E tests
+
+These prove actual guest-visible shell execution on the app path.
+
+### Canonical repro policy
+
+The bloated hosted repro portfolio must be collapsed to canonical cases only:
+
+- one direct rootfs semantic proof
+- one app-style prompt proof
+- one app-style non-interactive guest output proof
+- one app-style interactive command proof
+
+Additional variants are allowed only when they isolate a distinct contract.
+They are not allowed merely as another UI input style experiment.
 
 ## Anti-Goals
 
-This plan explicitly rejects the following bad migration patterns:
+This plan explicitly rejects:
 
-- renaming folders to `IXLandKernel` / `IXLandHostAdapter` before behavior and ownership are corrected
-- moving code into `internal/ios/**` without narrowing ownership
-- leaving Linux semantics in app files while claiming “host adapter introduced”
-- preserving fakefs/realfs/fake-db as hidden substrate under a new name
-- using host-adapter tests as proof that Linux semantics are correct
+- renaming folders to `IXLandKernel` / `IXLandHostAdapter` before ownership is corrected
+- moving code into `internal/ios/**` without narrowing responsibility
+- keeping Linux semantics in app files while claiming the host adapter already exists
+- building another local substrate vocabulary unrelated to upstream shape
+- citing host tests as proof of Linux semantics
 - weakening TCTI constraints to make restructuring easier
-- broad “cleanup” refactors that do not change mergeability
+- keeping stale repro experiments that no longer reflect the real app path
 
 ## Execution Tranches
 
-The tranches below are intentionally ordered by dependency and merge value.
+The tranches below replace the older fakefs-era ordering.
 
-### Tranche 0: Plan and inventory normalization
+### Tranche 0: Keep the plan and inventory true
 
 Objective:
-Make the local plan accurately describe the post-split upstream architecture and the local mismatch against it.
+Keep this document synchronized with upstream structure and current local repo truth.
 
 Required work:
 
-1. Keep this document synced to upstream `IXLandKernel` / `IXLandHostAdapter` structure.
-2. Maintain a concrete inventory of:
-   - current proto-kernel paths
-   - current proto-host-adapter paths
-   - current app-owned runtime paths
-3. Identify every live reference to:
-   - legacy Linux vendoring assumptions that predate `third_party/linux/<version>/<arch>`
-   - `fakefs`
-   - `realfs`
-   - `fake-db`
-   - app-owned host mediation
-4. Prevent future migration work from assuming the split already exists locally.
+1. Keep the blocker list current.
+2. Keep the local proto-kernel, proto-host-adapter, and app-shell inventory current.
+3. Prevent future work from assuming the split already exists locally.
 
-Acceptance:
+Success conditions:
 
-- The plan describes repo truth.
-- A fresh agent can derive ownership intent from this document alone.
+- the plan matches current repo truth
+- a fresh agent can use this document directly without rediscovering the architecture
 
-### Tranche 1: Linux vendoring and build-surface parity
+### Tranche 1: Finish hosted guest-session boundary decomposition
 
 Objective:
-Align local build/header infrastructure with the current upstream `IXLandKernel` build surface.
+Make session startup, PTY wiring, and terminal I/O ownership explicit and correctly placed.
 
 Required work:
 
-1. Keep local vendoring aligned to upstream-style tuple-root variables:
-   - `LINUX_VENDOR_ROOT`
-   - `LINUX_ROOT`
-   - `LINUX_UAPI_ROOT`
-   - `LINUX_UAPI_INCLUDE_ROOT`
-   - `LINUX_KHEADERS_ROOT`
-   - `LINUX_KHEADERS_SOURCE_ROOT`
-   - `LINUX_KHEADERS_GENERATED_ROOT`
-2. Port the current upstream `vendor-linux-headers` behavior, not an older approximation.
-3. Vendor all required surfaces under:
-   - `third_party/linux/<version>/<arch>/uapi/include`
-   - `third_party/linux/<version>/<arch>/kheaders/source`
-   - `third_party/linux/<version>/<arch>/kheaders/generated`
-4. Carry upstream metadata outputs:
-   - `source.json`
-   - `README.md`
-   - `manifest.sha256`
-5. Update local compile-smoke coverage so it can prove:
-   - UAPI resolution
-   - kernel-header resolution where required
-6. Keep include forms Linux-shaped and ban direct tuple-path includes in code.
-7. Treat the vendored tuple as the canonical source for Linux constants, structs, and macros used during refactors; remove duplicated local definitions when the tuple already covers them.
+1. Decompose `linux_start_session` into kernel-owner behavior, host-adapter bridge behavior, and app-shell orchestration.
+2. Narrow `LinuxPTY.c`, `LinuxTTY.c`, and `Terminal.m` so they stop owning mixed semantic and host-bridge behavior.
+3. Ensure app-style session tests use the real bootstrap contract instead of stale harness shapes.
+4. Keep guest-visible PTY semantics Linux-owned.
 
-Why this matters for future merge:
+Success conditions:
 
-- Upstream kernel-owner code assumes this header model.
-- Without vendoring parity, later file-level merges will be noisy and misleading.
+- hosted startup ownership is explicit
+- prompt, output, and input failures can be localized to kernel, host-adapter, or app-shell layers immediately
 
-Acceptance:
-
-- local `project.yml` uses upstream-style Linux vendor variables
-- vendoring is repo-owned and deterministic
-- compile-smoke proof covers both UAPI and any required kernel-header surfaces
-
-### Tranche 2: Introduce explicit local split boundaries
+### Tranche 2: Extract remaining Darwin host mechanics from `real.c` and `tty-real.c`
 
 Objective:
-Create a local structural boundary that mirrors upstream’s kernel side versus host-adapter side, even if names are not yet fully cut over.
+Remove large mixed Darwin/Linux seams from Linux-owner paths.
 
 Required work:
 
-1. Define the local proto-kernel boundary explicitly around Linux-owner code.
-2. Define the local proto-host-adapter boundary explicitly around host-only mediation.
-3. Stop treating `internal/ios` as “misc platform utilities”; it must become host-adapter territory.
-4. Introduce or refine narrow bridge contracts between the Linux side and host side.
-5. Ensure those bridge contracts are private and subsystem-specific, not generic global adapters.
-6. For every boundary introduced here, verify that Linux-defined types and constants stay on the kernel-owner side via the vendored headers instead of being redefined in host-adapter or app code.
+1. Continue extracting path, errno, flag, and host-I/O mechanics from `real.c` into host-adapter-private files.
+2. Move host TTY and raw-host-console mechanics out of `tty-real.c` ownership.
+3. Keep Linux-visible semantics in Linux-owner files while narrowing host bridges.
+4. Resolve refactors against the vendored Linux tuple rather than local stand-ins.
 
-Key local pressure points:
+Success conditions:
 
-- `Sources/IXLandLinuxRuntime/kernel/`
-- `Sources/IXLandLinuxRuntime/fs/`
-- `internal/ios/fs/`
-- `internal/ios/kernel/`
-- `Sources/IXLandTerminal/iOSFS.m`
-- `Sources/IXLandTerminal/LinuxPTY.c`
-- `Sources/IXLandTerminal/LinuxTTY.c`
+- `real.c` and `tty-real.c` are no longer broad mixed seams
+- host-specific logic has a clear home under `internal/ios/**`
 
-Acceptance:
-
-- a reviewer can point to what is kernel-owner, host-adapter-owner, and app-owner
-- new changes have a clear home instead of expanding ambient app/runtime coupling
-
-### Tranche 3: Evict host behavior from Linux-owner paths
+### Tranche 3: Split `rootfs` Linux semantics from host persistence mechanics
 
 Objective:
-Move host mechanics out of Linux-owner code and into the local proto-host-adapter side.
+Reduce `rootfs` to a narrow host-backed transport and persistence role.
 
 Required work:
 
-1. Audit Linux-owner files for Darwin/iOS-specific behavior and host assumptions.
-2. Move host path discovery, errno translation, backing storage, timing, signal bridge, and sync mechanics behind dedicated host-adapter seams.
-3. Replace direct or ambient host coupling with kernel-owned contracts plus host-adapter implementations.
-4. Preserve semantics while moving mechanics.
-5. As Linux-owner files are touched, normalize them toward vendored-header-backed contracts instead of preserving stale local stand-ins for Linux types or flags.
+1. Keep host-private metadata storage in host-adapter-private code.
+2. Move Linux semantic decisions out of `rootfs.c` where they belong on the kernel side.
+3. Prevent `rootfs_metadata.*` from becoming the semantic source of truth for Linux-visible behavior.
+4. Keep archive and root-store flows aligned with the same contract.
 
-Important nuance:
+Success conditions:
 
-This tranche is not “just move files.”
-The value is restoring directionality:
+- `rootfs` remains the live substrate
+- host-private persistence is narrow
+- Linux semantic ownership no longer depends on host-private code
 
-- Linux-owner side decides Linux semantics.
-- host-adapter side performs private host work.
-
-Acceptance:
-
-- Linux-owner files no longer define behavior by reaching into host APIs or app-owned helpers
-- host adapter owns mechanics, not semantics
-
-### Tranche 4: App shell decontamination
+### Tranche 4: Shrink app-shell runtime ownership
 
 Objective:
-Shrink `Sources/IXLandTerminal/` so it stops being a hidden substrate layer.
+Make `AppDelegate`, `TerminalViewController`, `Terminal`, and `Roots` look like app shell, not substrate owners.
 
 Required work:
 
-1. Identify all app files currently making runtime-semantic decisions.
-2. Move runtime-semantic ownership out of:
-   - `AppDelegate.m`
-   - `Roots.m`
-   - `iOSFS.m`
-   - `LinuxRoot.c`
-   - `LinuxPTY.c`
-   - `LinuxTTY.c`
-3. Keep terminal UI and orchestration in the app target, but move kernel/host-adapter policy into the correct side.
-4. Preserve bundled rootfs and archive flows only where they are truly app-owned.
+1. Remove runtime-semantic ownership from app bootstrap and session policy.
+2. Keep root catalog, root import/export user flows, and UI presentation app-owned only where they are truly app concerns.
+3. Push reusable runtime or host mechanics behind narrower host-adapter seams.
 
-Why this matters for mergeability:
+Success conditions:
 
-Upstream `IXLandKernel` and `IXLandHostAdapter` are libraries with clear ownership.
-If this repo leaves runtime behavior trapped in app glue, future merge work will stall at the wrong seam.
+- app files wire the system together
+- app files do not define runtime contracts
 
-Acceptance:
-
-- app target is visibly thinner as a runtime owner
-- app shell wires components together instead of defining Linux semantics
-
-### Tranche 5: Replace fakefs / realfs / fake-db with kernel-owned VFS plus host-adapter backing
+### Tranche 5: Express the local kernel / host-adapter target split in `project.yml`
 
 Objective:
-Delete the old substrate model and replace it with a split-compatible one.
+Translate the ownership split into real build-target boundaries.
 
 Required work:
 
-1. Define the local VFS replacement in kernel-owner terms:
-   - mount lifecycle
-   - inode ownership
-   - path traversal
-   - fdtable integration
-   - readdir/stat/open/read/write/fcntl/ioctl/exec hooks
-   - PTY/job-control/readiness integration
-2. Back that VFS with host-adapter-owned private host mediation.
-3. Stop treating `realfs` as the underlying semantics owner.
-4. Stop treating `fakefs` metadata as the primary root model.
-5. Remove `fake-db` ownership from kernel-facing data structures.
-6. Use vendored Linux headers as the semantic contract for VFS-visible structs, flags, ioctls, and syscall-adjacent definitions rather than local approximations.
+1. define local kernel-owner target membership
+2. define local host-adapter target membership
+3. separate kernel-facing tests from host-adapter-private tests
+4. remove compatibility translation units as implementation owners where possible
+5. regenerate the Xcode project from `project.yml`
 
-This is the key merge-preparation tranche.
+Success conditions:
 
-Upstream `IXLandKernel/fs/**` assumes kernel-owned VFS semantics.
-As long as this repo remains fakefs/realfs-shaped, future merging will be architectural churn, not integration.
+- `project.yml` expresses a meaningful split
+- source and test ownership are visible at build-target level
 
-Acceptance:
-
-- kernel-owner VFS path exists and is used for real boot/runtime flows
-- fakefs/realfs/fake-db no longer define the substrate contract
-
-### Tranche 6: TCTI and runtime ownership convergence
+### Tranche 6: Collapse the test portfolio into canonical kernel, host-adapter, hosted-session, and E2E layers
 
 Objective:
-Keep the guest execution path aligned with the split instead of letting emulation become a parallel architecture.
+Make the proof model match the architecture instead of preserving historical repro noise.
 
 Required work:
 
-1. Keep TCTI as the only guest AArch64 execution engine.
-2. Clarify which parts of local `emu/` and `tcti/` belong to future kernel/runtime ownership.
-3. Ensure syscall exits, runtime ABI, PTY/session wiring, and guest state transitions flow through kernel-owned logic plus host-adapter seams.
-4. Prevent app glue or host-adapter code from becoming an alternate execution-control plane.
+1. keep one canonical direct runtime rootfs proof
+2. keep one canonical app-style prompt proof
+3. keep one canonical app-style non-interactive guest-output proof
+4. keep one canonical app-style interactive command proof
+5. keep host seam tests focused on host-private mechanics
+6. keep E2E tests focused on guest-visible behavior
 
-Why this matters:
+Success conditions:
 
-Future mergeability is not only about file systems and headers.
-It also requires the guest runtime path to remain conceptually kernel-owned.
-
-Acceptance:
-
-- TCTI path remains authoritative
-- runtime transitions are not smeared across app and host files
-
-### Tranche 7: Local proof split mirroring upstream
-
-Objective:
-Split local proof into kernel-facing semantics proof versus host-seam proof.
-
-Required work:
-
-1. Introduce or reorganize tests so Linux-facing semantics are proved separately from host bridge mechanics.
-2. Treat host-seam tests as required for repo green, but not as substitute proof for Linux semantics.
-3. Add compile-smoke coverage for the new vendored header model.
-4. Preserve focused terminal and runtime regressions for guest-visible behavior.
-5. Add or maintain targeted compile-smoke checks when refactors start depending on vendored kernel-header surfaces, not only UAPI surfaces.
-
-Local test taxonomy target:
-
-1. kernel semantics proof
-2. host-adapter seam proof
-3. vendored header compile smoke
-4. app-path end-to-end proof
-
-Acceptance:
-
-- a failing test can be classified immediately as kernel proof, host-adapter proof, compile-smoke proof, or app/E2E proof
-- reviewers can see which layer a claimed fix actually proved
-
-### Tranche 8: Naming and structural cutover toward upstream shapes
-
-Objective:
-After behavior and boundaries are corrected, reduce structural drift from upstream names and module layout.
-
-Required work:
-
-1. Reorganize local source roots so future merges with `IXLandKernel` and `IXLandHostAdapter` become less intrusive.
-2. Move local include and private-contract surfaces toward upstream-style layout.
-3. Update `project.yml` targets and source groups to reflect the split.
-4. Keep compatibility shims minimal and temporary.
-
-Important rule:
-
-This tranche comes after ownership correction, not before.
-Premature renaming without behavioral alignment is churn.
-
-Acceptance:
-
-- local source layout no longer fights the upstream split
-- future file-level merge planning becomes straightforward instead of speculative
+- each test has a clear layer and ownership purpose
+- stale session variants no longer dominate the test surface
 
 ## Fresh-Agent Operating Rules
 
-If you start a new session from this plan, follow these rules:
+If you start a new session from this plan:
 
 1. Treat upstream `IXLandKernel` / `IXLandHostAdapter` as the architectural reference, not merely a naming reference.
 2. Do not count a host-adapter refactor as successful if Linux semantics still live in app files.
-3. Do not count a VFS refactor as successful if `fakefs` / `realfs` still define the actual substrate.
-4. Do not count a test split as successful if host tests are still being cited as Linux proof.
-5. Use the vendored Linux tuple as the first contract source when refactoring Linux-owner code; do not invent parallel local header truth without necessity.
-6. Do not claim merge-readiness unless both the ownership split and the behavior split are real.
+3. Do not count a `rootfs` refactor as successful if Linux-facing behavior still depends on host-private policy.
+4. Do not count a session fix as successful if it only works through a stale harness that the real app path does not use.
+5. Use the vendored Linux tuple as the first contract source when refactoring Linux-owner code.
+6. Do not claim merge-readiness unless the ownership split and the proof split are both real.
 
 ## Proof Gates
 
 No tranche should be called complete without fresh proof.
 
-Minimum proof categories are:
+Minimum proof categories:
 
 - `xcodegen generate --project .` when `project.yml` changes
-- simulator build proof on iPhone 17
+- simulator build proof on `iPhone 17`
 - focused tests for the touched tranche
 - full relevant suite before claiming a major migration step complete
-- vendored header compile-smoke proof whenever Linux-owner refactors add or change Linux header dependencies
+- vendored-header compile-smoke proof whenever Linux-owner refactors change Linux header dependencies
 
 For split-sensitive work, proof must answer these questions explicitly:
 
-- Was Linux semantics proved by kernel-facing tests?
-- Was host mediation proved by host-seam tests?
-- Did guest-visible behavior still work?
-- Did the TCTI-only path remain intact?
-- Did the refactor still resolve against the vendored Linux tuple rather than against accidental local fallback definitions?
+- was Linux semantics proved by kernel-facing tests?
+- was host mediation proved by host-seam tests?
+- did guest-visible behavior still work?
+- did the TCTI-only path remain intact?
+- did refactored code still resolve against the vendored Linux tuple rather than accidental local fallback definitions?
 
 ## Immediate Execution Order
 
-If this plan is executed now, the recommended near-term order is:
+If this plan is executed now, the required near-term order is:
 
-1. finish plan/inventory truth
-2. keep local Linux vendoring and build variables aligned with current upstream and use that tuple as the contract source for subsequent refactors
-3. establish explicit local proto-kernel versus proto-host-adapter boundaries
-4. evict host mechanics from Linux-owner code
-5. decontaminate app-owned runtime logic
-6. replace fakefs/realfs/fake-db substrate ownership
-7. split proof layers
-8. only then perform deeper naming/layout cutover
+1. keep this document and inventory true
+2. finish hosted guest-session boundary decomposition
+3. extract remaining Darwin host mechanics from `real.c` and `tty-real.c`
+4. split `rootfs` Linux semantics from host persistence mechanics
+5. shrink app-shell runtime ownership
+6. express the local kernel / host-adapter target split in `project.yml`
+7. collapse the test portfolio into canonical kernel, host-adapter, hosted-session, and E2E layers
+
+This is the correct dependency order for the current repo, not the older fakefs-era order.
 
 ## Definition of Done
 
 This alignment effort is done only when all of the following are true:
 
-- local build and header infrastructure matches the current upstream `IXLandKernel` model closely enough for low-friction future merge work
-- Linux-owner behavior in this repo has a clear home that is converging toward `IXLandKernel`
-- private iOS/Darwin mediation in this repo has a clear home that is converging toward `IXLandHostAdapter`
-- app shell files are no longer acting as ambient runtime owners
-- fakefs/realfs/fake-db no longer define the substrate contract
+- `rootfs` is the live substrate, but its host-private role is narrow and mechanical
+- Linux semantics are no longer decided inside `internal/ios/fs/rootfs.c` or other host-private files
+- `real.c` and `tty-real.c` are no longer broad mixed Darwin/Linux owner seams
+- hosted session startup ownership is clearly split across kernel-owner, host-adapter, and app-shell roles
+- `project.yml` expresses a meaningful local kernel / host-adapter split or a clearly staged near-final equivalent
+- runtime repro tests use only canonical harnesses aligned with the real app path
+- app shell files no longer act as ambient runtime owners
 - TCTI remains the only guest execution engine
-- proof is split into kernel semantics, host-adapter seam, header compile-smoke, and app/E2E layers
-- a future merge with upstream `IXLandKernel` is blocked only by remaining implementation gaps, not by unresolved architecture shape confusion
+- proof is split into kernel semantics, host-adapter seam, header compile-smoke, hosted-session, and app/E2E layers
+- a future merge with upstream `IXLandKernel` / `IXLandHostAdapter` is blocked only by implementation depth, not by unresolved ownership shape

@@ -69,7 +69,13 @@ static bool a64_verbose_block_trace_enabled(void)
 
 static bool a64_hot_ldso_pc(uint64_t pc)
 {
-    return pc >= 0x79600 && pc < 0x7c300;
+    return (pc >= 0x79600 && pc < 0x7c600) ||
+           (pc >= 0x23570 && pc < 0x23590) ||
+           (pc >= 0x2f898 && pc < 0x2f8e0) ||
+           (pc >= 0x386a0 && pc < 0x38724) ||
+           (pc >= 0xdc700 && pc < 0xdc800) ||
+           (pc >= 0x85818 && pc < 0x859e0) ||
+           (pc >= 0x8e6c0 && pc < 0x8e940);
 }
 
 static int g_insn64_trace_budget = 128;
@@ -1070,15 +1076,492 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
         (void)decode_ret;
 
         if (a64_hot_ldso_pc(gen_state.guest_pc)) {
-            char event[192];
-            snprintf(event, sizeof(event),
-                     "hot.ldso=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld",
-                     (unsigned long long)gen_state.guest_pc, insn,
-                     decode_ret == 0 ? decoded_info.cat : -1,
-                     decode_ret == 0 ? decoded_info.subtype : -1,
-                     decode_ret == 0 ? decoded_info.Rd : -1, decode_ret == 0 ? decoded_info.Rn : -1,
-                     decode_ret == 0 ? decoded_info.Rm : -1,
-                     decode_ret == 0 ? (long long)decoded_info.imm : 0LL);
+            char event[512];
+            if (gen_state.guest_pc >= 0x7a2bc && gen_state.guest_pc <= 0x7a2d8) {
+                snprintf(event, sizeof(event),
+                         "hot.ldso=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld,"
+                         "x0:0x%llx,x1:0x%llx,x2:0x%llx,x17:0x%llx,x25:0x%llx,pstate:0x%llx",
+                         (unsigned long long)gen_state.guest_pc, insn,
+                         decode_ret == 0 ? decoded_info.cat : -1,
+                         decode_ret == 0 ? decoded_info.subtype : -1,
+                         decode_ret == 0 ? decoded_info.Rd : -1,
+                         decode_ret == 0 ? decoded_info.Rn : -1,
+                         decode_ret == 0 ? decoded_info.Rm : -1,
+                         decode_ret == 0 ? (long long)decoded_info.imm : 0LL,
+                         (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[1],
+                         (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[17],
+                         (unsigned long long)cpu->x[25], (unsigned long long)cpu->pstate);
+            } else if (gen_state.guest_pc >= 0x23570 && gen_state.guest_pc <= 0x2358c) {
+                uint64_t malloc_slot = 0;
+                uint64_t calloc_slot = 0;
+                uint32_t malloc_target_raw = 0;
+                uint32_t calloc_target_raw = 0;
+                bool have_malloc_slot =
+                    a64_guest_read64(cpu, tlb, 0xcff30, &malloc_slot) == A64_MEM_OK;
+                bool have_calloc_slot =
+                    a64_guest_read64(cpu, tlb, 0xcff38, &calloc_slot) == A64_MEM_OK;
+                bool have_malloc_target_raw = have_malloc_slot && malloc_slot != 0 &&
+                    a64_guest_read32(cpu, tlb, malloc_slot, &malloc_target_raw) == A64_MEM_OK;
+                bool have_calloc_target_raw = have_calloc_slot && calloc_slot != 0 &&
+                    a64_guest_read32(cpu, tlb, calloc_slot, &calloc_target_raw) == A64_MEM_OK;
+                snprintf(event, sizeof(event),
+                         "hot.ldso=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld,"
+                         "x0:0x%llx,x1:0x%llx,x16:0x%llx,x17:0x%llx,malloc_slot:0x%llx,"
+                         "malloc_raw:0x%08x,calloc_slot:0x%llx,calloc_raw:0x%08x,sp:0x%llx,"
+                         "pstate:0x%llx",
+                         (unsigned long long)gen_state.guest_pc, insn,
+                         decode_ret == 0 ? decoded_info.cat : -1,
+                         decode_ret == 0 ? decoded_info.subtype : -1,
+                         decode_ret == 0 ? decoded_info.Rd : -1,
+                         decode_ret == 0 ? decoded_info.Rn : -1,
+                         decode_ret == 0 ? decoded_info.Rm : -1,
+                         decode_ret == 0 ? (long long)decoded_info.imm : 0LL,
+                         (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[1],
+                         (unsigned long long)cpu->x[16], (unsigned long long)cpu->x[17],
+                         (unsigned long long)(have_malloc_slot ? malloc_slot : 0),
+                         have_malloc_target_raw ? malloc_target_raw : 0U,
+                         (unsigned long long)(have_calloc_slot ? calloc_slot : 0),
+                         have_calloc_target_raw ? calloc_target_raw : 0U,
+                         (unsigned long long)cpu->sp, (unsigned long long)cpu->pstate);
+            } else if (gen_state.guest_pc >= 0x2f898 && gen_state.guest_pc <= 0x2f8dc) {
+                snprintf(event, sizeof(event),
+                         "hot.ldso=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld,"
+                         "x0:0x%llx,x1:0x%llx,x2:0x%llx,x29:0x%llx,sp:0x%llx,pstate:0x%llx",
+                         (unsigned long long)gen_state.guest_pc, insn,
+                         decode_ret == 0 ? decoded_info.cat : -1,
+                         decode_ret == 0 ? decoded_info.subtype : -1,
+                         decode_ret == 0 ? decoded_info.Rd : -1,
+                         decode_ret == 0 ? decoded_info.Rn : -1,
+                         decode_ret == 0 ? decoded_info.Rm : -1,
+                         decode_ret == 0 ? (long long)decoded_info.imm : 0LL,
+                         (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[1],
+                         (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[29],
+                         (unsigned long long)cpu->sp, (unsigned long long)cpu->pstate);
+            } else if (gen_state.guest_pc >= 0x386a0 && gen_state.guest_pc <= 0x38720) {
+                snprintf(event, sizeof(event),
+                         "hot.ldso=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld,"
+                         "x0:0x%llx,x1:0x%llx,x2:0x%llx,x19:0x%llx,x20:0x%llx,x21:0x%llx,"
+                         "x29:0x%llx,sp:0x%llx,pstate:0x%llx",
+                         (unsigned long long)gen_state.guest_pc, insn,
+                         decode_ret == 0 ? decoded_info.cat : -1,
+                         decode_ret == 0 ? decoded_info.subtype : -1,
+                         decode_ret == 0 ? decoded_info.Rd : -1,
+                         decode_ret == 0 ? decoded_info.Rn : -1,
+                         decode_ret == 0 ? decoded_info.Rm : -1,
+                         decode_ret == 0 ? (long long)decoded_info.imm : 0LL,
+                         (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[1],
+                         (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[19],
+                         (unsigned long long)cpu->x[20], (unsigned long long)cpu->x[21],
+                         (unsigned long long)cpu->x[29], (unsigned long long)cpu->sp,
+                         (unsigned long long)cpu->pstate);
+            } else if (gen_state.guest_pc >= 0x7a1c0 && gen_state.guest_pc <= 0x7a1e4) {
+                snprintf(event, sizeof(event),
+                         "hot.ldso=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld,"
+                         "x0:0x%llx,x1:0x%llx,x7:0x%llx,x14:0x%llx,x20:0x%llx,x21:0x%llx,"
+                         "x25:0x%llx,x28:0x%llx,sp:0x%llx,pstate:0x%llx",
+                         (unsigned long long)gen_state.guest_pc, insn,
+                         decode_ret == 0 ? decoded_info.cat : -1,
+                         decode_ret == 0 ? decoded_info.subtype : -1,
+                         decode_ret == 0 ? decoded_info.Rd : -1,
+                         decode_ret == 0 ? decoded_info.Rn : -1,
+                         decode_ret == 0 ? decoded_info.Rm : -1,
+                         decode_ret == 0 ? (long long)decoded_info.imm : 0LL,
+                         (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[1],
+                         (unsigned long long)cpu->x[7], (unsigned long long)cpu->x[14],
+                         (unsigned long long)cpu->x[20], (unsigned long long)cpu->x[21],
+                         (unsigned long long)cpu->x[25], (unsigned long long)cpu->x[28],
+                         (unsigned long long)cpu->sp, (unsigned long long)cpu->pstate);
+            } else if (gen_state.guest_pc >= 0x7a1f4 && gen_state.guest_pc <= 0x7a220) {
+                snprintf(event, sizeof(event),
+                         "hot.ldso=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld,"
+                         "x0:0x%llx,x1:0x%llx,x2:0x%llx,x14:0x%llx,x18:0x%llx,x25:0x%llx,"
+                         "x26:0x%llx,x28:0x%llx,sp:0x%llx,pstate:0x%llx",
+                         (unsigned long long)gen_state.guest_pc, insn,
+                         decode_ret == 0 ? decoded_info.cat : -1,
+                         decode_ret == 0 ? decoded_info.subtype : -1,
+                         decode_ret == 0 ? decoded_info.Rd : -1,
+                         decode_ret == 0 ? decoded_info.Rn : -1,
+                         decode_ret == 0 ? decoded_info.Rm : -1,
+                         decode_ret == 0 ? (long long)decoded_info.imm : 0LL,
+                         (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[1],
+                         (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[14],
+                         (unsigned long long)cpu->x[18], (unsigned long long)cpu->x[25],
+                         (unsigned long long)cpu->x[26], (unsigned long long)cpu->x[28],
+                         (unsigned long long)cpu->sp, (unsigned long long)cpu->pstate);
+            } else if (gen_state.guest_pc >= 0x7a27c && gen_state.guest_pc <= 0x7a29c) {
+                uint64_t symtab = 0;
+                uint64_t hashtab = 0;
+                uint64_t ghashtab = 0;
+                uint64_t strtab = 0;
+                if (gen_state.guest_pc == 0x7a29c && cpu->x[0] != 0) {
+                    (void)a64_guest_read64(cpu, tlb, cpu->x[0] + 0x40, &symtab);
+                    (void)a64_guest_read64(cpu, tlb, cpu->x[0] + 0x50, &ghashtab);
+                    (void)a64_guest_read64(cpu, tlb, cpu->x[0] + 0x58, &hashtab);
+                    (void)a64_guest_read64(cpu, tlb, cpu->x[0] + 0x60, &strtab);
+                }
+                snprintf(event, sizeof(event),
+                         "hot.ldso=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld,"
+                         "x0:0x%llx,x1:0x%llx,x2:0x%llx,x14:0x%llx,x18:0x%llx,x25:0x%llx,"
+                         "x26:0x%llx,x28:0x%llx,symtab:0x%llx,ghashtab:0x%llx,hashtab:0x%llx,"
+                         "strtab:0x%llx,sp:0x%llx,pstate:0x%llx",
+                         (unsigned long long)gen_state.guest_pc, insn,
+                         decode_ret == 0 ? decoded_info.cat : -1,
+                         decode_ret == 0 ? decoded_info.subtype : -1,
+                         decode_ret == 0 ? decoded_info.Rd : -1,
+                         decode_ret == 0 ? decoded_info.Rn : -1,
+                         decode_ret == 0 ? decoded_info.Rm : -1,
+                         decode_ret == 0 ? (long long)decoded_info.imm : 0LL,
+                         (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[1],
+                         (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[14],
+                         (unsigned long long)cpu->x[18], (unsigned long long)cpu->x[25],
+                         (unsigned long long)cpu->x[26], (unsigned long long)cpu->x[28],
+                         (unsigned long long)symtab, (unsigned long long)ghashtab,
+                         (unsigned long long)hashtab, (unsigned long long)strtab,
+                         (unsigned long long)cpu->sp, (unsigned long long)cpu->pstate);
+            } else if (gen_state.guest_pc >= 0x7a3fc && gen_state.guest_pc <= 0x7a408) {
+                snprintf(event, sizeof(event),
+                         "hot.ldso=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld,"
+                         "x0:0x%llx,x14:0x%llx,x15:0x%llx,pstate:0x%llx",
+                         (unsigned long long)gen_state.guest_pc, insn,
+                         decode_ret == 0 ? decoded_info.cat : -1,
+                         decode_ret == 0 ? decoded_info.subtype : -1,
+                         decode_ret == 0 ? decoded_info.Rd : -1,
+                         decode_ret == 0 ? decoded_info.Rn : -1,
+                         decode_ret == 0 ? decoded_info.Rm : -1,
+                         decode_ret == 0 ? (long long)decoded_info.imm : 0LL,
+                         (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[14],
+                         (unsigned long long)cpu->x[15], (unsigned long long)cpu->pstate);
+            } else if (gen_state.guest_pc >= 0x79f28 && gen_state.guest_pc <= 0x79ffc) {
+                snprintf(event, sizeof(event),
+                         "hot.ldso=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld,"
+                         "x0:0x%llx,x1:0x%llx,x2:0x%llx,x3:0x%llx,x13:0x%llx,x15:0x%llx,"
+                         "x18:0x%llx,x19:0x%llx,x21:0x%llx,sp:0x%llx,pstate:0x%llx",
+                         (unsigned long long)gen_state.guest_pc, insn,
+                         decode_ret == 0 ? decoded_info.cat : -1,
+                         decode_ret == 0 ? decoded_info.subtype : -1,
+                         decode_ret == 0 ? decoded_info.Rd : -1,
+                         decode_ret == 0 ? decoded_info.Rn : -1,
+                         decode_ret == 0 ? decoded_info.Rm : -1,
+                         decode_ret == 0 ? (long long)decoded_info.imm : 0LL,
+                         (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[1],
+                         (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[3],
+                         (unsigned long long)cpu->x[13], (unsigned long long)cpu->x[15],
+                         (unsigned long long)cpu->x[18], (unsigned long long)cpu->x[19],
+                         (unsigned long long)cpu->x[21], (unsigned long long)cpu->sp,
+                         (unsigned long long)cpu->pstate);
+            } else if (gen_state.guest_pc >= 0x79884 && gen_state.guest_pc <= 0x798a4) {
+                uint32_t nbuckets = 0;
+                uint32_t symoffset = 0;
+                uint32_t bloom_size = 0;
+                uint32_t bloom_shift = 0;
+                uint64_t bloom_word = 0;
+                if (cpu->x[1] != 0) {
+                    (void)a64_guest_read32(cpu, tlb, cpu->x[1] + 0x0, &nbuckets);
+                    (void)a64_guest_read32(cpu, tlb, cpu->x[1] + 0x4, &symoffset);
+                    (void)a64_guest_read32(cpu, tlb, cpu->x[1] + 0x8, &bloom_size);
+                    (void)a64_guest_read32(cpu, tlb, cpu->x[1] + 0xc, &bloom_shift);
+                    if (bloom_size != 0) {
+                        uint64_t bloom_index = ((uint32_t)cpu->x[4]) & (uint64_t)(bloom_size - 1);
+                        (void)a64_guest_read64(cpu, tlb, cpu->x[1] + 0x10 + (bloom_index << 3),
+                                               &bloom_word);
+                    }
+                }
+                snprintf(event, sizeof(event),
+                         "hot.ldso=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld,"
+                         "x0:0x%llx,x1:0x%llx,x4:0x%llx,x5:0x%llx,x10:0x%llx,nb:%u,so:%u,bs:%u,"
+                         "bsh:%u,bw:0x%llx,pstate:0x%llx",
+                         (unsigned long long)gen_state.guest_pc, insn,
+                         decode_ret == 0 ? decoded_info.cat : -1,
+                         decode_ret == 0 ? decoded_info.subtype : -1,
+                         decode_ret == 0 ? decoded_info.Rd : -1,
+                         decode_ret == 0 ? decoded_info.Rn : -1,
+                         decode_ret == 0 ? decoded_info.Rm : -1,
+                         decode_ret == 0 ? (long long)decoded_info.imm : 0LL,
+                         (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[1],
+                         (unsigned long long)cpu->x[4], (unsigned long long)cpu->x[5],
+                         (unsigned long long)cpu->x[10], nbuckets, symoffset, bloom_size,
+                         bloom_shift, (unsigned long long)bloom_word,
+                         (unsigned long long)cpu->pstate);
+            } else if (gen_state.guest_pc >= 0x7a010 && gen_state.guest_pc <= 0x7a030) {
+                uint64_t dso_ghashtab = 0;
+                uint64_t dso_strtab = 0;
+                uint64_t dso_next = 0;
+                uint64_t dso_deps = 0;
+                if (cpu->x[15] != 0) {
+                    (void)a64_guest_read64(cpu, tlb, cpu->x[15] + 0x50, &dso_ghashtab);
+                    (void)a64_guest_read64(cpu, tlb, cpu->x[15] + 0x60, &dso_strtab);
+                    (void)a64_guest_read64(cpu, tlb, cpu->x[15] + 0x68, &dso_next);
+                    (void)a64_guest_read64(cpu, tlb, cpu->x[15] + 0xb0, &dso_deps);
+                }
+                snprintf(event, sizeof(event),
+                         "hot.ldso=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld,"
+                         "x0:0x%llx,x1:0x%llx,x2:0x%llx,x13:0x%llx,x15:0x%llx,x18:0x%llx,"
+                         "x19:0x%llx,x21:0x%llx,dso_ghashtab:0x%llx,dso_strtab:0x%llx,"
+                         "dso_next:0x%llx,dso_deps:0x%llx,sp:0x%llx,pstate:0x%llx",
+                         (unsigned long long)gen_state.guest_pc, insn,
+                         decode_ret == 0 ? decoded_info.cat : -1,
+                         decode_ret == 0 ? decoded_info.subtype : -1,
+                         decode_ret == 0 ? decoded_info.Rd : -1,
+                         decode_ret == 0 ? decoded_info.Rn : -1,
+                         decode_ret == 0 ? decoded_info.Rm : -1,
+                         decode_ret == 0 ? (long long)decoded_info.imm : 0LL,
+                         (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[1],
+                         (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[13],
+                         (unsigned long long)cpu->x[15], (unsigned long long)cpu->x[18],
+                         (unsigned long long)cpu->x[19], (unsigned long long)cpu->x[21],
+                         (unsigned long long)dso_ghashtab, (unsigned long long)dso_strtab,
+                         (unsigned long long)dso_next, (unsigned long long)dso_deps,
+                         (unsigned long long)cpu->sp, (unsigned long long)cpu->pstate);
+            } else if (gen_state.guest_pc >= 0x6b5f0 && gen_state.guest_pc <= 0x6b6b8) {
+                uint32_t reserved_mask = 0;
+                uint32_t reserved_flags = 0;
+                uint64_t loader_head = 0;
+                uint64_t loader_tail = 0;
+                uint64_t x0_u64 = 0;
+                uint64_t x1_u64 = 0;
+                uint64_t x2_u64 = 0;
+                uint64_t x22_next = 0;
+                if (cpu->x[0] != 0)
+                    (void)a64_guest_read64(cpu, tlb, cpu->x[0] + 0x20, &x0_u64);
+                if (cpu->x[1] != 0)
+                    (void)a64_guest_read64(cpu, tlb, cpu->x[1], &x1_u64);
+                if (cpu->x[2] != 0)
+                    (void)a64_guest_read64(cpu, tlb, cpu->x[2], &x2_u64);
+                if (cpu->x[22] != 0)
+                    (void)a64_guest_read64(cpu, tlb, cpu->x[22] + 0x18, &x22_next);
+                (void)a64_guest_read32(cpu, tlb, 0xc2f08, &reserved_mask);
+                (void)a64_guest_read32(cpu, tlb, 0xc2ef8, &reserved_flags);
+                (void)a64_guest_read64(cpu, tlb, 0xc2b90, &loader_tail);
+                (void)a64_guest_read64(cpu, tlb, 0xc2b98, &loader_head);
+                snprintf(event, sizeof(event),
+                         "hot.ldso=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld,"
+                         "x0:0x%llx,x1:0x%llx,x2:0x%llx,x3:0x%llx,x4:0x%llx,x21:0x%llx,"
+                         "x22:0x%llx,x24:0x%llx,x25:0x%llx,x28:0x%llx,loader_head:0x%llx,"
+                         "loader_tail:0x%llx,reserved_mask:0x%x,reserved_flags:0x%x,"
+                         "x0_link:0x%llx,x1_qword:0x%llx,x2_qword:0x%llx,x22_next:0x%llx,"
+                         "sp:0x%llx,pstate:0x%llx",
+                         (unsigned long long)gen_state.guest_pc, insn,
+                         decode_ret == 0 ? decoded_info.cat : -1,
+                         decode_ret == 0 ? decoded_info.subtype : -1,
+                         decode_ret == 0 ? decoded_info.Rd : -1,
+                         decode_ret == 0 ? decoded_info.Rn : -1,
+                         decode_ret == 0 ? decoded_info.Rm : -1,
+                         decode_ret == 0 ? (long long)decoded_info.imm : 0LL,
+                         (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[1],
+                         (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[3],
+                         (unsigned long long)cpu->x[4], (unsigned long long)cpu->x[21],
+                         (unsigned long long)cpu->x[22], (unsigned long long)cpu->x[24],
+                         (unsigned long long)cpu->x[25], (unsigned long long)cpu->x[28],
+                         (unsigned long long)loader_head, (unsigned long long)loader_tail,
+                         reserved_mask, reserved_flags, (unsigned long long)x0_u64,
+                         (unsigned long long)x1_u64, (unsigned long long)x2_u64,
+                         (unsigned long long)x22_next, (unsigned long long)cpu->sp,
+                         (unsigned long long)cpu->pstate);
+            } else if (gen_state.guest_pc >= 0x6ca60 && gen_state.guest_pc <= 0x6cac0) {
+                uint64_t x22_next = 0;
+                uint64_t x23_tail = 0;
+                uint64_t x24_byte = 0;
+                uint64_t x26_qword = 0;
+                if (cpu->x[22] != 0)
+                    (void)a64_guest_read64(cpu, tlb, cpu->x[22] + 0x18, &x22_next);
+                if (cpu->x[23] != 0)
+                    (void)a64_guest_read64(cpu, tlb, cpu->x[23] + 0xb80, &x23_tail);
+                if (cpu->x[24] != 0)
+                    (void)a64_guest_read8(cpu, tlb, cpu->x[24], (uint8_t *)&x24_byte);
+                if (cpu->x[26] != 0)
+                    (void)a64_guest_read64(cpu, tlb, cpu->x[26], &x26_qword);
+                snprintf(event, sizeof(event),
+                         "hot.ldso=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld,"
+                         "x0:0x%llx,x1:0x%llx,x2:0x%llx,x3:0x%llx,x22:0x%llx,x23:0x%llx,"
+                         "x24:0x%llx,x25:0x%llx,x26:0x%llx,x28:0x%llx,x22_next:0x%llx,"
+                         "x23_tail:0x%llx,x24_byte:0x%llx,x26_qword:0x%llx,sp:0x%llx,"
+                         "pstate:0x%llx",
+                         (unsigned long long)gen_state.guest_pc, insn,
+                         decode_ret == 0 ? decoded_info.cat : -1,
+                         decode_ret == 0 ? decoded_info.subtype : -1,
+                         decode_ret == 0 ? decoded_info.Rd : -1,
+                         decode_ret == 0 ? decoded_info.Rn : -1,
+                         decode_ret == 0 ? decoded_info.Rm : -1,
+                         decode_ret == 0 ? (long long)decoded_info.imm : 0LL,
+                         (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[1],
+                         (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[3],
+                         (unsigned long long)cpu->x[22], (unsigned long long)cpu->x[23],
+                         (unsigned long long)cpu->x[24], (unsigned long long)cpu->x[25],
+                         (unsigned long long)cpu->x[26], (unsigned long long)cpu->x[28],
+                         (unsigned long long)x22_next, (unsigned long long)x23_tail,
+                         (unsigned long long)x24_byte, (unsigned long long)x26_qword,
+                         (unsigned long long)cpu->sp, (unsigned long long)cpu->pstate);
+            } else if (gen_state.guest_pc >= 0x6cac4 && gen_state.guest_pc <= 0x6caf4) {
+                uint64_t dep_list_next = 0;
+                uint64_t current_next = 0;
+                uint64_t tail_next = 0;
+                uint64_t global_tail = 0;
+                if (cpu->x[0] != 0) {
+                    (void)a64_guest_read64(cpu, tlb, cpu->x[0] + 0x18, &dep_list_next);
+                    (void)a64_guest_read64(cpu, tlb, cpu->x[0] + 0x68, &current_next);
+                }
+                if (cpu->x[2] != 0)
+                    (void)a64_guest_read64(cpu, tlb, cpu->x[2] + 0x68, &tail_next);
+                if (cpu->x[23] != 0)
+                    (void)a64_guest_read64(cpu, tlb, cpu->x[23] + 0xb80, &global_tail);
+                snprintf(event, sizeof(event),
+                         "hot.ldso=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld,"
+                         "x0:0x%llx,x1:0x%llx,x2:0x%llx,x3:0x%llx,x23:0x%llx,x26:0x%llx,"
+                         "dep_list_next:0x%llx,current_next:0x%llx,tail_next:0x%llx,"
+                         "global_tail:0x%llx,sp:0x%llx,pstate:0x%llx",
+                         (unsigned long long)gen_state.guest_pc, insn,
+                         decode_ret == 0 ? decoded_info.cat : -1,
+                         decode_ret == 0 ? decoded_info.subtype : -1,
+                         decode_ret == 0 ? decoded_info.Rd : -1,
+                         decode_ret == 0 ? decoded_info.Rn : -1,
+                         decode_ret == 0 ? decoded_info.Rm : -1,
+                         decode_ret == 0 ? (long long)decoded_info.imm : 0LL,
+                         (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[1],
+                         (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[3],
+                         (unsigned long long)cpu->x[23], (unsigned long long)cpu->x[26],
+                         (unsigned long long)dep_list_next, (unsigned long long)current_next,
+                         (unsigned long long)tail_next, (unsigned long long)global_tail,
+                         (unsigned long long)cpu->sp, (unsigned long long)cpu->pstate);
+            } else if (gen_state.guest_pc >= 0x6ade0 && gen_state.guest_pc <= 0x6af18) {
+                uint64_t x14_ghashtab = 0;
+                uint64_t x14_next = 0;
+                uint64_t x14_deps = 0;
+                uint64_t x15_slot = 0;
+                if (cpu->x[14] != 0) {
+                    (void)a64_guest_read64(cpu, tlb, cpu->x[14] + 0x50, &x14_ghashtab);
+                    (void)a64_guest_read64(cpu, tlb, cpu->x[14] + 0x68, &x14_next);
+                    (void)a64_guest_read64(cpu, tlb, cpu->x[14] + 0xb0, &x14_deps);
+                }
+                if (cpu->x[15] != 0)
+                    (void)a64_guest_read64(cpu, tlb, cpu->x[15], &x15_slot);
+                snprintf(event, sizeof(event),
+                         "hot.ldso=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld,"
+                         "x0:0x%llx,x1:0x%llx,x14:0x%llx,x15:0x%llx,x20:0x%llx,x21:0x%llx,"
+                         "x22:0x%llx,x14_ghashtab:0x%llx,x14_next:0x%llx,x14_deps:0x%llx,"
+                         "x15_slot:0x%llx,sp:0x%llx,pstate:0x%llx",
+                         (unsigned long long)gen_state.guest_pc, insn,
+                         decode_ret == 0 ? decoded_info.cat : -1,
+                         decode_ret == 0 ? decoded_info.subtype : -1,
+                         decode_ret == 0 ? decoded_info.Rd : -1,
+                         decode_ret == 0 ? decoded_info.Rn : -1,
+                         decode_ret == 0 ? decoded_info.Rm : -1,
+                         decode_ret == 0 ? (long long)decoded_info.imm : 0LL,
+                         (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[1],
+                         (unsigned long long)cpu->x[14], (unsigned long long)cpu->x[15],
+                         (unsigned long long)cpu->x[20], (unsigned long long)cpu->x[21],
+                         (unsigned long long)cpu->x[22], (unsigned long long)x14_ghashtab,
+                         (unsigned long long)x14_next, (unsigned long long)x14_deps,
+                         (unsigned long long)x15_slot, (unsigned long long)cpu->sp,
+                         (unsigned long long)cpu->pstate);
+            } else if (gen_state.guest_pc >= 0x7b1f0 && gen_state.guest_pc <= 0x7b29c) {
+                snprintf(event, sizeof(event),
+                         "hot.ldso=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld,"
+                         "x0:0x%llx,x1:0x%llx,x2:0x%llx,x4:0x%llx,x19:0x%llx,x21:0x%llx,"
+                         "x25:0x%llx,x26:0x%llx,sp:0x%llx,pstate:0x%llx",
+                         (unsigned long long)gen_state.guest_pc, insn,
+                         decode_ret == 0 ? decoded_info.cat : -1,
+                         decode_ret == 0 ? decoded_info.subtype : -1,
+                         decode_ret == 0 ? decoded_info.Rd : -1,
+                         decode_ret == 0 ? decoded_info.Rn : -1,
+                         decode_ret == 0 ? decoded_info.Rm : -1,
+                         decode_ret == 0 ? (long long)decoded_info.imm : 0LL,
+                         (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[1],
+                         (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[4],
+                         (unsigned long long)cpu->x[19], (unsigned long long)cpu->x[21],
+                         (unsigned long long)cpu->x[25], (unsigned long long)cpu->x[26],
+                         (unsigned long long)cpu->sp, (unsigned long long)cpu->pstate);
+            } else if (gen_state.guest_pc >= 0xdc700 && gen_state.guest_pc <= 0xdc780) {
+                snprintf(event, sizeof(event),
+                         "hot.ldso=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld,"
+                         "x0:0x%llx,x1:0x%llx,x2:0x%llx,x3:0x%llx,x4:0x%llx,x5:0x%llx,"
+                         "sp:0x%llx,pstate:0x%llx",
+                         (unsigned long long)gen_state.guest_pc, insn,
+                         decode_ret == 0 ? decoded_info.cat : -1,
+                         decode_ret == 0 ? decoded_info.subtype : -1,
+                         decode_ret == 0 ? decoded_info.Rd : -1,
+                         decode_ret == 0 ? decoded_info.Rn : -1,
+                         decode_ret == 0 ? decoded_info.Rm : -1,
+                         decode_ret == 0 ? (long long)decoded_info.imm : 0LL,
+                         (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[1],
+                         (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[3],
+                         (unsigned long long)cpu->x[4], (unsigned long long)cpu->x[5],
+                         (unsigned long long)cpu->sp, (unsigned long long)cpu->pstate);
+            } else if (gen_state.guest_pc >= 0x7b018 && gen_state.guest_pc <= 0x7b12c) {
+                snprintf(event, sizeof(event),
+                         "hot.ldso=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld,"
+                         "x0:0x%llx,x1:0x%llx,x2:0x%llx,x8:0x%llx,x21:0x%llx,pstate:0x%llx",
+                         (unsigned long long)gen_state.guest_pc, insn,
+                         decode_ret == 0 ? decoded_info.cat : -1,
+                         decode_ret == 0 ? decoded_info.subtype : -1,
+                         decode_ret == 0 ? decoded_info.Rd : -1,
+                         decode_ret == 0 ? decoded_info.Rn : -1,
+                         decode_ret == 0 ? decoded_info.Rm : -1,
+                         decode_ret == 0 ? (long long)decoded_info.imm : 0LL,
+                         (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[1],
+                         (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[8],
+                         (unsigned long long)cpu->x[21], (unsigned long long)cpu->pstate);
+            } else if (gen_state.guest_pc >= 0x7c2bc && gen_state.guest_pc <= 0x7c2fc) {
+                snprintf(event, sizeof(event),
+                         "hot.ldso=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld,"
+                         "x0:0x%llx,x1:0x%llx,x2:0x%llx,x19:0x%llx,x21:0x%llx,x22:0x%llx,"
+                         "x29:0x%llx,sp:0x%llx,pstate:0x%llx",
+                         (unsigned long long)gen_state.guest_pc, insn,
+                         decode_ret == 0 ? decoded_info.cat : -1,
+                         decode_ret == 0 ? decoded_info.subtype : -1,
+                         decode_ret == 0 ? decoded_info.Rd : -1,
+                         decode_ret == 0 ? decoded_info.Rn : -1,
+                         decode_ret == 0 ? decoded_info.Rm : -1,
+                         decode_ret == 0 ? (long long)decoded_info.imm : 0LL,
+                         (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[1],
+                         (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[19],
+                         (unsigned long long)cpu->x[21], (unsigned long long)cpu->x[22],
+                         (unsigned long long)cpu->x[29], (unsigned long long)cpu->sp,
+                         (unsigned long long)cpu->pstate);
+            } else if (gen_state.guest_pc >= 0x7bf44 && gen_state.guest_pc <= 0x7bf60) {
+                snprintf(event, sizeof(event),
+                         "hot.ldso=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld,"
+                         "x0:0x%llx,x1:0x%llx,x2:0x%llx,x3:0x%llx,x21:0x%llx,x23:0x%llx,"
+                         "x25:0x%llx,x26:0x%llx,sp:0x%llx,pstate:0x%llx",
+                         (unsigned long long)gen_state.guest_pc, insn,
+                         decode_ret == 0 ? decoded_info.cat : -1,
+                         decode_ret == 0 ? decoded_info.subtype : -1,
+                         decode_ret == 0 ? decoded_info.Rd : -1,
+                         decode_ret == 0 ? decoded_info.Rn : -1,
+                         decode_ret == 0 ? decoded_info.Rm : -1,
+                         decode_ret == 0 ? (long long)decoded_info.imm : 0LL,
+                         (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[1],
+                         (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[3],
+                         (unsigned long long)cpu->x[21], (unsigned long long)cpu->x[23],
+                         (unsigned long long)cpu->x[25], (unsigned long long)cpu->x[26],
+                         (unsigned long long)cpu->sp, (unsigned long long)cpu->pstate);
+            } else if (gen_state.guest_pc >= 0x7c4e0 && gen_state.guest_pc <= 0x7c500) {
+                snprintf(event, sizeof(event),
+                         "hot.ldso=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld,"
+                         "x0:0x%llx,x1:0x%llx,x2:0x%llx,x19:0x%llx,x20:0x%llx,x21:0x%llx,"
+                         "x23:0x%llx,sp:0x%llx,pstate:0x%llx",
+                         (unsigned long long)gen_state.guest_pc, insn,
+                         decode_ret == 0 ? decoded_info.cat : -1,
+                         decode_ret == 0 ? decoded_info.subtype : -1,
+                         decode_ret == 0 ? decoded_info.Rd : -1,
+                         decode_ret == 0 ? decoded_info.Rn : -1,
+                         decode_ret == 0 ? decoded_info.Rm : -1,
+                         decode_ret == 0 ? (long long)decoded_info.imm : 0LL,
+                         (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[1],
+                         (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[19],
+                         (unsigned long long)cpu->x[20], (unsigned long long)cpu->x[21],
+                         (unsigned long long)cpu->x[23], (unsigned long long)cpu->sp,
+                         (unsigned long long)cpu->pstate);
+            } else {
+                snprintf(event, sizeof(event),
+                         "hot.ldso=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld",
+                         (unsigned long long)gen_state.guest_pc, insn,
+                         decode_ret == 0 ? decoded_info.cat : -1,
+                         decode_ret == 0 ? decoded_info.subtype : -1,
+                         decode_ret == 0 ? decoded_info.Rd : -1,
+                         decode_ret == 0 ? decoded_info.Rn : -1,
+                         decode_ret == 0 ? decoded_info.Rm : -1,
+                         decode_ret == 0 ? (long long)decoded_info.imm : 0LL);
+            }
             trace_record_event(TRACE_ORIGIN_EXEC, event);
         }
 
@@ -2156,6 +2639,21 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
                     fault_rn_value = cpu->x[fault_rn];
                 if (fault_rm >= 0 && fault_rm < 31)
                     fault_rm_value = cpu->x[fault_rm];
+                if (a64_hot_ldso_pc(cpu->pc)) {
+                    a64_trace_event(
+                        "tcti.hot_fault",
+                        "tcti.hot_fault=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,"
+                        "imm:%lld,fault_addr:0x%llx,x0:0x%llx,x1:0x%llx,x7:0x%llx,x14:0x%llx,"
+                        "x20:0x%llx,x21:0x%llx,x25:0x%llx,x28:0x%llx,sp:0x%llx,pstate:0x%llx",
+                        (unsigned long long)cpu->pc, raw_insn, decoded.cat, decoded.subtype,
+                        decoded.Rd, decoded.Rn, decoded.Rm, (long long)decoded.imm,
+                        (unsigned long long)cpu->fault_addr, (unsigned long long)cpu->x[0],
+                        (unsigned long long)cpu->x[1], (unsigned long long)cpu->x[7],
+                        (unsigned long long)cpu->x[14], (unsigned long long)cpu->x[20],
+                        (unsigned long long)cpu->x[21], (unsigned long long)cpu->x[25],
+                        (unsigned long long)cpu->x[28], (unsigned long long)cpu->sp,
+                        (unsigned long long)cpu->pstate);
+                }
             }
 
             // Trace fault event with full context for first fault analysis

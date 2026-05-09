@@ -124,6 +124,8 @@ targets:
     - target: IXLandLinuxRuntime
     - package: IXLandInstrumentation
       product: IXLandInstrumentationRuntime
+    - sdk: UIKit.framework
+    - sdk: UniformTypeIdentifiers.framework
     settings:
       GENERATE_INFOPLIST_FILE: true
       TEST_HOST: "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal"
@@ -147,6 +149,8 @@ targets:
     - path: Tests/Support/TCTITestHarness/tcti_harness_truth.c
     dependencies:
     - target: IXLandLinuxRuntime
+    - sdk: UIKit.framework
+    - sdk: UniformTypeIdentifiers.framework
     settings:
       GENERATE_INFOPLIST_FILE: true
       TEST_HOST: "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal"
@@ -176,6 +180,8 @@ targets:
     - target: IXLandLinuxRuntime
     - package: IXLandInstrumentation
       product: IXLandInstrumentationRuntime
+    - sdk: UIKit.framework
+    - sdk: UniformTypeIdentifiers.framework
     settings:
       GENERATE_INFOPLIST_FILE: true
       TEST_HOST: "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal"
@@ -324,8 +330,8 @@ schemes:
   IXLandApp-6.12-arm64:
     build:
       targets:
-        IXLandLinuxRuntime: all
         IXLandTerminal: all
+        IXLandLinuxRuntime: all
         IXLandTerminalEnd2EndTests: [build-for-testing]
     run:
       config: Debug

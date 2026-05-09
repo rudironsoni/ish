@@ -17,6 +17,8 @@
 #import "root_registry.h"
 #import "NSObject+SaneKVO.h"
 #import "LinuxInterop.h"
+#import "runtime/bootstrap_bridge.h"
+#import "runtime/session_bridge.h"
 #import "Instrumentation/ISHRuntimeFlags.h"
 #import <ISHInstrumentation.h>
 #import <IXLandLinuxRuntime/kernel/init.h>
@@ -262,6 +264,9 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 }
 
 - (void)recordSessionAttemptEvent:(NSString *)name extra:(NSDictionary *)extra {
+    if ([self isRunningUITests]) {
+        NSLog(@"[IXLandSession] %@ %@", name, [self sessionAttemptAttributesWithExtra:extra]);
+    }
     [ISHInstrumentation recordEvent:name attributes:[self sessionAttemptAttributesWithExtra:extra]];
 }
 
@@ -307,21 +312,23 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
     [lines addObject:[NSString stringWithFormat:@"ret=%d", returnValue]];
     [lines addObject:[NSString stringWithFormat:@"path=%@", path]];
     [lines addObject:[NSString stringWithFormat:@"root_path=%@", rootPath]];
-    [lines addObject:[NSString stringWithFormat:@"root_present=%@", [AppDelegate lastBootstrapRootPresent] ? @"true" : @"false"]];
-    [lines addObject:[NSString stringWithFormat:@"root_exists=%@", [AppDelegate lastBootstrapRootExists] ? @"true" : @"false"]];
-    [lines addObject:[NSString stringWithFormat:@"root_data_exists=%@", [AppDelegate lastBootstrapRootDataExists] ? @"true" : @"false"]];
-    [lines addObject:[NSString stringWithFormat:@"roots_available=%@", [AppDelegate lastBootstrapRootsAvailable] ? @"true" : @"false"]];
-    [lines addObject:[NSString stringWithFormat:@"archive_url_present=%@", [AppDelegate lastBootstrapArchiveURLPresent] ? @"true" : @"false"]];
-    [lines addObject:[NSString stringWithFormat:@"import_attempted=%@", [AppDelegate lastBootstrapImportAttempted] ? @"true" : @"false"]];
-    [lines addObject:[NSString stringWithFormat:@"import_succeeded=%@", [AppDelegate lastBootstrapImportSucceeded] ? @"true" : @"false"]];
-    NSString *importError = [AppDelegate lastBootstrapImportErrorDescription];
+    struct runtime_bootstrap_diagnostics bootstrap = {};
+    runtime_get_bootstrap_diagnostics(&bootstrap);
+    [lines addObject:[NSString stringWithFormat:@"root_present=%@", bootstrap.root_present ? @"true" : @"false"]];
+    [lines addObject:[NSString stringWithFormat:@"root_exists=%@", bootstrap.root_exists ? @"true" : @"false"]];
+    [lines addObject:[NSString stringWithFormat:@"root_data_exists=%@", bootstrap.root_data_exists ? @"true" : @"false"]];
+    [lines addObject:[NSString stringWithFormat:@"roots_available=%@", bootstrap.roots_available ? @"true" : @"false"]];
+    [lines addObject:[NSString stringWithFormat:@"archive_url_present=%@", bootstrap.archive_url_present ? @"true" : @"false"]];
+    [lines addObject:[NSString stringWithFormat:@"import_attempted=%@", bootstrap.import_attempted ? @"true" : @"false"]];
+    [lines addObject:[NSString stringWithFormat:@"import_succeeded=%@", bootstrap.import_succeeded ? @"true" : @"false"]];
+    NSString *importError = bootstrap.import_error_description != NULL ? @(bootstrap.import_error_description) : @"";
     [lines addObject:[NSString stringWithFormat:@"import_error=%@", importError.length > 0 ? importError : @"unknown"]];
-    [lines addObject:[NSString stringWithFormat:@"root_mount_called=%@", [AppDelegate lastBootstrapMountRootCalled] ? @"true" : @"false"]];
+    [lines addObject:[NSString stringWithFormat:@"root_mount_called=%@", bootstrap.root_mount_called ? @"true" : @"false"]];
     [lines addObject:[NSString stringWithFormat:@"root_mount_ret=%d", self.lastRootMountReturnValue]];
-    [lines addObject:[NSString stringWithFormat:@"boot_become_first_process_called=%@", [AppDelegate lastBootstrapBecomeFirstProcessCalled] ? @"true" : @"false"]];
-    [lines addObject:[NSString stringWithFormat:@"boot_become_first_process_ret=%d", [AppDelegate lastBecomeFirstProcessReturnValue]]];
-    [lines addObject:[NSString stringWithFormat:@"boot_pid1_exists_after_become_first_process=%@", [AppDelegate lastBootstrapPID1ExistsAfterBecomeFirstProcess] ? @"true" : @"false"]];
-    [lines addObject:[NSString stringWithFormat:@"boot_mounts_non_empty_after_root_mount=%@", [AppDelegate lastMountsNonEmptyAfterRootMount] ? @"true" : @"false"]];
+    [lines addObject:[NSString stringWithFormat:@"boot_become_first_process_called=%@", bootstrap.become_first_process_called ? @"true" : @"false"]];
+    [lines addObject:[NSString stringWithFormat:@"boot_become_first_process_ret=%d", bootstrap.become_first_process_return_value]];
+    [lines addObject:[NSString stringWithFormat:@"boot_pid1_exists_after_become_first_process=%@", bootstrap.pid1_exists_after_become_first_process ? @"true" : @"false"]];
+    [lines addObject:[NSString stringWithFormat:@"boot_mounts_non_empty_after_root_mount=%@", bootstrap.mounts_non_empty_after_root_mount ? @"true" : @"false"]];
     [lines addObject:[NSString stringWithFormat:@"mounts_non_empty=%@", self.lastSessionFailureMountsNonEmpty ? @"true" : @"false"]];
     [lines addObject:[NSString stringWithFormat:@"become_new_init_child_ret=%d", self.lastBecomeNewInitChildReturnValue]];
     [lines addObject:[NSString stringWithFormat:@"pty_create_ret=%d", self.lastPTYCreationReturnValue]];
@@ -340,10 +347,12 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 
     NSURL *root = ios_root_default_url();
     self.lastSessionFailureRootPath = root.path ?: @"";
-    self.lastRootMountReturnValue = [AppDelegate lastRootMountReturnValue];
+    struct runtime_bootstrap_diagnostics bootstrap = {};
+    runtime_get_bootstrap_diagnostics(&bootstrap);
+    self.lastRootMountReturnValue = bootstrap.root_mount_return_value;
     self.lastTaskStartReturnText = @"unknown";
 
-    int bootError = [AppDelegate bootError];
+    int bootError = runtime_boot_error();
     if (bootError < 0) {
         self.lastSessionFailureLabel = root == nil ? @"root_missing" : @"root_mount_failed";
         self.lastSessionFailingCall = root == nil ? @"rootUrl" : @"mount_root";
@@ -431,6 +440,9 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 - (void)viewDidAppear:(BOOL)animated {
     [super viewDidAppear:animated];
     dispatch_async(dispatch_get_main_queue(), ^{
+        if ([self isRunningUITests] && self.sessionTerminal == nil && !self.sessionStartInProgress) {
+            [self startNewSession];
+        }
         [self focusTerminalInput];
     });
 }
@@ -445,7 +457,7 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 
 - (BOOL)isRunningUITests {
     NSDictionary *environment = NSProcessInfo.processInfo.environment;
-    return environment[@"XCTestConfigurationFilePath"] != nil || environment[@"IXLAND_UI_TESTING"] != nil;
+    return environment[@"IXLAND_UI_TESTING"] != nil;
 }
 
 - (BOOL)focusTerminalInput {
@@ -664,27 +676,29 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 
     BOOL mountsNonEmptyBeforeSession = mounts_is_non_empty();
     if (!mountsNonEmptyBeforeSession || pid_get_task(1) == NULL) {
-        int bootstrapErr = [AppDelegate bootstrapRuntimeForSession];
+        int bootstrapErr = runtime_bootstrap_session();
         NSURL *bootstrapRoot = ios_root_default_url();
         self.lastSessionFailureRootPath = bootstrapRoot.path ?: @"";
-        self.lastRootMountReturnValue = [AppDelegate lastRootMountReturnValue];
+        struct runtime_bootstrap_diagnostics bootstrap = {};
+        runtime_get_bootstrap_diagnostics(&bootstrap);
+        self.lastRootMountReturnValue = bootstrap.root_mount_return_value;
         if (bootstrapErr < 0) {
             self.lastBecomeNewInitChildReturnValue = bootstrapErr;
             [self recordSessionStartupFailureLabel:@"runtime_bootstrap_failed"
-                                       failingCall:@"bootstrapRuntimeForSession"
+                                       failingCall:@"runtime_bootstrap_session"
                                        returnValue:bootstrapErr
                                               path:self.lastSessionFailureRootPath
                                      ptyDevicePath:nil
                                    mountsNonEmpty:mounts_is_non_empty()];
             [ISHInstrumentation recordEvent:@"app.session.failure"
-                                 attributes:@{ @"failing_call": @"bootstrapRuntimeForSession",
+                                 attributes:@{ @"failing_call": @"runtime_bootstrap_session",
                                                @"return_value": @(bootstrapErr),
                                                @"errno_style_code": @(bootstrapErr),
                                                @"is_restart_path": @(isRestartPath),
                                                @"mounts_non_empty": @(mounts_is_non_empty()),
-                                               @"root_mount_return_value": @([AppDelegate lastRootMountReturnValue]),
-                                               @"boot_become_first_process_return_value": @([AppDelegate lastBecomeFirstProcessReturnValue]),
-                                               @"boot_mounts_non_empty_after_root_mount": @([AppDelegate lastMountsNonEmptyAfterRootMount]) }];
+                                               @"root_mount_return_value": @(bootstrap.root_mount_return_value),
+                                               @"boot_become_first_process_return_value": @(bootstrap.become_first_process_return_value),
+                                               @"boot_mounts_non_empty_after_root_mount": @(bootstrap.mounts_non_empty_after_root_mount) }];
             return bootstrapErr;
         }
         mountsNonEmptyBeforeSession = mounts_is_non_empty();
@@ -703,9 +717,9 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
                                                @"errno_style_code": @(err),
                                                @"is_restart_path": @(isRestartPath),
                                                @"mounts_non_empty": @NO,
-                                               @"root_mount_return_value": @([AppDelegate lastRootMountReturnValue]),
-                                               @"boot_become_first_process_return_value": @([AppDelegate lastBecomeFirstProcessReturnValue]),
-                                               @"boot_mounts_non_empty_after_root_mount": @([AppDelegate lastMountsNonEmptyAfterRootMount]) }];
+                                               @"root_mount_return_value": @(bootstrap.root_mount_return_value),
+                                               @"boot_become_first_process_return_value": @(bootstrap.become_first_process_return_value),
+                                               @"boot_mounts_non_empty_after_root_mount": @(bootstrap.mounts_non_empty_after_root_mount) }];
             return err;
         }
     }
@@ -727,9 +741,7 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
                                            @"errno_style_code": @(err),
                                            @"is_restart_path": @(isRestartPath),
                                            @"mounts_non_empty": @NO,
-                                           @"root_mount_return_value": @([AppDelegate lastRootMountReturnValue]),
-                                           @"boot_become_first_process_return_value": @([AppDelegate lastBecomeFirstProcessReturnValue]),
-                                           @"boot_mounts_non_empty_after_root_mount": @([AppDelegate lastMountsNonEmptyAfterRootMount]) }];
+                                           @"root_mount_return_value": @(self.lastRootMountReturnValue) }];
         [self recordSessionAttemptEvent:@"session.attempt.fail.mounts_empty_before_session"
                                   extra:@{ @"return_value": @(err),
                                            @"is_restart_path": @(isRestartPath) }];
@@ -761,19 +773,21 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
     }
     trace_task_source_checkpoint("task.proof.after_become_new_init_child", current);
 
-    char argv[4096];
-    [Terminal convertCommand:command toArgs:argv limitSize:sizeof(argv)];
     const char *envp = "TERM=xterm-256color\0"
                        "HOME=/root\0"
                        "USER=root\0"
                        "LOGNAME=root\0"
                        "SHELL=/bin/sh\0"
                        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\0";
-    NSMutableArray<NSString *> *argvStrings = [NSMutableArray array];
-    const char *arg = argv;
-    while (*arg != '\0') {
-        [argvStrings addObject:[NSString stringWithUTF8String:arg]];
-        arg += strlen(arg) + 1;
+    NSString *execPath = command.firstObject;
+    NSMutableArray<NSString *> *argvStrings = [command mutableCopy];
+    if (argvStrings.count > 0) {
+        NSString *argv0 = argvStrings[0];
+        if ([argv0 containsString:@"/"]) {
+            NSString *basename = argv0.lastPathComponent;
+            if (basename.length > 0)
+                argvStrings[0] = basename;
+        }
     }
     NSUInteger argc = argvStrings.count;
     char **argvp = calloc(argc + 1, sizeof(char *));
@@ -783,7 +797,7 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
         argvp[i] = (char *) argvStrings[i].UTF8String;
 
     [ISHInstrumentation recordEvent:@"app.session.login.exec.entry"
-                         attributes:@{ @"path": command.firstObject ?: @"",
+                         attributes:@{ @"path": execPath ?: @"",
                                        @"argc": @(command.count),
                                        @"mounts_non_empty": @(mounts_is_non_empty()),
                                        @"is_restart_path": @(isRestartPath) }];
@@ -792,7 +806,7 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 
     self.lastTaskStartEntered = YES;
     IXLandSetGuestSessionActive(YES);
-    linux_start_session(command[0].UTF8String, (const char *const *) argvp, envp, ^(int retval, int pid, nsobj_t terminalObject) {
+    linux_start_session(execPath.UTF8String, (const char *const *) argvp, envp, ^(int retval, int pid, nsobj_t terminalObject) {
         void (^handleStartResult)(void) = ^{
             self.lastLoginExecReturnValue = retval;
             if (retval < 0) {
@@ -802,14 +816,14 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
                 [self recordSessionStartupFailureLabel:@"linux_start_session_failed"
                                            failingCall:@"linux_start_session"
                                            returnValue:retval
-                                                  path:command.firstObject
+                                                  path:execPath
                                          ptyDevicePath:nil
                                        mountsNonEmpty:mounts_is_non_empty()];
                 [ISHInstrumentation recordEvent:@"app.session.failure"
                                      attributes:@{ @"failing_call": @"linux_start_session",
                                                    @"return_value": @(retval),
                                                    @"errno_style_code": @(retval),
-                                                   @"path": command.firstObject ?: @"",
+                                                   @"path": execPath ?: @"",
                                                    @"mounts_non_empty": @(mounts_is_non_empty()),
                                                    @"is_restart_path": @(isRestartPath) }];
                 [self recordSessionAttemptEvent:@"login.exec.failure" extra:@{ @"return_value": @(retval), @"stdio_succeeded": @NO, @"pty_exists": @NO, @"is_restart_path": @(isRestartPath) }];
@@ -834,7 +848,7 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
             [ISHInstrumentation recordEvent:@"app.session.login.exec.exit"
                                  attributes:@{ @"return_value": @(retval),
                                                @"errno_style_code": @(retval),
-                                               @"path": command.firstObject ?: @"",
+                                               @"path": execPath ?: @"",
                                                @"argc": @(command.count),
                                                @"mounts_non_empty": @(mounts_is_non_empty()),
                                                @"is_restart_path": @(isRestartPath) }];
@@ -850,7 +864,7 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
                                  attributes:@{ @"return_value": @0,
                                                @"errno_style_code": @0,
                                                @"guest_pid": @(self.sessionPid),
-                                               @"path": command.firstObject ?: @"",
+                                               @"path": execPath ?: @"",
                                                @"mounts_non_empty": @(mounts_is_non_empty()),
                                                @"is_restart_path": @(isRestartPath) }];
             free(argvp);
@@ -868,7 +882,7 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 }
 
 - (void)processExited:(NSNotification *)notif {
-    BOOL isTesting = NSProcessInfo.processInfo.environment[@"XCTestConfigurationFilePath"] != nil;
+    BOOL isTesting = [self isRunningUITests];
     int pid = [notif.userInfo[@"pid"] intValue];
     int code = [notif.userInfo[@"code"] intValue];
     uint64_t observedGeneration = self.activeSessionGeneration;

@@ -506,10 +506,15 @@ int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr)
 
     tcti_gadget_t gadget = NULL;
 
+    int is_pc_rel_imm = ((instr->raw & 0x1F000000u) == 0x10000000u);
+
     switch (instr->subtype) {
-    case 0: // ADR/ADRP (op0=000) or MOVN (opc=00 in op0=010)
-        // Distinguish by category: cat=8 (SIMD0) is ADR, cat=9 (DP_IMM) is MOVN
-        if (instr->cat == A64_SIMD0) {
+    case 0: // ADR (pc-rel) or MOVN
+        // Subtype 0 is shared by ADR and MOVN. Do not inspect bits[25:23] here:
+        // for PC-relative encodings those bits include immlo, so live ADR/ADRP
+        // instructions can carry non-zero values there. Match the same top-bit
+        // pattern the decoder uses for PC-relative encodings instead.
+        if (is_pc_rel_imm && bit(instr->raw, 31) == 0) {
             // This is ADR (PC-relative addressing)
             // Calculate target PC: current PC + immediate (byte aligned)
             uint64_t target_pc = state->guest_pc + instr->imm;
@@ -553,9 +558,11 @@ int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr)
         }
         return A64_GEN_OK; // Fully handled, skip common code
 
-    case 1: // ADRP (subtype 1 from decoder when op=1) OR MOVZ
-        // Distinguish by category: cat=8 (SIMD0) is ADR/ADRP, cat=9 (DP_IMM) is MOVZ
-        if (instr->cat == A64_SIMD0) {
+    case 1: // ADRP (pc-rel) or MOVZ
+        // Subtype 1 is shared by ADRP and MOVZ. As above, bits[25:23] are not a
+        // stable discriminator for ADRP because immlo lives in the same field.
+        // Reuse the decoder's PC-relative top-bit match and op bit instead.
+        if (is_pc_rel_imm && bit(instr->raw, 31) == 1) {
             // This is ADRP - page aligned PC-relative addressing
             // ADRP: Xd = PC with bits [11:0] cleared + (imm << 12)
             uint64_t base_pc = state->guest_pc & ~0xFFFULL;
@@ -743,7 +750,7 @@ int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr)
         {
             int ret;
 
-            if (!instr->is_64bit) {
+            if (!instr->is_64bit || instr->set_flags) {
                 return emit_logical_imm_fallback(state, rd, rn, instr->imm, instr->subtype,
                                                  instr->set_flags, instr->is_64bit);
             }
@@ -1067,7 +1074,8 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr)
         return emit_div_fallback(state, rd, rn, rm, instr->subtype, instr->is_64bit);
     }
 
-    if (instr->subtype >= A64_DP_REG_MADD && instr->subtype <= A64_DP_REG_UMSUBL) {
+    if ((instr->subtype >= A64_DP_REG_MADD && instr->subtype <= A64_DP_REG_UMSUBL) ||
+        instr->subtype == A64_DP_REG_UMULH || instr->subtype == A64_DP_REG_SMULH) {
         return emit_multiply_add_fallback(state, rd, rn, rm, instr->Ra, instr->subtype,
                                           instr->is_64bit);
     }

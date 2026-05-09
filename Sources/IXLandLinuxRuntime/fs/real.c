@@ -6,6 +6,9 @@
 #import <IXLandLinuxRuntime/kernel/fs.h>
 #import <IXLandLinuxRuntime/util/debug.h>
 #import <IXLandLinuxRuntime/util/fchdir.h>
+#include "internal/ios/fs/errno_host.h"
+#include "internal/ios/fs/open_flags.h"
+#include "internal/ios/fs/path_host.h"
 #include <dirent.h>
 #include <fcntl.h>
 #include <poll.h>
@@ -18,72 +21,6 @@
 #include <sys/xattr.h>
 #include <termios.h>
 #include <unistd.h>
-
-static int realfs_get_host_path(int fd, char *buf)
-{
-    return fcntl(fd, F_GETPATH, buf);
-}
-
-static const char *realfs_relative_path(const char *path)
-{
-    return fix_path(path);
-}
-
-static int realfs_errno_or_value(int result)
-{
-    if (result < 0)
-        return errno_map();
-    return result;
-}
-
-static ssize_t realfs_errno_or_size(ssize_t result)
-{
-    if (result < 0)
-        return errno_map();
-    return result;
-}
-
-static int realfs_host_open_flags_from_linux(int flags)
-{
-    int real_flags = 0;
-    if (flags & O_WRONLY_)
-        real_flags |= O_WRONLY;
-    if (flags & O_RDWR_)
-        real_flags |= O_RDWR;
-    if (flags & O_CREAT_)
-        real_flags |= O_CREAT;
-    if (flags & O_EXCL_)
-        real_flags |= O_EXCL;
-    if (flags & O_TRUNC_)
-        real_flags |= O_TRUNC;
-    if (flags & O_APPEND_)
-        real_flags |= O_APPEND;
-    if (flags & O_NONBLOCK_)
-        real_flags |= O_NONBLOCK;
-    if (flags & O_NOFOLLOW_)
-        real_flags |= O_NOFOLLOW;
-    return real_flags;
-}
-
-static int realfs_linux_open_flags_from_host(int flags)
-{
-    int linux_flags = 0;
-    if (flags & O_WRONLY)
-        linux_flags |= O_WRONLY_;
-    if (flags & O_RDWR)
-        linux_flags |= O_RDWR_;
-    if (flags & O_CREAT)
-        linux_flags |= O_CREAT_;
-    if (flags & O_EXCL)
-        linux_flags |= O_EXCL_;
-    if (flags & O_TRUNC)
-        linux_flags |= O_TRUNC_;
-    if (flags & O_APPEND)
-        linux_flags |= O_APPEND_;
-    if (flags & O_NONBLOCK)
-        linux_flags |= O_NONBLOCK_;
-    return linux_flags;
-}
 
 static int realfs_host_whence_from_linux(int whence)
 {
@@ -115,6 +52,10 @@ static int realfs_host_lock_operation_from_linux(int operation)
 
 static void realfs_copy_statbuf_from_host(struct statbuf *linux_stat, const struct stat *host_stat)
 {
+    long host_blksize = host_stat->st_blksize;
+    if (host_blksize <= 0 || host_blksize > 65536)
+        host_blksize = 4096;
+
     linux_stat->dev = dev_fake_from_real(host_stat->st_dev);
     linux_stat->inode = host_stat->st_ino;
     linux_stat->mode = host_stat->st_mode;
@@ -123,7 +64,7 @@ static void realfs_copy_statbuf_from_host(struct statbuf *linux_stat, const stru
     linux_stat->gid = host_stat->st_gid;
     linux_stat->rdev = dev_fake_from_real(host_stat->st_rdev);
     linux_stat->size = host_stat->st_size;
-    linux_stat->blksize = host_stat->st_blksize;
+    linux_stat->blksize = (uint32_t)host_blksize;
     linux_stat->blocks = host_stat->st_blocks;
     linux_stat->atime = (uint32_t) host_stat->st_atime;
     linux_stat->mtime = (uint32_t) host_stat->st_mtime;
@@ -139,7 +80,7 @@ static int realfs_stat_from_host_fd(int fd_no, struct statbuf *linux_stat)
 {
     struct stat host_stat;
     if (fstat(fd_no, &host_stat) < 0)
-        return errno_map();
+        return errno_host_map();
     realfs_copy_statbuf_from_host(linux_stat, &host_stat);
     return 0;
 }
@@ -147,23 +88,23 @@ static int realfs_stat_from_host_fd(int fd_no, struct statbuf *linux_stat)
 static int realfs_stat_from_mount_path(struct mount *mount, const char *path, struct statbuf *linux_stat)
 {
     struct stat host_stat;
-    if (fstatat(mount->root_fd, realfs_relative_path(path), &host_stat, AT_SYMLINK_NOFOLLOW) < 0)
-        return errno_map();
+    if (fstatat(mount->root_fd, path_host_relative(path), &host_stat, AT_SYMLINK_NOFOLLOW) < 0)
+        return errno_host_map();
     realfs_copy_statbuf_from_host(linux_stat, &host_stat);
     return 0;
 }
 
 static int realfs_mount_open(struct mount *mount, const char *path, int flags, mode_t mode)
 {
-    return openat(mount->root_fd, realfs_relative_path(path), flags, mode);
+    return openat(mount->root_fd, path_host_relative(path), flags, mode);
 }
 
 struct fd *realfs_open(struct mount *mount, const char *path, int flags, int mode)
 {
-    int real_flags = realfs_host_open_flags_from_linux(flags);
+    int real_flags = open_flags_host_from_linux(flags);
     int fd_no = realfs_mount_open(mount, path, real_flags, mode);
     if (fd_no < 0)
-        return ERR_PTR(errno_map());
+        return ERR_PTR(errno_host_map());
     struct fd *fd = fd_create(&realfs_fdops);
     if (fd == NULL) {
         close(fd_no);
@@ -181,7 +122,7 @@ int realfs_close(struct fd *fd)
         closedir(fd->dir);
     int err = close(fd->real_fd);
     if (err < 0)
-        return errno_map();
+        return errno_host_map();
     return 0;
 }
 
@@ -197,22 +138,22 @@ int realfs_fstat(struct fd *fd, struct statbuf *fake_stat)
 
 ssize_t realfs_read(struct fd *fd, void *buf, size_t bufsize)
 {
-    return realfs_errno_or_size(read(fd->real_fd, buf, bufsize));
+    return errno_host_or_size(read(fd->real_fd, buf, bufsize));
 }
 
 ssize_t realfs_write(struct fd *fd, const void *buf, size_t bufsize)
 {
-    return realfs_errno_or_size(write(fd->real_fd, buf, bufsize));
+    return errno_host_or_size(write(fd->real_fd, buf, bufsize));
 }
 
 ssize_t realfs_pread(struct fd *fd, void *buf, size_t bufsize, off_t off)
 {
-    return realfs_errno_or_size(pread(fd->real_fd, buf, bufsize, off));
+    return errno_host_or_size(pread(fd->real_fd, buf, bufsize, off));
 }
 
 ssize_t realfs_pwrite(struct fd *fd, const void *buf, size_t bufsize, off_t off)
 {
-    return realfs_errno_or_size(pwrite(fd->real_fd, buf, bufsize, off));
+    return errno_host_or_size(pwrite(fd->real_fd, buf, bufsize, off));
 }
 
 static void realfs_ensure_dir_stream(struct fd *fd)
@@ -232,7 +173,7 @@ int realfs_readdir(struct fd *fd, struct dir_entry *entry)
     struct dirent *dirent = readdir(fd->dir);
     if (dirent == NULL) {
         if (errno != 0)
-            return errno_map();
+            return errno_host_map();
         else
             return 0;
     }
@@ -265,7 +206,7 @@ off_t realfs_lseek(struct fd *fd, off_t offset, int whence)
         return _EINVAL;
     off_t res = lseek(fd->real_fd, offset, host_whence);
     if (res < 0)
-        return errno_map();
+        return errno_host_map();
     return res;
 }
 
@@ -337,14 +278,14 @@ int realfs_mmap(struct fd *fd, struct mem *mem, page_t start, pages_t pages, off
 
 ssize_t realfs_readlink(struct mount *mount, const char *path, char *buf, size_t bufsize)
 {
-    return realfs_errno_or_size(readlinkat(mount->root_fd, realfs_relative_path(path), buf, bufsize));
+    return errno_host_or_size(readlinkat(mount->root_fd, path_host_relative(path), buf, bufsize));
 }
 
 int realfs_getpath(struct fd *fd, char *buf)
 {
-    int err = realfs_get_host_path(fd->real_fd, buf);
+    int err = path_host_get(fd->real_fd, buf);
     if (err < 0)
-        return err;
+        return errno_host_map();
     if (strcmp(fd->mount->source, "/") != 0 || strcmp(buf, "/") == 0) {
         size_t source_len = strlen(fd->mount->source);
         memmove(buf, buf + source_len, MAX_PATH - source_len);
@@ -354,31 +295,31 @@ int realfs_getpath(struct fd *fd, char *buf)
 
 int realfs_link(struct mount *mount, const char *src, const char *dst)
 {
-    return realfs_errno_or_value(
-        linkat(mount->root_fd, realfs_relative_path(src), mount->root_fd, realfs_relative_path(dst), 0));
+    return errno_host_or_value(
+        linkat(mount->root_fd, path_host_relative(src), mount->root_fd, path_host_relative(dst), 0));
 }
 
 int realfs_unlink(struct mount *mount, const char *path)
 {
-    return realfs_errno_or_value(unlinkat(mount->root_fd, realfs_relative_path(path), 0));
+    return errno_host_or_value(unlinkat(mount->root_fd, path_host_relative(path), 0));
 }
 
 int realfs_rmdir(struct mount *mount, const char *path)
 {
-    return realfs_errno_or_value(unlinkat(mount->root_fd, realfs_relative_path(path), AT_REMOVEDIR));
+    return errno_host_or_value(unlinkat(mount->root_fd, path_host_relative(path), AT_REMOVEDIR));
 }
 
 int realfs_rename(struct mount *mount, const char *src, const char *dst)
 {
-    return realfs_errno_or_value(
-        renameat(mount->root_fd, realfs_relative_path(src), mount->root_fd, realfs_relative_path(dst)));
+    return errno_host_or_value(
+        renameat(mount->root_fd, path_host_relative(src), mount->root_fd, path_host_relative(dst)));
 }
 
 int realfs_symlink(struct mount *mount, const char *target, const char *link)
 {
     int err = symlinkat(target, mount->root_fd, link);
     if (err < 0)
-        return errno_map();
+        return errno_host_map();
     return err;
 }
 
@@ -387,7 +328,7 @@ int realfs_mknod(struct mount *mount, const char *path, mode_t_ mode, dev_t_ UNU
     int err;
     if (S_ISFIFO(mode)) {
         lock_fchdir(mount->root_fd);
-        err = mkfifo(realfs_relative_path(path), mode & ~S_IFMT);
+        err = mkfifo(path_host_relative(path), mode & ~S_IFMT);
         unlock_fchdir();
     } else if (S_ISREG(mode)) {
         err = realfs_mount_open(mount, path, O_CREAT | O_EXCL | O_RDONLY, mode & ~S_IFMT);
@@ -397,7 +338,7 @@ int realfs_mknod(struct mount *mount, const char *path, mode_t_ mode, dev_t_ UNU
         return _EPERM;
     }
     if (err < 0)
-        return errno_map();
+        return errno_host_map();
     return err;
 }
 
@@ -405,17 +346,17 @@ int realfs_truncate(struct mount *mount, const char *path, off_t_ size)
 {
     int fd = realfs_mount_open(mount, path, O_RDWR, 0);
     if (fd < 0)
-        return errno_map();
+        return errno_host_map();
     int err = 0;
     if (ftruncate(fd, size) < 0)
-        err = errno_map();
+        err = errno_host_map();
     close(fd);
     return err;
 }
 
 int realfs_setattr(struct mount *mount, const char *path, struct attr attr)
 {
-    path = realfs_relative_path(path);
+    path = path_host_relative(path);
     int root = mount->root_fd;
     int err;
     switch (attr.type) {
@@ -434,7 +375,7 @@ int realfs_setattr(struct mount *mount, const char *path, struct attr attr)
         TODO("other attrs");
     }
     if (err < 0)
-        return errno_map();
+        return errno_host_map();
     return err;
 }
 
@@ -459,7 +400,7 @@ int realfs_fsetattr(struct fd *fd, struct attr attr)
         abort();
     }
     if (err < 0)
-        return errno_map();
+        return errno_host_map();
     return err;
 }
 
@@ -467,17 +408,17 @@ int realfs_utime(struct mount *mount, const char *path, struct timespec atime,
                  struct timespec mtime)
 {
     struct timespec times[2] = { atime, mtime };
-    return realfs_errno_or_value(utimensat(mount->root_fd, realfs_relative_path(path), times, 0));
+    return errno_host_or_value(utimensat(mount->root_fd, path_host_relative(path), times, 0));
 }
 
 int realfs_mkdir(struct mount *mount, const char *path, mode_t_ mode)
 {
-    return realfs_errno_or_value(mkdirat(mount->root_fd, realfs_relative_path(path), mode));
+    return errno_host_or_value(mkdirat(mount->root_fd, path_host_relative(path), mode));
 }
 
 int realfs_flock(struct fd *fd, int operation)
 {
-    return realfs_errno_or_value(flock(fd->real_fd, realfs_host_lock_operation_from_linux(operation)));
+    return errno_host_or_value(flock(fd->real_fd, realfs_host_lock_operation_from_linux(operation)));
 }
 
 int realfs_statfs(struct mount *mount, struct statfsbuf *stat)
@@ -499,13 +440,13 @@ int realfs_mount(struct mount *mount)
 {
     char *source_realpath = realpath(mount->source, NULL);
     if (source_realpath == NULL)
-        return errno_map();
+        return errno_host_map();
     free((void *)mount->source);
     mount->source = source_realpath;
 
     mount->root_fd = open(mount->source, O_DIRECTORY);
     if (mount->root_fd < 0)
-        return errno_map();
+        return errno_host_map();
     return 0;
 }
 
@@ -513,7 +454,7 @@ int realfs_fsync(struct fd *fd)
 {
     int err = fsync(fd->real_fd);
     if (err < 0)
-        return errno_map();
+        return errno_host_map();
     return 0;
 }
 
@@ -521,15 +462,15 @@ int realfs_getflags(struct fd *fd)
 {
     int flags = fcntl(fd->real_fd, F_GETFL);
     if (flags < 0)
-        return errno_map();
-    return realfs_linux_open_flags_from_host(flags);
+        return errno_host_map();
+    return open_flags_linux_from_host(flags);
 }
 
 int realfs_setflags(struct fd *fd, uint32_t flags)
 {
-    int ret = fcntl(fd->real_fd, F_SETFL, realfs_host_open_flags_from_linux(flags));
+    int ret = fcntl(fd->real_fd, F_SETFL, open_flags_host_from_linux(flags));
     if (ret < 0)
-        return errno_map();
+        return errno_host_map();
     return 0;
 }
 
@@ -548,7 +489,7 @@ int realfs_ioctl(struct fd *fd, int cmd, void *arg)
     case FIONREAD_:
         err = ioctl(fd->real_fd, FIONREAD, &nread);
         if (err < 0)
-            return errno_map();
+            return errno_host_map();
         *(uint32_t *)arg = (uint32_t)nread;
         return 0;
     }

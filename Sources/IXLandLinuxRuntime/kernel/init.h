@@ -10,5 +10,8 @@ int become_first_process(void);
 int become_new_init_child(void);
 int create_stdio(const char *file, int major, int minor);
 int create_piped_stdio(void);
+int prepare_session_with_tty(const char *exe, const char *const *argv, const char *envp,
+                             struct tty *tty, int *pid_out);
+void start_prepared_session(void);
 
 #endif

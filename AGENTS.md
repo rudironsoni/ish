@@ -217,7 +217,15 @@ Rules:
 ## Tooling Rules
 
 - Always prefix shell commands with `rtk`. See `@/Users/rudironsoni/.codex/RTK.md`.
-- If using XcodeBuildMCP, use the installed XcodeBuildMCP skill before calling XcodeBuildMCP tools.
+- For iOS, simulator, test, run, log, debug, and UI-automation work, use the `xcodebuildmcp-cli` skill first:
+  - `/Users/rudironsoni/.codex/skills/xcodebuildmcp-cli/SKILL.md`
+- Prefer `xcodebuildmcp` workflows and tools over raw `xcodebuild`, `xcrun`, or `simctl`.
+- Use `xcodebuildmcp --help`, `xcodebuildmcp tools`, and per-workflow `--help` discovery before running build/test/run actions.
+- Keep `xcodebuildmcp` execution aligned with local defaults:
+  - simulator: `iPhone 17`
+  - DerivedData: `/Volumes/1TB/Xcode/DerivedData`
+  - caches: `/Volumes/1TB/Xcode/Caches`
+- Only fall back to raw `xcodebuild`, `xcrun`, or `simctl` when `xcodebuildmcp` cannot perform the required action or the user explicitly requests the fallback.
 - Use raw `git` for status, commits, and pushes.
 
 ## Quality Bar

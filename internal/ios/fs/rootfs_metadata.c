@@ -1,6 +1,6 @@
 #include "rootfs_metadata.h"
+#include "path_host.h"
 
-#include <IXLandLinuxRuntime/fs/fix_path.h>
 #include <IXLandLinuxRuntime/util/misc.h>
 #include <errno.h>
 #include <sys/stat.h>
@@ -10,12 +10,7 @@
 static const char *kLinuxStatXattr = "com.ixland.rootfs.linuxstat";
 
 static void rootfs_full_path(struct mount *mount, const char *path, char *buffer, size_t buffer_size) {
-    const char *relative = fix_path(path);
-    if (strcmp(relative, ".") == 0) {
-        strlcpy(buffer, mount->source, buffer_size);
-        return;
-    }
-    snprintf(buffer, buffer_size, "%s/%s", mount->source, relative);
+    path_host_full_path(mount, path, buffer, buffer_size);
 }
 
 bool rootfs_read_full_path_stat(const char *path, struct rootfs_stat *linux_stat, bool nofollow) {

@@ -230,6 +230,13 @@ struct a64_stat {
 
 typedef char a64_stat_must_match_linux_arm64_size[(sizeof(struct a64_stat) == 128) ? 1 : -1];
 
+static int32_t a64_guest_safe_blksize(uint32_t blksize)
+{
+    if (blksize < 512 || blksize > 65536)
+        return 4096;
+    return (int32_t)blksize;
+}
+
 static struct a64_stat a64_stat_from_statbuf(struct statbuf stat)
 {
     return (struct a64_stat){
@@ -241,7 +248,7 @@ static struct a64_stat a64_stat_from_statbuf(struct statbuf stat)
         .gid = stat.gid,
         .rdev = stat.rdev,
         .size = (int64_t)stat.size,
-        .blksize = (int32_t)stat.blksize,
+        .blksize = a64_guest_safe_blksize(stat.blksize),
         .blocks = (int64_t)stat.blocks,
         .atime = stat.atime,
         .atime_nsec = stat.atime_nsec,
@@ -275,10 +282,17 @@ static uint64_t a64_sys_newfstatat(uint64_t at_raw, uint64_t path_raw, uint64_t 
         return A64_RET_S32(_EBADF);
 
     int32_t flags = (int32_t)flags_raw;
+    bool trace_root = strcmp(path, "/") == 0 || strcmp(path, ".") == 0 ||
+                      ((flags & AT_EMPTY_PATH_) && strcmp(path, "") == 0);
     struct statbuf stat = {};
     int err;
-    if (strcmp(path, ".") == 0)
-        trace_record_event(TRACE_ORIGIN_KERNEL, "a64.newfstatat.dot.attempt");
+    if (trace_root) {
+        char event[160];
+        snprintf(event, sizeof(event),
+                 "a64.newfstatat.root.attempt.at=%d,flags=0x%x,path=%s",
+                 at_f, flags, path[0] == '\0' ? "<empty>" : path);
+        trace_record_event(TRACE_ORIGIN_KERNEL, event);
+    }
     if ((flags & AT_EMPTY_PATH_) && strcmp(path, "") == 0) {
         err = at->mount->fs->fstat(at, &stat);
     } else {
@@ -286,17 +300,19 @@ static uint64_t a64_sys_newfstatat(uint64_t at_raw, uint64_t path_raw, uint64_t 
         err = generic_statat(at, path, &stat, follow_links);
     }
     if (err < 0) {
-        if (strcmp(path, ".") == 0) {
+        if (trace_root) {
+            char event[96];
+            snprintf(event, sizeof(event), "a64.newfstatat.root.fail.err=%d", err);
+            trace_record_event(TRACE_ORIGIN_KERNEL, event);
             if (err == _ENOMEM)
-                trace_record_event(TRACE_ORIGIN_KERNEL, "a64.newfstatat.dot.fail.enomem");
-            trace_record_event(TRACE_ORIGIN_KERNEL, "a64.newfstatat.dot.fail");
+                trace_record_event(TRACE_ORIGIN_KERNEL, "a64.newfstatat.root.fail.enomem");
         }
         return A64_RET_S32(err);
     }
 
-    if (strcmp(path, ".") == 0) {
+    if (trace_root) {
         char event[128];
-        snprintf(event, sizeof(event), "a64.newfstatat.dot.ok.blksize=%u,mode=0x%x", stat.blksize,
+        snprintf(event, sizeof(event), "a64.newfstatat.root.ok.blksize=%u,mode=0x%x", stat.blksize,
                  stat.mode);
         trace_record_event(TRACE_ORIGIN_KERNEL, event);
     }
@@ -319,20 +335,47 @@ static uint64_t a64_sys_fstat(uint64_t fd_raw, uint64_t statbuf_raw, uint64_t un
     if (fd == NULL)
         return A64_RET_S32(_EBADF);
 
+    char fd_path[MAX_PATH];
+    bool trace_root = generic_getpath(fd, fd_path) == 0 && strcmp(fd_path, "/") == 0;
+    bool trace_dirfd = (fd_t)fd_raw == 3;
     struct statbuf stat = {};
-    if ((fd_t)fd_raw >= 0)
-        trace_record_event(TRACE_ORIGIN_KERNEL, "a64.fstat.attempt");
+    if (trace_root) {
+        char event[96];
+        snprintf(event, sizeof(event), "a64.fstat.root.attempt.fd=%d", (int)fd_raw);
+        trace_record_event(TRACE_ORIGIN_KERNEL, event);
+    } else if (trace_dirfd) {
+        char event[128];
+        snprintf(event, sizeof(event), "a64.fstat.fd3.attempt.path=%s",
+                 generic_getpath(fd, fd_path) == 0 ? fd_path : "<unresolved>");
+        trace_record_event(TRACE_ORIGIN_KERNEL, event);
+    }
     int err = fd->mount->fs->fstat(fd, &stat);
     if (err < 0) {
-        if (err == _ENOMEM)
-            trace_record_event(TRACE_ORIGIN_KERNEL, "a64.fstat.fail.enomem");
-        trace_record_event(TRACE_ORIGIN_KERNEL, "a64.fstat.fail");
+        if (trace_root) {
+            char event[96];
+            snprintf(event, sizeof(event), "a64.fstat.root.fail.err=%d", err);
+            trace_record_event(TRACE_ORIGIN_KERNEL, event);
+            if (err == _ENOMEM)
+                trace_record_event(TRACE_ORIGIN_KERNEL, "a64.fstat.root.fail.enomem");
+        } else if (trace_dirfd) {
+            char event[96];
+            snprintf(event, sizeof(event), "a64.fstat.fd3.fail.err=%d", err);
+            trace_record_event(TRACE_ORIGIN_KERNEL, event);
+        }
         return A64_RET_S32(err);
     }
 
-    char event[128];
-    snprintf(event, sizeof(event), "a64.fstat.ok.blksize=%u,mode=0x%x", stat.blksize, stat.mode);
-    trace_record_event(TRACE_ORIGIN_KERNEL, event);
+    if (trace_root) {
+        char event[128];
+        snprintf(event, sizeof(event), "a64.fstat.root.ok.blksize=%u,mode=0x%x", stat.blksize,
+                 stat.mode);
+        trace_record_event(TRACE_ORIGIN_KERNEL, event);
+    } else if (trace_dirfd) {
+        char event[128];
+        snprintf(event, sizeof(event), "a64.fstat.fd3.ok.blksize=%u,mode=0x%x", stat.blksize,
+                 stat.mode);
+        trace_record_event(TRACE_ORIGIN_KERNEL, event);
+    }
 
     struct a64_stat a64_stat = a64_stat_from_statbuf(stat);
     if (user_put((addr_t)statbuf_raw, a64_stat))

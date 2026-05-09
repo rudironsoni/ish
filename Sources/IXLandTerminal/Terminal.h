@@ -6,8 +6,10 @@
 //
 
 #import <UIKit/UIKit.h>
+#include <stdbool.h>
 
 struct tty;
+struct linux_tty;
 
 @interface Terminal : NSObject
 
@@ -26,6 +28,9 @@ struct tty;
 - (BOOL)requestFocus;
 - (BOOL)focusEditableSurface;
 - (void)updateFontSize:(CGFloat)fontSize;
+- (void)attachTTY:(struct tty *)tty;
+- (void)attachLinuxTTY:(struct linux_tty *)tty;
+- (int)roomForOutput;
 
 - (NSString *)arrow:(char)direction;
 
@@ -49,4 +54,11 @@ struct tty;
 
 @end
 
-extern struct tty_driver ios_console_driver;
+#ifndef IXLAND_NSOBJ_T_DEFINED
+#define IXLAND_NSOBJ_T_DEFINED
+typedef const void *nsobj_t;
+#endif
+bool Terminal_bindGuestTTY(struct tty *tty, nsobj_t *terminal_out);
+
+extern struct tty_driver terminal_console_driver;
+extern struct tty_driver terminal_pty_driver;

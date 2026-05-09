@@ -76,6 +76,75 @@
     XCTAssert(true, "Mprotect to read-only must succeed");
 }
 
+- (void)testMemoryContract_MprotectPreservesAnonymousAndCOWMappingBits {
+    struct mm *mm = mm_new();
+    XCTAssertNotEqual(mm, NULL);
+    if (mm == NULL)
+        return;
+
+    page_t start = (page_t)A64_MMAP_BASE_PAGE;
+    XCTAssertEqual(pt_map_nothing(&mm->mem, start, 1, P_READ | P_WRITE), 0);
+
+    struct page_desc *desc = page_map_lookup(&mm->mem.pages, start);
+    XCTAssertNotEqual(desc, NULL);
+    if (desc == NULL) {
+        mm_release(mm);
+        return;
+    }
+
+    desc->flags |= P_COW;
+    struct vm_area *vma = vma_tree_find(&mm->mem.vmas, start << PAGE_BITS);
+    XCTAssertNotEqual(vma, NULL);
+    if (vma != NULL)
+        vma->flags |= P_COW;
+
+    XCTAssertEqual(pt_set_flags(&mm->mem, start, 1, P_READ), 0);
+
+    desc = page_map_lookup(&mm->mem.pages, start);
+    XCTAssertNotEqual(desc, NULL);
+    if (desc != NULL) {
+        XCTAssertEqual(desc->flags & P_RWX, (unsigned)P_READ);
+        XCTAssertTrue((desc->flags & P_ANONYMOUS) != 0,
+                      @"mprotect must not strip anonymous-mapping metadata");
+        XCTAssertTrue((desc->flags & P_COW) != 0,
+                      @"mprotect must not strip copy-on-write metadata");
+    }
+
+    vma = vma_tree_find(&mm->mem.vmas, start << PAGE_BITS);
+    XCTAssertNotEqual(vma, NULL);
+    if (vma != NULL) {
+        XCTAssertEqual(vma->flags & P_RWX, (unsigned)P_READ);
+        XCTAssertTrue((vma->flags & P_ANONYMOUS) != 0,
+                      @"mprotect must preserve VMA mapping metadata");
+        XCTAssertTrue((vma->flags & P_COW) != 0,
+                      @"mprotect must preserve VMA COW metadata");
+    }
+
+    mm_release(mm);
+}
+
+- (void)testMemoryContract_MprotectNoneRevokesGuestReadAccess {
+    struct mem mem;
+    mem_init(&mem);
+
+    page_t start = (page_t)A64_MMAP_BASE_PAGE;
+    XCTAssertEqual(pt_map_nothing(&mem, start, 1, P_READ | P_WRITE), 0);
+
+    read_wrlock(&mem.lock);
+    XCTAssertNotEqual(mem_ptr(&mem, start << PAGE_BITS, MEM_READ), NULL,
+                      @"fresh anonymous mappings must be readable before mprotect(PROT_NONE)");
+    read_wrunlock(&mem.lock);
+
+    XCTAssertEqual(pt_set_flags(&mem, start, 1, 0), 0);
+
+    read_wrlock(&mem.lock);
+    XCTAssertEqual(mem_ptr(&mem, start << PAGE_BITS, MEM_READ), NULL,
+                   @"mprotect(PROT_NONE) must revoke guest read access");
+    read_wrunlock(&mem.lock);
+
+    mem_destroy(&mem);
+}
+
 // Contract: Page size alignment requirements
 // Owner: kernel/mmap.c, arch-specific
 - (void)testMemoryContract_MmapAlignsToPageSize {

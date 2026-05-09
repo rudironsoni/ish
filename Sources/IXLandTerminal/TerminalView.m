@@ -117,9 +117,6 @@ struct rowcol {
 - (void)awakeFromNib {
     [super awakeFromNib];
     if ([self isRunningUITests]) {
-        self.accessibilityIdentifier = @"TerminalSurface";
-        self.accessibilityLabel = @"Terminal";
-        self.accessibilityTraits = UIAccessibilityTraitAllowsDirectInteraction;
         self.uiTestInputField = [[UITextField alloc] initWithFrame:self.bounds];
         self.uiTestInputField.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
         self.uiTestInputField.accessibilityIdentifier = @"TerminalInput";
@@ -198,6 +195,18 @@ struct rowcol {
             // Update accessibilityValue when terminal content changes
             NSString *terminalText = [_terminal screenTextForTesting];
             self.terminalAccessibilityElement.accessibilityValue = terminalText.length > 0 ? terminalText : @"No terminal output";
+            if ([self isRunningUITests]) {
+                if (terminalText.length <= 256) {
+                    NSUInteger previewLength = MIN((NSUInteger) 80, terminalText.length);
+                    NSUInteger previewStart = terminalText.length - previewLength;
+                    NSString *preview = terminalText.length > 0 ? [terminalText substringFromIndex:previewStart] : @"";
+                    [ISHInstrumentation recordEvent:@"terminal.testing_accessibility.preview"
+                                         attributes:@{ @"value_length": @(terminalText.length),
+                                                       @"preview": preview ?: @"" }];
+                }
+                NSLog(@"[IXLandAccessibility] value_length=%lu",
+                      (unsigned long) terminalText.length);
+            }
         }
     }
 }

@@ -8,11 +8,12 @@
 #import "SceneDelegate.h"
 #import "AboutViewController.h"
 #import "AppDelegate.h"
+#import "TerminalViewController.h"
+#import "runtime/presenter_bridge.h"
+#import "runtime/bootstrap_bridge.h"
 #import <IXLandLinuxRuntime/kernel/init.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
 #import <ISHInstrumentation.h>
-
-TerminalViewController *currentTerminalViewController = NULL;
 
 @interface SceneDelegate ()
 
@@ -23,10 +24,20 @@ TerminalViewController *currentTerminalViewController = NULL;
 
 static NSString *const TerminalUUID = @"TerminalUUID";
 
+static BOOL is_non_ui_xctest_session(void) {
+    NSDictionary<NSString *, NSString *> *environment = NSProcessInfo.processInfo.environment;
+    return environment[@"XCTestConfigurationFilePath"] != nil
+        && environment[@"IXLAND_UI_TESTING"] == nil;
+}
+
 @implementation SceneDelegate
 
 - (void)scheduleSessionStartupForViewController:(TerminalViewController *)viewController
                                   sceneSession:(UISceneSession *)session {
+    if (is_non_ui_xctest_session()) {
+        [ISHInstrumentation recordEvent:@"scene.session.start.skipped.non_ui_xctest"];
+        return;
+    }
     if (self.sessionStartupScheduled) {
         [ISHInstrumentation recordEvent:@"scene.session.start.blocked.already_scheduled"];
         return;
@@ -42,7 +53,7 @@ static NSString *const TerminalUUID = @"TerminalUUID";
             return;
 
         [ISHInstrumentation recordEvent:@"scene.session.start.bootstrap"];
-        int bootstrapErr = [AppDelegate bootstrapRuntimeForSession];
+        int bootstrapErr = runtime_bootstrap_session();
         if (bootstrapErr < 0) {
             strongSelf.sessionStartupScheduled = NO;
             [ISHInstrumentation recordEvent:@"scene.session.start.bootstrap.failed"
@@ -98,15 +109,12 @@ static NSString *const TerminalUUID = @"TerminalUUID";
 
 - (void)sceneDidBecomeActive:(UIScene *)scene {
     TerminalViewController *terminalViewController = (TerminalViewController *) self.window.rootViewController;;
-    currentTerminalViewController = terminalViewController;
+    set_active_presenter(terminalViewController);
 }
 
 - (void)sceneWillResignActive:(UIScene *)scene {
     TerminalViewController *terminalViewController = (TerminalViewController *) self.window.rootViewController;
-
-    if (currentTerminalViewController == terminalViewController) {
-        currentTerminalViewController = NULL;
-    }
+    clear_active_presenter(terminalViewController);
 }
 
 @end

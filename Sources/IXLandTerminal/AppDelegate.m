@@ -5,11 +5,9 @@
 //  Created by Theodore Dubois on 10/17/17.
 //
 
-#include <resolv.h>
-#include <arpa/inet.h>
-#include <netdb.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <netinet/in.h>
 #import <SystemConfiguration/SystemConfiguration.h>
 #import "AboutViewController.h"
 #import "AppDelegate.h"
@@ -17,6 +15,7 @@
 #import "CurrentRoot.h"
 #import "ExceptionExfiltrator.h"
 #import "iOSFS.h"
+#import "runtime/presenter_bridge.h"
 #import "root_registry.h"
 #import "SceneDelegate.h"
 #import "PasteboardDevice.h"
@@ -30,11 +29,13 @@
 #import <IXLandInstrumentation/IXLandInstrumentation.h>
 #import <IXLandInstrumentationBridge.h>
 #import <ISHInstrumentation.h>
+#import <IXLandLinuxRuntime/kernel/bootstrap.h>
 #import <IXLandLinuxRuntime/kernel/init.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
-#import <IXLandLinuxRuntime/fs/dyndev.h>
 #import <IXLandLinuxRuntime/fs/devices.h>
 #import <IXLandLinuxRuntime/fs/path.h>
+#import "runtime/bootstrap_bridge.h"
+#import "runtime/dns_bridge.h"
 #import "root_bootstrap.h"
 #include <fcntl.h>
 
@@ -44,26 +45,6 @@
 @property SCNetworkReachabilityRef reachability;
 
 @end
-
-static void ios_handle_exit(struct task *task, int code) {
-    // we are interested in init and in children of init
-    // this is called with pids_lock as an implementation side effect, please do not cite as an example of good API design
-    if (task->parent != NULL && task->parent->parent != NULL)
-        return;
-    // pid should be saved now since task would be freed
-    pid_t pid = task->pid;
-    dispatch_async(dispatch_get_main_queue(), ^{
-        [[NSNotificationCenter defaultCenter] postNotificationName:ProcessExitedNotification
-                                                            object:nil
-                                                          userInfo:@{@"pid": @(pid),
-                                                                     @"code": @(code)}];
-    });
-}
-
-static void ios_handle_die(const char *msg) {
-    NSString *message = [NSString stringWithFormat:@"%s: %s", __func__, msg];
-    iSHExceptionHandler([[NSException alloc] initWithName:NSGenericException reason:message userInfo:nil]);
-}
 
 static int bootError;
 static BOOL lastBootstrapRootPresent;
@@ -85,6 +66,11 @@ static BOOL runtimePostMountInitialized;
 static BOOL runtimeConsoleInitialized;
 static __weak AppDelegate *appDelegate;
 
+static BOOL is_ui_testing_session(void) {
+    NSDictionary<NSString *, NSString *> *environment = NSProcessInfo.processInfo.environment;
+    return environment[@"XCTestConfigurationFilePath"] != nil || environment[@"IXLAND_UI_TESTING"] != nil;
+}
+
 @implementation AppDelegate
 
 + (AppDelegate *)sharedInstance {
@@ -95,40 +81,6 @@ static __weak AppDelegate *appDelegate;
     [ISHInstrumentation recordEvent:@"app.trace.bootstrap_started"];
     [ISHInstrumentation recordEvent:@"app.boot.started"];
     return [self _bootstrapRuntimeForSession];
-}
-
-- (void)configureDns {
-    struct __res_state res;
-    if (EXIT_SUCCESS != res_ninit(&res)) {
-        return;
-    }
-    NSMutableString *resolvConf = [NSMutableString new];
-    if (res.dnsrch[0] != NULL) {
-        [resolvConf appendString:@"search"];
-        for (int i = 0; res.dnsrch[i] != NULL; i++) {
-            [resolvConf appendFormat:@" %s", res.dnsrch[i]];
-        }
-        [resolvConf appendString:@"\n"];
-    }
-    union res_sockaddr_union servers[NI_MAXSERV];
-    int serversFound = res_getservers(&res, servers, NI_MAXSERV);
-    char address[NI_MAXHOST];
-    for (int i = 0; i < serversFound; i ++) {
-        union res_sockaddr_union s = servers[i];
-        if (s.sin.sin_len == 0)
-            continue;
-        getnameinfo((struct sockaddr *) &s.sin, s.sin.sin_len,
-                    address, sizeof(address),
-                    NULL, 0, NI_NUMERICHOST);
-        [resolvConf appendFormat:@"nameserver %s\n", address];
-    }
-    
-    current = pid_get_task(1);
-    struct fd *fd = generic_open("/etc/resolv.conf", O_WRONLY_ | O_CREAT_ | O_TRUNC_, 0666);
-    if (!IS_ERR(fd)) {
-        fd->ops->write(fd, resolvConf.UTF8String, [resolvConf lengthOfBytesUsingEncoding:NSUTF8StringEncoding]);
-        fd_close(fd);
-    }
 }
 
 + (int)bootError {
@@ -340,56 +292,20 @@ static __weak AppDelegate *appDelegate;
 
     if (!runtimePostMountInitialized) {
         FsInitialize();
-
-        generic_mknodat(AT_PWD, "/dev/tty1", S_IFCHR|0666, dev_make(TTY_CONSOLE_MAJOR, 1));
-        generic_mknodat(AT_PWD, "/dev/tty2", S_IFCHR|0666, dev_make(TTY_CONSOLE_MAJOR, 2));
-        generic_mknodat(AT_PWD, "/dev/tty3", S_IFCHR|0666, dev_make(TTY_CONSOLE_MAJOR, 3));
-        generic_mknodat(AT_PWD, "/dev/tty4", S_IFCHR|0666, dev_make(TTY_CONSOLE_MAJOR, 4));
-        generic_mknodat(AT_PWD, "/dev/tty5", S_IFCHR|0666, dev_make(TTY_CONSOLE_MAJOR, 5));
-        generic_mknodat(AT_PWD, "/dev/tty6", S_IFCHR|0666, dev_make(TTY_CONSOLE_MAJOR, 6));
-        generic_mknodat(AT_PWD, "/dev/tty7", S_IFCHR|0666, dev_make(TTY_CONSOLE_MAJOR, 7));
-        generic_mknodat(AT_PWD, "/dev/tty", S_IFCHR|0666, dev_make(TTY_ALTERNATE_MAJOR, DEV_TTY_MINOR));
-        generic_mknodat(AT_PWD, "/dev/console", S_IFCHR|0666, dev_make(TTY_ALTERNATE_MAJOR, DEV_CONSOLE_MINOR));
-        generic_mknodat(AT_PWD, "/dev/ptmx", S_IFCHR|0666, dev_make(TTY_ALTERNATE_MAJOR, DEV_PTMX_MINOR));
-        generic_mknodat(AT_PWD, "/dev/null", S_IFCHR|0666, dev_make(MEM_MAJOR, DEV_NULL_MINOR));
-        generic_mknodat(AT_PWD, "/dev/zero", S_IFCHR|0666, dev_make(MEM_MAJOR, DEV_ZERO_MINOR));
-        generic_mknodat(AT_PWD, "/dev/full", S_IFCHR|0666, dev_make(MEM_MAJOR, DEV_FULL_MINOR));
-        generic_mknodat(AT_PWD, "/dev/random", S_IFCHR|0666, dev_make(MEM_MAJOR, DEV_RANDOM_MINOR));
-        generic_mknodat(AT_PWD, "/dev/urandom", S_IFCHR|0666, dev_make(MEM_MAJOR, DEV_URANDOM_MINOR));
-        generic_mkdirat(AT_PWD, "/dev/pts", 0755);
-        generic_setattrat(AT_PWD, "/", (struct attr) {.type = attr_mode, .mode = 0755}, false);
-
-        int err = dyn_dev_register(&clipboard_dev, DEV_CHAR, DYN_DEV_MAJOR, DEV_CLIPBOARD_MINOR);
-        if (err != 0) {
+        int err = runtime_finish_post_mount_setup();
+        if (err < 0)
             return err;
-        }
-        generic_mknodat(AT_PWD, "/dev/clipboard", S_IFCHR|0666, dev_make(DYN_DEV_MAJOR, DEV_CLIPBOARD_MINOR));
-
-        err = dyn_dev_register(&location_dev, DEV_CHAR, DYN_DEV_MAJOR, DEV_LOCATION_MINOR);
-        if (err != 0) {
+        err = runtime_finish_post_mount_setup();
+        if (err < 0)
             return err;
-        }
-        generic_mknodat(AT_PWD, "/dev/location", S_IFCHR|0666, dev_make(DYN_DEV_MAJOR, DEV_LOCATION_MINOR));
-
-        do_mount(&procfs, "proc", "/proc", "", 0);
-        do_mount(&devptsfs, "devpts", "/dev/pts", "", 0);
-        iosfs_init();
-        [self configureDns];
-        exit_hook = ios_handle_exit;
-        die_handler = ios_handle_die;
-#if !TARGET_OS_SIMULATOR
-        if (sock_tmp_prefix == NULL) {
-            NSString *sockTmp = [NSTemporaryDirectory() stringByAppendingString:@"ishsock"];
-            sock_tmp_prefix = strdup(sockTmp.UTF8String);
-        }
-#endif
+        runtime_configure_dns();
+        runtime_install_process_hooks();
+        runtime_configure_socket_prefix();
         runtimePostMountInitialized = YES;
     }
 
     if (!runtimeConsoleInitialized) {
-        tty_drivers[TTY_CONSOLE_MAJOR] = &ios_console_driver;
-        set_console_device(TTY_CONSOLE_MAJOR, 1);
-        int stdioErr = create_stdio("/dev/console", TTY_CONSOLE_MAJOR, 1);
+        int stdioErr = runtime_prepare_console(&terminal_console_driver, 1);
         if (stdioErr < 0) {
             lastBootstrapReturnValue = stdioErr;
             return lastBootstrapReturnValue;
@@ -414,6 +330,12 @@ static __weak AppDelegate *appDelegate;
         [defaults removeObjectForKey:kPreferenceLaunchCommandKey];
         [defaults setBool:NO forKey:@"hail mary"];
     }
+    if (is_ui_testing_session()) {
+        // UI tests must start from the canonical interactive shell instead of
+        // inheriting persisted simulator defaults from prior manual sessions.
+        [defaults removeObjectForKey:kPreferenceBootCommandKey];
+        [defaults removeObjectForKey:kPreferenceLaunchCommandKey];
+    }
     if ([NSUserDefaults.standardUserDefaults boolForKey:@"recovery"]) {
         return YES;
     }
@@ -428,8 +350,10 @@ static __weak AppDelegate *appDelegate;
 }
 
 void NetworkReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkReachabilityFlags flags, void *info) {
-    AppDelegate *self = (__bridge AppDelegate *) info;
-    [self configureDns];
+    (void) target;
+    (void) flags;
+    (void) info;
+    runtime_configure_dns();
 }
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
@@ -482,7 +406,7 @@ void NetworkReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkReach
             return YES;
         }
         TerminalViewController *vc = (TerminalViewController *) self.window.rootViewController;
-        currentTerminalViewController = vc;
+        set_active_presenter(vc);
 
         // SceneDelegate owns session startup on iOS 16+. Starting a session here
         // races the real scene lifecycle and can consume runtime ownership before
@@ -492,7 +416,7 @@ void NetworkReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkReach
     }
     // Diagnostic: record a startup event when running under XCTest so we can
     // prove instrumentation is active from app launch in exported logs.
-    BOOL isTesting = NSProcessInfo.processInfo.environment[@"XCTestConfigurationFilePath"] != nil;
+    BOOL isTesting = is_ui_testing_session();
     if (isTesting) {
         [ISHInstrumentation recordEvent:@"app.didFinishLaunching.testing" attributes:@{ @"has_window": @(self.window != nil) }];
     }

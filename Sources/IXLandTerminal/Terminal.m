@@ -16,8 +16,6 @@
 #import <IXLandLinuxRuntime/fs/devices.h>
 #import <IXLandLinuxRuntime/kernel/errno.h>
 
-extern struct tty_driver ios_pty_driver;
-
 typedef struct tty *tty_t;
 
 @interface Terminal () <IXLandGhosttyHostTerminalDelegate> {
@@ -45,10 +43,16 @@ typedef struct tty *tty_t;
 @property NSUUID *uuid;
 @property (nonatomic) struct linux_tty *linuxTTY;
 @property (nonatomic) NSMutableData *pendingTerminalControlInput;
+@property (nonatomic) NSMutableData *pendingTerminalStatusOutput;
 
 @end
 
 @implementation Terminal
+
+static BOOL terminal_is_running_ui_tests(void) {
+    NSDictionary *environment = NSProcessInfo.processInfo.environment;
+    return environment[@"XCTestConfigurationFilePath"] != nil || environment[@"IXLAND_UI_TESTING"] != nil;
+}
 @synthesize webView = _webView;
 
 static const int BUF_SIZE = 1<<14;
@@ -70,6 +74,7 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
             self.refreshTask = [[DelayedUITask alloc] initWithTarget:self action:@selector(refresh)];
             self.scrollToBottomTask = [[DelayedUITask alloc] initWithTarget:self action:@selector(scrollToBottom)];
             self.pendingTerminalControlInput = [NSMutableData data];
+            self.pendingTerminalStatusOutput = [NSMutableData data];
             lock_init(&_dataLock);
             cond_init(&_dataConsumed);
 
@@ -100,7 +105,7 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
 }
 
 + (Terminal *)createPseudoTerminal:(struct tty **)tty {
-    *tty = pty_open_guest_terminal(&ios_pty_driver);
+    *tty = pty_open_guest_terminal(&terminal_pty_driver);
     if (IS_ERR(*tty))
         return nil;
 
@@ -116,38 +121,6 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
     return terminal;
 }
 
-bool Terminal_bindGuestTTY(struct tty *tty, nsobj_t *terminal_out) {
-    if (terminal_out != NULL)
-        *terminal_out = NULL;
-    if (tty == NULL || terminal_out == NULL)
-        return false;
-
-    Terminal *terminal = (__bridge Terminal *)tty->driver_data;
-    if (terminal == NULL) {
-        terminal = [Terminal terminalWithType:tty->type number:tty->num];
-        if (terminal == NULL)
-            return false;
-
-        lock(&tty->lock);
-        if (tty->driver_data == NULL) {
-            tty->driver_data = (void *)CFBridgingRetain(terminal);
-            terminal.tty = tty;
-        }
-        unlock(&tty->lock);
-        terminal = (__bridge Terminal *)tty->driver_data;
-    } else {
-        terminal.tty = tty;
-    }
-
-    *terminal_out = objc_get((__bridge nsobj_t)terminal);
-    return *terminal_out != NULL;
-}
-
-void Terminal_releaseBoundTTYData(nsobj_t terminal) {
-    if (terminal != NULL)
-        CFBridgingRelease((void *)terminal);
-}
-
 - (void)setTty:(tty_t)tty {
     @synchronized (self) {
         _tty = tty;
@@ -155,6 +128,10 @@ void Terminal_releaseBoundTTYData(nsobj_t terminal) {
     dispatch_async(dispatch_get_main_queue(), ^{
         [self syncWindowSize];
     });
+}
+
+- (void)attachTTY:(struct tty *)tty {
+    [self setTty:tty];
 }
 
 - (void)ghosttyHostTerminal:(IXLandGhosttyHostTerminal *)terminal didReceiveInput:(NSData *)data {
@@ -230,6 +207,12 @@ void Terminal_releaseBoundTTYData(nsobj_t terminal) {
     _enableVoiceOverAnnounce = enableVoiceOverAnnounce;
 }
 
+- (void)attachLinuxTTY:(struct linux_tty *)tty {
+    @synchronized (self) {
+        self.linuxTTY = tty;
+    }
+}
+
 - (void)flushPendingFocus {
     if (!self.focusRequestedBeforeLoad)
         return;
@@ -253,7 +236,8 @@ void Terminal_releaseBoundTTYData(nsobj_t terminal) {
 
 
 - (int)sendOutput:(const void *)buf length:(int)len {
-    [self respondToTerminalStatusRequestsInOutput:buf length:len];
+    NSData *filteredOutput = [self outputByFilteringTerminalStatusRequests:
+                              [NSData dataWithBytes:buf length:(NSUInteger) len]];
 
     // APPSIM-004 Stage 2: PTY byte detection
     // Record byte count at terminal input boundary
@@ -278,8 +262,9 @@ void Terminal_releaseBoundTTYData(nsobj_t terminal) {
     };
     uint64_t ptyReadInterval = [ISHInstrumentation beginInterval:@"task.proof.pty.master.read" attributes:byteAttrs];
     
-    if (len > 0) {
-        NSString *queuedText = [[NSString alloc] initWithBytes:buf length:(NSUInteger) len encoding:NSISOLatin1StringEncoding];
+    if (filteredOutput.length > 0) {
+        NSString *queuedText = [[NSString alloc] initWithData:filteredOutput
+                                                     encoding:NSISOLatin1StringEncoding];
         if (queuedText.length > 0) {
             @synchronized (self) {
                 [self.testingTranscript appendString:queuedText];
@@ -287,6 +272,23 @@ void Terminal_releaseBoundTTYData(nsobj_t terminal) {
                 if (self.testingTranscript.length > maxTranscriptLength) {
                     NSRange keepRange = NSMakeRange(self.testingTranscript.length - maxTranscriptLength, maxTranscriptLength);
                     self.testingTranscript = [[self.testingTranscript substringWithRange:keepRange] mutableCopy];
+                }
+                if (terminal_is_running_ui_tests() && self.contentChange < 8) {
+                    NSUInteger previewLength = MIN((NSUInteger) 80, self.testingTranscript.length);
+                    NSUInteger previewStart = self.testingTranscript.length - previewLength;
+                    NSString *preview = [self.testingTranscript substringFromIndex:previewStart];
+                    [ISHInstrumentation recordEvent:@"terminal.testing_transcript.preview"
+                                         attributes:@{ @"content_change": @(self.contentChange),
+                                                       @"transcript_length": @(self.testingTranscript.length),
+                                                       @"preview": preview ?: @"" }];
+                }
+                if (terminal_is_running_ui_tests()) {
+                    NSUInteger previewLength = MIN((NSUInteger) 80, self.testingTranscript.length);
+                    NSUInteger previewStart = self.testingTranscript.length - previewLength;
+                    NSLog(@"[IXLandTranscript] bytes=%d transcript_length=%lu preview=%@",
+                          len,
+                          (unsigned long) self.testingTranscript.length,
+                          [self.testingTranscript substringFromIndex:previewStart]);
                 }
             }
             dispatch_async(dispatch_get_main_queue(), ^{
@@ -302,7 +304,7 @@ void Terminal_releaseBoundTTYData(nsobj_t terminal) {
         while (_pendingData.length > BUF_SIZE)
             wait_for_ignore_signals(&_dataConsumed, &_dataLock, NULL);
     }
-    [_pendingData appendData:[NSData dataWithBytes:buf length:len]];
+    [_pendingData appendData:filteredOutput];
     
     // Trace byte count after queuing
     NSDictionary *queuedAttrs = @{
@@ -316,20 +318,38 @@ void Terminal_releaseBoundTTYData(nsobj_t terminal) {
     return len;
 }
 
-- (void)respondToTerminalStatusRequestsInOutput:(const void *)buf length:(int)len {
-    static const uint8_t dsrQuery[] = {0x1B, 0x5B, 0x36, 0x6E};
-    const uint8_t *bytes = buf;
+- (NSData *)outputByFilteringTerminalStatusRequests:(NSData *)output {
+    static const uint8_t dsrSequence[] = { 0x1B, 0x5B, 0x36, 0x6E };
+    NSMutableData *scanData = [NSMutableData dataWithCapacity:self.pendingTerminalStatusOutput.length + output.length];
+    if (self.pendingTerminalStatusOutput.length > 0)
+        [scanData appendData:self.pendingTerminalStatusOutput];
+    [scanData appendData:output];
+    [self.pendingTerminalStatusOutput setLength:0];
 
-    for (int index = 0; index <= len - (int)sizeof(dsrQuery); index++) {
-        if (memcmp(bytes + index, dsrQuery, sizeof(dsrQuery)) != 0)
+    const uint8_t *bytes = scanData.bytes;
+    NSUInteger length = scanData.length;
+    NSMutableData *filtered = [NSMutableData dataWithCapacity:length];
+
+    for (NSUInteger index = 0; index < length;) {
+        NSUInteger remaining = length - index;
+        BOOL isDsr = remaining >= 4
+            && memcmp(bytes + index, dsrSequence, sizeof(dsrSequence)) == 0;
+        if (isDsr) {
+            index += 4;
             continue;
-
-        static const uint8_t cursorReport[] = {0x1B, 0x5B, 0x31, 0x3B, 0x31, 0x52};
-        NSData *response = [NSData dataWithBytes:cursorReport length:sizeof(cursorReport)];
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [self sendInput:response];
-        });
+        }
+        if (remaining < 4) {
+            if (memcmp(bytes + index, dsrSequence, remaining) == 0)
+                [self.pendingTerminalStatusOutput appendBytes:bytes + index length:remaining];
+            else
+                [filtered appendBytes:bytes + index length:remaining];
+            break;
+        }
+        [filtered appendBytes:bytes + index length:1];
+        index++;
     }
+
+    return filtered;
 }
 
 
@@ -440,8 +460,15 @@ void Terminal_releaseBoundTTYData(nsobj_t terminal) {
     }
 
     IXLandGhosttyHostTerminal *ghostty = self.ghosttyTerminal;
-    if (refreshByteCount > 0)
-        [ghostty receiveOutput:data];
+    if (refreshByteCount > 0) {
+        if ([NSThread isMainThread]) {
+            [ghostty receiveOutput:data];
+        } else {
+            dispatch_sync(dispatch_get_main_queue(), ^{
+                [ghostty receiveOutput:data];
+            });
+        }
+    }
 
     lock(&self->_dataLock);
     self->_outputInProgress = NO;
@@ -456,6 +483,9 @@ void Terminal_releaseBoundTTYData(nsobj_t terminal) {
 }
 
 + (void)convertCommand:(NSArray<NSString *> *)command toArgs:(char *)argv limitSize:(size_t)maxSize {
+    if (maxSize == 0)
+        return;
+
     char *p = argv;
     for (NSString *cmd in command) {
         const char *c = cmd.UTF8String;
@@ -465,8 +495,9 @@ void Terminal_releaseBoundTTYData(nsobj_t terminal) {
         // NUL terminated
         *p = '\0';
     }
-    // Add the final NUL byte to argv
-    *++p = '\0';
+    // Leave an empty string immediately after the final argument so argv is
+    // terminated with the expected double-NUL sentinel.
+    *p = '\0';
 }
 
 + (Terminal *)terminalWithType:(int)type number:(int)number {
@@ -479,22 +510,10 @@ void Terminal_releaseBoundTTYData(nsobj_t terminal) {
     }
 }
 
-void Terminal_setLinuxTTY(nsobj_t _self, struct linux_tty *tty) {
-    Terminal *self = (__bridge Terminal *) _self;
-    @synchronized (self) {
-        self.linuxTTY = tty;
-    }
-}
-
-int Terminal_sendOutput_length(nsobj_t _self, const char *data, int size) {
-    return [(__bridge Terminal *) _self sendOutput:data length:size];
-}
-
-int Terminal_roomForOutput(nsobj_t _self) {
-    Terminal *self = (__bridge Terminal *) _self;
-    lock(&self->_dataLock);
+- (int)roomForOutput {
+    lock(&_dataLock);
     int room = BUF_SIZE - (int) self.pendingData.length;
-    unlock(&self->_dataLock);
+    unlock(&_dataLock);
     return room;
 }
 
@@ -532,45 +551,3 @@ int Terminal_roomForOutput(nsobj_t _self) {
 }
 
 @end
-
-
-
-static int ios_tty_init(struct tty *tty) {
-    // This is called with ttys_lock but that results in deadlock since the main thread can also acquire ttys_lock. So release it.
-    unlock(&ttys_lock);
-    void (^init_block)(void) = ^{
-        Terminal *terminal = [Terminal terminalWithType:tty->type number:tty->num];
-        tty->driver_data = (void *) CFBridgingRetain(terminal);
-        terminal.tty = tty;
-    };
-    if ([NSThread isMainThread])
-        init_block();
-    else
-        dispatch_sync(dispatch_get_main_queue(), init_block);
-
-    lock(&ttys_lock);
-    return 0;
-}
-
-static int ios_tty_write(struct tty *tty, const void *buf, size_t len, bool blocking) {
-    Terminal *terminal = (__bridge Terminal *) tty->driver_data;
-    NSMutableDictionary *attrs = [[terminal sessionTraceAttributesWithByteCount:(NSInteger)len
-                                                                   pendingBefore:0] mutableCopy];
-    attrs[@"blocking"] = @(blocking);
-    [ISHInstrumentation recordEvent:@"terminal.tty.write.callback" attributes:attrs];
-    return [terminal sendOutput:buf length:(int) len];
-}
-
-static void ios_tty_cleanup(struct tty *tty) {
-    Terminal *terminal = CFBridgingRelease(tty->driver_data);
-    tty->driver_data = NULL;
-    terminal.tty = NULL;
-}
-
-struct tty_driver_ops ios_tty_ops = {
-    .init = ios_tty_init,
-    .write = ios_tty_write,
-    .cleanup = ios_tty_cleanup,
-};
-DEFINE_TTY_DRIVER(ios_console_driver, &ios_tty_ops, TTY_CONSOLE_MAJOR, 64);
-struct tty_driver ios_pty_driver = {.ops = &ios_tty_ops};

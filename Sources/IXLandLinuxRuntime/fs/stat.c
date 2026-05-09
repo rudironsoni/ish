@@ -7,6 +7,13 @@
 #include <string.h>
 #include <sys/stat.h>
 
+static uint32_t guest_safe_blksize(uint32_t blksize)
+{
+    if (blksize < 512 || blksize > 65536)
+        return 4096;
+    return blksize;
+}
+
 struct newstat64 stat_convert_newstat64(struct statbuf stat)
 {
     struct newstat64 newstat;
@@ -19,7 +26,7 @@ struct newstat64 stat_convert_newstat64(struct statbuf stat)
     newstat.gid = stat.gid;
     newstat.rdev = stat.rdev;
     newstat.size = stat.size;
-    newstat.blksize = stat.blksize;
+    newstat.blksize = guest_safe_blksize(stat.blksize);
     newstat.blocks = stat.blocks;
     newstat.atime = stat.atime;
     newstat.atime_nsec = stat.atime_nsec;
@@ -131,22 +138,43 @@ int32_t sys_statx(fd_t at_f, addr_t path_addr, int32_t flags, uint32_t mask, add
 
     struct statbuf stat = {};
 
+    bool trace_root = strcmp(path, "/") == 0 || strcmp(path, ".") == 0 ||
+                      ((flags & AT_EMPTY_PATH_) && strcmp(path, "") == 0);
+    if (trace_root) {
+        char event[128];
+        snprintf(event, sizeof(event), "statx.root.attempt.flags=0x%x,mask=0x%x,path=%s", flags,
+                 mask, path[0] == '\0' ? "<empty>" : path);
+        trace_record_event(TRACE_ORIGIN_KERNEL, event);
+    }
+
     if ((flags & AT_EMPTY_PATH_) && strcmp(path, "") == 0) {
         struct fd *fd = at;
         int err = fd->mount->fs->fstat(fd, &stat);
-        if (err < 0)
+        if (err < 0) {
+            if (trace_root) {
+                char event[96];
+                snprintf(event, sizeof(event), "statx.root.fail.err=%d", err);
+                trace_record_event(TRACE_ORIGIN_KERNEL, event);
+            }
             return err;
+        }
     } else {
         bool follow_links = !(flags & AT_SYMLINK_NOFOLLOW_);
         int err = generic_statat(at, path, &stat, follow_links);
-        if (err < 0)
+        if (err < 0) {
+            if (trace_root) {
+                char event[96];
+                snprintf(event, sizeof(event), "statx.root.fail.err=%d", err);
+                trace_record_event(TRACE_ORIGIN_KERNEL, event);
+            }
             return err;
+        }
     }
 
     // for now, ignore the requested mask and just fill in the same fields as stat returns
     struct statx_ statx = {};
     statx.mask = STATX_BASIC_STATS_;
-    statx.blksize = stat.blksize;
+    statx.blksize = guest_safe_blksize(stat.blksize);
     statx.nlink = stat.nlink;
     statx.uid = stat.uid;
     statx.gid = stat.gid;
@@ -164,6 +192,13 @@ int32_t sys_statx(fd_t at_f, addr_t path_addr, int32_t flags, uint32_t mask, add
     statx.rdev_minor = dev_minor(stat.rdev);
     statx.dev_major = dev_major(stat.dev);
     statx.dev_minor = dev_minor(stat.dev);
+
+    if (trace_root) {
+        char event[128];
+        snprintf(event, sizeof(event), "statx.root.ok.blksize=%u,mode=0x%x", statx.blksize,
+                 statx.mode);
+        trace_record_event(TRACE_ORIGIN_KERNEL, event);
+    }
 
     if (user_put(statx_addr, statx))
         return _EFAULT;

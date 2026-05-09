@@ -4,6 +4,13 @@
 
 #include <IXLandLinuxRuntime/tcti/gadgets_tcti.h>
 
+static uint16_t a64_sysreg_canonical(uint16_t sysreg)
+{
+    // The decoder stores bits[19:5] from MRS/MSR encodings, which include the
+    // top op0 bit. Local route/spec keys use the canonical 15-bit form.
+    return (uint16_t)(sysreg & 0x7fff);
+}
+
 static const a64_sysreg_spec_t a64_sysreg_specs[] = {
     { A64_SYSREG_NZCV, "NZCV", A64_SYSREG_TIER0, A64_SYSREG_ROUTE_TCTI_FASTPATH,
       A64_SYSREG_ROUTE_TCTI_FASTPATH, "EXEC-016", "EXEC-016" },
@@ -41,6 +48,7 @@ static uint64_t a64_sysreg_source_value(struct cpu_state *cpu, uint64_t rt)
 
 const a64_sysreg_spec_t *a64_sysreg_lookup(uint16_t sysreg)
 {
+    sysreg = a64_sysreg_canonical(sysreg);
     size_t count = sizeof(a64_sysreg_specs) / sizeof(a64_sysreg_specs[0]);
     for (size_t i = 0; i < count; i++) {
         if (a64_sysreg_specs[i].encoding == sysreg)
@@ -67,6 +75,7 @@ enum a64_sysreg_route a64_sysreg_route_for_access(uint16_t sysreg, int is_write)
 
 int a64_sysreg_read(struct cpu_state *cpu, uint16_t sysreg, uint64_t rd)
 {
+    sysreg = a64_sysreg_canonical(sysreg);
     enum a64_sysreg_route route = a64_sysreg_route_for_access(sysreg, 0);
 
     if (route == A64_SYSREG_ROUTE_UNSUPPORTED)
@@ -103,6 +112,7 @@ int a64_sysreg_read(struct cpu_state *cpu, uint16_t sysreg, uint64_t rd)
 
 int a64_sysreg_write(struct cpu_state *cpu, uint16_t sysreg, uint64_t rt)
 {
+    sysreg = a64_sysreg_canonical(sysreg);
     uint64_t value = a64_sysreg_source_value(cpu, rt);
     enum a64_sysreg_route route = a64_sysreg_route_for_access(sysreg, 1);
 

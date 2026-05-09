@@ -11,7 +11,10 @@
 #include <stdbool.h>
 #include <sys/types.h>
 
+#ifndef IXLAND_NSOBJ_T_DEFINED
+#define IXLAND_NSOBJ_T_DEFINED
 typedef const void *nsobj_t;
+#endif
 
 nsobj_t objc_get(nsobj_t object);
 void objc_put(nsobj_t object);
@@ -29,11 +32,6 @@ struct linux_tty_callbacks {
 
 struct tty;
 
-struct tty *ios_pty_open(nsobj_t *terminal_out);
-bool Terminal_bindGuestTTY(struct tty *tty, nsobj_t *terminal_out);
-
-typedef void (^StartSessionDoneBlock)(int retval, int pid, nsobj_t terminal);
-void linux_start_session(const char *exe, const char *const *argv, const char *envp,
-                         StartSessionDoneBlock done);
+struct tty *guest_terminal_pty_open(nsobj_t *terminal_out);
 
 #endif /* LinuxInterop_h */

@@ -125,6 +125,8 @@ typedef enum {
     A64_DP_REG_SDIV = 43,       // Signed divide
     A64_DP_REG_RBIT = 44,       // Reverse bits
     A64_DP_REG_CLZ = 45,        // Count leading zeros
+    A64_DP_REG_UMULH = 46,      // Unsigned multiply high
+    A64_DP_REG_SMULH = 47,      // Signed multiply high
 } a64_dp_reg_subtype_t;
 
 /* Condition codes for conditional instructions */

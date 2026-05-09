@@ -88,15 +88,22 @@ fd_t sys_openat(fd_t at_f, addr_t path_addr, uint32_t flags, mode_t_ mode)
         return _EBADF;
     struct fd *fd = generic_openat(at, path, flags, mode);
     if (IS_ERR(fd)) {
-        if (strcmp(path, "/") == 0)
-            trace_record_event(TRACE_ORIGIN_KERNEL, "openat.root.fail");
+        if (strcmp(path, "/") == 0) {
+            char event[96];
+            snprintf(event, sizeof(event), "openat.root.fail.err=%ld,flags=0x%x",
+                     (long) PTR_ERR(fd), flags);
+            trace_record_event(TRACE_ORIGIN_KERNEL, event);
+        }
         if (PTR_ERR(fd) == _ENOMEM)
             trace_record_event(TRACE_ORIGIN_KERNEL, "openat.fail.enomem.preinstall");
         return (fd_t)PTR_ERR(fd);
     }
     fd_t installed = (fd_t)f_install(fd, flags);
-    if (strcmp(path, "/") == 0 && installed >= 0)
-        trace_record_event(TRACE_ORIGIN_KERNEL, "openat.root.ok");
+    if (strcmp(path, "/") == 0) {
+        char event[96];
+        snprintf(event, sizeof(event), "openat.root.result.fd=%d,flags=0x%x", installed, flags);
+        trace_record_event(TRACE_ORIGIN_KERNEL, event);
+    }
     if (installed == _ENOMEM)
         trace_record_event(TRACE_ORIGIN_KERNEL, "openat.fail.enomem.install");
     return installed;

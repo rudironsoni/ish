@@ -47,6 +47,24 @@ static void trace_generic_openat_result(const char *path_raw, const char *normal
     trace_record_event(TRACE_ORIGIN_KERNEL, ev);
 }
 
+static bool trace_generic_openat_is_musl_loader_path(const char *path)
+{
+    return path != NULL &&
+           (strstr(path, "libc.musl-aarch64.so.1") != NULL ||
+            strstr(path, "ld-musl-aarch64.so.1") != NULL);
+}
+
+static void trace_musl_loader_openat(const char *phase, const char *path_raw, const char *normalized,
+                                     const char *trimmed, const char *mount_point, long result)
+{
+    char ev[1024];
+    snprintf(ev, sizeof(ev),
+             "loader.lib.open=phase:%s,raw:%s,normalized:%s,trimmed:%s,mount:%s,result:%ld",
+             phase ? phase : "", path_raw ? path_raw : "", normalized ? normalized : "",
+             trimmed ? trimmed : "", mount_point ? mount_point : "", result);
+    trace_record_event(TRACE_ORIGIN_KERNEL, ev);
+}
+
 struct fd *generic_openat(struct fd *at, const char *path_raw, int flags, int mode)
 {
     trace_record_event(TRACE_ORIGIN_KERNEL, "boot.generic_openat.entry");
@@ -64,9 +82,17 @@ struct fd *generic_openat(struct fd *at, const char *path_raw, int flags, int mo
     strncpy(normalized, path, sizeof(normalized));
     normalized[sizeof(normalized) - 1] = '\0';
     struct mount *mount = find_mount_and_trim_path(path);
+    bool trace_musl_loader_path = trace_generic_openat_is_musl_loader_path(path_raw) ||
+                                  trace_generic_openat_is_musl_loader_path(normalized) ||
+                                  trace_generic_openat_is_musl_loader_path(path);
+    if (trace_musl_loader_path)
+        trace_musl_loader_openat("resolved", path_raw, normalized, path, mount->point, 0);
     trace_record_event(TRACE_ORIGIN_KERNEL, "boot.generic_openat.after_find_mount");
     trace_record_event(TRACE_ORIGIN_KERNEL, "boot.generic_openat.before_fs_open");
     struct fd *fd = mount->fs->open(mount, path, flags, mode);
+    if (trace_musl_loader_path)
+        trace_musl_loader_openat("opened", path_raw, normalized, path, mount->point,
+                                 IS_ERR(fd) ? (long)PTR_ERR(fd) : 0L);
     trace_record_event(TRACE_ORIGIN_KERNEL, "boot.generic_openat.after_fs_open");
     char flags_buf[32];
     char mode_buf[32];

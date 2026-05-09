@@ -4,9 +4,21 @@
 #include <IXLandLinuxRuntime/fs/real.h>
 #include <IXLandLinuxRuntime/kernel/errno.h>
 #include <IXLandLinuxRuntime/kernel/task.h>
+#include <linux/stat.h>
 #include <sys/stat.h>
 
 static struct fd_ops rootfs_fdops;
+
+#define ROOTFS_MODE_TYPE_MASK ((mode_t_) S_IFMT)
+#define ROOTFS_MODE_DIRECTORY ((mode_t_) S_IFDIR)
+#define ROOTFS_MODE_REGULAR ((mode_t_) S_IFREG)
+#define ROOTFS_MODE_CHAR ((mode_t_) S_IFCHR)
+#define ROOTFS_MODE_BLOCK ((mode_t_) S_IFBLK)
+#define ROOTFS_MODE_SOCKET ((mode_t_) S_IFSOCK)
+
+static bool rootfs_mode_is_type(mode_t_ mode, mode_t_ type) {
+    return (mode & ROOTFS_MODE_TYPE_MASK) == type;
+}
 
 static int rootfs_mount(struct mount *mount) {
     return realfs.mount(mount);
@@ -17,7 +29,7 @@ static void rootfs_linux_stat_from_host(const struct statbuf *host_stat,
     linux_stat->mode = host_stat->mode;
     linux_stat->uid = host_stat->uid;
     linux_stat->gid = host_stat->gid;
-    linux_stat->rdev = (uint32_t) host_stat->rdev;
+    linux_stat->rdev = (uint32_t) (host_stat->rdev & UINT32_MAX);
 }
 
 static void rootfs_overlay_stat(struct statbuf *stat, const struct rootfs_stat *linux_stat) {
@@ -36,7 +48,8 @@ static void rootfs_linux_stat_setattr(struct rootfs_stat *linux_stat, struct att
         linux_stat->gid = attr.gid;
         break;
     case attr_mode:
-        linux_stat->mode = (linux_stat->mode & S_IFMT) | (attr.mode & ~S_IFMT);
+        linux_stat->mode =
+            (linux_stat->mode & ROOTFS_MODE_TYPE_MASK) | (attr.mode & ~ROOTFS_MODE_TYPE_MASK);
         break;
     case attr_size:
         break;
@@ -44,12 +57,14 @@ static void rootfs_linux_stat_setattr(struct rootfs_stat *linux_stat, struct att
 }
 
 static bool rootfs_uses_placeholder_inode(mode_t_ mode) {
-    return S_ISCHR(mode) || S_ISBLK(mode) || S_ISSOCK(mode);
+    return rootfs_mode_is_type(mode, ROOTFS_MODE_CHAR) ||
+           rootfs_mode_is_type(mode, ROOTFS_MODE_BLOCK) ||
+           rootfs_mode_is_type(mode, ROOTFS_MODE_SOCKET);
 }
 
 static mode_t_ rootfs_host_mode_for_creation(mode_t_ mode) {
     if (rootfs_uses_placeholder_inode(mode)) {
-        return S_IFREG | 0600;
+        return ROOTFS_MODE_REGULAR | 0600;
     }
     return mode;
 }
@@ -60,7 +75,7 @@ static void rootfs_init_linux_stat(const struct statbuf *host_stat, mode_t_ mode
     linux_stat->mode = mode;
     linux_stat->uid = current->euid;
     linux_stat->gid = current->egid;
-    linux_stat->rdev = (uint32_t) dev;
+    linux_stat->rdev = (uint32_t) (dev & UINT32_MAX);
 }
 
 static struct fd *rootfs_open(struct mount *mount, const char *path, int flags, int mode) {
@@ -74,7 +89,7 @@ static struct fd *rootfs_open(struct mount *mount, const char *path, int flags, 
         if (realfs.fstat(fd, &host_stat) == 0) {
             struct rootfs_stat linux_stat;
             if (!rootfs_read_fd_stat(fd, &linux_stat)) {
-                rootfs_init_linux_stat(&host_stat, S_IFREG | mode, 0, &linux_stat);
+                rootfs_init_linux_stat(&host_stat, ROOTFS_MODE_REGULAR | mode, 0, &linux_stat);
                 rootfs_write_fd_stat(fd, &linux_stat);
             }
         }
@@ -207,7 +222,7 @@ static int rootfs_mkdir(struct mount *mount, const char *path, mode_t_ mode) {
     }
 
     struct rootfs_stat linux_stat;
-    rootfs_init_linux_stat(&host_stat, S_IFDIR | mode, 0, &linux_stat);
+    rootfs_init_linux_stat(&host_stat, ROOTFS_MODE_DIRECTORY | mode, 0, &linux_stat);
     if (!rootfs_write_path_stat(mount, path, &linux_stat)) {
         return _EIO;
     }

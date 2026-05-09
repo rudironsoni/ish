@@ -7,7 +7,7 @@
 #import <UIKit/UIKit.h>
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 #include <sys/stat.h>
-#import "SceneDelegate.h"
+#import "internal/ios/runtime/presenter_bridge.h"
 #import "backing_fs.h"
 #import <IXLandLinuxRuntime/kernel/fs.h>
 #import <IXLandLinuxRuntime/kernel/errno.h>
@@ -50,8 +50,8 @@ const NSFileCoordinatorWritingOptions NSFileCoordinatorWritingForCreating = NSFi
 }
 
 - (int)askForURL:(NSURL **)url {
-    TerminalViewController *terminalViewController = currentTerminalViewController;
-    if (!terminalViewController)
+    UIViewController *presenter = active_presenter();
+    if (presenter == nil)
         return _ENODEV;
 
     dispatch_async(dispatch_get_main_queue(), ^(void) {
@@ -63,7 +63,7 @@ const NSFileCoordinatorWritingOptions NSFileCoordinatorWritingForCreating = NSFi
             picker.allowsMultipleSelection = YES;
         }
         picker.presentationController.delegate = self;
-        [terminalViewController presentViewController:picker animated:true completion:nil];
+        [presenter presentViewController:picker animated:true completion:nil];
     });
 
     lock(&_lock);

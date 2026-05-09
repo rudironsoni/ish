@@ -35,8 +35,8 @@
 #include <assert.h>
 #include <limits.h>
 #include <stddef.h>
-#include <stdint.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 
 #define TCTI_HOT_REG_COUNT 13
@@ -61,6 +61,27 @@ static void tcti_trace_record_mem_access(struct cpu_state *cpu, uint64_t pc, uin
                                          uint64_t addr, uint64_t value, uint64_t base,
                                          uint64_t offset, uint8_t width, uint8_t is_load, int rt,
                                          int rn, int rm, int idx_mode);
+
+static void trace_hot_ldso_helper_access(uint64_t fault_pc, uint64_t rt, uint64_t rn,
+                                         uint64_t base, uint64_t addr, uint64_t value,
+                                         uint64_t meta, int is_load)
+{
+    bool focused_callback_load = fault_pc >= 0x7bf48 && fault_pc <= 0x7bf54;
+    bool focused_corrupting_block = fault_pc >= 0x7c4e0 && fault_pc <= 0x7c500;
+    bool focused_callback_slot_store = addr == 0xd03d0;
+    if ((!focused_callback_load && !focused_corrupting_block && !focused_callback_slot_store) ||
+        !trace_should_emit_event("hot.ldso"))
+        return;
+
+    char event[256];
+    snprintf(event, sizeof(event),
+             "hot.ldso.ldst=pc:0x%llx,is_load:%d,rt:%llu,rn:%llu,base:0x%llx,addr:0x%llx,"
+             "value:0x%llx,meta:0x%llx",
+             (unsigned long long)fault_pc, is_load ? 1 : 0, (unsigned long long)rt,
+             (unsigned long long)rn, (unsigned long long)base, (unsigned long long)addr,
+             (unsigned long long)value, (unsigned long long)meta);
+    trace_record_event(TRACE_ORIGIN_EXEC, event);
+}
 
 // Stub functions retained for external diagnostic symbol compatibility.
 void dump_str_wb_diag(void) {}
@@ -898,6 +919,16 @@ static void tcti_trace_emit_store_source_entry(uint32_t source_slot, uint64_t so
                               sizeof(fields) / sizeof(fields[0]));
 }
 
+static void tcti_trace_emit_last_store_for_zero_load(uint32_t source_slot,
+                                                     const tcti_trace_mem_history_entry_t *entry)
+{
+    uint32_t store_slot = 0;
+    const tcti_trace_store_history_entry_t *store =
+        tcti_trace_find_last_store_covering(entry->addr, entry->width, &store_slot);
+    if (store)
+        tcti_trace_emit_store_source_entry(source_slot, entry->addr, entry->value, store, store_slot);
+}
+
 static void tcti_trace_emit_mem_history_on_fault(struct cpu_state *cpu, uint64_t fault_addr)
 {
     if (!trace_should_emit_event("tcti.mem.history"))
@@ -922,6 +953,8 @@ static void tcti_trace_emit_mem_history_on_fault(struct cpu_state *cpu, uint64_t
             if (store)
                 tcti_trace_emit_store_source_entry(i, entry->addr, entry->value, store, store_slot);
         }
+        if (entry->is_load && entry->value == 0 && entry->pc == 0x565e07a4)
+            tcti_trace_emit_last_store_for_zero_load(i, entry);
 
         if ((addr_match || value_match_reg >= 0) && emitted_matches < 96) {
             tcti_trace_emit_mem_history_entry("tcti.mem.history.match", i, entry, value_match_reg);
@@ -1046,6 +1079,7 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
         tcti_trace_record_mem_access(cpu, fault_pc, fault_raw_opcode, addr, value, base,
                                      addr - base, (uint8_t)width, 1, (int)rt, (int)rn,
                                      is_reg_offset ? rm : -1, (int)idx_mode);
+        trace_hot_ldso_helper_access(fault_pc, rt, rn, base, addr, value, meta, 1);
         trace_tcti_ldst_access(cpu, "tcti.ldst.access", instance_id, fault_pc, fault_raw_opcode, rt,
                                rn, imm, size, idx_mode, meta, is_load, base, addr, value, mem_ret,
                                width, writeback_enabled, writeback_value);
@@ -1084,6 +1118,7 @@ static int a64_tcti_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64
         tcti_trace_record_mem_access(cpu, fault_pc, fault_raw_opcode, addr, value, base,
                                      addr - base, (uint8_t)width, 0, (int)rt, (int)rn,
                                      is_reg_offset ? rm : -1, (int)idx_mode);
+        trace_hot_ldso_helper_access(fault_pc, rt, rn, base, addr, value, meta, 0);
         trace_tcti_ldst_access(cpu, "tcti.ldst.access", instance_id, fault_pc, fault_raw_opcode, rt,
                                rn, imm, size, idx_mode, meta, is_load, base, addr, value, mem_ret,
                                width, writeback_enabled, writeback_value);
@@ -2543,6 +2578,20 @@ __attribute__((used)) static void tcti_multiply_add_helper(struct cpu_state *cpu
         uint64_t rhs = (uint32_t)tcti_read_reg_or_zr(cpu, (int)rm);
         uint64_t product = lhs * rhs;
         result = subtype == A64_DP_REG_UMSUBL ? addend - product : addend + product;
+        tcti_write_reg_or_zr(cpu, (int)rd, result, 1);
+        return;
+    }
+    case A64_DP_REG_UMULH: {
+        __uint128_t lhs = (__uint128_t)tcti_read_reg_or_zr(cpu, (int)rn);
+        __uint128_t rhs = (__uint128_t)tcti_read_reg_or_zr(cpu, (int)rm);
+        result = (uint64_t)((lhs * rhs) >> 64);
+        tcti_write_reg_or_zr(cpu, (int)rd, result, 1);
+        return;
+    }
+    case A64_DP_REG_SMULH: {
+        __int128_t lhs = (__int128_t)(int64_t)tcti_read_reg_or_zr(cpu, (int)rn);
+        __int128_t rhs = (__int128_t)(int64_t)tcti_read_reg_or_zr(cpu, (int)rm);
+        result = (uint64_t)((lhs * rhs) >> 64);
         tcti_write_reg_or_zr(cpu, (int)rd, result, 1);
         return;
     }

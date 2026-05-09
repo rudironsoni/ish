@@ -324,6 +324,22 @@ int pt_unmap_always(struct mem *mem, page_t start, pages_t pages)
     return 0;
 }
 
+static unsigned pt_merge_protection_flags(unsigned old_flags, unsigned prot_flags)
+{
+    unsigned semantic_flags = old_flags & ~P_RWX;
+    return semantic_flags | (prot_flags & P_RWX);
+}
+
+static int pt_host_prot_from_guest_flags(unsigned flags)
+{
+    int prot = PROT_NONE;
+    if (flags & (P_READ | P_EXEC))
+        prot |= PROT_READ;
+    if (flags & P_WRITE)
+        prot |= PROT_WRITE;
+    return prot;
+}
+
 int pt_set_flags(struct mem *mem, page_t start, pages_t pages, int flags)
 {
     for (page_t page = start; page < start + pages; page++) {
@@ -331,19 +347,18 @@ int pt_set_flags(struct mem *mem, page_t start, pages_t pages, int flags)
         if (!desc)
             return _ENOMEM;
 
-        int old_flags = desc->flags;
-        desc->flags = flags;
+        unsigned old_flags = desc->flags;
+        unsigned new_flags = pt_merge_protection_flags(old_flags, (unsigned)flags);
+        desc->flags = new_flags;
 
         struct vm_area *vma = vma_tree_find(&mem->vmas, page << PAGE_BITS);
         if (vma)
-            vma->flags = flags;
+            vma->flags = pt_merge_protection_flags(vma->flags, (unsigned)flags);
 
-        if ((flags & ~old_flags) & (P_READ | P_WRITE)) {
+        if ((new_flags ^ old_flags) & P_RWX) {
             void *host_ptr = (char *)desc->obj->host_base + desc->offset;
             host_ptr = (void *)((uintptr_t)host_ptr & ~(real_page_size - 1));
-            int prot = PROT_READ;
-            if (flags & P_WRITE)
-                prot |= PROT_WRITE;
+            int prot = pt_host_prot_from_guest_flags(new_flags);
             if (mprotect(host_ptr, real_page_size, prot) < 0)
                 return errno_map();
         }
@@ -438,6 +453,9 @@ void *mem_ptr(struct mem *mem, addr_t addr, int type)
         if (!desc)
             return NULL;
     }
+
+    if (type == MEM_READ && !(desc->flags & (P_READ | P_EXEC)))
+        return NULL;
 
     if (type == MEM_WRITE || type == MEM_WRITE_PTRACE) {
         if (type != MEM_WRITE_PTRACE && !(desc->flags & P_WRITE))

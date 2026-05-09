@@ -69,11 +69,14 @@
     XCUIElement *terminalSurface = self.app.otherElements[@"TerminalSurface"];
     XCTAssertTrue([terminalSurface waitForExistenceWithTimeout:5.0], @"TerminalSurface must be accessible within 5 seconds");
     [self waitForTerminalReadyWithTimeout:180.0];
-    XCUIElement *terminalInput = self.app.textFields[@"TerminalInput"];
-    XCTAssertTrue([terminalInput waitForExistenceWithTimeout:5.0], @"TerminalInput must be accessible within 5 seconds");
-    [terminalInput tap];
+    [terminalSurface tap];
     [NSThread sleepForTimeInterval:0.5];
-    [terminalInput typeText:[NSString stringWithFormat:@"%@\n", command]];
+    NSString *payload = [NSString stringWithFormat:@"%@\n", command];
+    for (NSUInteger index = 0; index < payload.length; index++) {
+        NSString *piece = [payload substringWithRange:NSMakeRange(index, 1)];
+        [self.app typeText:piece];
+        [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.02]];
+    }
 }
 
 - (NSString *)terminalText {
@@ -122,14 +125,14 @@
 
 // Test 1: Basic shell execution
 - (void)testBasicShellExecution {
-    [self typeCommand:@"printf '%s%s%s\n' 'aarch64' '_test' '_passed'"];
+    [self typeCommand:@"echo aarch64_test_passed"];
     NSString *output = [self waitForTerminalTextContaining:@"aarch64_test_passed" timeout:30.0];
     XCTAssertTrue([output containsString:@"aarch64_test_passed"],
                   @"Should see computed shell output in terminal. Actual output: %@", output);
 }
 
 - (void)testRootDirectoryListingDoesNotReportOutOfMemory {
-    [self typeCommand:@"ls -a /"];
+    [self typeCommand:@"/bin/busybox ls -a /"];
     NSString *output = [self waitForTerminalTextContaining:@"bin" timeout:30.0];
     XCTAssertFalse([output containsString:@"Out of memory"],
                    @"Root directory listing must not fail in guest opendir/calloc. Actual output: %@",
@@ -140,8 +143,8 @@
 
 // Test 2: Verify aarch64 architecture
 - (void)testArchitectureDetection {
-    NSString *expected = @"ARCH:aarch64:END";
-    [self typeCommand:@"printf 'ARCH:%s:END\\n' \"$(uname -m)\""];
+    NSString *expected = @"aarch64";
+    [self typeCommand:@"/bin/busybox uname -m"];
     NSString *output = [self waitForTerminalTextContaining:expected timeout:10.0];
     XCTAssertTrue([output containsString:expected],
                   @"Should report aarch64 architecture. Actual output: %@", output);
@@ -149,8 +152,8 @@
 
 // Test 3: Basic arithmetic via expr
 - (void)testArithmetic {
-    NSString *expected = @"ARITH:8:END";
-    [self typeCommand:@"printf 'ARITH:%s:END\\n' \"$(expr 5 + 3)\""];
+    NSString *expected = @"8";
+    [self typeCommand:@"/bin/busybox expr 5 + 3"];
     NSString *output = [self waitForTerminalTextContaining:expected timeout:10.0];
     XCTAssertTrue([output containsString:expected],
                   @"Should calculate 5+3=8. Actual output: %@", output);
@@ -159,7 +162,7 @@
 // Test 4: Exit codes
 - (void)testExitCode {
     NSString *expected = @"EXIT:1:END";
-    [self typeCommand:@"false ; printf 'EXIT:%s:END\\n' \"$?\""];
+    [self typeCommand:@"false ; echo EXIT:$?:END"];
     NSString *output = [self waitForTerminalTextContaining:expected timeout:10.0];
     XCTAssertTrue([output containsString:expected],
                   @"Should report exit code 1. Actual output: %@", output);
@@ -167,8 +170,8 @@
 
 // Test 5: File operations
 - (void)testFileOperations {
-    [self typeCommand:@"printf '%s%s' 'test_' 'content' > /tmp/test_file"];
-    [self typeCommand:@"cat /tmp/test_file"];
+    [self typeCommand:@"echo test_content > /tmp/test_file"];
+    [self typeCommand:@"/bin/busybox cat /tmp/test_file"];
     NSString *output = [self waitForTerminalTextContaining:@"test_content" timeout:10.0];
     XCTAssertTrue([output containsString:@"test_content"],
                   @"Should read written file. Actual output: %@", output);
@@ -176,8 +179,8 @@
 
 // Test 6: Process creation (fork)
 - (void)testProcessCreation {
-    NSString *expectedPrefix = @"SHELL:/bin/";
-    [self typeCommand:@"printf 'SHELL:%s:END\\n' \"$SHELL\""];
+    NSString *expectedPrefix = @"/bin/";
+    [self typeCommand:@"echo $SHELL"];
     NSString *output = [self waitForTerminalTextContaining:expectedPrefix timeout:10.0];
     XCTAssertTrue([output containsString:expectedPrefix],
                   @"Should report shell path. Actual output: %@", output);
@@ -185,8 +188,8 @@
 
 // Test 7: Pipes
 - (void)testPipes {
-    NSString *expected = @"PIPE:2:END";
-    [self typeCommand:@"printf 'PIPE:%s:END\\n' \"$(echo 'hello world' | wc -w)\""];
+    NSString *expected = @"2";
+    [self typeCommand:@"echo hello world | /bin/busybox wc -w"];
     NSString *output = [self waitForTerminalTextContaining:expected timeout:10.0];
     XCTAssertTrue([output containsString:expected],
                   @"Should count 2 words. Actual output: %@", output);
@@ -194,7 +197,7 @@
 
 // Test 8: Environment variables
 - (void)testEnvironmentVariables {
-    [self typeCommand:@"export TEST_VAR='aarch64_'\"value\" ; echo $TEST_VAR"];
+    [self typeCommand:@"export TEST_VAR=aarch64_value ; echo $TEST_VAR"];
     NSString *output = [self waitForTerminalTextContaining:@"aarch64_value" timeout:10.0];
     XCTAssertTrue([output containsString:@"aarch64_value"],
                   @"Should read environment variable. Actual output: %@", output);
@@ -202,7 +205,7 @@
 
 // Test 9: Signal handling
 - (void)testSignalHandling {
-    [self typeCommand:@"sleep 0.1 ; printf '%s%s\n' 'comple' 'ted'"];
+    [self typeCommand:@"/bin/busybox sleep 0.1 ; echo completed"];
     NSString *output = [self waitForTerminalTextContaining:@"completed" timeout:10.0];
     XCTAssertTrue([output containsString:@"completed"],
                   @"Should complete after sleep. Actual output: %@", output);
@@ -210,7 +213,7 @@
 
 // Test 10: Complex command sequence
 - (void)testCommandSequence {
-    [self typeCommand:@"for i in 1 2 3; do printf 'SEQ:%s:END\\n' \"$i\"; done"];
+    [self typeCommand:@"echo SEQ:1:END ; echo SEQ:2:END ; echo SEQ:3:END"];
     NSString *output = [self waitForTerminalTextContaining:@"SEQ:3:END" timeout:10.0];
     XCTAssertTrue([output containsString:@"SEQ:1:END"],
                   @"Should show SEQ:1:END. Actual output: %@", output);

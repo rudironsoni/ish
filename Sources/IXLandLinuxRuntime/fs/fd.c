@@ -1,6 +1,7 @@
 #import <IXLandLinuxRuntime/fs/fd.h>
 #import <IXLandLinuxRuntime/fs/inode.h>
 #import <IXLandLinuxRuntime/fs/poll.h>
+#import <IXLandInstrumentationTracing/trace.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/kernel/fs.h>
 #import <IXLandLinuxRuntime/kernel/resource.h>
@@ -333,6 +334,8 @@ uint32_t sys_fcntl(fd_t f, uint32_t cmd, uint32_t arg)
 
     case F_GETFD_:
         STRACE("fcntl(%d, F_GETFD)", f);
+        if (f == 3)
+            trace_record_event(TRACE_ORIGIN_KERNEL, "fcntl.dirfd.fd3.getfd");
         return bit_test(f, table->cloexec);
     case F_SETFD_:
         STRACE("fcntl(%d, F_SETFD, 0x%x)", f, arg);
@@ -344,6 +347,8 @@ uint32_t sys_fcntl(fd_t f, uint32_t cmd, uint32_t arg)
 
     case F_GETFL_:
         STRACE("fcntl(%d, F_GETFL)", f);
+        if (f == 3)
+            trace_record_event(TRACE_ORIGIN_KERNEL, "fcntl.dirfd.fd3.getfl");
         return fd_getflags(fd);
     case F_SETFL_:
         STRACE("fcntl(%d, F_SETFL, %#x)", f, arg);
@@ -401,6 +406,11 @@ uint32_t sys_fcntl(fd_t f, uint32_t cmd, uint32_t arg)
 
     default:
         STRACE("fcntl(%d, %d)", f, cmd);
+        if (f == 3) {
+            char event[96];
+            snprintf(event, sizeof(event), "fcntl.dirfd.fd3.other.cmd=%u", cmd);
+            trace_record_event(TRACE_ORIGIN_KERNEL, event);
+        }
         return _EINVAL;
     }
 }

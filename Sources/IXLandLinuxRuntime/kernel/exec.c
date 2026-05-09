@@ -1,4 +1,5 @@
 #import <IXLandLinuxRuntime/kernel/memory.h>
+#import <IXLandLinuxRuntime/kernel/musl_thread.h>
 #import <IXLandLinuxRuntime/kernel/page_map.h>
 #import <IXLandLinuxRuntime/kernel/signal.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
@@ -6,6 +7,7 @@
 #define _GNU_SOURCE
 #import <IXLandInstrumentationTracing/trace.h>
 #import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
+#import <IXLandLinuxRuntime/emu/aarch64/decode.h>
 #import <IXLandLinuxRuntime/emu/aarch64/tls.h>
 #import <IXLandLinuxRuntime/fs/fd.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
@@ -23,13 +25,69 @@
 #include <string.h>
 #include <unistd.h>
 #define ARGV_MAX 32 * PAGE_SIZE
-
 struct exec_args {
     // number of arguments
     size_t count;
     // series of count null-terminated strings, plus an extra null for good measure
     const char *args;
 };
+
+static bool a64_exec_uses_musl_startup(const char *interp_name)
+{
+    return interp_name != NULL && strstr(interp_name, "musl") != NULL;
+}
+
+static a64_musl_thread_layout_t a64_detect_musl_thread_layout(struct cpu_state *cpu,
+                                                              addr_t interp_base,
+                                                              struct prg_header *interp_ph,
+                                                              int interp_ph_count)
+{
+    addr_t detected_offset = 0;
+
+    for (int i = 0; i < interp_ph_count; i++) {
+        if (interp_ph[i].type != PT_LOAD || !(interp_ph[i].flags & PH_X))
+            continue;
+
+        addr_t seg_start = interp_base + interp_ph[i].vaddr;
+        addr_t seg_limit = seg_start + interp_ph[i].filesize;
+
+        for (addr_t pc = seg_start; pc + sizeof(uint32_t) <= seg_limit; pc += sizeof(uint32_t)) {
+            uint32_t mrs_insn = 0;
+            if (user_get(pc, mrs_insn))
+                break;
+            if ((mrs_insn & 0xffffffe0u) != 0xd53bd040u)
+                continue;
+
+            int tp_reg = (int)(mrs_insn & 0x1f);
+            for (int lookahead = 1; lookahead <= 8; lookahead++) {
+                uint32_t follow_insn = 0;
+                if (user_get(pc + (lookahead * sizeof(uint32_t)), follow_insn))
+                    break;
+
+                a64_instr_t decoded = {};
+                if (a64_decode(follow_insn, &decoded) != 0)
+                    continue;
+                if (decoded.subtype != 6 || !decoded.is_64bit)
+                    continue;
+                if (decoded.Rd != tp_reg || decoded.Rn != tp_reg)
+                    continue;
+                if ((follow_insn & 0x7f000000u) != 0x51000000u)
+                    continue;
+                if ((addr_t)decoded.imm < 128 || (addr_t)decoded.imm > 256)
+                    continue;
+
+                if ((addr_t)decoded.imm == A64_MUSL_LEGACY_THREAD_POINTER_OFFSET)
+                    return a64_musl_thread_layout_make((addr_t)decoded.imm);
+                if (detected_offset == 0)
+                    detected_offset = (addr_t)decoded.imm;
+            }
+        }
+    }
+
+    if (detected_offset != 0)
+        return a64_musl_thread_layout_make(detected_offset);
+    return a64_musl_thread_layout_make(A64_MUSL_THREAD_POINTER_OFFSET);
+}
 
 static void trace_exec_checkpoint(const char *name, int err)
 {
@@ -121,6 +179,54 @@ static void trace_exec_layout_checkpoint(const char *name, struct task *task, in
     };
 
     (void)trace_begin_interval(TRACE_ORIGIN_EXEC, name, attrs, sizeof(attrs) / sizeof(attrs[0]));
+}
+
+static void trace_stack_argv_readback(addr_t stack_base, size_t argc)
+{
+    char arg0_buf[128] = "";
+    char arg1_buf[128] = "";
+    char arg2_buf[128] = "";
+    char arg3_buf[128] = "";
+    char ptr0_buf[32] = "0";
+    char ptr1_buf[32] = "0";
+    char ptr2_buf[32] = "0";
+    char ptr3_buf[32] = "0";
+
+    addr_t slot = stack_base + sizeof(addr_t);
+    for (size_t index = 0; index < argc && index < 4; index++) {
+        addr_t arg_ptr = 0;
+        if (user_get(slot, arg_ptr) || arg_ptr == 0)
+            break;
+        char *ptr_buf = index == 0   ? ptr0_buf
+                        : index == 1 ? ptr1_buf
+                        : index == 2 ? ptr2_buf
+                                     : ptr3_buf;
+        snprintf(ptr_buf, 32, "0x%llx", (unsigned long long)arg_ptr);
+
+        char *target = index == 0   ? arg0_buf
+                       : index == 1 ? arg1_buf
+                       : index == 2 ? arg2_buf
+                                    : arg3_buf;
+        size_t cursor = 0;
+        while (cursor + 1 < 128) {
+            char c;
+            if (user_get(arg_ptr + cursor, c))
+                break;
+            target[cursor++] = c;
+            if (c == '\0')
+                break;
+        }
+        target[127] = '\0';
+        slot += sizeof(addr_t);
+    }
+
+    char argv_proof[512];
+    snprintf(argv_proof, sizeof(argv_proof),
+             "stack.proof.argv=argc:%zu,ptr0:%s,arg0:%s,ptr1:%s,arg1:%s,ptr2:%s,arg2:%s,ptr3:%s,"
+             "arg3:%s",
+             argc, ptr0_buf, arg0_buf, ptr1_buf, arg1_buf, ptr2_buf, arg2_buf, ptr3_buf,
+             arg3_buf);
+    trace_record_event(TRACE_ORIGIN_KERNEL, argv_proof);
 }
 
 static inline addr_t align_stack(addr_t sp);
@@ -1307,6 +1413,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
 
 #define TCB_TOP  (STACK_BASE - GUARD_SIZE)
 #define TCB_BASE (TCB_TOP - TLS_TCB_SIZE)
+#define A64_MUSL_DTV_BASE              (TCB_BASE + 0x1000)
 
     // Verify two-sided budget fits inside mapped stack
     _Static_assert(INITIAL_UPWARD_HEADROOM + INITIAL_DOWNWARD_RESERVE <= STACK_MAPPED_SIZE,
@@ -1316,13 +1423,14 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     pages_t stack_base_page = PAGE(STACK_BASE);
     pages_t stack_size_pages = PAGE_ROUND_UP(STACK_MAPPED_SIZE);
     if ((err = pt_map_nothing(current->mem, stack_base_page, stack_size_pages,
-                              P_WRITE | P_GROWSDOWN)) < 0)
+                              P_READ | P_WRITE | P_GROWSDOWN)) < 0)
         goto beyond_hope;
 
     // Map TCB/TLS pages below stack with guard gap
     pages_t tcb_base_page = PAGE(TCB_BASE);
     pages_t tcb_size_pages = PAGE_ROUND_UP(TLS_TCB_SIZE);
-    if ((err = pt_map_nothing(current->mem, tcb_base_page, tcb_size_pages, P_WRITE)) < 0)
+    if ((err = pt_map_nothing(current->mem, tcb_base_page, tcb_size_pages,
+                              P_READ | P_WRITE)) < 0)
         goto beyond_hope;
 
     // that was the last memory mapping
@@ -1376,7 +1484,9 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     trace_exec_checkpoint("task.proof.elf_exec.after_copy_platform", err);
     // 16 random bytes so no system call is needed to seed a userspace RNG
     char random[16] = {};
+    uint64_t thread_canary = 0;
     get_random(random, sizeof(random)); // if this fails, eh, no one's really using it
+    memcpy(&thread_canary, random, sizeof(thread_canary));
     addr_t random_addr = sp -= sizeof(random);
     trace_exec_checkpoint("task.proof.elf_exec.before_copy_random", err);
     if (user_put(sp, random)) {
@@ -1496,6 +1606,7 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
                  (unsigned long)current->mm->auxv_end);
         trace_record_event(TRACE_ORIGIN_KERNEL, stack_proof);
     }
+    trace_stack_argv_readback(sp, argv.count);
 
     // Initialize CPU state properly before setting up registers
     // This zeros all X registers, PSTATE, and other state to prevent garbage values
@@ -1529,25 +1640,45 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     // aarch64 doesn't have x87 FPU control word
     // current->cpu.fcw = 0x37f;
 
-    // aarch64 musl process startup convention:
+    // Current musl rootfs startup convention:
     // x0 = sp (pointer to stack with argc/argv/envp/auxv layout)
     // x1 = loader _DYNAMIC when entering an interpreter, otherwise the
     //      executable _DYNAMIC for direct static-pie startup.
     // x2-x7 = 0 (not used for startup)
     // x8 = 0 (syscall number register)
-    // TPIDR_EL0 = TCB base (TLS pointer, accessed via system register)
     //
     // musl ldso startup records x1 as its own dynv before walking auxv to
     // discover the main executable. Passing the main executable _DYNAMIC here
     // makes ld-musl relocate against the wrong object and report its own libc
     // symbols as missing.
+    if (a64_exec_uses_musl_startup(interp_name)) {
+        // Musl on AArch64 uses a guest-defined TLS_ABOVE_TP contract. Older
+        // musl builds place TP at a different tail offset inside struct
+        // pthread than newer builds, so bootstrap from the loaded guest
+        // interpreter's own MRS/SUB contract instead of hardcoding one host
+        // assumption for every musl distro.
+        addr_t pthread_base = TCB_BASE;
+        addr_t dtv_base = A64_MUSL_DTV_BASE;
+        a64_musl_thread_layout_t musl_layout =
+            a64_detect_musl_thread_layout(&current->cpu, interp_base, interp_ph,
+                                          interp_header.phent_count);
+        err = a64_bootstrap_initial_musl_thread(&current->cpu, &musl_layout, pthread_base,
+                                                dtv_base, 0, thread_canary);
+        if (err != 0)
+            goto beyond_hope;
+        {
+            char ev[128];
+            snprintf(ev, sizeof(ev), "loader.startup_abi.musl.tp_offset=0x%llx",
+                     (unsigned long long)musl_layout.thread_pointer_offset);
+            trace_record_event(TRACE_ORIGIN_KERNEL, ev);
+        }
+        trace_record_event(TRACE_ORIGIN_KERNEL, "loader.startup_abi.libc=musl");
+    } else {
+        // Keep unknown/glibc-style startup on the generic zeroed register state
+        // until their ABI contract is implemented explicitly.
+        trace_record_event(TRACE_ORIGIN_KERNEL, "loader.startup_abi.libc=generic");
+    }
 
-    // Set up TCB (Thread Control Block) for TLS
-    // TLS belongs in TPIDR_EL0, NOT in x3
-    addr_t tcb_base = TCB_BASE; // Start of mapped TCB pages (256 KB)
-    a64_setup_tls_area(&current->cpu, tcb_base);
-
-    // Correct AArch64 musl startup: pass stack pointer in x0
     current->cpu.x[0] = sp; // Points to argc on stack
     current->cpu.x[1] =
         interp_name && interp_dynamic_vaddr ? interp_base + interp_dynamic_vaddr : dynamic_addr;
@@ -1691,30 +1822,21 @@ static int text_interpreter_exec(struct fd *fd, const char *file, struct exec_ar
     while (end > interpreter && (*end == ' ' || *end == '\t' || *end == '\r'))
         *end-- = '\0';
 
-    // Build new argv: interpreter [original argv0] [original args...]
-    struct exec_args argv_rest = {
-        .count = argv.count > 0 ? argv.count - 1 : 0,
-        .args = argv.count > 0 ? argv.args + strlen(argv.args) + 1 : argv.args,
-    };
-
-    size_t args_rest_size = args_size(argv_rest);
-    size_t extra_args_size = strlen(interpreter) + 1 + strlen(file) + 1;
-    if (args_rest_size + extra_args_size >= ARGV_MAX)
-        return _E2BIG;
-
     char new_argv_buf[ARGV_MAX];
-    struct exec_args new_argv = { .args = new_argv_buf };
-
-    snprintf(new_argv_buf, sizeof(new_argv_buf), "%s", interpreter);
-    new_argv.count = 1;
-    size_t n = strlen(interpreter) + 1;
-
-    snprintf(new_argv_buf + n, sizeof(new_argv_buf) - n, "%s", file);
-    n += strlen(file) + 1;
-    new_argv.count++;
-
-    memcpy(new_argv_buf + n, argv_rest.args, args_rest_size);
-    new_argv.count += argv_rest.count;
+    struct exec_args new_argv = { .args = new_argv_buf, .count = argv.count };
+    if (argv.count > 0) {
+        size_t argv_size = args_size(argv);
+        if (argv_size >= ARGV_MAX)
+            return _E2BIG;
+        memcpy(new_argv_buf, argv.args, argv_size);
+    } else {
+        size_t file_size = strlen(file) + 2;
+        if (file_size >= ARGV_MAX)
+            return _E2BIG;
+        snprintf(new_argv_buf, sizeof(new_argv_buf), "%s", file);
+        new_argv.count = 1;
+        new_argv_buf[file_size - 1] = '\0';
+    }
 
     struct fd *interpreter_fd = generic_open(interpreter, O_RDONLY_, 0);
     if (IS_ERR(interpreter_fd))

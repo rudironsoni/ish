@@ -363,6 +363,7 @@ int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out)
         bool is_subtract = bit(insn, 15);
         bool is_long = bit(insn, 21);
         bool is_unsigned = bit(insn, 23);
+        int opcode = bits(insn, 15, 10);
 
         out->Rd = bits(insn, 4, 0);
         out->Rn = bits(insn, 9, 5);
@@ -370,7 +371,10 @@ int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out)
         out->Rm = bits(insn, 20, 16);
         out->is_64bit = bit(insn, 31);
 
-        if (is_long) {
+        if (opcode == 0x1f && !is_long && bit(insn, 22)) {
+            out->Ra = -1;
+            out->subtype = is_unsigned ? A64_DP_REG_UMULH : A64_DP_REG_SMULH;
+        } else if (is_long) {
             if (is_unsigned) {
                 out->subtype = is_subtract ? A64_DP_REG_UMSUBL : A64_DP_REG_UMADDL;
             } else {
@@ -409,6 +413,7 @@ int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out)
         out->Rd = bits(insn, 4, 0);
         out->Rn = bits(insn, 9, 5);
         out->Rm = -1;
+        out->is_64bit = bit(insn, 31);
         out->set_flags = 0;
 
         switch (opcode) {

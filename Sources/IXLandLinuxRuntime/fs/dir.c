@@ -99,8 +99,11 @@ int64_t sys_getdents_common(fd_t f, addr_t dirents, uint64_t count,
         trace_record_event(TRACE_ORIGIN_KERNEL, "getdents.readdir.enter");
         err = fd->ops->readdir(fd, &entry);
         if (err < 0) {
-            if (is_root_dir)
-                trace_record_event(TRACE_ORIGIN_KERNEL, "getdents.root.fail");
+            if (is_root_dir) {
+                char event[96];
+                snprintf(event, sizeof(event), "getdents.root.fail.err=%d", err);
+                trace_record_event(TRACE_ORIGIN_KERNEL, event);
+            }
             if (err == _ENOMEM)
                 trace_record_event(TRACE_ORIGIN_KERNEL, "getdents.fail.enomem");
             trace_record_event(TRACE_ORIGIN_KERNEL, "getdents.fail.readdir");
@@ -138,8 +141,11 @@ int64_t sys_getdents_common(fd_t f, addr_t dirents, uint64_t count,
 
     if (rewind_to_last_entry)
         fd_seekdir(fd, ptr);
-    if (is_root_dir)
-        trace_record_event(TRACE_ORIGIN_KERNEL, "getdents.root.ok");
+    if (is_root_dir) {
+        char event[96];
+        snprintf(event, sizeof(event), "getdents.root.ok.bytes=%u", orig_count - (uint32_t)count);
+        trace_record_event(TRACE_ORIGIN_KERNEL, event);
+    }
     trace_record_event(TRACE_ORIGIN_KERNEL, "getdents.ok");
     return orig_count - count;
 }

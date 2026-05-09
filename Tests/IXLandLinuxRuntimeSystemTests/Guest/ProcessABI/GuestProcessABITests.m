@@ -2,6 +2,8 @@
 #import <IXLandLinuxRuntime/kernel/elf.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
 #import <IXLandLinuxRuntime/kernel/calls.h>
+#import <IXLandLinuxRuntime/kernel/init.h>
+#import <IXLandLinuxRuntime/kernel/musl_thread.h>
 #import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
 #include <stdlib.h>
 
@@ -16,6 +18,83 @@
 
 @implementation GuestProcessABITests {
     struct cpu_state _cpu;
+}
+
+- (BOOL)guestProcessUsesMuslStartup
+{
+    return current != NULL && current->cpu.tpidr_el0 != 0;
+}
+
+- (BOOL)detectMuslPthreadBase:(addr_t *)pthreadBaseOut
+                     tpOffset:(addr_t *)tpOffsetOut {
+    if (![self guestProcessUsesMuslStartup]) {
+        return NO;
+    }
+
+    addr_t tp = current->cpu.tpidr_el0;
+    addr_t candidates[] = {
+        A64_MUSL_THREAD_POINTER_OFFSET,
+        A64_MUSL_LEGACY_THREAD_POINTER_OFFSET,
+    };
+
+    for (size_t i = 0; i < sizeof(candidates) / sizeof(candidates[0]); i++) {
+        addr_t candidateBase = tp - candidates[i];
+        uintptr_t selfPtr = 0;
+        if (user_get(candidateBase + A64_MUSL_PTHREAD_SELF_OFFSET, selfPtr) == 0 &&
+            selfPtr == candidateBase) {
+            if (pthreadBaseOut != NULL)
+                *pthreadBaseOut = candidateBase;
+            if (tpOffsetOut != NULL)
+                *tpOffsetOut = candidates[i];
+            return YES;
+        }
+    }
+
+    return NO;
+}
+
+- (NSString *)dataRootPath {
+    NSFileManager *fm = [NSFileManager defaultManager];
+    NSURL *groupURL = [fm containerURLForSecurityApplicationGroupIdentifier:@"group.com.rudironsoni.emuLnx"];
+    NSArray<NSString *> *groupPaths = groupURL != nil ? @[groupURL.path] : @[];
+
+    for (NSString *groupPath in groupPaths) {
+        NSString *rootPath = [groupPath stringByAppendingPathComponent:@"roots/default"];
+        if ([fm fileExistsAtPath:rootPath]) {
+            return rootPath;
+        }
+    }
+    return nil;
+}
+
+- (BOOL)bootstrapMountedRootfsAtPath:(NSString *)rootPath {
+    int mountErr = mount_root(&rootfs, rootPath.UTF8String);
+    XCTAssertTrue(mountErr == 0 || mountErr == -16, @"mount_root returned %d", mountErr);
+    if (!(mountErr == 0 || mountErr == -16))
+        return NO;
+
+    int initErr = become_first_process();
+    XCTAssertTrue(initErr == 0 || initErr == -17, @"become_first_process returned %d", initErr);
+    if (!(initErr == 0 || initErr == -17))
+        return NO;
+
+    int childErr = become_new_init_child();
+    XCTAssertEqual(childErr, 0, @"become_new_init_child returned %d", childErr);
+    return childErr == 0;
+}
+
+- (BOOL)execBusyboxUnameForABIInspection {
+    NSString *rootPath = [self dataRootPath];
+    XCTAssertNotNil(rootPath, @"rootfs path must exist");
+    if (rootPath == nil || ![self bootstrapMountedRootfsAtPath:rootPath]) {
+        return NO;
+    }
+
+    const char argv[] = "/bin/busybox\0uname\0-a\0\0";
+    const char envp[] = "TERM=xterm-256color\0PATH=/bin:/usr/bin\0HOME=/root\0\0";
+    int execErr = do_execve("bin/busybox", 3, argv, envp);
+    XCTAssertEqual(execErr, 0, @"do_execve returned %d", execErr);
+    return execErr == 0;
 }
 
 - (void)setUp {
@@ -105,12 +184,99 @@
 }
 
 // Contract: TLS area is set up via TPIDR_EL0
-// Owner: kernel/exec.c:elf_exec lines 1421-1424: a64_setup_tls_area
+// Owner: kernel/exec.c + kernel/musl_thread.c
 - (void)testProcessABIContract_TLSAreaSetup {
-    // System: TLS belongs in TPIDR_EL0 system register, NOT x3 register
-    // a64_setup_tls_area(&current->cpu, tcb_base) sets this up
-    
-    XCTAssertTrue(YES, "TLS setup contract: TPIDR_EL0 = TCB base (requires execve)");
+    if (![self execBusyboxUnameForABIInspection]) {
+        return;
+    }
+    if (![self guestProcessUsesMuslStartup]) {
+        XCTSkip(@"musl-specific TPIDR_EL0 startup contract only applies to musl guests");
+        return;
+    }
+
+    addr_t pthreadBase = 0;
+    addr_t tpOffset = 0;
+    XCTAssertTrue([self detectMuslPthreadBase:&pthreadBase tpOffset:&tpOffset],
+                  @"musl bootstrap must leave a self-consistent TP/self pair");
+    XCTAssertEqual(current->cpu.tpidr_el0, pthreadBase + tpOffset,
+                   @"musl startup must seed TPIDR_EL0 to the guest thread pointer inside the "
+                    @"initial pthread object");
+}
+
+- (void)testProcessABIContract_InitialThreadBootstrapLayout {
+    if (![self execBusyboxUnameForABIInspection]) {
+        return;
+    }
+    if (![self guestProcessUsesMuslStartup]) {
+        XCTSkip(@"musl-specific pthread bootstrap layout only applies to musl guests");
+        return;
+    }
+
+    addr_t pthreadBase = 0;
+    addr_t tpOffset = 0;
+    XCTAssertTrue([self detectMuslPthreadBase:&pthreadBase tpOffset:&tpOffset],
+                  @"musl bootstrap must leave a self-consistent TP/self pair");
+    uintptr_t selfPtr = 0;
+    uintptr_t prevPtr = 0;
+    uintptr_t nextPtr = 0;
+    uintptr_t sysinfo = UINTPTR_MAX;
+    uintptr_t robustHead = 0;
+    uintptr_t dtvPtr = 0;
+    uintptr_t dtvCount = UINTPTR_MAX;
+    uintptr_t canary = 0;
+    int tid = -1;
+    int errnoValue = -1;
+    int hErrnoValue = -1;
+    int detachState = -1;
+    int killlock = -1;
+    addr_t canaryOffset = tpOffset == A64_MUSL_LEGACY_THREAD_POINTER_OFFSET
+                              ? A64_MUSL_PTHREAD_CANARY_TAIL_OFFSET
+                              : A64_MUSL_LEGACY_PTHREAD_CANARY_OFFSET;
+    addr_t dtvOffset = tpOffset == A64_MUSL_LEGACY_THREAD_POINTER_OFFSET
+                           ? A64_MUSL_PTHREAD_DTV_TAIL_OFFSET
+                           : A64_MUSL_LEGACY_PTHREAD_DTV_OFFSET;
+
+    XCTAssertEqual(user_get(pthreadBase + A64_MUSL_PTHREAD_SELF_OFFSET, selfPtr), 0);
+    XCTAssertEqual(user_get(pthreadBase + A64_MUSL_PTHREAD_PREV_OFFSET, prevPtr), 0);
+    XCTAssertEqual(user_get(pthreadBase + A64_MUSL_PTHREAD_NEXT_OFFSET, nextPtr), 0);
+    XCTAssertEqual(user_get(pthreadBase + A64_MUSL_PTHREAD_SYSINFO_OFFSET, sysinfo), 0);
+    XCTAssertEqual(user_get(pthreadBase + A64_MUSL_PTHREAD_TID_OFFSET, tid), 0);
+    XCTAssertEqual(user_get(pthreadBase + A64_MUSL_PTHREAD_ERRNO_OFFSET, errnoValue), 0);
+    XCTAssertEqual(user_get(pthreadBase + A64_MUSL_PTHREAD_ROBUST_HEAD_OFFSET, robustHead), 0);
+    XCTAssertEqual(user_get(pthreadBase + canaryOffset, canary), 0);
+    XCTAssertEqual(user_get(pthreadBase + dtvOffset, dtvPtr), 0);
+    XCTAssertEqual(user_get(dtvPtr, dtvCount), 0);
+    XCTAssertEqual(user_get(pthreadBase + A64_MUSL_PTHREAD_H_ERRNO_OFFSET, hErrnoValue), 0);
+    XCTAssertEqual(user_get(pthreadBase + A64_MUSL_PTHREAD_DETACH_OFFSET, detachState), 0);
+    XCTAssertEqual(user_get(pthreadBase + A64_MUSL_PTHREAD_KILLLOCK_OFFSET, killlock), 0);
+
+    XCTAssertEqual(selfPtr, pthreadBase, @"self must point at the singleton initial pthread");
+    XCTAssertEqual(prevPtr, pthreadBase, @"prev must point at the singleton initial pthread");
+    XCTAssertEqual(nextPtr, pthreadBase, @"next must point at the singleton initial pthread");
+    XCTAssertEqual(sysinfo, (uintptr_t)0, @"sysinfo must start cleared until guest libc seeds it");
+    XCTAssertEqual(tid, current->pid, @"initial pthread tid must match the current guest task");
+    XCTAssertEqual(errnoValue, 0, @"initial guest errno storage must start clear");
+    XCTAssertEqual(robustHead, pthreadBase + A64_MUSL_PTHREAD_ROBUST_HEAD_OFFSET,
+                   @"robust_list.head must be self-referential for the initial thread");
+    XCTAssertEqual(current->cpu.tpidr_el0, pthreadBase + tpOffset,
+                   @"AArch64 musl TPIDR_EL0 must match the live musl ABI-selected TP offset");
+    XCTAssertNotEqual(canary, (uintptr_t)0, @"stack canary slot must be seeded from AT_RANDOM");
+    if (tpOffset == A64_MUSL_LEGACY_THREAD_POINTER_OFFSET) {
+        XCTAssertEqual(pthreadBase + dtvOffset, current->cpu.tpidr_el0 - sizeof(uintptr_t),
+                       @"post-2018 AArch64 musl stores the DTV pointer slot immediately below TP");
+        XCTAssertEqual(pthreadBase + canaryOffset, current->cpu.tpidr_el0 - (2 * sizeof(uintptr_t)),
+                       @"post-2018 AArch64 musl stores the canary immediately below the DTV slot");
+    } else {
+        XCTAssertEqual(pthreadBase + dtvOffset, (addr_t)(pthreadBase + A64_MUSL_LEGACY_PTHREAD_DTV_OFFSET),
+                       @"legacy AArch64 musl stores the DTV pointer near the start of pthread");
+    }
+    XCTAssertNotEqual(dtvPtr, (uintptr_t)0, @"initial DTV pointer must be valid");
+    XCTAssertEqual(dtvCount, (uintptr_t)0,
+                   @"busybox/ld-musl startup in this rootfs carries no PT_TLS modules, so "
+                    @"the initial DTV header count must start at zero");
+    XCTAssertEqual(hErrnoValue, 0, @"initial guest h_errno storage must start clear");
+    XCTAssertEqual(detachState, 2, @"detach_state must start as DT_JOINABLE");
+    XCTAssertEqual(killlock, 0, @"killlock must start clear for the initial thread");
 }
 
 // System: First fetch boundary - PC set from ELF
