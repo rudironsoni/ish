@@ -1287,17 +1287,24 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
                 uint64_t dso_strtab = 0;
                 uint64_t dso_next = 0;
                 uint64_t dso_deps = 0;
+                uint64_t dso_dep0 = 0;
+                uint64_t dso_dep1 = 0;
                 if (cpu->x[15] != 0) {
                     (void)a64_guest_read64(cpu, tlb, cpu->x[15] + 0x50, &dso_ghashtab);
                     (void)a64_guest_read64(cpu, tlb, cpu->x[15] + 0x60, &dso_strtab);
                     (void)a64_guest_read64(cpu, tlb, cpu->x[15] + 0x68, &dso_next);
                     (void)a64_guest_read64(cpu, tlb, cpu->x[15] + 0xb0, &dso_deps);
+                    if (dso_deps != 0) {
+                        (void)a64_guest_read64(cpu, tlb, dso_deps + 0x0, &dso_dep0);
+                        (void)a64_guest_read64(cpu, tlb, dso_deps + 0x8, &dso_dep1);
+                    }
                 }
                 snprintf(event, sizeof(event),
                          "hot.ldso=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld,"
                          "x0:0x%llx,x1:0x%llx,x2:0x%llx,x13:0x%llx,x15:0x%llx,x18:0x%llx,"
                          "x19:0x%llx,x21:0x%llx,dso_ghashtab:0x%llx,dso_strtab:0x%llx,"
-                         "dso_next:0x%llx,dso_deps:0x%llx,sp:0x%llx,pstate:0x%llx",
+                         "dso_next:0x%llx,dso_deps:0x%llx,dso_dep0:0x%llx,dso_dep1:0x%llx,"
+                         "sp:0x%llx,pstate:0x%llx",
                          (unsigned long long)gen_state.guest_pc, insn,
                          decode_ret == 0 ? decoded_info.cat : -1,
                          decode_ret == 0 ? decoded_info.subtype : -1,
@@ -1311,6 +1318,7 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
                          (unsigned long long)cpu->x[19], (unsigned long long)cpu->x[21],
                          (unsigned long long)dso_ghashtab, (unsigned long long)dso_strtab,
                          (unsigned long long)dso_next, (unsigned long long)dso_deps,
+                         (unsigned long long)dso_dep0, (unsigned long long)dso_dep1,
                          (unsigned long long)cpu->sp, (unsigned long long)cpu->pstate);
             } else if (gen_state.guest_pc >= 0x6b5f0 && gen_state.guest_pc <= 0x6b6b8) {
                 uint32_t reserved_mask = 0;

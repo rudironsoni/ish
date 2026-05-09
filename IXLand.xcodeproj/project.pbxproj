@@ -19,7 +19,6 @@
 		10AD73A7896BD675E691B3D7 /* futex.c in Sources */ = {isa = PBXBuildFile; fileRef = D625427CBA8ABE3DB17A57E8 /* futex.c */; };
 		1291A59269FFB9A6EB2D2B35 /* Terminal.m in Sources */ = {isa = PBXBuildFile; fileRef = 278CD94D45A96786F18E17A2 /* Terminal.m */; };
 		139DF9A4BC59503C6271E6A4 /* Settings.bundle in Resources */ = {isa = PBXBuildFile; fileRef = 2A72EF3A789A8F0DE2CDC77C /* Settings.bundle */; };
-		14BC2EE48364771D87513A16 /* libIXLandLinuxRuntime.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CB26B1B5D3A91542EDE0757A /* libIXLandLinuxRuntime.a */; };
 		15D9DFEA387313473B819267 /* pty.c in Sources */ = {isa = PBXBuildFile; fileRef = FA46100FFEA2192849ECD0EC /* pty.c */; };
 		16D5C7BA6565CB2E85616120 /* page_map.c in Sources */ = {isa = PBXBuildFile; fileRef = FFE04D53E24F27B22AEED942 /* page_map.c */; };
 		172D560D3B445315E2C476F4 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = C00B2C9AC9CA72B9701DCBF4 /* LaunchScreen.storyboard */; };
@@ -42,9 +41,7 @@
 		2316DF8A131C1F54408AF528 /* sync.c in Sources */ = {isa = PBXBuildFile; fileRef = 04E3455A2120001274B885A7 /* sync.c */; };
 		23977D5F166C41B12176585C /* tlb.c in Sources */ = {isa = PBXBuildFile; fileRef = 18CC902DD9DCF063888941DD /* tlb.c */; };
 		24C9DF77A164E78F4281888A /* icon.png in Resources */ = {isa = PBXBuildFile; fileRef = 2BE27EB8C25638F130864D5B /* icon.png */; };
-		25A0EA5C1CA800D0005B20A8 /* libIXLandLinuxRuntime.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CB26B1B5D3A91542EDE0757A /* libIXLandLinuxRuntime.a */; };
 		272AB9C8EC83F6964D763113 /* backing_fs.m in Sources */ = {isa = PBXBuildFile; fileRef = 0325D0560A7AC1D6D9CAF7E3 /* backing_fs.m */; };
-		2754921613B72C42CD6337A6 /* libIXLandLinuxRuntime.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CB26B1B5D3A91542EDE0757A /* libIXLandLinuxRuntime.a */; };
 		29098D015A1688CA881B2A44 /* IXLandInstrumentationRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = 46AAD4FDC7F40A099A969EE4 /* IXLandInstrumentationRuntime */; };
 		2C271DD3B9C15FE5336EECB1 /* TerminalCommandEncodingTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 5367C13C823551ED5155CEE2 /* TerminalCommandEncodingTests.m */; };
 		2E464A6E6EF763006B977050 /* GuestTerminalRuntimeTests.m in Sources */ = {isa = PBXBuildFile; fileRef = FF34CA2F59C85D5329FA2CC8 /* GuestTerminalRuntimeTests.m */; };
@@ -251,20 +248,12 @@
 		F960C579FD8B13A685D3BFF5 /* GuestELFHeaderTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 9463A1DBA325E8C92B937FBD /* GuestELFHeaderTests.m */; };
 		F96C854DF31BCCCA15BDE4F3 /* init.c in Sources */ = {isa = PBXBuildFile; fileRef = 7331A2AFB857A36FE4667A3D /* init.c */; };
 		FA92359494D0B5029D4C5F63 /* presenter_bridge.m in Sources */ = {isa = PBXBuildFile; fileRef = EBA2FB817E870DBBD7E6F9E9 /* presenter_bridge.m */; };
-		FBDDA0C2616761F657EE6907 /* libIXLandLinuxRuntime.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CB26B1B5D3A91542EDE0757A /* libIXLandLinuxRuntime.a */; };
 		FD34D5B743A02B788828155E /* uninspired.png in Resources */ = {isa = PBXBuildFile; fileRef = 2434FC18C330673C663D9461 /* uninspired.png */; };
 		FEDF9B1248790A4A8AEFB671 /* tmp.c in Sources */ = {isa = PBXBuildFile; fileRef = 7F77411DE54BB02C07EC592F /* tmp.c */; };
 		FFDB122D07926C3A64204BF8 /* ScrollbarView.m in Sources */ = {isa = PBXBuildFile; fileRef = 642FB10A327A8D7E53E28213 /* ScrollbarView.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		0677CD9281A1A701F2830110 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = A2F6030825E783FA19A7CB4C /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 8B71F48AE7216B5689802404;
-			remoteInfo = IXLandLinuxRuntime;
-		};
 		17B910DB7E24C815E877C99D /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = A2F6030825E783FA19A7CB4C /* Project object */;
@@ -286,12 +275,12 @@
 			remoteGlobalIDString = 1C10AF3D9F0341B987C8E504;
 			remoteInfo = IXLandTerminal;
 		};
-		738145ACAA252FEEF658A6DC /* PBXContainerItemProxy */ = {
+		6A544E2B3EE3B811CA21E028 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = A2F6030825E783FA19A7CB4C /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = 8B71F48AE7216B5689802404;
-			remoteInfo = IXLandLinuxRuntime;
+			remoteGlobalIDString = 1C10AF3D9F0341B987C8E504;
+			remoteInfo = IXLandTerminal;
 		};
 		975904FD040E7B0A7CE700B0 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -299,20 +288,6 @@
 			proxyType = 1;
 			remoteGlobalIDString = 1C10AF3D9F0341B987C8E504;
 			remoteInfo = IXLandTerminal;
-		};
-		BA932476D25159057903301E /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = A2F6030825E783FA19A7CB4C /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 8B71F48AE7216B5689802404;
-			remoteInfo = IXLandLinuxRuntime;
-		};
-		E4BDD2EC7532F1D116F29DD2 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = A2F6030825E783FA19A7CB4C /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 8B71F48AE7216B5689802404;
-			remoteInfo = IXLandLinuxRuntime;
 		};
 		FB4985B85A1ED3B2EB3BD5BF /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -730,7 +705,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				2754921613B72C42CD6337A6 /* libIXLandLinuxRuntime.a in Frameworks */,
 				475047D753FD8A132243D984 /* IXLandInstrumentationRuntime in Frameworks */,
 				AEFF4609C78467D19717527E /* UIKit.framework in Frameworks */,
 				32A30CFA5D6A1ECA24703DD4 /* UniformTypeIdentifiers.framework in Frameworks */,
@@ -741,7 +715,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				14BC2EE48364771D87513A16 /* libIXLandLinuxRuntime.a in Frameworks */,
 				83129F6338CFBEEB30AC3D39 /* IXLandInstrumentationRuntime in Frameworks */,
 				9B608EFE748B5CB06C081F78 /* UIKit.framework in Frameworks */,
 				D3B8C2FA2A6C3E833F27F906 /* UniformTypeIdentifiers.framework in Frameworks */,
@@ -752,7 +725,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				25A0EA5C1CA800D0005B20A8 /* libIXLandLinuxRuntime.a in Frameworks */,
 				DFAB5CE576C49F4A319E4017 /* UIKit.framework in Frameworks */,
 				97B2B6047B545E2A92F91722 /* UniformTypeIdentifiers.framework in Frameworks */,
 			);
@@ -762,7 +734,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FBDDA0C2616761F657EE6907 /* libIXLandLinuxRuntime.a in Frameworks */,
 				222C1DAF603888FADFCC1DE1 /* UIKit.framework in Frameworks */,
 				F90FFEFC23AB6F447FAE988B /* UniformTypeIdentifiers.framework in Frameworks */,
 			);
@@ -1656,7 +1627,6 @@
 			);
 			dependencies = (
 				97DFB69095927CD5D57E6C80 /* PBXTargetDependency */,
-				91517EEA2A6D41C2E9C30AA9 /* PBXTargetDependency */,
 			);
 			name = IXLandLinuxRuntimeSystemTests;
 			packageProductDependencies = (
@@ -1676,7 +1646,7 @@
 			buildRules = (
 			);
 			dependencies = (
-				1C7DD01AA61BA2E5BAAE82E4 /* PBXTargetDependency */,
+				610DCE7C7CE50CFFA3B124B7 /* PBXTargetDependency */,
 			);
 			name = IXLandLinuxRuntimeContractTests;
 			packageProductDependencies = (
@@ -1743,7 +1713,6 @@
 			);
 			dependencies = (
 				19F10853430EDAC1F746EE89 /* PBXTargetDependency */,
-				74DABF569302B90E9F49D1BA /* PBXTargetDependency */,
 			);
 			name = IXLandTerminalUnitTests;
 			packageProductDependencies = (
@@ -1764,7 +1733,6 @@
 			);
 			dependencies = (
 				07B2F49ED031006F9BD50A33 /* PBXTargetDependency */,
-				E1EE53CBED6754E4E42DE5B3 /* PBXTargetDependency */,
 			);
 			name = IXLandLinuxRuntimePerfTests;
 			packageProductDependencies = (
@@ -2225,20 +2193,10 @@
 			target = 1C10AF3D9F0341B987C8E504 /* IXLandTerminal */;
 			targetProxy = 539F002DBF291DD71B46EC91 /* PBXContainerItemProxy */;
 		};
-		1C7DD01AA61BA2E5BAAE82E4 /* PBXTargetDependency */ = {
+		610DCE7C7CE50CFFA3B124B7 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 8B71F48AE7216B5689802404 /* IXLandLinuxRuntime */;
-			targetProxy = 738145ACAA252FEEF658A6DC /* PBXContainerItemProxy */;
-		};
-		74DABF569302B90E9F49D1BA /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 8B71F48AE7216B5689802404 /* IXLandLinuxRuntime */;
-			targetProxy = 0677CD9281A1A701F2830110 /* PBXContainerItemProxy */;
-		};
-		91517EEA2A6D41C2E9C30AA9 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 8B71F48AE7216B5689802404 /* IXLandLinuxRuntime */;
-			targetProxy = E4BDD2EC7532F1D116F29DD2 /* PBXContainerItemProxy */;
+			target = 1C10AF3D9F0341B987C8E504 /* IXLandTerminal */;
+			targetProxy = 6A544E2B3EE3B811CA21E028 /* PBXContainerItemProxy */;
 		};
 		92088530EB7411889AE01D04 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -2249,11 +2207,6 @@
 			isa = PBXTargetDependency;
 			target = 1C10AF3D9F0341B987C8E504 /* IXLandTerminal */;
 			targetProxy = FB4985B85A1ED3B2EB3BD5BF /* PBXContainerItemProxy */;
-		};
-		E1EE53CBED6754E4E42DE5B3 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 8B71F48AE7216B5689802404 /* IXLandLinuxRuntime */;
-			targetProxy = BA932476D25159057903301E /* PBXContainerItemProxy */;
 		};
 		ECD02DDE64ABC13EC8A3330A /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -2366,10 +2319,6 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					"-ObjC",
-				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.ixland.IXLandLinuxRuntimeContractTests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -2438,10 +2387,6 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					"-ObjC",
-				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.ixland.IXLandTerminalUnitTests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -2467,10 +2412,6 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					"-ObjC",
-				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.ixland.IXLandLinuxRuntimeSystemTests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -2495,10 +2436,6 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
-				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					"-ObjC",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.ixland.IXLandLinuxRuntimePerfTests;
 				SDKROOT = iphoneos;
@@ -2771,10 +2708,6 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					"-ObjC",
-				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.ixland.IXLandTerminalUnitTests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -2799,10 +2732,6 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
-				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					"-ObjC",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.ixland.IXLandLinuxRuntimePerfTests;
 				SDKROOT = iphoneos;
@@ -2829,10 +2758,6 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					"-ObjC",
-				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.ixland.IXLandLinuxRuntimeSystemTests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -2855,10 +2780,6 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
-				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					"-ObjC",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.ixland.IXLandLinuxRuntimeContractTests;
 				SDKROOT = iphoneos;

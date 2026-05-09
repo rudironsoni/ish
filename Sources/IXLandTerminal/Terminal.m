@@ -56,6 +56,8 @@ static BOOL terminal_is_running_ui_tests(void) {
 @synthesize webView = _webView;
 
 static const int BUF_SIZE = 1<<14;
+static const NSInteger IXLandMinimumUsableColumns = 20;
+static const NSInteger IXLandMinimumUsableRows = 4;
 
 static NSMapTable<NSNumber *, Terminal *> *terminals;
 static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
@@ -140,6 +142,17 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
 }
 
 - (void)ghosttyHostTerminal:(IXLandGhosttyHostTerminal *)terminal didResizeColumns:(NSInteger)columns rows:(NSInteger)rows {
+    UIView *view = self.webView;
+    CGSize size = view.bounds.size;
+    NSInteger fallbackColumns = size.width >= 8 ? MAX(1, (NSInteger) (size.width / 8)) : 0;
+    NSInteger fallbackRows = size.height >= 16 ? MAX(1, (NSInteger) (size.height / 16)) : 0;
+    if (columns < IXLandMinimumUsableColumns && fallbackColumns >= IXLandMinimumUsableColumns) {
+        columns = fallbackColumns;
+    }
+    if (rows < IXLandMinimumUsableRows && fallbackRows >= IXLandMinimumUsableRows) {
+        rows = fallbackRows;
+    }
+
     struct linux_tty *linuxTTY = nil;
     @synchronized (self) {
         linuxTTY = self.linuxTTY;
@@ -208,6 +221,14 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
     }
     self.focusRequestedBeforeLoad = NO;
     return [self.ghosttyTerminal focus];
+}
+
+- (void)surfaceDidLayout {
+    if (!self.loaded || self.ghosttyTerminal == nil)
+        return;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self.ghosttyTerminal surfaceDidLayout];
+    });
 }
 
 - (void)updateFontSize:(CGFloat)fontSize {
@@ -329,6 +350,7 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
             wait_for_ignore_signals(&_dataConsumed, &_dataLock, NULL);
     }
     [_pendingData appendData:filteredOutput];
+    BOOL shouldRefreshInline = [NSThread isMainThread] && filteredOutput.length > 0 && filteredOutput.length <= 64;
     
     // Trace byte count after queuing
     NSDictionary *queuedAttrs = @{
@@ -336,9 +358,15 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
         @"pending_after": @(_pendingData.length)
     };
     [ISHInstrumentation endInterval:ptyReadInterval attributes:queuedAttrs];
-    
-    [self.refreshTask schedule];
+
     unlock(&_dataLock);
+    if (shouldRefreshInline) {
+        // Echo and prompt bytes that are already on the main thread should not
+        // wait for another runloop turn before painting.
+        [self refresh];
+    } else {
+        [self.refreshTask schedule];
+    }
     return len;
 }
 

@@ -70,6 +70,7 @@ uint64_t tcti_harness_case_musl_gnu_lookup_filtered_malloc(void);
 uint64_t tcti_harness_case_musl_gnu_lookup_dls2b_chain(void);
 uint64_t tcti_harness_case_musl_find_sym_dls2b_from_ldso(void);
 uint64_t tcti_harness_case_musl_find_sym_longjmp_from_ldso(void);
+uint64_t tcti_harness_case_musl_find_sym_siglongjmp_from_ldso(void);
 uint64_t tcti_harness_case_musl_find_sym_accepts_global_func(void);
 uint64_t tcti_harness_case_add_shifted_hot_uses_scratch_carrier(void);
 uint64_t tcti_harness_case_add_extended_uxtw_uses_32bit_operand(void);

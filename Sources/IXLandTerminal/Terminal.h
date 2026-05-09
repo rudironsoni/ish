@@ -27,6 +27,7 @@ struct linux_tty;
 - (BOOL)becomeInputResponder;
 - (BOOL)requestFocus;
 - (BOOL)focusEditableSurface;
+- (void)surfaceDidLayout;
 - (void)syncWindowSizeIfPossible;
 - (void)updateFontSize:(CGFloat)fontSize;
 - (void)updateAppearanceStyle;

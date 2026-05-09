@@ -60,7 +60,7 @@
 
 @implementation TerminalSurfaceAccessibilityElement
 - (BOOL)accessibilityActivate {
-    [self.terminalView becomeFirstResponder];
+    [self.terminalView focusForTesting];
     return YES;
 }
 @end
@@ -76,7 +76,8 @@ struct rowcol {
 @property (nonatomic) NSMutableArray<UIKeyCommand *> *keyCommands;
 @property ScrollbarView *scrollbarView;
 @property (nonatomic) BOOL terminalFocused;
-@property (nonatomic) UITextField *uiTestInputField;
+@property (nonatomic) UITextField *inputBridgeField;
+@property (nonatomic) BOOL usingInputBridge;
 
 @property (nullable) NSString *markedText;
 @property (nullable) NSString *selectedText;
@@ -100,6 +101,10 @@ struct rowcol {
 - (BOOL)isRunningUITests {
     NSDictionary *environment = NSProcessInfo.processInfo.environment;
     return environment[@"XCTestConfigurationFilePath"] != nil || environment[@"IXLAND_UI_TESTING"] != nil;
+}
+
+- (UITextField *)uiTestInputField {
+    return self.inputBridgeField;
 }
 
 - (TerminalTextPosition *)terminalDocumentPosition {
@@ -177,22 +182,23 @@ struct rowcol {
         return;
     self.didCommonInit = YES;
 
-    if ([self isRunningUITests]) {
-        self.uiTestInputField = [[UITextField alloc] initWithFrame:self.bounds];
-        self.uiTestInputField.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-        self.uiTestInputField.accessibilityIdentifier = @"TerminalInput";
-        self.uiTestInputField.autocorrectionType = UITextAutocorrectionTypeNo;
-        self.uiTestInputField.spellCheckingType = UITextSpellCheckingTypeNo;
-        self.uiTestInputField.smartDashesType = UITextSmartDashesTypeNo;
-        self.uiTestInputField.smartInsertDeleteType = UITextSmartInsertDeleteTypeNo;
-        self.uiTestInputField.smartQuotesType = UITextSmartQuotesTypeNo;
-        self.uiTestInputField.returnKeyType = UIReturnKeyDefault;
-        self.uiTestInputField.delegate = self;
-        self.uiTestInputField.backgroundColor = UIColor.clearColor;
-        self.uiTestInputField.textColor = UIColor.clearColor;
-        self.uiTestInputField.tintColor = UIColor.clearColor;
-        self.uiTestInputField.borderStyle = UITextBorderStyleNone;
-        [self addSubview:self.uiTestInputField];
+    self.usingInputBridge = [self isRunningUITests];
+    if (self.usingInputBridge) {
+        self.inputBridgeField = [[UITextField alloc] initWithFrame:CGRectMake(-100, -100, 1, 1)];
+        self.inputBridgeField.accessibilityIdentifier = @"TerminalInput";
+        self.inputBridgeField.autocorrectionType = UITextAutocorrectionTypeNo;
+        self.inputBridgeField.spellCheckingType = UITextSpellCheckingTypeNo;
+        self.inputBridgeField.smartDashesType = UITextSmartDashesTypeNo;
+        self.inputBridgeField.smartInsertDeleteType = UITextSmartInsertDeleteTypeNo;
+        self.inputBridgeField.smartQuotesType = UITextSmartQuotesTypeNo;
+        self.inputBridgeField.returnKeyType = UIReturnKeyDefault;
+        self.inputBridgeField.delegate = self;
+        self.inputBridgeField.backgroundColor = UIColor.clearColor;
+        self.inputBridgeField.textColor = UIColor.clearColor;
+        self.inputBridgeField.tintColor = UIColor.clearColor;
+        self.inputBridgeField.borderStyle = UITextBorderStyleNone;
+        self.inputBridgeField.alpha = 0.01;
+        [self addSubview:self.inputBridgeField];
     }
     self.inputAssistantItem.leadingBarButtonGroups = @[];
     self.inputAssistantItem.trailingBarButtonGroups = @[];
@@ -202,8 +208,8 @@ struct rowcol {
     scrollbarView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     scrollbarView.bounces = NO;
     [self addSubview:scrollbarView];
-    if (self.uiTestInputField != nil) {
-        [self bringSubviewToFront:self.uiTestInputField];
+    if (self.inputBridgeField != nil) {
+        [self bringSubviewToFront:self.inputBridgeField];
     }
 
     UserPreferences *prefs = UserPreferences.shared;
@@ -234,6 +240,7 @@ struct rowcol {
 - (void)layoutSubviews {
     [super layoutSubviews];
     if (self.terminal.loaded) {
+        [self.terminal surfaceDidLayout];
         [self.terminal syncWindowSizeIfPossible];
     }
     if (self.terminalAccessibilityElement) {
@@ -344,12 +351,9 @@ struct rowcol {
     self.scrollbarView.contentView = nil;
     [self addSubview:terminalView];
     [self bringSubviewToFront:terminalView];
-    if (self.uiTestInputField != nil) {
-        [self bringSubviewToFront:self.uiTestInputField];
+    if (self.inputBridgeField != nil) {
+        [self bringSubviewToFront:self.inputBridgeField];
     }
-    dispatch_async(dispatch_get_main_queue(), ^{
-        [self.terminal requestFocus];
-    });
 }
 
 - (void)uninstallTerminalView {
@@ -409,27 +413,37 @@ struct rowcol {
 - (BOOL)becomeFirstResponder {
     self.terminalFocused = YES;
     BOOL focused = NO;
-    if (self.terminal != nil && [self.terminal requestFocus]) {
-        focused = YES;
-    } else {
+    if (self.usingInputBridge && self.inputBridgeField != nil) {
+        self.inputBridgeField.userInteractionEnabled = YES;
+        self.inputBridgeField.enabled = YES;
+        [self bringSubviewToFront:self.inputBridgeField];
+        focused = [self.inputBridgeField becomeFirstResponder];
+    } else if (self.terminal != nil) {
+        focused = [self.terminal requestFocus];
+    }
+    if (!focused) {
         focused = [super becomeFirstResponder];
     }
     _terminalFocused = focused;
-    [self reloadInputViews];
+    if (focused && self.inputBridgeField != nil)
+        [self.inputBridgeField reloadInputViews];
     return focused;
 }
 
 - (BOOL)focusForTesting {
-    if (self.uiTestInputField == nil)
+    if (!self.usingInputBridge || self.inputBridgeField == nil) {
         return [self becomeFirstResponder];
-    self.uiTestInputField.userInteractionEnabled = YES;
-    self.uiTestInputField.enabled = YES;
-    [self bringSubviewToFront:self.uiTestInputField];
-    return [self.uiTestInputField becomeFirstResponder];
+    }
+    self.inputBridgeField.userInteractionEnabled = YES;
+    self.inputBridgeField.enabled = YES;
+    [self bringSubviewToFront:self.inputBridgeField];
+    return [self.inputBridgeField becomeFirstResponder];
 }
 
 - (BOOL)isFirstResponder {
-    return [super isFirstResponder] || self.uiTestInputField.isFirstResponder;
+    BOOL bridgeFirstResponder = self.inputBridgeField != nil && self.inputBridgeField.isFirstResponder;
+    BOOL terminalFirstResponder = self.terminal.webView != nil && self.terminal.webView.isFirstResponder;
+    return [super isFirstResponder] || bridgeFirstResponder || terminalFirstResponder;
 }
 
 - (UIInputView *)inputAccessoryView {
@@ -438,9 +452,9 @@ struct rowcol {
 
 - (void)setInputAccessoryView:(UIInputView *)inputAccessoryView {
     _inputAccessoryView = inputAccessoryView;
-    self.uiTestInputField.inputAccessoryView = inputAccessoryView;
-    if (self.uiTestInputField.isFirstResponder) {
-        [self.uiTestInputField reloadInputViews];
+    self.inputBridgeField.inputAccessoryView = inputAccessoryView;
+    if (self.inputBridgeField != nil && self.inputBridgeField.isFirstResponder) {
+        [self.inputBridgeField reloadInputViews];
     }
 }
 
@@ -459,8 +473,11 @@ struct rowcol {
 }
 - (BOOL)resignFirstResponder {
     self.terminalFocused = NO;
-    if (self.uiTestInputField.isFirstResponder) {
-        return [self.uiTestInputField resignFirstResponder];
+    if (self.inputBridgeField != nil && self.inputBridgeField.isFirstResponder) {
+        return [self.inputBridgeField resignFirstResponder];
+    }
+    if (self.terminal.webView != nil && self.terminal.webView.isFirstResponder) {
+        return [self.terminal.webView resignFirstResponder];
     }
     return [super resignFirstResponder];
 }
@@ -591,8 +608,36 @@ struct rowcol {
 
 #pragma mark IME Input and Selection
 
+- (BOOL)shouldCommitMarkedTextImmediately:(NSString *)markedText
+                            selectedRange:(NSRange)selectedRange {
+    if (markedText.length == 0)
+        return NO;
+    if (selectedRange.length != 0 || selectedRange.location != markedText.length)
+        return NO;
+
+    __block BOOL shouldCommit = YES;
+    [markedText enumerateSubstringsInRange:NSMakeRange(0, markedText.length)
+                                   options:NSStringEnumerationByComposedCharacterSequences
+                                usingBlock:^(NSString * _Nullable substring, NSRange substringRange,
+                                             NSRange enclosingRange, BOOL * _Nonnull stop) {
+        (void) substringRange;
+        (void) enclosingRange;
+        if (substring.length == 0)
+            return;
+
+        unichar first = [substring characterAtIndex:0];
+        BOOL isASCIIControl = first == '\n' || first == '\r' || first == '\t';
+        BOOL isASCIIPrintable = first >= 0x20 && first <= 0x7e;
+        if (substring.length != 1 || (!isASCIIPrintable && !isASCIIControl)) {
+            shouldCommit = NO;
+            *stop = YES;
+        }
+    }];
+    return shouldCommit;
+}
+
 - (void)setMarkedText:(nullable NSString *)markedText selectedRange:(NSRange)selectedRange {
-    if (markedText.length == 1 && selectedRange.location == 1 && selectedRange.length == 0) {
+    if ([self shouldCommitMarkedTextImmediately:markedText selectedRange:selectedRange]) {
         self.suppressNextMarkedTextCommit = YES;
         self.markedText = nil;
         [self insertText:markedText];
@@ -1020,7 +1065,7 @@ static const char *metaKeys = "abcdefghijklmnopqrstuvwxyz0123456789-=[]\\;',./";
 
 - (NSArray *)accessibilityElements {
     if ([self isRunningUITests]) {
-        return self.uiTestInputField != nil ? @[self.terminalAccessibilityElement, self.uiTestInputField] : @[self.terminalAccessibilityElement];
+        return self.inputBridgeField != nil ? @[self.terminalAccessibilityElement, self.inputBridgeField] : @[self.terminalAccessibilityElement];
     }
     // Always expose only the TerminalView-owned accessibility proxy. Do not
     // also expose the WKWebView or create window-level synthetic elements.

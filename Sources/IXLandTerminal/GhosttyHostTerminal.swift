@@ -2,6 +2,52 @@ import Foundation
 import UIKit
 import GhosttyTerminal
 
+private func ixlandColor(from hex: String) -> UIColor? {
+    guard hex.hasPrefix("#") else { return nil }
+    var value: UInt64 = 0
+    let scanner = Scanner(string: hex)
+    scanner.currentIndex = hex.index(after: hex.startIndex)
+    guard scanner.scanHexInt64(&value), scanner.currentIndex == hex.endIndex else {
+        return nil
+    }
+
+    let red: UInt64
+    let green: UInt64
+    let blue: UInt64
+    let alpha: UInt64
+    switch hex.count {
+    case 4:
+        red = ((value & 0xF00) >> 8) * 0x11
+        green = ((value & 0x0F0) >> 4) * 0x11
+        blue = (value & 0x00F) * 0x11
+        alpha = 0xFF
+    case 5:
+        red = ((value & 0xF000) >> 12) * 0x11
+        green = ((value & 0x0F00) >> 8) * 0x11
+        blue = ((value & 0x00F0) >> 4) * 0x11
+        alpha = (value & 0x000F) * 0x11
+    case 7:
+        red = (value & 0xFF0000) >> 16
+        green = (value & 0x00FF00) >> 8
+        blue = value & 0x0000FF
+        alpha = 0xFF
+    case 9:
+        red = (value & 0xFF000000) >> 24
+        green = (value & 0x00FF0000) >> 16
+        blue = (value & 0x0000FF00) >> 8
+        alpha = value & 0x000000FF
+    default:
+        return nil
+    }
+
+    return UIColor(
+        red: CGFloat(red) / 255.0,
+        green: CGFloat(green) / 255.0,
+        blue: CGFloat(blue) / 255.0,
+        alpha: CGFloat(alpha) / 255.0
+    )
+}
+
 @objc public protocol IXLandGhosttyHostTerminalDelegate: AnyObject {
     func ghosttyHostTerminal(_ terminal: IXLandGhosttyHostTerminal, didReceiveInput data: Data)
     @objc(ghosttyHostTerminal:didResizeColumns:rows:)
@@ -13,12 +59,14 @@ public final class IXLandGhosttyHostTerminal: NSObject {
     @objc public private(set) var terminalView: GhosttyTerminal.TerminalView!
     private var session: InMemoryTerminalSession!
     private var isReceivingOutput = false
-    private var isSurfaceReady = false
+    private var hasViewportMetrics = false
     private var navigationButton: IXLandGhosttyNavigationButton?
-    private var focusTapRecognizer: UITapGestureRecognizer?
     private var pendingTerminalControlBytes = Data()
     private var pendingTerminalStatusBytes = Data()
     private var pendingOutputBytes = Data()
+    private var renderTickScheduled = false
+    private var renderTickNeedsMetricsSync = false
+    private var renderTickNeedsFollowup = false
 
     @objc public weak var delegate: (any IXLandGhosttyHostTerminalDelegate)?
 
@@ -46,7 +94,7 @@ public final class IXLandGhosttyHostTerminal: NSObject {
             let rows = Int(viewport.rows)
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                self.isSurfaceReady = true
+                self.hasViewportMetrics = columns > 0 && rows > 0
                 self.flushPendingOutputIfPossible()
                 self.delegate?.ghosttyHostTerminal(self, didResize: columns, rows: rows)
             }
@@ -61,8 +109,8 @@ public final class IXLandGhosttyHostTerminal: NSObject {
         let terminalView = GhosttyTerminal.TerminalView(frame: .zero)
         terminalView.controller = controller
         terminalView.configuration = options
-        terminalView.backgroundColor = .clear
-        terminalView.isOpaque = false
+        terminalView.backgroundColor = .black
+        terminalView.isOpaque = true
         #if !targetEnvironment(macCatalyst)
         terminalView.inputAccessoryStyle = TerminalInputAccessoryStyle(
             regularBackground: UIColor(white: 0.16, alpha: 0.94),
@@ -74,10 +122,10 @@ public final class IXLandGhosttyHostTerminal: NSObject {
 
         self.terminalView = terminalView
         self.view = terminalView
-        installFocusTapRecognizer()
         installNavigationAccessoryButton()
     }
 
+    @MainActor
     @objc public func receiveOutput(_ data: Data) {
         isReceivingOutput = true
         defer { isReceivingOutput = false }
@@ -86,18 +134,16 @@ public final class IXLandGhosttyHostTerminal: NSObject {
             return
         }
 
-        if terminalView.window == nil {
-            isSurfaceReady = false
-        }
-
-        if !isSurfaceReady {
+        if !canRenderOutput {
             pendingOutputBytes.append(filtered)
             return
         }
 
         session.receive(filtered)
+        requestRenderTick(metricsMayBeDirty: false, needsFollowup: true)
     }
 
+    @MainActor
     @objc public func receiveOutputString(_ string: String) {
         guard let data = string.data(using: .utf8) else {
             return
@@ -120,6 +166,12 @@ public final class IXLandGhosttyHostTerminal: NSObject {
         installNavigationAccessoryButton()
         flushPendingOutputIfPossible()
         return focused
+    }
+
+    @MainActor
+    @objc public func surfaceDidLayout() {
+        requestRenderTick(metricsMayBeDirty: true, needsFollowup: false)
+        flushPendingOutputIfPossible()
     }
 
     @MainActor
@@ -152,37 +204,59 @@ public final class IXLandGhosttyHostTerminal: NSObject {
         }
         controller.setTheme(TerminalTheme(light: config, dark: config))
         controller.setColorScheme(darkAppearance ? .dark : .light)
-        terminalView.backgroundColor = .clear
-        terminalView.isOpaque = false
+        terminalView.backgroundColor = ixlandColor(from: backgroundHex) ?? (darkAppearance ? .black : .white)
+        terminalView.isOpaque = true
     }
 
     @MainActor
     private func flushPendingOutputIfPossible() {
-        guard isSurfaceReady, terminalView.window != nil, !pendingOutputBytes.isEmpty else {
+        guard canRenderOutput, !pendingOutputBytes.isEmpty else {
             return
         }
         let bufferedOutput = pendingOutputBytes
         pendingOutputBytes.removeAll(keepingCapacity: true)
         session.receive(bufferedOutput)
+        requestRenderTick(metricsMayBeDirty: true, needsFollowup: true)
     }
 
     @MainActor
-    private func installFocusTapRecognizer() {
-        let recognizer = UITapGestureRecognizer(target: self, action: #selector(handleFocusTap(_:)))
-        recognizer.cancelsTouchesInView = false
-        recognizer.delaysTouchesBegan = false
-        recognizer.delaysTouchesEnded = false
-        terminalView.addGestureRecognizer(recognizer)
-        focusTapRecognizer = recognizer
+    private var canRenderOutput: Bool {
+        guard terminalView.window != nil else {
+            return false
+        }
+        let bounds = terminalView.bounds.integral
+        guard bounds.width > 0, bounds.height > 0 else {
+            return false
+        }
+        return hasViewportMetrics
     }
 
     @MainActor
-    @objc private func handleFocusTap(_ recognizer: UITapGestureRecognizer) {
-        guard recognizer.state == .ended else {
+    private func requestRenderTick(metricsMayBeDirty: Bool, needsFollowup: Bool) {
+        guard terminalView.window != nil else {
             return
         }
+        renderTickNeedsMetricsSync = renderTickNeedsMetricsSync || metricsMayBeDirty
+        renderTickNeedsFollowup = renderTickNeedsFollowup || needsFollowup
+        if renderTickScheduled {
+            return
+        }
+        renderTickScheduled = true
         DispatchQueue.main.async { [weak self] in
-            _ = self?.focus()
+            guard let self else { return }
+            self.renderTickScheduled = false
+            guard self.terminalView.window != nil else {
+                return
+            }
+            let shouldSyncMetrics = self.renderTickNeedsMetricsSync
+            let shouldRunFollowup = self.renderTickNeedsFollowup
+            self.renderTickNeedsMetricsSync = false
+            self.renderTickNeedsFollowup = false
+            _ = shouldSyncMetrics
+            self.terminalView.fitToSize()
+            if shouldRunFollowup {
+                self.requestRenderTick(metricsMayBeDirty: false, needsFollowup: false)
+            }
         }
     }
 

@@ -356,6 +356,13 @@
                     @"error-relocation path.");
 }
 
+- (void)testSemanticExecutionContract_MuslFindSymSiglongjmpFromLdso
+{
+    XCTAssertEqual(tcti_harness_case_musl_find_sym_siglongjmp_from_ldso(), 0ULL,
+                   @"TCTI must execute musl find_sym for siglongjmp so the live Alpine BusyBox "
+                    @"loader path resolves the next-DSO symbol instead of spinning.");
+}
+
 - (void)testSemanticExecutionContract_MuslFindSymAcceptsGlobalFunc
 {
     XCTAssertEqual(tcti_harness_case_musl_find_sym_accepts_global_func(), 0ULL,

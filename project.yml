@@ -121,7 +121,6 @@ targets:
       buildPhase: resources
     dependencies:
     - target: IXLandTerminal
-    - target: IXLandLinuxRuntime
     - package: IXLandInstrumentation
       product: IXLandInstrumentationRuntime
     - sdk: UIKit.framework
@@ -148,7 +147,7 @@ targets:
       - "**/DISABLED/**"
     - path: Tests/Support/TCTITestHarness/tcti_harness_truth.c
     dependencies:
-    - target: IXLandLinuxRuntime
+    - target: IXLandTerminal
     - sdk: UIKit.framework
     - sdk: UniformTypeIdentifiers.framework
     settings:
@@ -177,7 +176,6 @@ targets:
       buildPhase: resources
     dependencies:
     - target: IXLandTerminal
-    - target: IXLandLinuxRuntime
     - package: IXLandInstrumentation
       product: IXLandInstrumentationRuntime
     - sdk: UIKit.framework
@@ -293,7 +291,6 @@ targets:
     - Tests/IXLandTerminalUnitTests
     dependencies:
     - target: IXLandTerminal
-    - target: IXLandLinuxRuntime
     - sdk: UIKit.framework
     - sdk: UniformTypeIdentifiers.framework
     settings:

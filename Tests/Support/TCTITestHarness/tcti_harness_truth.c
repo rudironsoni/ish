@@ -2665,7 +2665,7 @@ uint64_t tcti_harness_case_musl_gnu_lookup_dls2b_chain(void)
 
     struct mem mem;
     mem_init(&mem);
-    if (pt_map_nothing(&mem, PAGE(hashtab_addr), 2, P_READ | P_WRITE) < 0 ||
+    if (pt_map_nothing(&mem, PAGE(hashtab_addr), 4, P_READ | P_WRITE) < 0 ||
         pt_map_nothing(&mem, PAGE(dso_addr), 1, P_READ | P_WRITE) < 0 ||
         pt_map_nothing(&mem, PAGE(symtab_addr), 1, P_READ | P_WRITE) < 0 ||
         pt_map_nothing(&mem, PAGE(strings_addr), 1, P_READ | P_WRITE) < 0 ||
@@ -2783,8 +2783,8 @@ uint64_t tcti_harness_case_musl_find_sym_dls2b_from_ldso(void)
         dso_addr = 0x123000,
         symtab_addr = 0x124000,
         strings_addr = 0x126000,
-        name_addr = 0x127000,
-        stack_addr = 0x128000,
+        name_addr = 0x128000,
+        stack_addr = 0x129000,
         sym_size = 24,
         symoffset = 3,
         nbuckets = 1011,
@@ -3078,6 +3078,191 @@ uint64_t tcti_harness_case_musl_find_sym_longjmp_from_ldso(void)
     }
 
     uint64_t expected = symtab_addr + target_sym * sym_size;
+    for (unsigned step = 0; step < 512; step++) {
+        if (cpu.pc == return_pc)
+            break;
+
+        const uint32_t *insns = NULL;
+        uint64_t text_base = 0;
+        uint64_t text_end = 0;
+        if (cpu.pc >= find_sym_base && cpu.pc < find_sym_end) {
+            text_base = find_sym_base;
+            text_end = find_sym_end;
+            insns = find_sym_insns;
+        } else if (cpu.pc >= lookup_base && cpu.pc < lookup_end) {
+            text_base = lookup_base;
+            text_end = lookup_end;
+            insns = lookup_insns;
+        } else {
+            uint64_t result = 0x1000000000000000ULL | cpu.pc;
+            mem_destroy(&mem);
+            return result;
+        }
+        if (((cpu.pc - text_base) & 3) != 0) {
+            uint64_t result = 0x2000000000000000ULL | cpu.pc;
+            mem_destroy(&mem);
+            return result;
+        }
+
+        size_t index = (size_t)((cpu.pc - text_base) / 4);
+        uint64_t old_pc = cpu.pc;
+        int run_ret = tcti_harness_run_generated_block(&cpu, cpu.pc, &insns[index], 1);
+        if (run_ret < 0) {
+            mem_destroy(&mem);
+            return 0x3000000000000000ULL | (((uint64_t)(uint8_t)(-run_ret)) << 48) | old_pc;
+        }
+        if (cpu.pc == old_pc)
+            cpu.pc += 4;
+    }
+
+    uint64_t result = cpu.x[0] == expected ? 0 : (0x4000000000000000ULL | cpu.x[0]);
+    mem_destroy(&mem);
+    return result;
+}
+
+uint64_t tcti_harness_case_musl_find_sym_siglongjmp_from_ldso(void)
+{
+    enum {
+        find_sym_base = 0x69f28,
+        find_sym_end = 0x6a068,
+        lookup_base = 0x69884,
+        lookup_end = 0x69968,
+        return_pc = 0x6a068,
+        root_hashtab_addr = 0x120000,
+        next_hashtab_addr = 0x121000,
+        root_dso_addr = 0x122000,
+        next_dso_addr = 0x122100,
+        root_symtab_addr = 0x123000,
+        next_symtab_addr = 0x124000,
+        root_strings_addr = 0x125000,
+        next_strings_addr = 0x126000,
+        name_addr = 0x127000,
+        stack_addr = 0x128000,
+        sym_size = 24,
+        symoffset = 1,
+        nbuckets = 8,
+        bloom_size = 1,
+        bloom_shift = 14,
+        target_sym = 2,
+        target_value = 0x5234c,
+        target_name_offset = 0x20,
+    };
+
+    static const uint32_t find_sym_insns[] = {
+        0xa9bc7bfd, 0xaa0003ef, 0xaa0103f2, 0x910003fd, 0xaa0103e3, 0x5282a0ad, 0xa90153f3,
+        0x2a0203f4, 0xa9025bf5, 0xf9001bf7, 0x14000004, 0x0b0d15ad, 0x91000463, 0x0b0d002d,
+        0x39400061, 0x35ffff81, 0xd2800033, 0x53067db5, 0x9acd2273, 0x5280000e, 0x528080d6,
+        0x52800cf7, 0x14000024, 0x340001ce, 0xaa0f03e2, 0x2a0e03e1, 0xaa1203e0, 0x97fffe1c,
+        0x14000027, 0x0b0e1021, 0x91000400, 0x12040c2e, 0x4a4e602e, 0x39400001, 0x35ffff61,
+        0x12006dce, 0x17fffff4, 0xaa1203e0, 0x17fffffb, 0xf9400402, 0x39401001, 0xb50001a2,
+        0x12000c22, 0x7100185f, 0x540001a1, 0x53047c21, 0x1ac12ac1, 0x36000141, 0xf9401bf7,
+        0xaa0f03e1, 0xa94153f3, 0xa9425bf5, 0xa8c47bfd, 0xd65f03c0, 0x12000c22, 0x1ac22ae2,
+        0x3707fea2, 0xf94035ef, 0xb400028f, 0xf94029e1, 0xb4fffb61, 0xaa1303e5, 0x2a1503e4,
+        0xaa1203e3, 0xaa0f03e2, 0x2a0d03e0, 0x97fffe15, 0xb4fffec0, 0x79400c01, 0x35fffc41,
+        0x35fffe74, 0x39401001, 0x12000c22, 0x7100185f, 0x54fffde0, 0xf9400403, 0xb4fffda3,
+        0x17ffffea, 0xd2800000, 0x17ffffe1,
+    };
+    static const uint32_t lookup_insns[] = {
+        0xb9400826, 0x2a0003ea, 0x510004c0, 0x0a040000, 0xd2800204, 0x8b204c80, 0xf8606820,
+        0xea05001f, 0x540005e0, 0xb9400c24, 0x1ac42544, 0x9ac42404, 0xd2800000, 0x36000564,
+        0xb9400025, 0xd37d7cc4, 0x91004084, 0x8b040024, 0x1ac50946, 0x1b05a8c6, 0xb8667888,
+        0x34000468, 0xb9400420, 0x3200014a, 0x5280030b, 0x4b000100, 0x8b254005, 0x8b050885,
+        0x14000004, 0x37000346, 0x910010a5, 0x11000508, 0xb94000a6, 0x320000c0, 0x6b00015f,
+        0x54ffff41, 0xf9402c41, 0x2a0803e0, 0xb4000061, 0x78e07821, 0x37fffea1, 0xf9402044,
+        0x9bab7c01, 0xf9403049, 0x8b010080, 0xb8616881, 0x8b010129, 0xd2800001, 0x38616864,
+        0x38616927, 0x6b07009f, 0x54fffd41, 0x91000421, 0x35ffff64, 0x14000002, 0xd2800000,
+        0xd65f03c0,
+    };
+
+    struct mem mem;
+    mem_init(&mem);
+    if (pt_map_nothing(&mem, PAGE(root_hashtab_addr), 2, P_READ | P_WRITE) < 0 ||
+        pt_map_nothing(&mem, PAGE(root_dso_addr), 1, P_READ | P_WRITE) < 0 ||
+        pt_map_nothing(&mem, PAGE(root_symtab_addr), 1, P_READ | P_WRITE) < 0 ||
+        pt_map_nothing(&mem, PAGE(next_symtab_addr), 1, P_READ | P_WRITE) < 0 ||
+        pt_map_nothing(&mem, PAGE(root_strings_addr), 1, P_READ | P_WRITE) < 0 ||
+        pt_map_nothing(&mem, PAGE(next_strings_addr), 1, P_READ | P_WRITE) < 0 ||
+        pt_map_nothing(&mem, PAGE(name_addr), 1, P_READ | P_WRITE) < 0 ||
+        pt_map_nothing(&mem, PAGE(stack_addr), 1, P_READ | P_WRITE) < 0) {
+        mem_destroy(&mem);
+        return UINT64_MAX;
+    }
+
+    struct tlb tlb = {};
+    tlb_refresh(&tlb, &mem.mmu);
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.mmu = &mem.mmu;
+    cpu.tlb = &tlb;
+    cpu.pc = find_sym_base;
+    cpu.sp = stack_addr + 0x800;
+    cpu.x[0] = root_dso_addr;
+    cpu.x[1] = name_addr;
+    cpu.x[2] = 0;
+    cpu.x[30] = return_pc;
+
+    const char target_name[] = "siglongjmp";
+    for (size_t j = 0; j < sizeof(target_name); j++) {
+        if (a64_guest_write8(&cpu, &tlb, next_strings_addr + target_name_offset + j,
+                             (uint8_t)target_name[j]) != A64_MEM_OK ||
+            a64_guest_write8(&cpu, &tlb, name_addr + j, (uint8_t)target_name[j]) != A64_MEM_OK) {
+            mem_destroy(&mem);
+            return UINT64_MAX - 1;
+        }
+    }
+
+    uint32_t hash = tcti_harness_musl_gnu_hash_expected(target_name);
+    uint32_t bucket_index = hash % nbuckets;
+    uint32_t fofs = hash / 64;
+    uint32_t bloom_index = fofs & (bloom_size - 1);
+    size_t fmask = (size_t)1 << (hash % 64);
+    size_t bloom = fmask | ((size_t)1 << ((hash >> bloom_shift) % 64));
+    uint64_t root_bloom_addr = root_hashtab_addr + 16;
+    uint64_t bloom_addr = next_hashtab_addr + 16;
+    uint64_t root_buckets_addr = root_bloom_addr + bloom_size * 8;
+    uint64_t buckets_addr = bloom_addr + bloom_size * 8;
+    uint64_t chains_addr = buckets_addr + nbuckets * 4;
+
+    if (a64_guest_write32(&cpu, &tlb, root_hashtab_addr + 0, nbuckets) != A64_MEM_OK ||
+        a64_guest_write32(&cpu, &tlb, root_hashtab_addr + 4, symoffset) != A64_MEM_OK ||
+        a64_guest_write32(&cpu, &tlb, root_hashtab_addr + 8, bloom_size) != A64_MEM_OK ||
+        a64_guest_write32(&cpu, &tlb, root_hashtab_addr + 12, bloom_shift) != A64_MEM_OK ||
+        a64_guest_write64(&cpu, &tlb, root_bloom_addr, 0) != A64_MEM_OK ||
+        a64_guest_write32(&cpu, &tlb, root_buckets_addr + bucket_index * 4, 0) != A64_MEM_OK ||
+        a64_guest_write64(&cpu, &tlb, root_dso_addr + 0x40, root_symtab_addr) != A64_MEM_OK ||
+        a64_guest_write64(&cpu, &tlb, root_dso_addr + 0x50, root_hashtab_addr) != A64_MEM_OK ||
+        a64_guest_write64(&cpu, &tlb, root_dso_addr + 0x58, 0) != A64_MEM_OK ||
+        a64_guest_write64(&cpu, &tlb, root_dso_addr + 0x60, root_strings_addr) != A64_MEM_OK ||
+        a64_guest_write64(&cpu, &tlb, root_dso_addr + 0x68, next_dso_addr) != A64_MEM_OK ||
+        a64_guest_write64(&cpu, &tlb, root_dso_addr + 0xb0, 0) != A64_MEM_OK ||
+        a64_guest_write32(&cpu, &tlb, next_hashtab_addr + 0, nbuckets) != A64_MEM_OK ||
+        a64_guest_write32(&cpu, &tlb, next_hashtab_addr + 4, symoffset) != A64_MEM_OK ||
+        a64_guest_write32(&cpu, &tlb, next_hashtab_addr + 8, bloom_size) != A64_MEM_OK ||
+        a64_guest_write32(&cpu, &tlb, next_hashtab_addr + 12, bloom_shift) != A64_MEM_OK ||
+        a64_guest_write64(&cpu, &tlb, bloom_addr + bloom_index * 8, bloom) != A64_MEM_OK ||
+        a64_guest_write32(&cpu, &tlb, buckets_addr + bucket_index * 4, target_sym) != A64_MEM_OK ||
+        a64_guest_write32(&cpu, &tlb, chains_addr + (target_sym - symoffset) * 4, hash | 1u) !=
+            A64_MEM_OK ||
+        a64_guest_write64(&cpu, &tlb, next_dso_addr + 0x40, next_symtab_addr) != A64_MEM_OK ||
+        a64_guest_write64(&cpu, &tlb, next_dso_addr + 0x50, next_hashtab_addr) != A64_MEM_OK ||
+        a64_guest_write64(&cpu, &tlb, next_dso_addr + 0x58, 0) != A64_MEM_OK ||
+        a64_guest_write64(&cpu, &tlb, next_dso_addr + 0x60, next_strings_addr) != A64_MEM_OK ||
+        a64_guest_write64(&cpu, &tlb, next_dso_addr + 0x68, 0) != A64_MEM_OK ||
+        a64_guest_write64(&cpu, &tlb, next_dso_addr + 0xb0, 0) != A64_MEM_OK ||
+        a64_guest_write32(&cpu, &tlb, next_symtab_addr + target_sym * sym_size, target_name_offset) !=
+            A64_MEM_OK ||
+        a64_guest_write8(&cpu, &tlb, next_symtab_addr + target_sym * sym_size + 4, 0x12) !=
+            A64_MEM_OK ||
+        a64_guest_write16(&cpu, &tlb, next_symtab_addr + target_sym * sym_size + 6, 10) !=
+            A64_MEM_OK ||
+        a64_guest_write64(&cpu, &tlb, next_symtab_addr + target_sym * sym_size + 8, target_value) !=
+            A64_MEM_OK) {
+        mem_destroy(&mem);
+        return UINT64_MAX - 2;
+    }
+
+    uint64_t expected = next_symtab_addr + target_sym * sym_size;
     for (unsigned step = 0; step < 512; step++) {
         if (cpu.pc == return_pc)
             break;

@@ -11,7 +11,7 @@
 
 @property id target;
 @property SEL action;
-@property NSTimer *timer;
+@property (nonatomic) BOOL scheduled;
 
 @end
 
@@ -26,13 +26,13 @@
 }
 
 - (void)schedule {
-    if (!self.timer.valid) {
-        self.timer = [NSTimer timerWithTimeInterval:1./60 repeats:NO block:^(NSTimer * _Nonnull timer) {
-            self.timer = nil;
-            ((void (*)(id, SEL)) [self.target methodForSelector:self.action])(self.target, self.action);
-        }];
-        [NSRunLoop.mainRunLoop addTimer:self.timer forMode:NSRunLoopCommonModes];
-    }
+    if (self.scheduled)
+        return;
+    self.scheduled = YES;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        self.scheduled = NO;
+        ((void (*)(id, SEL)) [self.target methodForSelector:self.action])(self.target, self.action);
+    });
 }
 
 @end

@@ -24,6 +24,14 @@ extern bool exit_should_pthread_exit;
 
 @implementation GuestBusyboxLsReproTests
 
+- (void)runOnMainThreadSync:(dispatch_block_t)block {
+    if ([NSThread isMainThread]) {
+        block();
+        return;
+    }
+    dispatch_sync(dispatch_get_main_queue(), block);
+}
+
 - (void)configureFocusedTraceLevel {
     setenv("IXLAND_TRACE_LEVEL", "debug", 1);
     trace_config_set_level_from_string("debug");
@@ -139,6 +147,9 @@ extern bool exit_should_pthread_exit;
         "HOME=/root\0"
         "USER=root\0"
         "LOGNAME=root\0"
+        "HISTFILE=/dev/null\0"
+        "HISTSIZE=0\0"
+        "HISTFILESIZE=0\0"
         "SHELL=/bin/sh\0"
         "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\0"
         "\0";
@@ -151,11 +162,11 @@ extern bool exit_should_pthread_exit;
 
 - (TerminalView *)configuredTerminalViewForTerminal:(Terminal *)terminal {
     __block TerminalView *view = nil;
-    dispatch_sync(dispatch_get_main_queue(), ^{
+    [self runOnMainThreadSync:^{
         view = [[TerminalView alloc] initWithFrame:CGRectMake(0, 0, 320, 480)];
         view.terminal = terminal;
         [view layoutIfNeeded];
-    });
+    }];
     return view;
 }
 
@@ -656,9 +667,9 @@ extern bool exit_should_pthread_exit;
 
     TerminalView *view = [self configuredTerminalViewForTerminal:terminal];
 
-    dispatch_sync(dispatch_get_main_queue(), ^{
+    [self runOnMainThreadSync:^{
         [view insertText:@"ls -a /\n"];
-    });
+    }];
 
     NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:30.0];
     NSString *lastObserved = @"";
@@ -787,9 +798,9 @@ extern bool exit_should_pthread_exit;
 
     TerminalView *view = [self configuredTerminalViewForTerminal:terminal];
 
-    dispatch_sync(dispatch_get_main_queue(), ^{
+    [self runOnMainThreadSync:^{
         [view focusForTesting];
-    });
+    }];
 
     NSDate *promptDeadline = [NSDate dateWithTimeIntervalSinceNow:60.0];
     while ([promptDeadline timeIntervalSinceNow] > 0) {
@@ -833,7 +844,7 @@ extern bool exit_should_pthread_exit;
         return;
     }
 
-    dispatch_sync(dispatch_get_main_queue(), ^{
+    [self runOnMainThreadSync:^{
         TerminalView *view = [self configuredTerminalViewForTerminal:terminal];
         UITextField *inputField = [view valueForKey:@"uiTestInputField"];
         XCTAssertNotNil(inputField, @"uiTestInputField must exist in test mode");
@@ -844,7 +855,7 @@ extern bool exit_should_pthread_exit;
             NSString *piece = [NSString stringWithCharacters:&ch length:1];
             [inputField insertText:piece];
         }
-    });
+    }];
 
     NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:30.0];
     NSString *lastObserved = @"";
@@ -910,10 +921,10 @@ extern bool exit_should_pthread_exit;
 
     TerminalView *view = [self configuredTerminalViewForTerminal:terminal];
 
-    dispatch_sync(dispatch_get_main_queue(), ^{
+    [self runOnMainThreadSync:^{
         [view focusForTesting];
         [view insertText:@"ls -a /\n"];
-    });
+    }];
 
     NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:30.0];
     NSString *lastObserved = @"";

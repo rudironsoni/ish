@@ -467,9 +467,6 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
     if ([self isRunningUITests]) {
         return [self.termView focusForTesting];
     }
-    if (self.terminal != nil && [self.terminal requestFocus]) {
-        return YES;
-    }
     return [self.termView becomeFirstResponder];
 }
 
@@ -788,6 +785,9 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
                        "HOME=/root\0"
                        "USER=root\0"
                        "LOGNAME=root\0"
+                       "HISTFILE=/dev/null\0"
+                       "HISTSIZE=0\0"
+                       "HISTFILESIZE=0\0"
                        "SHELL=/bin/sh\0"
                        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\0";
     NSString *execPath = command.firstObject;
