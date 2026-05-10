@@ -63,6 +63,11 @@
     [self.terminalView focusForTesting];
     return YES;
 }
+
+- (NSString *)accessibilityValue {
+    NSString *terminalText = [self.terminalView.terminal screenTextForTesting];
+    return terminalText.length > 0 ? terminalText : @"No terminal output";
+}
 @end
 
 struct rowcol {
@@ -182,24 +187,29 @@ struct rowcol {
         return;
     self.didCommonInit = YES;
 
-    self.usingInputBridge = [self isRunningUITests];
-    if (self.usingInputBridge) {
-        self.inputBridgeField = [[UITextField alloc] initWithFrame:CGRectMake(-100, -100, 1, 1)];
-        self.inputBridgeField.accessibilityIdentifier = @"TerminalInput";
-        self.inputBridgeField.autocorrectionType = UITextAutocorrectionTypeNo;
-        self.inputBridgeField.spellCheckingType = UITextSpellCheckingTypeNo;
-        self.inputBridgeField.smartDashesType = UITextSmartDashesTypeNo;
-        self.inputBridgeField.smartInsertDeleteType = UITextSmartInsertDeleteTypeNo;
-        self.inputBridgeField.smartQuotesType = UITextSmartQuotesTypeNo;
-        self.inputBridgeField.returnKeyType = UIReturnKeyDefault;
-        self.inputBridgeField.delegate = self;
-        self.inputBridgeField.backgroundColor = UIColor.clearColor;
-        self.inputBridgeField.textColor = UIColor.clearColor;
-        self.inputBridgeField.tintColor = UIColor.clearColor;
-        self.inputBridgeField.borderStyle = UITextBorderStyleNone;
-        self.inputBridgeField.alpha = 0.01;
-        [self addSubview:self.inputBridgeField];
-    }
+    // Keep UIKit text input as the owning software-keyboard path for both
+    // tests and normal app launches. Ghostty remains the render surface, but
+    // the hidden bridge avoids delayed marked-text commits and responder-path
+    // differences between XCTest and manual use.
+    self.usingInputBridge = YES;
+    self.inputBridgeField = [[UITextField alloc] initWithFrame:CGRectMake(-100, -100, 1, 1)];
+    self.inputBridgeField.accessibilityIdentifier = @"TerminalInput";
+    self.inputBridgeField.autocorrectionType = UITextAutocorrectionTypeNo;
+    self.inputBridgeField.spellCheckingType = UITextSpellCheckingTypeNo;
+    self.inputBridgeField.smartDashesType = UITextSmartDashesTypeNo;
+    self.inputBridgeField.smartInsertDeleteType = UITextSmartInsertDeleteTypeNo;
+    self.inputBridgeField.smartQuotesType = UITextSmartQuotesTypeNo;
+    self.inputBridgeField.returnKeyType = UIReturnKeyDefault;
+    self.inputBridgeField.delegate = self;
+    self.inputBridgeField.backgroundColor = UIColor.clearColor;
+    self.inputBridgeField.textColor = UIColor.clearColor;
+    self.inputBridgeField.tintColor = UIColor.clearColor;
+    self.inputBridgeField.borderStyle = UITextBorderStyleNone;
+    self.inputBridgeField.alpha = 0.01;
+    [self.inputBridgeField addTarget:self
+                              action:@selector(inputBridgeEditingChanged:)
+                    forControlEvents:UIControlEventEditingChanged];
+    [self addSubview:self.inputBridgeField];
     self.inputAssistantItem.leadingBarButtonGroups = @[];
     self.inputAssistantItem.trailingBarButtonGroups = @[];
 
@@ -440,6 +450,21 @@ struct rowcol {
     return [self.inputBridgeField becomeFirstResponder];
 }
 
+- (void)inputBridgeEditingChanged:(UITextField *)textField {
+    NSString *text = textField.text ?: @"";
+    if (text.length == 0)
+        return;
+
+    UITextRange *markedRange = textField.markedTextRange;
+    if (markedRange != nil &&
+        ![self shouldCommitMarkedTextImmediately:text selectedRange:NSMakeRange(text.length, 0)]) {
+        return;
+    }
+
+    textField.text = @"";
+    [self insertText:text];
+}
+
 - (BOOL)isFirstResponder {
     BOOL bridgeFirstResponder = self.inputBridgeField != nil && self.inputBridgeField.isFirstResponder;
     BOOL terminalFirstResponder = self.terminal.webView != nil && self.terminal.webView.isFirstResponder;
@@ -459,18 +484,36 @@ struct rowcol {
 }
 
 - (BOOL)textField:(UITextField *)textField shouldChangeCharactersInRange:(NSRange)range replacementString:(NSString *)string {
+    // The hidden bridge exists to convert UIKit keyboard events into guest PTY
+    // bytes. For normal ASCII input, waiting for EditingChanged is too late and
+    // can leave characters buffered until later keystrokes. Intercept committed
+    // replacements here and forward them immediately, while still allowing IME
+    // composition to use the UITextField's marked-text lifecycle.
+    UITextRange *markedRange = textField.markedTextRange;
+    if (markedRange != nil)
+        return YES;
+
     if (string.length > 0) {
+        textField.text = @"";
         [self insertText:string];
+        return NO;
     }
-    textField.text = @"";
-    return NO;
+
+    if (range.length > 0) {
+        textField.text = @"";
+        [self deleteBackward];
+        return NO;
+    }
+
+    return YES;
 }
 
 - (BOOL)textFieldShouldReturn:(UITextField *)textField {
-    [self insertText:@"\n"];
     textField.text = @"";
+    [self insertText:@"\n"];
     return NO;
 }
+
 - (BOOL)resignFirstResponder {
     self.terminalFocused = NO;
     if (self.inputBridgeField != nil && self.inputBridgeField.isFirstResponder) {

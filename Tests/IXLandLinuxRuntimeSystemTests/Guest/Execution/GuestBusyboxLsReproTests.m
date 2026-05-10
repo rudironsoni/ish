@@ -320,7 +320,11 @@ extern bool exit_should_pthread_exit;
         "SHELL=/bin/sh\0"
         "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\0"
         "\0";
-    if (![self startBusyboxSessionWithArgv:argv envp:envp terminal:&terminal pid:&startPid]) {
+    if (![self startSessionWithExecutable:"/bin/ls"
+                                     argv:argv
+                                     envp:envp
+                                 terminal:&terminal
+                                      pid:&startPid]) {
         return;
     }
 
@@ -437,7 +441,11 @@ extern bool exit_should_pthread_exit;
         "SHELL=/bin/sh\0"
         "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\0"
         "\0";
-    if (![self startBusyboxSessionWithArgv:argv envp:envp terminal:&terminal pid:&startPid]) {
+    if (![self startSessionWithExecutable:"/bin/ls"
+                                     argv:argv
+                                     envp:envp
+                                 terminal:&terminal
+                                      pid:&startPid]) {
         return;
     }
 
@@ -552,6 +560,52 @@ extern bool exit_should_pthread_exit;
     [self resetA64ExecutionMode];
     XCTFail(@"Timed out waiting for direct busybox ls output in conservative mode. Last observed: %@",
             lastObserved);
+}
+
+- (void)testBusyboxAppStyleDirectBinLsDoesNotSegfault {
+    [self resetA64ExecutionMode];
+
+    if (![self bootstrapAppStyleSessionHarness]) {
+        return;
+    }
+
+    Terminal *terminal = nil;
+    int startPid = 0;
+    const char *argv[] = { "/bin/ls", "-a", "/", NULL };
+    const char envp[] =
+        "TERM=xterm-256color\0"
+        "HOME=/root\0"
+        "USER=root\0"
+        "LOGNAME=root\0"
+        "SHELL=/bin/sh\0"
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\0"
+        "\0";
+    if (![self startSessionWithExecutable:"/bin/ls"
+                                     argv:argv
+                                     envp:envp
+                                 terminal:&terminal
+                                      pid:&startPid]) {
+        return;
+    }
+
+    NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:30.0];
+    NSString *lastObserved = @"";
+    while ([deadline timeIntervalSinceNow] > 0) {
+        lastObserved = [terminal screenTextForTesting] ?: @"";
+        if ([self terminalTextLooksLikeRootDirectoryListing:lastObserved])
+            return;
+        if ([self terminalTextLooksLikeBusyboxUsage:lastObserved]) {
+            XCTFail(@"Direct /bin/ls fell into usage output. Output: %@", lastObserved);
+            return;
+        }
+        if ([lastObserved containsString:@"Segmentation fault"]) {
+            XCTFail(@"Direct /bin/ls segfaulted. Output: %@", lastObserved);
+            return;
+        }
+        [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.1]];
+    }
+
+    XCTFail(@"Timed out waiting for direct /bin/ls output. Last observed: %@", lastObserved);
 }
 
 - (void)testBusyboxLsDotReproInteractiveShell {

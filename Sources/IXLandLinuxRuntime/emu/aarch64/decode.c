@@ -298,12 +298,14 @@ int a64_decode_dp_imm(uint32_t insn, a64_instr_t *out)
     case 7: // 111 - Extract
     {
         int op21 = bits(insn, 30, 29);
+        if (op21 != 0)
+            return -1;
         out->is_64bit = bit(insn, 31);
         out->Rd = bits(insn, 4, 0);
         out->Rn = bits(insn, 9, 5);
         out->Rm = bits(insn, 20, 16);
         out->imm = bits(insn, 15, 10);
-        out->subtype = op21; // 0=EXTR
+        out->subtype = A64_DP_IMM_EXTRACT;
         return 0;
     }
 

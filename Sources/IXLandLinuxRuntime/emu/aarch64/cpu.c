@@ -1075,7 +1075,7 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
         int decode_ret = a64_decode(insn, &decoded_info);
         (void)decode_ret;
 
-        if (a64_hot_ldso_pc(gen_state.guest_pc)) {
+        if (a64_hot_ldso_pc(gen_state.guest_pc) && trace_should_emit_event("hot.ldso")) {
             char event[512];
             if (gen_state.guest_pc >= 0x7a2bc && gen_state.guest_pc <= 0x7a2d8) {
                 snprintf(event, sizeof(event),
@@ -1320,6 +1320,42 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
                          (unsigned long long)dso_next, (unsigned long long)dso_deps,
                          (unsigned long long)dso_dep0, (unsigned long long)dso_dep1,
                          (unsigned long long)cpu->sp, (unsigned long long)cpu->pstate);
+            } else if (gen_state.guest_pc >= 0x6d234 && gen_state.guest_pc <= 0x6d4fc) {
+                uint32_t stack_count = 0;
+                uint64_t stack_head = 0;
+                uint64_t stack_cmp_rhs = 0;
+                uint64_t stack_cmp_lhs = 0;
+                uint64_t stack_ghost = 0;
+                (void)a64_guest_read32(cpu, tlb, cpu->sp + 100, &stack_count);
+                (void)a64_guest_read64(cpu, tlb, cpu->sp + 104, &stack_cmp_rhs);
+                (void)a64_guest_read64(cpu, tlb, cpu->sp + 112, &stack_head);
+                (void)a64_guest_read64(cpu, tlb, cpu->sp + 120, &stack_cmp_lhs);
+                (void)a64_guest_read64(cpu, tlb, cpu->sp + 128, &stack_ghost);
+                snprintf(event, sizeof(event),
+                         "hot.ldso=pc:0x%llx,raw:0x%08x,cat:%d,sub:%d,rd:%d,rn:%d,rm:%d,imm:%lld,"
+                         "x0:0x%llx,x1:0x%llx,x2:0x%llx,x3:0x%llx,x4:0x%llx,x5:0x%llx,"
+                         "x19:0x%llx,x20:0x%llx,x21:0x%llx,x22:0x%llx,x23:0x%llx,x24:0x%llx,"
+                         "x25:0x%llx,x26:0x%llx,x27:0x%llx,x28:0x%llx,sp:0x%llx,pstate:0x%llx,"
+                         "s100:0x%x,s104:0x%llx,s112:0x%llx,s120:0x%llx,s128:0x%llx",
+                         (unsigned long long)gen_state.guest_pc, insn,
+                         decode_ret == 0 ? decoded_info.cat : -1,
+                         decode_ret == 0 ? decoded_info.subtype : -1,
+                         decode_ret == 0 ? decoded_info.Rd : -1,
+                         decode_ret == 0 ? decoded_info.Rn : -1,
+                         decode_ret == 0 ? decoded_info.Rm : -1,
+                         decode_ret == 0 ? (long long)decoded_info.imm : 0LL,
+                         (unsigned long long)cpu->x[0], (unsigned long long)cpu->x[1],
+                         (unsigned long long)cpu->x[2], (unsigned long long)cpu->x[3],
+                         (unsigned long long)cpu->x[4], (unsigned long long)cpu->x[5],
+                         (unsigned long long)cpu->x[19], (unsigned long long)cpu->x[20],
+                         (unsigned long long)cpu->x[21], (unsigned long long)cpu->x[22],
+                         (unsigned long long)cpu->x[23], (unsigned long long)cpu->x[24],
+                         (unsigned long long)cpu->x[25], (unsigned long long)cpu->x[26],
+                         (unsigned long long)cpu->x[27], (unsigned long long)cpu->x[28],
+                         (unsigned long long)cpu->sp, (unsigned long long)cpu->pstate,
+                         stack_count, (unsigned long long)stack_cmp_rhs,
+                         (unsigned long long)stack_head, (unsigned long long)stack_cmp_lhs,
+                         (unsigned long long)stack_ghost);
             } else if (gen_state.guest_pc >= 0x6b5f0 && gen_state.guest_pc <= 0x6b6b8) {
                 uint32_t reserved_mask = 0;
                 uint32_t reserved_flags = 0;

@@ -38,12 +38,15 @@ typedef struct tty *tty_t;
 @property BOOL applicationCursor;
 @property (nonatomic) NSUInteger contentChange;
 @property (nonatomic) NSMutableString *testingTranscript;
+@property (nonatomic) NSMutableData *pendingTranscriptControlBytes;
+@property (nonatomic) NSMutableData *pendingGuestControlBytes;
+@property (nonatomic) NSMutableData *pendingCursorEscapeBytes;
+@property (nonatomic) NSInteger estimatedCursorRow;
+@property (nonatomic) NSInteger estimatedCursorColumn;
 
 @property NSNumber *terminalsKey;
 @property NSUUID *uuid;
 @property (nonatomic) struct linux_tty *linuxTTY;
-@property (nonatomic) NSMutableData *pendingTerminalControlInput;
-@property (nonatomic) NSMutableData *pendingTerminalStatusOutput;
 
 @end
 
@@ -62,6 +65,210 @@ static const NSInteger IXLandMinimumUsableRows = 4;
 static NSMapTable<NSNumber *, Terminal *> *terminals;
 static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
 
+static NSData *terminal_filter_testing_transcript_bytes(NSMutableData *pendingBytes, NSData *data) {
+    if (data.length == 0)
+        return data;
+
+    NSMutableData *scanData = [NSMutableData data];
+    if (pendingBytes.length > 0) {
+        [scanData appendData:pendingBytes];
+        [pendingBytes setLength:0];
+    }
+    [scanData appendData:data];
+
+    const uint8_t *bytes = scanData.bytes;
+    NSUInteger length = scanData.length;
+    NSMutableData *output = [NSMutableData dataWithCapacity:length];
+    NSUInteger index = 0;
+    while (index < length) {
+        BOOL isCsi = bytes[index] == 0x9B;
+        BOOL isEscCsi = bytes[index] == 0x1B && index + 1 < length && bytes[index + 1] == 0x5B;
+        if (isCsi || isEscCsi) {
+            NSUInteger cursor = index + (isCsi ? 1 : 2);
+            while (cursor < length) {
+                uint8_t finalByte = bytes[cursor];
+                if (finalByte >= 0x40 && finalByte <= 0x7E)
+                    break;
+                cursor++;
+            }
+            if (cursor == length) {
+                [pendingBytes appendBytes:&bytes[index] length:length - index];
+                break;
+            }
+
+            // Only hide the exact device-status report request that pollutes
+            // the transcript. Other CSI sequences must remain visible to avoid
+            // swallowing adjacent printable output when escape sequences span
+            // PTY read boundaries.
+            BOOL isEscCsi6n = !isCsi && (cursor - index + 1) == 4 && bytes[index] == 0x1B &&
+                bytes[index + 1] == 0x5B && bytes[index + 2] == 0x36 && bytes[index + 3] == 0x6E;
+            BOOL isSingleCsi6n = isCsi && (cursor - index + 1) == 3 && bytes[index] == 0x9B &&
+                bytes[index + 1] == 0x36 && bytes[index + 2] == 0x6E;
+            if (isEscCsi6n || isSingleCsi6n) {
+                index = cursor + 1;
+                continue;
+            }
+
+            [output appendBytes:&bytes[index] length:cursor - index + 1];
+            index = cursor + 1;
+            continue;
+        }
+
+        [output appendBytes:&bytes[index] length:1];
+        index++;
+    }
+
+    return output;
+}
+
+static NSString *terminal_control_sequence_string(const uint8_t *bytes, NSUInteger start,
+                                                  NSUInteger end, BOOL isSingleCsi)
+{
+    NSUInteger payloadStart = start + (isSingleCsi ? 1 : 2);
+    if (end < payloadStart)
+        return @"";
+    return [[NSString alloc] initWithBytes:&bytes[payloadStart]
+                                    length:end - payloadStart + 1
+                                  encoding:NSUTF8StringEncoding] ?: @"";
+}
+
+static void terminal_apply_csi_cursor_effect(Terminal *terminal, NSString *body)
+{
+    if (body.length == 0)
+        return;
+
+    unichar finalChar = [body characterAtIndex:body.length - 1];
+    NSString *paramsText = [body substringToIndex:body.length - 1];
+    NSArray<NSString *> *paramParts = [paramsText componentsSeparatedByString:@";"];
+    NSMutableArray<NSNumber *> *params = [NSMutableArray arrayWithCapacity:paramParts.count];
+    for (NSString *part in paramParts) {
+        [params addObject:@(part.length == 0 ? 0 : part.intValue)];
+    }
+
+    NSInteger first = params.count > 0 ? MAX(1, params[0].integerValue) : 1;
+    NSInteger second = params.count > 1 ? MAX(1, params[1].integerValue) : 1;
+
+    switch (finalChar) {
+    case 'A':
+        terminal.estimatedCursorRow = MAX(1, terminal.estimatedCursorRow - first);
+        break;
+    case 'B':
+    case 'e':
+        terminal.estimatedCursorRow += first;
+        break;
+    case 'C':
+    case 'a':
+        terminal.estimatedCursorColumn += first;
+        break;
+    case 'D':
+        terminal.estimatedCursorColumn = MAX(1, terminal.estimatedCursorColumn - first);
+        break;
+    case 'E':
+        terminal.estimatedCursorRow += first;
+        terminal.estimatedCursorColumn = 1;
+        break;
+    case 'F':
+        terminal.estimatedCursorRow = MAX(1, terminal.estimatedCursorRow - first);
+        terminal.estimatedCursorColumn = 1;
+        break;
+    case 'G':
+        terminal.estimatedCursorColumn = first;
+        break;
+    case 'H':
+    case 'f':
+        terminal.estimatedCursorRow = first;
+        terminal.estimatedCursorColumn = second;
+        break;
+    default:
+        break;
+    }
+}
+
+static void terminal_track_cursor_byte(Terminal *terminal, uint8_t byte)
+{
+    switch (byte) {
+    case '\r':
+        terminal.estimatedCursorColumn = 1;
+        break;
+    case '\n':
+        terminal.estimatedCursorRow += 1;
+        terminal.estimatedCursorColumn = 1;
+        break;
+    case '\b':
+        terminal.estimatedCursorColumn = MAX(1, terminal.estimatedCursorColumn - 1);
+        break;
+    case '\t': {
+        NSInteger nextTabStop = ((terminal.estimatedCursorColumn - 1) / 8 + 1) * 8 + 1;
+        terminal.estimatedCursorColumn = MAX(1, nextTabStop);
+        break;
+    }
+    default:
+        if (byte >= 0x20 && byte != 0x7F)
+            terminal.estimatedCursorColumn += 1;
+        break;
+    }
+}
+
+static NSData *terminal_filter_guest_output_bytes(Terminal *terminal, NSData *data)
+{
+    if (data.length == 0)
+        return data;
+
+    NSMutableData *scanData = [NSMutableData data];
+    if (terminal.pendingGuestControlBytes.length > 0) {
+        [scanData appendData:terminal.pendingGuestControlBytes];
+        [terminal.pendingGuestControlBytes setLength:0];
+    }
+    [scanData appendData:data];
+
+    const uint8_t *bytes = scanData.bytes;
+    NSUInteger length = scanData.length;
+    NSMutableData *output = [NSMutableData dataWithCapacity:length];
+    NSUInteger index = 0;
+    while (index < length) {
+        BOOL isSingleCsi = bytes[index] == 0x9B;
+        BOOL isEscCsi = bytes[index] == 0x1B && index + 1 < length && bytes[index + 1] == 0x5B;
+        if (isSingleCsi || isEscCsi) {
+            NSUInteger cursor = index + (isSingleCsi ? 1 : 2);
+            while (cursor < length) {
+                uint8_t finalByte = bytes[cursor];
+                if (finalByte >= 0x40 && finalByte <= 0x7E)
+                    break;
+                cursor++;
+            }
+            if (cursor == length) {
+                [terminal.pendingGuestControlBytes appendBytes:&bytes[index] length:length - index];
+                break;
+            }
+
+            NSString *body =
+                terminal_control_sequence_string(bytes, index, cursor, isSingleCsi);
+            if ([body isEqualToString:@"[6n"]) {
+                NSString *response =
+                    [NSString stringWithFormat:@"\x1b[%ld;%ldR",
+                                               (long) MAX(1, terminal.estimatedCursorRow),
+                                               (long) MAX(1, terminal.estimatedCursorColumn)];
+                NSData *responseData = [response dataUsingEncoding:NSUTF8StringEncoding];
+                if (responseData.length > 0)
+                    [terminal sendInput:responseData];
+                index = cursor + 1;
+                continue;
+            }
+
+            [output appendBytes:&bytes[index] length:cursor - index + 1];
+            terminal_apply_csi_cursor_effect(terminal, body);
+            index = cursor + 1;
+            continue;
+        }
+
+        [output appendBytes:&bytes[index] length:1];
+        terminal_track_cursor_byte(terminal, bytes[index]);
+        index++;
+    }
+
+    return output;
+}
+
 - (instancetype)initWithType:(int)type number:(int)num {
     @synchronized (Terminal.class) {
         self.terminalsKey = @(dev_make(type, num));
@@ -73,10 +280,13 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
             self.pendingData = [[NSMutableData alloc] initWithCapacity:BUF_SIZE];
             self.contentChange = 0;
             self.testingTranscript = [NSMutableString string];
+            self.pendingTranscriptControlBytes = [NSMutableData data];
+            self.pendingGuestControlBytes = [NSMutableData data];
+            self.pendingCursorEscapeBytes = [NSMutableData data];
+            self.estimatedCursorRow = 1;
+            self.estimatedCursorColumn = 1;
             self.refreshTask = [[DelayedUITask alloc] initWithTarget:self action:@selector(refresh)];
             self.scrollToBottomTask = [[DelayedUITask alloc] initWithTarget:self action:@selector(scrollToBottom)];
-            self.pendingTerminalControlInput = [NSMutableData data];
-            self.pendingTerminalStatusOutput = [NSMutableData data];
             lock_init(&_dataLock);
             cond_init(&_dataConsumed);
 
@@ -281,8 +491,8 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
 
 
 - (int)sendOutput:(const void *)buf length:(int)len {
-    NSData *filteredOutput = [self outputByFilteringTerminalStatusRequests:
-                              [NSData dataWithBytes:buf length:(NSUInteger) len]];
+    NSData *rawOutput = [NSData dataWithBytes:buf length:(NSUInteger) len];
+    NSData *filteredOutput = terminal_filter_guest_output_bytes(self, rawOutput);
 
     // APPSIM-004 Stage 2: PTY byte detection
     // Record byte count at terminal input boundary
@@ -308,7 +518,8 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
     uint64_t ptyReadInterval = [ISHInstrumentation beginInterval:@"task.proof.pty.master.read" attributes:byteAttrs];
     
     if (filteredOutput.length > 0) {
-        NSString *queuedText = [[NSString alloc] initWithData:filteredOutput
+        NSData *transcriptBytes = terminal_filter_testing_transcript_bytes(self.pendingTranscriptControlBytes, filteredOutput);
+        NSString *queuedText = [[NSString alloc] initWithData:transcriptBytes
                                                      encoding:NSISOLatin1StringEncoding];
         if (queuedText.length > 0) {
             @synchronized (self) {
@@ -370,44 +581,9 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
     return len;
 }
 
-- (NSData *)outputByFilteringTerminalStatusRequests:(NSData *)output {
-    static const uint8_t dsrSequence[] = { 0x1B, 0x5B, 0x36, 0x6E };
-    NSMutableData *scanData = [NSMutableData dataWithCapacity:self.pendingTerminalStatusOutput.length + output.length];
-    if (self.pendingTerminalStatusOutput.length > 0)
-        [scanData appendData:self.pendingTerminalStatusOutput];
-    [scanData appendData:output];
-    [self.pendingTerminalStatusOutput setLength:0];
-
-    const uint8_t *bytes = scanData.bytes;
-    NSUInteger length = scanData.length;
-    NSMutableData *filtered = [NSMutableData dataWithCapacity:length];
-
-    for (NSUInteger index = 0; index < length;) {
-        NSUInteger remaining = length - index;
-        BOOL isDsr = remaining >= 4
-            && memcmp(bytes + index, dsrSequence, sizeof(dsrSequence)) == 0;
-        if (isDsr) {
-            index += 4;
-            continue;
-        }
-        if (remaining < 4) {
-            if (memcmp(bytes + index, dsrSequence, remaining) == 0)
-                [self.pendingTerminalStatusOutput appendBytes:bytes + index length:remaining];
-            else
-                [filtered appendBytes:bytes + index length:remaining];
-            break;
-        }
-        [filtered appendBytes:bytes + index length:1];
-        index++;
-    }
-
-    return filtered;
-}
-
 
 
 - (void)sendInput:(NSData *)input {
-    input = [self inputByFilteringTerminalControlRequests:input];
     if (input.length == 0)
         return;
 
@@ -433,42 +609,6 @@ static NSMapTable<NSUUID *, Terminal *> *terminalsByUUID;
         tty_input(self.tty, input.bytes, input.length, 0);
     [ISHInstrumentation recordEvent:@"terminal.after_tty_input"];
     [ISHInstrumentation endInterval:intervalId attributes:inputAttrs];
-}
-
-- (NSData *)inputByFilteringTerminalControlRequests:(NSData *)input {
-    NSMutableData *scanData = [NSMutableData dataWithCapacity:self.pendingTerminalControlInput.length + input.length];
-    if (self.pendingTerminalControlInput.length > 0)
-        [scanData appendData:self.pendingTerminalControlInput];
-    [scanData appendData:input];
-    [self.pendingTerminalControlInput setLength:0];
-
-    const uint8_t *bytes = scanData.bytes;
-    NSUInteger length = scanData.length;
-    NSMutableData *filtered = [NSMutableData dataWithCapacity:length];
-
-    for (NSUInteger index = 0; index < length;) {
-        NSUInteger remaining = length - index;
-        BOOL csi = bytes[index] == 0x9B;
-        BOOL escCsi = remaining >= 2 && bytes[index] == 0x1B && bytes[index + 1] == 0x5B;
-        if (csi || escCsi) {
-            NSUInteger cursor = index + (csi ? 1 : 2);
-            while (cursor < length && !(bytes[cursor] >= 0x40 && bytes[cursor] <= 0x7E))
-                cursor++;
-            if (cursor == length) {
-                [self.pendingTerminalControlInput appendBytes:bytes + index length:remaining];
-                break;
-            }
-            if (bytes[cursor] == 'n') {
-                index = cursor + 1;
-                continue;
-            }
-        }
-
-        [filtered appendBytes:bytes + index length:1];
-        index++;
-    }
-
-    return filtered;
 }
 
 - (void)scrollToBottom {

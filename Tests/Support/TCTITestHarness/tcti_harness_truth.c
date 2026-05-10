@@ -1291,6 +1291,57 @@ uint64_t tcti_harness_case_ldp_first_destination_preserves_pair_base(void)
     return result;
 }
 
+uint64_t tcti_harness_case_ldp_post_index_first_destination_preserves_pair_base(void)
+{
+    enum {
+        base_ptr = 0x160000,
+        next_ptr = 0x170000,
+    };
+    const uint64_t expected_next = next_ptr;
+    const uint64_t expected_field = 0x4444555566667777ULL;
+    const uint64_t decoy_field = 0xdeadbeefcafebabeULL;
+
+    struct mem mem;
+    mem_init(&mem);
+    if (pt_map_nothing(&mem, PAGE(base_ptr), 1, P_READ | P_WRITE) < 0 ||
+        pt_map_nothing(&mem, PAGE(next_ptr), 1, P_READ | P_WRITE) < 0) {
+        mem_destroy(&mem);
+        return UINT64_MAX;
+    }
+
+    struct tlb tlb = {};
+    tlb_refresh(&tlb, &mem.mmu);
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.mmu = &mem.mmu;
+    cpu.tlb = &tlb;
+    cpu.x[25] = base_ptr;
+    cpu.x[1] = 0x1111111111111111ULL;
+
+    if (a64_guest_write64(&cpu, &tlb, base_ptr, expected_next) != A64_MEM_OK ||
+        a64_guest_write64(&cpu, &tlb, base_ptr + 8, expected_field) != A64_MEM_OK ||
+        a64_guest_write64(&cpu, &tlb, next_ptr + 8, decoy_field) != A64_MEM_OK) {
+        mem_destroy(&mem);
+        return UINT64_MAX - 1;
+    }
+
+    static const uint32_t load_pair[] = {
+        0xa8c10739, // ldp x25, x1, [x25], #16
+    };
+    if (tcti_harness_run_generated_block(&cpu, 0x565b3550, load_pair,
+                                         sizeof(load_pair) / sizeof(load_pair[0])) < 0) {
+        mem_destroy(&mem);
+        return UINT64_MAX - 2;
+    }
+
+    uint64_t result = ((cpu.x[25] == (base_ptr + 16)) ? 0 : 1);
+    result |= ((cpu.x[1] == expected_field) ? 0 : 2);
+
+    mem_destroy(&mem);
+    return result;
+}
+
 uint64_t tcti_harness_case_dynamic_tag_scaled_store_uses_full_index(void)
 {
     enum {
@@ -4771,6 +4822,410 @@ uint64_t tcti_harness_case_musl_qsort_rbit_clz_64bit_roundtrip(void)
     if (cpu.x[2] != 40ULL)
         return 0x2000000000000000ULL | cpu.x[2];
 
+    return 0;
+}
+
+uint64_t tcti_harness_case_musl_qsort_trailing_zero_block(void)
+{
+    enum {
+        stack_top = 0x130000,
+        stack_page = stack_top - PAGE_SIZE,
+        count_slot = stack_top + 100,
+        stepson_slot = stack_top + 0,
+    };
+
+    struct mem mem;
+    mem_init(&mem);
+    if (pt_map_nothing(&mem, PAGE(stack_page), 2, P_READ | P_WRITE) < 0) {
+        mem_destroy(&mem);
+        return UINT64_MAX;
+    }
+
+    struct tlb tlb = {};
+    tlb_refresh(&tlb, &mem.mmu);
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.mmu = &mem.mmu;
+    cpu.tlb = &tlb;
+    cpu.pc = 0x6d41c;
+    cpu.sp = stack_top;
+    cpu.x[20] = 0x07ffffffffffffffULL;
+    cpu.x[21] = stepson_slot;
+    cpu.x[28] = 0x40000a68ULL;
+
+    if (a64_guest_write32(&cpu, &tlb, count_slot, 4U) != A64_MEM_OK) {
+        mem_destroy(&mem);
+        return UINT64_MAX - 1;
+    }
+
+    static const uint32_t insns[] = {
+        0xb94067e0, // ldr w0, [sp, #100]
+        0xd1000682, // sub x2, x20, #1
+        0xf90002bc, // str x28, [x21]
+        0x11000400, // add w0, w0, #1
+        0xb90067e0, // str w0, [sp, #100]
+        0xdac00042, // rbit x2, x2
+        0xdac01042, // clz x2, x2
+        0x2a0203e0, // mov w0, w2
+        0x350000e2, // cbnz w2, ...
+    };
+
+    int run_ret = tcti_harness_run_generated_block(&cpu, cpu.pc, insns,
+                                                   sizeof(insns) / sizeof(insns[0]));
+    if (run_ret < 0) {
+        mem_destroy(&mem);
+        return 0x1000000000000000ULL | (uint64_t)(uint8_t)(-run_ret);
+    }
+
+    uint32_t stored_count = 0;
+    uint64_t stored_stepson = 0;
+    if (a64_guest_read32(&cpu, &tlb, count_slot, &stored_count) != A64_MEM_OK ||
+        a64_guest_read64(&cpu, &tlb, stepson_slot, &stored_stepson) != A64_MEM_OK) {
+        mem_destroy(&mem);
+        return UINT64_MAX - 2;
+    }
+
+    if (stored_count != 5U) {
+        mem_destroy(&mem);
+        return 0x2000000000000000ULL | stored_count;
+    }
+    if (stored_stepson != 0x40000a68ULL) {
+        mem_destroy(&mem);
+        return 0x3000000000000000ULL | stored_stepson;
+    }
+    if (cpu.x[2] != 1ULL) {
+        mem_destroy(&mem);
+        return 0x4000000000000000ULL | cpu.x[2];
+    }
+    if ((cpu.x[0] & 0xffffffffULL) != 1ULL) {
+        mem_destroy(&mem);
+        return 0x5000000000000000ULL | (cpu.x[0] & 0xffffffffULL);
+    }
+
+    mem_destroy(&mem);
+    return 0;
+}
+
+uint64_t tcti_harness_case_musl_qsort_shift_merge_block_uses_live_hot_regs(void)
+{
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.pc = 0x6d380;
+    cpu.x[0] = 2ULL;
+    cpu.x[2] = 62ULL;
+    cpu.x[19] = 0x40000a90ULL;
+    cpu.x[20] = 0x07ffffffffffffffULL;
+    cpu.x[21] = 0xfffffef7f500ULL;
+    cpu.x[25] = 0x1ffffffffffffff8ULL;
+
+    static const uint32_t insns[] = {
+        0x52800801, // mov w1, #0x40
+        0x4b020022, // sub w2, w1, w2
+        0x9ac02694, // lsr x20, x20, x0
+        0x9ac22322, // lsl x2, x25, x2
+        0xaa140054, // orr x20, x2, x20
+        0x9ac02739, // lsr x25, x25, x0
+        0x910022b5, // add x21, x21, #8
+    };
+
+    int run_ret =
+        tcti_harness_run_generated_block(&cpu, cpu.pc, insns, sizeof(insns) / sizeof(insns[0]));
+    if (run_ret < 0)
+        return 0x1000000000000000ULL | (uint64_t)(uint8_t)(-run_ret);
+
+    if (cpu.x[2] != 0x7fffffffffffffe0ULL)
+        return 0x2000000000000000ULL | (cpu.x[2] & 0x0fffffffffffffffULL);
+    if (cpu.x[20] != 0x7fffffffffffffffULL)
+        return 0x3000000000000000ULL | (cpu.x[20] & 0x0fffffffffffffffULL);
+    if (cpu.x[21] != 0xfffffef7f508ULL)
+        return 0x4000000000000000ULL | (cpu.x[21] & 0x0fffffffffffffffULL);
+    if (cpu.x[25] != 0x07fffffffffffffeULL)
+        return 0x5000000000000000ULL | (cpu.x[25] & 0x0fffffffffffffffULL);
+
+    return 0;
+}
+
+uint64_t tcti_harness_case_musl_qsort_extract_prefix_preserves_pshift_state(void)
+{
+    enum {
+        stack_top = 0x134000,
+        stack_page = stack_top - PAGE_SIZE,
+    };
+
+    struct mem mem;
+    mem_init(&mem);
+    if (pt_map_nothing(&mem, PAGE(stack_page), 2, P_READ | P_WRITE) < 0) {
+        mem_destroy(&mem);
+        return UINT64_MAX;
+    }
+
+    struct tlb tlb = {};
+    tlb_refresh(&tlb, &mem.mmu);
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.mmu = &mem.mmu;
+    cpu.tlb = &tlb;
+    cpu.pc = 0x6d644;
+    cpu.sp = stack_top;
+    cpu.x[0] = 0x40000a68ULL;
+    cpu.x[19] = 0x40000a68ULL;
+    cpu.x[21] = 0x6d82cULL;
+    cpu.x[22] = 0x565e079cULL;
+    cpu.x[25] = 0x1ffffffffffffff8ULL;
+    cpu.x[26] = 0x5ULL;
+    cpu.x[27] = 0xfffffef7f8f0ULL;
+    cpu.x[28] = 0x40000a68ULL;
+
+    static const uint32_t insns[] = {
+        0x2a1c03e4, // mov w4, w28
+        0x93d30b33, // extr x19, x25, x19, #2
+        0xaa1b03e5, // mov x5, x27
+        0xaa1603e3, // mov x3, x22
+        0xaa1503e2, // mov x2, x21
+        0xaa1a03e1, // mov x1, x26
+        0xf90037e0, // str x0, [sp, #104]
+    };
+
+    int run_ret =
+        tcti_harness_run_generated_block(&cpu, cpu.pc, insns, sizeof(insns) / sizeof(insns[0]));
+    if (run_ret < 0) {
+        mem_destroy(&mem);
+        return 0x1000000000000000ULL | (uint64_t)(uint8_t)(-run_ret);
+    }
+
+    uint64_t spilled_head = 0;
+    if (a64_guest_read64(&cpu, &tlb, stack_top + 104, &spilled_head) != A64_MEM_OK) {
+        mem_destroy(&mem);
+        return UINT64_MAX - 1;
+    }
+
+    if (cpu.x[19] != 0x1000029aULL) {
+        mem_destroy(&mem);
+        return 0x2000000000000000ULL | cpu.x[19];
+    }
+    if (cpu.x[4] != 0x40000a68ULL) {
+        mem_destroy(&mem);
+        return 0x3000000000000000ULL | cpu.x[4];
+    }
+    if (cpu.x[1] != 0x5ULL || cpu.x[2] != 0x6d82cULL || cpu.x[3] != 0x565e079cULL ||
+        cpu.x[5] != 0xfffffef7f8f0ULL) {
+        mem_destroy(&mem);
+        return 0x4000000000000000ULL | (cpu.x[1] & 0xffffffffULL);
+    }
+    if (spilled_head != 0x40000a68ULL) {
+        mem_destroy(&mem);
+        return 0x5000000000000000ULL | spilled_head;
+    }
+
+    mem_destroy(&mem);
+    return 0;
+}
+
+uint64_t tcti_harness_case_musl_qsort_restore_block_rebuilds_live_frame(void)
+{
+    enum {
+        stack_top = 0x131000,
+        stack_page = stack_top - PAGE_SIZE,
+    };
+
+    struct mem mem;
+    mem_init(&mem);
+    if (pt_map_nothing(&mem, PAGE(stack_page), 2, P_READ | P_WRITE) < 0) {
+        mem_destroy(&mem);
+        return UINT64_MAX;
+    }
+
+    struct tlb tlb = {};
+    tlb_refresh(&tlb, &mem.mmu);
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.mmu = &mem.mmu;
+    cpu.tlb = &tlb;
+    cpu.pc = 0x6d4c8;
+    cpu.sp = stack_top;
+    cpu.x[19] = 0x1111111122222222ULL;
+    cpu.x[23] = 0x3333333344444444ULL;
+    cpu.x[24] = 0x5555555566666666ULL;
+    cpu.x[26] = 0x1234567887654321ULL;
+    cpu.x[27] = 0x7777777788888888ULL;
+    cpu.x[28] = 0x99999999aaaaaaa0ULL;
+
+    if (a64_guest_write64(&cpu, &tlb, stack_top + 0x00, 0x0101010101010101ULL) != A64_MEM_OK ||
+        a64_guest_write64(&cpu, &tlb, stack_top + 0x08, 0x0202020202020202ULL) != A64_MEM_OK ||
+        a64_guest_write64(&cpu, &tlb, stack_top + 0x20, 0x0303030303030303ULL) != A64_MEM_OK ||
+        a64_guest_write64(&cpu, &tlb, stack_top + 0x28, 0x0404040404040404ULL) != A64_MEM_OK ||
+        a64_guest_write64(&cpu, &tlb, stack_top + 0x30, 0x0505050505050505ULL) != A64_MEM_OK ||
+        a64_guest_write64(&cpu, &tlb, stack_top + 0x38, 0x0606060606060606ULL) != A64_MEM_OK ||
+        a64_guest_write64(&cpu, &tlb, stack_top + 0x40, 0x0707070707070707ULL) != A64_MEM_OK ||
+        a64_guest_write64(&cpu, &tlb, stack_top + 0x48, 0x0808080808080808ULL) != A64_MEM_OK ||
+        a64_guest_write64(&cpu, &tlb, stack_top + 0x50, 0x0909090909090909ULL) != A64_MEM_OK ||
+        a64_guest_write64(&cpu, &tlb, stack_top + 0x58, 0x0a0a0a0a0a0a0a0aULL) != A64_MEM_OK) {
+        mem_destroy(&mem);
+        return UINT64_MAX - 1;
+    }
+
+    static const uint32_t insns[] = {
+        0xa9407bfd, // ldp x29, x30, [sp]
+        0xaa1b03e5, // mov x5, x27
+        0xa9425bf5, // ldp x21, x22, [sp, #32]
+        0x2a1a03e4, // mov w4, w26
+        0xaa1803e3, // mov x3, x24
+        0xaa1703e2, // mov x2, x23
+        0xa9446bf9, // ldp x25, x26, [sp, #64]
+        0xaa1303e1, // mov x1, x19
+        0xa94363f7, // ldp x23, x24, [sp, #48]
+        0xaa1c03e0, // mov x0, x28
+        0xa94153f3, // ldp x19, x20, [sp, #16]
+        0xa94573fb, // ldp x27, x28, [sp, #80]
+        0x911043ff, // add sp, sp, #1040
+        0x17ffff4e, // b 0x6d234
+    };
+
+    int run_ret =
+        tcti_harness_run_generated_block(&cpu, cpu.pc, insns, sizeof(insns) / sizeof(insns[0]));
+    if (run_ret < 0) {
+        mem_destroy(&mem);
+        return 0x1000000000000000ULL | (uint64_t)(uint8_t)(-run_ret);
+    }
+
+    if (cpu.pc != 0x6d234ULL) {
+        mem_destroy(&mem);
+        return 0x2000000000000000ULL | cpu.pc;
+    }
+    if (cpu.sp != stack_top + 1040ULL) {
+        mem_destroy(&mem);
+        return 0x3000000000000000ULL | cpu.sp;
+    }
+    if (cpu.x[0] != 0x99999999aaaaaaa0ULL || cpu.x[1] != 0x1111111122222222ULL ||
+        cpu.x[2] != 0x3333333344444444ULL || cpu.x[3] != 0x5555555566666666ULL ||
+        cpu.x[4] != 0x87654321ULL || cpu.x[5] != 0x7777777788888888ULL) {
+        mem_destroy(&mem);
+        return 0x4000000000000000ULL | (cpu.x[4] & 0xffffffffULL);
+    }
+    if (cpu.x[19] != 0x0202020202020202ULL || cpu.x[20] != 0x0303030303030303ULL ||
+        cpu.x[21] != 0x0303030303030303ULL || cpu.x[22] != 0x0404040404040404ULL ||
+        cpu.x[23] != 0x0505050505050505ULL || cpu.x[24] != 0x0606060606060606ULL ||
+        cpu.x[25] != 0x0707070707070707ULL || cpu.x[26] != 0x0808080808080808ULL ||
+        cpu.x[27] != 0x0909090909090909ULL || cpu.x[28] != 0x0a0a0a0a0a0a0a0aULL ||
+        cpu.x[29] != 0x0101010101010101ULL || cpu.x[30] != 0x0202020202020202ULL) {
+        mem_destroy(&mem);
+        return 0x5000000000000000ULL | (cpu.x[26] & 0x0fffffffffffffffULL);
+    }
+
+    mem_destroy(&mem);
+    return 0;
+}
+
+uint64_t tcti_harness_case_musl_qsort_reentry_block_preserves_head_and_pshift_inputs(void)
+{
+    enum {
+        stack_top = 0x132000,
+        frame_base = stack_top - 0x400,
+        stack_page = frame_base & ~((uint64_t)PAGE_SIZE - 1),
+    };
+
+    struct mem mem;
+    mem_init(&mem);
+    if (pt_map_nothing(&mem, PAGE(stack_page), 2, P_READ | P_WRITE) < 0) {
+        mem_destroy(&mem);
+        return UINT64_MAX;
+    }
+
+    struct tlb tlb = {};
+    tlb_refresh(&tlb, &mem.mmu);
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.mmu = &mem.mmu;
+    cpu.tlb = &tlb;
+    cpu.pc = 0x6d234;
+    cpu.sp = stack_top;
+    cpu.x[0] = 0x40000a68ULL;
+    cpu.x[1] = 0x8ULL;
+    cpu.x[2] = 0x6d82cULL;
+    cpu.x[3] = 0x565e079cULL;
+    cpu.x[4] = 0x3ULL;
+    cpu.x[5] = 0xfffffef7f8f0ULL;
+    cpu.x[19] = 0xaaaaaaaaaaaaaaaaULL;
+    cpu.x[20] = 0xbbbbbbbbbbbbbbbbULL;
+    cpu.x[21] = 0xccccccccccccccccULL;
+    cpu.x[22] = 0xddddddddddddddddULL;
+    cpu.x[23] = 0xeeeeeeeeeeeeeeeeULL;
+    cpu.x[24] = 0xffffffffffffffffULL;
+    cpu.x[25] = 0x1212121212121212ULL;
+    cpu.x[26] = 0x3434343434343434ULL;
+    cpu.x[27] = 0x5656565656565656ULL;
+    cpu.x[28] = 0x7878787878787878ULL;
+    cpu.x[29] = 0x9a9a9a9a9a9a9a9aULL;
+    cpu.x[30] = 0xbcbcbcbcbcbcbcbcULL;
+
+    static const uint32_t insns[] = {
+        0xd11003ff, // sub sp, sp, #0x400
+        0xa9007bfd, // stp x29, x30, [sp]
+        0x910003fd, // mov x29, sp
+        0xa90153f3, // stp x19, x20, [sp, #16]
+        0x2a0403f3, // mov w19, w4
+        0xa9025bf5, // stp x21, x22, [sp, #32]
+        0xaa0203f5, // mov x21, x2
+        0xaa0303f6, // mov x22, x3
+        0xa90363f7, // stp x23, x24, [sp, #48]
+        0xcb0103f8, // sub x24, xzr, x1
+        0x52800037, // mov w23, #1
+        0xa9046bf9, // stp x25, x26, [sp, #64]
+        0xaa0003f9, // mov x25, x0
+        0x910203fa, // add x26, sp, #0x80
+        0xa90573fb, // stp x27, x28, [sp, #80]
+        0xaa0503fb, // mov x27, x5
+        0xaa0003fc, // mov x28, x0
+        0xf90037e1, // str x1, [sp, #104]
+        0xf9003fe0, // str x0, [sp, #120]
+        0x14000009, // b 0x6d2a4
+    };
+
+    int run_ret =
+        tcti_harness_run_generated_block(&cpu, cpu.pc, insns, sizeof(insns) / sizeof(insns[0]));
+    if (run_ret < 0) {
+        mem_destroy(&mem);
+        return 0x1000000000000000ULL | (uint64_t)(uint8_t)(-run_ret);
+    }
+
+    if (cpu.pc != 0x6d2a4ULL) {
+        mem_destroy(&mem);
+        return 0x2000000000000000ULL | cpu.pc;
+    }
+    if (cpu.sp != frame_base || cpu.x[29] != frame_base) {
+        mem_destroy(&mem);
+        return 0x3000000000000000ULL | cpu.sp;
+    }
+    if (cpu.x[19] != 0x3ULL || cpu.x[21] != 0x6d82cULL || cpu.x[22] != 0x565e079cULL ||
+        cpu.x[23] != 0x1ULL || cpu.x[24] != 0xfffffffffffffff8ULL ||
+        cpu.x[25] != 0x40000a68ULL || cpu.x[26] != frame_base + 0x80ULL ||
+        cpu.x[27] != 0xfffffef7f8f0ULL || cpu.x[28] != 0x40000a68ULL) {
+        mem_destroy(&mem);
+        return 0x4000000000000000ULL | (cpu.x[26] & 0x0fffffffffffffffULL);
+    }
+
+    uint64_t saved_head = 0;
+    uint64_t saved_rhs = 0;
+    uint64_t saved_x29 = 0;
+    uint64_t saved_x30 = 0;
+    if (a64_guest_read64(&cpu, &tlb, frame_base + 120, &saved_head) != A64_MEM_OK ||
+        a64_guest_read64(&cpu, &tlb, frame_base + 104, &saved_rhs) != A64_MEM_OK ||
+        a64_guest_read64(&cpu, &tlb, frame_base + 0, &saved_x29) != A64_MEM_OK ||
+        a64_guest_read64(&cpu, &tlb, frame_base + 8, &saved_x30) != A64_MEM_OK) {
+        mem_destroy(&mem);
+        return UINT64_MAX - 1;
+    }
+    if (saved_head != 0x40000a68ULL || saved_rhs != 0x8ULL || saved_x29 != 0x9a9a9a9a9a9a9a9aULL ||
+        saved_x30 != 0xbcbcbcbcbcbcbcbcULL) {
+        mem_destroy(&mem);
+        return 0x5000000000000000ULL | (saved_head & 0x0fffffffffffffffULL);
+    }
+
+    mem_destroy(&mem);
     return 0;
 }
 

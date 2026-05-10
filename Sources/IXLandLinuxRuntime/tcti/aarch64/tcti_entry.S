@@ -107,6 +107,22 @@ tcti_c_call_prologue:
     stp     x3,  x4,  [sp, #-16]!
     stp     x1,  x2,  [sp, #-16]!
     str     x28, [sp, #-16]!         // Save bytecode ptr (x0 is clobbered by C return value)
+    // C helpers read operands from cpu_state, not directly from the live hot
+    // host registers. Snapshot x1-x13 first so in-block helper calls observe
+    // the latest guest register values produced earlier in the same block.
+    str     x1,  [x29, #CPU_OFFSET_x0]
+    str     x2,  [x29, #CPU_OFFSET_x1]
+    str     x3,  [x29, #CPU_OFFSET_x2]
+    str     x4,  [x29, #CPU_OFFSET_x3]
+    str     x5,  [x29, #CPU_OFFSET_x4]
+    str     x6,  [x29, #CPU_OFFSET_x5]
+    str     x7,  [x29, #CPU_OFFSET_x6]
+    str     x8,  [x29, #CPU_OFFSET_x7]
+    str     x9,  [x29, #CPU_OFFSET_x8]
+    str     x10, [x29, #CPU_OFFSET_x9]
+    str     x11, [x29, #CPU_OFFSET_x10]
+    str     x12, [x29, #CPU_OFFSET_x11]
+    str     x13, [x29, #CPU_OFFSET_x12]
     mrs     x17, nzcv
     str     x17, [x29, #CPU_OFFSET_pstate] // Make live guest flags visible to C helpers
     str     x17, [sp, #-16]!         // Preserve guest flags across helper C call

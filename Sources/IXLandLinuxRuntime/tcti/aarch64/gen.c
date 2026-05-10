@@ -47,6 +47,7 @@ extern tcti_gadget_t gadget_logical_imm_fallback;
 extern tcti_gadget_t gadget_logical_reg_fallback;
 extern tcti_gadget_t gadget_multiply_add_fallback;
 extern tcti_gadget_t gadget_shift_reg_fallback;
+extern tcti_gadget_t gadget_extract_fallback;
 extern tcti_gadget_t gadget_csel_fallback;
 extern tcti_gadget_t gadget_ccmp_fallback;
 extern tcti_gadget_t gadget_div_fallback;
@@ -370,6 +371,27 @@ static int emit_shift_reg_fallback(a64_gen_state_t *state, int rd, int rn, int r
     if (ret != A64_GEN_OK)
         return ret;
     ret = emit_u64(state, (uint64_t)subtype);
+    if (ret != A64_GEN_OK)
+        return ret;
+    return emit_u64(state, is_64bit ? 1 : 0);
+}
+
+static int emit_extract_fallback(a64_gen_state_t *state, int rd, int rn, int rm, uint64_t lsb,
+                                 int is_64bit)
+{
+    int ret = emit_gadget(state, gadget_extract_fallback);
+    if (ret != A64_GEN_OK)
+        return ret;
+    ret = emit_u64(state, (uint64_t)rd);
+    if (ret != A64_GEN_OK)
+        return ret;
+    ret = emit_u64(state, (uint64_t)rn);
+    if (ret != A64_GEN_OK)
+        return ret;
+    ret = emit_u64(state, (uint64_t)rm);
+    if (ret != A64_GEN_OK)
+        return ret;
+    ret = emit_u64(state, lsb);
     if (ret != A64_GEN_OK)
         return ret;
     return emit_u64(state, is_64bit ? 1 : 0);
@@ -922,6 +944,10 @@ int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr)
 
         return A64_GEN_OK;
     }
+
+    case A64_DP_IMM_EXTRACT:
+        return emit_extract_fallback(state, rd, rn, instr->Rm, (uint64_t)instr->imm,
+                                     instr->is_64bit);
 
     default:
         return A64_GEN_UNSUPPORTED;
@@ -1783,8 +1809,7 @@ int a64_gen_ldst(a64_gen_state_t *state, const a64_instr_t *instr)
         }
 
         bool is_load = bit(instr->raw, 22);
-        bool load_first_destination_overlaps_base =
-            is_load && instr->idx_mode == A64_INDEX_OFFSET && instr->Rd == instr->Rn;
+        bool load_first_destination_overlaps_base = is_load && instr->Rd == instr->Rn;
 
         // Pair addressing uses the original base register for both elements.
         // If the first load destination is also the base, emit the independent

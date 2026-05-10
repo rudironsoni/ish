@@ -407,17 +407,18 @@ static int a64_tcti_msr_helper(struct cpu_state *cpu, uint64_t sysreg, uint64_t 
 static int a64_tcti_dc_zva_helper(struct cpu_state *cpu, uint64_t rt)
 {
     uint64_t addr = tcti_read_reg_or_zr(cpu, (int)rt) & ~63ULL;
+    static const uint8_t zero_block[64] = {0};
 
-    for (uint8_t offset = 0; offset < 64; offset += 8) {
-        int ret = a64_guest_write64(cpu, cpu->tlb, addr + offset, 0);
-        if (ret != A64_MEM_OK) {
-            cpu->fault_addr = addr + offset;
-            cpu->fault_was_write = true;
-            return TCTI_EXIT_FAULT;
-        }
-        tcti_trace_record_mem_access(cpu, cpu->pc, 0, addr + offset, 0, addr, offset, 8, 0, (int)rt,
-                                     (int)rt, -1, A64_INDEX_OFFSET);
+    // DC ZVA zeroes one architected cache block. The block is 64-byte aligned,
+    // and the page size is a multiple of 64, so one tlb_write covers the whole
+    // guest-visible zeroing operation without changing semantics.
+    if (!tlb_write(cpu->tlb, addr, zero_block, sizeof(zero_block))) {
+        cpu->fault_addr = cpu->tlb->segfault_addr;
+        cpu->fault_was_write = true;
+        return TCTI_EXIT_FAULT;
     }
+    tcti_trace_record_mem_access(cpu, cpu->pc, 0, addr, 0, addr, 0, 64, 0, (int)rt, (int)rt, -1,
+                                 A64_INDEX_OFFSET);
 
     return TCTI_EXIT_NORMAL;
 }
@@ -2734,6 +2735,75 @@ __attribute__((naked)) void gadget_shift_reg_fallback_impl(void)
 }
 
 tcti_gadget_t gadget_shift_reg_fallback = gadget_shift_reg_fallback_impl;
+
+__attribute__((used)) static void tcti_extract_helper(struct cpu_state *cpu, uint64_t rd,
+                                                      uint64_t rn, uint64_t rm, uint64_t lsb,
+                                                      uint64_t is_64bit)
+{
+    uint64_t width = is_64bit ? 64 : 32;
+    uint64_t mask = is_64bit ? UINT64_MAX : UINT32_MAX;
+    unsigned amount = (unsigned)(lsb & (width - 1));
+    uint64_t high = tcti_read_reg_or_zr(cpu, (int)rn) & mask;
+    uint64_t low = tcti_read_reg_or_zr(cpu, (int)rm) & mask;
+    uint64_t result;
+
+    if (amount == 0) {
+        result = low;
+    } else if (is_64bit) {
+        result = (low >> amount) | (high << (64 - amount));
+    } else {
+        uint32_t high32 = (uint32_t)high;
+        uint32_t low32 = (uint32_t)low;
+        result = (uint32_t)((low32 >> amount) | (high32 << (32 - amount)));
+    }
+
+    tcti_write_reg_or_zr(cpu, (int)rd, result & mask, is_64bit != 0);
+}
+
+__attribute__((naked)) void gadget_extract_fallback_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t" // rd
+                 "ldr x20, [x28], #8\n\t" // rn
+                 "ldr x21, [x28], #8\n\t" // rm
+                 "ldr x22, [x28], #8\n\t" // lsb
+                 "ldr x23, [x28], #8\n\t" // is_64bit
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "str x13, [x29, #112]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "mov x2, x20\n\t"
+                 "mov x3, x21\n\t"
+                 "mov x4, x22\n\t"
+                 "mov x5, x23\n\t"
+                 "bl _tcti_extract_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "ldp x1, x2, [x29, #16]\n\t"
+                 "ldp x3, x4, [x29, #32]\n\t"
+                 "ldp x5, x6, [x29, #48]\n\t"
+                 "ldp x7, x8, [x29, #64]\n\t"
+                 "ldp x9, x10, [x29, #80]\n\t"
+                 "ldp x11, x12, [x29, #96]\n\t"
+                 "ldr x13, [x29, #112]\n\t"
+                 "cmp x19, #13\n\t"
+                 "b.hs 1f\n\t"
+                 "mov x26, x19\n\t"
+                 "bl _tcti_sync_hot_reg_from_cpu\n\t"
+                 "1:\n\t"
+                 "ldr x17, [x29, %[pstate_off]]\n\t"
+                 "msr nzcv, x17\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t"
+                 :
+                 : [pstate_off] "i"(PSTATE_OFFSET));
+}
+
+tcti_gadget_t gadget_extract_fallback = gadget_extract_fallback_impl;
 
 __attribute__((used)) static void tcti_div_helper(struct cpu_state *cpu, uint64_t rd, uint64_t rn,
                                                   uint64_t rm, uint64_t subtype, uint64_t is_64bit)

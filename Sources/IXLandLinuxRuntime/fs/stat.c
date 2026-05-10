@@ -44,9 +44,21 @@ int generic_statat(struct fd *at, const char *path_raw, struct statbuf *stat, bo
         path_normalize(at, path_raw, path, follow_links ? N_SYMLINK_FOLLOW : N_SYMLINK_NOFOLLOW);
     if (err < 0)
         return err;
+    if (path_raw[0] != '/' && strcmp(path_raw, ".") != 0 && strcmp(path_raw, "..") != 0 &&
+        strcmp(path_raw, "") != 0) {
+        char event[192];
+        snprintf(event, sizeof(event), "statat.relative.normalized.raw=%s,path=%s", path_raw, path);
+        trace_record_event(TRACE_ORIGIN_KERNEL, event);
+    }
     struct mount *mount = find_mount_and_trim_path(path);
     memset(stat, 0, sizeof(*stat));
     err = mount->fs->stat(mount, path, stat);
+    if (err < 0 && path_raw[0] != '/' && strcmp(path_raw, "") != 0) {
+        char event[192];
+        snprintf(event, sizeof(event), "statat.relative.fail.raw=%s,path=%s,err=%d", path_raw, path,
+                 err);
+        trace_record_event(TRACE_ORIGIN_KERNEL, event);
+    }
     mount_release(mount);
     return err;
 }

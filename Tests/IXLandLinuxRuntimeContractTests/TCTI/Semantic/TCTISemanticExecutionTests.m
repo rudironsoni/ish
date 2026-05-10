@@ -208,6 +208,13 @@
                     "the first destination register is also the base register");
 }
 
+- (void)testSemanticExecutionContract_LDPPostIndexFirstDestinationPreservesPairBase
+{
+    XCTAssertEqual(tcti_harness_case_ldp_post_index_first_destination_preserves_pair_base(), 0ULL,
+                   @"TCTI LDP post-index must still compute both pair loads from the original "
+                    "base even when the first destination register aliases that base.");
+}
+
 - (void)testSemanticExecutionContract_DynamicTagScaledStoreUsesFullIndex
 {
     XCTAssertEqual(tcti_harness_case_dynamic_tag_scaled_store_uses_full_index(), 0ULL,
@@ -612,6 +619,47 @@
                    @"TCTI must decode and execute 64-bit RBIT/CLZ on the live musl qsort state "
                     "update path, because lowering them through the 32-bit path corrupts qsort's "
                     "heap progression.");
+}
+
+- (void)testSemanticExecutionContract_MuslQsortTrailingZeroBlock
+{
+    XCTAssertEqual(tcti_harness_case_musl_qsort_trailing_zero_block(), 0ULL,
+                   @"TCTI must preserve the live musl qsort trailing-zero block, because that "
+                    "exact rbit/clz path computes the increment that later drives pshift and the "
+                    "bad comparator window in the interactive BusyBox ls crash.");
+}
+
+- (void)testSemanticExecutionContract_MuslQsortExtractPrefixPreservesPshiftState
+{
+    XCTAssertEqual(tcti_harness_case_musl_qsort_extract_prefix_preserves_pshift_state(), 0ULL,
+                   @"TCTI must preserve the live musl qsort extract prefix, because EXTR "
+                    "materializes the next pshift state before the smoothsort path spills head "
+                    "and re-enters the comparator window that later crashes Alpine ls.");
+}
+
+- (void)testSemanticExecutionContract_MuslQsortShiftMergeBlockUsesLiveHotRegs
+{
+    XCTAssertEqual(tcti_harness_case_musl_qsort_shift_merge_block_uses_live_hot_regs(), 0ULL,
+                   @"TCTI C-helper fallbacks must read the current hot-register state, because "
+                    "musl qsort's live shift/merge block consumes values produced earlier in the "
+                    "same generated block before the next comparator call.");
+}
+
+- (void)testSemanticExecutionContract_MuslQsortRestoreBlockRebuildsLiveFrame
+{
+    XCTAssertEqual(tcti_harness_case_musl_qsort_restore_block_rebuilds_live_frame(), 0ULL,
+                   @"TCTI must restore musl qsort's spilled frame through the live LDP/MOV "
+                    "epilogue block, because that block reconstructs the comparator head, step "
+                    "state, and pshift inputs before re-entering the smoothsort loop.");
+}
+
+- (void)testSemanticExecutionContract_MuslQsortReentryBlockPreservesHeadAndPshiftInputs
+{
+    XCTAssertEqual(tcti_harness_case_musl_qsort_reentry_block_preserves_head_and_pshift_inputs(),
+                   0ULL,
+                   @"TCTI must preserve musl qsort's re-entry frame build, because the live "
+                    "block saves the current head on the stack, zero-extends w4 into pshift, and "
+                    "materializes the next smoothsort iteration inputs before branching.");
 }
 
 - (void)testSemanticExecutionContract_MuslMemcpy8TailRoundtrip

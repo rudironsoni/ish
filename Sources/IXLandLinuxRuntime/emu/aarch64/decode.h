@@ -55,9 +55,11 @@ typedef enum {
     A64_DP_IMM_PC_REL = 1,   // 01 - PC-rel addressing (ADR, ADRP)
     A64_DP_IMM_ADD_SUB = 2,  // 10 - Add/Subtract immediate
     A64_DP_IMM_BITFIELD = 3, // 11 - Bitfield move
-    A64_DP_IMM_EXTRACT = 4,  // 100 - Extract
     A64_DP_IMM_LOGIC = 5,    // 101 - Logical immediate (moved from here in v8)
     A64_DP_IMM_MOVEW = 6,    // 110 - Move wide immediate
+    // Decoder subtypes are also generator dispatch keys. Keep EXTR out of the
+    // shared ADR/MOVN bucket so full AArch64 extract encodings stay distinct.
+    A64_DP_IMM_EXTRACT = 14, // Extract
 } a64_dp_imm_subtype_t;
 
 /* Subcategories for Branches */

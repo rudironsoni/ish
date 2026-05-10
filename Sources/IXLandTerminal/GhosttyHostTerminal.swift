@@ -62,11 +62,14 @@ public final class IXLandGhosttyHostTerminal: NSObject {
     private var hasViewportMetrics = false
     private var navigationButton: IXLandGhosttyNavigationButton?
     private var pendingTerminalControlBytes = Data()
-    private var pendingTerminalStatusBytes = Data()
+    private var pendingGuestOutputControlBytes = Data()
     private var pendingOutputBytes = Data()
     private var renderTickScheduled = false
     private var renderTickNeedsMetricsSync = false
     private var renderTickNeedsFollowup = false
+    private var estimatedCursorRow = 1
+    private var estimatedCursorColumn = 1
+    private var pendingEscapeBytes = Data()
 
     @objc public weak var delegate: (any IXLandGhosttyHostTerminalDelegate)?
 
@@ -129,17 +132,26 @@ public final class IXLandGhosttyHostTerminal: NSObject {
     @objc public func receiveOutput(_ data: Data) {
         isReceivingOutput = true
         defer { isReceivingOutput = false }
-        let filtered = filterTerminalStatusRequests(from: data)
-        guard !filtered.isEmpty else {
+        guard !data.isEmpty else {
+            return
+        }
+
+        let filteredData = filterGuestOutputControlRequests(from: data)
+        guard !filteredData.isEmpty else {
             return
         }
 
         if !canRenderOutput {
-            pendingOutputBytes.append(filtered)
+            updateEstimatedCursorPosition(with: filteredData)
+            pendingOutputBytes.append(filteredData)
+            if terminalView.window != nil {
+                requestRenderTick(metricsMayBeDirty: true, needsFollowup: false)
+            }
             return
         }
 
-        session.receive(filtered)
+        updateEstimatedCursorPosition(with: filteredData)
+        session.receive(filteredData)
         requestRenderTick(metricsMayBeDirty: false, needsFollowup: true)
     }
 
@@ -164,6 +176,7 @@ public final class IXLandGhosttyHostTerminal: NSObject {
         let focused = terminalView.becomeFirstResponder()
         terminalView.reloadInputViews()
         installNavigationAccessoryButton()
+        requestRenderTick(metricsMayBeDirty: true, needsFollowup: false)
         flushPendingOutputIfPossible()
         return focused
     }
@@ -242,20 +255,22 @@ public final class IXLandGhosttyHostTerminal: NSObject {
             return
         }
         renderTickScheduled = true
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            self.renderTickScheduled = false
-            guard self.terminalView.window != nil else {
+        runRenderTick()
+    }
+
+    @MainActor
+    private func runRenderTick() {
+        while renderTickScheduled {
+            renderTickScheduled = false
+            guard terminalView.window != nil else {
                 return
             }
-            let shouldSyncMetrics = self.renderTickNeedsMetricsSync
-            let shouldRunFollowup = self.renderTickNeedsFollowup
-            self.renderTickNeedsMetricsSync = false
-            self.renderTickNeedsFollowup = false
-            _ = shouldSyncMetrics
-            self.terminalView.fitToSize()
+            let shouldRunFollowup = renderTickNeedsFollowup
+            renderTickNeedsMetricsSync = false
+            renderTickNeedsFollowup = false
+            terminalView.fitToSize()
             if shouldRunFollowup {
-                self.requestRenderTick(metricsMayBeDirty: false, needsFollowup: false)
+                renderTickScheduled = true
             }
         }
     }
@@ -354,13 +369,11 @@ public final class IXLandGhosttyHostTerminal: NSObject {
                     break
                 }
 
-                if scanData[cursor] == 0x6E {
-                    let response = "\u{1B}[1;1R"
+                if scanData[cursor] == 0x6E,
+                   terminalControlSequence(scanData, start: index, end: cursor) == "[6n" {
+                    let response = "\u{1B}[\(estimatedCursorRow);\(estimatedCursorColumn)R"
                     if let responseData = response.data(using: .utf8) {
-                        // Reply to the guest after the current output pass completes.
-                        DispatchQueue.main.async { [weak self] in
-                            self?.sendInput(responseData)
-                        }
+                        delegate?.ghosttyHostTerminal(self, didReceiveInput: responseData)
                     }
                     index = scanData.index(after: cursor)
                     continue
@@ -374,36 +387,44 @@ public final class IXLandGhosttyHostTerminal: NSObject {
         return output
     }
 
-    private func filterTerminalStatusRequests(from data: Data) -> Data {
+    private func filterGuestOutputControlRequests(from data: Data) -> Data {
         var scanData = Data()
-        scanData.append(pendingTerminalStatusBytes)
+        scanData.append(pendingGuestOutputControlBytes)
         scanData.append(data)
-        pendingTerminalStatusBytes.removeAll(keepingCapacity: true)
+        pendingGuestOutputControlBytes.removeAll(keepingCapacity: true)
 
         var output = Data()
         var index = scanData.startIndex
 
         while index < scanData.endIndex {
             let remaining = scanData[index...]
-            let isDsr = remaining.count >= 4
-                && scanData[index] == 0x1B
-                && scanData[scanData.index(index, offsetBy: 1)] == 0x5B
-                && scanData[scanData.index(index, offsetBy: 2)] == 0x36
-                && scanData[scanData.index(index, offsetBy: 3)] == 0x6E
-            if isDsr {
-                let response = "\u{1B}[1;1R"
-                if let responseData = response.data(using: .utf8) {
-                    DispatchQueue.main.async { [weak self] in
-                        self?.sendInput(responseData)
+            let byte = scanData[index]
+            let isCsi = byte == 0x9B
+            let isEscCsi = remaining.count >= 2 && byte == 0x1B && scanData[scanData.index(after: index)] == 0x5B
+            if isCsi || isEscCsi {
+                var cursor = scanData.index(index, offsetBy: isCsi ? 1 : 2)
+                while cursor < scanData.endIndex {
+                    let finalByte = scanData[cursor]
+                    if finalByte >= 0x40 && finalByte <= 0x7E {
+                        break
                     }
+                    cursor = scanData.index(after: cursor)
                 }
-                index = scanData.index(index, offsetBy: 4)
-                continue
-            }
 
-            if remaining.count < 4 {
-                pendingTerminalStatusBytes.append(remaining)
-                break
+                if cursor == scanData.endIndex {
+                    pendingGuestOutputControlBytes.append(remaining)
+                    break
+                }
+
+                if scanData[cursor] == 0x6E,
+                   terminalControlSequence(scanData, start: index, end: cursor) == "[6n" {
+                    let response = "\u{1B}[\(estimatedCursorRow);\(estimatedCursorColumn)R"
+                    if let responseData = response.data(using: .utf8) {
+                        delegate?.ghosttyHostTerminal(self, didReceiveInput: responseData)
+                    }
+                    index = scanData.index(after: cursor)
+                    continue
+                }
             }
 
             output.append(scanData[index])
@@ -412,6 +433,115 @@ public final class IXLandGhosttyHostTerminal: NSObject {
 
         return output
     }
+
+    private func terminalControlSequence(_ data: Data, start: Data.Index, end: Data.Index) -> String {
+        let payloadStart: Data.Index
+        if data[start] == 0x9B {
+            payloadStart = data.index(after: start)
+        } else {
+            payloadStart = data.index(start, offsetBy: 2)
+        }
+        let payload = data[payloadStart...end]
+        return String(decoding: payload, as: UTF8.self)
+    }
+
+    private func updateEstimatedCursorPosition(with data: Data) {
+        var scanData = Data()
+        scanData.append(pendingEscapeBytes)
+        scanData.append(data)
+        pendingEscapeBytes.removeAll(keepingCapacity: true)
+
+        var index = scanData.startIndex
+        while index < scanData.endIndex {
+            let byte = scanData[index]
+            switch byte {
+            case 0x0D:
+                estimatedCursorColumn = 1
+                index = scanData.index(after: index)
+            case 0x0A:
+                estimatedCursorRow += 1
+                estimatedCursorColumn = 1
+                index = scanData.index(after: index)
+            case 0x08:
+                estimatedCursorColumn = max(1, estimatedCursorColumn - 1)
+                index = scanData.index(after: index)
+            case 0x09:
+                let nextTabStop = ((estimatedCursorColumn - 1) / 8 + 1) * 8 + 1
+                estimatedCursorColumn = max(1, nextTabStop)
+                index = scanData.index(after: index)
+            case 0x1B:
+                guard index < scanData.index(before: scanData.endIndex) else {
+                    pendingEscapeBytes.append(scanData[index...])
+                    return
+                }
+                let next = scanData[scanData.index(after: index)]
+                if next == 0x5B {
+                    var cursor = scanData.index(index, offsetBy: 2)
+                    while cursor < scanData.endIndex {
+                        let finalByte = scanData[cursor]
+                        if finalByte >= 0x40 && finalByte <= 0x7E {
+                            applyCSI(sequence: scanData, start: index, end: cursor)
+                            index = scanData.index(after: cursor)
+                            break
+                        }
+                        cursor = scanData.index(after: cursor)
+                    }
+                    if cursor == scanData.endIndex {
+                        pendingEscapeBytes.append(scanData[index...])
+                        return
+                    }
+                } else {
+                    index = scanData.index(index, offsetBy: 2)
+                }
+            default:
+                if byte >= 0x20 && byte != 0x7F {
+                    estimatedCursorColumn += 1
+                }
+                index = scanData.index(after: index)
+            }
+        }
+    }
+
+    private func applyCSI(sequence data: Data, start: Data.Index, end: Data.Index) {
+        let body = terminalControlSequence(data, start: start, end: end)
+        guard let finalByte = body.last else {
+            return
+        }
+        let paramsText = String(body.dropLast())
+        let params = paramsText
+            .split(separator: ";", omittingEmptySubsequences: false)
+            .map { part -> Int in
+                if part.isEmpty {
+                    return 0
+                }
+                return Int(part) ?? 0
+            }
+
+        switch finalByte {
+        case "A":
+            estimatedCursorRow = max(1, estimatedCursorRow - max(1, params.first ?? 1))
+        case "B", "e":
+            estimatedCursorRow += max(1, params.first ?? 1)
+        case "C", "a":
+            estimatedCursorColumn += max(1, params.first ?? 1)
+        case "D":
+            estimatedCursorColumn = max(1, estimatedCursorColumn - max(1, params.first ?? 1))
+        case "E":
+            estimatedCursorRow += max(1, params.first ?? 1)
+            estimatedCursorColumn = 1
+        case "F":
+            estimatedCursorRow = max(1, estimatedCursorRow - max(1, params.first ?? 1))
+            estimatedCursorColumn = 1
+        case "G":
+            estimatedCursorColumn = max(1, params.first ?? 1)
+        case "H", "f":
+            estimatedCursorRow = max(1, params.first ?? 1)
+            estimatedCursorColumn = max(1, params.dropFirst().first ?? 1)
+        default:
+            break
+        }
+    }
+
 }
 
 private enum IXLandGhosttyNavigationDirection {

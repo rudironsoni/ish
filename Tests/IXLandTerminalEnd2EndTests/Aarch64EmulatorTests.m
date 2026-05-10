@@ -137,8 +137,23 @@
     XCTAssertFalse([output containsString:@"Out of memory"],
                    @"Root directory listing must not fail in guest opendir/calloc. Actual output: %@",
                    output);
+    XCTAssertFalse([output containsString:@"Segmentation fault"],
+                   @"Root directory listing must not segfault in the interactive shell. Actual output: %@",
+                   output);
     XCTAssertTrue([output containsString:@"bin"],
                   @"Root directory listing should include /bin. Actual output: %@", output);
+}
+
+- (void)testPlainLsDoesNotSegfault
+{
+    [self typeCommand:@"ls"];
+    NSString *output = [self waitForTerminalTextContaining:@"bin" timeout:30.0];
+    XCTAssertFalse([output containsString:@"Segmentation fault"],
+                   @"Plain ls in the interactive shell must not segfault. Actual output: %@",
+                   output);
+    XCTAssertTrue([output containsString:@"bin"],
+                  @"Plain ls should include /bin in the root directory listing. Actual output: %@",
+                  output);
 }
 
 // Test 2: Verify aarch64 architecture
