@@ -62,7 +62,6 @@ public final class IXLandGhosttyHostTerminal: NSObject {
     private var hasViewportMetrics = false
     private var navigationButton: IXLandGhosttyNavigationButton?
     private var pendingTerminalControlBytes = Data()
-    private var pendingGuestOutputControlBytes = Data()
     private var pendingOutputBytes = Data()
     private var renderTickScheduled = false
     private var renderTickNeedsMetricsSync = false
@@ -136,22 +135,17 @@ public final class IXLandGhosttyHostTerminal: NSObject {
             return
         }
 
-        let filteredData = filterGuestOutputControlRequests(from: data)
-        guard !filteredData.isEmpty else {
-            return
-        }
-
         if !canRenderOutput {
-            updateEstimatedCursorPosition(with: filteredData)
-            pendingOutputBytes.append(filteredData)
+            updateEstimatedCursorPosition(with: data)
+            pendingOutputBytes.append(data)
             if terminalView.window != nil {
                 requestRenderTick(metricsMayBeDirty: true, needsFollowup: false)
             }
             return
         }
 
-        updateEstimatedCursorPosition(with: filteredData)
-        session.receive(filteredData)
+        updateEstimatedCursorPosition(with: data)
+        session.receive(data)
         requestRenderTick(metricsMayBeDirty: false, needsFollowup: true)
     }
 
@@ -366,53 +360,6 @@ public final class IXLandGhosttyHostTerminal: NSObject {
 
                 if cursor == scanData.endIndex {
                     pendingTerminalControlBytes.append(remaining)
-                    break
-                }
-
-                if scanData[cursor] == 0x6E,
-                   terminalControlSequence(scanData, start: index, end: cursor) == "[6n" {
-                    let response = "\u{1B}[\(estimatedCursorRow);\(estimatedCursorColumn)R"
-                    if let responseData = response.data(using: .utf8) {
-                        delegate?.ghosttyHostTerminal(self, didReceiveInput: responseData)
-                    }
-                    index = scanData.index(after: cursor)
-                    continue
-                }
-            }
-
-            output.append(scanData[index])
-            index = scanData.index(after: index)
-        }
-
-        return output
-    }
-
-    private func filterGuestOutputControlRequests(from data: Data) -> Data {
-        var scanData = Data()
-        scanData.append(pendingGuestOutputControlBytes)
-        scanData.append(data)
-        pendingGuestOutputControlBytes.removeAll(keepingCapacity: true)
-
-        var output = Data()
-        var index = scanData.startIndex
-
-        while index < scanData.endIndex {
-            let remaining = scanData[index...]
-            let byte = scanData[index]
-            let isCsi = byte == 0x9B
-            let isEscCsi = remaining.count >= 2 && byte == 0x1B && scanData[scanData.index(after: index)] == 0x5B
-            if isCsi || isEscCsi {
-                var cursor = scanData.index(index, offsetBy: isCsi ? 1 : 2)
-                while cursor < scanData.endIndex {
-                    let finalByte = scanData[cursor]
-                    if finalByte >= 0x40 && finalByte <= 0x7E {
-                        break
-                    }
-                    cursor = scanData.index(after: cursor)
-                }
-
-                if cursor == scanData.endIndex {
-                    pendingGuestOutputControlBytes.append(remaining)
                     break
                 }
 

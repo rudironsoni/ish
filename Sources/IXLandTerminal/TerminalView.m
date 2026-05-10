@@ -187,11 +187,11 @@ struct rowcol {
         return;
     self.didCommonInit = YES;
 
-    // Keep UIKit text input as the owning software-keyboard path for both
-    // tests and normal app launches. Ghostty remains the render surface, but
-    // the hidden bridge avoids delayed marked-text commits and responder-path
-    // differences between XCTest and manual use.
-    self.usingInputBridge = YES;
+    // Keep the hidden UIKit bridge only for UI automation. In normal app
+    // launches, the real terminal responder path is less laggy and avoids an
+    // extra layer of text mediation between the software keyboard and guest
+    // PTY input.
+    self.usingInputBridge = [self isRunningUITests];
     self.inputBridgeField = [[UITextField alloc] initWithFrame:CGRectMake(-100, -100, 1, 1)];
     self.inputBridgeField.accessibilityIdentifier = @"TerminalInput";
     self.inputBridgeField.autocorrectionType = UITextAutocorrectionTypeNo;
