@@ -62,6 +62,147 @@ static bool a64_is_advsimd_modified_immediate(uint32_t insn)
     return (insn & 0x9e000400) == 0x0e000400;
 }
 
+static bool a64_decode_cond_select_family(uint32_t insn, a64_instr_t *out)
+{
+    // Conditional select family:
+    // sf op S 11010100 Rm cond 0 o2 Rn Rd
+    //
+    // Match the whole family explicitly once instead of scattering partial
+    // category/op2 checks through DP_REG decoding. This keeps CSEL/CSINC/CSINV/
+    // CSNEG and alias forms like CSET/CSETM/CINC/CINV/CNEG on one truth path.
+    if ((insn & 0x1fe00800) != 0x1a800000)
+        return false;
+
+    out->is_64bit = bit(insn, 31);
+    out->Rd = bits(insn, 4, 0);
+    out->Rn = bits(insn, 9, 5);
+    out->Rm = bits(insn, 20, 16);
+    out->cond = bits(insn, 15, 12);
+    out->set_flags = false;
+
+    int op = bit(insn, 30); // 0=CSEL/CSINC, 1=CSINV/CSNEG
+    int o2 = bit(insn, 10); // 0=CSEL/CSINV, 1=CSINC/CSNEG
+    out->subtype = (op << 1) | o2; // 0=CSEL, 1=CSINC, 2=CSINV, 3=CSNEG
+    return true;
+}
+
+static bool a64_decode_cond_compare_family(uint32_t insn, a64_instr_t *out)
+{
+    // Conditional compare family:
+    // sf op S 11010010 Rm/imm5 cond 1 o2 Rn nzcv
+    //
+    // Keep CCMN/CCMP register and immediate forms on one truth path instead of
+    // splitting them between category-0xD probes and later op2 switch cases.
+    uint32_t form = insn & 0x3fe00c10;
+    if (form != 0x3a400000 && form != 0x3a400800)
+        return false;
+
+    bool is_immediate = bit(insn, 11);
+    int op = bit(insn, 30);
+
+    out->is_64bit = bit(insn, 31);
+    out->Rn = bits(insn, 9, 5);
+    out->Rm = is_immediate ? -1 : bits(insn, 20, 16);
+    out->imm_shift = is_immediate ? (int)bits(insn, 20, 16) : 0;
+    out->cond = bits(insn, 15, 12);
+    out->imm = bits(insn, 3, 0);
+    out->set_flags = true;
+    out->subtype =
+        is_immediate ? (op ? A64_DP_REG_CCMP_IMM : A64_DP_REG_CCMN_IMM)
+                     : (op ? A64_DP_REG_CCMP : A64_DP_REG_CCMN);
+    return true;
+}
+
+static bool a64_decode_compare_branch_family(uint32_t insn, a64_instr_t *out)
+{
+    if ((insn & 0x7e000000) != 0x34000000)
+        return false;
+
+    out->op = bit(insn, 24); // 0=CBZ, 1=CBNZ
+    out->is_64bit = bit(insn, 31);
+    out->Rd = bits(insn, 4, 0);
+    out->imm = sign_extend(bits(insn, 23, 5), 19) << 2;
+    out->subtype = A64_BRANCH_CMP;
+    return true;
+}
+
+static bool a64_decode_test_branch_family(uint32_t insn, a64_instr_t *out)
+{
+    if ((insn & 0x7e000000) != 0x36000000)
+        return false;
+
+    out->op = bit(insn, 24); // 0=TBZ, 1=TBNZ
+    out->Rd = bits(insn, 4, 0);
+    out->imm = sign_extend(bits(insn, 18, 5), 14) << 2;
+    out->imm_shift = (bit(insn, 31) << 5) | bits(insn, 23, 19);
+    out->subtype = A64_BRANCH_TEST;
+    return true;
+}
+
+static bool a64_decode_load_store_pair_family(uint32_t insn, a64_instr_t *out)
+{
+    int top7 = bits(insn, 31, 25);
+    if ((top7 & 0x1C) != 0x14)
+        return false;
+
+    int op0 = bits(insn, 31, 30);
+    int imm7 = bits(insn, 21, 15);
+    int mode = bits(insn, 24, 23);
+
+    out->Rd = bits(insn, 4, 0);
+    out->Rn = bits(insn, 9, 5);
+    out->Rm = bits(insn, 14, 10);
+    out->subtype = A64_LDST_PAIR;
+    out->is_pair = true;
+    out->is_64bit = op0 == 3;
+    out->is_vector = bit(insn, 26);
+
+    if (out->is_vector) {
+        out->size = op0;
+        out->vec_bytes = 4 << op0;
+        out->is_64bit = out->vec_bytes == 8;
+    } else {
+        out->is_signed = false;
+        switch (op0) {
+        case 0:
+            out->size = A64_SIZE_W;
+            out->is_64bit = false;
+            break;
+        case 1:
+            if (!bit(insn, 22))
+                return false;
+            out->size = A64_SIZE_W;
+            out->is_signed = true;
+            out->is_64bit = true;
+            break;
+        case 2:
+            out->size = A64_SIZE_X;
+            out->is_64bit = true;
+            break;
+        default:
+            return false;
+        }
+    }
+
+    switch (mode) {
+    case 1:
+        out->idx_mode = A64_POST_INDEX;
+        break;
+    case 3:
+        out->idx_mode = A64_PRE_INDEX;
+        break;
+    default:
+        out->idx_mode = A64_INDEX_OFFSET;
+        break;
+    }
+
+    {
+        int pair_scale = out->is_vector ? (2 + out->size) : ((op0 == 2) ? 3 : 2);
+        out->pair_offset = (int)sign_extend(imm7, 7) << pair_scale;
+    }
+    return true;
+}
+
 // Main decode entry point
 int a64_decode(uint32_t insn, a64_instr_t *out)
 {
@@ -321,25 +462,12 @@ int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out)
     // For categorization within DP_REG, use op2 = bits 24:21
     out->is_64bit = bit(insn, 31);
 
+    if (a64_decode_cond_select_family(insn, out))
+        return 0;
+    if (a64_decode_cond_compare_family(insn, out))
+        return 0;
+
     a64_category_t cat = a64_get_category(insn);
-    if (cat == A64_DP_IMM2) {
-        uint32_t ccmp_form = insn & 0x3fe00c10;
-        if (ccmp_form == 0x3a400000 || ccmp_form == 0x3a400800) {
-            int op = bit(insn, 30);
-            bool is_immediate = bit(insn, 11);
-            out->Rn = bits(insn, 9, 5);
-            out->Rm = is_immediate ? -1 : bits(insn, 20, 16);
-            out->imm_shift = is_immediate ? (int)bits(insn, 20, 16) : 0;
-            out->cond = bits(insn, 15, 12);
-            out->imm = bits(insn, 3, 0);
-            out->set_flags = true;
-            if (is_immediate)
-                out->subtype = op ? A64_DP_REG_CCMP_IMM : A64_DP_REG_CCMN_IMM;
-            else
-                out->subtype = op ? A64_DP_REG_CCMP : A64_DP_REG_CCMN;
-            return 0;
-        }
-    }
 
     // Check if this is ADC/SBC (category 0xD) which needs special handling
     if (cat == A64_DP_IMM2) {
@@ -430,20 +558,6 @@ int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out)
         }
     }
 
-    if (cat == A64_DP_IMM2 && op2 >= 4 && op2 <= 7) {
-        int op = bit(insn, 30); // 0=CSEL/CSINC, 1=CSINV/CSNEG
-        int S = bit(insn, 29);  // 0 for conditional select
-        int cond = bits(insn, 15, 12);
-        int o2 = bit(insn, 10); // 0 for CSEL/CSINV, 1 for CSINC/CSNEG
-        out->Rd = bits(insn, 4, 0);
-        out->Rn = bits(insn, 9, 5);
-        out->Rm = bits(insn, 20, 16);
-        out->cond = cond;
-        out->set_flags = S;
-        out->subtype = (op << 1) | o2;
-        return 0;
-    }
-
     switch (op2) {
     case 0: // Logical shifted register
     case 1:
@@ -484,23 +598,6 @@ int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out)
     case 9:
     case 10:
     case 11: {
-        // Check if this is conditional select (cat=0xD, op2=8-11)
-        a64_category_t cat = a64_get_category(insn);
-        if (cat == A64_DP_IMM2) {
-            // Conditional select: CSEL, CSINC, CSINV, CSNEG
-            int op = bit(insn, 30); // 0=CSEL/CSINC, 1=CSINV/CSNEG
-            int S = bit(insn, 29);  // 0 for conditional select
-            int cond = bits(insn, 15, 12);
-            int o2 = bit(insn, 10); // 0 for CSEL/CSINV, 1 for CSINC/CSNEG
-            out->Rd = bits(insn, 4, 0);
-            out->Rn = bits(insn, 9, 5);
-            out->Rm = bits(insn, 20, 16);
-            out->cond = cond;
-            out->set_flags = S;
-            // subtype: 0=CSEL, 1=CSINC, 2=CSINV, 3=CSNEG
-            out->subtype = (op << 1) | o2;
-            return 0;
-        }
         // Check bit 21: 0 = shifted register, 1 = extended register
         if (bit(insn, 21) == 0) {
             // Add/subtract (shifted register) - bit 21 is N bit (must be 0)
@@ -627,28 +724,11 @@ int a64_decode_branch(uint32_t insn, a64_instr_t *out)
         return 0;
     }
 
-    if ((insn & 0x7e000000) == 0x34000000) {
-        int op = bit(insn, 24); // 0=CBZ, 1=CBNZ
-        int64_t imm19 = bits(insn, 23, 5);
-        out->is_64bit = bit(insn, 31);
-        out->Rd = bits(insn, 4, 0);
-        out->imm = sign_extend(imm19, 19) << 2;
-        out->subtype = A64_BRANCH_CMP;
-        out->op = op;
+    if (a64_decode_compare_branch_family(insn, out))
         return 0;
-    }
 
-    if ((insn & 0x7e000000) == 0x36000000) {
-        int op = bit(insn, 24); // 0=TBZ, 1=TBNZ
-        int imm14 = bits(insn, 18, 5);
-        int bit_pos = (bit(insn, 31) << 5) | bits(insn, 23, 19);
-        out->Rd = bits(insn, 4, 0);
-        out->imm = sign_extend(imm14, 14) << 2;
-        out->imm_shift = bit_pos;
-        out->subtype = A64_BRANCH_TEST;
-        out->op = op;
+    if (a64_decode_test_branch_family(insn, out))
         return 0;
-    }
 
     // Check for branch register / exception generation
     int op3 = bits(insn, 30, 25);
@@ -724,45 +804,8 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out)
         out->size = op0;
     }
 
-    // Load/store pair uses a separate major encoding space (x010100x) and must
-    // be decoded before the generic single load/store cases below.
-    // 32-bit pairs: top7 = 0010100 (0x14), 64-bit pairs: top7 = 1010100 (0x54)
-    // Check bits 29:25 for the scalar/vector pair pattern x1010x.
-    if ((top7 & 0x1C) == 0x14) {
-        int imm7 = bits(insn, 21, 15);
-        int Rt2 = bits(insn, 14, 10);
-        int mode = bits(insn, 24, 23);
-
-        out->Rd = bits(insn, 4, 0);
-        out->Rn = bits(insn, 9, 5);
-        out->Rm = Rt2;
-        out->subtype = A64_LDST_PAIR;
-        out->is_pair = true;
-
-        if (out->is_vector) {
-            out->vec_bytes = 4 << op0;
-            out->is_64bit = out->vec_bytes == 8;
-        } else {
-            out->is_64bit = (op0 == 2);
-            out->size = out->is_64bit ? A64_SIZE_X : A64_SIZE_W;
-        }
-
-        switch (mode) {
-        case 1:
-            out->idx_mode = A64_POST_INDEX;
-            break;
-        case 3:
-            out->idx_mode = A64_PRE_INDEX;
-            break;
-        default:
-            out->idx_mode = A64_INDEX_OFFSET;
-            break;
-        }
-
-        out->pair_offset = (int)sign_extend(imm7, 7)
-                           << (out->is_vector ? (2 + out->size) : (2 + (op0 >> 1)));
+    if (a64_decode_load_store_pair_family(insn, out))
         return 0;
-    }
 
     // Exclusive and ordered atomic load/store forms occupy the same broad load/store
     // space as the imm9 single-register forms. Decode them first so LDAXR/STLXR do

@@ -185,6 +185,7 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 @property UITapGestureRecognizer *tapRecognizer;
 @property (weak, nonatomic) IBOutlet TerminalView *termView;
 @property (weak, nonatomic) IBOutlet NSLayoutConstraint *bottomConstraint;
+@property (strong, nonatomic) NSLayoutConstraint *termViewKeyboardConstraint;
 
 @property (weak, nonatomic) IBOutlet UIButton *tabKey;
 @property (weak, nonatomic) IBOutlet UIButton *controlKey;
@@ -215,7 +216,6 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 @property (nonatomic) uint64_t lastHandledExitGeneration;
 @property (nonatomic) BOOL sessionStartInProgress;
 @property (nonatomic) CFAbsoluteTime activeSessionStartTime;
-@property (nonatomic) NSInteger postPTYRestartBudget;
 @property (nonatomic, copy) NSString *lastSessionFailureLabel;
 @property (nonatomic, copy) NSString *lastSessionFailingCall;
 @property (nonatomic) int lastSessionFailureReturnValue;
@@ -238,6 +238,7 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 @property (nonatomic) BOOL hasExternalKeyboard;
 @property (nonatomic) BOOL sessionStartupReady;
 @property (nonatomic) BOOL terminalViewHasAppeared;
+@property (nonatomic) BOOL pendingTerminalFocusRequest;
 
 @end
 
@@ -342,10 +343,22 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
     return [lines componentsJoinedByString:@"\n"];
 }
 
+- (NSString *)sessionExitSubtitleForCode:(int)code
+                                  reason:(NSString *)reason
+                                uptimeMs:(long long)uptimeMs
+                         firstPTYByteSeen:(BOOL)firstPTYByteSeen {
+    NSMutableArray<NSString *> *lines = [NSMutableArray array];
+    [lines addObject:[NSString stringWithFormat:@"reason=%@", reason ?: @"unknown"]];
+    [lines addObject:[NSString stringWithFormat:@"exit_code=%d", code]];
+    [lines addObject:[NSString stringWithFormat:@"uptime_ms=%lld", uptimeMs]];
+    [lines addObject:[NSString stringWithFormat:@"first_pty_byte_seen=%@", firstPTYByteSeen ? @"true" : @"false"]];
+    [lines addObject:@"restart_suppressed=true"];
+    return [lines componentsJoinedByString:@"\n"];
+}
+
 - (void)viewDidLoad {
     [super viewDidLoad];
     [ISHInstrumentation recordEvent:@"terminal.accessibility.controller.viewDidLoad.enter"];
-    self.postPTYRestartBudget = 1;
 
     NSURL *root = ios_root_default_url();
     self.lastSessionFailureRootPath = root.path ?: @"";
@@ -380,6 +393,12 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
     [self.view addGestureRecognizer:self.tapRecognizer];
 
     self.bottomConstraint.constant = 0;
+    if (@available(iOS 15.0, *)) {
+        self.bottomConstraint.active = NO;
+        self.termViewKeyboardConstraint =
+            [self.termView.bottomAnchor constraintEqualToAnchor:self.view.keyboardLayoutGuide.topAnchor];
+        self.termViewKeyboardConstraint.active = YES;
+    }
 
     NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
     [center addObserver:self
@@ -442,12 +461,18 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 - (void)viewDidAppear:(BOOL)animated {
     [super viewDidAppear:animated];
     self.terminalViewHasAppeared = YES;
+    self.pendingTerminalFocusRequest = YES;
     dispatch_async(dispatch_get_main_queue(), ^{
         if (self.sessionStartupReady && self.sessionTerminal == nil && !self.sessionStartInProgress) {
             [self startNewSession];
         }
-        [self focusTerminalInput];
+        [self requestTerminalFocusIfPossible];
     });
+}
+
+- (void)viewDidLayoutSubviews {
+    [super viewDidLayoutSubviews];
+    [self requestTerminalFocusIfPossible];
 }
 
 - (void)handleTerminalTap:(UITapGestureRecognizer *)recognizer {
@@ -470,9 +495,29 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
     return [self.termView becomeFirstResponder];
 }
 
+- (void)requestTerminalFocusIfPossible {
+    if (!self.pendingTerminalFocusRequest || !self.terminalViewHasAppeared)
+        return;
+    if (self.sessionTerminal == nil)
+        return;
+    if (self.termView.window == nil)
+        return;
+    if ([self focusTerminalInput]) {
+        self.pendingTerminalFocusRequest = NO;
+    }
+}
+
+- (void)activateSessionTerminalSurfaceIfPossible {
+    self.pendingTerminalFocusRequest = YES;
+    [self.view layoutIfNeeded];
+    [self.termView setNeedsLayout];
+    [self.termView layoutIfNeeded];
+    [self requestTerminalFocusIfPossible];
+}
+
 - (void)startNewSession {
     BOOL isRestartPath = (self.lastExitedAttemptSequence != 0);
-    [self recordSessionAttemptEvent:@"session.start.requested" extra:@{ @"is_restart_path": @(isRestartPath), @"post_pty_restart_budget": @(self.postPTYRestartBudget) }];
+    [self recordSessionAttemptEvent:@"session.start.requested" extra:@{ @"is_restart_path": @(isRestartPath) }];
     if (self.sessionStartInProgress) {
         [self recordSessionAttemptEvent:@"session.start.blocked.reentrant" extra:@{ @"is_restart_path": @(isRestartPath) }];
         return;
@@ -850,6 +895,11 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
             self.lastSTDIOCreateReturnValue = 0;
             self.sessionPid = pid;
             self.sessionTerminal = terminal;
+            // Match the libghostty mobile sample order as closely as this app's
+            // guest-session bridge allows: attach the visible Ghostty surface,
+            // lay it out, and request first-responder focus before the prepared
+            // guest session is started.
+            [self activateSessionTerminalSurfaceIfPossible];
             self.sessionTerminal.attemptSequence = self.sessionAttemptSequence;
             self.sessionTerminal.sessionGeneration = self.activeSessionGeneration;
             self.sessionTerminal.guestPID = self.sessionPid;
@@ -893,7 +943,6 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
 }
 
 - (void)processExited:(NSNotification *)notif {
-    BOOL isTesting = [self isRunningUITests];
     int pid = [notif.userInfo[@"pid"] intValue];
     int code = [notif.userInfo[@"code"] intValue];
     uint64_t observedGeneration = self.activeSessionGeneration;
@@ -932,52 +981,31 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
     [self recordSessionAttemptEvent:@"session.exit.reason" extra:@{ @"reason": exitReason, @"code": @(code), @"first_pty_byte_seen": @(firstPTYByteSeen), @"uptime_ms": @(uptimeMs) }];
 
     self.lastExitedAttemptSequence = self.sessionAttemptSequence;
+    self.sessionTerminal.hasSessionTerminal = NO;
     [self.sessionTerminal destroy];
-
-    BOOL allowRestart = YES;
-    NSString *decisionReason = @"allowed";
-    if (!firstPTYByteSeen) {
-        if (isTesting) {
-            decisionReason = @"pre_pty_failure_test_mode";
-        } else {
-            allowRestart = NO;
-            decisionReason = @"pre_pty_failure";
-            [self recordSessionAttemptEvent:@"session.restart.blocked.pre_pty" extra:@{ @"uptime_ms": @(uptimeMs) }];
-        }
-    } else if (uptimeMs < 1000) {
-        allowRestart = NO;
-        decisionReason = @"early_exit";
-        [self recordSessionAttemptEvent:@"session.restart.blocked.early_exit" extra:@{ @"uptime_ms": @(uptimeMs), @"threshold_ms": @1000 }];
-    } else if (self.postPTYRestartBudget <= 0) {
-        allowRestart = NO;
-        decisionReason = @"budget";
-        [self recordSessionAttemptEvent:@"session.restart.blocked.budget" extra:@{ @"uptime_ms": @(uptimeMs), @"budget": @(self.postPTYRestartBudget) }];
-    }
-
-    [self recordSessionAttemptEvent:(allowRestart ? @"session.restart.allowed" : @"session.restart.suppressed") extra:@{ @"reason": decisionReason, @"uptime_ms": @(uptimeMs), @"first_pty_byte_seen": @(firstPTYByteSeen), @"budget": @(self.postPTYRestartBudget) }];
-
-    // On iOS 13, there are multiple windows, so just close this one.
-    if (@available(iOS 13, *)) {
-        if (UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad && self.sceneSession != nil) {
-            [UIApplication.sharedApplication requestSceneSessionDestruction:self.sceneSession options:nil errorHandler:^(NSError *error) {
-                self.sceneSession = nil;
-                [self processExited:notif];
-            }];
-            return;
-        }
-    }
 
     current = NULL; // it's been freed
     IXLandSetGuestSessionActive(NO);
-    if (!allowRestart) {
-        return;
-    }
+    self.sessionPid = 0;
+    self.sessionStartInProgress = NO;
+    self.activeSessionStartTime = 0;
+    self.pendingTerminalFocusRequest = NO;
+    self.lastExitedAttemptSequence = 0;
 
-    if (firstPTYByteSeen && self.postPTYRestartBudget > 0) {
-        self.postPTYRestartBudget -= 1;
-    }
-    [self recordSessionAttemptEvent:@"session.restart.requested" extra:@{ @"reason": decisionReason, @"remaining_budget": @(self.postPTYRestartBudget) }];
-    [self startNewSession];
+    [self recordSessionAttemptEvent:@"session.restart.suppressed"
+                              extra:@{ @"reason": exitReason,
+                                       @"uptime_ms": @(uptimeMs),
+                                       @"first_pty_byte_seen": @(firstPTYByteSeen),
+                                       @"restart_suppressed": @YES }];
+
+    NSString *message = code == 0 ? @"session ended" : @"session exited";
+    if (code < 0)
+        message = @"session crashed";
+    NSString *subtitle = [self sessionExitSubtitleForCode:code
+                                                   reason:exitReason
+                                                 uptimeMs:uptimeMs
+                                          firstPTYByteSeen:firstPTYByteSeen];
+    [self showMessage:message subtitle:subtitle];
 }
 
 - (void)showMessage:(NSString *)message subtitle:(NSString *)subtitle {
@@ -1200,6 +1228,12 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
     _terminal = terminal;
     self.termView.terminal = self.terminal;
     self.termView.inputAccessoryView = self.terminal.loaded ? self.terminal.webView.inputAccessoryView : nil;
+    if (self.terminalViewHasAppeared && self.terminal != nil) {
+        self.pendingTerminalFocusRequest = YES;
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self requestTerminalFocusIfPossible];
+        });
+    }
 }
 
 - (void)setSessionTerminal:(Terminal *)sessionTerminal {

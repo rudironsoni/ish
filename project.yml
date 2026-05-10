@@ -73,6 +73,11 @@ targets:
       headerVisibility: project
     - path: internal/ios
       headerVisibility: project
+      excludes:
+      - "runtime/bootstrap_bridge.*"
+      - "runtime/session_bridge.*"
+      - "runtime/pty_bridge.*"
+      - "runtime/terminal_bridge.*"
     - path: include/ixland
       headerVisibility: project
     dependencies:
@@ -120,15 +125,14 @@ targets:
       - "*.bin"
       buildPhase: resources
     dependencies:
-    - target: IXLandTerminal
+    - target: IXLandLinuxRuntime
     - package: IXLandInstrumentation
       product: IXLandInstrumentationRuntime
     - sdk: UIKit.framework
     - sdk: UniformTypeIdentifiers.framework
     settings:
       GENERATE_INFOPLIST_FILE: true
-      TEST_HOST: "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal"
-      BUNDLE_LOADER: "$(TEST_HOST)"
+      BUNDLE_LOADER: ""
       HEADER_SEARCH_PATHS:
       - "$(LINUX_UAPI_INCLUDE_ROOT)"
       - "$(SRCROOT)/include"
@@ -145,15 +149,15 @@ targets:
     - path: Tests/IXLandLinuxRuntimeContractTests
       excludes:
       - "**/DISABLED/**"
-    - path: Tests/Support/TCTITestHarness/tcti_harness_truth.c
     dependencies:
-    - target: IXLandTerminal
+    - target: IXLandLinuxRuntime
+    - package: IXLandInstrumentation
+      product: IXLandInstrumentationRuntime
     - sdk: UIKit.framework
     - sdk: UniformTypeIdentifiers.framework
     settings:
       GENERATE_INFOPLIST_FILE: true
-      TEST_HOST: "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal"
-      BUNDLE_LOADER: "$(TEST_HOST)"
+      BUNDLE_LOADER: ""
       HEADER_SEARCH_PATHS:
       - "$(LINUX_UAPI_INCLUDE_ROOT)"
       - "$(SRCROOT)/include"
@@ -168,22 +172,20 @@ targets:
     - path: Tests/IXLandLinuxRuntimeSystemTests
       excludes:
       - "**/DISABLED/**"
-      - "Support/**"
     - path: Tests/Fixtures/ELF
       includes:
       - "*.elf"
       - "*.bin"
       buildPhase: resources
     dependencies:
-    - target: IXLandTerminal
+    - target: IXLandLinuxRuntime
     - package: IXLandInstrumentation
       product: IXLandInstrumentationRuntime
     - sdk: UIKit.framework
     - sdk: UniformTypeIdentifiers.framework
     settings:
       GENERATE_INFOPLIST_FILE: true
-      TEST_HOST: "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal"
-      BUNDLE_LOADER: "$(TEST_HOST)"
+      BUNDLE_LOADER: ""
       HEADER_SEARCH_PATHS:
       - "$(LINUX_UAPI_INCLUDE_ROOT)"
       - "$(SRCROOT)/include"
@@ -207,6 +209,10 @@ targets:
       - "PasteboardDeviceLinux.c"
       - "Info.plist"
       - "terminal/**"
+    - path: internal/ios/runtime
+      excludes:
+      - "dns_bridge.m"
+      - "presenter_bridge.m"
     - path: $(DERIVED_FILE_DIR)/mach_excServer.c
       optional: true
     preBuildScripts:
@@ -346,7 +352,6 @@ schemes:
     build:
       targets:
         IXLandLinuxRuntime: all
-        IXLandTerminal: all
         IXLandLinuxRuntimeContractTests: [build-for-testing]
         IXLandLinuxRuntimeSystemTests: [build-for-testing]
         IXLandLinuxRuntimePerfTests: [build-for-testing]

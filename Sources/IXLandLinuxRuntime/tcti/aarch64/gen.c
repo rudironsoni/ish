@@ -51,6 +51,8 @@ extern tcti_gadget_t gadget_extract_fallback;
 extern tcti_gadget_t gadget_csel_fallback;
 extern tcti_gadget_t gadget_ccmp_fallback;
 extern tcti_gadget_t gadget_div_fallback;
+extern tcti_gadget_t gadget_ccmp_native_reg[2][2][16];
+extern tcti_gadget_t gadget_ccmp_native_imm[2][2][16];
 extern tcti_gadget_t gadget_simd_dup_gpr;
 extern tcti_gadget_t gadget_simd_mov_gpr_from_vec;
 extern tcti_gadget_t gadget_simd_movi_imm;
@@ -442,31 +444,26 @@ static int emit_csel_fallback(a64_gen_state_t *state, int rd, int rn, int rm, in
     return emit_u64(state, is_64bit ? 1 : 0);
 }
 
-static int emit_ccmp_fallback(a64_gen_state_t *state, int rn, int rm, uint64_t imm_operand,
-                              int cond, uint64_t nzcv, int subtype, int is_64bit)
+static int emit_ccmp_native(a64_gen_state_t *state, int rn, int rm, uint64_t imm_operand,
+                            int cond, uint64_t nzcv, int subtype, int is_64bit)
 {
-    int ret = emit_gadget(state, gadget_ccmp_fallback);
+    int cond_index = cond & 0xf;
+    int subtype_index = (subtype == A64_DP_REG_CCMP || subtype == A64_DP_REG_CCMP_IMM) ? 1 : 0;
+    bool is_immediate = (subtype == A64_DP_REG_CCMN_IMM || subtype == A64_DP_REG_CCMP_IMM);
+    tcti_gadget_t gadget =
+        is_immediate ? gadget_ccmp_native_imm[subtype_index][is_64bit != 0][cond_index]
+                     : gadget_ccmp_native_reg[subtype_index][is_64bit != 0][cond_index];
+
+    int ret = emit_gadget(state, gadget);
     if (ret != A64_GEN_OK)
         return ret;
     ret = emit_u64(state, (uint64_t)rn);
     if (ret != A64_GEN_OK)
         return ret;
-    ret = emit_u64(state, (uint64_t)rm);
+    ret = emit_u64(state, is_immediate ? imm_operand : (uint64_t)rm);
     if (ret != A64_GEN_OK)
         return ret;
-    ret = emit_u64(state, imm_operand);
-    if (ret != A64_GEN_OK)
-        return ret;
-    ret = emit_u64(state, (uint64_t)(cond & 0xf));
-    if (ret != A64_GEN_OK)
-        return ret;
-    ret = emit_u64(state, nzcv & 0xf);
-    if (ret != A64_GEN_OK)
-        return ret;
-    ret = emit_u64(state, (uint64_t)subtype);
-    if (ret != A64_GEN_OK)
-        return ret;
-    return emit_u64(state, is_64bit ? 1 : 0);
+    return emit_u64(state, nzcv & 0xf);
 }
 
 static int emit_bcond(a64_gen_state_t *state, int cond, uint64_t target_pc, uint64_t fallthrough_pc)
@@ -1108,8 +1105,8 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr)
 
     if (instr->subtype == A64_DP_REG_CCMN || instr->subtype == A64_DP_REG_CCMP ||
         instr->subtype == A64_DP_REG_CCMN_IMM || instr->subtype == A64_DP_REG_CCMP_IMM) {
-        return emit_ccmp_fallback(state, rn, rm, (uint64_t)instr->imm_shift, instr->cond,
-                                  (uint64_t)instr->imm, instr->subtype, instr->is_64bit);
+        return emit_ccmp_native(state, rn, rm, (uint64_t)instr->imm_shift, instr->cond,
+                                (uint64_t)instr->imm, instr->subtype, instr->is_64bit);
     }
 
     if (op2 >= 0 && op2 <= 3) {
@@ -1787,6 +1784,7 @@ int a64_gen_ldst(a64_gen_state_t *state, const a64_instr_t *instr)
         int64_t first_imm;
         int64_t second_imm;
         int ret;
+        bool pair_load_writes_64 = instr->size == A64_SIZE_X || (instr->is_signed && instr->is_64bit);
 
         if (instr->size == A64_SIZE_X) {
             access_size = A64_SIZE_X;
@@ -1810,6 +1808,9 @@ int a64_gen_ldst(a64_gen_state_t *state, const a64_instr_t *instr)
 
         bool is_load = bit(instr->raw, 22);
         bool load_first_destination_overlaps_base = is_load && instr->Rd == instr->Rn;
+        bool discard_first_loaded_value =
+            load_first_destination_overlaps_base && instr->idx_mode == A64_POST_INDEX;
+        int first_rt = discard_first_loaded_value ? 31 : instr->Rd;
 
         // Pair addressing uses the original base register for both elements.
         // If the first load destination is also the base, emit the independent
@@ -1817,24 +1818,24 @@ int a64_gen_ldst(a64_gen_state_t *state, const a64_instr_t *instr)
         // newly loaded first value.
         if (load_first_destination_overlaps_base) {
             ret = a64_emit_ldst_single(state, state->guest_pc, instr->Rm, instr->Rn, second_imm,
-                                       access_size, second_mode, 0, 0, 0, 0, 0, is_load,
-                                       access_size == A64_SIZE_X);
+                                       access_size, second_mode, instr->is_signed, 0, 0, 0, 0,
+                                       is_load, pair_load_writes_64);
             if (ret != A64_GEN_OK)
                 return ret;
 
-            ret = a64_emit_ldst_single(state, state->guest_pc, instr->Rd, instr->Rn, first_imm,
-                                       access_size, first_mode, 0, 0, 0, 0, 0, is_load,
-                                       access_size == A64_SIZE_X);
+            ret = a64_emit_ldst_single(state, state->guest_pc, first_rt, instr->Rn, first_imm,
+                                       access_size, first_mode, instr->is_signed, 0, 0, 0, 0,
+                                       is_load, pair_load_writes_64);
         } else {
             ret = a64_emit_ldst_single(state, state->guest_pc, instr->Rd, instr->Rn, first_imm,
-                                       access_size, first_mode, 0, 0, 0, 0, 0, is_load,
-                                       access_size == A64_SIZE_X);
+                                       access_size, first_mode, instr->is_signed, 0, 0, 0, 0,
+                                       is_load, pair_load_writes_64);
             if (ret != A64_GEN_OK)
                 return ret;
 
             ret = a64_emit_ldst_single(state, state->guest_pc, instr->Rm, instr->Rn, second_imm,
-                                       access_size, second_mode, 0, 0, 0, 0, 0, is_load,
-                                       access_size == A64_SIZE_X);
+                                       access_size, second_mode, instr->is_signed, 0, 0, 0, 0,
+                                       is_load, pair_load_writes_64);
         }
         if (ret != A64_GEN_OK)
             return ret;

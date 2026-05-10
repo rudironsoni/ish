@@ -24,9 +24,9 @@ struct a64_block {
 
     struct list chain;
 
-    /* Generation at compile time. If the address-space generation
-       changes after this block was compiled, the block is stale and
-       MUST NOT be used. This replaces jetsam-based invalidation as the
+    /* Executable-code generation at compile time. If executable layout or
+       code bytes change after this block was compiled, the block is stale
+       and MUST NOT be used. This replaces whole-cache invalidation as the
        primary correctness mechanism. */
     mem_generation_t compile_generation;
 
@@ -48,18 +48,31 @@ struct a64_block_cache {
     // lock_t lock;  // TODO: Add locking for thread safety
 };
 
+enum a64_cache_lookup_miss_reason {
+    A64_CACHE_LOOKUP_HIT = 0,
+    A64_CACHE_LOOKUP_MISS_NOT_FOUND,
+    A64_CACHE_LOOKUP_MISS_JETSAM,
+    A64_CACHE_LOOKUP_MISS_GENERATION,
+};
+
 // Initialize block cache
 void a64_cache_init(struct a64_block_cache *cache);
 
-// Look up block by PC and current generation. Returns NULL if not found or stale.
+// Look up block by PC and current code generation. Returns NULL if not found or stale.
 struct a64_block *a64_cache_lookup(struct a64_block_cache *cache, uint64_t pc,
                                    mem_generation_t current_generation);
+struct a64_block *a64_cache_lookup_ex(struct a64_block_cache *cache, uint64_t pc,
+                                      mem_generation_t current_generation,
+                                      enum a64_cache_lookup_miss_reason *miss_reason_out);
 
 // Insert block into cache
 void a64_cache_insert(struct a64_block_cache *cache, struct a64_block *block);
 
-// Invalidate all blocks (e.g., after memory write)
+// Invalidate all blocks (reserved for exceptional hard invalidation paths)
 void a64_cache_invalidate_all(struct a64_block_cache *cache);
+
+// Invalidate blocks overlapping a guest executable address range.
+void a64_cache_invalidate_range(struct a64_block_cache *cache, uint64_t start_pc, uint64_t end_pc);
 
 // Free a block
 void a64_block_free(struct a64_block *block);

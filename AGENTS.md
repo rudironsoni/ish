@@ -213,6 +213,10 @@ Rules:
 - Host bridge tests prove host seams only.
 - Compile-smoke tests prove header resolution, not runtime semantics.
 - Guest-visible terminal/runtime regressions are still required where relevant.
+- Runtime fixes must be advanced by tests first: add or tighten a failing test that captures the exact user-visible or contract-visible failure, verify it fails for the expected reason, then implement the fix.
+- Do not use trial-and-error patching as a debugging method. Instrumentation is allowed only to sharpen the failing contract and isolate root cause; it is not a substitute for a targeted red test.
+- When multiple red tests exist, the next code change must be justified against a specific failing contract, not a vague performance suspicion.
+- If a fix lands without making a targeted failing test pass or otherwise narrowing the exact failing contract, the work is incomplete.
 
 ## Tooling Rules
 
@@ -246,3 +250,4 @@ Required:
 - move toward explicit ownership, not broader convenience layers
 - preserve TCTI-only guest execution
 - prove behavior before claiming success
+- use failing tests and exact proof to drive emulator/runtime fixes from root cause, not exploratory patch sequences

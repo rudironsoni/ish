@@ -57,6 +57,34 @@ static bool page_map_range_is_empty(struct page_map *map, uint64_t start_page, u
     return !probe.found;
 }
 
+static bool mem_flags_include_exec(unsigned flags)
+{
+    return (flags & P_EXEC) != 0;
+}
+
+static void mem_invalidate_executable_range(struct mem *mem, page_t start, pages_t pages)
+{
+    if (!mem || pages == 0)
+        return;
+
+    struct task *task = current;
+    if (!task || task->cpu.mmu != &mem->mmu || task->cpu.mmu->block_cache == NULL)
+        return;
+
+    uint64_t start_pc = ((uint64_t)start) << PAGE_BITS;
+    uint64_t end_pc = ((uint64_t)(start + pages)) << PAGE_BITS;
+    a64_cache_invalidate_range(task->cpu.mmu->block_cache, start_pc, end_pc);
+}
+
+static void mem_note_executable_range_changed(struct mem *mem, page_t start, pages_t pages)
+{
+    if (!mem || pages == 0)
+        return;
+
+    mem_bump_code_generation(mem);
+    mem_invalidate_executable_range(mem, start, pages);
+}
+
 void mem_init(struct mem *mem)
 {
     memset(mem, 0, sizeof(*mem));
@@ -64,6 +92,7 @@ void mem_init(struct mem *mem)
     page_map_init(&mem->pages);
     mem->mmu.ops = &mem_mmu_ops;
     mem->mmu.generation = 0;
+    mem->mmu.code_generation = 0;
     list_init(&mem->retire_list);
     mem->retire_tail = NULL;
     mem->retire_count = 0;
@@ -221,6 +250,8 @@ int pt_map(struct mem *mem, page_t start, pages_t pages, void *memory, size_t of
     for (int i = 0; i < n_removed; i++) {
         page_t pg_start = removed[i]->start >> PAGE_BITS;
         page_t pg_end = removed[i]->end >> PAGE_BITS;
+        if (mem_flags_include_exec(removed[i]->flags))
+            mem_note_executable_range_changed(mem, pg_start, pg_end - pg_start);
         for (page_t pg = pg_start; pg < pg_end; pg++) {
             struct page_desc *old_desc = page_map_remove(&mem->pages, pg);
             retire_page_desc(mem, old_desc);
@@ -279,6 +310,9 @@ int pt_map(struct mem *mem, page_t start, pages_t pages, void *memory, size_t of
         }
     }
 
+    if (mem_flags_include_exec(flags))
+        mem_note_executable_range_changed(mem, start, pages);
+
     mem_bump_generation(mem);
     return 0;
 }
@@ -303,9 +337,14 @@ int pt_unmap(struct mem *mem, page_t start, pages_t pages)
 
 int pt_unmap_always(struct mem *mem, page_t start, pages_t pages)
 {
-    struct task *task = current;
-    if (task && task->cpu.mmu && task->cpu.mmu->block_cache) {
-        a64_cache_invalidate_all(task->cpu.mmu->block_cache);
+    struct vm_area *removed[64];
+    int n_removed = vma_tree_remove_range(&mem->vmas, start, pages, removed, 64);
+    for (int i = 0; i < n_removed; i++) {
+        if (mem_flags_include_exec(removed[i]->flags)) {
+            page_t pg_start = removed[i]->start >> PAGE_BITS;
+            page_t pg_end = removed[i]->end >> PAGE_BITS;
+            mem_note_executable_range_changed(mem, pg_start, pg_end - pg_start);
+        }
     }
 
     for (page_t page = start; page < start + pages; page++) {
@@ -313,8 +352,6 @@ int pt_unmap_always(struct mem *mem, page_t start, pages_t pages)
         retire_page_desc(mem, desc);
     }
 
-    struct vm_area *removed[64];
-    int n_removed = vma_tree_remove_range(&mem->vmas, start, pages, removed, 64);
     for (int i = 0; i < n_removed; i++) {
         mem_object_release(removed[i]->obj);
         vma_free(removed[i]);
@@ -356,6 +393,8 @@ int pt_set_flags(struct mem *mem, page_t start, pages_t pages, int flags)
             vma->flags = pt_merge_protection_flags(vma->flags, (unsigned)flags);
 
         if ((new_flags ^ old_flags) & P_RWX) {
+            if ((old_flags ^ new_flags) & P_EXEC)
+                mem_note_executable_range_changed(mem, page, 1);
             void *host_ptr = (char *)desc->obj->host_base + desc->offset;
             host_ptr = (void *)((uintptr_t)host_ptr & ~(real_page_size - 1));
             int prot = pt_host_prot_from_guest_flags(new_flags);
@@ -506,9 +545,8 @@ void *mem_ptr(struct mem *mem, addr_t addr, int type)
                 return NULL;
         }
 
-        struct task *task = current;
-        if (task && task->cpu.mmu && task->cpu.mmu->block_cache)
-            a64_cache_invalidate_all(task->cpu.mmu->block_cache);
+        if (mem_flags_include_exec(desc->flags))
+            mem_note_executable_range_changed(mem, page, 1);
     }
 
     if (desc->obj->kind == MEM_OBJ_SPECIAL)

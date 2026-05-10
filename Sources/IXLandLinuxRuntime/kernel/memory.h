@@ -20,8 +20,10 @@
  * - Sparse radix page map (4-level, 9-bit fanout) handles per-page translation.
  * - Backing objects (mem_object) are refcounted and NEVER freed immediately on unmap.
  * - Deferred reclamation via epoch-based retire lists prevents UAF.
- * - Translation is generation-based: every mutation bumps mmu.generation.
- * - TLB and TCTI block cache entries carry generation and reject stale translations.
+ * - Translation is generation-based: every translation mutation bumps mmu.generation.
+ * - Executable block reuse is code-generation-based: only executable layout or
+ *   code-byte changes bump mmu.code_generation.
+ * - TLB entries and TCTI block cache entries reject stale generations.
  *
  * OLD MODEL (deleted):
  * - struct pt_entry **pgdir (two-level 10+10 bit page table = 4GB cap)
@@ -127,10 +129,16 @@ bool pt_is_hole(struct mem *mem, page_t start, pages_t pages);
 /* Dump memory to a core file (64-bit correct). */
 void mem_coredump(struct mem *mem, const char *file);
 
-/* Bump the translation generation (called on every map/unmap/protect change). */
+/* Bump the translation generation (called on every translation-visible mutation). */
 static inline void mem_bump_generation(struct mem *mem)
 {
     __atomic_fetch_add(&mem->mmu.generation, 1, __ATOMIC_SEQ_CST);
+}
+
+/* Bump the executable-code generation (only when executable mappings/bytes change). */
+static inline void mem_bump_code_generation(struct mem *mem)
+{
+    __atomic_fetch_add(&mem->mmu.code_generation, 1, __ATOMIC_SEQ_CST);
 }
 
 /* Drain the retire list: free objects whose retire_generation is stale. */

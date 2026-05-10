@@ -123,12 +123,66 @@
     return lastObserved;
 }
 
+- (NSUInteger)promptCountInTerminalText:(NSString *)text {
+    if (text.length == 0)
+        return 0;
+    NSUInteger count = 0;
+    NSRange searchRange = NSMakeRange(0, text.length);
+    while (YES) {
+        NSRange found = [text rangeOfString:@"/ # " options:0 range:searchRange];
+        if (found.location == NSNotFound)
+            break;
+        count += 1;
+        NSUInteger nextLocation = NSMaxRange(found);
+        if (nextLocation >= text.length)
+            break;
+        searchRange = NSMakeRange(nextLocation, text.length - nextLocation);
+    }
+    return count;
+}
+
+- (XCUIElement *)waitForSessionExitAlertWithTimeout:(NSTimeInterval)timeout {
+    NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:timeout];
+    while ([deadline timeIntervalSinceNow] > 0) {
+        XCUIElement *alert = [self.app.alerts elementBoundByIndex:0];
+        if (alert.exists) {
+            NSString *payload = [self startupAlertPayloadForAlert:alert];
+            if ([payload containsString:@"session ended"]
+                || [payload containsString:@"session exited"]
+                || [payload containsString:@"session crashed"]) {
+                return alert;
+            }
+        }
+        [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.1]];
+    }
+    XCTFail(@"Timed out waiting for session exit alert");
+    return [self.app.alerts elementBoundByIndex:0];
+}
+
 // Test 1: Basic shell execution
 - (void)testBasicShellExecution {
     [self typeCommand:@"echo aarch64_test_passed"];
     NSString *output = [self waitForTerminalTextContaining:@"aarch64_test_passed" timeout:30.0];
     XCTAssertTrue([output containsString:@"aarch64_test_passed"],
                   @"Should see computed shell output in terminal. Actual output: %@", output);
+}
+
+- (void)testPromptAppearsWithoutExtraInput {
+    NSString *output = [self waitForTerminalReadyWithTimeout:180.0];
+    XCTAssertTrue([self terminalTextContainsShellPrompt:output],
+                  @"Shell prompt must appear without extra keystrokes. Actual output: %@", output);
+}
+
+- (void)testSingleKeystrokeEchoAppearsImmediately {
+    XCUIElement *terminalSurface = self.app.otherElements[@"TerminalSurface"];
+    XCTAssertTrue([terminalSurface waitForExistenceWithTimeout:5.0], @"TerminalSurface must be accessible");
+    [self waitForTerminalReadyWithTimeout:180.0];
+    [terminalSurface tap];
+    [self.app typeText:@"e"];
+
+    NSString *output = [self waitForTerminalTextContaining:@"/ # e" timeout:5.0];
+    XCTAssertTrue([output containsString:@"/ # e"],
+                  @"A single typed character must echo after one keystroke. Actual output: %@", output);
 }
 
 - (void)testRootDirectoryListingDoesNotReportOutOfMemory {
@@ -153,6 +207,48 @@
                    output);
     XCTAssertTrue([output containsString:@"bin"],
                   @"Plain ls should include /bin in the root directory listing. Actual output: %@",
+                  output);
+}
+
+- (void)testLongLsDoesNotSegfault
+{
+    [self typeCommand:@"ls -la"];
+    NSString *output = [self waitForTerminalTextContaining:@"drwx" timeout:30.0];
+    XCTAssertFalse([output containsString:@"Segmentation fault"],
+                   @"Long-format ls in the interactive shell must not segfault. Actual output: %@",
+                   output);
+    XCTAssertTrue([output containsString:@"drwx"],
+                  @"Long-format ls should include permission metadata. Actual output: %@",
+                  output);
+}
+
+- (void)testLongLsReachesHeaderPromptly
+{
+    [self typeCommand:@"ls -la"];
+    NSString *output = [self waitForTerminalTextContaining:@"total 0" timeout:10.0];
+    XCTAssertTrue([output containsString:@"total 0"],
+                  @"Long-format ls should reach the header promptly. Actual output: %@",
+                  output);
+}
+
+- (void)testLongNumericLsReachesHeaderPromptly
+{
+    [self typeCommand:@"ls -ln"];
+    NSString *output = [self waitForTerminalTextContaining:@"total 0" timeout:10.0];
+    XCTAssertTrue([output containsString:@"total 0"],
+                  @"Numeric long-format ls should reach the header promptly. Actual output: %@",
+                  output);
+}
+
+- (void)testLongNumericLsDoesNotSegfault
+{
+    [self typeCommand:@"ls -ln"];
+    NSString *output = [self waitForTerminalTextContaining:@"drwx" timeout:30.0];
+    XCTAssertFalse([output containsString:@"Segmentation fault"],
+                   @"Numeric long-format ls in the interactive shell must not segfault. Actual output: %@",
+                   output);
+    XCTAssertTrue([output containsString:@"drwx"],
+                  @"Numeric long-format ls should include permission metadata. Actual output: %@",
                   output);
 }
 
@@ -236,6 +332,30 @@
                   @"Should show SEQ:2:END. Actual output: %@", output);
     XCTAssertTrue([output containsString:@"SEQ:3:END"],
                   @"Should show SEQ:3:END. Actual output: %@", output);
+}
+
+- (void)testInteractiveExitDoesNotSilentlyRestartSession {
+    NSString *beforeExit = [self waitForTerminalReadyWithTimeout:180.0];
+    NSUInteger promptCountBeforeExit = [self promptCountInTerminalText:beforeExit];
+
+    XCUIElement *terminalSurface = self.app.otherElements[@"TerminalSurface"];
+    XCTAssertTrue([terminalSurface waitForExistenceWithTimeout:5.0], @"TerminalSurface must be accessible");
+    [terminalSurface tap];
+    [self.app typeText:@"exit\n"];
+
+    XCUIElement *alert = [self waitForSessionExitAlertWithTimeout:10.0];
+    NSString *payload = [self startupAlertPayloadForAlert:alert];
+    XCTAssertTrue([payload containsString:@"restart_suppressed=true"],
+                  @"Exit alert must surface that auto-restart was suppressed. Payload: %@", payload);
+    XCTAssertTrue([payload containsString:@"exit_code=0"],
+                  @"Exit alert must surface the exit code. Payload: %@", payload);
+
+    [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:1.0]];
+    NSString *afterExit = [self terminalText];
+    NSUInteger promptCountAfterExit = [self promptCountInTerminalText:afterExit];
+    XCTAssertEqual(promptCountAfterExit, promptCountBeforeExit,
+                   @"Interactive exit must not silently relaunch a fresh prompt. Before: %@ After: %@",
+                   beforeExit, afterExit);
 }
 
 @end

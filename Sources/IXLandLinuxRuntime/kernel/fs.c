@@ -6,8 +6,21 @@
 #import <IXLandLinuxRuntime/kernel/fs.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
 #import <IXLandLinuxRuntime/util/debug.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+
+static bool runtime_proof_trace_enabled(void)
+{
+    static int initialized = 0;
+    static bool enabled = false;
+    if (!initialized) {
+        const char *value = getenv("ISH_VERBOSE_RUNTIME_PROOF");
+        enabled = value && strcmp(value, "0") != 0;
+        initialized = 1;
+    }
+    return enabled;
+}
 
 static struct fd *at_fd(fd_t f)
 {
@@ -285,19 +298,21 @@ uint32_t sys_read(fd_t fd_no, addr_t buf_addr, uint32_t size)
     STRACE("read(%d, 0x%x, %d)", fd_no, buf_addr, size);
 
     // APPSIM-004 Stage 3A: Guest read attempt tracing
-    char pid_buf[32];
-    char fd_buf[32];
-    char size_buf[32];
-    snprintf(pid_buf, sizeof(pid_buf), "%u", (unsigned)(current ? current->pid : 0));
-    snprintf(fd_buf, sizeof(fd_buf), "%d", fd_no);
-    snprintf(size_buf, sizeof(size_buf), "%u", (unsigned)size);
-    trace_attribute_t read_attrs[] = {
-        { "pid", pid_buf },
-        { "fd", fd_buf },
-        { "requested_bytes", size_buf },
-    };
-    (void)trace_begin_interval(TRACE_ORIGIN_KERNEL, "task.proof.guest.read.attempt", read_attrs,
-                               sizeof(read_attrs) / sizeof(read_attrs[0]));
+    if (runtime_proof_trace_enabled()) {
+        char pid_buf[32];
+        char fd_buf[32];
+        char size_buf[32];
+        snprintf(pid_buf, sizeof(pid_buf), "%u", (unsigned)(current ? current->pid : 0));
+        snprintf(fd_buf, sizeof(fd_buf), "%d", fd_no);
+        snprintf(size_buf, sizeof(size_buf), "%u", (unsigned)size);
+        trace_attribute_t read_attrs[] = {
+            { "pid", pid_buf },
+            { "fd", fd_buf },
+            { "requested_bytes", size_buf },
+        };
+        (void)trace_begin_interval(TRACE_ORIGIN_KERNEL, "task.proof.guest.read.attempt",
+                                   read_attrs, sizeof(read_attrs) / sizeof(read_attrs[0]));
+    }
 
     char *buf = (char *)malloc(size);
     if (buf == NULL)
@@ -335,25 +350,7 @@ uint32_t sys_write(fd_t fd_no, addr_t buf_addr, uint32_t size)
 {
     // APPSIM-004 Stage 3A: Guest write attempt tracing
     // Use trace_begin_interval for the checkpoint (approved instrumentation)
-    char pid_buf[32];
-    char fd_buf[32];
-    char size_buf[32];
-    char return_buf[32];
-    trace_attribute_t return_attrs[] = {
-        { "pid", pid_buf },
-        { "fd", fd_buf },
-        { "return", return_buf },
-    };
-    snprintf(pid_buf, sizeof(pid_buf), "%u", (unsigned)(current ? current->pid : 0));
-    snprintf(fd_buf, sizeof(fd_buf), "%d", fd_no);
-    snprintf(size_buf, sizeof(size_buf), "%u", (unsigned)size);
-    trace_attribute_t write_attrs[] = {
-        { "pid", pid_buf },
-        { "fd", fd_buf },
-        { "byte_count", size_buf },
-    };
-    (void)trace_begin_interval(TRACE_ORIGIN_KERNEL, "task.proof.guest.write.attempt", write_attrs,
-                               sizeof(write_attrs) / sizeof(write_attrs[0]));
+    bool emit_runtime_proof = runtime_proof_trace_enabled();
 
     // FIXME this is a DOS vector, should ideally use vectorized I/O
     char *buf = malloc(size);
@@ -368,13 +365,49 @@ uint32_t sys_write(fd_t fd_no, addr_t buf_addr, uint32_t size)
         print_size = 100;
     STRACE("write(%d, \"%.*s\", %d)", fd_no, (int)print_size, buf, (int)size);
 
+    char pid_buf[32];
+    char fd_buf[32];
+    char size_buf[32];
+    char preview_buf[65];
+    char return_buf[32];
+    if (emit_runtime_proof) {
+        snprintf(pid_buf, sizeof(pid_buf), "%u", (unsigned)(current ? current->pid : 0));
+        snprintf(fd_buf, sizeof(fd_buf), "%d", fd_no);
+        snprintf(size_buf, sizeof(size_buf), "%u", (unsigned)size);
+
+        size_t preview_size = size;
+        if (preview_size > sizeof(preview_buf) - 1)
+            preview_size = sizeof(preview_buf) - 1;
+        for (size_t i = 0; i < preview_size; i++) {
+            unsigned char byte = (unsigned char)buf[i];
+            preview_buf[i] = (byte >= 0x20 && byte <= 0x7E) ? (char)byte : '.';
+        }
+        preview_buf[preview_size] = '\0';
+
+        trace_attribute_t write_attrs[] = {
+            { "pid", pid_buf },
+            { "fd", fd_buf },
+            { "byte_count", size_buf },
+            { "preview", preview_buf },
+        };
+        (void)trace_begin_interval(TRACE_ORIGIN_KERNEL, "task.proof.guest.write.attempt",
+                                   write_attrs, sizeof(write_attrs) / sizeof(write_attrs[0]));
+    }
+
     res = (uint32_t)sys_write_buf(fd_no, buf, size);
 out:
     // APPSIM-004 Stage 3A: Write return value
-    snprintf(return_buf, sizeof(return_buf), "%d", (int)res);
-    (void)trace_begin_interval(TRACE_ORIGIN_KERNEL, "task.proof.guest.write.return", return_attrs,
-                               sizeof(return_attrs) / sizeof(return_attrs[0]));
-    (void)trace_end_interval(TRACE_ORIGIN_KERNEL, NULL, 0);
+    if (emit_runtime_proof) {
+        snprintf(return_buf, sizeof(return_buf), "%d", (int)res);
+        trace_attribute_t return_attrs[] = {
+            { "pid", pid_buf },
+            { "fd", fd_buf },
+            { "return", return_buf },
+        };
+        (void)trace_begin_interval(TRACE_ORIGIN_KERNEL, "task.proof.guest.write.return",
+                                   return_attrs, sizeof(return_attrs) / sizeof(return_attrs[0]));
+        (void)trace_end_interval(TRACE_ORIGIN_KERNEL, NULL, 0);
+    }
 
     free(buf);
     return (uint32_t)res;
@@ -449,19 +482,21 @@ uint32_t sys_writev(fd_t fd_no, addr_t iovec_addr, uint32_t iovec_count)
     STRACE("writev(%d, %#x, %d)", fd_no, iovec_addr, iovec_count);
 
     // APPSIM-004 Stage 3A: Guest writev attempt tracing
-    char pid_buf[32];
-    char fd_buf[32];
-    char count_buf[32];
-    snprintf(pid_buf, sizeof(pid_buf), "%u", (unsigned)(current ? current->pid : 0));
-    snprintf(fd_buf, sizeof(fd_buf), "%d", fd_no);
-    snprintf(count_buf, sizeof(count_buf), "%u", (unsigned)iovec_count);
-    trace_attribute_t writev_attrs[] = {
-        { "pid", pid_buf },
-        { "fd", fd_buf },
-        { "iovec_count", count_buf },
-    };
-    (void)trace_begin_interval(TRACE_ORIGIN_KERNEL, "task.proof.guest.writev.attempt", writev_attrs,
-                               sizeof(writev_attrs) / sizeof(writev_attrs[0]));
+    if (runtime_proof_trace_enabled()) {
+        char pid_buf[32];
+        char fd_buf[32];
+        char count_buf[32];
+        snprintf(pid_buf, sizeof(pid_buf), "%u", (unsigned)(current ? current->pid : 0));
+        snprintf(fd_buf, sizeof(fd_buf), "%d", fd_no);
+        snprintf(count_buf, sizeof(count_buf), "%u", (unsigned)iovec_count);
+        trace_attribute_t writev_attrs[] = {
+            { "pid", pid_buf },
+            { "fd", fd_buf },
+            { "iovec_count", count_buf },
+        };
+        (void)trace_begin_interval(TRACE_ORIGIN_KERNEL, "task.proof.guest.writev.attempt",
+                                   writev_attrs, sizeof(writev_attrs) / sizeof(writev_attrs[0]));
+    }
 
     struct iovec_ *iovec = read_iovec(iovec_addr, iovec_count);
     if (IS_ERR(iovec))

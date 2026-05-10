@@ -20,6 +20,57 @@
     struct cpu_state _cpu;
 }
 
+- (BOOL)readGuestCStringAt:(addr_t)guestAddress into:(char *)buffer capacity:(size_t)capacity
+{
+    if (buffer == NULL || capacity == 0) {
+        return NO;
+    }
+
+    for (size_t i = 0; i < capacity; i++) {
+        char c = '\0';
+        if (user_get(guestAddress + i, c) != 0) {
+            buffer[0] = '\0';
+            return NO;
+        }
+        buffer[i] = c;
+        if (c == '\0') {
+            return YES;
+        }
+    }
+
+    buffer[capacity - 1] = '\0';
+    return NO;
+}
+
+- (BOOL)readInitialProcessStackArgc:(uint64_t *)argcOut
+                           argvBase:(addr_t *)argvBaseOut
+                           envpBase:(addr_t *)envpBaseOut
+{
+    if (current == NULL) {
+        return NO;
+    }
+
+    addr_t sp = current->cpu.sp;
+    uint64_t argc = 0;
+    if (user_get(sp, argc) != 0) {
+        return NO;
+    }
+
+    addr_t argvBase = sp + sizeof(addr_t);
+    addr_t envpBase = argvBase + ((argc + 1) * sizeof(addr_t));
+
+    if (argcOut != NULL) {
+        *argcOut = argc;
+    }
+    if (argvBaseOut != NULL) {
+        *argvBaseOut = argvBase;
+    }
+    if (envpBaseOut != NULL) {
+        *envpBaseOut = envpBase;
+    }
+    return YES;
+}
+
 - (BOOL)guestProcessUsesMuslStartup
 {
     return current != NULL && current->cpu.tpidr_el0 != 0;
@@ -97,6 +148,28 @@
     return execErr == 0;
 }
 
+- (BOOL)execBusyboxLongLsForABIInspection
+{
+    NSString *rootPath = [self dataRootPath];
+    XCTAssertNotNil(rootPath, @"rootfs path must exist");
+    if (rootPath == nil || ![self bootstrapMountedRootfsAtPath:rootPath]) {
+        return NO;
+    }
+
+    const char argv[] = "/bin/busybox\0ls\0-la\0/\0\0";
+    const char envp[] =
+        "TERM=xterm-256color\0"
+        "HOME=/root\0"
+        "USER=root\0"
+        "LOGNAME=root\0"
+        "SHELL=/bin/sh\0"
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\0"
+        "\0";
+    int execErr = do_execve("bin/busybox", 4, argv, envp);
+    XCTAssertEqual(execErr, 0, @"do_execve returned %d", execErr);
+    return execErr == 0;
+}
+
 - (void)setUp {
     [super setUp];
     memset(&_cpu, 0, sizeof(_cpu));
@@ -149,15 +222,29 @@
 // Contract: x0-x1 register initialization for musl aarch64
 // Owner: kernel/exec.c:elf_exec lines 1425-1428
 - (void)testProcessABIContract_RegisterInitializationContract {
-    // System: aarch64 musl startup convention
-    // x0 = sp (pointer to argc on stack)
-    // x1 = _DYNAMIC (address of PT_DYNAMIC)
-    // Placeholder: requires execve execution to verify
-    (void)_cpu; // Suppress unused warning
-    
-    // This test documents the contract that cpu->x[0] and cpu->x[1]
-    // must be set before first instruction executes
-    XCTAssertTrue(YES, "Register init contract: x0=sp, x1=_DYNAMIC (requires execve execution)");
+    if (![self execBusyboxUnameForABIInspection]) {
+        return;
+    }
+
+    uint64_t argc = 0;
+    addr_t argvBase = 0;
+    addr_t envpBase = 0;
+    XCTAssertTrue([self readInitialProcessStackArgc:&argc argvBase:&argvBase envpBase:&envpBase],
+                  @"initial guest process stack must be readable before first instruction");
+
+    uint64_t dynamicTag = 0;
+    uint64_t dynamicValue = 0;
+    XCTAssertEqual(current->cpu.x[0], current->cpu.sp,
+                   @"x0 must point at argc on the initial guest stack");
+    XCTAssertNotEqual(current->cpu.x[1], 0ULL,
+                      @"x1 must point at a live _DYNAMIC table for musl startup");
+    XCTAssertEqual(user_get(current->cpu.x[1], dynamicTag), 0,
+                   @"x1 must point at readable _DYNAMIC tag storage");
+    XCTAssertEqual(user_get(current->cpu.x[1] + sizeof(uint64_t), dynamicValue), 0,
+                   @"x1 must point at readable _DYNAMIC value storage");
+    XCTAssertNotEqual(argc, 0ULL, @"initial argc must be present on the guest stack");
+    XCTAssertNotEqual(argvBase, 0U, @"argv vector must be placed on the guest stack");
+    XCTAssertNotEqual(envpBase, 0U, @"envp vector must be placed on the guest stack");
 }
 
 // Contract: x2-x7 registers are zeroed at process start
@@ -176,11 +263,12 @@
 // Contract: PSTATE initial state for EL0
 // Owner: kernel/exec.c:elf_exec via a64_cpu_init
 - (void)testProcessABIContract_PSTATEInitialization {
-    // System: CPU init should set PSTATE to valid user mode
-    // N,Z,C,V flags should be in defined state (typically 0 for fresh process)
-    
-    // Placeholder: PSTATE needs verification in actual exec path
-    XCTAssertTrue(YES, "PSTATE init contract: requires execve execution");
+    if (![self execBusyboxUnameForABIInspection]) {
+        return;
+    }
+
+    XCTAssertEqual(current->cpu.pstate, 0ULL,
+                   @"fresh execve startup must enter guest EL0 with NZCV clear");
 }
 
 // Contract: TLS area is set up via TPIDR_EL0
@@ -277,6 +365,84 @@
     XCTAssertEqual(hErrnoValue, 0, @"initial guest h_errno storage must start clear");
     XCTAssertEqual(detachState, 2, @"detach_state must start as DT_JOINABLE");
     XCTAssertEqual(killlock, 0, @"killlock must start clear for the initial thread");
+}
+
+- (void)testProcessABIContract_InitialEnvpVectorIsNullTerminatedAndReadable
+{
+    if (![self execBusyboxUnameForABIInspection]) {
+        return;
+    }
+
+    uint64_t argc = 0;
+    addr_t argvBase = 0;
+    addr_t envpBase = 0;
+    XCTAssertTrue([self readInitialProcessStackArgc:&argc argvBase:&argvBase envpBase:&envpBase],
+                  @"must be able to parse argc/argv/envp from the initial guest stack");
+
+    addr_t argvNull = UINTPTR_MAX;
+    XCTAssertEqual(user_get(argvBase + (argc * sizeof(addr_t)), argvNull), 0,
+                   @"argv terminator must be readable");
+    XCTAssertEqual(argvNull, (addr_t)0, @"argv must be NULL-terminated on the initial stack");
+
+    addr_t env0 = 0;
+    addr_t env1 = 0;
+    addr_t env2 = 0;
+    addr_t env3 = 0;
+    XCTAssertEqual(user_get(envpBase + (0 * sizeof(addr_t)), env0), 0);
+    XCTAssertEqual(user_get(envpBase + (1 * sizeof(addr_t)), env1), 0);
+    XCTAssertEqual(user_get(envpBase + (2 * sizeof(addr_t)), env2), 0);
+    XCTAssertEqual(user_get(envpBase + (3 * sizeof(addr_t)), env3), 0);
+
+    XCTAssertNotEqual(env0, (addr_t)0, @"envp[0] must point at TERM");
+    XCTAssertNotEqual(env1, (addr_t)0, @"envp[1] must point at PATH");
+    XCTAssertNotEqual(env2, (addr_t)0, @"envp[2] must point at HOME");
+    XCTAssertEqual(env3, (addr_t)0, @"expected envp[3] to be the final NULL for ABI probe");
+
+    char env0Buf[64];
+    char env1Buf[64];
+    char env2Buf[64];
+    XCTAssertTrue([self readGuestCStringAt:env0 into:env0Buf capacity:sizeof(env0Buf)]);
+    XCTAssertTrue([self readGuestCStringAt:env1 into:env1Buf capacity:sizeof(env1Buf)]);
+    XCTAssertTrue([self readGuestCStringAt:env2 into:env2Buf capacity:sizeof(env2Buf)]);
+    XCTAssertEqualObjects([NSString stringWithUTF8String:env0Buf], @"TERM=xterm-256color");
+    XCTAssertEqualObjects([NSString stringWithUTF8String:env1Buf], @"PATH=/bin:/usr/bin");
+    XCTAssertEqualObjects([NSString stringWithUTF8String:env2Buf], @"HOME=/root");
+}
+
+- (void)testProcessABIContract_AppStyleLongLsEnvpVectorIsNullTerminatedAndReadable
+{
+    if (![self execBusyboxLongLsForABIInspection]) {
+        return;
+    }
+
+    uint64_t argc = 0;
+    addr_t argvBase = 0;
+    addr_t envpBase = 0;
+    XCTAssertTrue([self readInitialProcessStackArgc:&argc argvBase:&argvBase envpBase:&envpBase]);
+    XCTAssertEqual(argc, (uint64_t)4, @"ls -la ABI probe must carry four argv entries");
+
+    NSArray<NSString *> *expected = @[
+        @"TERM=xterm-256color",
+        @"HOME=/root",
+        @"USER=root",
+        @"LOGNAME=root",
+        @"SHELL=/bin/sh",
+        @"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+    ];
+
+    for (NSUInteger i = 0; i < expected.count; i++) {
+        addr_t entry = 0;
+        XCTAssertEqual(user_get(envpBase + (i * sizeof(addr_t)), entry), 0);
+        XCTAssertNotEqual(entry, (addr_t)0, @"envp[%lu] must point at %@", (unsigned long)i,
+                          expected[i]);
+        char buffer[128];
+        XCTAssertTrue([self readGuestCStringAt:entry into:buffer capacity:sizeof(buffer)]);
+        XCTAssertEqualObjects([NSString stringWithUTF8String:buffer], expected[i]);
+    }
+
+    addr_t envNull = UINTPTR_MAX;
+    XCTAssertEqual(user_get(envpBase + (expected.count * sizeof(addr_t)), envNull), 0);
+    XCTAssertEqual(envNull, (addr_t)0, @"app-style envp must end with a NULL pointer before auxv");
 }
 
 // System: First fetch boundary - PC set from ELF

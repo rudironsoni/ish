@@ -25,6 +25,11 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
 void a64_cpu_dump(struct cpu_state *cpu);
 void a64_cpu_dump_stats(struct cpu_state *cpu);
 int a64_execute_ldst(struct cpu_state *cpu, struct tlb *tlb, const a64_instr_t *instr);
+int a64_cpu_install_code(struct cpu_state *cpu, uint64_t pc, const uint32_t *insns, size_t count);
+int a64_cpu_execute_code_block(struct cpu_state *cpu, uint64_t pc, const uint32_t *insns,
+                               size_t count);
+int a64_cpu_execute_code_program(struct cpu_state *cpu, uint64_t base_pc, const uint32_t *insns,
+                                 size_t count, size_t max_steps);
 
 // aarch64 has 31 general-purpose registers (x0-x30)
 // x30 is the link register (lr)
@@ -153,6 +158,10 @@ struct cpu_state {
     uint64_t stat_str_fallback_crosspg; // 5: cross-page access
     uint64_t stat_str_fallback_tlbmiss; // 6: TLB miss
     uint64_t stat_str_fallback_notlb;   // 7: no TLB attached
+
+    // Optional per-call compile bound used by runtime-owned semantic helpers
+    // that intentionally install a finite snippet at a guest PC.
+    size_t compile_insn_limit;
 };
 
 #define CPU_OFFSET(field) offsetof(struct cpu_state, field)

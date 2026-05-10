@@ -6,7 +6,6 @@
 //
 
 #import "Terminal.h"
-#import "DelayedUITask.h"
 #import "UserPreferences.h"
 #import <ISHInstrumentation.h>
 #import "IXLandTerminal-Swift.h"
@@ -29,11 +28,7 @@ typedef struct tty *tty_t;
 @property (nonatomic, nullable) IXLandGhosttyHostTerminal *ghosttyTerminal;
 // lock with dataLock for !linux and @synchronized(self) for linux
 @property (nonatomic) NSMutableData *pendingData;
-// sending output is an asynchronous thing due to terminal rendering, this is used to ensure it doesn't happen twice at once
-@property (nonatomic) BOOL outputInProgress;
-
-@property DelayedUITask *refreshTask;
-@property DelayedUITask *scrollToBottomTask;
+@property (nonatomic) BOOL outputDispatchScheduled;
 
 @property BOOL applicationCursor;
 @property (nonatomic) NSUInteger contentChange;
@@ -243,7 +238,7 @@ static NSData *terminal_filter_guest_output_bytes(Terminal *terminal, NSData *da
 
             NSString *body =
                 terminal_control_sequence_string(bytes, index, cursor, isSingleCsi);
-            if ([body isEqualToString:@"[6n"]) {
+            if ([body isEqualToString:@"6n"]) {
                 NSString *response =
                     [NSString stringWithFormat:@"\x1b[%ld;%ldR",
                                                (long) MAX(1, terminal.estimatedCursorRow),
@@ -285,8 +280,6 @@ static NSData *terminal_filter_guest_output_bytes(Terminal *terminal, NSData *da
             self.pendingCursorEscapeBytes = [NSMutableData data];
             self.estimatedCursorRow = 1;
             self.estimatedCursorColumn = 1;
-            self.refreshTask = [[DelayedUITask alloc] initWithTarget:self action:@selector(refresh)];
-            self.scrollToBottomTask = [[DelayedUITask alloc] initWithTarget:self action:@selector(scrollToBottom)];
             lock_init(&_dataLock);
             cond_init(&_dataConsumed);
 
@@ -538,14 +531,6 @@ static NSData *terminal_filter_guest_output_bytes(Terminal *terminal, NSData *da
                                                        @"transcript_length": @(self.testingTranscript.length),
                                                        @"preview": preview ?: @"" }];
                 }
-                if (terminal_is_running_ui_tests()) {
-                    NSUInteger previewLength = MIN((NSUInteger) 80, self.testingTranscript.length);
-                    NSUInteger previewStart = self.testingTranscript.length - previewLength;
-                    NSLog(@"[IXLandTranscript] bytes=%d transcript_length=%lu preview=%@",
-                          len,
-                          (unsigned long) self.testingTranscript.length,
-                          [self.testingTranscript substringFromIndex:previewStart]);
-                }
             }
             dispatch_async(dispatch_get_main_queue(), ^{
                 self.contentChange = self.contentChange + 1;
@@ -561,22 +546,21 @@ static NSData *terminal_filter_guest_output_bytes(Terminal *terminal, NSData *da
             wait_for_ignore_signals(&_dataConsumed, &_dataLock, NULL);
     }
     [_pendingData appendData:filteredOutput];
-    BOOL shouldRefreshInline = [NSThread isMainThread] && filteredOutput.length > 0 && filteredOutput.length <= 64;
-    
+
     // Trace byte count after queuing
     NSDictionary *queuedAttrs = @{
         @"byte_count": @(len),
         @"pending_after": @(_pendingData.length)
     };
     [ISHInstrumentation endInterval:ptyReadInterval attributes:queuedAttrs];
-
+    BOOL shouldScheduleDispatch = filteredOutput.length > 0 && !_outputDispatchScheduled;
+    if (shouldScheduleDispatch)
+        _outputDispatchScheduled = YES;
     unlock(&_dataLock);
-    if (shouldRefreshInline) {
-        // Echo and prompt bytes that are already on the main thread should not
-        // wait for another runloop turn before painting.
-        [self refresh];
-    } else {
-        [self.refreshTask schedule];
+    if (shouldScheduleDispatch) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self refresh];
+        });
     }
     return len;
 }
@@ -611,66 +595,55 @@ static NSData *terminal_filter_guest_output_bytes(Terminal *terminal, NSData *da
     [ISHInstrumentation endInterval:intervalId attributes:inputAttrs];
 }
 
-- (void)scrollToBottom {
-}
-
 - (NSString *)arrow:(char)direction {
     return [NSString stringWithFormat:@"\x1b%c%c", self.applicationCursor ? 'O' : '[', direction];
 }
 
 - (void)refresh {
-    // APPSIM-004 Stage 2: PTY byte detection
-    [ISHInstrumentation recordEvent:@"terminal.refresh.triggered"
-                         attributes:[self sessionTraceAttributesWithByteCount:0
-                                                               pendingBefore:_pendingData.length]];
-
-    if (!self.loaded || self.ghosttyTerminal == nil)
+    if (![NSThread isMainThread]) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self refresh];
+        });
         return;
+    }
 
-    lock(&_dataLock);
-    if (_outputInProgress) {
-        [self.refreshTask schedule];
+    if (!self.loaded || self.ghosttyTerminal == nil) {
+        lock(&_dataLock);
+        _outputDispatchScheduled = NO;
         unlock(&_dataLock);
         return;
     }
-    NSData *data = _pendingData;
+
+    [ISHInstrumentation recordEvent:@"terminal.output.dispatch.triggered"
+                         attributes:[self sessionTraceAttributesWithByteCount:0
+                                                               pendingBefore:_pendingData.length]];
+
+    lock(&_dataLock);
+    NSData *data = [_pendingData copy];
     NSUInteger refreshByteCount = data.length;
     _pendingData = [[NSMutableData alloc] initWithCapacity:BUF_SIZE];
-    _outputInProgress = YES;
+    _outputDispatchScheduled = NO;
     notify(&self->_dataConsumed);
     unlock(&_dataLock);
 
-    // Trace byte count being sent to WebView
-    __block uint64_t byteCountInterval = 0;
-    if (refreshByteCount > 0) {
-        NSDictionary *byteCountAttrs = @{
-            @"byte_count": @(refreshByteCount),
-            @"task": @"terminal_refresh",
-            @"destination": @"ghostty"
-        };
-        byteCountInterval = [ISHInstrumentation beginInterval:@"task.proof.pty.byte_count" attributes:byteCountAttrs];
-    }
+    if (refreshByteCount == 0)
+        return;
 
-    IXLandGhosttyHostTerminal *ghostty = self.ghosttyTerminal;
-    if (refreshByteCount > 0) {
-        if ([NSThread isMainThread]) {
-            [ghostty receiveOutput:data];
-        } else {
-            dispatch_sync(dispatch_get_main_queue(), ^{
-                [ghostty receiveOutput:data];
-            });
-        }
-    }
+    [ISHInstrumentation recordEvent:@"terminal.output.dispatched"
+                         attributes:[self sessionTraceAttributesWithByteCount:(NSInteger) refreshByteCount
+                                                               pendingBefore:0]];
+    [self.ghosttyTerminal enqueueOutput:data];
 
-    lock(&self->_dataLock);
-    self->_outputInProgress = NO;
-    unlock(&self->_dataLock);
-    if (byteCountInterval != 0) {
-        NSDictionary *completeAttrs = @{
-            @"byte_count": @(refreshByteCount),
-            @"error": @NO
-        };
-        [ISHInstrumentation endInterval:byteCountInterval attributes:completeAttrs];
+    lock(&_dataLock);
+    BOOL shouldScheduleFollowupDispatch = _pendingData.length > 0 && !_outputDispatchScheduled;
+    if (shouldScheduleFollowupDispatch)
+        _outputDispatchScheduled = YES;
+    unlock(&_dataLock);
+
+    if (shouldScheduleFollowupDispatch) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self refresh];
+        });
     }
 }
 

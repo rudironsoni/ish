@@ -1,0 +1,34 @@
+#ifndef TCTI_MEMORY_PAIR_SEMANTIC_SCENARIOS_H
+#define TCTI_MEMORY_PAIR_SEMANTIC_SCENARIOS_H
+
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+uint64_t tcti_semantic_case_add_hot_pair_to_memory_backed_x23(void);
+uint64_t tcti_semantic_case_busybox_stack_canary_equal_path_branches_to_restore(void);
+uint64_t tcti_semantic_case_busybox_stack_canary_mismatch_calls_fail_path(void);
+uint64_t tcti_semantic_case_busybox_stack_restore_block_restores_frame(void);
+uint64_t tcti_semantic_case_cmp_memory_backed_x27_x23_branches_eq(void);
+uint64_t tcti_semantic_case_cset_eq_then_add_to_x3(void);
+uint64_t tcti_semantic_case_ldp_first_destination_preserves_pair_base(void);
+uint64_t tcti_semantic_case_ldp_post_index_first_destination_preserves_pair_base(void);
+uint64_t tcti_semantic_case_ldp_post_index_hot_first_destination_preserves_pair_base(void);
+uint64_t tcti_semantic_case_ldpsw_pair_sign_extends_live_musl_offsets(void);
+uint64_t tcti_semantic_case_ldr_chain_after_memory_backed_x20_alias_base(void);
+uint64_t tcti_semantic_case_ldr_x20_from_memory_backed_x20_alias_base(void);
+uint64_t tcti_semantic_case_ldr_x5_from_memory_backed_x27(void);
+uint64_t tcti_semantic_case_logical_mov_roundtrips_memory_backed_x19(void);
+uint64_t tcti_semantic_case_musl_getgrgid_match_path_publishes_result_slot(void);
+uint64_t tcti_semantic_case_musl_getgrgid_realloc_tail_publishes_buffer_base(void);
+uint64_t tcti_semantic_case_stack_pair_roundtrips_hot_x5_x4(void);
+uint64_t tcti_semantic_case_stack_pair_stores_memory_backed_x20_x21(void);
+uint64_t tcti_semantic_case_str_x0_to_memory_backed_x22_scaled_x1(void);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

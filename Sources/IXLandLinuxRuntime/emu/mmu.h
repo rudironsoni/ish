@@ -12,7 +12,7 @@
  * - Page counts are 64-bit (uint64_t) where they represent sizes.
  * - The address space is bounded by A64_USER_TOP (48-bit VA = 256TB).
  * - There is NO global MEM_PAGES constant limiting the address space.
- * - Translation is generation-based for TLB and TCTI block cache correctness.
+ * - Translation safety and executable block validity use separate generations.
  */
 
 /* Page geometry (4KB pages, standard for aarch64 Linux) */
@@ -37,15 +37,19 @@ struct mmu;
 /*
  * Translation generation counter.
  *
- * Every time the address space mapping changes (map, unmap, protect, CoW),
- * the generation is atomically incremented. TLB entries and TCTI blocks
- * store the generation at the time they were created. On lookup, if the
- * stored generation does not match the current generation, the entry is
+ * Every time the address space translation changes (map, unmap, protect, CoW,
+ * or write-access activation), the generation is atomically incremented. TLB
+ * entries store the generation at the time they were created. On lookup, if
+ * the stored generation does not match the current generation, the entry is
  * treated as stale and the translation is re-resolved.
  *
- * This replaces the old "changes" counter with an explicit contract:
+ * Executable block reuse uses `code_generation` instead. Guest data churn must
+ * not force recompilation of unchanged executable pages.
+ *
+ * This replaces the old "changes" counter with explicit contracts:
  * - Read-side translation MUST check generation after resolving.
  * - Write-side mutations MUST bump generation.
+ * - Executable layout or code-byte changes MUST bump code_generation.
  * - Stale entries are rejected, not dereferenced.
  */
 typedef uint64_t mem_generation_t;
@@ -53,7 +57,8 @@ typedef uint64_t mem_generation_t;
 struct mmu {
     struct mmu_ops *ops;
     struct a64_block_cache *block_cache;
-    mem_generation_t generation; /* Was "changes" -- now the translation generation */
+    mem_generation_t generation;      /* translation generation */
+    mem_generation_t code_generation; /* executable mapping / code-byte generation */
 };
 
 #define MEM_READ         0

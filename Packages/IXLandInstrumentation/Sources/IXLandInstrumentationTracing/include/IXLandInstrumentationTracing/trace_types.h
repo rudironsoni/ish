@@ -11,6 +11,7 @@
 #ifndef TRACE_TYPES_H
 #define TRACE_TYPES_H
 
+#include <IXLandInstrumentation/IXLandInstrumentation.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -18,16 +19,16 @@
 /* ============================================
  * Origin enum (from ISHInstrumentationBridge)
  * ============================================ */
-typedef enum {
-    TRACE_ORIGIN_APP = 0,
-    TRACE_ORIGIN_UI,
-    TRACE_ORIGIN_SESSION,
-    TRACE_ORIGIN_KERNEL,
-    TRACE_ORIGIN_TASK,
-    TRACE_ORIGIN_EXEC,
-    TRACE_ORIGIN_EMULATOR = 6,
-    TRACE_ORIGIN_TCTI = 7
-} trace_origin_t;
+typedef ixland_instrumentation_origin_t trace_origin_t;
+
+#define TRACE_ORIGIN_APP IXLAND_INSTRUMENTATION_ORIGIN_APP
+#define TRACE_ORIGIN_UI IXLAND_INSTRUMENTATION_ORIGIN_UI
+#define TRACE_ORIGIN_SESSION IXLAND_INSTRUMENTATION_ORIGIN_SESSION
+#define TRACE_ORIGIN_KERNEL IXLAND_INSTRUMENTATION_ORIGIN_KERNEL
+#define TRACE_ORIGIN_TASK IXLAND_INSTRUMENTATION_ORIGIN_TASK
+#define TRACE_ORIGIN_EXEC IXLAND_INSTRUMENTATION_ORIGIN_EXEC
+#define TRACE_ORIGIN_EMULATOR IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR
+#define TRACE_ORIGIN_TCTI IXLAND_INSTRUMENTATION_ORIGIN_TCTI
 
 /* ============================================
  * Lightweight attribute structure

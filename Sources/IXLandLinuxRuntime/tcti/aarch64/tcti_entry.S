@@ -226,6 +226,81 @@ tcti_load_xreg:
     ldr     x17, [x17]              // Load value
     ret
 
+// Load guest register x0-x30 or XZR into temp x17
+// x0 = architectural register number
+.global _tcti_load_guest_reg_or_zr
+.global tcti_load_guest_reg_or_zr
+_tcti_load_guest_reg_or_zr:
+tcti_load_guest_reg_or_zr:
+    cmp     x0, #31
+    b.eq    9f
+    cmp     x0, #12
+    b.hi    8f
+    adr     x16, 0f
+    add     x16, x16, x0, lsl #2
+    br      x16
+0:
+    b       1f
+    b       2f
+    b       3f
+    b       4f
+    b       5f
+    b       6f
+    b       7f
+    b       10f
+    b       11f
+    b       12f
+    b       13f
+    b       14f
+    b       15f
+1:
+    mov     x17, x1
+    ret
+2:
+    mov     x17, x2
+    ret
+3:
+    mov     x17, x3
+    ret
+4:
+    mov     x17, x4
+    ret
+5:
+    mov     x17, x5
+    ret
+6:
+    mov     x17, x6
+    ret
+7:
+    mov     x17, x7
+    ret
+10:
+    mov     x17, x8
+    ret
+11:
+    mov     x17, x9
+    ret
+12:
+    mov     x17, x10
+    ret
+13:
+    mov     x17, x11
+    ret
+14:
+    mov     x17, x12
+    ret
+15:
+    mov     x17, x13
+    ret
+8:
+    add     x16, x29, #CPU_OFFSET_x
+    add     x16, x16, x0, lsl #3
+    ldr     x17, [x16]
+    ret
+9:
+    mov     x17, xzr
+    ret
+
 // Store temp x17 to memory-backed register (x13-x30)
 // Index 0-17 in x0 (corresponds to x13-x30)
 .global _tcti_store_xreg

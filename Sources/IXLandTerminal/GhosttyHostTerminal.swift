@@ -58,17 +58,19 @@ public final class IXLandGhosttyHostTerminal: NSObject {
     @objc public private(set) var view: UIView!
     @objc public private(set) var terminalView: GhosttyTerminal.TerminalView!
     private var session: InMemoryTerminalSession!
-    private var isReceivingOutput = false
     private var hasViewportMetrics = false
     private var navigationButton: IXLandGhosttyNavigationButton?
     private var pendingTerminalControlBytes = Data()
     private var pendingOutputBytes = Data()
-    private var renderTickScheduled = false
-    private var renderTickNeedsMetricsSync = false
-    private var renderTickNeedsFollowup = false
+    private var outputDrainScheduled = false
+    private var renderDrainCount: Int = 0
+    private var fitToSizeCount: Int = 0
+    private var zeroByteDrainCount: Int = 0
     private var estimatedCursorRow = 1
     private var estimatedCursorColumn = 1
     private var pendingEscapeBytes = Data()
+
+    private let maxDrainBytesPerTurn = 32 * 1024
 
     @objc public weak var delegate: (any IXLandGhosttyHostTerminalDelegate)?
 
@@ -97,7 +99,7 @@ public final class IXLandGhosttyHostTerminal: NSObject {
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.hasViewportMetrics = columns > 0 && rows > 0
-                self.flushPendingOutputIfPossible()
+                self.scheduleOutputDrainIfPossible()
                 self.delegate?.ghosttyHostTerminal(self, didResize: columns, rows: rows)
             }
         })
@@ -128,25 +130,11 @@ public final class IXLandGhosttyHostTerminal: NSObject {
     }
 
     @MainActor
-    @objc public func receiveOutput(_ data: Data) {
-        isReceivingOutput = true
-        defer { isReceivingOutput = false }
-        guard !data.isEmpty else {
-            return
-        }
-
-        if !canRenderOutput {
-            updateEstimatedCursorPosition(with: data)
-            pendingOutputBytes.append(data)
-            if terminalView.window != nil {
-                requestRenderTick(metricsMayBeDirty: true, needsFollowup: false)
-            }
-            return
-        }
-
+    @objc public func enqueueOutput(_ data: Data) {
+        guard !data.isEmpty else { return }
         updateEstimatedCursorPosition(with: data)
-        session.receive(data)
-        requestRenderTick(metricsMayBeDirty: false, needsFollowup: true)
+        pendingOutputBytes.append(data)
+        scheduleOutputDrainIfPossible()
     }
 
     @MainActor
@@ -154,7 +142,7 @@ public final class IXLandGhosttyHostTerminal: NSObject {
         guard let data = string.data(using: .utf8) else {
             return
         }
-        receiveOutput(data)
+        enqueueOutput(data)
     }
 
     @objc public func sendInput(_ data: Data) {
@@ -170,15 +158,15 @@ public final class IXLandGhosttyHostTerminal: NSObject {
         let focused = terminalView.becomeFirstResponder()
         terminalView.reloadInputViews()
         installNavigationAccessoryButton()
-        requestRenderTick(metricsMayBeDirty: true, needsFollowup: false)
-        flushPendingOutputIfPossible()
+        syncViewportMetricsIfNeeded(reason: "focus")
+        scheduleOutputDrainIfPossible()
         return focused
     }
 
     @MainActor
     @objc public func surfaceDidLayout() {
-        requestRenderTick(metricsMayBeDirty: true, needsFollowup: false)
-        flushPendingOutputIfPossible()
+        syncViewportMetricsIfNeeded(reason: "layout")
+        scheduleOutputDrainIfPossible()
     }
 
     @MainActor
@@ -188,7 +176,7 @@ public final class IXLandGhosttyHostTerminal: NSObject {
             fontSize: Float(fontSize),
             context: terminalView.configuration.context
         )
-        terminalView.fitToSize()
+        syncViewportMetricsIfNeeded(reason: "font_size")
     }
 
     @MainActor
@@ -216,14 +204,14 @@ public final class IXLandGhosttyHostTerminal: NSObject {
     }
 
     @MainActor
-    private func flushPendingOutputIfPossible() {
-        guard canRenderOutput, !pendingOutputBytes.isEmpty else {
+    private func scheduleOutputDrainIfPossible() {
+        guard canRenderOutput, !outputDrainScheduled else {
             return
         }
-        let bufferedOutput = pendingOutputBytes
-        pendingOutputBytes.removeAll(keepingCapacity: true)
-        session.receive(bufferedOutput)
-        requestRenderTick(metricsMayBeDirty: true, needsFollowup: true)
+        outputDrainScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            self?.drainOutputIfNeeded()
+        }
     }
 
     @MainActor
@@ -239,34 +227,34 @@ public final class IXLandGhosttyHostTerminal: NSObject {
     }
 
     @MainActor
-    private func requestRenderTick(metricsMayBeDirty: Bool, needsFollowup: Bool) {
-        guard terminalView.window != nil else {
+    private func drainOutputIfNeeded() {
+        outputDrainScheduled = false
+        guard canRenderOutput else {
             return
         }
-        renderTickNeedsMetricsSync = renderTickNeedsMetricsSync || metricsMayBeDirty
-        renderTickNeedsFollowup = renderTickNeedsFollowup || needsFollowup
-        if renderTickScheduled {
+        guard !pendingOutputBytes.isEmpty else {
+            zeroByteDrainCount += 1
             return
         }
-        renderTickScheduled = true
-        runRenderTick()
+
+        let drainCount = min(maxDrainBytesPerTurn, pendingOutputBytes.count)
+        let drained = pendingOutputBytes.prefix(drainCount)
+        pendingOutputBytes.removeFirst(drainCount)
+        renderDrainCount += 1
+        session.receive(Data(drained))
+
+        if !pendingOutputBytes.isEmpty {
+            scheduleOutputDrainIfPossible()
+        }
     }
 
     @MainActor
-    private func runRenderTick() {
-        while renderTickScheduled {
-            renderTickScheduled = false
-            guard terminalView.window != nil else {
-                return
-            }
-            let shouldRunFollowup = renderTickNeedsFollowup
-            renderTickNeedsMetricsSync = false
-            renderTickNeedsFollowup = false
-            terminalView.fitToSize()
-            if shouldRunFollowup {
-                renderTickScheduled = true
-            }
+    private func syncViewportMetricsIfNeeded(reason _: String) {
+        guard terminalView.window != nil else {
+            return
         }
+        fitToSizeCount += 1
+        terminalView.fitToSize()
     }
 
     @MainActor
@@ -364,7 +352,7 @@ public final class IXLandGhosttyHostTerminal: NSObject {
                 }
 
                 if scanData[cursor] == 0x6E,
-                   terminalControlSequence(scanData, start: index, end: cursor) == "[6n" {
+                   terminalControlSequence(scanData, start: index, end: cursor) == "6n" {
                     let response = "\u{1B}[\(estimatedCursorRow);\(estimatedCursorColumn)R"
                     if let responseData = response.data(using: .utf8) {
                         delegate?.ghosttyHostTerminal(self, didReceiveInput: responseData)

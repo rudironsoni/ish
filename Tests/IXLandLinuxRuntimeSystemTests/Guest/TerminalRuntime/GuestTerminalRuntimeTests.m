@@ -20,7 +20,12 @@ extern struct tty_driver pty_slave;
 // Contract: Terminal subsystem is initialized
 // Owner: fs/tty.c
 - (void)testTerminalBootstrap_SubsystemIsInitialized {
-    XCTAssertTrue(true, "ttys_lock exists (compile-time check)");
+    XCTAssertEqual(trylock(&ttys_lock), 0, "ttys_lock must be initialized and acquirable");
+    unlock(&ttys_lock);
+    XCTAssertEqual(tty_drivers[TTY_PSEUDO_MASTER_MAJOR], &pty_master,
+                   "TTY subsystem must publish the PTY master driver");
+    XCTAssertEqual(tty_drivers[TTY_PSEUDO_SLAVE_MAJOR], &pty_slave,
+                   "TTY subsystem must publish the PTY slave driver");
 }
 
 // Contract: PTY driver is registered
@@ -122,9 +127,12 @@ extern struct tty_driver pty_slave;
 // Contract: TTY locks are properly initialized
 // Owner: fs/tty.c
 - (void)testDescriptorContract_TTYLockIsInitialized {
-    // The global ttys_lock should be initialized
-    // This is a compile-time check effectively
-    XCTAssertTrue(true, "TTY locks compile-time initialized");
+    XCTAssertEqual(trylock(&ttys_lock), 0, "ttys_lock must be initialized before terminal I/O");
+    XCTAssertNotEqual(trylock(&ttys_lock), 0,
+                      "ttys_lock must reject recursive acquisition while already held");
+    unlock(&ttys_lock);
+    XCTAssertEqual(trylock(&ttys_lock), 0, "ttys_lock must be reacquirable after unlock");
+    unlock(&ttys_lock);
 }
 
 // Contract: Termios constants match expected values

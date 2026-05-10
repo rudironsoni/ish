@@ -2892,6 +2892,15 @@ static unsigned tcti_highest_set_bit32(uint32_t value)
     return UINT_MAX;
 }
 
+static unsigned tcti_highest_set_bit64(uint64_t value)
+{
+    for (int bit = 63; bit >= 0; bit--) {
+        if (value & (1ULL << bit))
+            return (unsigned)bit;
+    }
+    return UINT_MAX;
+}
+
 static uint64_t tcti_ones(unsigned width)
 {
     if (width >= 64)
@@ -2967,9 +2976,11 @@ __attribute__((used)) void tcti_bitfield_helper(struct cpu_state *cpu, uint64_t 
 
     switch (subtype) {
     case 11: { // SBFM
-        uint64_t sign = (src >> (imms & (register_width - 1))) & 1ULL;
+        uint64_t field = bot & tmask;
+        unsigned sign_bit = tcti_highest_set_bit64(tmask);
+        uint64_t sign = (sign_bit == UINT_MAX) ? 0 : ((field >> sign_bit) & 1ULL);
         uint64_t top = sign ? (width_mask & ~tmask) : 0;
-        result = top | bot;
+        result = top | field;
         break;
     }
     case 12: // BFM
@@ -3162,6 +3173,206 @@ __attribute__((used)) static void tcti_ccmp_helper(struct cpu_state *cpu, uint64
                            next_nzcv);
     cpu->pstate = next_nzcv;
 }
+
+#define DEFINE_CCMP_NATIVE_REG_GADGET(NAME, BRANCH, CMP_OP)                                      \
+    __attribute__((naked)) void NAME(void)                                                       \
+    {                                                                                            \
+        asm volatile("ldr x19, [x28], #8\n\t" /* rn */                                           \
+                     "ldr x20, [x28], #8\n\t" /* rm */                                           \
+                     "ldr x21, [x28], #8\n\t" /* nzcv */                                         \
+                     "b." BRANCH " 1f\n\t"                                                       \
+                     "and x17, x21, #0xf\n\t"                                                    \
+                     "lsl x17, x17, #28\n\t"                                                     \
+                     "msr nzcv, x17\n\t"                                                         \
+                     "str x17, [x29, %[pstate_off]]\n\t"                                         \
+                     "ldr x27, [x28], #8\n\t"                                                    \
+                     "br x27\n\t"                                                                \
+                     "1:\n\t"                                                                    \
+                     "mov x0, x19\n\t"                                                           \
+                     "bl _tcti_load_guest_reg_or_zr\n\t"                                         \
+                     "mov x22, x17\n\t"                                                          \
+                     "mov x0, x20\n\t"                                                           \
+                     "bl _tcti_load_guest_reg_or_zr\n\t"                                         \
+                     CMP_OP                                                                      \
+                     "mrs x17, nzcv\n\t"                                                         \
+                     "str x17, [x29, %[pstate_off]]\n\t"                                         \
+                     "ldr x27, [x28], #8\n\t"                                                    \
+                     "br x27\n\t"                                                                \
+                     :                                                                           \
+                     : [pstate_off] "i"(PSTATE_OFFSET));                                         \
+    }
+
+#define DEFINE_CCMP_NATIVE_IMM_GADGET(NAME, BRANCH, CMP_OP)                                      \
+    __attribute__((naked)) void NAME(void)                                                       \
+    {                                                                                            \
+        asm volatile("ldr x19, [x28], #8\n\t" /* rn */                                           \
+                     "ldr x20, [x28], #8\n\t" /* imm */                                          \
+                     "ldr x21, [x28], #8\n\t" /* nzcv */                                         \
+                     "b." BRANCH " 1f\n\t"                                                       \
+                     "and x17, x21, #0xf\n\t"                                                    \
+                     "lsl x17, x17, #28\n\t"                                                     \
+                     "msr nzcv, x17\n\t"                                                         \
+                     "str x17, [x29, %[pstate_off]]\n\t"                                         \
+                     "ldr x27, [x28], #8\n\t"                                                    \
+                     "br x27\n\t"                                                                \
+                     "1:\n\t"                                                                    \
+                     "mov x0, x19\n\t"                                                           \
+                     "bl _tcti_load_guest_reg_or_zr\n\t"                                         \
+                     "mov x22, x17\n\t"                                                          \
+                     "mov x17, x20\n\t"                                                          \
+                     CMP_OP                                                                      \
+                     "mrs x17, nzcv\n\t"                                                         \
+                     "str x17, [x29, %[pstate_off]]\n\t"                                         \
+                     "ldr x27, [x28], #8\n\t"                                                    \
+                     "br x27\n\t"                                                                \
+                     :                                                                           \
+                     : [pstate_off] "i"(PSTATE_OFFSET));                                         \
+    }
+
+#define DEFINE_CCMP_NATIVE_REG_ALWAYS_GADGET(NAME, CMP_OP)                                       \
+    __attribute__((naked)) void NAME(void)                                                       \
+    {                                                                                            \
+        asm volatile("ldr x19, [x28], #8\n\t" /* rn */                                           \
+                     "ldr x20, [x28], #8\n\t" /* rm */                                           \
+                     "ldr x21, [x28], #8\n\t" /* nzcv */                                         \
+                     "mov x0, x19\n\t"                                                           \
+                     "bl _tcti_load_guest_reg_or_zr\n\t"                                         \
+                     "mov x22, x17\n\t"                                                          \
+                     "mov x0, x20\n\t"                                                           \
+                     "bl _tcti_load_guest_reg_or_zr\n\t"                                         \
+                     CMP_OP                                                                      \
+                     "mrs x17, nzcv\n\t"                                                         \
+                     "str x17, [x29, %[pstate_off]]\n\t"                                         \
+                     "ldr x27, [x28], #8\n\t"                                                    \
+                     "br x27\n\t"                                                                \
+                     :                                                                           \
+                     : [pstate_off] "i"(PSTATE_OFFSET));                                         \
+    }
+
+#define DEFINE_CCMP_NATIVE_IMM_ALWAYS_GADGET(NAME, CMP_OP)                                       \
+    __attribute__((naked)) void NAME(void)                                                       \
+    {                                                                                            \
+        asm volatile("ldr x19, [x28], #8\n\t" /* rn */                                           \
+                     "ldr x20, [x28], #8\n\t" /* imm */                                          \
+                     "ldr x21, [x28], #8\n\t" /* nzcv */                                         \
+                     "mov x0, x19\n\t"                                                           \
+                     "bl _tcti_load_guest_reg_or_zr\n\t"                                         \
+                     "mov x22, x17\n\t"                                                          \
+                     "mov x17, x20\n\t"                                                          \
+                     CMP_OP                                                                      \
+                     "mrs x17, nzcv\n\t"                                                         \
+                     "str x17, [x29, %[pstate_off]]\n\t"                                         \
+                     "ldr x27, [x28], #8\n\t"                                                    \
+                     "br x27\n\t"                                                                \
+                     :                                                                           \
+                     : [pstate_off] "i"(PSTATE_OFFSET));                                         \
+    }
+
+#define DEFINE_CCMP_NATIVE_COND_SET(TAG, BRANCH)                                                 \
+    DEFINE_CCMP_NATIVE_REG_GADGET(gadget_ccmn_reg_w_##TAG##_impl, BRANCH, "cmn w22, w17\n\t")   \
+    DEFINE_CCMP_NATIVE_REG_GADGET(gadget_ccmn_reg_x_##TAG##_impl, BRANCH, "cmn x22, x17\n\t")   \
+    DEFINE_CCMP_NATIVE_REG_GADGET(gadget_ccmp_reg_w_##TAG##_impl, BRANCH, "cmp w22, w17\n\t")   \
+    DEFINE_CCMP_NATIVE_REG_GADGET(gadget_ccmp_reg_x_##TAG##_impl, BRANCH, "cmp x22, x17\n\t")   \
+    DEFINE_CCMP_NATIVE_IMM_GADGET(gadget_ccmn_imm_w_##TAG##_impl, BRANCH, "cmn w22, w17\n\t")   \
+    DEFINE_CCMP_NATIVE_IMM_GADGET(gadget_ccmn_imm_x_##TAG##_impl, BRANCH, "cmn x22, x17\n\t")   \
+    DEFINE_CCMP_NATIVE_IMM_GADGET(gadget_ccmp_imm_w_##TAG##_impl, BRANCH, "cmp w22, w17\n\t")   \
+    DEFINE_CCMP_NATIVE_IMM_GADGET(gadget_ccmp_imm_x_##TAG##_impl, BRANCH, "cmp x22, x17\n\t")
+
+#define DEFINE_CCMP_NATIVE_ALWAYS_SET(TAG)                                                       \
+    DEFINE_CCMP_NATIVE_REG_ALWAYS_GADGET(gadget_ccmn_reg_w_##TAG##_impl, "cmn w22, w17\n\t")    \
+    DEFINE_CCMP_NATIVE_REG_ALWAYS_GADGET(gadget_ccmn_reg_x_##TAG##_impl, "cmn x22, x17\n\t")    \
+    DEFINE_CCMP_NATIVE_REG_ALWAYS_GADGET(gadget_ccmp_reg_w_##TAG##_impl, "cmp w22, w17\n\t")    \
+    DEFINE_CCMP_NATIVE_REG_ALWAYS_GADGET(gadget_ccmp_reg_x_##TAG##_impl, "cmp x22, x17\n\t")    \
+    DEFINE_CCMP_NATIVE_IMM_ALWAYS_GADGET(gadget_ccmn_imm_w_##TAG##_impl, "cmn w22, w17\n\t")    \
+    DEFINE_CCMP_NATIVE_IMM_ALWAYS_GADGET(gadget_ccmn_imm_x_##TAG##_impl, "cmn x22, x17\n\t")    \
+    DEFINE_CCMP_NATIVE_IMM_ALWAYS_GADGET(gadget_ccmp_imm_w_##TAG##_impl, "cmp w22, w17\n\t")    \
+    DEFINE_CCMP_NATIVE_IMM_ALWAYS_GADGET(gadget_ccmp_imm_x_##TAG##_impl, "cmp x22, x17\n\t")
+
+DEFINE_CCMP_NATIVE_COND_SET(eq, "eq");
+DEFINE_CCMP_NATIVE_COND_SET(ne, "ne");
+DEFINE_CCMP_NATIVE_COND_SET(cs, "cs");
+DEFINE_CCMP_NATIVE_COND_SET(cc, "cc");
+DEFINE_CCMP_NATIVE_COND_SET(mi, "mi");
+DEFINE_CCMP_NATIVE_COND_SET(pl, "pl");
+DEFINE_CCMP_NATIVE_COND_SET(vs, "vs");
+DEFINE_CCMP_NATIVE_COND_SET(vc, "vc");
+DEFINE_CCMP_NATIVE_COND_SET(hi, "hi");
+DEFINE_CCMP_NATIVE_COND_SET(ls, "ls");
+DEFINE_CCMP_NATIVE_COND_SET(ge, "ge");
+DEFINE_CCMP_NATIVE_COND_SET(lt, "lt");
+DEFINE_CCMP_NATIVE_COND_SET(gt, "gt");
+DEFINE_CCMP_NATIVE_COND_SET(le, "le");
+DEFINE_CCMP_NATIVE_ALWAYS_SET(al);
+DEFINE_CCMP_NATIVE_ALWAYS_SET(nv);
+
+tcti_gadget_t gadget_ccmp_native_reg[2][2][16] = {
+    {
+        { gadget_ccmn_reg_w_eq_impl, gadget_ccmn_reg_w_ne_impl, gadget_ccmn_reg_w_cs_impl,
+          gadget_ccmn_reg_w_cc_impl, gadget_ccmn_reg_w_mi_impl, gadget_ccmn_reg_w_pl_impl,
+          gadget_ccmn_reg_w_vs_impl, gadget_ccmn_reg_w_vc_impl, gadget_ccmn_reg_w_hi_impl,
+          gadget_ccmn_reg_w_ls_impl, gadget_ccmn_reg_w_ge_impl, gadget_ccmn_reg_w_lt_impl,
+          gadget_ccmn_reg_w_gt_impl, gadget_ccmn_reg_w_le_impl, gadget_ccmn_reg_w_al_impl,
+          gadget_ccmn_reg_w_nv_impl },
+        { gadget_ccmn_reg_x_eq_impl, gadget_ccmn_reg_x_ne_impl, gadget_ccmn_reg_x_cs_impl,
+          gadget_ccmn_reg_x_cc_impl, gadget_ccmn_reg_x_mi_impl, gadget_ccmn_reg_x_pl_impl,
+          gadget_ccmn_reg_x_vs_impl, gadget_ccmn_reg_x_vc_impl, gadget_ccmn_reg_x_hi_impl,
+          gadget_ccmn_reg_x_ls_impl, gadget_ccmn_reg_x_ge_impl, gadget_ccmn_reg_x_lt_impl,
+          gadget_ccmn_reg_x_gt_impl, gadget_ccmn_reg_x_le_impl, gadget_ccmn_reg_x_al_impl,
+          gadget_ccmn_reg_x_nv_impl },
+    },
+    {
+        { gadget_ccmp_reg_w_eq_impl, gadget_ccmp_reg_w_ne_impl, gadget_ccmp_reg_w_cs_impl,
+          gadget_ccmp_reg_w_cc_impl, gadget_ccmp_reg_w_mi_impl, gadget_ccmp_reg_w_pl_impl,
+          gadget_ccmp_reg_w_vs_impl, gadget_ccmp_reg_w_vc_impl, gadget_ccmp_reg_w_hi_impl,
+          gadget_ccmp_reg_w_ls_impl, gadget_ccmp_reg_w_ge_impl, gadget_ccmp_reg_w_lt_impl,
+          gadget_ccmp_reg_w_gt_impl, gadget_ccmp_reg_w_le_impl, gadget_ccmp_reg_w_al_impl,
+          gadget_ccmp_reg_w_nv_impl },
+        { gadget_ccmp_reg_x_eq_impl, gadget_ccmp_reg_x_ne_impl, gadget_ccmp_reg_x_cs_impl,
+          gadget_ccmp_reg_x_cc_impl, gadget_ccmp_reg_x_mi_impl, gadget_ccmp_reg_x_pl_impl,
+          gadget_ccmp_reg_x_vs_impl, gadget_ccmp_reg_x_vc_impl, gadget_ccmp_reg_x_hi_impl,
+          gadget_ccmp_reg_x_ls_impl, gadget_ccmp_reg_x_ge_impl, gadget_ccmp_reg_x_lt_impl,
+          gadget_ccmp_reg_x_gt_impl, gadget_ccmp_reg_x_le_impl, gadget_ccmp_reg_x_al_impl,
+          gadget_ccmp_reg_x_nv_impl },
+    },
+};
+
+tcti_gadget_t gadget_ccmp_native_imm[2][2][16] = {
+    {
+        { gadget_ccmn_imm_w_eq_impl, gadget_ccmn_imm_w_ne_impl, gadget_ccmn_imm_w_cs_impl,
+          gadget_ccmn_imm_w_cc_impl, gadget_ccmn_imm_w_mi_impl, gadget_ccmn_imm_w_pl_impl,
+          gadget_ccmn_imm_w_vs_impl, gadget_ccmn_imm_w_vc_impl, gadget_ccmn_imm_w_hi_impl,
+          gadget_ccmn_imm_w_ls_impl, gadget_ccmn_imm_w_ge_impl, gadget_ccmn_imm_w_lt_impl,
+          gadget_ccmn_imm_w_gt_impl, gadget_ccmn_imm_w_le_impl, gadget_ccmn_imm_w_al_impl,
+          gadget_ccmn_imm_w_nv_impl },
+        { gadget_ccmn_imm_x_eq_impl, gadget_ccmn_imm_x_ne_impl, gadget_ccmn_imm_x_cs_impl,
+          gadget_ccmn_imm_x_cc_impl, gadget_ccmn_imm_x_mi_impl, gadget_ccmn_imm_x_pl_impl,
+          gadget_ccmn_imm_x_vs_impl, gadget_ccmn_imm_x_vc_impl, gadget_ccmn_imm_x_hi_impl,
+          gadget_ccmn_imm_x_ls_impl, gadget_ccmn_imm_x_ge_impl, gadget_ccmn_imm_x_lt_impl,
+          gadget_ccmn_imm_x_gt_impl, gadget_ccmn_imm_x_le_impl, gadget_ccmn_imm_x_al_impl,
+          gadget_ccmn_imm_x_nv_impl },
+    },
+    {
+        { gadget_ccmp_imm_w_eq_impl, gadget_ccmp_imm_w_ne_impl, gadget_ccmp_imm_w_cs_impl,
+          gadget_ccmp_imm_w_cc_impl, gadget_ccmp_imm_w_mi_impl, gadget_ccmp_imm_w_pl_impl,
+          gadget_ccmp_imm_w_vs_impl, gadget_ccmp_imm_w_vc_impl, gadget_ccmp_imm_w_hi_impl,
+          gadget_ccmp_imm_w_ls_impl, gadget_ccmp_imm_w_ge_impl, gadget_ccmp_imm_w_lt_impl,
+          gadget_ccmp_imm_w_gt_impl, gadget_ccmp_imm_w_le_impl, gadget_ccmp_imm_w_al_impl,
+          gadget_ccmp_imm_w_nv_impl },
+        { gadget_ccmp_imm_x_eq_impl, gadget_ccmp_imm_x_ne_impl, gadget_ccmp_imm_x_cs_impl,
+          gadget_ccmp_imm_x_cc_impl, gadget_ccmp_imm_x_mi_impl, gadget_ccmp_imm_x_pl_impl,
+          gadget_ccmp_imm_x_vs_impl, gadget_ccmp_imm_x_vc_impl, gadget_ccmp_imm_x_hi_impl,
+          gadget_ccmp_imm_x_ls_impl, gadget_ccmp_imm_x_ge_impl, gadget_ccmp_imm_x_lt_impl,
+          gadget_ccmp_imm_x_gt_impl, gadget_ccmp_imm_x_le_impl, gadget_ccmp_imm_x_al_impl,
+          gadget_ccmp_imm_x_nv_impl },
+    },
+};
+
+#undef DEFINE_CCMP_NATIVE_REG_GADGET
+#undef DEFINE_CCMP_NATIVE_IMM_GADGET
+#undef DEFINE_CCMP_NATIVE_REG_ALWAYS_GADGET
+#undef DEFINE_CCMP_NATIVE_IMM_ALWAYS_GADGET
+#undef DEFINE_CCMP_NATIVE_COND_SET
+#undef DEFINE_CCMP_NATIVE_ALWAYS_SET
 
 __attribute__((naked)) void gadget_bcond_fallback_impl(void)
 {

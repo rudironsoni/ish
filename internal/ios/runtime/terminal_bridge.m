@@ -4,6 +4,27 @@
 #import <ISHInstrumentation.h>
 #import <IXLandLinuxRuntime/fs/devices.h>
 #import <IXLandLinuxRuntime/fs/tty.h>
+#import "internal/ios/fs/pty_host_bridge.h"
+
+static int terminal_bridge_send_output(nsobj_t terminalObject, const char *data, int size)
+{
+    return [(__bridge Terminal *) terminalObject sendOutput:data length:size];
+}
+
+static void terminal_bridge_release_bound_tty_data(nsobj_t terminalObject)
+{
+    if (terminalObject != NULL)
+        CFBridgingRelease((void *) terminalObject);
+}
+
+__attribute__((constructor)) static void terminal_bridge_install_host_callbacks(void)
+{
+    const pty_host_bridge_ops_t ops = {
+        .send_output = terminal_bridge_send_output,
+        .release_bound_tty_data = terminal_bridge_release_bound_tty_data,
+    };
+    pty_host_bridge_install(&ops);
+}
 
 void Terminal_setLinuxTTY(nsobj_t _self, struct linux_tty *tty)
 {
@@ -11,20 +32,9 @@ void Terminal_setLinuxTTY(nsobj_t _self, struct linux_tty *tty)
     [terminal attachLinuxTTY:tty];
 }
 
-int Terminal_sendOutput_length(nsobj_t _self, const char *data, int size)
-{
-    return [(__bridge Terminal *) _self sendOutput:data length:size];
-}
-
 int Terminal_roomForOutput(nsobj_t _self)
 {
     return [(__bridge Terminal *) _self roomForOutput];
-}
-
-void Terminal_releaseBoundTTYData(nsobj_t terminal)
-{
-    if (terminal != NULL)
-        CFBridgingRelease((void *) terminal);
 }
 
 bool Terminal_bindGuestTTY(struct tty *tty, nsobj_t *terminal_out)

@@ -11,20 +11,23 @@
 		01F5164B620DA4E518B0E76D /* libIXLandLinuxRuntime.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CB26B1B5D3A91542EDE0757A /* libIXLandLinuxRuntime.a */; };
 		029640A72DDF6EE7F4798DF5 /* ProgressReportViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = E516F4936121FB17E17C35AD /* ProgressReportViewController.m */; };
 		030D447E91831C9C1099ECA3 /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BA586F8A3060D06AE4E2FE6 /* AudioToolbox.framework */; };
+		041B9F700E7EBD870BB8F94A /* tcti_memory_atomic_runtime_semantic_scenarios.c in Sources */ = {isa = PBXBuildFile; fileRef = CAE66841717FEA78DC2E4146 /* tcti_memory_atomic_runtime_semantic_scenarios.c */; };
 		06BC6B2C1E8ACA722DE6881C /* fs_info.c in Sources */ = {isa = PBXBuildFile; fileRef = 33A2DE2552AFCCFA1C7A230B /* fs_info.c */; };
 		0A771B0127F910E4945AA9D6 /* log.c in Sources */ = {isa = PBXBuildFile; fileRef = E610A5433DF9A36127FCAC6C /* log.c */; };
+		0ADED87A68939048D4987E5B /* console_tty.c in Sources */ = {isa = PBXBuildFile; fileRef = C8F238770439E58D467C3E0A /* console_tty.c */; };
 		0F5A6C643CB60AEF9E360D1B /* ThemeViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 1185AC6E85598743A46FD1E5 /* ThemeViewController.m */; };
 		0FD4EE58D8CB0EA4C6BB03D9 /* errno_host.c in Sources */ = {isa = PBXBuildFile; fileRef = 55DBBAB58E4D8E22D4F47BE2 /* errno_host.c */; };
 		10154EB71F93D79AD7BEA768 /* static_wrong_machine.bin in Resources */ = {isa = PBXBuildFile; fileRef = 9071C44F78843BF1F962C5FE /* static_wrong_machine.bin */; };
 		10AD73A7896BD675E691B3D7 /* futex.c in Sources */ = {isa = PBXBuildFile; fileRef = D625427CBA8ABE3DB17A57E8 /* futex.c */; };
 		1291A59269FFB9A6EB2D2B35 /* Terminal.m in Sources */ = {isa = PBXBuildFile; fileRef = 278CD94D45A96786F18E17A2 /* Terminal.m */; };
 		139DF9A4BC59503C6271E6A4 /* Settings.bundle in Resources */ = {isa = PBXBuildFile; fileRef = 2A72EF3A789A8F0DE2CDC77C /* Settings.bundle */; };
+		14BC2EE48364771D87513A16 /* libIXLandLinuxRuntime.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CB26B1B5D3A91542EDE0757A /* libIXLandLinuxRuntime.a */; };
 		15D9DFEA387313473B819267 /* pty.c in Sources */ = {isa = PBXBuildFile; fileRef = FA46100FFEA2192849ECD0EC /* pty.c */; };
 		16D5C7BA6565CB2E85616120 /* page_map.c in Sources */ = {isa = PBXBuildFile; fileRef = FFE04D53E24F27B22AEED942 /* page_map.c */; };
 		172D560D3B445315E2C476F4 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = C00B2C9AC9CA72B9701DCBF4 /* LaunchScreen.storyboard */; };
-		184CD9F50630F7CF4D9B34CF /* GuestBusyboxLsReproTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 0C200A11C43A8C6CC4808494 /* GuestBusyboxLsReproTests.m */; };
 		1853B82B7E101F950D1EED21 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E52C4CDCEE5CD1F9912BF659 /* UIKit.framework */; };
 		1890B38E41A7FD2E3813BF8C /* ptrace.c in Sources */ = {isa = PBXBuildFile; fileRef = F0C48F59FD94FD171DC0B549 /* ptrace.c */; };
+		18C2B713FD5494BE59FD63F4 /* IXLandInstrumentationRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = EAD2DCABD2ADDDF18E7EFA62 /* IXLandInstrumentationRuntime */; };
 		1A18170CF3B1E27641AF4C4E /* entry.c in Sources */ = {isa = PBXBuildFile; fileRef = FF53D06DA3033A39B3BBED14 /* entry.c */; };
 		1AB153CD68F6452E66EF1072 /* dir.c in Sources */ = {isa = PBXBuildFile; fileRef = 142C7059858863CA4154679B /* dir.c */; };
 		1BC0CF24B9722169925648EF /* calls.c in Sources */ = {isa = PBXBuildFile; fileRef = B8E4AC70AC00926AB255EB75 /* calls.c */; };
@@ -42,11 +45,13 @@
 		23977D5F166C41B12176585C /* tlb.c in Sources */ = {isa = PBXBuildFile; fileRef = 18CC902DD9DCF063888941DD /* tlb.c */; };
 		24C9DF77A164E78F4281888A /* icon.png in Resources */ = {isa = PBXBuildFile; fileRef = 2BE27EB8C25638F130864D5B /* icon.png */; };
 		272AB9C8EC83F6964D763113 /* backing_fs.m in Sources */ = {isa = PBXBuildFile; fileRef = 0325D0560A7AC1D6D9CAF7E3 /* backing_fs.m */; };
+		2754921613B72C42CD6337A6 /* libIXLandLinuxRuntime.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CB26B1B5D3A91542EDE0757A /* libIXLandLinuxRuntime.a */; };
 		29098D015A1688CA881B2A44 /* IXLandInstrumentationRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = 46AAD4FDC7F40A099A969EE4 /* IXLandInstrumentationRuntime */; };
 		2C271DD3B9C15FE5336EECB1 /* TerminalCommandEncodingTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 5367C13C823551ED5155CEE2 /* TerminalCommandEncodingTests.m */; };
 		2E464A6E6EF763006B977050 /* GuestTerminalRuntimeTests.m in Sources */ = {isa = PBXBuildFile; fileRef = FF34CA2F59C85D5329FA2CC8 /* GuestTerminalRuntimeTests.m */; };
 		2FF4836EB2A5D6B224F2E739 /* gadgets_ldst_tlb.S in Sources */ = {isa = PBXBuildFile; fileRef = 0ABD252C58B06EBB0A44685E /* gadgets_ldst_tlb.S */; };
 		32A30CFA5D6A1ECA24703DD4 /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A72627E301437AE08899AB40 /* UniformTypeIdentifiers.framework */; };
+		3394D054B47589DC4D2DE900 /* GuestExecutionProbe.c in Sources */ = {isa = PBXBuildFile; fileRef = E04D270F86D1969FD775B93D /* GuestExecutionProbe.c */; };
 		349CAD64E052A89D88BCD6AD /* iOSFS.m in Sources */ = {isa = PBXBuildFile; fileRef = 8C7F3B2F81D97B00FCA35891 /* iOSFS.m */; };
 		34E2C4F599549773088CA806 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = E536189B8FE196208B1A772A /* main.m */; };
 		3502333C1EE68DDDEE9299B8 /* tcti_entry.S in Sources */ = {isa = PBXBuildFile; fileRef = E2BD57AC2FFA47794761164D /* tcti_entry.S */; };
@@ -56,10 +61,8 @@
 		37660A320C4BDBD526589610 /* adhoc.c in Sources */ = {isa = PBXBuildFile; fileRef = A699BC2960CA0766BD29C702 /* adhoc.c */; };
 		3872CD1835B680EFCA34A729 /* GuestThreadSignalTLSTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 7E061597EF45CAE188F61A0C /* GuestThreadSignalTLSTests.m */; };
 		3A1C699418F41B2C7B4BD960 /* ishcolontildehash.png in Resources */ = {isa = PBXBuildFile; fileRef = 32A99C6158148B709A2DD058 /* ishcolontildehash.png */; };
-		3D3484E303FD21647ED98AF7 /* pty_bridge.m in Sources */ = {isa = PBXBuildFile; fileRef = 38785EE95467CE6148736C16 /* pty_bridge.m */; };
 		3E08B4BD4F7E24DE96DCFE71 /* sock.c in Sources */ = {isa = PBXBuildFile; fileRef = 57C2B41AFEC474EF9AEC19A2 /* sock.c */; };
 		403A61853C4046D018835B53 /* CoreLocation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9FBB7D21DA87786D58E5402F /* CoreLocation.framework */; };
-		41D8FC492D7FFDAC4A5A7126 /* TCTILoweringTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 522555FC14ED380F4FEEF320 /* TCTILoweringTests.m */; };
 		424CF59BDA97511D9742A18E /* iinhash.png in Resources */ = {isa = PBXBuildFile; fileRef = F5096B650C0BC023128CDB62 /* iinhash.png */; };
 		429084F7E08EEA3ED2214991 /* GuestProcessABITests.m in Sources */ = {isa = PBXBuildFile; fileRef = A64FD3CDB2FC351AD188D0A3 /* GuestProcessABITests.m */; };
 		43B430AB38CCA4C0D50A51EA /* tty.c in Sources */ = {isa = PBXBuildFile; fileRef = E4F3831D798AB676D8843AE3 /* tty.c */; };
@@ -69,6 +72,7 @@
 		463B2D4D61E67E7E91B1DF62 /* console_tty.c in Sources */ = {isa = PBXBuildFile; fileRef = C8F238770439E58D467C3E0A /* console_tty.c */; };
 		46E72D9D8D981A2A03825706 /* static_minimal_aarch64_ok.elf in Resources */ = {isa = PBXBuildFile; fileRef = D463CED677710E2BE949EEDE /* static_minimal_aarch64_ok.elf */; };
 		46FE92A11FFCA930F634BCDD /* lock.c in Sources */ = {isa = PBXBuildFile; fileRef = 2DAD7F4348E51CEA7064F262 /* lock.c */; };
+		470DC001F081CB92C55AACC8 /* TCTIInstructionFamilyMatrix.md in Resources */ = {isa = PBXBuildFile; fileRef = F0321173B3894D35C20FE4F1 /* TCTIInstructionFamilyMatrix.md */; };
 		475047D753FD8A132243D984 /* IXLandInstrumentationRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = 16ECA5845F0EF0964A203FAA /* IXLandInstrumentationRuntime */; };
 		49A961AC130225BF1ED2F64D /* GuestELFLoaderFixtureTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 6E958AE23214162DB59253CF /* GuestELFLoaderFixtureTests.m */; };
 		4BCB0D6CFB18E5FD8FB40D72 /* exit.c in Sources */ = {isa = PBXBuildFile; fileRef = 9DC949EAB5EAC64F57A0E876 /* exit.c */; };
@@ -76,6 +80,7 @@
 		4DF7707284D288ED120C4AB0 /* path_host.c in Sources */ = {isa = PBXBuildFile; fileRef = 561A52F0F26F98E335D32595 /* path_host.c */; };
 		52D101C59A127ACCB52FCFA8 /* ihash1.png in Resources */ = {isa = PBXBuildFile; fileRef = 181F5CC1923CABB296BBEB8D /* ihash1.png */; };
 		542BBAFCF4A523B6F7F54D0B /* real.c in Sources */ = {isa = PBXBuildFile; fileRef = E9CE261926FD005BFA481565 /* real.c */; };
+		5478B49C6453FDEC6319B069 /* bootstrap_bridge.m in Sources */ = {isa = PBXBuildFile; fileRef = B8714BE10A7AFFF22C538AA6 /* bootstrap_bridge.m */; };
 		54BB894D2A174578AC55F033 /* offsets.c in Sources */ = {isa = PBXBuildFile; fileRef = 86C67901A82D3DF8BEB010E1 /* offsets.c */; };
 		54D36362ADDF1EDE3ADDF20F /* ExceptionExfiltrator.m in Sources */ = {isa = PBXBuildFile; fileRef = 25256302BEA7C9B8D6F738F3 /* ExceptionExfiltrator.m */; };
 		5583FF859D442699D78CB1B6 /* decode.c in Sources */ = {isa = PBXBuildFile; fileRef = 7B9432F582CE738592D8EF8E /* decode.c */; };
@@ -87,16 +92,15 @@
 		598210E6E54CBEEF2F741EF9 /* pid.c in Sources */ = {isa = PBXBuildFile; fileRef = 2C280CCAC8F6B8BEEBFB5D53 /* pid.c */; };
 		59BD1EB5136B3E624FDDAAD8 /* block-cache.c in Sources */ = {isa = PBXBuildFile; fileRef = D6CA7C71641E1BF8B6969B3E /* block-cache.c */; };
 		5A49B9AC32363E504DE5EF1B /* AppGroup.m in Sources */ = {isa = PBXBuildFile; fileRef = C060C452E7ADDCE44D66B5C9 /* AppGroup.m */; };
+		5BDA8C4B4B41A6183227A5EA /* GuestBusyboxRuntimeExecutionTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 3C33478C342C457739B5B9C2 /* GuestBusyboxRuntimeExecutionTests.m */; };
 		5CFC60A05640633FE58D7117 /* path.c in Sources */ = {isa = PBXBuildFile; fileRef = A9B6B7FAE0369CFD15B06415 /* path.c */; };
 		5D62456BCF1A1E772090D70D /* mem_object.c in Sources */ = {isa = PBXBuildFile; fileRef = 00E247A1AF5565D32D1F693C /* mem_object.c */; };
 		5E3E92754DCD4F16C8AFC64A /* fork.c in Sources */ = {isa = PBXBuildFile; fileRef = 3268F8FE6225F8B58EEF7531 /* fork.c */; };
 		5E8E598B062322878B2C6234 /* FontPickerViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 5A7C34AF1E6683B5985A0652 /* FontPickerViewController.m */; };
 		606F58FB819923C5EB0094A5 /* ipc.c in Sources */ = {isa = PBXBuildFile; fileRef = BF249005260B7A21629F8543 /* ipc.c */; };
 		608344E9A519A7ACEAEDFF45 /* musl_thread.c in Sources */ = {isa = PBXBuildFile; fileRef = E165E022396EE15792494A90 /* musl_thread.c */; };
-		6108D5FDA92553D758FA0110 /* bootstrap_bridge.m in Sources */ = {isa = PBXBuildFile; fileRef = B8714BE10A7AFFF22C538AA6 /* bootstrap_bridge.m */; };
 		623247850DA3106995546CDD /* pydann2.png in Resources */ = {isa = PBXBuildFile; fileRef = BB7E10F4B69FF7DB6BE84BC1 /* pydann2.png */; };
 		62D925E0339D28DAE02378D5 /* GuestRuntimeCorePerfTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 024F148C3D410A1A69FB197B /* GuestRuntimeCorePerfTests.m */; };
-		63E06A76135EFB0BB1CE098A /* tcti_harness_truth.c in Sources */ = {isa = PBXBuildFile; fileRef = FBD4F4203EF17AE231313CFC /* tcti_harness_truth.c */; };
 		63FDDB6410B1D6F630C044B7 /* RootsTableViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = EBB123B65035BE96FBFA6716 /* RootsTableViewController.m */; };
 		6466465152B2C57DF3479690 /* gadgets_arith.c in Sources */ = {isa = PBXBuildFile; fileRef = BD7B6B38ADD8B8687CBB2278 /* gadgets_arith.c */; };
 		64CCBF7018666E49859616A4 /* resource.c in Sources */ = {isa = PBXBuildFile; fileRef = 6F2AF854AD7F8B71BED49E91 /* resource.c */; };
@@ -113,7 +117,9 @@
 		6BAA3D190350E28FD6298D1F /* rootfs_metadata.c in Sources */ = {isa = PBXBuildFile; fileRef = BBD6E16338F978A710F39C72 /* rootfs_metadata.c */; };
 		6C28F4635D408CCDF343AA6B /* ThemesViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 60F0620B6217DE91ECBFDAC6 /* ThemesViewController.m */; };
 		6DDD59ED1A15E30C8F122CCA /* GuestBringupMatrixTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 824D0F0A36DB5D3AB0C57BF6 /* GuestBringupMatrixTests.m */; };
+		6E1FBAFEAE5F9A5E8FBC4BD4 /* TCTIMemoryAndAtomicRuntimeSemanticTests.m in Sources */ = {isa = PBXBuildFile; fileRef = BFAFA9D521D78665A272DF36 /* TCTIMemoryAndAtomicRuntimeSemanticTests.m */; };
 		70CCFC9B74E85B77BCAC2085 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BAE7DCC2F0AA9AA9DB7546E0 /* QuartzCore.framework */; };
+		71D3C4548F3621A7197550AA /* pty_bridge.m in Sources */ = {isa = PBXBuildFile; fileRef = 38785EE95467CE6148736C16 /* pty_bridge.m */; };
 		72E9FCA6521EF25F9FD47233 /* dyndev.c in Sources */ = {isa = PBXBuildFile; fileRef = D75F368F8A0B728AC875CC5A /* dyndev.c */; };
 		73B58D47EB965D37D69D01F0 /* root_store.m in Sources */ = {isa = PBXBuildFile; fileRef = 0D2786A45C5FB69E37336E58 /* root_store.m */; };
 		74FCDE5FDC2EC4268377C4D6 /* ish.c in Sources */ = {isa = PBXBuildFile; fileRef = 15AF3057431E43D0FA701DA0 /* ish.c */; };
@@ -133,12 +139,15 @@
 		81CAACA325880AC4EC6CEB59 /* root.c in Sources */ = {isa = PBXBuildFile; fileRef = 02DFAE52B46760351A2F6BF3 /* root.c */; };
 		83129F6338CFBEEB30AC3D39 /* IXLandInstrumentationRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = 88AEE1669087CCA090ED64F5 /* IXLandInstrumentationRuntime */; };
 		83803EC8EA3ACBD1F681051B /* colontildehash.png in Resources */ = {isa = PBXBuildFile; fileRef = 7A21715B57BF12F66CDEDCE3 /* colontildehash.png */; };
+		84DFA6A44A736E0A1DD9BACF /* GuestExecutionTraceSink.c in Sources */ = {isa = PBXBuildFile; fileRef = 36E48557341B8B7D396A939E /* GuestExecutionTraceSink.c */; };
 		85E3301D9BE97C2E76A39AA8 /* DelayedUITask.m in Sources */ = {isa = PBXBuildFile; fileRef = A17624F5492FE375C9481480 /* DelayedUITask.m */; };
+		87892B03C1F76A7C22E56584 /* TCTIScalarRuntimeSemanticTests.m in Sources */ = {isa = PBXBuildFile; fileRef = DC754A1417C6D091F8F67A7A /* TCTIScalarRuntimeSemanticTests.m */; };
 		8896807BAAA8CFE4B71683AF /* fchdir.c in Sources */ = {isa = PBXBuildFile; fileRef = E42290E5BC7734A9891F9523 /* fchdir.c */; };
-		8CCEA82F7A63F8E25BA0E3C2 /* TCTIFetchTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 2AA9B189707317E3BAB7D69C /* TCTIFetchTests.m */; };
+		8D8132F0D5D22D080F0D1E73 /* TCTIControlAndFlagsSemanticTests.m in Sources */ = {isa = PBXBuildFile; fileRef = F26E16BEEC4D8A8594844AAB /* TCTIControlAndFlagsSemanticTests.m */; };
 		8DCAD47243639CDDE1A372A4 /* pipe.c in Sources */ = {isa = PBXBuildFile; fileRef = 41649A6F845DAB672C98138E /* pipe.c */; };
 		9150B17792D65FEC11EB0D2D /* time.c in Sources */ = {isa = PBXBuildFile; fileRef = E2A2C1CE801ACBF0FD8D8BFA /* time.c */; };
 		9264C7D921B7453D85F1C07B /* freeiosterminal.png in Resources */ = {isa = PBXBuildFile; fileRef = D0EBFD679F4BC3C899E473F7 /* freeiosterminal.png */; };
+		92D42F3AE36FBBB7F3CCFCBA /* tcti_control_and_flags_semantic_scenarios.c in Sources */ = {isa = PBXBuildFile; fileRef = D331BD66B2C47350F6B43347 /* tcti_control_and_flags_semantic_scenarios.c */; };
 		92F31B9728096B20A1C16EF8 /* Roots.m in Sources */ = {isa = PBXBuildFile; fileRef = EE2D0533230FDE158A949E97 /* Roots.m */; };
 		95997E6F6C41CB6F7C2033DF /* mmap.c in Sources */ = {isa = PBXBuildFile; fileRef = 6439235DDD202499039542E7 /* mmap.c */; };
 		95BD85B46C61DF948D348C20 /* syscall_dispatch.c in Sources */ = {isa = PBXBuildFile; fileRef = B884CB4D94383EF7664F28AD /* syscall_dispatch.c */; };
@@ -156,7 +165,6 @@
 		9FCA50637C4C626B8D4DB5E8 /* root_registry.m in Sources */ = {isa = PBXBuildFile; fileRef = 89EA210683BA3388D1AFD111 /* root_registry.m */; };
 		9FEE4A14412BA339868CED7C /* sockrestart.c in Sources */ = {isa = PBXBuildFile; fileRef = 2D8403306F7321F6B8F9488F /* sockrestart.c */; };
 		A01AB558E7151389C4AD72C3 /* Aarch64EmulatorTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 413013AD1B96BB4B80FE5BD6 /* Aarch64EmulatorTests.m */; };
-		A3D2928F3F417585ADC954FD /* TCTIExitWritebackTests.m in Sources */ = {isa = PBXBuildFile; fileRef = F5C6E5D94B2A8DB13FB05E25 /* TCTIExitWritebackTests.m */; };
 		A4E4F3FC7FAF3FBA742D5D62 /* dollarblock2.png in Resources */ = {isa = PBXBuildFile; fileRef = 09C808061069D7850E71415B /* dollarblock2.png */; };
 		A5BDE70A2253718759EE70F7 /* UIViewController+Extras.m in Sources */ = {isa = PBXBuildFile; fileRef = 933EE1B812B704FE74231B36 /* UIViewController+Extras.m */; };
 		A5D6BF285A794A2777312C6B /* sock_bridge.c in Sources */ = {isa = PBXBuildFile; fileRef = FE3E2C19351BACE9A7E0C543 /* sock_bridge.c */; };
@@ -164,21 +172,22 @@
 		A6B563469FA7DB3880AE61F6 /* NSObject+SaneKVO.m in Sources */ = {isa = PBXBuildFile; fileRef = 7BF14D608C61DA216F6F4A28 /* NSObject+SaneKVO.m */; };
 		A6EB7DD632F945356C81FF98 /* GuestSyscallCoreTests.m in Sources */ = {isa = PBXBuildFile; fileRef = BB49CF9022D8112828446972 /* GuestSyscallCoreTests.m */; };
 		A815532DA928492646AF456A /* gadgets_tcti_impl.c in Sources */ = {isa = PBXBuildFile; fileRef = 35A16CBCB50B9696548B010A /* gadgets_tcti_impl.c */; };
+		A84E6A00E07FC7AF1AA2C297 /* terminal_bridge.m in Sources */ = {isa = PBXBuildFile; fileRef = 432D08E0629A666DE1D61645 /* terminal_bridge.m */; };
+		A8F7ED43F4BBF5D104CD3C06 /* TCTIMemoryAndPairSemanticTests.m in Sources */ = {isa = PBXBuildFile; fileRef = B9D21A57FF642E5F8590E0EC /* TCTIMemoryAndPairSemanticTests.m */; };
 		A93778A3BA5562FC346A1735 /* PassthroughView.m in Sources */ = {isa = PBXBuildFile; fileRef = 47BCAADCC74D0397C2433CD9 /* PassthroughView.m */; };
-		A963003A2E39E6AAAA6B0559 /* TCTIHostCarrierTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 4A161659EBE436443B6A8A8D /* TCTIHostCarrierTests.m */; };
 		A9846D19742F5361CB43E6D2 /* GuestELFLoaderTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 5F8F1A234A09E55DBE066430 /* GuestELFLoaderTests.m */; };
 		AA34A6208B301B37B4FB9550 /* UITests.m in Sources */ = {isa = PBXBuildFile; fileRef = 7358D27FA7157FF1189DC202 /* UITests.m */; };
 		AAD3ECD8CF58533091B40641 /* dns_bridge.m in Sources */ = {isa = PBXBuildFile; fileRef = 9EC0897907C24F4C033B58EF /* dns_bridge.m */; };
 		ACACAE2059522BF1051AB26C /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F64D9183658D2C2D3837F3B9 /* SystemConfiguration.framework */; };
 		AEFF4609C78467D19717527E /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E52C4CDCEE5CD1F9912BF659 /* UIKit.framework */; };
 		AF3DACB19C4A4118708BC7B0 /* AboutNavigationController.m in Sources */ = {isa = PBXBuildFile; fileRef = EBE4395D43C34109EC461B3A /* AboutNavigationController.m */; };
+		AF5AFFC8C4F794EB1F6027B6 /* TCTIPipelineLoweringTests.m in Sources */ = {isa = PBXBuildFile; fileRef = E0488C844C147EDC3D4B8354 /* TCTIPipelineLoweringTests.m */; };
 		AFF4B9F65685BE39031EAF28 /* AccessibilityFixes.m in Sources */ = {isa = PBXBuildFile; fileRef = 33D058D3511AEC693FCC7A51 /* AccessibilityFixes.m */; };
 		B0319F41D8EC047D60854162 /* Theme.m in Sources */ = {isa = PBXBuildFile; fileRef = 3688691810382C4E3C86F1BC /* Theme.m */; };
 		B14B9463B79C1D9F672F8AAB /* rgb.png in Resources */ = {isa = PBXBuildFile; fileRef = 49221EC885A4808B10523534 /* rgb.png */; };
-		B1D8D387C0AE2908ACD99092 /* TCTIDispatchPreservationTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 59D30BBBC7E7B8CA0A7CA398 /* TCTIDispatchPreservationTests.m */; };
 		B26C30CBD487898F0FBB2FFA /* prof.c in Sources */ = {isa = PBXBuildFile; fileRef = 1AA27F556BDBEFEDF25D866A /* prof.c */; };
 		B2DD93B2EF57D316FFDAB5C5 /* log_bridge.c in Sources */ = {isa = PBXBuildFile; fileRef = 34634EF4340D8942E3B56CC2 /* log_bridge.c */; };
-		B681F436AF8AC491EC0CF985 /* TCTIDecodeTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 9260880B995F6DCF3C495BAB /* TCTIDecodeTests.m */; };
+		B38A778FB34709974FCDC414 /* pty_host_bridge.c in Sources */ = {isa = PBXBuildFile; fileRef = 4BE446CBB3AA3E3406A6D71D /* pty_host_bridge.c */; };
 		B691A44DDC6A339D27A119B9 /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A72627E301437AE08899AB40 /* UniformTypeIdentifiers.framework */; };
 		BB4F5B82DFE09F0D2E26447C /* session.c in Sources */ = {isa = PBXBuildFile; fileRef = B92B5A25549E0F70DCA1470D /* session.c */; };
 		BBACE404D1EB0BA0188FA07A /* Terminal.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = DEB92121576D4AEDE60387FE /* Terminal.storyboard */; };
@@ -190,6 +199,7 @@
 		C19175BA7457161C699F6154 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F750F2779D767FDFC95D0E91 /* Assets.xcassets */; };
 		C236E4EB882407AD8118A697 /* cpu.c in Sources */ = {isa = PBXBuildFile; fileRef = E65B61D628C5A851EBF5085D /* cpu.c */; };
 		C23867B987EAA85C10458F4B /* TerminalViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 5B47FEBE11BD649BB6682684 /* TerminalViewController.m */; };
+		C2FD4C131DD427E091377CF5 /* tcti_scalar_runtime_semantic_scenarios.c in Sources */ = {isa = PBXBuildFile; fileRef = 27415CEC4DB5D25BABE4CFA3 /* tcti_scalar_runtime_semantic_scenarios.c */; };
 		C525628FE128B709ABE2524D /* metal.png in Resources */ = {isa = PBXBuildFile; fileRef = BC12150720F8E6493A5B64A5 /* metal.png */; };
 		C54EF3C145560F464049E9A5 /* GhosttyTerminal in Frameworks */ = {isa = PBXBuildFile; productRef = A6157563B16CEEAD994938F2 /* GhosttyTerminal */; };
 		C68B2451A263A8FF84E6E1D2 /* root_archive.m in Sources */ = {isa = PBXBuildFile; fileRef = 33CAE19BB49C12E27CD88A64 /* root_archive.m */; };
@@ -200,7 +210,7 @@
 		D2818B23FE9C87387747111C /* icon1337.png in Resources */ = {isa = PBXBuildFile; fileRef = 1314314FBFDF7FC8667E46AA /* icon1337.png */; };
 		D3B8C2FA2A6C3E833F27F906 /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A72627E301437AE08899AB40 /* UniformTypeIdentifiers.framework */; };
 		D3CB15C74BB80E3DCFCFA3DD /* LinuxPTY.c in Sources */ = {isa = PBXBuildFile; fileRef = 1F4E72109DB368DC76FC0940 /* LinuxPTY.c */; };
-		D5ECA4A041E4AC4D8CEA9456 /* TCTISemanticExecutionTests.m in Sources */ = {isa = PBXBuildFile; fileRef = BEFD3683BD12419664FD93B2 /* TCTISemanticExecutionTests.m */; };
+		D86973E943918A35454276D7 /* session_bridge.m in Sources */ = {isa = PBXBuildFile; fileRef = 48675B7DCB26D8148A974943 /* session_bridge.m */; };
 		D9646D47ED06AF3EB7575407 /* Roots.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AAD96C0895EB74ED71BD5BEE /* Roots.storyboard */; };
 		D97320FC18015BAB894317FC /* frame.c in Sources */ = {isa = PBXBuildFile; fileRef = 41C916EF6FD504EBE1ADDBB2 /* frame.c */; };
 		D9D9022DE10D2D1B8C213920 /* user.c in Sources */ = {isa = PBXBuildFile; fileRef = F1F263FDD453F7B292BE667F /* user.c */; };
@@ -212,8 +222,6 @@
 		DC5B93CA8FEBCD41F381A18D /* TerminalView.m in Sources */ = {isa = PBXBuildFile; fileRef = 7953E9394978DAA5A6AF04BD /* TerminalView.m */; };
 		DC72CFDDFF7EA7BE384F1BE1 /* pydann1.png in Resources */ = {isa = PBXBuildFile; fileRef = 3E160898B980B2A313FD013C /* pydann1.png */; };
 		DC8231DF85EA9C00896EA264 /* fd.c in Sources */ = {isa = PBXBuildFile; fileRef = 97DB252437E128B0AC5E308F /* fd.c */; };
-		DD32EFBC27AF01E591AFBBEE /* terminal_bridge.m in Sources */ = {isa = PBXBuildFile; fileRef = 432D08E0629A666DE1D61645 /* terminal_bridge.m */; };
-		DE9ED9ECDD5373EBBEA24382 /* session_bridge.m in Sources */ = {isa = PBXBuildFile; fileRef = 48675B7DCB26D8148A974943 /* session_bridge.m */; };
 		DF4467D014F9A2F83D07F72F /* notsurewhatthisis.png in Resources */ = {isa = PBXBuildFile; fileRef = 9FEDB8F13F52F27F0D4339DC /* notsurewhatthisis.png */; };
 		DFAB5CE576C49F4A319E4017 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E52C4CDCEE5CD1F9912BF659 /* UIKit.framework */; };
 		DFFCCD547506BC395F691790 /* AboutExternalKeyboardViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = B06306E63664EC691DA78595 /* AboutExternalKeyboardViewController.m */; };
@@ -223,7 +231,9 @@
 		E1FC566C26CC43062EA69330 /* libxml2.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 8A02C624D84627F688438977 /* libxml2.tbd */; };
 		E237B6C521C0261694F9FE1E /* signal.c in Sources */ = {isa = PBXBuildFile; fileRef = 2D9B042769BC68C96065E897 /* signal.c */; };
 		E34E3E87A4531B858D3A57A8 /* dynamic_ptinterp_sample.elf in Resources */ = {isa = PBXBuildFile; fileRef = 2EBCAC10E6D11D00C50C0223 /* dynamic_ptinterp_sample.elf */; };
+		E3A0BA743C7DCC76A7BB13B8 /* TCTIPipelineFetchTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 7FB2D4635A85B06077A0B76F /* TCTIPipelineFetchTests.m */; };
 		E3A367FD55D16DF346C24CB1 /* inode.c in Sources */ = {isa = PBXBuildFile; fileRef = 17BDD7720CA57F72AA94E121 /* inode.c */; };
+		E594741A183C7B04A89EA193 /* TCTIPipelineBlockCacheGenerationTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 8E56921211074E0E3C24E8ED /* TCTIPipelineBlockCacheGenerationTests.m */; };
 		E6334925F3EA702CDF9CD266 /* mount.c in Sources */ = {isa = PBXBuildFile; fileRef = 1BAC36C3E8433F56993940C3 /* mount.c */; };
 		E69D8222686D054968EFEDAB /* dollarblock1.png in Resources */ = {isa = PBXBuildFile; fileRef = 0C4448FC15BAC204BDE6ECE7 /* dollarblock1.png */; };
 		E7AEE886630E687B86A51225 /* UpgradeRootViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = EBE33B72E729E5528AC3593C /* UpgradeRootViewController.m */; };
@@ -234,6 +244,7 @@
 		ED600E9DE4848D69C91B5DAB /* Aarch64SyscallTableTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 149D11C3FB93BB89F098E72A /* Aarch64SyscallTableTests.m */; };
 		ED9D3041081015F0053F7873 /* resource.c in Sources */ = {isa = PBXBuildFile; fileRef = 683857C797B0C2E327254A77 /* resource.c */; };
 		EE0AF117E54170777216140B /* timer.c in Sources */ = {isa = PBXBuildFile; fileRef = E1491C7C24DA49C49F35F53E /* timer.c */; };
+		EF258E3788D7C80D0CF9EB50 /* tcti_memory_pair_semantic_scenarios.c in Sources */ = {isa = PBXBuildFile; fileRef = 5482A2DEC7F6905A9A35A79E /* tcti_memory_pair_semantic_scenarios.c */; };
 		F03EA524B0E8EB9CD935875A /* gadgets_complex.S in Sources */ = {isa = PBXBuildFile; fileRef = 85C61C918ABD750317FD3872 /* gadgets_complex.S */; };
 		F0AB0AD28BBA6ABA043D03BD /* AboutViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = B7A24C008228C73347F0F997 /* AboutViewController.m */; };
 		F120169162F0E3BD1ADA16A0 /* 3d.png in Resources */ = {isa = PBXBuildFile; fileRef = 171CD2F6B1E0CC6138B024E2 /* 3d.png */; };
@@ -248,6 +259,7 @@
 		F960C579FD8B13A685D3BFF5 /* GuestELFHeaderTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 9463A1DBA325E8C92B937FBD /* GuestELFHeaderTests.m */; };
 		F96C854DF31BCCCA15BDE4F3 /* init.c in Sources */ = {isa = PBXBuildFile; fileRef = 7331A2AFB857A36FE4667A3D /* init.c */; };
 		FA92359494D0B5029D4C5F63 /* presenter_bridge.m in Sources */ = {isa = PBXBuildFile; fileRef = EBA2FB817E870DBBD7E6F9E9 /* presenter_bridge.m */; };
+		FBDDA0C2616761F657EE6907 /* libIXLandLinuxRuntime.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CB26B1B5D3A91542EDE0757A /* libIXLandLinuxRuntime.a */; };
 		FD34D5B743A02B788828155E /* uninspired.png in Resources */ = {isa = PBXBuildFile; fileRef = 2434FC18C330673C663D9461 /* uninspired.png */; };
 		FEDF9B1248790A4A8AEFB671 /* tmp.c in Sources */ = {isa = PBXBuildFile; fileRef = 7F77411DE54BB02C07EC592F /* tmp.c */; };
 		FFDB122D07926C3A64204BF8 /* ScrollbarView.m in Sources */ = {isa = PBXBuildFile; fileRef = 642FB10A327A8D7E53E28213 /* ScrollbarView.m */; };
@@ -261,13 +273,6 @@
 			remoteGlobalIDString = 8B71F48AE7216B5689802404;
 			remoteInfo = IXLandLinuxRuntime;
 		};
-		44B88DC33B723CACBB77F4B6 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = A2F6030825E783FA19A7CB4C /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 1C10AF3D9F0341B987C8E504;
-			remoteInfo = IXLandTerminal;
-		};
 		539F002DBF291DD71B46EC91 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = A2F6030825E783FA19A7CB4C /* Project object */;
@@ -275,12 +280,12 @@
 			remoteGlobalIDString = 1C10AF3D9F0341B987C8E504;
 			remoteInfo = IXLandTerminal;
 		};
-		6A544E2B3EE3B811CA21E028 /* PBXContainerItemProxy */ = {
+		738145ACAA252FEEF658A6DC /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = A2F6030825E783FA19A7CB4C /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = 1C10AF3D9F0341B987C8E504;
-			remoteInfo = IXLandTerminal;
+			remoteGlobalIDString = 8B71F48AE7216B5689802404;
+			remoteInfo = IXLandLinuxRuntime;
 		};
 		975904FD040E7B0A7CE700B0 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -289,12 +294,19 @@
 			remoteGlobalIDString = 1C10AF3D9F0341B987C8E504;
 			remoteInfo = IXLandTerminal;
 		};
-		FB4985B85A1ED3B2EB3BD5BF /* PBXContainerItemProxy */ = {
+		BA932476D25159057903301E /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = A2F6030825E783FA19A7CB4C /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = 1C10AF3D9F0341B987C8E504;
-			remoteInfo = IXLandTerminal;
+			remoteGlobalIDString = 8B71F48AE7216B5689802404;
+			remoteInfo = IXLandLinuxRuntime;
+		};
+		E4BDD2EC7532F1D116F29DD2 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A2F6030825E783FA19A7CB4C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8B71F48AE7216B5689802404;
+			remoteInfo = IXLandLinuxRuntime;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -316,12 +328,12 @@
 		0ABD252C58B06EBB0A44685E /* gadgets_ldst_tlb.S */ = {isa = PBXFileReference; path = gadgets_ldst_tlb.S; sourceTree = "<group>"; };
 		0AC1B83590E454B5EA6EE834 /* memory.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = memory.h; sourceTree = "<group>"; };
 		0C11C9F3B7BEFB840AE17D07 /* sync.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sync.h; sourceTree = "<group>"; };
-		0C200A11C43A8C6CC4808494 /* GuestBusyboxLsReproTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GuestBusyboxLsReproTests.m; sourceTree = "<group>"; };
 		0C4448FC15BAC204BDE6ECE7 /* dollarblock1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = dollarblock1.png; sourceTree = "<group>"; };
 		0D2786A45C5FB69E37336E58 /* root_store.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = root_store.m; sourceTree = "<group>"; };
 		0DF9623A0FF19B8B6671DE74 /* linux_types.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = linux_types.h; sourceTree = "<group>"; };
 		0E8EEFF817ABCC943BEEB6BC /* real.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = real.h; sourceTree = "<group>"; };
 		10AE7F899F687F7522BC04EC /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		10D5EC6EED186B0B60E774CD /* GuestExecutionTraceSink.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GuestExecutionTraceSink.h; sourceTree = "<group>"; };
 		1129142F90AAB4D8E9ABC286 /* platform_bridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = platform_bridge.h; sourceTree = "<group>"; };
 		113A11B7EAE92517A9F2E728 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
 		1185AC6E85598743A46FD1E5 /* ThemeViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ThemeViewController.m; sourceTree = "<group>"; };
@@ -357,11 +369,11 @@
 		2434FC18C330673C663D9461 /* uninspired.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = uninspired.png; sourceTree = "<group>"; };
 		251F13D3F44BD8FB605524B0 /* signal.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = signal.h; sourceTree = "<group>"; };
 		25256302BEA7C9B8D6F738F3 /* ExceptionExfiltrator.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ExceptionExfiltrator.m; sourceTree = "<group>"; };
+		27415CEC4DB5D25BABE4CFA3 /* tcti_scalar_runtime_semantic_scenarios.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = tcti_scalar_runtime_semantic_scenarios.c; sourceTree = "<group>"; };
 		278A12240E644B50F8856838 /* UpgradeRootViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = UpgradeRootViewController.h; sourceTree = "<group>"; };
 		278CD94D45A96786F18E17A2 /* Terminal.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Terminal.m; sourceTree = "<group>"; };
 		2821FD6456B56F99983B973A /* IXLandLinuxRuntimeSystemTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = IXLandLinuxRuntimeSystemTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		2A72EF3A789A8F0DE2CDC77C /* Settings.bundle */ = {isa = PBXFileReference; lastKnownFileType = wrapper.cfbundle; path = Settings.bundle; sourceTree = "<group>"; };
-		2AA9B189707317E3BAB7D69C /* TCTIFetchTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TCTIFetchTests.m; sourceTree = "<group>"; };
 		2AF4814FB31E82FF9873FB3A /* Aarch64DecoderTests.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = Aarch64DecoderTests.mm; sourceTree = "<group>"; };
 		2BE27EB8C25638F130864D5B /* icon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = icon.png; sourceTree = "<group>"; };
 		2C280CCAC8F6B8BEEBFB5D53 /* pid.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = pid.c; sourceTree = "<group>"; };
@@ -384,6 +396,7 @@
 		35A16CBCB50B9696548B010A /* gadgets_tcti_impl.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = gadgets_tcti_impl.c; sourceTree = "<group>"; };
 		3688691810382C4E3C86F1BC /* Theme.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Theme.m; sourceTree = "<group>"; };
 		36E3A958C96AFFAD6DAF92B0 /* futex.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = futex.h; sourceTree = "<group>"; };
+		36E48557341B8B7D396A939E /* GuestExecutionTraceSink.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = GuestExecutionTraceSink.c; sourceTree = "<group>"; };
 		36E4F78DF1271206F4EC6F81 /* AboutAppearanceViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AboutAppearanceViewController.m; sourceTree = "<group>"; };
 		37AF23C33F9F0AFAEB7325D9 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		37B7E26866AA9B0AE347F5B8 /* memory.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = memory.c; sourceTree = "<group>"; };
@@ -395,6 +408,7 @@
 		39EDDC5FDCE23C33D139AEAA /* clangd_owner_policy.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = clangd_owner_policy.h; sourceTree = "<group>"; };
 		3B361A3D1CC6CE60B0C27D12 /* stat.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = stat.h; sourceTree = "<group>"; };
 		3B7F861511365437FF474E8E /* poll.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = poll.c; sourceTree = "<group>"; };
+		3C33478C342C457739B5B9C2 /* GuestBusyboxRuntimeExecutionTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GuestBusyboxRuntimeExecutionTests.m; sourceTree = "<group>"; };
 		3E160898B980B2A313FD013C /* pydann1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = pydann1.png; sourceTree = "<group>"; };
 		3F1D4570D05A458BBD6E88EC /* misc.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = misc.h; sourceTree = "<group>"; };
 		3FC5DBFFCF2F7D4493A751AE /* fs.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = fs.c; sourceTree = "<group>"; };
@@ -415,17 +429,17 @@
 		47BCAADCC74D0397C2433CD9 /* PassthroughView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = PassthroughView.m; sourceTree = "<group>"; };
 		48675B7DCB26D8148A974943 /* session_bridge.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = session_bridge.m; sourceTree = "<group>"; };
 		49221EC885A4808B10523534 /* rgb.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = rgb.png; sourceTree = "<group>"; };
-		4A161659EBE436443B6A8A8D /* TCTIHostCarrierTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TCTIHostCarrierTests.m; sourceTree = "<group>"; };
 		4ABCC14B96D4CF458BE5211D /* PasteboardDevice.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = PasteboardDevice.m; sourceTree = "<group>"; };
 		4BC805FD8F00FF19FAB1BDE8 /* signal.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = signal.c; sourceTree = "<group>"; };
+		4BE446CBB3AA3E3406A6D71D /* pty_host_bridge.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = pty_host_bridge.c; sourceTree = "<group>"; };
 		4D526958EA5CE79135703843 /* LocationDevice.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = LocationDevice.m; sourceTree = "<group>"; };
 		4D5458B07BDF4AC2994AD335 /* log_bridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = log_bridge.h; sourceTree = "<group>"; };
 		4E218C6EF34F8B4F4E422C55 /* iSH.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = iSH.entitlements; sourceTree = "<group>"; };
 		4F6E1EE004BC5A6910E26A2E /* fifo.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = fifo.h; sourceTree = "<group>"; };
 		51677136CF8E4A316AC4DF7E /* gadgets.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = gadgets.h; sourceTree = "<group>"; };
 		5175DBFFBAB8A62651D5B056 /* vdso.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = vdso.h; sourceTree = "<group>"; };
-		522555FC14ED380F4FEEF320 /* TCTILoweringTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TCTILoweringTests.m; sourceTree = "<group>"; };
 		5367C13C823551ED5155CEE2 /* TerminalCommandEncodingTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TerminalCommandEncodingTests.m; sourceTree = "<group>"; };
+		5482A2DEC7F6905A9A35A79E /* tcti_memory_pair_semantic_scenarios.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = tcti_memory_pair_semantic_scenarios.c; sourceTree = "<group>"; };
 		54DD0FE05BEB4DA03DBD0492 /* TCTIHotPathPerfTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TCTIHotPathPerfTests.m; sourceTree = "<group>"; };
 		555F56B96147B0D89023A9BB /* root_store.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = root_store.h; sourceTree = "<group>"; };
 		55DBBAB58E4D8E22D4F47BE2 /* errno_host.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = errno_host.c; sourceTree = "<group>"; };
@@ -434,7 +448,6 @@
 		57C2B41AFEC474EF9AEC19A2 /* sock.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sock.c; sourceTree = "<group>"; };
 		580831AFE9C3A1CD95BAC860 /* IXLandTerminalEnd2EndTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = IXLandTerminalEnd2EndTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		59A2E8A5B12BEC93A911DDCA /* task.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = task.c; sourceTree = "<group>"; };
-		59D30BBBC7E7B8CA0A7CA398 /* TCTIDispatchPreservationTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TCTIDispatchPreservationTests.m; sourceTree = "<group>"; };
 		5A02DDF741ABBA22A1306ACD /* tcti-gadget-gen.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = "tcti-gadget-gen.py"; sourceTree = "<group>"; };
 		5A38DDC082F8346867D0EA2A /* cpu-offsets.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "cpu-offsets.h"; sourceTree = "<group>"; };
 		5A7C34AF1E6683B5985A0652 /* FontPickerViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FontPickerViewController.m; sourceTree = "<group>"; };
@@ -490,11 +503,13 @@
 		7F77411DE54BB02C07EC592F /* tmp.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = tmp.c; sourceTree = "<group>"; };
 		7F9028DFBDF40C43347C5929 /* XcodeDebug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = XcodeDebug.xcconfig; sourceTree = "<group>"; };
 		7F93DABE63A2544150BFE0A7 /* personality.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = personality.h; sourceTree = "<group>"; };
+		7FB2D4635A85B06077A0B76F /* TCTIPipelineFetchTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TCTIPipelineFetchTests.m; sourceTree = "<group>"; };
 		7FB6CD479C814AE60E17C67D /* dns_bridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = dns_bridge.h; sourceTree = "<group>"; };
 		7FDADEDF12FDDC2681F52D22 /* ScrollbarView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ScrollbarView.h; sourceTree = "<group>"; };
 		81083EC6BF165200F2BE5E9D /* sock_bridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sock_bridge.h; sourceTree = "<group>"; };
 		811128E064EC055089670308 /* BarButton.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = BarButton.m; sourceTree = "<group>"; };
 		821242F7F8312AB9CE50EBAC /* open_flags.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = open_flags.c; sourceTree = "<group>"; };
+		8229663162E7FE884EE774FF /* tcti_memory_atomic_runtime_semantic_scenarios.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = tcti_memory_atomic_runtime_semantic_scenarios.h; sourceTree = "<group>"; };
 		824D0F0A36DB5D3AB0C57BF6 /* GuestBringupMatrixTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GuestBringupMatrixTests.m; sourceTree = "<group>"; };
 		8291F30E37ACDDE208700D54 /* LocationDevice.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LocationDevice.h; sourceTree = "<group>"; };
 		830DA05A2E1735AE19890C15 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/About.storyboard; sourceTree = "<group>"; };
@@ -503,6 +518,7 @@
 		854F15704EE7C0463FF5032B /* ArrowBarButton.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ArrowBarButton.h; sourceTree = "<group>"; };
 		85C61C918ABD750317FD3872 /* gadgets_complex.S */ = {isa = PBXFileReference; path = gadgets_complex.S; sourceTree = "<group>"; };
 		8624F7CE994E5B1C6A238B17 /* frame.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = frame.h; sourceTree = "<group>"; };
+		8628B7AADB0236566E91137C /* pty_host_bridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = pty_host_bridge.h; sourceTree = "<group>"; };
 		867C996CBF11340001A9F4DC /* errno_host.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = errno_host.h; sourceTree = "<group>"; };
 		86C67901A82D3DF8BEB010E1 /* offsets.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = offsets.c; sourceTree = "<group>"; };
 		870D07BFAA772143F6F49CAA /* AboutExternalKeyboardViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AboutExternalKeyboardViewController.h; sourceTree = "<group>"; };
@@ -517,12 +533,14 @@
 		8CED9318B60E5BE168A4F360 /* root_archive.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = root_archive.h; sourceTree = "<group>"; };
 		8DC63F1981273074CA3589CA /* xX_main_Xx.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = xX_main_Xx.h; sourceTree = "<group>"; };
 		8DC945819966B166EDFAE4B9 /* ExceptionExfiltrator.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ExceptionExfiltrator.h; sourceTree = "<group>"; };
+		8E56921211074E0E3C24E8ED /* TCTIPipelineBlockCacheGenerationTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TCTIPipelineBlockCacheGenerationTests.m; sourceTree = "<group>"; };
 		8E865770EE2EBCB4D7DA1C29 /* IXLandLinuxRuntimeContractTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = IXLandLinuxRuntimeContractTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		901D1162C4C7C993CB65245C /* mul */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; name = mul; path = mul.lproj/LaunchScreen.xcstrings; sourceTree = "<group>"; };
 		9071C44F78843BF1F962C5FE /* static_wrong_machine.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = static_wrong_machine.bin; sourceTree = "<group>"; };
 		9225C7278750CBA981A7D9CA /* LinuxTTY.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = LinuxTTY.c; sourceTree = "<group>"; };
-		9260880B995F6DCF3C495BAB /* TCTIDecodeTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TCTIDecodeTests.m; sourceTree = "<group>"; };
+		927B552ECD94600013D562E7 /* tcti_semantic_runtime_support.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = tcti_semantic_runtime_support.h; sourceTree = "<group>"; };
 		92C08C746BF95B04C3730337 /* gen.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = gen.h; sourceTree = "<group>"; };
+		92C9A46567B2C37C5E861A1F /* tcti_memory_pair_semantic_scenarios.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = tcti_memory_pair_semantic_scenarios.h; sourceTree = "<group>"; };
 		92E0C2B4D8B9CEA7B262BD90 /* bootstrap_bridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bootstrap_bridge.h; sourceTree = "<group>"; };
 		933EE1B812B704FE74231B36 /* UIViewController+Extras.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "UIViewController+Extras.m"; sourceTree = "<group>"; };
 		9463A1DBA325E8C92B937FBD /* GuestELFHeaderTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GuestELFHeaderTests.m; sourceTree = "<group>"; };
@@ -558,6 +576,7 @@
 		AE7F533ABF0B5EE91BA21F76 /* dyndev.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = dyndev.h; sourceTree = "<group>"; };
 		AF16842A89848E04EEB5A712 /* proc.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = proc.h; sourceTree = "<group>"; };
 		B06306E63664EC691DA78595 /* AboutExternalKeyboardViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AboutExternalKeyboardViewController.m; sourceTree = "<group>"; };
+		B093E528DD852C71E6CCC4BF /* tcti_scalar_runtime_semantic_scenarios.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = tcti_scalar_runtime_semantic_scenarios.h; sourceTree = "<group>"; };
 		B28B80D7070612C896EDCDF5 /* sprite64.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = sprite64.png; sourceTree = "<group>"; };
 		B28C975A882514B6EDEB4937 /* dev.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = dev.h; sourceTree = "<group>"; };
 		B40D30873DDBECA46494DEBF /* task.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = task.h; sourceTree = "<group>"; };
@@ -566,11 +585,13 @@
 		B50E7F30AF8D91087F69B216 /* libiconv.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libiconv.tbd; path = usr/lib/libiconv.tbd; sourceTree = SDKROOT; };
 		B6E7E5183B898A2C841902B6 /* uname.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = uname.c; sourceTree = "<group>"; };
 		B74BC9381C8B3224E3D195A3 /* hook.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = hook.h; sourceTree = "<group>"; };
+		B7993173C9BED32CCD758685 /* GuestExecutionProbe.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GuestExecutionProbe.h; sourceTree = "<group>"; };
 		B7A24C008228C73347F0F997 /* AboutViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AboutViewController.m; sourceTree = "<group>"; };
 		B8714BE10A7AFFF22C538AA6 /* bootstrap_bridge.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = bootstrap_bridge.m; sourceTree = "<group>"; };
 		B884CB4D94383EF7664F28AD /* syscall_dispatch.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = syscall_dispatch.c; sourceTree = "<group>"; };
 		B8E4AC70AC00926AB255EB75 /* calls.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = calls.c; sourceTree = "<group>"; };
 		B92B5A25549E0F70DCA1470D /* session.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = session.c; sourceTree = "<group>"; };
+		B9D21A57FF642E5F8590E0EC /* TCTIMemoryAndPairSemanticTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TCTIMemoryAndPairSemanticTests.m; sourceTree = "<group>"; };
 		B9F4CBAF91EF661AE9E050E0 /* calls.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = calls.h; sourceTree = "<group>"; };
 		BA565CBE6D003D3A3A960EA0 /* vma.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = vma.h; sourceTree = "<group>"; };
 		BAE7DCC2F0AA9AA9DB7546E0 /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
@@ -584,10 +605,11 @@
 		BC9531E744BC25FA3AA788F3 /* BarButton.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BarButton.h; sourceTree = "<group>"; };
 		BD7B6B38ADD8B8687CBB2278 /* gadgets_arith.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = gadgets_arith.c; sourceTree = "<group>"; };
 		BECD4AA4DE56261D69376541 /* presenter_bridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = presenter_bridge.h; sourceTree = "<group>"; };
-		BEFD3683BD12419664FD93B2 /* TCTISemanticExecutionTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TCTISemanticExecutionTests.m; sourceTree = "<group>"; };
 		BF249005260B7A21629F8543 /* ipc.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ipc.c; sourceTree = "<group>"; };
+		BFAFA9D521D78665A272DF36 /* TCTIMemoryAndAtomicRuntimeSemanticTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TCTIMemoryAndAtomicRuntimeSemanticTests.m; sourceTree = "<group>"; };
 		C060C452E7ADDCE44D66B5C9 /* AppGroup.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppGroup.m; sourceTree = "<group>"; };
 		C0901571697947AF92AF1D1D /* timing.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = timing.h; sourceTree = "<group>"; };
+		C1DE9C8DBFBB6B59E67EB8FA /* tcti_control_and_flags_semantic_scenarios.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = tcti_control_and_flags_semantic_scenarios.h; sourceTree = "<group>"; };
 		C464307DB69AA101AB450B96 /* random.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = random.h; sourceTree = "<group>"; };
 		C4D634F7FEDACD511EBA6D83 /* IXLandTerminal.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = IXLandTerminal.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C6D666B2B819F652257F5FB1 /* PassthroughView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PassthroughView.h; sourceTree = "<group>"; };
@@ -597,10 +619,12 @@
 		C8F238770439E58D467C3E0A /* console_tty.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = console_tty.c; sourceTree = "<group>"; };
 		C94FE128EB478AB4D05D308A /* TerminalViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TerminalViewController.h; sourceTree = "<group>"; };
 		CA643CDA4E6818A13394D374 /* PasteboardDevice.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PasteboardDevice.h; sourceTree = "<group>"; };
+		CAE66841717FEA78DC2E4146 /* tcti_memory_atomic_runtime_semantic_scenarios.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = tcti_memory_atomic_runtime_semantic_scenarios.c; sourceTree = "<group>"; };
 		CB26B1B5D3A91542EDE0757A /* libIXLandLinuxRuntime.a */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = archive.ar; path = libIXLandLinuxRuntime.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		CC4088DCE54E3E3181972999 /* vma.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = vma.c; sourceTree = "<group>"; };
 		CF96A3EACFB49BC1204323DC /* TerminalIOPerfTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TerminalIOPerfTests.m; sourceTree = "<group>"; };
 		D0EBFD679F4BC3C899E473F7 /* freeiosterminal.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = freeiosterminal.png; sourceTree = "<group>"; };
+		D331BD66B2C47350F6B43347 /* tcti_control_and_flags_semantic_scenarios.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = tcti_control_and_flags_semantic_scenarios.c; sourceTree = "<group>"; };
 		D463CED677710E2BE949EEDE /* static_minimal_aarch64_ok.elf */ = {isa = PBXFileReference; path = static_minimal_aarch64_ok.elf; sourceTree = "<group>"; };
 		D4C87D76E80D8DE18E470588 /* UserPreferences.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = UserPreferences.m; sourceTree = "<group>"; };
 		D4F04FD7A6A204561CD9FDB9 /* ptrace.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ptrace.h; sourceTree = "<group>"; };
@@ -615,8 +639,11 @@
 		DAC1C3D5E64BD10C05E08814 /* debug.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = debug.h; sourceTree = "<group>"; };
 		DAEF15970B76F0A5BB376B7A /* bootstrap.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bootstrap.h; sourceTree = "<group>"; };
 		DB38F8D499A2BA93072BB447 /* gen.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = gen.c; sourceTree = "<group>"; };
+		DC754A1417C6D091F8F67A7A /* TCTIScalarRuntimeSemanticTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TCTIScalarRuntimeSemanticTests.m; sourceTree = "<group>"; };
 		DD672485B4027B7A0E0DF4DC /* .gitignore */ = {isa = PBXFileReference; path = .gitignore; sourceTree = "<group>"; };
 		DE88CB76F664588CDE81BCB4 /* ISHRuntimeFlags.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ISHRuntimeFlags.h; sourceTree = "<group>"; };
+		E0488C844C147EDC3D4B8354 /* TCTIPipelineLoweringTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TCTIPipelineLoweringTests.m; sourceTree = "<group>"; };
+		E04D270F86D1969FD775B93D /* GuestExecutionProbe.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = GuestExecutionProbe.c; sourceTree = "<group>"; };
 		E08BDE3EF4B2E3E3289BC97C /* tty-real.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "tty-real.c"; sourceTree = "<group>"; };
 		E0EDBAD8D5296DBCDBA3C8CD /* AltIconViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AltIconViewController.m; sourceTree = "<group>"; };
 		E1491C7C24DA49C49F35F53E /* timer.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = timer.c; sourceTree = "<group>"; };
@@ -650,15 +677,16 @@
 		ED05A59CCCC5EB245D540593 /* iOS.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = iOS.xcconfig; sourceTree = "<group>"; };
 		EE2D0533230FDE158A949E97 /* Roots.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Roots.m; sourceTree = "<group>"; };
 		EFD522DB0380FDCDEC22B79A /* sock_bridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sock_bridge.h; sourceTree = "<group>"; };
+		F0321173B3894D35C20FE4F1 /* TCTIInstructionFamilyMatrix.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = TCTIInstructionFamilyMatrix.md; sourceTree = "<group>"; };
 		F0C48F59FD94FD171DC0B549 /* ptrace.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ptrace.c; sourceTree = "<group>"; };
 		F11E497D8AFD0AE4678BC62C /* mach_excServer.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = mach_excServer.c; sourceTree = "<group>"; };
 		F1F263FDD453F7B292BE667F /* user.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = user.c; sourceTree = "<group>"; };
+		F26E16BEEC4D8A8594844AAB /* TCTIControlAndFlagsSemanticTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TCTIControlAndFlagsSemanticTests.m; sourceTree = "<group>"; };
 		F2B292BCB3230A37215B5B35 /* block-cache.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "block-cache.h"; sourceTree = "<group>"; };
 		F31565F578E58DE65B88C0B1 /* UIViewController+Extras.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "UIViewController+Extras.h"; sourceTree = "<group>"; };
 		F3BEF12A60A4ED2445444EE2 /* Theme.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Theme.h; sourceTree = "<group>"; };
 		F4F96A505CB758EF7A795681 /* CLI.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = CLI.xcconfig; sourceTree = "<group>"; };
 		F5096B650C0BC023128CDB62 /* iinhash.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = iinhash.png; sourceTree = "<group>"; };
-		F5C6E5D94B2A8DB13FB05E25 /* TCTIExitWritebackTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TCTIExitWritebackTests.m; sourceTree = "<group>"; };
 		F637857258CE41565C8AB73E /* bits.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bits.h; sourceTree = "<group>"; };
 		F64D9183658D2C2D3837F3B9 /* SystemConfiguration.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SystemConfiguration.framework; path = System/Library/Frameworks/SystemConfiguration.framework; sourceTree = SDKROOT; };
 		F750F2779D767FDFC95D0E91 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -668,7 +696,6 @@
 		F8D9EB8FC7D1955053105D3E /* TerminalView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TerminalView.h; sourceTree = "<group>"; };
 		FA46100FFEA2192849ECD0EC /* pty.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = pty.c; sourceTree = "<group>"; };
 		FB729DB1B9FB41A3F3BDD112 /* generic.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = generic.c; sourceTree = "<group>"; };
-		FBD4F4203EF17AE231313CFC /* tcti_harness_truth.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = tcti_harness_truth.c; sourceTree = "<group>"; };
 		FC5918DF7B26FC6631033835 /* init.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = init.h; sourceTree = "<group>"; };
 		FCBAA3B6AA42972686C4067A /* DelayedUITask.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DelayedUITask.h; sourceTree = "<group>"; };
 		FCD544804580CD35D651EA38 /* gadgets_tcti.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = gadgets_tcti.h; sourceTree = "<group>"; };
@@ -705,6 +732,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2754921613B72C42CD6337A6 /* libIXLandLinuxRuntime.a in Frameworks */,
 				475047D753FD8A132243D984 /* IXLandInstrumentationRuntime in Frameworks */,
 				AEFF4609C78467D19717527E /* UIKit.framework in Frameworks */,
 				32A30CFA5D6A1ECA24703DD4 /* UniformTypeIdentifiers.framework in Frameworks */,
@@ -715,6 +743,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				14BC2EE48364771D87513A16 /* libIXLandLinuxRuntime.a in Frameworks */,
 				83129F6338CFBEEB30AC3D39 /* IXLandInstrumentationRuntime in Frameworks */,
 				9B608EFE748B5CB06C081F78 /* UIKit.framework in Frameworks */,
 				D3B8C2FA2A6C3E833F27F906 /* UniformTypeIdentifiers.framework in Frameworks */,
@@ -734,6 +763,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FBDDA0C2616761F657EE6907 /* libIXLandLinuxRuntime.a in Frameworks */,
+				18C2B713FD5494BE59FD63F4 /* IXLandInstrumentationRuntime in Frameworks */,
 				222C1DAF603888FADFCC1DE1 /* UIKit.framework in Frameworks */,
 				F90FFEFC23AB6F447FAE988B /* UniformTypeIdentifiers.framework in Frameworks */,
 			);
@@ -751,6 +782,22 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		032762C70B1F9DAA1AB6CF39 /* Internal */ = {
+			isa = PBXGroup;
+			children = (
+				927B552ECD94600013D562E7 /* tcti_semantic_runtime_support.h */,
+			);
+			path = Internal;
+			sourceTree = "<group>";
+		};
+		0FEA7AA19611501430B8CDA2 /* Lowering */ = {
+			isa = PBXGroup;
+			children = (
+				E0488C844C147EDC3D4B8354 /* TCTIPipelineLoweringTests.m */,
+			);
+			path = Lowering;
+			sourceTree = "<group>";
+		};
 		1255E443A5832661104E6664 = {
 			isa = PBXGroup;
 			children = (
@@ -775,6 +822,26 @@
 			path = Perf;
 			sourceTree = "<group>";
 		};
+		1B0EE08595ED5C3720CDFC6D /* BaseScalar */ = {
+			isa = PBXGroup;
+			children = (
+				D331BD66B2C47350F6B43347 /* tcti_control_and_flags_semantic_scenarios.c */,
+				C1DE9C8DBFBB6B59E67EB8FA /* tcti_control_and_flags_semantic_scenarios.h */,
+				27415CEC4DB5D25BABE4CFA3 /* tcti_scalar_runtime_semantic_scenarios.c */,
+				B093E528DD852C71E6CCC4BF /* tcti_scalar_runtime_semantic_scenarios.h */,
+			);
+			path = BaseScalar;
+			sourceTree = "<group>";
+		};
+		1D9FB50E5698E26767909328 /* Support */ = {
+			isa = PBXGroup;
+			children = (
+				032762C70B1F9DAA1AB6CF39 /* Internal */,
+				A9D7CB4EB1C398B96FE1BD05 /* ISAFamilies */,
+			);
+			path = Support;
+			sourceTree = "<group>";
+		};
 		1F2886B57D66146C17939B98 /* Instrumentation */ = {
 			isa = PBXGroup;
 			children = (
@@ -786,7 +853,14 @@
 		207F6212CCA504DC81900EEC /* Fetch */ = {
 			isa = PBXGroup;
 			children = (
-				2AA9B189707317E3BAB7D69C /* TCTIFetchTests.m */,
+			);
+			path = Fetch;
+			sourceTree = "<group>";
+		};
+		2087152C5B3CDCF7DA19DB26 /* Fetch */ = {
+			isa = PBXGroup;
+			children = (
+				7FB2D4635A85B06077A0B76F /* TCTIPipelineFetchTests.m */,
 			);
 			path = Fetch;
 			sourceTree = "<group>";
@@ -794,13 +868,13 @@
 		2230D146C357D397F84D2C9F /* TCTI */ = {
 			isa = PBXGroup;
 			children = (
-				A2DBD5E39D5115818F6C5AB2 /* Decode */,
-				2FC70D66BB569758A301CD33 /* Dispatch */,
-				BE9ACF61523A066F9E750FDF /* ExitWriteback */,
 				207F6212CCA504DC81900EEC /* Fetch */,
-				4EB17A3FDA28422457157E94 /* HostCarrier */,
+				291A6ABB634FE7F468934EA7 /* ISAFamilies */,
 				FE36116AF1B419F518478EC6 /* Lowering */,
+				4D22F24AC3E5938518FEAF75 /* Pipeline */,
 				F0CBD020C46F7964E2A0BF57 /* Semantic */,
+				1D9FB50E5698E26767909328 /* Support */,
+				F0321173B3894D35C20FE4F1 /* TCTIInstructionFamilyMatrix.md */,
 			);
 			path = TCTI;
 			sourceTree = "<group>";
@@ -811,6 +885,15 @@
 				7C25A85C7D22B3976756CD40 /* ELF */,
 			);
 			path = Fixtures;
+			sourceTree = "<group>";
+		};
+		291A6ABB634FE7F468934EA7 /* ISAFamilies */ = {
+			isa = PBXGroup;
+			children = (
+				55ED0BB280C13A3421CC86FD /* BaseScalar */,
+				A12C9F5CEE47A20227BDF563 /* Memory */,
+			);
+			path = ISAFamilies;
 			sourceTree = "<group>";
 		};
 		2A5ADDE2FD8F60AEB37A307A /* fs */ = {
@@ -824,6 +907,8 @@
 				A49D67FA9DC5402B75C3132D /* open_flags.h */,
 				561A52F0F26F98E335D32595 /* path_host.c */,
 				63149FBE852D3BDDC5273536 /* path_host.h */,
+				4BE446CBB3AA3E3406A6D71D /* pty_host_bridge.c */,
+				8628B7AADB0236566E91137C /* pty_host_bridge.h */,
 				8CED9318B60E5BE168A4F360 /* root_archive.h */,
 				33CAE19BB49C12E27CD88A64 /* root_archive.m */,
 				87D10E6B3F5C4F005584A3E0 /* root_bootstrap.c */,
@@ -839,22 +924,6 @@
 				EFD522DB0380FDCDEC22B79A /* sock_bridge.h */,
 			);
 			path = fs;
-			sourceTree = "<group>";
-		};
-		2DE414BF1C2E449E9BADD36C /* TCTITestHarness */ = {
-			isa = PBXGroup;
-			children = (
-				FBD4F4203EF17AE231313CFC /* tcti_harness_truth.c */,
-			);
-			path = TCTITestHarness;
-			sourceTree = "<group>";
-		};
-		2FC70D66BB569758A301CD33 /* Dispatch */ = {
-			isa = PBXGroup;
-			children = (
-				59D30BBBC7E7B8CA0A7CA398 /* TCTIDispatchPreservationTests.m */,
-			);
-			path = Dispatch;
 			sourceTree = "<group>";
 		};
 		392EC2C64C084E8B3D2966FA /* proc */ = {
@@ -904,18 +973,32 @@
 			path = Packages;
 			sourceTree = "<group>";
 		};
-		4EB17A3FDA28422457157E94 /* HostCarrier */ = {
+		4D22F24AC3E5938518FEAF75 /* Pipeline */ = {
 			isa = PBXGroup;
 			children = (
-				4A161659EBE436443B6A8A8D /* TCTIHostCarrierTests.m */,
+				BAB824F8477D6B46E444EA6A /* BlockCacheAndGeneration */,
+				2087152C5B3CDCF7DA19DB26 /* Fetch */,
+				0FEA7AA19611501430B8CDA2 /* Lowering */,
 			);
-			path = HostCarrier;
+			path = Pipeline;
+			sourceTree = "<group>";
+		};
+		4E9C0B0C1DF7A757FA77F14A /* Memory */ = {
+			isa = PBXGroup;
+			children = (
+				CAE66841717FEA78DC2E4146 /* tcti_memory_atomic_runtime_semantic_scenarios.c */,
+				8229663162E7FE884EE774FF /* tcti_memory_atomic_runtime_semantic_scenarios.h */,
+				5482A2DEC7F6905A9A35A79E /* tcti_memory_pair_semantic_scenarios.c */,
+				92C9A46567B2C37C5E861A1F /* tcti_memory_pair_semantic_scenarios.h */,
+			);
+			path = Memory;
 			sourceTree = "<group>";
 		};
 		500A99CA9E0A881CADBFBAAE /* IXLandLinuxRuntimeSystemTests */ = {
 			isa = PBXGroup;
 			children = (
 				E8FC19FA09E00ED97745380D /* Guest */,
+				6DCBF0176C86D9B3793BF028 /* Support */,
 			);
 			path = IXLandLinuxRuntimeSystemTests;
 			sourceTree = "<group>";
@@ -940,6 +1023,15 @@
 				CB26B1B5D3A91542EDE0757A /* libIXLandLinuxRuntime.a */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		55ED0BB280C13A3421CC86FD /* BaseScalar */ = {
+			isa = PBXGroup;
+			children = (
+				F26E16BEEC4D8A8594844AAB /* TCTIControlAndFlagsSemanticTests.m */,
+				DC754A1417C6D091F8F67A7A /* TCTIScalarRuntimeSemanticTests.m */,
+			);
+			path = BaseScalar;
 			sourceTree = "<group>";
 		};
 		57B5AC6714138C65B93C4E63 /* TCTIHotPath */ = {
@@ -1054,6 +1146,25 @@
 			path = platform;
 			sourceTree = "<group>";
 		};
+		6989218E18665BD3ADE72C40 /* GuestExecutionTrace */ = {
+			isa = PBXGroup;
+			children = (
+				E04D270F86D1969FD775B93D /* GuestExecutionProbe.c */,
+				B7993173C9BED32CCD758685 /* GuestExecutionProbe.h */,
+				36E48557341B8B7D396A939E /* GuestExecutionTraceSink.c */,
+				10D5EC6EED186B0B60E774CD /* GuestExecutionTraceSink.h */,
+			);
+			path = GuestExecutionTrace;
+			sourceTree = "<group>";
+		};
+		6DCBF0176C86D9B3793BF028 /* Support */ = {
+			isa = PBXGroup;
+			children = (
+				6989218E18665BD3ADE72C40 /* GuestExecutionTrace */,
+			);
+			path = Support;
+			sourceTree = "<group>";
+		};
 		6FA73F7D38D8388C58AECEE2 /* include */ = {
 			isa = PBXGroup;
 			children = (
@@ -1126,14 +1237,6 @@
 			path = emu;
 			sourceTree = "<group>";
 		};
-		96564D0C286DF4E06DE70503 /* Support */ = {
-			isa = PBXGroup;
-			children = (
-				2DE414BF1C2E449E9BADD36C /* TCTITestHarness */,
-			);
-			path = Support;
-			sourceTree = "<group>";
-		};
 		9A20AC19A3840DE64E20AA18 /* util */ = {
 			isa = PBXGroup;
 			children = (
@@ -1159,7 +1262,8 @@
 		9C58A6E3D3124B878054DA4B /* Execution */ = {
 			isa = PBXGroup;
 			children = (
-				0C200A11C43A8C6CC4808494 /* GuestBusyboxLsReproTests.m */,
+				EAD54F392C08B21FD5AE3788 /* DISABLED */,
+				3C33478C342C457739B5B9C2 /* GuestBusyboxRuntimeExecutionTests.m */,
 				41B7C6E98AAE5F0F682C8F33 /* GuestStaticELFExecutionBoundary.m */,
 			);
 			path = Execution;
@@ -1177,12 +1281,13 @@
 			path = ixland;
 			sourceTree = "<group>";
 		};
-		A2DBD5E39D5115818F6C5AB2 /* Decode */ = {
+		A12C9F5CEE47A20227BDF563 /* Memory */ = {
 			isa = PBXGroup;
 			children = (
-				9260880B995F6DCF3C495BAB /* TCTIDecodeTests.m */,
+				BFAFA9D521D78665A272DF36 /* TCTIMemoryAndAtomicRuntimeSemanticTests.m */,
+				B9D21A57FF642E5F8590E0EC /* TCTIMemoryAndPairSemanticTests.m */,
 			);
-			path = Decode;
+			path = Memory;
 			sourceTree = "<group>";
 		};
 		A50DD3F22D4CFF341B10957E /* ProcessABI */ = {
@@ -1191,6 +1296,15 @@
 				A64FD3CDB2FC351AD188D0A3 /* GuestProcessABITests.m */,
 			);
 			path = ProcessABI;
+			sourceTree = "<group>";
+		};
+		A9D7CB4EB1C398B96FE1BD05 /* ISAFamilies */ = {
+			isa = PBXGroup;
+			children = (
+				1B0EE08595ED5C3720CDFC6D /* BaseScalar */,
+				4E9C0B0C1DF7A757FA77F14A /* Memory */,
+			);
+			path = ISAFamilies;
 			sourceTree = "<group>";
 		};
 		AA8A626D993768B096430222 /* tcti */ = {
@@ -1224,12 +1338,12 @@
 			path = SyscallCore;
 			sourceTree = "<group>";
 		};
-		BE9ACF61523A066F9E750FDF /* ExitWriteback */ = {
+		BAB824F8477D6B46E444EA6A /* BlockCacheAndGeneration */ = {
 			isa = PBXGroup;
 			children = (
-				F5C6E5D94B2A8DB13FB05E25 /* TCTIExitWritebackTests.m */,
+				8E56921211074E0E3C24E8ED /* TCTIPipelineBlockCacheGenerationTests.m */,
 			);
-			path = ExitWriteback;
+			path = BlockCacheAndGeneration;
 			sourceTree = "<group>";
 		};
 		C8463E726D6C1D72D0D0A74B /* aarch64 */ = {
@@ -1273,7 +1387,6 @@
 				500A99CA9E0A881CADBFBAAE /* IXLandLinuxRuntimeSystemTests */,
 				AB17EB30231C7833A714AD22 /* IXLandTerminalEnd2EndTests */,
 				C9C0B9C02D91E25485217951 /* IXLandTerminalUnitTests */,
-				96564D0C286DF4E06DE70503 /* Support */,
 			);
 			path = Tests;
 			sourceTree = "<group>";
@@ -1538,6 +1651,13 @@
 			path = IXLandLinuxRuntime;
 			sourceTree = "<group>";
 		};
+		EAD54F392C08B21FD5AE3788 /* DISABLED */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = DISABLED;
+			sourceTree = "<group>";
+		};
 		EC0C5B82721C02F60281C6D3 /* ThreadSignalTLS */ = {
 			isa = PBXGroup;
 			children = (
@@ -1556,7 +1676,6 @@
 		F0CBD020C46F7964E2A0BF57 /* Semantic */ = {
 			isa = PBXGroup;
 			children = (
-				BEFD3683BD12419664FD93B2 /* TCTISemanticExecutionTests.m */,
 			);
 			path = Semantic;
 			sourceTree = "<group>";
@@ -1599,7 +1718,6 @@
 		FE36116AF1B419F518478EC6 /* Lowering */ = {
 			isa = PBXGroup;
 			children = (
-				522555FC14ED380F4FEEF320 /* TCTILoweringTests.m */,
 			);
 			path = Lowering;
 			sourceTree = "<group>";
@@ -1626,7 +1744,7 @@
 			buildRules = (
 			);
 			dependencies = (
-				97DFB69095927CD5D57E6C80 /* PBXTargetDependency */,
+				91517EEA2A6D41C2E9C30AA9 /* PBXTargetDependency */,
 			);
 			name = IXLandLinuxRuntimeSystemTests;
 			packageProductDependencies = (
@@ -1641,15 +1759,17 @@
 			buildConfigurationList = 58647C7698452B9595A2DBD8 /* Build configuration list for PBXNativeTarget "IXLandLinuxRuntimeContractTests" */;
 			buildPhases = (
 				8FD892DD56AE1A5757818DD3 /* Sources */,
+				A9DAF55000ACD44CCAF41F70 /* Resources */,
 				CD63AC776E227D13AC44E812 /* Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				610DCE7C7CE50CFFA3B124B7 /* PBXTargetDependency */,
+				1C7DD01AA61BA2E5BAAE82E4 /* PBXTargetDependency */,
 			);
 			name = IXLandLinuxRuntimeContractTests;
 			packageProductDependencies = (
+				EAD2DCABD2ADDDF18E7EFA62 /* IXLandInstrumentationRuntime */,
 			);
 			productName = IXLandLinuxRuntimeContractTests;
 			productReference = 8E865770EE2EBCB4D7DA1C29 /* IXLandLinuxRuntimeContractTests.xctest */;
@@ -1732,7 +1852,7 @@
 			buildRules = (
 			);
 			dependencies = (
-				07B2F49ED031006F9BD50A33 /* PBXTargetDependency */,
+				E1EE53CBED6754E4E42DE5B3 /* PBXTargetDependency */,
 			);
 			name = IXLandLinuxRuntimePerfTests;
 			packageProductDependencies = (
@@ -1824,6 +1944,14 @@
 			files = (
 				E93CDE0D5A8A21FB18C48959 /* README.generated.md in Resources */,
 				6B808C5BDB151118C6ADE852 /* tcti-gadget-gen.py in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A9DAF55000ACD44CCAF41F70 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				470DC001F081CB92C55AACC8 /* TCTIInstructionFamilyMatrix.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1991,10 +2119,15 @@
 				A5BDE70A2253718759EE70F7 /* UIViewController+Extras.m in Sources */,
 				E7AEE886630E687B86A51225 /* UpgradeRootViewController.m in Sources */,
 				983E4A94D9036DA97AB55172 /* UserPreferences.m in Sources */,
+				5478B49C6453FDEC6319B069 /* bootstrap_bridge.m in Sources */,
+				0ADED87A68939048D4987E5B /* console_tty.c in Sources */,
 				DB8C167C778EF8F00BDC7ADD /* hook.c in Sources */,
 				349CAD64E052A89D88BCD6AD /* iOSFS.m in Sources */,
 				67444FA04FAB98AF5446FFBC /* mach_excServer.c in Sources */,
 				34E2C4F599549773088CA806 /* main.m in Sources */,
+				71D3C4548F3621A7197550AA /* pty_bridge.m in Sources */,
+				D86973E943918A35454276D7 /* session_bridge.m in Sources */,
+				A84E6A00E07FC7AF1AA2C297 /* terminal_bridge.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2003,10 +2136,12 @@
 			buildActionMask = 2147483647;
 			files = (
 				6DDD59ED1A15E30C8F122CCA /* GuestBringupMatrixTests.m in Sources */,
-				184CD9F50630F7CF4D9B34CF /* GuestBusyboxLsReproTests.m in Sources */,
+				5BDA8C4B4B41A6183227A5EA /* GuestBusyboxRuntimeExecutionTests.m in Sources */,
 				F960C579FD8B13A685D3BFF5 /* GuestELFHeaderTests.m in Sources */,
 				49A961AC130225BF1ED2F64D /* GuestELFLoaderFixtureTests.m in Sources */,
 				A9846D19742F5361CB43E6D2 /* GuestELFLoaderTests.m in Sources */,
+				3394D054B47589DC4D2DE900 /* GuestExecutionProbe.c in Sources */,
+				84DFA6A44A736E0A1DD9BACF /* GuestExecutionTraceSink.c in Sources */,
 				CBBF7D9620910717A9D4878D /* GuestMemoryManagementTests.m in Sources */,
 				429084F7E08EEA3ED2214991 /* GuestProcessABITests.m in Sources */,
 				9C51BAD704D80346D90DDE7D /* GuestStaticELFExecutionBoundary.m in Sources */,
@@ -2033,7 +2168,6 @@
 				272AB9C8EC83F6964D763113 /* backing_fs.m in Sources */,
 				59BD1EB5136B3E624FDDAAD8 /* block-cache.c in Sources */,
 				77DFCDC92C74FFB22405F595 /* bootstrap.c in Sources */,
-				6108D5FDA92553D758FA0110 /* bootstrap_bridge.m in Sources */,
 				1BC0CF24B9722169925648EF /* calls.c in Sources */,
 				463B2D4D61E67E7E91B1DF62 /* console_tty.c in Sources */,
 				C236E4EB882407AD8118A697 /* cpu.c in Sources */,
@@ -2098,7 +2232,7 @@
 				B26C30CBD487898F0FBB2FFA /* prof.c in Sources */,
 				1890B38E41A7FD2E3813BF8C /* ptrace.c in Sources */,
 				15D9DFEA387313473B819267 /* pty.c in Sources */,
-				3D3484E303FD21647ED98AF7 /* pty_bridge.m in Sources */,
+				B38A778FB34709974FCDC414 /* pty_host_bridge.c in Sources */,
 				1E601B660D7A6AC965F8A137 /* random.c in Sources */,
 				542BBAFCF4A523B6F7F54D0B /* real.c in Sources */,
 				64CCBF7018666E49859616A4 /* resource.c in Sources */,
@@ -2111,7 +2245,6 @@
 				55E1C29461E98D9A0629E1C9 /* rootfs.c in Sources */,
 				6BAA3D190350E28FD6298D1F /* rootfs_metadata.c in Sources */,
 				BB4F5B82DFE09F0D2E26447C /* session.c in Sources */,
-				DE9ED9ECDD5373EBBEA24382 /* session_bridge.m in Sources */,
 				79DA0AE247C897E4CB4F8AC1 /* signal.c in Sources */,
 				E237B6C521C0261694F9FE1E /* signal.c in Sources */,
 				3E08B4BD4F7E24DE96DCFE71 /* sock.c in Sources */,
@@ -2123,7 +2256,6 @@
 				C97D688F340BEFFE552AE015 /* sysreg.c in Sources */,
 				F914C3E7ADAD7D8C48668623 /* task.c in Sources */,
 				3502333C1EE68DDDEE9299B8 /* tcti_entry.S in Sources */,
-				DD32EFBC27AF01E591AFBBEE /* terminal_bridge.m in Sources */,
 				9150B17792D65FEC11EB0D2D /* time.c in Sources */,
 				EE0AF117E54170777216140B /* timer.c in Sources */,
 				23977D5F166C41B12176585C /* tlb.c in Sources */,
@@ -2145,14 +2277,17 @@
 			buildActionMask = 2147483647;
 			files = (
 				ED600E9DE4848D69C91B5DAB /* Aarch64SyscallTableTests.m in Sources */,
-				B681F436AF8AC491EC0CF985 /* TCTIDecodeTests.m in Sources */,
-				B1D8D387C0AE2908ACD99092 /* TCTIDispatchPreservationTests.m in Sources */,
-				A3D2928F3F417585ADC954FD /* TCTIExitWritebackTests.m in Sources */,
-				8CCEA82F7A63F8E25BA0E3C2 /* TCTIFetchTests.m in Sources */,
-				A963003A2E39E6AAAA6B0559 /* TCTIHostCarrierTests.m in Sources */,
-				41D8FC492D7FFDAC4A5A7126 /* TCTILoweringTests.m in Sources */,
-				D5ECA4A041E4AC4D8CEA9456 /* TCTISemanticExecutionTests.m in Sources */,
-				63E06A76135EFB0BB1CE098A /* tcti_harness_truth.c in Sources */,
+				8D8132F0D5D22D080F0D1E73 /* TCTIControlAndFlagsSemanticTests.m in Sources */,
+				6E1FBAFEAE5F9A5E8FBC4BD4 /* TCTIMemoryAndAtomicRuntimeSemanticTests.m in Sources */,
+				A8F7ED43F4BBF5D104CD3C06 /* TCTIMemoryAndPairSemanticTests.m in Sources */,
+				E594741A183C7B04A89EA193 /* TCTIPipelineBlockCacheGenerationTests.m in Sources */,
+				E3A0BA743C7DCC76A7BB13B8 /* TCTIPipelineFetchTests.m in Sources */,
+				AF5AFFC8C4F794EB1F6027B6 /* TCTIPipelineLoweringTests.m in Sources */,
+				87892B03C1F76A7C22E56584 /* TCTIScalarRuntimeSemanticTests.m in Sources */,
+				92D42F3AE36FBBB7F3CCFCBA /* tcti_control_and_flags_semantic_scenarios.c in Sources */,
+				041B9F700E7EBD870BB8F94A /* tcti_memory_atomic_runtime_semantic_scenarios.c in Sources */,
+				EF258E3788D7C80D0CF9EB50 /* tcti_memory_pair_semantic_scenarios.c in Sources */,
+				C2FD4C131DD427E091377CF5 /* tcti_scalar_runtime_semantic_scenarios.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2178,11 +2313,6 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		07B2F49ED031006F9BD50A33 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 1C10AF3D9F0341B987C8E504 /* IXLandTerminal */;
-			targetProxy = 44B88DC33B723CACBB77F4B6 /* PBXContainerItemProxy */;
-		};
 		0F58F8723BC7B324FDB8E081 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 1C10AF3D9F0341B987C8E504 /* IXLandTerminal */;
@@ -2193,20 +2323,25 @@
 			target = 1C10AF3D9F0341B987C8E504 /* IXLandTerminal */;
 			targetProxy = 539F002DBF291DD71B46EC91 /* PBXContainerItemProxy */;
 		};
-		610DCE7C7CE50CFFA3B124B7 /* PBXTargetDependency */ = {
+		1C7DD01AA61BA2E5BAAE82E4 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 1C10AF3D9F0341B987C8E504 /* IXLandTerminal */;
-			targetProxy = 6A544E2B3EE3B811CA21E028 /* PBXContainerItemProxy */;
+			target = 8B71F48AE7216B5689802404 /* IXLandLinuxRuntime */;
+			targetProxy = 738145ACAA252FEEF658A6DC /* PBXContainerItemProxy */;
+		};
+		91517EEA2A6D41C2E9C30AA9 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8B71F48AE7216B5689802404 /* IXLandLinuxRuntime */;
+			targetProxy = E4BDD2EC7532F1D116F29DD2 /* PBXContainerItemProxy */;
 		};
 		92088530EB7411889AE01D04 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 8B71F48AE7216B5689802404 /* IXLandLinuxRuntime */;
 			targetProxy = 17B910DB7E24C815E877C99D /* PBXContainerItemProxy */;
 		};
-		97DFB69095927CD5D57E6C80 /* PBXTargetDependency */ = {
+		E1EE53CBED6754E4E42DE5B3 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 1C10AF3D9F0341B987C8E504 /* IXLandTerminal */;
-			targetProxy = FB4985B85A1ED3B2EB3BD5BF /* PBXContainerItemProxy */;
+			target = 8B71F48AE7216B5689802404 /* IXLandLinuxRuntime */;
+			targetProxy = BA932476D25159057903301E /* PBXContainerItemProxy */;
 		};
 		ECD02DDE64ABC13EC8A3330A /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -2306,7 +2441,7 @@
 		18BB4C60221C0AC71D2A6680 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
+				BUNDLE_LOADER = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = (
 					"$(LINUX_UAPI_INCLUDE_ROOT)",
@@ -2319,10 +2454,13 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.ixland.IXLandLinuxRuntimeContractTests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal";
 			};
 			name = Debug;
 		};
@@ -2397,7 +2535,7 @@
 		6044799570C0356EBC2FF8AC /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
+				BUNDLE_LOADER = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = (
 					"$(LINUX_UAPI_INCLUDE_ROOT)",
@@ -2412,17 +2550,20 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.ixland.IXLandLinuxRuntimeSystemTests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal";
 			};
 			name = Release;
 		};
 		6D7904B91A5A28F4D100695B /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
+				BUNDLE_LOADER = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = (
 					"$(LINUX_UAPI_INCLUDE_ROOT)",
@@ -2437,10 +2578,13 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.ixland.IXLandLinuxRuntimePerfTests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal";
 			};
 			name = Release;
 		};
@@ -2718,7 +2862,7 @@
 		C7BD5322BC3A0151E4A4FA34 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
+				BUNDLE_LOADER = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = (
 					"$(LINUX_UAPI_INCLUDE_ROOT)",
@@ -2733,17 +2877,20 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.ixland.IXLandLinuxRuntimePerfTests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal";
 			};
 			name = Debug;
 		};
 		E68A135E79A5684E11F11DE6 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
+				BUNDLE_LOADER = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = (
 					"$(LINUX_UAPI_INCLUDE_ROOT)",
@@ -2758,17 +2905,20 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.ixland.IXLandLinuxRuntimeSystemTests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal";
 			};
 			name = Debug;
 		};
 		EF7F98A708726CAA03FE57A4 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
+				BUNDLE_LOADER = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = (
 					"$(LINUX_UAPI_INCLUDE_ROOT)",
@@ -2781,10 +2931,13 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.ixland.IXLandLinuxRuntimeContractTests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/IXLandTerminal.app/IXLandTerminal";
 			};
 			name = Release;
 		};
@@ -2910,6 +3063,10 @@
 			productName = GhosttyTerminal;
 		};
 		A61C025D88AA0E6C570CC894 /* IXLandInstrumentationRuntime */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = IXLandInstrumentationRuntime;
+		};
+		EAD2DCABD2ADDDF18E7EFA62 /* IXLandInstrumentationRuntime */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = IXLandInstrumentationRuntime;
 		};

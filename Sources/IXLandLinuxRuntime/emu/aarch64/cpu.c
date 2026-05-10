@@ -106,6 +106,16 @@ static void a64_trace_event(const char *event_name, const char *format, ...)
     trace_record_event(TRACE_ORIGIN_EXEC, event);
 }
 
+static bool a64_trace_sample_counter_should_emit(uint32_t *counter, uint32_t initial_budget)
+{
+    if (!counter)
+        return false;
+    (*counter)++;
+    if (*counter <= initial_budget)
+        return true;
+    return (*counter & (*counter - 1)) == 0;
+}
+
 static void a64_trace_block_registers(const char *phase, const struct cpu_state *cpu,
                                       const struct a64_block *block)
 {
@@ -781,6 +791,13 @@ static void a64_write_reg_or_sp(struct cpu_state *cpu, int reg, uint64_t value, 
 static uint64_t a64_extend_index(uint64_t value, int extend_type);
 static void trace_first_live_ldst_fault(struct cpu_state *cpu, int host_signal);
 
+static void trace_emit_guest_checkpoint(trace_origin_t origin, const char *name,
+                                        const trace_attribute_t *attrs, uint32_t attr_count)
+{
+    ixland_guest_trace_emit_attrs(origin, name,
+                                  (const ixland_instrumentation_attribute_t *)attrs, attr_count);
+}
+
 /*
  * Initialize aarch64 CPU for a task
  */
@@ -817,7 +834,8 @@ static void trace_cpu_init_checkpoint(const char *name, struct task *task, struc
         { "err", err_buf },
     };
 
-    (void)trace_begin_interval(TRACE_ORIGIN_EXEC, name, attrs, sizeof(attrs) / sizeof(attrs[0]));
+    trace_emit_guest_checkpoint(TRACE_ORIGIN_EXEC, name, attrs,
+                                sizeof(attrs) / sizeof(attrs[0]));
 }
 
 static void __attribute__((unused)) trace_cpu_layout_checkpoint(const char *name, struct task *task,
@@ -880,7 +898,8 @@ static void __attribute__((unused)) trace_cpu_layout_checkpoint(const char *name
         { "err", err_buf },
     };
 
-    (void)trace_begin_interval(TRACE_ORIGIN_EXEC, name, attrs, sizeof(attrs) / sizeof(attrs[0]));
+    trace_emit_guest_checkpoint(TRACE_ORIGIN_EXEC, name, attrs,
+                                sizeof(attrs) / sizeof(attrs[0]));
 }
 
 static void trace_cpu_run_checkpoint(const char *name, struct task *task, struct cpu_state *cpu,
@@ -915,7 +934,8 @@ static void trace_cpu_run_checkpoint(const char *name, struct task *task, struct
         { "pc", pc_buf },           { "exit_reason", exit_reason_buf },
     };
 
-    (void)trace_begin_interval(TRACE_ORIGIN_EXEC, name, attrs, sizeof(attrs) / sizeof(attrs[0]));
+    trace_emit_guest_checkpoint(TRACE_ORIGIN_EXEC, name, attrs,
+                                sizeof(attrs) / sizeof(attrs[0]));
 }
 
 static void trace_fault_origin_checkpoint(const char *name, uint64_t fault_pc, int base_reg,
@@ -951,7 +971,8 @@ static void trace_fault_origin_checkpoint(const char *name, uint64_t fault_pc, i
         { "computed_addr", computed_buf },
     };
 
-    (void)trace_begin_interval(TRACE_ORIGIN_EXEC, name, attrs, sizeof(attrs) / sizeof(attrs[0]));
+    trace_emit_guest_checkpoint(TRACE_ORIGIN_EXEC, name, attrs,
+                                sizeof(attrs) / sizeof(attrs[0]));
 }
 
 static void trace_insn_decode_checkpoint(const char *name, uint64_t pc, uint32_t raw_insn, int cat,
@@ -978,7 +999,8 @@ static void trace_insn_decode_checkpoint(const char *name, uint64_t pc, uint32_t
         { "rn", rn_buf }, { "rm", rm_buf },        { "imm", imm_buf },
     };
 
-    (void)trace_begin_interval(TRACE_ORIGIN_EXEC, name, attrs, sizeof(attrs) / sizeof(attrs[0]));
+    trace_emit_guest_checkpoint(TRACE_ORIGIN_EXEC, name, attrs,
+                                sizeof(attrs) / sizeof(attrs[0]));
 }
 
 
@@ -1020,9 +1042,11 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
     bool explicit_pc_on_exit = false;
 
     a64_trace_event("tcti.compile.entry",
-                    "tcti.compile.entry=pc:0x%llx,tlb:%d,mmu_gen:%llu,fault:0x%llx",
+                    "tcti.compile.entry=pc:0x%llx,tlb:%d,mmu:0x%llx,mmu_gen:%llu,code_gen:%llu,fault:0x%llx",
                     (unsigned long long)pc, tlb ? 1 : 0,
+                    (unsigned long long)(uintptr_t)(tlb ? tlb->mmu : NULL),
                     (tlb && tlb->mmu) ? (unsigned long long)tlb->mmu->generation : 0ULL,
+                    (tlb && tlb->mmu) ? (unsigned long long)tlb->mmu->code_generation : 0ULL,
                     cpu ? (unsigned long long)cpu->fault_addr : 0ULL);
 
     // Trace: Block compilation start
@@ -1047,6 +1071,8 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
 
     // Translate instructions until block end
     int max_insns = conservative_mode ? 1 : 50;
+    if (cpu && cpu->compile_insn_limit != 0 && cpu->compile_insn_limit < (size_t)max_insns)
+        max_insns = (int)cpu->compile_insn_limit;
     int insns_decoded = 0;
     for (int i = 0; i < max_insns; i++) {
         uint32_t insn;
@@ -1700,7 +1726,7 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
     block->start_pc = gen_state.start_pc;
     block->end_pc = gen_state.end_pc;
     block->explicit_pc_on_exit = explicit_pc_on_exit;
-    block->compile_generation = cpu->mmu->generation;
+    block->compile_generation = cpu->mmu->code_generation;
     block->is_jetsam = false;
     block->trace_sidecar = NULL;
 
@@ -1817,6 +1843,220 @@ __attribute__((no_stack_protector)) int a64_execute_block(struct cpu_state *cpu,
     trace_emit_block_exit(block->start_pc, exit_reason, cpu->pc);
 
     return exit_reason;
+}
+
+static int a64_cpu_prepare_code_context(struct cpu_state *cpu, struct mem *scratch_mem,
+                                        struct tlb *scratch_tlb, bool *owns_scratch_mem)
+{
+    if (!cpu || !scratch_tlb || !owns_scratch_mem)
+        return -1;
+
+    *owns_scratch_mem = false;
+    if (cpu->mmu == NULL) {
+        if (!scratch_mem)
+            return -2;
+        mem_init(scratch_mem);
+        cpu->mmu = &scratch_mem->mmu;
+        *owns_scratch_mem = true;
+    }
+
+    tlb_refresh(scratch_tlb, cpu->mmu);
+    cpu->tlb = scratch_tlb;
+    return 0;
+}
+
+static void a64_cpu_release_code_context(struct cpu_state *cpu, struct mem *scratch_mem,
+                                         struct mmu *saved_mmu, struct tlb *saved_tlb,
+                                         bool owns_scratch_mem)
+{
+    if (!cpu)
+        return;
+
+    if (owns_scratch_mem && scratch_mem) {
+        mem_destroy(scratch_mem);
+        cpu->mmu = saved_mmu;
+        cpu->tlb = saved_tlb;
+        return;
+    }
+
+    cpu->tlb = saved_tlb;
+}
+
+int a64_cpu_install_code(struct cpu_state *cpu, uint64_t pc, const uint32_t *insns, size_t count)
+{
+    if (!cpu || !insns || count == 0)
+        return -1;
+
+    struct mmu *saved_mmu = cpu->mmu;
+    struct tlb *saved_tlb = cpu->tlb;
+    struct mem scratch_mem;
+    struct tlb scratch_tlb = {};
+    bool owns_scratch_mem = false;
+    int context_ret =
+        a64_cpu_prepare_code_context(cpu, &scratch_mem, &scratch_tlb, &owns_scratch_mem);
+    if (context_ret < 0)
+        return context_ret;
+
+    struct mem *mem = container_of(cpu->mmu, struct mem, mmu);
+    page_t start_page = PAGE(pc);
+    uint64_t last_addr = pc + (count * sizeof(uint32_t)) - 1;
+    page_t end_page = PAGE(last_addr);
+    pages_t num_pages = (pages_t)(end_page - start_page + 1);
+
+    if (pt_is_hole(mem, start_page, num_pages)) {
+        if (pt_map_nothing(mem, start_page, num_pages, P_RWX) < 0)
+            goto fail_map;
+    } else if (pt_set_flags(mem, start_page, num_pages, P_RWX) < 0) {
+        goto fail_flags;
+    }
+
+    tlb_refresh(&scratch_tlb, cpu->mmu);
+    cpu->tlb = &scratch_tlb;
+
+    for (size_t i = 0; i < count; i++) {
+        if (a64_guest_write32(cpu, &scratch_tlb, pc + (i * sizeof(uint32_t)), insns[i]) !=
+            A64_MEM_OK)
+            goto fail_write;
+    }
+
+    tlb_refresh(&scratch_tlb, cpu->mmu);
+    cpu->tlb = &scratch_tlb;
+    a64_cpu_release_code_context(cpu, &scratch_mem, saved_mmu, saved_tlb, owns_scratch_mem);
+    return 0;
+
+fail_write:
+    a64_cpu_release_code_context(cpu, &scratch_mem, saved_mmu, saved_tlb, owns_scratch_mem);
+    return -4;
+fail_flags:
+    a64_cpu_release_code_context(cpu, &scratch_mem, saved_mmu, saved_tlb, owns_scratch_mem);
+    return -3;
+fail_map:
+    a64_cpu_release_code_context(cpu, &scratch_mem, saved_mmu, saved_tlb, owns_scratch_mem);
+    return -2;
+}
+
+int a64_cpu_execute_code_block(struct cpu_state *cpu, uint64_t pc, const uint32_t *insns,
+                               size_t count)
+{
+    if (!cpu || !insns || count == 0)
+        return -1;
+
+    struct mmu *saved_mmu = cpu->mmu;
+    struct tlb *saved_tlb = cpu->tlb;
+    struct mem scratch_mem;
+    struct tlb scratch_tlb = {};
+    bool owns_scratch_mem = false;
+    int context_ret =
+        a64_cpu_prepare_code_context(cpu, &scratch_mem, &scratch_tlb, &owns_scratch_mem);
+    if (context_ret < 0)
+        return context_ret;
+
+    size_t saved_compile_limit = cpu->compile_insn_limit;
+    cpu->compile_insn_limit = count;
+
+    int install_ret = a64_cpu_install_code(cpu, pc, insns, count);
+    if (install_ret < 0)
+        goto fail_install;
+
+    cpu->pc = pc;
+    tlb_refresh(&scratch_tlb, cpu->mmu);
+    cpu->tlb = &scratch_tlb;
+    struct a64_block *block = a64_compile_block(cpu, pc, &scratch_tlb);
+    if (!block)
+        goto fail_compile;
+
+    int exit_reason = a64_execute_block(cpu, block);
+    a64_block_free(block);
+    cpu->compile_insn_limit = saved_compile_limit;
+    a64_cpu_release_code_context(cpu, &scratch_mem, saved_mmu, saved_tlb, owns_scratch_mem);
+    return exit_reason == TCTI_EXIT_NORMAL ? 0 : -(100 + exit_reason);
+
+fail_compile:
+    cpu->compile_insn_limit = saved_compile_limit;
+    a64_cpu_release_code_context(cpu, &scratch_mem, saved_mmu, saved_tlb, owns_scratch_mem);
+    return -5;
+fail_install:
+    cpu->compile_insn_limit = saved_compile_limit;
+    a64_cpu_release_code_context(cpu, &scratch_mem, saved_mmu, saved_tlb, owns_scratch_mem);
+    return install_ret;
+}
+
+int a64_cpu_execute_code_program(struct cpu_state *cpu, uint64_t base_pc, const uint32_t *insns,
+                                 size_t count, size_t max_steps)
+{
+    if (!cpu || !insns || count == 0 || max_steps == 0)
+        return -1;
+
+    struct mmu *saved_mmu = cpu->mmu;
+    struct tlb *saved_tlb = cpu->tlb;
+    struct mem scratch_mem;
+    struct tlb scratch_tlb = {};
+    bool owns_scratch_mem = false;
+    int context_ret =
+        a64_cpu_prepare_code_context(cpu, &scratch_mem, &scratch_tlb, &owns_scratch_mem);
+    if (context_ret < 0)
+        return context_ret;
+
+    int install_ret = a64_cpu_install_code(cpu, base_pc, insns, count);
+    if (install_ret < 0)
+        goto fail_install;
+
+    if (cpu->pc == 0)
+        cpu->pc = base_pc;
+    if (cpu->pc != base_pc)
+        goto fail_pc;
+
+    for (size_t step = 0; step < max_steps; step++) {
+        if (cpu->pc < base_pc)
+            return step == 0 ? -7 : 0;
+
+        uint64_t offset = cpu->pc - base_pc;
+        if ((offset & 0x3ULL) != 0)
+            goto fail_alignment;
+
+        size_t start = (size_t)(offset >> 2);
+        if (start >= count)
+            goto finish_done;
+
+        tlb_refresh(&scratch_tlb, cpu->mmu);
+        cpu->tlb = &scratch_tlb;
+        struct a64_block *block = a64_compile_block(cpu, cpu->pc, &scratch_tlb);
+        if (!block)
+            goto fail_compile;
+
+        uint64_t pc_before = cpu->pc;
+        int exit_reason = a64_execute_block(cpu, block);
+        a64_block_free(block);
+        if (exit_reason != TCTI_EXIT_NORMAL)
+            goto fail_exit;
+        if (cpu->pc == pc_before)
+            goto fail_stall;
+    }
+
+    a64_cpu_release_code_context(cpu, &scratch_mem, saved_mmu, saved_tlb, owns_scratch_mem);
+    return -12;
+
+finish_done:
+    a64_cpu_release_code_context(cpu, &scratch_mem, saved_mmu, saved_tlb, owns_scratch_mem);
+    return 0;
+fail_alignment:
+    a64_cpu_release_code_context(cpu, &scratch_mem, saved_mmu, saved_tlb, owns_scratch_mem);
+    return -9;
+fail_compile:
+    a64_cpu_release_code_context(cpu, &scratch_mem, saved_mmu, saved_tlb, owns_scratch_mem);
+    return -10;
+fail_exit:
+    a64_cpu_release_code_context(cpu, &scratch_mem, saved_mmu, saved_tlb, owns_scratch_mem);
+    return -(100 + cpu->tcti_exit_reason);
+fail_stall:
+    a64_cpu_release_code_context(cpu, &scratch_mem, saved_mmu, saved_tlb, owns_scratch_mem);
+    return -11;
+fail_pc:
+    a64_cpu_release_code_context(cpu, &scratch_mem, saved_mmu, saved_tlb, owns_scratch_mem);
+    return -8;
+fail_install:
+    a64_cpu_release_code_context(cpu, &scratch_mem, saved_mmu, saved_tlb, owns_scratch_mem);
+    return install_ret;
 }
 
 static uint64_t a64_read_reg_or_sp(struct cpu_state *cpu, int reg, bool is_64bit)
@@ -2045,16 +2285,15 @@ static void trace_pc_mapping_info(const char *name, uint64_t pc)
     char file_offset_buf[32];
 
     snprintf(pc_buf, sizeof(pc_buf), "0x%llx", (unsigned long long)pc);
-    snprintf(is_interp_buf, sizeof(is_interp_buf), "unknown");
-    snprintf(is_exe_buf, sizeof(is_exe_buf), "unknown");
-    name_buf[0] = '\0';
-    fd_buf[0] = '\0';
-    flags_buf[0] = '\0';
-    map_start_buf[0] = '\0';
-    map_end_buf[0] = '\0';
-    file_offset_buf[0] = '\0';
+    snprintf(is_interp_buf, sizeof(is_interp_buf), "n/a");
+    snprintf(is_exe_buf, sizeof(is_exe_buf), "n/a");
+    snprintf(name_buf, sizeof(name_buf), "[suppressed]");
+    snprintf(fd_buf, sizeof(fd_buf), "n/a");
+    snprintf(flags_buf, sizeof(flags_buf), "none");
+    snprintf(map_start_buf, sizeof(map_start_buf), "unmapped");
+    snprintf(map_end_buf, sizeof(map_end_buf), "unmapped");
+    snprintf(file_offset_buf, sizeof(file_offset_buf), "n/a");
 
-    // Look up mapping for this PC using VMA tree
     uint64_t pc_addr = pc;
     struct vm_area *vma = vma_tree_find(&current->mem->vmas, pc_addr);
     if (vma) {
@@ -2063,43 +2302,8 @@ static void trace_pc_mapping_info(const char *name, uint64_t pc)
 
         snprintf(map_start_buf, sizeof(map_start_buf), "0x%llx", (unsigned long long)vma->start);
         snprintf(map_end_buf, sizeof(map_end_buf), "0x%llx", (unsigned long long)(vma->end - 1));
-
-        // Calculate file offset for this PC
-        size_t offset_in_vma = pc_addr - vma->start;
-        addr_t file_offset = vma->obj->file_offset + offset_in_vma + PGOFFSET(pc);
-        snprintf(file_offset_buf, sizeof(file_offset_buf), "0x%llx",
-                 (unsigned long long)file_offset);
-
-        if (vma->obj->name) {
-            strncpy(name_buf, vma->obj->name, sizeof(name_buf) - 1);
-            name_buf[sizeof(name_buf) - 1] = '\0';
-
-            if (strstr(name_buf, "ld-musl") || strstr(name_buf, "ld-linux")) {
-                snprintf(is_interp_buf, sizeof(is_interp_buf), "yes");
-            } else {
-                snprintf(is_interp_buf, sizeof(is_interp_buf), "no");
-            }
-
-            if (current->mm && current->mm->exefile && vma->obj->fd == current->mm->exefile) {
-                snprintf(is_exe_buf, sizeof(is_exe_buf), "yes");
-            } else {
-                snprintf(is_exe_buf, sizeof(is_exe_buf), "no");
-            }
-        }
-
-        if (vma->obj->fd) {
-            snprintf(fd_buf, sizeof(fd_buf), "%p", (void *)vma->obj->fd);
-        }
     } else {
         snprintf(page_buf, sizeof(page_buf), "unmapped");
-        snprintf(flags_buf, sizeof(flags_buf), "none");
-        snprintf(name_buf, sizeof(name_buf), "[no mapping]");
-        snprintf(fd_buf, sizeof(fd_buf), "none");
-        snprintf(is_interp_buf, sizeof(is_interp_buf), "no");
-        snprintf(is_exe_buf, sizeof(is_exe_buf), "no");
-        snprintf(map_start_buf, sizeof(map_start_buf), "unmapped");
-        snprintf(map_end_buf, sizeof(map_end_buf), "unmapped");
-        snprintf(file_offset_buf, sizeof(file_offset_buf), "none");
     }
 
     trace_attribute_t attrs[] = {
@@ -2115,8 +2319,8 @@ static void trace_pc_mapping_info(const char *name, uint64_t pc)
         { "is_executable", is_exe_buf },
     };
 
-    (void)trace_begin_interval(TRACE_ORIGIN_EMULATOR, name, attrs,
-                               sizeof(attrs) / sizeof(attrs[0]));
+    trace_emit_guest_checkpoint(TRACE_ORIGIN_EMULATOR, name, attrs,
+                                sizeof(attrs) / sizeof(attrs[0]));
 }
 
 static void trace_pre_syscall_checkpoint(const char *name, uint64_t pc, uint64_t block_start,
@@ -2142,8 +2346,8 @@ static void trace_pre_syscall_checkpoint(const char *name, uint64_t pc, uint64_t
         { "block_count", block_count_buf },
     };
 
-    (void)trace_begin_interval(TRACE_ORIGIN_EMULATOR, name, attrs,
-                               sizeof(attrs) / sizeof(attrs[0]));
+    trace_emit_guest_checkpoint(TRACE_ORIGIN_EMULATOR, name, attrs,
+                                sizeof(attrs) / sizeof(attrs[0]));
 }
 
 static void trace_startup_progress_event(const char *name, struct cpu_state *cpu,
@@ -2225,8 +2429,8 @@ static void trace_interpreter_edge_checkpoint(const char *name, struct cpu_state
         { "tpidr_el0", tpidr_buf },
     };
 
-    (void)trace_begin_interval(TRACE_ORIGIN_EMULATOR, name, attrs,
-                               sizeof(attrs) / sizeof(attrs[0]));
+    trace_emit_guest_checkpoint(TRACE_ORIGIN_EMULATOR, name, attrs,
+                                sizeof(attrs) / sizeof(attrs[0]));
 }
 
 /*
@@ -2254,10 +2458,7 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
         return;
     }
 
-    // Initialize tracing from environment
-    trace_config_t trace_config;
-    trace_config_from_env(&trace_config);
-    if (trace_init(&trace_config) == 0 && trace_should_emit_event("guest.process.entry")) {
+    if (trace_should_emit_event("guest.process.entry")) {
         trace_emit_process_entry(cpu->pc, cpu->sp, cpu->x[0], cpu->x[1]);
     }
 
@@ -2274,7 +2475,6 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
                                  current, cpu, TCTI_EXIT_FAULT);
         trace_cpu_run_checkpoint("task.proof.a64_cpu_run.before_exit_ctx_null", current, cpu,
                                  TCTI_EXIT_FAULT);
-        trace_shutdown();
         return;
     }
 
@@ -2286,6 +2486,11 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
         cpu->mmu->block_cache = malloc(sizeof(struct a64_block_cache));
         if (cpu->mmu->block_cache) {
             a64_cache_init(cpu->mmu->block_cache);
+            a64_trace_event("tcti.cache.alloc", "tcti.cache.alloc=mmu:0x%llx,ok:1",
+                            (unsigned long long)(uintptr_t)cpu->mmu);
+        } else {
+            a64_trace_event("tcti.cache.alloc", "tcti.cache.alloc=mmu:0x%llx,ok:0",
+                            (unsigned long long)(uintptr_t)cpu->mmu);
         }
     }
 
@@ -2305,6 +2510,13 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
     int same_block_repeat_count = 0;
     int total_blocks_executed = 0;
     bool interpreter_loop_active = false;
+    uint32_t cache_hit_trace_count = 0;
+    uint32_t cache_miss_trace_count = 0;
+    uint32_t cache_insert_trace_count = 0;
+    uint32_t dispatch_lookup_trace_count = 0;
+    uint32_t dispatch_compile_call_trace_count = 0;
+    uint32_t dispatch_compile_return_trace_count = 0;
+    uint32_t pre_syscall_loop_trace_count = 0;
 
     // Stage 3A.6: Track first userspace PC entry
     if (trace_is_active()) {
@@ -2325,8 +2537,8 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
             { "x1", x1_buf },
         };
 
-        trace_begin_interval(TRACE_ORIGIN_EMULATOR, "task.proof.user.entry.pc", entry_attrs,
-                             sizeof(entry_attrs) / sizeof(entry_attrs[0]));
+        trace_emit_guest_checkpoint(TRACE_ORIGIN_EMULATOR, "task.proof.user.entry.pc",
+                                    entry_attrs, sizeof(entry_attrs) / sizeof(entry_attrs[0]));
     }
 
     if (!g_guest_first_user_pc_emitted) {
@@ -2406,16 +2618,51 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
 
             // Validate L0 cache hit against the same generation contract as L1.
             if (block && block->start_pc == pc && !block->is_jetsam &&
-                block->compile_generation == cpu->mmu->generation) {
+                block->compile_generation == cpu->mmu->code_generation) {
                 fiber_stat_inc(ctx, STAT_TB_L0_HITS);
+                if (a64_trace_sample_counter_should_emit(&cache_hit_trace_count, 16)) {
+                    a64_trace_event("tcti.cache.hit",
+                                    "tcti.cache.hit=pc:0x%llx,mmu:0x%llx,level:l0",
+                                    (unsigned long long)pc,
+                                    (unsigned long long)(uintptr_t)cpu->mmu);
+                }
             } else {
                 // L0 miss - fall back to MMU cache (L1)
+                enum a64_cache_lookup_miss_reason l1_miss_reason = A64_CACHE_LOOKUP_HIT;
                 ctx->l0_cache[l0_idx] = NULL;
                 block = NULL;
                 if (cpu->mmu->block_cache) {
-                    block = a64_cache_lookup(cpu->mmu->block_cache, pc, cpu->mmu->generation);
+                    block = a64_cache_lookup_ex(cpu->mmu->block_cache, pc,
+                                                cpu->mmu->code_generation, &l1_miss_reason);
                     if (block) {
                         fiber_stat_inc(ctx, STAT_TB_L1_HITS);
+                        if (a64_trace_sample_counter_should_emit(&cache_hit_trace_count, 16)) {
+                            a64_trace_event("tcti.cache.hit",
+                                            "tcti.cache.hit=pc:0x%llx,mmu:0x%llx,level:l1",
+                                            (unsigned long long)pc,
+                                            (unsigned long long)(uintptr_t)cpu->mmu);
+                        }
+                    } else {
+                        const char *reason = "not_found";
+                        switch (l1_miss_reason) {
+                        case A64_CACHE_LOOKUP_MISS_JETSAM:
+                            reason = "jetsam";
+                            break;
+                        case A64_CACHE_LOOKUP_MISS_GENERATION:
+                            reason = "generation";
+                            break;
+                        case A64_CACHE_LOOKUP_MISS_NOT_FOUND:
+                        case A64_CACHE_LOOKUP_HIT:
+                        default:
+                            reason = "not_found";
+                            break;
+                        }
+                        if (a64_trace_sample_counter_should_emit(&cache_miss_trace_count, 16)) {
+                            a64_trace_event("tcti.cache.miss",
+                                            "tcti.cache.miss=pc:0x%llx,mmu:0x%llx,reason:%s",
+                                            (unsigned long long)pc,
+                                            (unsigned long long)(uintptr_t)cpu->mmu, reason);
+                        }
                     }
                 }
 
@@ -2425,19 +2672,30 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
                         trace_cpu_run_checkpoint("task.proof.a64_cpu_run.before_first_compile",
                                                  current, cpu, 0);
                     }
-                    a64_trace_event("tcti.dispatch.compile.call",
-                                    "tcti.dispatch.compile.call=pc:0x%llx,total:%d,mmu_gen:%llu",
-                                    (unsigned long long)pc, total_blocks_executed,
-                                    cpu && cpu->mmu ? (unsigned long long)cpu->mmu->generation
-                                                    : 0ULL);
+                    if (a64_trace_sample_counter_should_emit(&dispatch_compile_call_trace_count,
+                                                             16)) {
+                        a64_trace_event(
+                            "tcti.dispatch.compile.call",
+                            "tcti.dispatch.compile.call=pc:0x%llx,total:%d,mmu_gen:%llu",
+                            (unsigned long long)pc, total_blocks_executed,
+                            cpu && cpu->mmu ? (unsigned long long)cpu->mmu->generation : 0ULL);
+                    }
                     block = a64_compile_block(cpu, pc, tlb);
-                    a64_trace_event("tcti.dispatch.compile.return",
-                                    "tcti.dispatch.compile.return=pc:0x%llx,block:%d,fault:0x%llx,"
-                                    "was_write:%d,total:%d",
-                                    (unsigned long long)pc, block ? 1 : 0,
-                                    (unsigned long long)cpu->fault_addr,
-                                    cpu->fault_was_write ? 1 : 0, total_blocks_executed);
+                    if (a64_trace_sample_counter_should_emit(&dispatch_compile_return_trace_count,
+                                                             16)) {
+                        a64_trace_event(
+                            "tcti.dispatch.compile.return",
+                            "tcti.dispatch.compile.return=pc:0x%llx,block:%d,fault:0x%llx,"
+                            "was_write:%d,total:%d",
+                            (unsigned long long)pc, block ? 1 : 0,
+                            (unsigned long long)cpu->fault_addr,
+                            cpu->fault_was_write ? 1 : 0, total_blocks_executed);
+                    }
                     if (!block) {
+                        a64_trace_event("tcti.compile.fail",
+                                        "tcti.compile.fail=pc:0x%llx,mmu:0x%llx",
+                                        (unsigned long long)pc,
+                                        (unsigned long long)(uintptr_t)cpu->mmu);
                         trace_emit(TRACE_EVENT_FAULT, pc);
                         trace_cpu_run_checkpoint("task.proof.a64_cpu_run.exit_fault", current, cpu,
                                                  TCTI_EXIT_FAULT);
@@ -2461,6 +2719,12 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
                     // Insert into MMU cache (L1)
                     if (cpu->mmu->block_cache) {
                         a64_cache_insert(cpu->mmu->block_cache, block);
+                        if (a64_trace_sample_counter_should_emit(&cache_insert_trace_count, 16)) {
+                            a64_trace_event("tcti.cache.insert",
+                                            "tcti.cache.insert=pc:0x%llx,mmu:0x%llx",
+                                            (unsigned long long)pc,
+                                            (unsigned long long)(uintptr_t)cpu->mmu);
+                        }
                     }
                 }
 
@@ -2475,14 +2739,16 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
             first_block_lookup = false;
         }
 
-        a64_trace_event("tcti.dispatch.lookup",
-                        "tcti.dispatch.lookup=pc:0x%llx,block:%d,start:0x%llx,end:0x%llx,"
-                        "gadgets:%zu,explicit:%d,total_before:%d",
-                        (unsigned long long)pc, block ? 1 : 0,
-                        block ? (unsigned long long)block->start_pc : 0ULL,
-                        block ? (unsigned long long)block->end_pc : 0ULL,
-                        block ? block->num_gadgets : 0, block && block->explicit_pc_on_exit ? 1 : 0,
-                        total_blocks_executed);
+        if (a64_trace_sample_counter_should_emit(&dispatch_lookup_trace_count, 16)) {
+            a64_trace_event("tcti.dispatch.lookup",
+                            "tcti.dispatch.lookup=pc:0x%llx,block:%d,start:0x%llx,end:0x%llx,"
+                            "gadgets:%zu,explicit:%d,total_before:%d",
+                            (unsigned long long)pc, block ? 1 : 0,
+                            block ? (unsigned long long)block->start_pc : 0ULL,
+                            block ? (unsigned long long)block->end_pc : 0ULL,
+                            block ? block->num_gadgets : 0,
+                            block && block->explicit_pc_on_exit ? 1 : 0, total_blocks_executed);
+        }
 
         // Stage 3A.6: Track block execution progression
         total_blocks_executed++;
@@ -2492,7 +2758,8 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
             same_block_repeat_count++;
         } else {
             // Block changed - record the transition
-            if (same_block_repeat_count > 0 && trace_is_active()) {
+            if (same_block_repeat_count > 0 && trace_is_active() &&
+                a64_verbose_block_trace_enabled()) {
                 trace_pre_syscall_checkpoint("task.proof.user.block.repeat_detected", cpu->pc,
                                              last_block_start_pc, block->start_pc,
                                              same_block_repeat_count, total_blocks_executed);
@@ -2502,7 +2769,7 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
 
             // Record first block entry
             if (first_user_entry) {
-                if (trace_is_active()) {
+                if (trace_is_active() && a64_verbose_block_trace_enabled()) {
                     trace_pre_syscall_checkpoint("task.proof.user.first_block", cpu->pc,
                                                  block->start_pc, block->end_pc, 0, 1);
                     // Capture mapping info for first userspace PC
@@ -2513,7 +2780,8 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
         }
 
         // Stage 3A.6: Periodic checkpoint every 100 blocks to detect slow progress
-        if (total_blocks_executed % 100 == 0 && trace_is_active()) {
+        if (total_blocks_executed % 100 == 0 && trace_is_active() &&
+            a64_verbose_block_trace_enabled()) {
             trace_pre_syscall_checkpoint("task.proof.user.progress.checkpoint", cpu->pc,
                                          block->start_pc, block->end_pc, same_block_repeat_count,
                                          total_blocks_executed);
@@ -2782,7 +3050,7 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
             }
         }
 
-        if (exit_reason == TCTI_EXIT_NORMAL &&
+        if (exit_reason == TCTI_EXIT_NORMAL && a64_verbose_block_trace_enabled() &&
             ((trace_should_emit_event("task.proof.a64_cpu_run.startup_progress") &&
               total_blocks_executed % 10 == 0) ||
              total_blocks_executed == 1000 || total_blocks_executed == 10000 ||
@@ -2795,10 +3063,17 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
 
         // Stage 3A.6: Track PC progression and detect loops
         // If we've executed many blocks without a syscall, we're in pre-syscall init
-        if (total_blocks_executed >= 1000 && !first_user_entry && trace_is_active()) {
-            trace_pre_syscall_checkpoint("task.proof.user.pre_syscall.loop_suspected", cpu->pc,
-                                         last_block_start_pc, block->start_pc,
-                                         same_block_repeat_count, total_blocks_executed);
+        if (total_blocks_executed >= 1000 && !first_user_entry && trace_is_active() &&
+            a64_verbose_block_trace_enabled()) {
+            bool emit_loop_sample = total_blocks_executed == 1000 ||
+                                    a64_trace_sample_counter_should_emit(
+                                        &pre_syscall_loop_trace_count, 16);
+            if (emit_loop_sample) {
+                trace_pre_syscall_checkpoint("task.proof.user.pre_syscall.loop_suspected", cpu->pc,
+                                             last_block_start_pc, block->start_pc,
+                                             same_block_repeat_count, total_blocks_executed);
+                trace_pc_mapping_info("task.proof.user.pc_mapping.stuck", cpu->pc);
+            }
             if ((total_blocks_executed % 1000) == 0) {
                 static int progress_budget = 12;
                 if (progress_budget > 0) {
@@ -2852,8 +3127,6 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
                     }
                 }
             }
-            // Capture mapping info for stuck PC
-            trace_pc_mapping_info("task.proof.user.pc_mapping.stuck", cpu->pc);
         }
 
         // Normal exit - PC already advanced, continue to next block
@@ -2877,7 +3150,6 @@ void a64_cpu_run_limited(struct cpu_state *cpu, struct tlb *tlb, int max_iterati
                                       sizeof(attrs) / sizeof(attrs[0]));
     }
 
-    trace_shutdown();
 }
 
 /*
@@ -2913,7 +3185,7 @@ int a64_execute_ldst(struct cpu_state *cpu, struct tlb *tlb, const a64_instr_t *
     }
 
     if (is_pair) {
-        size_t width = instr->is_64bit ? sizeof(uint64_t) : sizeof(uint32_t);
+        size_t width = instr->size == A64_SIZE_X ? sizeof(uint64_t) : sizeof(uint32_t);
         char *ptr = is_load ? __tlb_read_ptr(tlb, addr) : __tlb_write_ptr(tlb, addr);
         if (ptr == NULL) {
             ptr = tlb_handle_miss(tlb, addr, access);
@@ -2925,17 +3197,30 @@ int a64_execute_ldst(struct cpu_state *cpu, struct tlb *tlb, const a64_instr_t *
         }
 
         if (is_load) {
-            uint64_t first = instr->is_64bit ? *(uint64_t *)ptr : *(uint32_t *)ptr;
-            uint64_t second =
-                instr->is_64bit ? *(uint64_t *)(ptr + width) : *(uint32_t *)(ptr + width);
-            a64_write_reg_or_sp(cpu, instr->Rd, first, instr->is_64bit);
-            a64_write_reg_or_sp(cpu, instr->Rm, second, instr->is_64bit);
+            uint64_t first;
+            uint64_t second;
+            if (instr->is_signed && instr->size == A64_SIZE_W) {
+                first = (uint64_t)(int64_t)(int32_t)*(uint32_t *)ptr;
+                second = (uint64_t)(int64_t)(int32_t)*(uint32_t *)(ptr + width);
+            } else if (instr->size == A64_SIZE_X) {
+                first = *(uint64_t *)ptr;
+                second = *(uint64_t *)(ptr + width);
+            } else {
+                first = *(uint32_t *)ptr;
+                second = *(uint32_t *)(ptr + width);
+            }
+            a64_write_reg_or_sp(cpu, instr->Rd, first,
+                                instr->size == A64_SIZE_X ||
+                                    (instr->is_signed && instr->is_64bit));
+            a64_write_reg_or_sp(cpu, instr->Rm, second,
+                                instr->size == A64_SIZE_X ||
+                                    (instr->is_signed && instr->is_64bit));
             a64_trace_record_mem_access(cpu, instr, addr, first, (uint8_t)width, true);
             a64_trace_record_mem_access(cpu, instr, addr + width, second, (uint8_t)width, true);
         } else {
-            uint64_t first = a64_read_reg_or_sp(cpu, instr->Rd, instr->is_64bit);
-            uint64_t second = a64_read_reg_or_sp(cpu, instr->Rm, instr->is_64bit);
-            if (instr->is_64bit) {
+            uint64_t first = a64_read_reg_or_sp(cpu, instr->Rd, instr->size == A64_SIZE_X);
+            uint64_t second = a64_read_reg_or_sp(cpu, instr->Rm, instr->size == A64_SIZE_X);
+            if (instr->size == A64_SIZE_X) {
                 *(uint64_t *)ptr = first;
                 *(uint64_t *)(ptr + width) = second;
             } else {

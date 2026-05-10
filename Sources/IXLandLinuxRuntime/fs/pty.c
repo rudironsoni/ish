@@ -3,15 +3,13 @@
 #import <IXLandLinuxRuntime/fs/tty.h>
 #import <IXLandLinuxRuntime/kernel/errno.h>
 #import <IXLandLinuxRuntime/kernel/task.h>
+#include "internal/ios/fs/pty_host_bridge.h"
 #include <ctype.h>
 #include <limits.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
-
-typedef const void *nsobj_t;
-int Terminal_sendOutput_length(nsobj_t terminal, const char *data, int size) __attribute__((weak));
-void Terminal_releaseBoundTTYData(nsobj_t terminal) __attribute__((weak));
 
 extern struct tty_driver pty_slave;
 
@@ -44,6 +42,17 @@ static int pty_master_init(struct tty *tty)
     return 0;
 }
 
+static bool runtime_proof_trace_enabled(void)
+{
+    static int initialized = 0;
+    static bool enabled = false;
+    if (!initialized) {
+        const char *value = getenv("ISH_VERBOSE_RUNTIME_PROOF");
+        enabled = value && strcmp(value, "0") != 0;
+        initialized = 1;
+    }
+    return enabled;
+}
 
 static void pty_hangup(struct tty *tty)
 {
@@ -66,8 +75,8 @@ static struct tty *pty_hangup_other(struct tty *tty)
 static void pty_slave_cleanup(struct tty *tty)
 {
     pty_hangup_other(tty);
-    if (tty->driver_data != NULL && Terminal_releaseBoundTTYData != NULL) {
-        Terminal_releaseBoundTTYData(tty->driver_data);
+    if (tty->driver_data != NULL) {
+        pty_host_bridge_release_bound_tty_data(tty->driver_data);
         tty->driver_data = NULL;
     }
 }
@@ -76,8 +85,8 @@ static void pty_master_cleanup(struct tty *tty)
 {
     struct tty *slave = pty_hangup_other(tty);
     slave->pty.other = NULL;
-    if (tty->driver_data != NULL && Terminal_releaseBoundTTYData != NULL) {
-        Terminal_releaseBoundTTYData(tty->driver_data);
+    if (tty->driver_data != NULL) {
+        pty_host_bridge_release_bound_tty_data(tty->driver_data);
         tty->driver_data = NULL;
     }
     tty_release(slave);
@@ -125,37 +134,46 @@ static int pty_master_ioctl(struct tty *tty, int cmd, void *arg)
 
 static int pty_write(struct tty *tty, const void *buf, size_t len, bool blocking)
 {
-    // APPSIM-004 Stage 2: PTY byte detection
-    // Trace byte count at PTY boundary
-    char len_buf[16];
-    char blocking_buf[8];
-    snprintf(len_buf, sizeof(len_buf), "%zu", len);
-    snprintf(blocking_buf, sizeof(blocking_buf), "%d", blocking);
+    if (runtime_proof_trace_enabled()) {
+        char len_buf[16];
+        char blocking_buf[8];
+        char preview_buf[65];
+        snprintf(len_buf, sizeof(len_buf), "%zu", len);
+        snprintf(blocking_buf, sizeof(blocking_buf), "%d", blocking);
+        size_t preview_len = len;
+        if (preview_len > sizeof(preview_buf) - 1)
+            preview_len = sizeof(preview_buf) - 1;
+        for (size_t i = 0; i < preview_len; i++) {
+            unsigned char byte = ((const unsigned char *)buf)[i];
+            preview_buf[i] = (byte >= 0x20 && byte <= 0x7E) ? (char)byte : '.';
+        }
+        preview_buf[preview_len] = '\0';
 
-    trace_attribute_t pty_attrs[] = {
-        { "len", len_buf },
-        { "blocking", blocking_buf },
-    };
+        trace_attribute_t pty_attrs[] = {
+            { "len", len_buf },
+            { "blocking", blocking_buf },
+            { "preview", preview_buf },
+        };
 
-    // Determine direction: master write or slave write
-    if (tty->type == TTY_PSEUDO_MASTER_MAJOR) {
-        // Master writing to slave (login output → PTY)
-        (void)trace_begin_interval(TRACE_ORIGIN_TASK, "task.proof.pty.master.write", pty_attrs, 2);
-    } else {
-        // Slave writing to master (process output → PTY)
-        (void)trace_begin_interval(TRACE_ORIGIN_TASK, "task.proof.pty.slave.write", pty_attrs, 2);
+        if (tty->type == TTY_PSEUDO_MASTER_MAJOR) {
+            (void)trace_begin_interval(TRACE_ORIGIN_TASK, "task.proof.pty.master.write",
+                                       pty_attrs, 3);
+        } else {
+            (void)trace_begin_interval(TRACE_ORIGIN_TASK, "task.proof.pty.slave.write", pty_attrs,
+                                       3);
+        }
     }
 
     if (len > INT_MAX)
         return _EINVAL;
 
-    if (tty->type == TTY_PSEUDO_SLAVE_MAJOR && len > 0 && Terminal_sendOutput_length != NULL) {
+    if (tty->type == TTY_PSEUDO_SLAVE_MAJOR && len > 0 && pty_host_bridge_can_send_output()) {
         struct tty *master = tty->pty.other;
         if (master != NULL && master->driver_data != NULL) {
-            Terminal_sendOutput_length(master->driver_data, buf, (int)len);
+            pty_host_bridge_send_output(master->driver_data, buf, (int)len);
             return (int)len;
         } else if (tty->driver_data != NULL) {
-            Terminal_sendOutput_length(tty->driver_data, buf, (int)len);
+            pty_host_bridge_send_output(tty->driver_data, buf, (int)len);
             return (int)len;
         }
     }
@@ -166,19 +184,23 @@ static int pty_write(struct tty *tty, const void *buf, size_t len, bool blocking
 
     int result = (int)tty_input(tty->pty.other, buf, len, blocking);
 
-    // Trace read side after input completes
-    char result_buf[16];
-    snprintf(result_buf, sizeof(result_buf), "%d", result);
-    trace_attribute_t result_attrs[] = {
-        { "len", len_buf },
-        { "result", result_buf },
-    };
+    if (runtime_proof_trace_enabled()) {
+        char len_buf[16];
+        char result_buf[16];
+        snprintf(len_buf, sizeof(len_buf), "%zu", len);
+        snprintf(result_buf, sizeof(result_buf), "%d", result);
+        trace_attribute_t result_attrs[] = {
+            { "len", len_buf },
+            { "result", result_buf },
+        };
 
-    if (tty->type == TTY_PSEUDO_MASTER_MAJOR) {
-        (void)trace_begin_interval(TRACE_ORIGIN_TASK, "task.proof.pty.slave.read", result_attrs, 2);
-    } else {
-        (void)trace_begin_interval(TRACE_ORIGIN_TASK, "task.proof.pty.master.read", result_attrs,
-                                   2);
+        if (tty->type == TTY_PSEUDO_MASTER_MAJOR) {
+            (void)trace_begin_interval(TRACE_ORIGIN_TASK, "task.proof.pty.slave.read",
+                                       result_attrs, 2);
+        } else {
+            (void)trace_begin_interval(TRACE_ORIGIN_TASK, "task.proof.pty.master.read",
+                                       result_attrs, 2);
+        }
     }
 
     return result;

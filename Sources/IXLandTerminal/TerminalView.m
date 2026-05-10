@@ -187,10 +187,10 @@ struct rowcol {
         return;
     self.didCommonInit = YES;
 
-    // Keep the hidden UIKit bridge only for UI automation. In normal app
-    // launches, the real terminal responder path is less laggy and avoids an
-    // extra layer of text mediation between the software keyboard and guest
-    // PTY input.
+    // Mirror the libghostty mobile sample for normal app runs: Ghostty's own
+    // TerminalView should own software-keyboard focus directly. Keep the
+    // hidden UIKit bridge only for UI automation, where XCTest still needs a
+    // predictable text-input responder.
     self.usingInputBridge = [self isRunningUITests];
     self.inputBridgeField = [[UITextField alloc] initWithFrame:CGRectMake(-100, -100, 1, 1)];
     self.inputBridgeField.accessibilityIdentifier = @"TerminalInput";
@@ -266,7 +266,7 @@ struct rowcol {
 }
 
 - (BOOL)canBecomeFirstResponder {
-    return YES;
+    return self.usingInputBridge;
 }
 
 - (void)awakeFromNib {
@@ -422,21 +422,26 @@ struct rowcol {
 
 - (BOOL)becomeFirstResponder {
     self.terminalFocused = YES;
-    BOOL focused = NO;
     if (self.usingInputBridge && self.inputBridgeField != nil) {
         self.inputBridgeField.userInteractionEnabled = YES;
         self.inputBridgeField.enabled = YES;
         [self bringSubviewToFront:self.inputBridgeField];
-        focused = [self.inputBridgeField becomeFirstResponder];
-    } else if (self.terminal != nil) {
-        focused = [self.terminal requestFocus];
+        BOOL focused = [self.inputBridgeField becomeFirstResponder];
+        _terminalFocused = focused;
+        if (focused)
+            [self.inputBridgeField reloadInputViews];
+        return focused;
     }
-    if (!focused) {
-        focused = [super becomeFirstResponder];
-    }
-    _terminalFocused = focused;
-    if (focused && self.inputBridgeField != nil)
-        [self.inputBridgeField reloadInputViews];
+
+    if (self.terminal == nil)
+        return NO;
+
+    // Normal app runs must only report focus success when Ghostty's own
+    // terminal surface becomes first responder. Falling back to the wrapper
+    // UIView produces a false-positive focus state with no software keyboard.
+    BOOL focused = [self.terminal requestFocus];
+    if (focused)
+        _terminalFocused = YES;
     return focused;
 }
 
