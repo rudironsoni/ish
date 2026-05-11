@@ -67,16 +67,13 @@
 // application level once the scene is active.
 - (void)typeCommand:(NSString *)command {
     XCUIElement *terminalSurface = self.app.otherElements[@"TerminalSurface"];
+    XCUIElement *terminalInput = self.app.textFields[@"TerminalInput"];
     XCTAssertTrue([terminalSurface waitForExistenceWithTimeout:5.0], @"TerminalSurface must be accessible within 5 seconds");
+    XCTAssertTrue([terminalInput waitForExistenceWithTimeout:5.0], @"TerminalInput must exist for UI-test text injection");
     [self waitForTerminalReadyWithTimeout:180.0];
     [terminalSurface tap];
     [NSThread sleepForTimeInterval:0.5];
-    NSString *payload = [NSString stringWithFormat:@"%@\n", command];
-    for (NSUInteger index = 0; index < payload.length; index++) {
-        NSString *piece = [payload substringWithRange:NSMakeRange(index, 1)];
-        [self.app typeText:piece];
-        [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.02]];
-    }
+    [terminalInput typeText:[NSString stringWithFormat:@"%@\n", command]];
 }
 
 - (NSString *)terminalText {

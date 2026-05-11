@@ -1,5 +1,10 @@
 #import <XCTest/XCTest.h>
 
+#import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
+#import <IXLandLinuxRuntime/emu/aarch64/memory.h>
+#import <IXLandLinuxRuntime/emu/tlb.h>
+#import <IXLandLinuxRuntime/kernel/memory.h>
+
 #include "../../Support/ISAFamilies/BaseScalar/tcti_scalar_runtime_semantic_scenarios.h"
 #include "../../Support/ISAFamilies/Memory/tcti_memory_atomic_runtime_semantic_scenarios.h"
 #include "../../Support/ISAFamilies/Memory/tcti_memory_pair_semantic_scenarios.h"
@@ -98,6 +103,42 @@
                    @"TCTI must preserve musl memcpy's 8-byte tail copy with unscaled negative "
                     "offset loads and stores, because qsort uses this helper in the live Alpine "
                     "directory-sort path.");
+}
+
+- (void)testSemanticExecutionContract_LDURBNegativeTwoReadsPrecedingByte
+{
+    enum {
+        textPC = 0x94000,
+        dataBase = 0x250000,
+    };
+
+    static const uint32_t insn = 0x385fe004; // ldurb w4, [x0, #-2]
+
+    struct mem mem;
+    mem_init(&mem);
+    XCTAssertEqual(pt_map_nothing(&mem, PAGE(dataBase), 1, P_READ | P_WRITE), 0);
+
+    struct tlb tlb = {};
+    tlb_refresh(&tlb, &mem.mmu);
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.mmu = &mem.mmu;
+    cpu.tlb = &tlb;
+    cpu.x[0] = dataBase + 2;
+
+    XCTAssertEqual(a64_guest_write8(&cpu, &tlb, dataBase + 0, 0x5a), A64_MEM_OK);
+    XCTAssertEqual(a64_guest_write8(&cpu, &tlb, dataBase + 1, 0xc3), A64_MEM_OK);
+    XCTAssertEqual(a64_guest_write8(&cpu, &tlb, dataBase + 2, 0x99), A64_MEM_OK);
+
+    XCTAssertEqual(a64_cpu_execute_code_block(&cpu, textPC, &insn, 1), 0,
+                   @"LDURB with imm=-2 must read the preceding byte through the real TCTI "
+                    "unscaled load path because BusyBox uname reaches this exact form before "
+                    "printing the guest machine string");
+    XCTAssertEqual(cpu.x[4], 0x5aULL,
+                   @"LDURB w4, [x0, #-2] must publish the zero-extended byte from x0-2");
+
+    mem_destroy(&mem);
 }
 
 - (void)testSemanticExecutionContract_STRXZRPostIndexWritesBackBase

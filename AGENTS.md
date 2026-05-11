@@ -276,6 +276,12 @@ Rules:
 - Host bridge tests prove host seams only.
 - Compile-smoke tests prove header resolution, not runtime semantics.
 - Guest-visible terminal/runtime regressions are still required where relevant.
+- Contract and TCTI tests are enforcement tools, not the destination. They must isolate emulator/runtime defects, protect architectural contracts, and prevent regressions, but they do not by themselves define product progress.
+- Guest-runtime system proof and app/E2E proof are the north star. Choose work based on the user-visible runtime path first, then add or tighten the contract coverage needed to make that progress robust.
+- Runtime work streams should normally close with both layers of proof:
+  1. a focused contract/runtime test that isolates the exact defect or invariant
+  2. a relevant guest/system or app/E2E proof that shows the fix matters in the real product path
+- Do not treat a green contract suite alone as sufficient evidence that the app, guest runtime, or overall product meaningfully improved.
 - Runtime fixes must be advanced by tests first: add or tighten a failing test that captures the exact user-visible or contract-visible failure, verify it fails for the expected reason, then implement the fix.
 - Do not use trial-and-error patching as a debugging method. Instrumentation is allowed only to sharpen the failing contract and isolate root cause; it is not a substitute for a targeted red test.
 - When multiple red tests exist, the next code change must be justified against a specific failing contract, not a vague performance suspicion.
@@ -313,4 +319,6 @@ Required:
 - move toward explicit ownership, not broader convenience layers
 - preserve TCTI-only guest execution
 - prove behavior before claiming success
+- treat app and guest-runtime progress as the holy-grail north star, with contract tests serving that goal instead of replacing it
+- for stage, milestone, or work-stream completion, prefer proof that includes both the contract layer and a relevant guest/system or app/E2E layer
 - use failing tests and exact proof to drive emulator/runtime fixes from root cause, not exploratory patch sequences

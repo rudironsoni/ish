@@ -1001,4 +1001,30 @@ extern bool exit_should_pthread_exit;
                     @"code generation");
 }
 
+- (void)testDirectBusyboxUnameMachineExitsPromptly
+{
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    const char argv[] = "/bin/busybox\0uname\0-m\0\0";
+    const char envp[] =
+        "TERM=xterm-256color\0"
+        "HOME=/root\0"
+        "USER=root\0"
+        "LOGNAME=root\0"
+        "SHELL=/bin/sh\0"
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\0"
+        "\0";
+    if (![self execBusyboxWithArgc:3 argv:argv envp:envp])
+        return;
+
+    BOOL exited = [self pumpGuestUntilTimeout:10.0
+                                     predicate:^BOOL {
+                                         return guest_execution_trace_sink_exit_observed();
+                                     }];
+
+    XCTAssertTrue(exited, @"direct busybox uname -m must exit promptly");
+}
+
 @end
