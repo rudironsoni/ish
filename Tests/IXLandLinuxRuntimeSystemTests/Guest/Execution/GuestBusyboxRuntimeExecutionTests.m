@@ -131,6 +131,27 @@ extern bool exit_should_pthread_exit;
     return predicate();
 }
 
+- (BOOL)sendInputThroughControllingPseudoMaster:(const char *)input length:(size_t)length
+{
+    XCTAssertNotEqual(current, NULL, @"current must exist before PTY input injection");
+    if (current == NULL || current->group == NULL)
+        return NO;
+
+    struct tty *slave = current->group->tty;
+    XCTAssertNotEqual(slave, NULL, @"interactive guest path must own a controlling tty");
+    if (slave == NULL)
+        return NO;
+
+    struct tty *master = slave->pty.other;
+    XCTAssertNotEqual(master, NULL, @"interactive guest path must have a PTY master peer");
+    if (master == NULL || master->driver == NULL || master->driver->ops->write == NULL)
+        return NO;
+
+    int written = master->driver->ops->write(master, input, length, false);
+    XCTAssertEqual(written, (int)length, @"PTY master input write must accept the full command");
+    return written == (int)length;
+}
+
 - (BOOL)pumpGuestSingleStepTurns:(NSUInteger)maxSteps
                        predicate:(BOOL (^)(void))predicate
                     stepsTakenOut:(NSUInteger *)stepsTakenOut
@@ -1101,6 +1122,165 @@ extern bool exit_should_pthread_exit;
     XCTAssertTrue(guest_execution_trace_sink_stdout_aarch64_write_observed() ||
                       guest_execution_trace_sink_pty_aarch64_write_observed(),
                   @"direct busybox uname -m must emit aarch64 through a real guest write path");
+}
+
+- (void)testDirectBusyboxUnameAllExitsPromptly
+{
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    const char argv[] = "/bin/busybox\0uname\0-a\0\0";
+    const char envp[] =
+        "TERM=xterm-256color\0"
+        "HOME=/root\0"
+        "USER=root\0"
+        "LOGNAME=root\0"
+        "SHELL=/bin/sh\0"
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\0"
+        "\0";
+    if (![self execBusyboxWithArgc:3 argv:argv envp:envp])
+        return;
+
+    BOOL exited = [self pumpGuestUntilTimeout:10.0
+                                     predicate:^BOOL {
+                                         return guest_execution_trace_sink_exit_observed();
+                                     }];
+
+    XCTAssertTrue(exited, @"direct busybox uname -a must exit promptly");
+}
+
+- (void)testDirectBusyboxUnameAllWritesAarch64AfterUnameSyscall
+{
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    const char argv[] = "/bin/busybox\0uname\0-a\0\0";
+    const char envp[] =
+        "TERM=xterm-256color\0"
+        "HOME=/root\0"
+        "USER=root\0"
+        "LOGNAME=root\0"
+        "SHELL=/bin/sh\0"
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\0"
+        "\0";
+    if (![self execBusyboxWithArgc:3 argv:argv envp:envp])
+        return;
+
+    BOOL sawAarch64Write = [self pumpGuestUntilTimeout:10.0
+                                             predicate:^BOOL {
+                                                 return guest_execution_trace_sink_stdout_aarch64_write_observed() ||
+                                                        guest_execution_trace_sink_pty_aarch64_write_observed() ||
+                                                        guest_execution_trace_sink_exit_observed();
+                                             }];
+
+    XCTAssertTrue(sawAarch64Write, @"direct busybox uname -a must either emit aarch64 or exit within the timeout");
+    XCTAssertTrue(guest_execution_trace_sink_uname_syscall_returned(),
+                  @"direct busybox uname -a must return from uname before writing output");
+    XCTAssertTrue(guest_execution_trace_sink_stdout_aarch64_write_observed() ||
+                      guest_execution_trace_sink_pty_aarch64_write_observed(),
+                  @"direct busybox uname -a must emit aarch64 through a real guest write path");
+}
+
+- (void)testInteractiveBusyboxShellUnameAllWritesAarch64AfterPtyMasterInput
+{
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    const char argv[] = "/bin/busybox\0sh\0-i\0\0";
+    const char envp[] =
+        "TERM=xterm-256color\0"
+        "HOME=/root\0"
+        "USER=root\0"
+        "LOGNAME=root\0"
+        "HISTFILE=/dev/null\0"
+        "HISTSIZE=0\0"
+        "HISTFILESIZE=0\0"
+        "SHELL=/bin/sh\0"
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\0"
+        "\0";
+    if (![self execBusyboxWithArgc:3 argv:argv envp:envp])
+        return;
+
+    BOOL sawPrompt = [self pumpGuestUntilTimeout:10.0
+                                       predicate:^BOOL {
+                                           return guest_execution_trace_sink_stdout_prompt_write_count() > 0 ||
+                                                  guest_execution_trace_sink_pty_prompt_write_count() > 0;
+                                       }];
+    XCTAssertTrue(sawPrompt, @"interactive busybox shell must reach a prompt before uname -a injection");
+    if (!sawPrompt)
+        return;
+
+    const char command[] = "/bin/busybox uname -a\n";
+    if (![self sendInputThroughControllingPseudoMaster:command length:sizeof(command) - 1])
+        return;
+
+    BOOL sawAarch64Write = [self pumpGuestUntilTimeout:10.0
+                                             predicate:^BOOL {
+                                                 return guest_execution_trace_sink_stdout_aarch64_write_observed() ||
+                                                        guest_execution_trace_sink_pty_aarch64_write_observed() ||
+                                                        guest_execution_trace_sink_exit_observed();
+                                             }];
+
+    XCTAssertTrue(sawAarch64Write,
+                  @"interactive busybox shell must either emit aarch64 after PTY master input or exit within the timeout");
+    XCTAssertTrue(guest_execution_trace_sink_uname_syscall_returned(),
+                  @"interactive busybox shell must return from uname before output is considered complete");
+    XCTAssertTrue(guest_execution_trace_sink_stdout_aarch64_write_observed() ||
+                      guest_execution_trace_sink_pty_aarch64_write_observed(),
+                  @"interactive busybox shell must emit aarch64 through a real guest write path after PTY master input");
+}
+
+- (void)testInteractiveBusyboxShellUnameMachineWritesAarch64AfterPtyMasterInput
+{
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    const char argv[] = "/bin/busybox\0sh\0-i\0\0";
+    const char envp[] =
+        "TERM=xterm-256color\0"
+        "HOME=/root\0"
+        "USER=root\0"
+        "LOGNAME=root\0"
+        "HISTFILE=/dev/null\0"
+        "HISTSIZE=0\0"
+        "HISTFILESIZE=0\0"
+        "SHELL=/bin/sh\0"
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\0"
+        "\0";
+    if (![self execBusyboxWithArgc:3 argv:argv envp:envp])
+        return;
+
+    BOOL sawPrompt = [self pumpGuestUntilTimeout:10.0
+                                       predicate:^BOOL {
+                                           return guest_execution_trace_sink_stdout_prompt_write_count() > 0 ||
+                                                  guest_execution_trace_sink_pty_prompt_write_count() > 0;
+                                       }];
+    XCTAssertTrue(sawPrompt, @"interactive busybox shell must reach a prompt before uname -m injection");
+    if (!sawPrompt)
+        return;
+
+    const char command[] = "/bin/busybox uname -m\n";
+    if (![self sendInputThroughControllingPseudoMaster:command length:sizeof(command) - 1])
+        return;
+
+    BOOL sawAarch64Write = [self pumpGuestUntilTimeout:10.0
+                                             predicate:^BOOL {
+                                                 return guest_execution_trace_sink_stdout_aarch64_write_observed() ||
+                                                        guest_execution_trace_sink_pty_aarch64_write_observed() ||
+                                                        guest_execution_trace_sink_exit_observed();
+                                             }];
+
+    XCTAssertTrue(sawAarch64Write,
+                  @"interactive busybox shell must either emit aarch64 after PTY master input or exit within the timeout");
+    XCTAssertTrue(guest_execution_trace_sink_uname_syscall_returned(),
+                  @"interactive busybox shell must return from uname before output is considered complete");
+    XCTAssertTrue(guest_execution_trace_sink_stdout_aarch64_write_observed() ||
+                      guest_execution_trace_sink_pty_aarch64_write_observed(),
+                  @"interactive busybox shell must emit aarch64 through a real guest write path after PTY master input");
 }
 
 @end

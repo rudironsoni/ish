@@ -258,6 +258,18 @@
                   @"Should report aarch64 architecture. Actual output: %@", output);
 }
 
+- (void)testFullUnameDoesNotCrashAndReportsAarch64 {
+    NSString *expected = @"aarch64";
+    [self typeCommand:@"/bin/busybox uname -a"];
+    NSString *output = [self waitForTerminalTextContaining:expected timeout:10.0];
+    XCTAssertFalse([output containsString:@"Segmentation fault"],
+                   @"Full uname in the interactive shell must not segfault. Actual output: %@",
+                   output);
+    XCTAssertTrue([output containsString:expected],
+                  @"Full uname should report aarch64 in the interactive shell. Actual output: %@",
+                  output);
+}
+
 // Test 3: Basic arithmetic via expr
 - (void)testArithmetic {
     NSString *expected = @"8";
