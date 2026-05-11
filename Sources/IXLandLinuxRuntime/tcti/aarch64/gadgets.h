@@ -81,6 +81,7 @@ gadget_fn_t gadget_isb(struct cpu_state *cpu);
 gadget_fn_t gadget_dsb(struct cpu_state *cpu);
 gadget_fn_t gadget_dmb(struct cpu_state *cpu);
 gadget_fn_t gadget_nop(struct cpu_state *cpu);
+gadget_fn_t gadget_clrex(struct cpu_state *cpu);
 
 // Floating point gadgets
 gadget_fn_t gadget_fadd(struct cpu_state *cpu);

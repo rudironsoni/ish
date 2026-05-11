@@ -79,6 +79,7 @@ typedef enum {
     A64_SYSTEM_BARRIER = 5,
     A64_SYSTEM_HINT = 6,
     A64_SYSTEM_DC_ZVA = 8,
+    A64_SYSTEM_CLREX = 9,
 } a64_system_subtype_t;
 
 /* Subcategories for Loads and Stores */
@@ -95,6 +96,20 @@ typedef enum {
     A64_SIMD_MOV_GPR_FROM_VEC = 2, // UMOV/MOV general register from vector element
     A64_SIMD_MOVI_IMM = 3,       // MOVI/MVNI vector modified immediate
     A64_SIMD_FMOV_GPR = 4,       // FMOV scalar FP <-> general register
+    A64_SIMD_SCALAR_FADD = 5,    // FADD scalar FP
+    A64_SIMD_EXT = 6,            // EXT vector extract
+    A64_SIMD_CNT = 7,            // CNT population count per byte
+    A64_SIMD_INS_GPR = 8,        // INS vector element from general register
+    A64_SIMD_TBL = 9,            // TBL table lookup (one-register form)
+    A64_SIMD_TBX = 10,           // TBX table lookup with destination preserve
+    A64_SIMD_XTN = 11,           // XTN narrow vector elements into low half
+    A64_SIMD_ZIP1 = 12,          // ZIP1 interleave low halves of two vectors
+    A64_SIMD_TRN1 = 13,          // TRN1 transpose even lanes from two vectors
+    A64_SIMD_UZP1 = 14,          // UZP1 pack even lanes from two vectors
+    A64_SIMD_AND = 15,           // AND bitwise vector logical op
+    A64_SIMD_ORR = 16,           // ORR bitwise vector logical op
+    A64_SIMD_EOR = 17,           // EOR bitwise vector logical op
+    A64_SIMD_ADD = 18,           // ADD per-lane vector arithmetic op
 } a64_simd_subtype_t;
 
 /* Indexing modes for load/store */

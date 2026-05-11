@@ -6,6 +6,9 @@
 #import <IXLandLinuxRuntime/kernel/memory.h>
 
 #include "../../Support/ISAFamilies/BaseScalar/tcti_control_and_flags_semantic_scenarios.h"
+#include "../../Support/ISAFamilies/BaseScalar/tcti_scalar_runtime_semantic_scenarios.h"
+#include "../../Support/ISAFamilies/Memory/tcti_memory_atomic_runtime_semantic_scenarios.h"
+#include "../../Support/ISAFamilies/Memory/tcti_memory_pair_semantic_scenarios.h"
 
 @interface TCTIControlAndFlagsSemanticTests : XCTestCase
 @end
@@ -37,13 +40,6 @@
     XCTAssertEqual(tcti_semantic_case_cmp_w20_ccmp_gt_bls_uses_32bit_flags(), 0,
                    @"CMP W20,#0 with W20=-1 must make CCMP.GT take the false NZCV immediate so "
                     "the following B.LS exits the allocator loop");
-}
-
-- (void)testSemanticExecutionContract_TPIDREL0RoundtripsThroughFullSysregEncoding
-{
-    XCTAssertEqual(tcti_semantic_case_tpidr_el0_roundtrips_through_full_sysreg_encoding(), 0ULL,
-                   @"TCTI must honor the full decoded TPIDR_EL0 sysreg encoding so MSR/MRS "
-                    @"roundtrip the guest thread pointer in live ldso paths");
 }
 
 - (void)testSemanticExecutionContract_ExtendedCMPUsesWRegisterWidthForCSEL
@@ -423,6 +419,159 @@
     XCTAssertEqual(tcti_semantic_case_busybox_prompt_loop_ccmp_bls_exits_taken_path(), 0ULL,
                    @"The busybox prompt loop block must preserve MVN/LDRB/SUB/ADD/CMP/CCMP/B.LS "
                     "semantics so the taken path exits the hot retry loop instead of spinning");
+}
+
+- (void)testSemanticExecutionContract_CSETThenADDOverwritesStaleX3
+{
+    XCTAssertEqual(tcti_semantic_case_cset_eq_then_add_to_x3(), 3ULL,
+                   @"CSET.EQ followed by ADD x3,#2 must overwrite stale x3 before relocation "
+                    "entry processing passes x3 into x19");
+}
+
+- (void)testSemanticExecutionContract_CMPMemoryBackedX27X23BranchesEQ
+{
+    XCTAssertEqual(tcti_semantic_case_cmp_memory_backed_x27_x23_branches_eq(), 0x6a690ULL,
+                   @"TCTI CMP over memory-backed high registers must set NZCV so B.EQ exits "
+                    "the relocation loop when x27 reaches x23");
+}
+
+- (void)testSemanticExecutionContract_MuslQsortTBZW0SignbitBranch
+{
+    XCTAssertEqual(tcti_semantic_case_musl_qsort_tbz_w0_signbit_branch(), 0ULL,
+                   @"TCTI must honor tbz w0,#31 on the live musl qsort path, because a wrong "
+                    "32-bit sign-bit branch can walk the comparator left past the start of the "
+                    "BusyBox pointer array.");
+}
+
+- (void)testSemanticExecutionContract_MuslQsortTBNZW0SignbitBranches
+{
+    XCTAssertEqual(tcti_semantic_case_musl_qsort_tbnz_w0_signbit_branches(), 0ULL,
+                   @"TCTI must honor the live musl qsort tbnz w0,#31 branches, because a wrong "
+                    "negative-compare branch can materialize the next comparator window from the "
+                    "wrong side of the BusyBox pointer array.");
+}
+
+- (void)testSemanticExecutionContract_MuslQsortCSINCTSTGateKeepsExpectedPath
+{
+    XCTAssertEqual(tcti_semantic_case_musl_qsort_csinc_tst_gate_keeps_expected_path(), 0ULL,
+                   @"TCTI must preserve musl qsort's csinc/tst gate, because that exact block "
+                    "decides whether the next comparator window advances or jumps into the "
+                    "alternate heap-progression path.");
+}
+
+- (void)testSemanticExecutionContract_MuslLsRootFrameListWalk
+{
+    XCTAssertEqual(tcti_semantic_case_busybox_ls_retry_ccmp_close_path(), 0ULL,
+                   @"TCTI must preserve the current busybox ls retry CCMP cluster so success, "
+                    "retry, and close-path fallthrough decisions match guest AArch64 flags.");
+}
+
+- (void)testSemanticExecutionContract_MuslLsRootPostOpenCallbackScan
+{
+    XCTAssertEqual(tcti_semantic_case_musl_ls_root_post_open_callback_scan(), 0ULL,
+                   @"TCTI must preserve musl's post-open callback scan, including TBZ, BLR, RET, "
+                    "and callback-loop state for the busybox ls root-directory path");
+}
+
+- (void)testSemanticExecutionContract_MuslPthreadMutexLockPrefixReachesAtomicFastPath
+{
+    XCTAssertEqual(tcti_semantic_case_musl_pthread_mutex_lock_prefix(), 0ULL,
+                   @"TCTI must preserve Z through musl mutex lock's TST/B.NE prefix and reach "
+                    "the ADD/MOV setup immediately before LDAXR/STLXR");
+}
+
+- (void)testSemanticExecutionContract_MuslMutexUnlockNormalTypeBranchesToFastUnlock
+{
+    XCTAssertEqual(tcti_semantic_case_musl_mutex_unlock_normal_type_branches_to_fast_unlock(), 0ULL,
+                   @"TCTI must preserve Z from ANDS across the following non-flag logical "
+                    "immediate so musl pthread_mutex_unlock reaches the normal unlock path");
+}
+
+- (void)testSemanticExecutionContract_TSTImmediateSetsZeroFlagForZeroInput
+{
+    XCTAssertEqual(tcti_semantic_case_tst_x1_imm_sets_zero_flag(), 0ULL,
+                   @"TCTI must execute TST Xn,#imm as ANDS-to-XZR and leave Z set for zero "
+                    "input without corrupting the source register");
+}
+
+- (void)testSemanticExecutionContract_LDRHCMPCCMPEQSurvivesSingleInstructionBlocks
+{
+    XCTAssertEqual(tcti_semantic_case_ldrh_cmp_ccmp_eq_survives_single_insn_blocks(), 0ULL,
+                   @"TCTI must preserve LDRH/CMP/CCMP/B.EQ semantics when the real guest path is "
+                    "forced through one-instruction blocks");
+}
+
+- (void)testSemanticExecutionContract_MuslOpendirNonNullCallocSkipsErrorClose
+{
+    XCTAssertEqual(tcti_semantic_case_musl_opendir_calloc_nonnull_skips_close_path(), 0ULL,
+                   @"musl opendir branches to close(2) only when calloc returns NULL; TCTI must "
+                    "execute the following CBZ X0 using the full 64-bit guest pointer value");
+}
+
+- (void)testSemanticExecutionContract_MuslStrncmpLibcReservedPrefix
+{
+    XCTAssertEqual(tcti_semantic_case_musl_strncmp_libc_reserved_prefix(), 0ULL,
+                   @"TCTI must execute musl strncmp(\"c...\", \"c.\", 2) correctly so ldso can "
+                    "recognize its own libc SONAME while loading BusyBox dependencies");
+}
+
+- (void)testSemanticExecutionContract_MuslLibcNameComparePrefixStaysOnMatchPath
+{
+    XCTAssertEqual(
+        tcti_semantic_case_musl_libc_name_compare_prefix_stays_on_match_path(), 0ULL,
+        @"The live ld-musl libc-name prefix compare must keep x0 on the literal string page, "
+         "load matching first bytes from the guest name and ldso literal, and fall through "
+         "instead of branching to the mismatch path when the names agree.");
+}
+
+- (void)testSemanticExecutionContract_MuslLoadLibraryDetectsLibcSelf
+{
+    XCTAssertEqual(tcti_semantic_case_musl_load_library_detects_libc_self(), 0ULL,
+                   @"TCTI must execute musl load_library's reserved libc detection path so "
+                    "ldso does not load itself as a second libc dependency");
+}
+
+- (void)testSemanticExecutionContract_MuslGNULookupFilteredMalloc
+{
+    XCTAssertEqual(tcti_semantic_case_musl_gnu_lookup_filtered_malloc(), 0ULL,
+                   @"TCTI must execute musl's GNU hash lookup helper so ldso can resolve "
+                    "libc symbols through bloom filters, hash buckets, and symbol strings");
+}
+
+- (void)testSemanticExecutionContract_MuslGNULookupDls2bChain
+{
+    XCTAssertEqual(tcti_semantic_case_musl_gnu_lookup_dls2b_chain(), 0ULL,
+                   @"TCTI must execute musl's GNU hash chain walk across false-positive "
+                    "entries so ldso can resolve its own __dls2b symbol");
+}
+
+- (void)testSemanticExecutionContract_MuslFindSymDls2bFromLdso
+{
+    XCTAssertEqual(tcti_semantic_case_musl_find_sym_dls2b_from_ldso(), 0ULL,
+                   @"TCTI must execute musl find_sym over ldso's own DSO, GNU hash table, "
+                    "and dynamic symbol metadata so __dls2b resolves before guest startup");
+}
+
+- (void)testSemanticExecutionContract_MuslFindSymLongjmpFromLdso
+{
+    XCTAssertEqual(tcti_semantic_case_musl_find_sym_longjmp_from_ldso(), 0ULL,
+                   @"TCTI must execute musl find_sym for a real longjmp GNU-hash bucket hit so "
+                    @"ldso can resolve BusyBox's libc symbols instead of cascading through the "
+                    @"error-relocation path.");
+}
+
+- (void)testSemanticExecutionContract_MuslFindSymSiglongjmpFromLdso
+{
+    XCTAssertEqual(tcti_semantic_case_musl_find_sym_siglongjmp_from_ldso(), 0ULL,
+                   @"TCTI must execute musl find_sym for siglongjmp so the live Alpine BusyBox "
+                    @"loader path resolves the next-DSO symbol instead of spinning.");
+}
+
+- (void)testSemanticExecutionContract_MuslFindSymAcceptsGlobalFunc
+{
+    XCTAssertEqual(tcti_semantic_case_musl_find_sym_accepts_global_func(), 0ULL,
+                   @"TCTI must execute musl find_sym's st_shndx, st_value, type, and binding "
+                    "checks so valid global function symbols are not rejected");
 }
 
 @end

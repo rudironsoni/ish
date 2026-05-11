@@ -1,10 +1,10 @@
 #import "bootstrap_bridge.h"
 
-#import "Sources/IXLandTerminal/AppDelegate.h"
-#import "Sources/IXLandTerminal/ExceptionExfiltrator.h"
-#import "Sources/IXLandTerminal/LocationDevice.h"
-#import "Sources/IXLandTerminal/PasteboardDevice.h"
-#import "internal/ios/fs/backing_fs.h"
+#import "AppDelegate.h"
+#import "ExceptionExfiltrator.h"
+#import "LocationDevice.h"
+#import "PasteboardDevice.h"
+#import "backing_fs.h"
 
 #import <IXLandLinuxRuntime/fs/devices.h>
 #import <IXLandLinuxRuntime/fs/dyndev.h>

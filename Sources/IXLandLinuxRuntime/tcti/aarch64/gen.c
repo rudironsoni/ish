@@ -34,6 +34,7 @@ extern tcti_gadget_t gadget_isb;
 extern tcti_gadget_t gadget_dsb;
 extern tcti_gadget_t gadget_dmb;
 extern tcti_gadget_t gadget_dc_zva;
+extern tcti_gadget_t gadget_clrex;
 extern void gadget_csel_eq_0_1_2(void);
 extern void gadget_csel_ne_0_1_2(void);
 extern void gadget_csel_cs_0_1_2(void);
@@ -57,6 +58,20 @@ extern tcti_gadget_t gadget_simd_dup_gpr;
 extern tcti_gadget_t gadget_simd_mov_gpr_from_vec;
 extern tcti_gadget_t gadget_simd_movi_imm;
 extern tcti_gadget_t gadget_simd_fmov_gpr;
+extern tcti_gadget_t gadget_simd_ext;
+extern tcti_gadget_t gadget_simd_cnt;
+extern tcti_gadget_t gadget_simd_ins_gpr;
+extern tcti_gadget_t gadget_simd_tbl;
+extern tcti_gadget_t gadget_simd_tbx;
+extern tcti_gadget_t gadget_simd_xtn;
+extern tcti_gadget_t gadget_simd_zip1;
+extern tcti_gadget_t gadget_simd_trn1;
+extern tcti_gadget_t gadget_simd_uzp1;
+extern tcti_gadget_t gadget_simd_and;
+extern tcti_gadget_t gadget_simd_orr;
+extern tcti_gadget_t gadget_simd_eor;
+extern tcti_gadget_t gadget_simd_add;
+extern tcti_gadget_t gadget_fadd;
 extern tcti_gadget_t gadget_simd_ldst;
 extern tcti_gadget_t gadget_atomic_ldst;
 extern tcti_gadget_t gadget_extend_x14;
@@ -1926,6 +1941,213 @@ static int a64_gen_simd(a64_gen_state_t *state, const a64_instr_t *instr)
             return ret;
         return emit_u64(state, instr->op ? 1 : 0);
 
+    case A64_SIMD_SCALAR_FADD:
+        ret = emit_gadget(state, gadget_fadd);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rd);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rn);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rm);
+        if (ret != A64_GEN_OK)
+            return ret;
+        return emit_u64(state, instr->vec_bytes);
+
+    case A64_SIMD_EXT:
+        ret = emit_gadget(state, gadget_simd_ext);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rd);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rn);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rm);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, (uint64_t)instr->imm);
+        if (ret != A64_GEN_OK)
+            return ret;
+        return emit_u64(state, instr->vec_bytes);
+
+    case A64_SIMD_CNT:
+        ret = emit_gadget(state, gadget_simd_cnt);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rd);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rn);
+        if (ret != A64_GEN_OK)
+            return ret;
+        return emit_u64(state, instr->vec_bytes);
+
+    case A64_SIMD_INS_GPR:
+        ret = emit_gadget(state, gadget_simd_ins_gpr);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rd);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rn);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->vec_bytes);
+        if (ret != A64_GEN_OK)
+            return ret;
+        return emit_u64(state, instr->vec_index);
+
+    case A64_SIMD_TBL:
+        ret = emit_gadget(state, gadget_simd_tbl);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rd);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rn);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rm);
+        if (ret != A64_GEN_OK)
+            return ret;
+        return emit_u64(state, instr->vec_bytes);
+
+    case A64_SIMD_TBX:
+        ret = emit_gadget(state, gadget_simd_tbx);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rd);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rn);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rm);
+        if (ret != A64_GEN_OK)
+            return ret;
+        return emit_u64(state, instr->vec_bytes);
+
+    case A64_SIMD_XTN:
+        ret = emit_gadget(state, gadget_simd_xtn);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rd);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rn);
+        if (ret != A64_GEN_OK)
+            return ret;
+        return emit_u64(state, instr->vec_bytes);
+
+    case A64_SIMD_ZIP1:
+        ret = emit_gadget(state, gadget_simd_zip1);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rd);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rn);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rm);
+        if (ret != A64_GEN_OK)
+            return ret;
+        return emit_u64(state, instr->vec_bytes);
+
+    case A64_SIMD_TRN1:
+        ret = emit_gadget(state, gadget_simd_trn1);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rd);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rn);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rm);
+        if (ret != A64_GEN_OK)
+            return ret;
+        return emit_u64(state, instr->vec_bytes);
+
+    case A64_SIMD_UZP1:
+        ret = emit_gadget(state, gadget_simd_uzp1);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rd);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rn);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rm);
+        if (ret != A64_GEN_OK)
+            return ret;
+        return emit_u64(state, instr->vec_bytes);
+
+    case A64_SIMD_AND:
+        ret = emit_gadget(state, gadget_simd_and);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rd);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rn);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rm);
+        if (ret != A64_GEN_OK)
+            return ret;
+        return emit_u64(state, instr->vec_bytes);
+
+    case A64_SIMD_ORR:
+        ret = emit_gadget(state, gadget_simd_orr);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rd);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rn);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rm);
+        if (ret != A64_GEN_OK)
+            return ret;
+        return emit_u64(state, instr->vec_bytes);
+
+    case A64_SIMD_EOR:
+        ret = emit_gadget(state, gadget_simd_eor);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rd);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rn);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rm);
+        if (ret != A64_GEN_OK)
+            return ret;
+        return emit_u64(state, instr->vec_bytes);
+
+    case A64_SIMD_ADD:
+        ret = emit_gadget(state, gadget_simd_add);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rd);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rn);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rm);
+        if (ret != A64_GEN_OK)
+            return ret;
+        return emit_u64(state, instr->vec_bytes);
+
     default:
         return A64_GEN_UNSUPPORTED;
     }
@@ -2000,6 +2222,8 @@ int a64_gen_system(a64_gen_state_t *state, const a64_instr_t *instr)
         default:
             return A64_GEN_UNSUPPORTED;
         }
+    case A64_SYSTEM_CLREX:
+        return emit_gadget(state, gadget_clrex);
     case A64_SYSTEM_HINT:
         if (instr->imm == 0) {
             return emit_gadget(state, gadget_nop);
@@ -2032,47 +2256,48 @@ int a64_gen_instruction(a64_gen_state_t *state, uint32_t insn, uint64_t pc)
     state->decoded = decoded;
 
     // Handle system instructions detected by top byte (0xD4 or 0xD5).
-    // The decoder sets cat=A64_BRANCH for these, but they dispatch through
-    // a64_gen_system based on their system subtypes.
+    // The decoder sets cat=A64_BRANCH for these, but they still need the same
+    // post-instruction PC ownership logic as every other non-terminal opcode.
     uint8_t top_byte = (insn >> 24) & 0xFF;
-    if (top_byte == 0xD4 || top_byte == 0xD5) {
-        return a64_gen_system(state, &decoded);
-    }
+    bool is_system_instruction = top_byte == 0xD4 || top_byte == 0xD5;
+    if (is_system_instruction) {
+        ret = a64_gen_system(state, &decoded);
+    } else {
+        // Dispatch by category
+        switch (decoded.cat) {
+        case A64_DP_IMM:
+        case A64_SIMD0: // cat=8 is actually DP_IMM (ADR, ADRP, etc.)
+            ret = a64_gen_dp_imm(state, &decoded);
+            break;
 
-    // Dispatch by category
-    switch (decoded.cat) {
-    case A64_DP_IMM:
-    case A64_SIMD0: // cat=8 is actually DP_IMM (ADR, ADRP, etc.)
-        ret = a64_gen_dp_imm(state, &decoded);
-        break;
+        case A64_DP_IMM2: // cat=13 is DP_REG-style (ADC/SBC, CSEL, CCMP)
+            ret = a64_gen_dp_reg(state, &decoded);
+            break;
 
-    case A64_DP_IMM2: // cat=13 is DP_REG-style (ADC/SBC, CSEL, CCMP)
-        ret = a64_gen_dp_reg(state, &decoded);
-        break;
+        case A64_DP_REG:
+        case A64_DP_REG2:
+        case A64_DP_REG3:
+        case A64_DP_REG4:
+            ret = a64_gen_dp_reg(state, &decoded);
+            break;
 
-    case A64_DP_REG:
-    case A64_DP_REG2:
-    case A64_DP_REG3:
-    case A64_DP_REG4:
-        ret = a64_gen_dp_reg(state, &decoded);
-        break;
+        case A64_BRANCH:
+        case A64_BRANCH2:
+            ret = a64_gen_branch(state, &decoded);
+            break;
 
-    case A64_BRANCH:
-    case A64_BRANCH2:
-        ret = a64_gen_branch(state, &decoded);
-        break;
+        case A64_LD_ST:
+            ret = a64_gen_ldst(state, &decoded);
+            break;
 
-    case A64_LD_ST:
-        ret = a64_gen_ldst(state, &decoded);
-        break;
+        case A64_SIMD:
+        case A64_SIMD2:
+            ret = a64_gen_simd(state, &decoded);
+            break;
 
-    case A64_SIMD:
-    case A64_SIMD2:
-        ret = a64_gen_simd(state, &decoded);
-        break;
-
-    default:
-        ret = A64_GEN_UNSUPPORTED;
+        default:
+            ret = A64_GEN_UNSUPPORTED;
+        }
     }
 
     if (ret == A64_GEN_OK) {
@@ -2081,8 +2306,9 @@ int a64_gen_instruction(a64_gen_state_t *state, uint32_t insn, uint64_t pc)
         // Branch-like instructions terminate block ownership of guest PC and
         // write cpu->pc inside their gadget implementations. Mark as complete
         // so block finalization end_pc does not imply fallthrough sequencing.
-        if ((decoded.cat == A64_BRANCH || decoded.cat == A64_BRANCH2) &&
-            decoded.subtype != A64_EXCEPTION && decoded.subtype != 6) {
+        if (!is_system_instruction && (decoded.cat == A64_BRANCH || decoded.cat == A64_BRANCH2) &&
+            decoded.subtype >= A64_BRANCH_COND && decoded.subtype <= A64_BRANCH_REG &&
+            decoded.subtype != A64_EXCEPTION) {
             state->is_complete = 1;
         }
 

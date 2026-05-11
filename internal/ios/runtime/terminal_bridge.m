@@ -1,10 +1,10 @@
-#import "Sources/IXLandTerminal/Terminal.h"
-#import "Sources/IXLandTerminal/LinuxInterop.h"
+#import "Terminal.h"
+#import "LinuxInterop.h"
 
 #import <ISHInstrumentation.h>
 #import <IXLandLinuxRuntime/fs/devices.h>
 #import <IXLandLinuxRuntime/fs/tty.h>
-#import "internal/ios/fs/pty_host_bridge.h"
+#import "pty_host_bridge.h"
 
 static int terminal_bridge_send_output(nsobj_t terminalObject, const char *data, int size)
 {

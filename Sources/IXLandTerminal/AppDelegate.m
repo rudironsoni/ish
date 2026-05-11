@@ -295,9 +295,6 @@ static BOOL is_ui_testing_session(void) {
         int err = runtime_finish_post_mount_setup();
         if (err < 0)
             return err;
-        err = runtime_finish_post_mount_setup();
-        if (err < 0)
-            return err;
         runtime_configure_dns();
         runtime_install_process_hooks();
         runtime_configure_socket_prefix();
