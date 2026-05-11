@@ -98,20 +98,30 @@ extern bool exit_should_pthread_exit;
     if (current == NULL)
         return NO;
 
-    struct cpu_state *cpu = &current->cpu;
-    XCTAssertNotEqual(cpu->mmu, NULL, @"cpu mmu must exist before guest execution");
-    if (cpu->mmu == NULL)
-        return NO;
+    pid_t_ guestPid = current->pid;
 
     NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:timeout];
     BOOL loggedFirstTurn = NO;
     while ([deadline timeIntervalSinceNow] > 0) {
+        if (predicate())
+            return YES;
+
+        lock(&pids_lock);
+        struct task *task = pid_get_task_zombie(guestPid);
+        unlock(&pids_lock);
+        if (task == NULL)
+            return predicate();
+
+        struct cpu_state *cpu = &task->cpu;
+        if (cpu->mmu == NULL)
+            return predicate();
+
         struct tlb exec_tlb = {};
         tlb_refresh(&exec_tlb, cpu->mmu);
         exit_should_pthread_exit = false;
         if (!loggedFirstTurn) {
             NSLog(@"runtime-test pump first-turn pc=0x%llx pid=%d mmu=%p", cpu->pc,
-                  current ? current->pid : -1, cpu->mmu);
+                  task->pid, cpu->mmu);
             loggedFirstTurn = YES;
         }
         a64_cpu_run_limited(cpu, &exec_tlb, 5000);
@@ -1025,6 +1035,72 @@ extern bool exit_should_pthread_exit;
                                      }];
 
     XCTAssertTrue(exited, @"direct busybox uname -m must exit promptly");
+}
+
+- (void)testDirectBusyboxUnameMachineReachesAndReturnsFromUnameSyscall
+{
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    const char argv[] = "/bin/busybox\0uname\0-m\0\0";
+    const char envp[] =
+        "TERM=xterm-256color\0"
+        "HOME=/root\0"
+        "USER=root\0"
+        "LOGNAME=root\0"
+        "SHELL=/bin/sh\0"
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\0"
+        "\0";
+    if (![self execBusyboxWithArgc:3 argv:argv envp:envp])
+        return;
+
+    BOOL reachedReturn = [self pumpGuestUntilTimeout:10.0
+                                           predicate:^BOOL {
+                                               return guest_execution_trace_sink_uname_syscall_returned() ||
+                                                      guest_execution_trace_sink_exit_observed();
+                                           }];
+
+    XCTAssertTrue(reachedReturn, @"direct busybox uname -m must either return from uname syscall or exit within the timeout");
+    XCTAssertTrue(guest_execution_trace_sink_uname_syscall_entered(),
+                  @"direct busybox uname -m must reach the uname syscall before exiting");
+    XCTAssertTrue(guest_execution_trace_sink_uname_syscall_returned(),
+                  @"direct busybox uname -m must return from the uname syscall before crashing");
+    XCTAssertEqual(guest_execution_trace_sink_uname_syscall_return_value(), 0ULL,
+                   @"direct busybox uname -m must see uname return success");
+}
+
+- (void)testDirectBusyboxUnameMachineWritesAarch64AfterUnameSyscall
+{
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    const char argv[] = "/bin/busybox\0uname\0-m\0\0";
+    const char envp[] =
+        "TERM=xterm-256color\0"
+        "HOME=/root\0"
+        "USER=root\0"
+        "LOGNAME=root\0"
+        "SHELL=/bin/sh\0"
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\0"
+        "\0";
+    if (![self execBusyboxWithArgc:3 argv:argv envp:envp])
+        return;
+
+    BOOL sawAarch64Write = [self pumpGuestUntilTimeout:10.0
+                                             predicate:^BOOL {
+                                                 return guest_execution_trace_sink_stdout_aarch64_write_observed() ||
+                                                        guest_execution_trace_sink_pty_aarch64_write_observed() ||
+                                                        guest_execution_trace_sink_exit_observed();
+                                             }];
+
+    XCTAssertTrue(sawAarch64Write, @"direct busybox uname -m must either emit aarch64 or exit within the timeout");
+    XCTAssertTrue(guest_execution_trace_sink_uname_syscall_returned(),
+                  @"direct busybox uname -m must return from uname before writing output");
+    XCTAssertTrue(guest_execution_trace_sink_stdout_aarch64_write_observed() ||
+                      guest_execution_trace_sink_pty_aarch64_write_observed(),
+                  @"direct busybox uname -m must emit aarch64 through a real guest write path");
 }
 
 @end

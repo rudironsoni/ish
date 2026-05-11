@@ -118,6 +118,11 @@ static uint64_t stdout_prompt_write_count = 0;
 static uint64_t pty_header_write_count = 0;
 static uint64_t pty_metadata_write_count = 0;
 static uint64_t pty_prompt_write_count = 0;
+static bool uname_syscall_entered = false;
+static bool uname_syscall_returned = false;
+static uint64_t uname_syscall_return_value = 0;
+static bool stdout_aarch64_write_observed = false;
+static bool pty_aarch64_write_observed = false;
 
 static size_t compile_pc_slot(uint64_t mmu, uint64_t pc);
 
@@ -787,6 +792,8 @@ static uint64_t test_sink_begin_interval(ixland_instrumentation_origin_t origin,
                 stdout_metadata_write_count++;
             if (strstr(preview, "/ # ") != NULL || strcmp(preview, "/ #") == 0)
                 stdout_prompt_write_count++;
+            if (strstr(preview, "aarch64") != NULL)
+                stdout_aarch64_write_observed = true;
             os_unfair_lock_unlock(&sink_state_lock);
         }
     } else if (strcmp(interval_name, "task.proof.pty.slave.write") == 0) {
@@ -807,6 +814,35 @@ static uint64_t test_sink_begin_interval(ixland_instrumentation_origin_t origin,
                 pty_metadata_write_count++;
             if (strstr(preview, "/ # ") != NULL || strcmp(preview, "/ #") == 0)
                 pty_prompt_write_count++;
+            if (strstr(preview, "aarch64") != NULL)
+                pty_aarch64_write_observed = true;
+            os_unfair_lock_unlock(&sink_state_lock);
+        }
+    } else if (strcmp(interval_name, "guest.syscall.enter") == 0) {
+        for (uint32_t i = 0; i < attr_count; i++) {
+            if (attrs[i].key != NULL && attrs[i].value != NULL &&
+                strcmp(attrs[i].key, "name") == 0 && strcmp(attrs[i].value, "uname") == 0) {
+                os_unfair_lock_lock(&sink_state_lock);
+                uname_syscall_entered = true;
+                os_unfair_lock_unlock(&sink_state_lock);
+                break;
+            }
+        }
+    } else if (strcmp(interval_name, "guest.syscall.return") == 0) {
+        bool is_uname = false;
+        uint64_t ret_value = 0;
+        for (uint32_t i = 0; i < attr_count; i++) {
+            if (attrs[i].key == NULL || attrs[i].value == NULL)
+                continue;
+            if (strcmp(attrs[i].key, "name") == 0 && strcmp(attrs[i].value, "uname") == 0)
+                is_uname = true;
+            else if (strcmp(attrs[i].key, "ret") == 0)
+                ret_value = strtoull(attrs[i].value, NULL, 0);
+        }
+        if (is_uname) {
+            os_unfair_lock_lock(&sink_state_lock);
+            uname_syscall_returned = true;
+            uname_syscall_return_value = ret_value;
             os_unfair_lock_unlock(&sink_state_lock);
         }
     }
@@ -960,6 +996,11 @@ void guest_execution_trace_sink_reset(void)
     pty_header_write_count = 0;
     pty_metadata_write_count = 0;
     pty_prompt_write_count = 0;
+    uname_syscall_entered = false;
+    uname_syscall_returned = false;
+    uname_syscall_return_value = 0;
+    stdout_aarch64_write_observed = false;
+    pty_aarch64_write_observed = false;
     os_unfair_lock_unlock(&sink_state_lock);
 }
 
@@ -1157,6 +1198,46 @@ uint64_t guest_execution_trace_sink_pty_prompt_write_count(void) {
     uint64_t value;
     os_unfair_lock_lock(&sink_state_lock);
     value = pty_prompt_write_count;
+    os_unfair_lock_unlock(&sink_state_lock);
+    return value;
+}
+
+bool guest_execution_trace_sink_uname_syscall_entered(void) {
+    bool value;
+    os_unfair_lock_lock(&sink_state_lock);
+    value = uname_syscall_entered;
+    os_unfair_lock_unlock(&sink_state_lock);
+    return value;
+}
+
+bool guest_execution_trace_sink_uname_syscall_returned(void) {
+    bool value;
+    os_unfair_lock_lock(&sink_state_lock);
+    value = uname_syscall_returned;
+    os_unfair_lock_unlock(&sink_state_lock);
+    return value;
+}
+
+uint64_t guest_execution_trace_sink_uname_syscall_return_value(void) {
+    uint64_t value;
+    os_unfair_lock_lock(&sink_state_lock);
+    value = uname_syscall_return_value;
+    os_unfair_lock_unlock(&sink_state_lock);
+    return value;
+}
+
+bool guest_execution_trace_sink_stdout_aarch64_write_observed(void) {
+    bool value;
+    os_unfair_lock_lock(&sink_state_lock);
+    value = stdout_aarch64_write_observed;
+    os_unfair_lock_unlock(&sink_state_lock);
+    return value;
+}
+
+bool guest_execution_trace_sink_pty_aarch64_write_observed(void) {
+    bool value;
+    os_unfair_lock_lock(&sink_state_lock);
+    value = pty_aarch64_write_observed;
     os_unfair_lock_unlock(&sink_state_lock);
     return value;
 }

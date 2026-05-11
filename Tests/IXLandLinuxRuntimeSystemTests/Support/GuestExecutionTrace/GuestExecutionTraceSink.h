@@ -125,5 +125,10 @@ uint64_t guest_execution_trace_sink_stdout_prompt_write_count(void);
 uint64_t guest_execution_trace_sink_pty_header_write_count(void);
 uint64_t guest_execution_trace_sink_pty_metadata_write_count(void);
 uint64_t guest_execution_trace_sink_pty_prompt_write_count(void);
+bool guest_execution_trace_sink_uname_syscall_entered(void);
+bool guest_execution_trace_sink_uname_syscall_returned(void);
+uint64_t guest_execution_trace_sink_uname_syscall_return_value(void);
+bool guest_execution_trace_sink_stdout_aarch64_write_observed(void);
+bool guest_execution_trace_sink_pty_aarch64_write_observed(void);
 
 #endif // GUEST_EXECUTION_TRACE_SINK_H
