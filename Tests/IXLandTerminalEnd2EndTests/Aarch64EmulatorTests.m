@@ -73,7 +73,8 @@
     [self waitForTerminalReadyWithTimeout:180.0];
     [terminalSurface tap];
     [NSThread sleepForTimeInterval:0.5];
-    [terminalInput typeText:[NSString stringWithFormat:@"%@\n", command]];
+    [terminalInput typeText:command];
+    [terminalInput typeText:@"\n"];
 }
 
 - (NSString *)terminalText {
