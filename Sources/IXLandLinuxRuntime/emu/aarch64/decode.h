@@ -116,6 +116,7 @@ typedef enum {
     A64_SIMD_ORN = 22,           // ORN bitwise OR with inverted vector mask
     A64_SIMD_BSL = 23,           // BSL bitwise select using destination mask
     A64_SIMD_BIT = 24,           // BIT bitwise insert where mask bits are set
+    A64_SIMD_BIF = 25,           // BIF bitwise insert where mask bits are clear
 } a64_simd_subtype_t;
 
 /* Indexing modes for load/store */

@@ -77,6 +77,7 @@ extern tcti_gadget_t gadget_simd_mul;
 extern tcti_gadget_t gadget_simd_orn;
 extern tcti_gadget_t gadget_simd_bsl;
 extern tcti_gadget_t gadget_simd_bit;
+extern tcti_gadget_t gadget_simd_bif;
 extern tcti_gadget_t gadget_fadd;
 extern tcti_gadget_t gadget_simd_ldst;
 extern tcti_gadget_t gadget_atomic_ldst;
@@ -2231,6 +2232,21 @@ static int a64_gen_simd(a64_gen_state_t *state, const a64_instr_t *instr)
 
     case A64_SIMD_BIT:
         ret = emit_gadget(state, gadget_simd_bit);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rd);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rn);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rm);
+        if (ret != A64_GEN_OK)
+            return ret;
+        return emit_u64(state, instr->vec_bytes);
+
+    case A64_SIMD_BIF:
+        ret = emit_gadget(state, gadget_simd_bif);
         if (ret != A64_GEN_OK)
             return ret;
         ret = emit_u64(state, instr->Rd);

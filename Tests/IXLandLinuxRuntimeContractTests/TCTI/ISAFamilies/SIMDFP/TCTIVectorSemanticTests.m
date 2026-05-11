@@ -690,4 +690,46 @@
     }
 }
 
+- (void)testSemanticExecutionContract_BIFInsertsSourceBitsWhereMaskIsClear
+{
+    enum {
+        textPC = 0x98260,
+    };
+
+    static const uint32_t insn = 0x6ee21c20; // bif v0.16b, v1.16b, v2.16b
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+
+    static const uint8_t oldDestination[16] = {
+        0xff, 0x0f, 0xf0, 0xaa, 0x55, 0x3c, 0xc3, 0x5a,
+        0xa5, 0x81, 0x7e, 0x18, 0xe7, 0x42, 0x99, 0x66,
+    };
+    static const uint8_t insertedBits[16] = {
+        0x10, 0x21, 0x32, 0x43, 0x54, 0x65, 0x76, 0x87,
+        0x98, 0xa9, 0xba, 0xcb, 0xdc, 0xed, 0xfe, 0x0f,
+    };
+    static const uint8_t mask[16] = {
+        0xf0, 0xe1, 0xd2, 0xc3, 0xb4, 0xa5, 0x96, 0x78,
+        0x69, 0x5a, 0x4b, 0x3c, 0x2d, 0x1e, 0x0f, 0xf1,
+    };
+    static const uint8_t expected[16] = {
+        0xf0, 0x01, 0xf0, 0x82, 0x54, 0x64, 0xe2, 0xdf,
+        0xb1, 0xa1, 0xfa, 0xdb, 0xf5, 0xe3, 0xf9, 0x6e,
+    };
+
+    memcpy(cpu.vregs[0].b, oldDestination, sizeof(oldDestination));
+    memcpy(cpu.vregs[1].b, insertedBits, sizeof(insertedBits));
+    memcpy(cpu.vregs[2].b, mask, sizeof(mask));
+
+    XCTAssertEqual(a64_cpu_execute_code_block(&cpu, textPC, &insn, 1), 0,
+                   @"BIF must execute through TCTI and insert source bits into the original "
+                    "destination where the mask has zero bits.");
+
+    for (int i = 0; i < 16; i++) {
+        XCTAssertEqual(cpu.vregs[0].b[i], expected[i],
+                       @"BIF v0.16b, v1.16b, v2.16b must publish (old & mask) | (src & ~mask)");
+    }
+}
+
 @end

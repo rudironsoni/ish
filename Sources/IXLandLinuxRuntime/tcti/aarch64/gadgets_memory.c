@@ -555,6 +555,22 @@ __attribute__((used)) static void tcti_simd_bit_helper(struct cpu_state *cpu, ui
     }
 }
 
+__attribute__((used)) static void tcti_simd_bif_helper(struct cpu_state *cpu, uint64_t vd,
+                                                       uint64_t vn, uint64_t vm,
+                                                       uint64_t vec_bytes)
+{
+    if (vd >= 32 || vn >= 32 || vm >= 32 || (vec_bytes != 8 && vec_bytes != 16))
+        return;
+
+    uint8_t old_bytes[16];
+    memcpy(old_bytes, cpu->vregs[vd].b, vec_bytes);
+    for (uint64_t i = 0; i < vec_bytes; i++) {
+        uint8_t mask = cpu->vregs[vm].b[i];
+        cpu->vregs[vd].b[i] = (uint8_t)((old_bytes[i] & mask) |
+                                        (cpu->vregs[vn].b[i] & (uint8_t)~mask));
+    }
+}
+
 __attribute__((used)) static void tcti_simd_eor_helper(struct cpu_state *cpu, uint64_t vd,
                                                        uint64_t vn, uint64_t vm,
                                                        uint64_t vec_bytes)
@@ -5276,6 +5292,41 @@ __attribute__((visibility("default"))) void _tcti_simd_bit_helper(struct cpu_sta
                                                                   uint64_t vec_bytes)
 {
     tcti_simd_bit_helper(cpu, vd, vn, vm, vec_bytes);
+}
+
+__attribute__((naked)) void gadget_simd_bif_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t"
+                 "ldr x20, [x28], #8\n\t"
+                 "ldr x21, [x28], #8\n\t"
+                 "ldr x22, [x28], #8\n\t"
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "str x13, [x29, #112]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "mov x2, x20\n\t"
+                 "mov x3, x21\n\t"
+                 "mov x4, x22\n\t"
+                 "bl _tcti_simd_bif_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
+tcti_gadget_t gadget_simd_bif = gadget_simd_bif_impl;
+
+__attribute__((visibility("default"))) void _tcti_simd_bif_helper(struct cpu_state *cpu,
+                                                                  uint64_t vd, uint64_t vn,
+                                                                  uint64_t vm,
+                                                                  uint64_t vec_bytes)
+{
+    tcti_simd_bif_helper(cpu, vd, vn, vm, vec_bytes);
 }
 
 __attribute__((naked)) void gadget_simd_eor_impl(void)

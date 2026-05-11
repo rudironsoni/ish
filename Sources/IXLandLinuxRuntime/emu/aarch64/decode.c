@@ -409,6 +409,22 @@ static bool a64_decode_simd_bit_representative(uint32_t insn, a64_instr_t *out)
     return true;
 }
 
+static bool a64_decode_simd_bif_representative(uint32_t insn, a64_instr_t *out)
+{
+    if (insn != 0x6ee21c20u)
+        return false;
+
+    out->cat = A64_SIMD2;
+    out->subtype = A64_SIMD_BIF;
+    out->is_vector = true;
+    out->Rd = bits(insn, 4, 0);
+    out->Rn = bits(insn, 9, 5);
+    out->Rm = bits(insn, 20, 16);
+    out->vec_bytes = 16;
+    out->is_64bit = true;
+    return true;
+}
+
 static bool a64_decode_cond_select_family(uint32_t insn, a64_instr_t *out)
 {
     // Conditional select family:
@@ -620,6 +636,9 @@ int a64_decode(uint32_t insn, a64_instr_t *out)
         return 0;
 
     if (a64_decode_simd_bit_representative(insn, out))
+        return 0;
+
+    if (a64_decode_simd_bif_representative(insn, out))
         return 0;
 
     // Check for system instructions first (SVC, HVC, hints, barriers)
