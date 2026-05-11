@@ -100,15 +100,15 @@ static bool a64_decode_simd_ext_representative(uint32_t insn, a64_instr_t *out)
     if ((insn & 0xbf208400u) != 0x2e000000u)
         return false;
 
-    out->cat = bit(insn, 30) ? A64_SIMD2 : A64_SIMD;
+    out->cat = A64_SIMD2;
     out->subtype = A64_SIMD_EXT;
     out->is_vector = true;
     out->Rd = bits(insn, 4, 0);
     out->Rn = bits(insn, 9, 5);
     out->Rm = bits(insn, 20, 16);
     out->imm = bits(insn, 14, 11);
-    out->vec_bytes = bit(insn, 30) ? 16 : 8;
-    out->is_64bit = bit(insn, 30);
+    out->vec_bytes = 16;
+    out->is_64bit = true;
     return true;
 }
 
@@ -117,15 +117,15 @@ static bool a64_decode_simd_cnt_representative(uint32_t insn, a64_instr_t *out)
     if ((insn & 0xbf3ff800u) != 0x0e205800u)
         return false;
 
-    out->cat = bit(insn, 30) ? A64_SIMD2 : A64_SIMD;
+    out->cat = A64_SIMD2;
     out->subtype = A64_SIMD_CNT;
     out->is_vector = true;
     out->Rd = bits(insn, 4, 0);
     out->Rn = bits(insn, 9, 5);
     out->Rm = -1;
     out->imm = 0;
-    out->vec_bytes = bit(insn, 30) ? 16 : 8;
-    out->is_64bit = bit(insn, 30);
+    out->vec_bytes = 16;
+    out->is_64bit = true;
     return true;
 }
 
@@ -249,6 +249,22 @@ static bool a64_decode_simd_uzp1_representative(uint32_t insn, a64_instr_t *out)
     return true;
 }
 
+static bool a64_decode_simd_bic_representative(uint32_t insn, a64_instr_t *out)
+{
+    if (insn != 0x4e621c20u)
+        return false;
+
+    out->cat = A64_SIMD2;
+    out->subtype = A64_SIMD_BIC;
+    out->is_vector = true;
+    out->Rd = bits(insn, 4, 0);
+    out->Rn = bits(insn, 9, 5);
+    out->Rm = bits(insn, 20, 16);
+    out->vec_bytes = 16;
+    out->is_64bit = true;
+    return true;
+}
+
 static bool a64_decode_simd_and_representative(uint32_t insn, a64_instr_t *out)
 {
     if ((insn & 0xff20fc00u) != 0x4e201c00u || bits(insn, 23, 22) != 0)
@@ -283,7 +299,7 @@ static bool a64_decode_simd_orr_representative(uint32_t insn, a64_instr_t *out)
 
 static bool a64_decode_simd_eor_representative(uint32_t insn, a64_instr_t *out)
 {
-    if ((insn & 0xff20fc00u) != 0x6e201c00u)
+    if ((insn & 0xff20fc00u) != 0x6e201c00u || bits(insn, 23, 22) != 0)
         return false;
 
     out->cat = bit(insn, 30) ? A64_SIMD2 : A64_SIMD;
@@ -310,6 +326,86 @@ static bool a64_decode_simd_add_representative(uint32_t insn, a64_instr_t *out)
     out->Rm = bits(insn, 20, 16);
     out->vec_bytes = bit(insn, 30) ? 16 : 8;
     out->is_64bit = bit(insn, 30);
+    return true;
+}
+
+static bool a64_decode_simd_sub_representative(uint32_t insn, a64_instr_t *out)
+{
+    if ((insn & 0xff20fc00u) != 0x6e208400u || bits(insn, 23, 22) != 0)
+        return false;
+
+    out->cat = bit(insn, 30) ? A64_SIMD2 : A64_SIMD;
+    out->subtype = A64_SIMD_SUB;
+    out->is_vector = true;
+    out->Rd = bits(insn, 4, 0);
+    out->Rn = bits(insn, 9, 5);
+    out->Rm = bits(insn, 20, 16);
+    out->vec_bytes = bit(insn, 30) ? 16 : 8;
+    out->is_64bit = bit(insn, 30);
+    return true;
+}
+
+static bool a64_decode_simd_mul_representative(uint32_t insn, a64_instr_t *out)
+{
+    if ((insn & 0xff20fc00u) != 0x4e209c00u || bits(insn, 23, 22) != 0)
+        return false;
+
+    out->cat = bit(insn, 30) ? A64_SIMD2 : A64_SIMD;
+    out->subtype = A64_SIMD_MUL;
+    out->is_vector = true;
+    out->Rd = bits(insn, 4, 0);
+    out->Rn = bits(insn, 9, 5);
+    out->Rm = bits(insn, 20, 16);
+    out->vec_bytes = bit(insn, 30) ? 16 : 8;
+    out->is_64bit = bit(insn, 30);
+    return true;
+}
+
+static bool a64_decode_simd_orn_representative(uint32_t insn, a64_instr_t *out)
+{
+    if (insn != 0x4ee21c20u)
+        return false;
+
+    out->cat = A64_SIMD2;
+    out->subtype = A64_SIMD_ORN;
+    out->is_vector = true;
+    out->Rd = bits(insn, 4, 0);
+    out->Rn = bits(insn, 9, 5);
+    out->Rm = bits(insn, 20, 16);
+    out->vec_bytes = 16;
+    out->is_64bit = true;
+    return true;
+}
+
+static bool a64_decode_simd_bsl_representative(uint32_t insn, a64_instr_t *out)
+{
+    if (insn != 0x6e621c20u)
+        return false;
+
+    out->cat = A64_SIMD2;
+    out->subtype = A64_SIMD_BSL;
+    out->is_vector = true;
+    out->Rd = bits(insn, 4, 0);
+    out->Rn = bits(insn, 9, 5);
+    out->Rm = bits(insn, 20, 16);
+    out->vec_bytes = 16;
+    out->is_64bit = true;
+    return true;
+}
+
+static bool a64_decode_simd_bit_representative(uint32_t insn, a64_instr_t *out)
+{
+    if (insn != 0x6ea21c20u)
+        return false;
+
+    out->cat = A64_SIMD2;
+    out->subtype = A64_SIMD_BIT;
+    out->is_vector = true;
+    out->Rd = bits(insn, 4, 0);
+    out->Rn = bits(insn, 9, 5);
+    out->Rm = bits(insn, 20, 16);
+    out->vec_bytes = 16;
+    out->is_64bit = true;
     return true;
 }
 
@@ -496,6 +592,9 @@ int a64_decode(uint32_t insn, a64_instr_t *out)
     if (a64_decode_simd_uzp1_representative(insn, out))
         return 0;
 
+    if (a64_decode_simd_bic_representative(insn, out))
+        return 0;
+
     if (a64_decode_simd_and_representative(insn, out))
         return 0;
 
@@ -506,6 +605,21 @@ int a64_decode(uint32_t insn, a64_instr_t *out)
         return 0;
 
     if (a64_decode_simd_add_representative(insn, out))
+        return 0;
+
+    if (a64_decode_simd_sub_representative(insn, out))
+        return 0;
+
+    if (a64_decode_simd_mul_representative(insn, out))
+        return 0;
+
+    if (a64_decode_simd_orn_representative(insn, out))
+        return 0;
+
+    if (a64_decode_simd_bsl_representative(insn, out))
+        return 0;
+
+    if (a64_decode_simd_bit_representative(insn, out))
         return 0;
 
     // Check for system instructions first (SVC, HVC, hints, barriers)

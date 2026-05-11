@@ -459,4 +459,235 @@
     }
 }
 
+- (void)testSemanticExecutionContract_SUBComputesPerByteVectorDifferences
+{
+    enum {
+        textPC = 0x981a0,
+    };
+
+    static const uint32_t insn = 0x6e228420; // sub v0.16b, v1.16b, v2.16b
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+
+    static const uint8_t lhs[16] = {
+        0x00, 0x01, 0x7f, 0x80, 0xfe, 0xff, 0x10, 0x20,
+        0x33, 0x44, 0x55, 0x66, 0xaa, 0xbb, 0xcc, 0xdd,
+    };
+    static const uint8_t rhs[16] = {
+        0x00, 0x02, 0x01, 0x80, 0x02, 0x01, 0xf0, 0xe0,
+        0xcd, 0xbc, 0xab, 0x9a, 0x56, 0x45, 0x34, 0x23,
+    };
+    static const uint8_t expected[16] = {
+        0x00, 0xff, 0x7e, 0x00, 0xfc, 0xfe, 0x20, 0x40,
+        0x66, 0x88, 0xaa, 0xcc, 0x54, 0x76, 0x98, 0xba,
+    };
+
+    memcpy(cpu.vregs[1].b, lhs, sizeof(lhs));
+    memcpy(cpu.vregs[2].b, rhs, sizeof(rhs));
+
+    XCTAssertEqual(a64_cpu_execute_code_block(&cpu, textPC, &insn, 1), 0,
+                   @"SUB must execute through TCTI and subtract each byte lane with normal "
+                    "AdvSIMD wraparound semantics.");
+
+    for (int i = 0; i < 16; i++) {
+        XCTAssertEqual(cpu.vregs[0].b[i], expected[i],
+                       @"SUB v0.16b, v1.16b, v2.16b must publish the per-byte wraparound difference");
+    }
+}
+
+- (void)testSemanticExecutionContract_MULComputesPerByteVectorProducts
+{
+    enum {
+        textPC = 0x981c0,
+    };
+
+    static const uint32_t insn = 0x4e259c83; // mul v3.16b, v4.16b, v5.16b
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+
+    static const uint8_t lhs[16] = {
+        0x00, 0x02, 0x03, 0x10, 0xff, 0x80, 0x7f, 0x11,
+        0x12, 0x20, 0x21, 0x33, 0x40, 0x55, 0xaa, 0xf0,
+    };
+    static const uint8_t rhs[16] = {
+        0x05, 0x03, 0x04, 0x10, 0x02, 0x02, 0x03, 0x0f,
+        0x10, 0x08, 0x09, 0x07, 0x04, 0x03, 0x02, 0x10,
+    };
+    static const uint8_t expected[16] = {
+        0x00, 0x06, 0x0c, 0x00, 0xfe, 0x00, 0x7d, 0xff,
+        0x20, 0x00, 0x29, 0x65, 0x00, 0xff, 0x54, 0x00,
+    };
+
+    memcpy(cpu.vregs[4].b, lhs, sizeof(lhs));
+    memcpy(cpu.vregs[5].b, rhs, sizeof(rhs));
+
+    XCTAssertEqual(a64_cpu_execute_code_block(&cpu, textPC, &insn, 1), 0,
+                   @"MUL must execute through TCTI and multiply each byte lane with normal "
+                    "AdvSIMD wraparound semantics.");
+
+    for (int i = 0; i < 16; i++) {
+        XCTAssertEqual(cpu.vregs[3].b[i], expected[i],
+                       @"MUL v3.16b, v4.16b, v5.16b must publish the per-byte wraparound product");
+    }
+}
+
+- (void)testSemanticExecutionContract_BICClearsMaskedBitsPerByte
+{
+    enum {
+        textPC = 0x981e0,
+    };
+
+    static const uint32_t insn = 0x4e621c20; // bic v0.16b, v1.16b, v2.16b
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+
+    static const uint8_t lhs[16] = {
+        0xff, 0x0f, 0xf0, 0xaa, 0x55, 0x3c, 0xc3, 0x5a,
+        0xa5, 0x81, 0x7e, 0x18, 0xe7, 0x42, 0x99, 0x66,
+    };
+    static const uint8_t rhs[16] = {
+        0x00, 0xf0, 0x0f, 0xcc, 0x33, 0x0f, 0x3c, 0xa5,
+        0x5a, 0xff, 0x81, 0x24, 0x18, 0xbd, 0x66, 0x99,
+    };
+    static const uint8_t expected[16] = {
+        0xff, 0x0f, 0xf0, 0x22, 0x44, 0x30, 0xc3, 0x5a,
+        0xa5, 0x00, 0x7e, 0x18, 0xe7, 0x42, 0x99, 0x66,
+    };
+
+    memcpy(cpu.vregs[1].b, lhs, sizeof(lhs));
+    memcpy(cpu.vregs[2].b, rhs, sizeof(rhs));
+
+    XCTAssertEqual(a64_cpu_execute_code_block(&cpu, textPC, &insn, 1), 0,
+                   @"BIC must execute through TCTI and clear source bits selected by the mask "
+                    "vector on each byte lane.");
+
+    for (int i = 0; i < 16; i++) {
+        XCTAssertEqual(cpu.vregs[0].b[i], expected[i],
+                       @"BIC v0.16b, v1.16b, v2.16b must publish lhs & ~rhs for every byte lane");
+    }
+}
+
+- (void)testSemanticExecutionContract_ORNComputesPerByteOrWithInvertedMask
+{
+    enum {
+        textPC = 0x98200,
+    };
+
+    static const uint32_t insn = 0x4ee21c20; // orn v0.16b, v1.16b, v2.16b
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+
+    static const uint8_t lhs[16] = {
+        0xff, 0x0f, 0xf0, 0xaa, 0x55, 0x3c, 0xc3, 0x5a,
+        0xa5, 0x81, 0x7e, 0x18, 0xe7, 0x42, 0x99, 0x66,
+    };
+    static const uint8_t rhs[16] = {
+        0x00, 0xf0, 0x0f, 0xcc, 0x33, 0x0f, 0x3c, 0xa5,
+        0x5a, 0xff, 0x81, 0x24, 0x18, 0xbd, 0x66, 0x99,
+    };
+    static const uint8_t expected[16] = {
+        0xff, 0x0f, 0xf0, 0xbb, 0xdd, 0xfc, 0xc3, 0x5a,
+        0xa5, 0x81, 0x7e, 0xdb, 0xe7, 0x42, 0x99, 0x66,
+    };
+
+    memcpy(cpu.vregs[1].b, lhs, sizeof(lhs));
+    memcpy(cpu.vregs[2].b, rhs, sizeof(rhs));
+
+    XCTAssertEqual(a64_cpu_execute_code_block(&cpu, textPC, &insn, 1), 0,
+                   @"ORN must execute through TCTI and compute lhs | ~rhs on each byte lane.");
+
+    for (int i = 0; i < 16; i++) {
+        XCTAssertEqual(cpu.vregs[0].b[i], expected[i],
+                       @"ORN v0.16b, v1.16b, v2.16b must publish lhs | ~rhs for every byte lane");
+    }
+}
+
+- (void)testSemanticExecutionContract_BSLSelectsBitsUsingDestinationMask
+{
+    enum {
+        textPC = 0x98220,
+    };
+
+    static const uint32_t insn = 0x6e621c20; // bsl v0.16b, v1.16b, v2.16b
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+
+    static const uint8_t mask[16] = {
+        0xff, 0x00, 0xf0, 0x0f, 0xaa, 0x55, 0x81, 0x18,
+        0x3c, 0xc3, 0x5a, 0xa5, 0x7e, 0xe7, 0x24, 0xdb,
+    };
+    static const uint8_t lhs[16] = {
+        0x10, 0x21, 0x32, 0x43, 0x54, 0x65, 0x76, 0x87,
+        0x98, 0xa9, 0xba, 0xcb, 0xdc, 0xed, 0xfe, 0x0f,
+    };
+    static const uint8_t rhs[16] = {
+        0xf0, 0xe1, 0xd2, 0xc3, 0xb4, 0xa5, 0x96, 0x78,
+        0x69, 0x5a, 0x4b, 0x3c, 0x2d, 0x1e, 0x0f, 0xf1,
+    };
+    static const uint8_t expected[16] = {
+        0x10, 0xe1, 0x32, 0xc3, 0x14, 0xe5, 0x16, 0x60,
+        0x59, 0x99, 0x1b, 0x99, 0x5d, 0xfd, 0x2f, 0x2b,
+    };
+
+    memcpy(cpu.vregs[0].b, mask, sizeof(mask));
+    memcpy(cpu.vregs[1].b, lhs, sizeof(lhs));
+    memcpy(cpu.vregs[2].b, rhs, sizeof(rhs));
+
+    XCTAssertEqual(a64_cpu_execute_code_block(&cpu, textPC, &insn, 1), 0,
+                   @"BSL must execute through TCTI and use the original destination register "
+                    "contents as the per-bit selection mask.");
+
+    for (int i = 0; i < 16; i++) {
+        XCTAssertEqual(cpu.vregs[0].b[i], expected[i],
+                       @"BSL v0.16b, v1.16b, v2.16b must publish (mask & lhs) | (~mask & rhs)");
+    }
+}
+
+- (void)testSemanticExecutionContract_BITInsertsSourceBitsWhereMaskIsSet
+{
+    enum {
+        textPC = 0x98240,
+    };
+
+    static const uint32_t insn = 0x6ea21c20; // bit v0.16b, v1.16b, v2.16b
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+
+    static const uint8_t oldDestination[16] = {
+        0xff, 0x0f, 0xf0, 0xaa, 0x55, 0x3c, 0xc3, 0x5a,
+        0xa5, 0x81, 0x7e, 0x18, 0xe7, 0x42, 0x99, 0x66,
+    };
+    static const uint8_t insertedBits[16] = {
+        0x10, 0x21, 0x32, 0x43, 0x54, 0x65, 0x76, 0x87,
+        0x98, 0xa9, 0xba, 0xcb, 0xdc, 0xed, 0xfe, 0x0f,
+    };
+    static const uint8_t mask[16] = {
+        0xf0, 0xe1, 0xd2, 0xc3, 0xb4, 0xa5, 0x96, 0x78,
+        0x69, 0x5a, 0x4b, 0x3c, 0x2d, 0x1e, 0x0f, 0xf1,
+    };
+    static const uint8_t expected[16] = {
+        0x1f, 0x2f, 0x32, 0x6b, 0x55, 0x3d, 0x57, 0x02,
+        0x8c, 0x89, 0x3e, 0x08, 0xce, 0x4c, 0x9e, 0x07,
+    };
+
+    memcpy(cpu.vregs[0].b, oldDestination, sizeof(oldDestination));
+    memcpy(cpu.vregs[1].b, insertedBits, sizeof(insertedBits));
+    memcpy(cpu.vregs[2].b, mask, sizeof(mask));
+
+    XCTAssertEqual(a64_cpu_execute_code_block(&cpu, textPC, &insn, 1), 0,
+                   @"BIT must execute through TCTI and insert source bits into the original "
+                    "destination where the mask has ones.");
+
+    for (int i = 0; i < 16; i++) {
+        XCTAssertEqual(cpu.vregs[0].b[i], expected[i],
+                       @"BIT v0.16b, v1.16b, v2.16b must publish (old & ~mask) | (src & mask)");
+    }
+}
+
 @end

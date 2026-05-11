@@ -106,10 +106,16 @@ typedef enum {
     A64_SIMD_ZIP1 = 12,          // ZIP1 interleave low halves of two vectors
     A64_SIMD_TRN1 = 13,          // TRN1 transpose even lanes from two vectors
     A64_SIMD_UZP1 = 14,          // UZP1 pack even lanes from two vectors
-    A64_SIMD_AND = 15,           // AND bitwise vector logical op
-    A64_SIMD_ORR = 16,           // ORR bitwise vector logical op
-    A64_SIMD_EOR = 17,           // EOR bitwise vector logical op
-    A64_SIMD_ADD = 18,           // ADD per-lane vector arithmetic op
+    A64_SIMD_BIC = 15,           // BIC bit clear vector logical op
+    A64_SIMD_AND = 16,           // AND bitwise vector logical op
+    A64_SIMD_ORR = 17,           // ORR bitwise vector logical op
+    A64_SIMD_EOR = 18,           // EOR bitwise vector logical op
+    A64_SIMD_ADD = 19,           // ADD per-lane vector arithmetic op
+    A64_SIMD_SUB = 20,           // SUB per-lane vector arithmetic op
+    A64_SIMD_MUL = 21,           // MUL per-lane vector arithmetic op
+    A64_SIMD_ORN = 22,           // ORN bitwise OR with inverted vector mask
+    A64_SIMD_BSL = 23,           // BSL bitwise select using destination mask
+    A64_SIMD_BIT = 24,           // BIT bitwise insert where mask bits are set
 } a64_simd_subtype_t;
 
 /* Indexing modes for load/store */
