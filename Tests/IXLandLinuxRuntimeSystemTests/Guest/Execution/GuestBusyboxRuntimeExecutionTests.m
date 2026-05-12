@@ -1747,6 +1747,196 @@ extern bool exit_should_pthread_exit;
                   guest_execution_trace_sink_get_exit_code());
 }
 
+- (void)testInteractiveBusyboxShellPostFirstLongTurnLsStateRemainsRunnable
+{
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    if (![self execInteractiveBusyboxShellAndWaitForPrompt])
+        return;
+
+    const char command[] = "ls\n";
+    if (![self sendInputThroughControllingPseudoMaster:command length:sizeof(command) - 1])
+        return;
+
+    XCTAssertNotEqual(current, NULL, @"current must exist after PTY command injection");
+    if (current == NULL)
+        return;
+
+    pid_t_ guestPid = current->pid;
+    struct cpu_state *cpu = &current->cpu;
+    XCTAssertNotEqual(cpu->mmu, NULL, @"interactive PTY command path must preserve an MMU before first long resumed turn");
+    if (cpu->mmu == NULL)
+        return;
+
+    struct tlb tlb = {};
+    tlb_refresh(&tlb, cpu->mmu);
+    exit_should_pthread_exit = false;
+    a64_cpu_run_limited(cpu, &tlb, 5000);
+
+    lock(&pids_lock);
+    struct task *task = pid_get_task_zombie(guestPid);
+    bool taskMissing = task == NULL;
+    bool taskExiting = task != NULL && task->exiting;
+    bool taskMissingSighand = task != NULL && task->sighand == NULL;
+    uint64_t pendingMask = task != NULL ? task->pending : 0;
+    unlock(&pids_lock);
+
+    XCTAssertFalse(taskMissing,
+                   @"the guest task must still be present in the pid table after the first long ls turn");
+    XCTAssertFalse(taskExiting,
+                   @"the guest task must still be runnable after the first long ls turn; "
+                    @"exit_observed=%d exit_code=%d pending=0x%llx",
+                   guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                   guest_execution_trace_sink_get_exit_code(),
+                   (unsigned long long)pendingMask);
+    XCTAssertFalse(taskMissingSighand,
+                   @"the guest task must still own a live sighand after the first long ls turn; "
+                    @"exit_observed=%d exit_code=%d pending=0x%llx",
+                   guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                   guest_execution_trace_sink_get_exit_code(),
+                   (unsigned long long)pendingMask);
+}
+
+- (void)testInteractiveBusyboxShellSecondLongTurnStartBlockAfterPlainLsFetchesDecodesAndCompiles
+{
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    if (![self execInteractiveBusyboxShellAndWaitForPrompt])
+        return;
+
+    const char command[] = "ls\n";
+    if (![self sendInputThroughControllingPseudoMaster:command length:sizeof(command) - 1])
+        return;
+
+    XCTAssertNotEqual(current, NULL, @"current must exist after PTY command injection");
+    if (current == NULL)
+        return;
+
+    struct cpu_state *cpu = &current->cpu;
+    XCTAssertNotEqual(cpu->mmu, NULL, @"interactive PTY command path must preserve an MMU before long resumed turns");
+    if (cpu->mmu == NULL)
+        return;
+
+    struct tlb firstTurnTlb = {};
+    tlb_refresh(&firstTurnTlb, cpu->mmu);
+    exit_should_pthread_exit = false;
+    a64_cpu_run_limited(cpu, &firstTurnTlb, 5000);
+
+    struct tlb secondTurnTlb = {};
+    tlb_refresh(&secondTurnTlb, cpu->mmu);
+
+    uint32_t raw = 0;
+    XCTAssertEqual(a64_fetch_insn(cpu, &secondTurnTlb, cpu->pc, &raw), 0,
+                   @"the second long-turn start after interactive ls must fetch a real instruction; pc=0x%llx",
+                   (unsigned long long)cpu->pc);
+
+    a64_instr_t decoded = { 0 };
+    XCTAssertEqual(a64_decode(raw, &decoded), 0,
+                   @"the second long-turn start after interactive ls must decode before execution "
+                    @"proof can advance; pc=0x%llx raw=0x%08x",
+                   (unsigned long long)cpu->pc, raw);
+    NSLog(@"runtime-test second-long-turn-start pc=0x%llx raw=0x%08x cat=%d subtype=%d",
+          (unsigned long long)cpu->pc, raw, decoded.cat, decoded.subtype);
+
+    struct a64_block *block = a64_compile_block(cpu, cpu->pc, &secondTurnTlb);
+    XCTAssertNotEqual(block, NULL,
+                      @"the second long-turn start after interactive ls must compile through "
+                       @"TCTI; pc=0x%llx raw=0x%08x cat=%d subtype=%d",
+                      (unsigned long long)cpu->pc, raw, decoded.cat, decoded.subtype);
+    if (block != NULL) {
+        XCTAssertGreaterThan(block->num_gadgets, (size_t)0,
+                             @"the second long-turn start after interactive ls must emit at least one gadget");
+    }
+}
+
+- (void)testInteractiveBusyboxShellFirstStepOfSecondLongTurnAfterPlainLsDoesNotHostCrash
+{
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    if (![self execInteractiveBusyboxShellAndWaitForPrompt])
+        return;
+
+    const char command[] = "ls\n";
+    if (![self sendInputThroughControllingPseudoMaster:command length:sizeof(command) - 1])
+        return;
+
+    XCTAssertNotEqual(current, NULL, @"current must exist after PTY command injection");
+    if (current == NULL)
+        return;
+
+    struct cpu_state *cpu = &current->cpu;
+    XCTAssertNotEqual(cpu->mmu, NULL, @"interactive PTY command path must preserve an MMU before the second long-turn step");
+    if (cpu->mmu == NULL)
+        return;
+
+    struct tlb firstTurnTlb = {};
+    tlb_refresh(&firstTurnTlb, cpu->mmu);
+    exit_should_pthread_exit = false;
+    a64_cpu_run_limited(cpu, &firstTurnTlb, 5000);
+
+    uint64_t secondTurnStartPc = cpu->pc;
+    struct tlb secondTurnTlb = {};
+    tlb_refresh(&secondTurnTlb, cpu->mmu);
+    exit_should_pthread_exit = false;
+    a64_cpu_run_limited(cpu, &secondTurnTlb, 1);
+
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed() || cpu->pc != secondTurnStartPc,
+                  @"the first step of the second long-turn after interactive ls must either advance guest "
+                   @"control flow or report a guest exit instead of crashing the host; "
+                   @"start_pc=0x%llx end_pc=0x%llx exit_observed=%d exit_code=%d",
+                  (unsigned long long)secondTurnStartPc, (unsigned long long)cpu->pc,
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code());
+}
+
+- (void)testInteractiveBusyboxShellSecondShortTurnAfterPlainLsDoesNotHostCrash
+{
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    if (![self execInteractiveBusyboxShellAndWaitForPrompt])
+        return;
+
+    const char command[] = "ls\n";
+    if (![self sendInputThroughControllingPseudoMaster:command length:sizeof(command) - 1])
+        return;
+
+    XCTAssertNotEqual(current, NULL, @"current must exist after PTY command injection");
+    if (current == NULL)
+        return;
+
+    struct cpu_state *cpu = &current->cpu;
+    XCTAssertNotEqual(cpu->mmu, NULL, @"interactive PTY command path must preserve an MMU before the second short resumed turn");
+    if (cpu->mmu == NULL)
+        return;
+
+    struct tlb firstTurnTlb = {};
+    tlb_refresh(&firstTurnTlb, cpu->mmu);
+    exit_should_pthread_exit = false;
+    a64_cpu_run_limited(cpu, &firstTurnTlb, 5000);
+
+    uint64_t secondTurnStartPc = cpu->pc;
+    struct tlb secondTurnTlb = {};
+    tlb_refresh(&secondTurnTlb, cpu->mmu);
+    exit_should_pthread_exit = false;
+    a64_cpu_run_limited(cpu, &secondTurnTlb, 256);
+
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed() || cpu->pc != secondTurnStartPc,
+                  @"a bounded second resumed turn after interactive ls must either advance guest control "
+                   @"flow or report a guest exit instead of crashing the host; start_pc=0x%llx end_pc=0x%llx "
+                   @"exit_observed=%d exit_code=%d",
+                  (unsigned long long)secondTurnStartPc, (unsigned long long)cpu->pc,
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code());
+}
+
 - (void)testInteractiveBusyboxShellPlainLsReturnsToPromptWithoutGuestSignalTermination
 {
     [self configureFocusedTraceLevel];
