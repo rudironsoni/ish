@@ -143,7 +143,9 @@ struct rowcol {
         // Also set accessibilityFrame (screen coordinates) so XCUI snapshots
         // and queries can find the element reliably. Only do this when running
         // under XCTest to avoid affecting non-test behavior.
-        BOOL isTesting = NSProcessInfo.processInfo.environment[@"XCTestConfigurationFilePath"] != nil;
+        NSDictionary *environment = NSProcessInfo.processInfo.environment;
+        BOOL isTesting = environment[@"XCTestConfigurationFilePath"] != nil
+            || environment[@"IXLAND_UI_TESTING"] != nil;
         if (isTesting) {
             CGRect frameInScreen = CGRectZero;
             if (self.window != nil) {
@@ -255,7 +257,9 @@ struct rowcol {
     }
     if (self.terminalAccessibilityElement) {
         self.terminalAccessibilityElement.accessibilityFrameInContainerSpace = self.bounds;
-        BOOL isTesting = NSProcessInfo.processInfo.environment[@"XCTestConfigurationFilePath"] != nil;
+        NSDictionary *environment = NSProcessInfo.processInfo.environment;
+        BOOL isTesting = environment[@"XCTestConfigurationFilePath"] != nil
+            || environment[@"IXLAND_UI_TESTING"] != nil;
         if (isTesting) {
             if (self.window != nil) {
                 CGRect frameInScreen = [self.window convertRect:[self convertRect:self.bounds toView:self.window] toCoordinateSpace:UIScreen.mainScreen.coordinateSpace];

@@ -66,6 +66,18 @@ extern tcti_gadget_t gadget_simd_mls;
     XCTAssertEqual((uint64_t)(uintptr_t)gadgets[3], (uint64_t)_bytes);                            \
 }
 
+#define TCTI_DECLARE_SIMD_ZERO_COMPARE_CARRIER_TEST(_name, _insn, _pc, _gadget, _rd, _rn, _bytes) \
+- (void)testRegisterCarrierSurface_##_name                                                          \
+{                                                                                                   \
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];                                               \
+    a64_gen_state_t state;                                                                          \
+    [self generateInstruction:_insn atPC:_pc state:&state gadgets:gadgets];                        \
+    XCTAssertEqual(gadgets[0], _gadget);                                                            \
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[1], (uint64_t)_rd);                                \
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[2], (uint64_t)_rn);                                \
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[3], (uint64_t)_bytes);                             \
+}
+
 @implementation TCTISIMDAndSpecialRegisterCarrierSurfaceTests
 
 - (void)generateInstruction:(uint32_t)insn
@@ -190,10 +202,10 @@ TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDCMHILoweringCarriesRdRnRmAndWidth, 0x6
                                       gadget_simd_cmhi, 0, 1, 2, 16)
 TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDCMHSLoweringCarriesRdRnRmAndWidth, 0x6e223c20, 0xb0057,
                                       gadget_simd_cmhs, 0, 1, 2, 16)
-TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDCMLELoweringCarriesRdRnRmAndWidth, 0x6e209820, 0xb0058,
-                                      gadget_simd_cmle, 0, 1, 0, 16)
-TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDCMLTLoweringCarriesRdRnRmAndWidth, 0x4e20a820, 0xb0059,
-                                      gadget_simd_cmlt, 0, 1, 0, 16)
+TCTI_DECLARE_SIMD_ZERO_COMPARE_CARRIER_TEST(SIMDCMLELoweringCarriesRdRnAndWidth, 0x6e209820,
+                                            0xb0058, gadget_simd_cmle, 0, 1, 16)
+TCTI_DECLARE_SIMD_ZERO_COMPARE_CARRIER_TEST(SIMDCMLTLoweringCarriesRdRnAndWidth, 0x4e20a820,
+                                            0xb0059, gadget_simd_cmlt, 0, 1, 16)
 TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDCMTSTLoweringCarriesRdRnRmAndWidth, 0x4e228c20, 0xb005a,
                                       gadget_simd_cmtst, 0, 1, 2, 16)
 TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDMLALoweringCarriesRdRnRmAndWidth, 0x4e229420, 0xb005b,

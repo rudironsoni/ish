@@ -2456,9 +2456,6 @@ static int a64_gen_simd(a64_gen_state_t *state, const a64_instr_t *instr)
         ret = emit_u64(state, instr->Rn);
         if (ret != A64_GEN_OK)
             return ret;
-        ret = emit_u64(state, instr->Rm);
-        if (ret != A64_GEN_OK)
-            return ret;
         return emit_u64(state, instr->vec_bytes);
 
     case A64_SIMD_CMLT:
@@ -2469,9 +2466,6 @@ static int a64_gen_simd(a64_gen_state_t *state, const a64_instr_t *instr)
         if (ret != A64_GEN_OK)
             return ret;
         ret = emit_u64(state, instr->Rn);
-        if (ret != A64_GEN_OK)
-            return ret;
-        ret = emit_u64(state, instr->Rm);
         if (ret != A64_GEN_OK)
             return ret;
         return emit_u64(state, instr->vec_bytes);

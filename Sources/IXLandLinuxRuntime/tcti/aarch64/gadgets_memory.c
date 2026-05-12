@@ -6233,7 +6233,6 @@ __attribute__((naked)) void gadget_simd_cmle_impl(void)
     asm volatile("ldr x19, [x28], #8\n\t"
                  "ldr x20, [x28], #8\n\t"
                  "ldr x21, [x28], #8\n\t"
-                 "ldr x22, [x28], #8\n\t"
                  "stp x1, x2, [x29, #16]\n\t"
                  "stp x3, x4, [x29, #32]\n\t"
                  "stp x5, x6, [x29, #48]\n\t"
@@ -6246,7 +6245,6 @@ __attribute__((naked)) void gadget_simd_cmle_impl(void)
                  "mov x1, x19\n\t"
                  "mov x2, x20\n\t"
                  "mov x3, x21\n\t"
-                 "mov x4, x22\n\t"
                  "bl _tcti_simd_cmle_helper\n\t"
                  "bl _tcti_c_call_epilogue\n\t"
                  "ldr x27, [x28], #8\n\t"
@@ -6257,10 +6255,8 @@ tcti_gadget_t gadget_simd_cmle = gadget_simd_cmle_impl;
 
 __attribute__((visibility("default"))) void _tcti_simd_cmle_helper(struct cpu_state *cpu,
                                                                    uint64_t vd, uint64_t vn,
-                                                                   uint64_t vm,
                                                                    uint64_t vec_bytes)
 {
-    (void)vm;
     tcti_simd_cmle_helper(cpu, vd, vn, vec_bytes);
 }
 
@@ -6269,7 +6265,6 @@ __attribute__((naked)) void gadget_simd_cmlt_impl(void)
     asm volatile("ldr x19, [x28], #8\n\t"
                  "ldr x20, [x28], #8\n\t"
                  "ldr x21, [x28], #8\n\t"
-                 "ldr x22, [x28], #8\n\t"
                  "stp x1, x2, [x29, #16]\n\t"
                  "stp x3, x4, [x29, #32]\n\t"
                  "stp x5, x6, [x29, #48]\n\t"
@@ -6282,7 +6277,6 @@ __attribute__((naked)) void gadget_simd_cmlt_impl(void)
                  "mov x1, x19\n\t"
                  "mov x2, x20\n\t"
                  "mov x3, x21\n\t"
-                 "mov x4, x22\n\t"
                  "bl _tcti_simd_cmlt_helper\n\t"
                  "bl _tcti_c_call_epilogue\n\t"
                  "ldr x27, [x28], #8\n\t"
@@ -6293,10 +6287,8 @@ tcti_gadget_t gadget_simd_cmlt = gadget_simd_cmlt_impl;
 
 __attribute__((visibility("default"))) void _tcti_simd_cmlt_helper(struct cpu_state *cpu,
                                                                    uint64_t vd, uint64_t vn,
-                                                                   uint64_t vm,
                                                                    uint64_t vec_bytes)
 {
-    (void)vm;
     tcti_simd_cmlt_helper(cpu, vd, vn, vec_bytes);
 }
 

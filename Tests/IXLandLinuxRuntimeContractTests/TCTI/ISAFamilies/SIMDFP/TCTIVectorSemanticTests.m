@@ -1,9 +1,19 @@
 #import <XCTest/XCTest.h>
 
 #import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
+#import <IXLandLinuxRuntime/emu/aarch64/block-cache.h>
+#import <IXLandLinuxRuntime/tcti/gadgets_tcti.h>
 
 #include "../../Support/ISAFamilies/BaseScalar/tcti_scalar_runtime_semantic_scenarios.h"
 #include "../../Support/ISAFamilies/BaseScalar/tcti_control_and_flags_semantic_scenarios.h"
+
+extern tcti_gadget_t gadget_simd_cmle;
+extern tcti_gadget_t gadget_simd_cmlt;
+extern tcti_gadget_t gadget_exit;
+extern void _tcti_simd_cmle_helper(struct cpu_state *cpu, uint64_t vd, uint64_t vn,
+                                   uint64_t vec_bytes);
+extern void _tcti_simd_cmlt_helper(struct cpu_state *cpu, uint64_t vd, uint64_t vn,
+                                   uint64_t vec_bytes);
 
 @interface TCTIVectorSemanticTests : XCTestCase
 @end
@@ -52,6 +62,65 @@
     for (int i = 0; i < 16; i++) {
         XCTAssertEqual(cpu.vregs[destReg].b[i], expected[i],
                        @"%s must publish the architectural byte-lane mask", mnemonic);
+    }
+}
+
+- (void)assertDirectVectorMaskAgainstZeroGadget:(tcti_gadget_t)gadget
+                                        destReg:(int)destReg
+                                         srcReg:(int)srcReg
+                                            src:(const uint8_t[16])src
+                                       expected:(const uint8_t[16])expected
+                                       mnemonic:(const char *)mnemonic
+{
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    memcpy(cpu.vregs[srcReg].b, src, 16);
+
+    tcti_gadget_t bytecode[] = {
+        gadget,
+        (tcti_gadget_t)(uintptr_t)destReg,
+        (tcti_gadget_t)(uintptr_t)srcReg,
+        (tcti_gadget_t)(uintptr_t)16,
+        gadget_exit,
+    };
+
+    struct a64_block block = {
+        .start_pc = 0x98000,
+        .end_pc = 0x98004,
+        .num_gadgets = sizeof(bytecode) / sizeof(bytecode[0]),
+        .explicit_pc_on_exit = false,
+        .gadgets = bytecode,
+    };
+
+    XCTAssertEqual(a64_execute_block(&cpu, &block), 0,
+                   @"%s direct gadget block must execute through the TCTI runtime entry path",
+                   mnemonic);
+
+    for (int i = 0; i < 16; i++) {
+        XCTAssertEqual(cpu.vregs[destReg].b[i], expected[i],
+                       @"%s direct gadget block must publish the architectural byte-lane mask",
+                       mnemonic);
+    }
+}
+
+- (void)assertDirectVectorMaskAgainstZeroCHelper:(void (*)(struct cpu_state *, uint64_t, uint64_t,
+                                                           uint64_t))helper
+                                         destReg:(int)destReg
+                                          srcReg:(int)srcReg
+                                             src:(const uint8_t[16])src
+                                        expected:(const uint8_t[16])expected
+                                        mnemonic:(const char *)mnemonic
+{
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    memcpy(cpu.vregs[srcReg].b, src, 16);
+
+    helper(&cpu, (uint64_t)destReg, (uint64_t)srcReg, 16);
+
+    for (int i = 0; i < 16; i++) {
+        XCTAssertEqual(cpu.vregs[destReg].b[i], expected[i],
+                       @"%s direct C helper must publish the architectural byte-lane mask",
+                       mnemonic);
     }
 }
 
@@ -1073,6 +1142,43 @@
                                         mnemonic:"cmle v0.16b, v1.16b, #0"];
 }
 
+- (void)testSemanticExecutionContract_CMLEDirectGadgetPublishesSignedLessOrEqualZeroMask
+{
+    static const uint8_t src[16] = {
+        0x00, 0x01, 0xff, 0x80, 0x7f, 0xfe, 0x02, 0xfd,
+        0x10, 0xf0, 0x20, 0xe0, 0x30, 0xd0, 0x40, 0xc0,
+    };
+    static const uint8_t expected[16] = {
+        0xff, 0x00, 0xff, 0xff, 0x00, 0xff, 0x00, 0xff,
+        0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff,
+    };
+    [self assertDirectVectorMaskAgainstZeroGadget:gadget_simd_cmle
+                                          destReg:0
+                                           srcReg:1
+                                              src:src
+                                         expected:expected
+                                         mnemonic:"cmle direct gadget"];
+}
+
+- (void)testSemanticExecutionContract_CMLEDirectCHelperPublishesSignedLessOrEqualZeroMask
+{
+    static const uint8_t source[16] = {
+        0x00, 0xff, 0x01, 0x80, 0x7f, 0xfe, 0x02, 0x81,
+        0x05, 0x00, 0xfb, 0x7e, 0x01, 0x80, 0xff, 0x40,
+    };
+    static const uint8_t expected[16] = {
+        0xff, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff,
+        0x00, 0xff, 0xff, 0x00, 0x00, 0xff, 0xff, 0x00,
+    };
+
+    [self assertDirectVectorMaskAgainstZeroCHelper:_tcti_simd_cmle_helper
+                                           destReg:0
+                                            srcReg:1
+                                               src:source
+                                          expected:expected
+                                          mnemonic:"cmle direct helper"];
+}
+
 - (void)testSemanticExecutionContract_CMLTPublishesSignedLessThanZeroMask
 {
     static const uint8_t src[16] = {
@@ -1090,6 +1196,43 @@
                                              src:src
                                         expected:expected
                                         mnemonic:"cmlt v0.16b, v1.16b, #0"];
+}
+
+- (void)testSemanticExecutionContract_CMLTDirectGadgetPublishesSignedLessThanZeroMask
+{
+    static const uint8_t src[16] = {
+        0x00, 0x01, 0xff, 0x80, 0x7f, 0xfe, 0x02, 0xfd,
+        0x10, 0xf0, 0x20, 0xe0, 0x30, 0xd0, 0x40, 0xc0,
+    };
+    static const uint8_t expected[16] = {
+        0x00, 0x00, 0xff, 0xff, 0x00, 0xff, 0x00, 0xff,
+        0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff,
+    };
+    [self assertDirectVectorMaskAgainstZeroGadget:gadget_simd_cmlt
+                                          destReg:0
+                                           srcReg:1
+                                              src:src
+                                         expected:expected
+                                         mnemonic:"cmlt direct gadget"];
+}
+
+- (void)testSemanticExecutionContract_CMLTDirectCHelperPublishesSignedLessThanZeroMask
+{
+    static const uint8_t source[16] = {
+        0x00, 0xff, 0x01, 0x80, 0x7f, 0xfe, 0x02, 0x81,
+        0x05, 0x00, 0xfb, 0x7e, 0x01, 0x80, 0xff, 0x40,
+    };
+    static const uint8_t expected[16] = {
+        0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff,
+        0x00, 0x00, 0xff, 0x00, 0x00, 0xff, 0xff, 0x00,
+    };
+
+    [self assertDirectVectorMaskAgainstZeroCHelper:_tcti_simd_cmlt_helper
+                                           destReg:0
+                                            srcReg:1
+                                               src:source
+                                          expected:expected
+                                          mnemonic:"cmlt direct helper"];
 }
 
 - (void)testSemanticExecutionContract_CMTSTPublishesNonzeroBitIntersectionMask
