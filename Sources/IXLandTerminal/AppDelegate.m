@@ -436,6 +436,19 @@ void NetworkReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkReach
 
 - (void)exitApp {
     self.exiting = YES;
+    for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+        if (![scene isKindOfClass:[UIWindowScene class]])
+            continue;
+        UIWindowScene *windowScene = (UIWindowScene *) scene;
+        for (UIWindow *window in windowScene.windows) {
+            UIViewController *rootViewController = window.rootViewController;
+            if ([rootViewController isKindOfClass:TerminalViewController.class]) {
+                [(TerminalViewController *) rootViewController prepareForSceneDeactivation];
+            } else {
+                [window endEditing:NO];
+            }
+        }
+    }
     id app = [UIApplication sharedApplication];
     [app suspend];
 }

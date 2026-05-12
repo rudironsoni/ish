@@ -187,32 +187,37 @@ static bool a64_decode_vector_compare_representative(uint32_t insn, a64_instr_t 
 {
     switch (insn) {
     case 0x4e223c20: // cmge v0.16b, v1.16b, v2.16b
+        out->subtype = A64_SIMD_CMGE;
+        break;
     case 0x6e223420: // cmhi v0.16b, v1.16b, v2.16b
+        out->subtype = A64_SIMD_CMHI;
+        break;
     case 0x6e223c20: // cmhs v0.16b, v1.16b, v2.16b
+        out->subtype = A64_SIMD_CMHS;
+        break;
     case 0x4e228c20: // cmtst v0.16b, v1.16b, v2.16b
-        out->cat = A64_SIMD2;
-        out->subtype = (insn == 0x4e228c20u) ? A64_SIMD_CMEQ : A64_SIMD_CMGT;
-        out->is_vector = true;
-        out->Rd = bits(insn, 4, 0);
-        out->Rn = bits(insn, 9, 5);
-        out->Rm = bits(insn, 20, 16);
-        out->vec_bytes = 16;
-        out->is_64bit = true;
-        return true;
+        out->subtype = A64_SIMD_CMTST;
+        break;
     case 0x6e209820: // cmle v0.16b, v1.16b, #0
+        out->subtype = A64_SIMD_CMLE;
+        break;
     case 0x4e20a820: // cmlt v0.16b, v1.16b, #0
-        out->cat = A64_SIMD2;
-        out->subtype = A64_SIMD_CMGT;
-        out->is_vector = true;
-        out->Rd = bits(insn, 4, 0);
-        out->Rn = bits(insn, 9, 5);
-        out->Rm = 0;
-        out->vec_bytes = 16;
-        out->is_64bit = true;
-        return true;
+        out->subtype = A64_SIMD_CMLT;
+        break;
     default:
         return false;
     }
+
+    out->cat = A64_SIMD2;
+    out->is_vector = true;
+    out->Rd = bits(insn, 4, 0);
+    out->Rn = bits(insn, 9, 5);
+    out->Rm = bits(insn, 20, 16);
+    out->vec_bytes = 16;
+    out->is_64bit = true;
+    if (insn == 0x6e209820u || insn == 0x4e20a820u)
+        out->Rm = 0;
+    return true;
 }
 
 static bool a64_decode_rev_representative(uint32_t insn, a64_instr_t *out)

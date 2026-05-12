@@ -515,6 +515,12 @@ static void trace_stdio_wiring_checkpoint(struct task *task) {
     [self requestTerminalFocusIfPossible];
 }
 
+- (void)prepareForSceneDeactivation {
+    self.pendingTerminalFocusRequest = NO;
+    [self.termView resignFirstResponder];
+    [self.view endEditing:NO];
+}
+
 - (void)startNewSession {
     BOOL isRestartPath = (self.lastExitedAttemptSequence != 0);
     [self recordSessionAttemptEvent:@"session.start.requested" extra:@{ @"is_restart_path": @(isRestartPath) }];

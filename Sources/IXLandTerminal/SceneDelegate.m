@@ -114,6 +114,7 @@ static BOOL is_non_ui_xctest_session(void) {
 
 - (void)sceneWillResignActive:(UIScene *)scene {
     TerminalViewController *terminalViewController = (TerminalViewController *) self.window.rootViewController;
+    [terminalViewController prepareForSceneDeactivation];
     clear_active_presenter(terminalViewController);
 }
 

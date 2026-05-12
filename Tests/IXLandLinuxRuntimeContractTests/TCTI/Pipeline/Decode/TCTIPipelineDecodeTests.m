@@ -401,6 +401,72 @@ TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BCLEZeroOffsetCarriesConditionCode, 0x54000
     XCTAssertEqual(decoded.vec_bytes, 16);
 }
 
+- (void)testDecodeContract_CMGEClassifiesAsSignedVectorGreaterOrEqualOperation
+{
+    a64_instr_t decoded = [self decodeInstruction:0x4e223c20];
+    XCTAssertEqual(decoded.cat, A64_SIMD2);
+    XCTAssertEqual(decoded.subtype, A64_SIMD_CMGE);
+    XCTAssertEqual(decoded.Rd, 0);
+    XCTAssertEqual(decoded.Rn, 1);
+    XCTAssertEqual(decoded.Rm, 2);
+    XCTAssertEqual(decoded.vec_bytes, 16);
+}
+
+- (void)testDecodeContract_CMHIClassifiesAsUnsignedVectorGreaterThanOperation
+{
+    a64_instr_t decoded = [self decodeInstruction:0x6e223420];
+    XCTAssertEqual(decoded.cat, A64_SIMD2);
+    XCTAssertEqual(decoded.subtype, A64_SIMD_CMHI);
+    XCTAssertEqual(decoded.Rd, 0);
+    XCTAssertEqual(decoded.Rn, 1);
+    XCTAssertEqual(decoded.Rm, 2);
+    XCTAssertEqual(decoded.vec_bytes, 16);
+}
+
+- (void)testDecodeContract_CMHSClassifiesAsUnsignedVectorGreaterOrEqualOperation
+{
+    a64_instr_t decoded = [self decodeInstruction:0x6e223c20];
+    XCTAssertEqual(decoded.cat, A64_SIMD2);
+    XCTAssertEqual(decoded.subtype, A64_SIMD_CMHS);
+    XCTAssertEqual(decoded.Rd, 0);
+    XCTAssertEqual(decoded.Rn, 1);
+    XCTAssertEqual(decoded.Rm, 2);
+    XCTAssertEqual(decoded.vec_bytes, 16);
+}
+
+- (void)testDecodeContract_CMLEClassifiesAsSignedVectorLessOrEqualZeroOperation
+{
+    a64_instr_t decoded = [self decodeInstruction:0x6e209820];
+    XCTAssertEqual(decoded.cat, A64_SIMD2);
+    XCTAssertEqual(decoded.subtype, A64_SIMD_CMLE);
+    XCTAssertEqual(decoded.Rd, 0);
+    XCTAssertEqual(decoded.Rn, 1);
+    XCTAssertEqual(decoded.Rm, 0);
+    XCTAssertEqual(decoded.vec_bytes, 16);
+}
+
+- (void)testDecodeContract_CMLTClassifiesAsSignedVectorLessThanZeroOperation
+{
+    a64_instr_t decoded = [self decodeInstruction:0x4e20a820];
+    XCTAssertEqual(decoded.cat, A64_SIMD2);
+    XCTAssertEqual(decoded.subtype, A64_SIMD_CMLT);
+    XCTAssertEqual(decoded.Rd, 0);
+    XCTAssertEqual(decoded.Rn, 1);
+    XCTAssertEqual(decoded.Rm, 0);
+    XCTAssertEqual(decoded.vec_bytes, 16);
+}
+
+- (void)testDecodeContract_CMTSTClassifiesAsBitIntersectionMaskOperation
+{
+    a64_instr_t decoded = [self decodeInstruction:0x4e228c20];
+    XCTAssertEqual(decoded.cat, A64_SIMD2);
+    XCTAssertEqual(decoded.subtype, A64_SIMD_CMTST);
+    XCTAssertEqual(decoded.Rd, 0);
+    XCTAssertEqual(decoded.Rn, 1);
+    XCTAssertEqual(decoded.Rm, 2);
+    XCTAssertEqual(decoded.vec_bytes, 16);
+}
+
 - (void)testDecodeContract_MLAClassifiesAsVectorAccumulateOperation
 {
     uint32_t mlaV6V7V8 = 0x4e2894e6;

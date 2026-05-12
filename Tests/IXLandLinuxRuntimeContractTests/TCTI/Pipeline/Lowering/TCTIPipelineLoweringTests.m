@@ -29,6 +29,12 @@ extern tcti_gadget_t gadget_simd_bif;
 extern tcti_gadget_t gadget_simd_ext;
 extern tcti_gadget_t gadget_simd_cnt;
 extern tcti_gadget_t gadget_simd_ins_gpr;
+extern tcti_gadget_t gadget_simd_cmge;
+extern tcti_gadget_t gadget_simd_cmhi;
+extern tcti_gadget_t gadget_simd_cmhs;
+extern tcti_gadget_t gadget_simd_cmle;
+extern tcti_gadget_t gadget_simd_cmlt;
+extern tcti_gadget_t gadget_simd_cmtst;
 extern void gadget_br_impl(void);
 extern void gadget_ccmp_fallback_impl(void);
 
@@ -1234,6 +1240,114 @@ TCTI_DECLARE_COND_BRANCH_LOWERING_TEST(BCLEZeroOffsetLowersThroughNativeTCTICond
     a64_gen_reset(&state, 0x981a0);
 
     XCTAssertEqual(a64_gen_instruction(&state, cmgtV3V4V5, 0x981a0), A64_GEN_OK);
+    XCTAssertGreaterThan(state.num_gadgets, (size_t)0);
+    XCTAssertFalse(state.is_complete);
+}
+
+- (void)testLoweringContract_CMGELowersThroughSignedVectorGreaterOrEqualGadget
+{
+    uint32_t insn = 0x4e223c20;
+    a64_instr_t decoded;
+    XCTAssertEqual(a64_decode(insn, &decoded), 0);
+    XCTAssertEqual(decoded.subtype, A64_SIMD_CMGE);
+
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
+    a64_gen_state_t state;
+    XCTAssertEqual(a64_gen_init(&state, gadgets, A64_MAX_GADGETS_PER_BLOCK), A64_GEN_OK);
+    a64_gen_reset(&state, 0x981b0);
+
+    XCTAssertEqual(a64_gen_instruction(&state, insn, 0x981b0), A64_GEN_OK);
+    XCTAssertEqual(gadgets[0], gadget_simd_cmge);
+    XCTAssertGreaterThan(state.num_gadgets, (size_t)0);
+    XCTAssertFalse(state.is_complete);
+}
+
+- (void)testLoweringContract_CMHILowersThroughUnsignedVectorGreaterThanGadget
+{
+    uint32_t insn = 0x6e223420;
+    a64_instr_t decoded;
+    XCTAssertEqual(a64_decode(insn, &decoded), 0);
+    XCTAssertEqual(decoded.subtype, A64_SIMD_CMHI);
+
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
+    a64_gen_state_t state;
+    XCTAssertEqual(a64_gen_init(&state, gadgets, A64_MAX_GADGETS_PER_BLOCK), A64_GEN_OK);
+    a64_gen_reset(&state, 0x981c0);
+
+    XCTAssertEqual(a64_gen_instruction(&state, insn, 0x981c0), A64_GEN_OK);
+    XCTAssertEqual(gadgets[0], gadget_simd_cmhi);
+    XCTAssertGreaterThan(state.num_gadgets, (size_t)0);
+    XCTAssertFalse(state.is_complete);
+}
+
+- (void)testLoweringContract_CMHSLowersThroughUnsignedVectorGreaterOrEqualGadget
+{
+    uint32_t insn = 0x6e223c20;
+    a64_instr_t decoded;
+    XCTAssertEqual(a64_decode(insn, &decoded), 0);
+    XCTAssertEqual(decoded.subtype, A64_SIMD_CMHS);
+
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
+    a64_gen_state_t state;
+    XCTAssertEqual(a64_gen_init(&state, gadgets, A64_MAX_GADGETS_PER_BLOCK), A64_GEN_OK);
+    a64_gen_reset(&state, 0x981d0);
+
+    XCTAssertEqual(a64_gen_instruction(&state, insn, 0x981d0), A64_GEN_OK);
+    XCTAssertEqual(gadgets[0], gadget_simd_cmhs);
+    XCTAssertGreaterThan(state.num_gadgets, (size_t)0);
+    XCTAssertFalse(state.is_complete);
+}
+
+- (void)testLoweringContract_CMLELowersThroughSignedVectorLessOrEqualZeroGadget
+{
+    uint32_t insn = 0x6e209820;
+    a64_instr_t decoded;
+    XCTAssertEqual(a64_decode(insn, &decoded), 0);
+    XCTAssertEqual(decoded.subtype, A64_SIMD_CMLE);
+
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
+    a64_gen_state_t state;
+    XCTAssertEqual(a64_gen_init(&state, gadgets, A64_MAX_GADGETS_PER_BLOCK), A64_GEN_OK);
+    a64_gen_reset(&state, 0x981e0);
+
+    XCTAssertEqual(a64_gen_instruction(&state, insn, 0x981e0), A64_GEN_OK);
+    XCTAssertEqual(gadgets[0], gadget_simd_cmle);
+    XCTAssertGreaterThan(state.num_gadgets, (size_t)0);
+    XCTAssertFalse(state.is_complete);
+}
+
+- (void)testLoweringContract_CMLTLowersThroughSignedVectorLessThanZeroGadget
+{
+    uint32_t insn = 0x4e20a820;
+    a64_instr_t decoded;
+    XCTAssertEqual(a64_decode(insn, &decoded), 0);
+    XCTAssertEqual(decoded.subtype, A64_SIMD_CMLT);
+
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
+    a64_gen_state_t state;
+    XCTAssertEqual(a64_gen_init(&state, gadgets, A64_MAX_GADGETS_PER_BLOCK), A64_GEN_OK);
+    a64_gen_reset(&state, 0x981f0);
+
+    XCTAssertEqual(a64_gen_instruction(&state, insn, 0x981f0), A64_GEN_OK);
+    XCTAssertEqual(gadgets[0], gadget_simd_cmlt);
+    XCTAssertGreaterThan(state.num_gadgets, (size_t)0);
+    XCTAssertFalse(state.is_complete);
+}
+
+- (void)testLoweringContract_CMTSTLowersThroughBitIntersectionMaskGadget
+{
+    uint32_t insn = 0x4e228c20;
+    a64_instr_t decoded;
+    XCTAssertEqual(a64_decode(insn, &decoded), 0);
+    XCTAssertEqual(decoded.subtype, A64_SIMD_CMTST);
+
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
+    a64_gen_state_t state;
+    XCTAssertEqual(a64_gen_init(&state, gadgets, A64_MAX_GADGETS_PER_BLOCK), A64_GEN_OK);
+    a64_gen_reset(&state, 0x98200);
+
+    XCTAssertEqual(a64_gen_instruction(&state, insn, 0x98200), A64_GEN_OK);
+    XCTAssertEqual(gadgets[0], gadget_simd_cmtst);
     XCTAssertGreaterThan(state.num_gadgets, (size_t)0);
     XCTAssertFalse(state.is_complete);
 }

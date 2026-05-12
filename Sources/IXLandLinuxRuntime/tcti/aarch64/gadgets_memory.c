@@ -701,6 +701,89 @@ __attribute__((used)) static void tcti_simd_cmgt_helper(struct cpu_state *cpu, u
     }
 }
 
+__attribute__((used)) static void tcti_simd_cmge_helper(struct cpu_state *cpu, uint64_t vd,
+                                                        uint64_t vn, uint64_t vm,
+                                                        uint64_t vec_bytes)
+{
+    trace_tcti_family_hit("SIMDFP/VectorIntegerLogical", "CMGE", cpu ? cpu->pc : 0);
+    if (vd >= 32 || vn >= 32 || vm >= 32 || (vec_bytes != 8 && vec_bytes != 16))
+        return;
+
+    for (uint64_t i = 0; i < vec_bytes; i++) {
+        int8_t lhs = (int8_t)cpu->vregs[vn].b[i];
+        int8_t rhs = (int8_t)cpu->vregs[vm].b[i];
+        cpu->vregs[vd].b[i] = lhs >= rhs ? 0xff : 0x00;
+    }
+}
+
+__attribute__((used)) static void tcti_simd_cmhi_helper(struct cpu_state *cpu, uint64_t vd,
+                                                        uint64_t vn, uint64_t vm,
+                                                        uint64_t vec_bytes)
+{
+    trace_tcti_family_hit("SIMDFP/VectorIntegerLogical", "CMHI", cpu ? cpu->pc : 0);
+    if (vd >= 32 || vn >= 32 || vm >= 32 || (vec_bytes != 8 && vec_bytes != 16))
+        return;
+
+    for (uint64_t i = 0; i < vec_bytes; i++) {
+        uint8_t lhs = cpu->vregs[vn].b[i];
+        uint8_t rhs = cpu->vregs[vm].b[i];
+        cpu->vregs[vd].b[i] = lhs > rhs ? 0xff : 0x00;
+    }
+}
+
+__attribute__((used)) static void tcti_simd_cmhs_helper(struct cpu_state *cpu, uint64_t vd,
+                                                        uint64_t vn, uint64_t vm,
+                                                        uint64_t vec_bytes)
+{
+    trace_tcti_family_hit("SIMDFP/VectorIntegerLogical", "CMHS", cpu ? cpu->pc : 0);
+    if (vd >= 32 || vn >= 32 || vm >= 32 || (vec_bytes != 8 && vec_bytes != 16))
+        return;
+
+    for (uint64_t i = 0; i < vec_bytes; i++) {
+        uint8_t lhs = cpu->vregs[vn].b[i];
+        uint8_t rhs = cpu->vregs[vm].b[i];
+        cpu->vregs[vd].b[i] = lhs >= rhs ? 0xff : 0x00;
+    }
+}
+
+__attribute__((used)) static void tcti_simd_cmle_helper(struct cpu_state *cpu, uint64_t vd,
+                                                        uint64_t vn, uint64_t vec_bytes)
+{
+    trace_tcti_family_hit("SIMDFP/VectorIntegerLogical", "CMLE", cpu ? cpu->pc : 0);
+    if (vd >= 32 || vn >= 32 || (vec_bytes != 8 && vec_bytes != 16))
+        return;
+
+    for (uint64_t i = 0; i < vec_bytes; i++) {
+        int8_t value = (int8_t)cpu->vregs[vn].b[i];
+        cpu->vregs[vd].b[i] = value <= 0 ? 0xff : 0x00;
+    }
+}
+
+__attribute__((used)) static void tcti_simd_cmlt_helper(struct cpu_state *cpu, uint64_t vd,
+                                                        uint64_t vn, uint64_t vec_bytes)
+{
+    trace_tcti_family_hit("SIMDFP/VectorIntegerLogical", "CMLT", cpu ? cpu->pc : 0);
+    if (vd >= 32 || vn >= 32 || (vec_bytes != 8 && vec_bytes != 16))
+        return;
+
+    for (uint64_t i = 0; i < vec_bytes; i++) {
+        int8_t value = (int8_t)cpu->vregs[vn].b[i];
+        cpu->vregs[vd].b[i] = value < 0 ? 0xff : 0x00;
+    }
+}
+
+__attribute__((used)) static void tcti_simd_cmtst_helper(struct cpu_state *cpu, uint64_t vd,
+                                                         uint64_t vn, uint64_t vm,
+                                                         uint64_t vec_bytes)
+{
+    trace_tcti_family_hit("SIMDFP/VectorIntegerLogical", "CMTST", cpu ? cpu->pc : 0);
+    if (vd >= 32 || vn >= 32 || vm >= 32 || (vec_bytes != 8 && vec_bytes != 16))
+        return;
+
+    for (uint64_t i = 0; i < vec_bytes; i++)
+        cpu->vregs[vd].b[i] = (cpu->vregs[vn].b[i] & cpu->vregs[vm].b[i]) != 0 ? 0xff : 0x00;
+}
+
 __attribute__((used)) static void tcti_simd_mla_helper(struct cpu_state *cpu, uint64_t vd,
                                                        uint64_t vn, uint64_t vm,
                                                        uint64_t vec_bytes)
@@ -6005,6 +6088,111 @@ __attribute__((visibility("default"))) void _tcti_simd_cmeq_helper(struct cpu_st
     tcti_simd_cmeq_helper(cpu, vd, vn, vm, vec_bytes);
 }
 
+__attribute__((naked)) void gadget_simd_cmge_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t"
+                 "ldr x20, [x28], #8\n\t"
+                 "ldr x21, [x28], #8\n\t"
+                 "ldr x22, [x28], #8\n\t"
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "str x13, [x29, #112]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "mov x2, x20\n\t"
+                 "mov x3, x21\n\t"
+                 "mov x4, x22\n\t"
+                 "bl _tcti_simd_cmge_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
+tcti_gadget_t gadget_simd_cmge = gadget_simd_cmge_impl;
+
+__attribute__((visibility("default"))) void _tcti_simd_cmge_helper(struct cpu_state *cpu,
+                                                                   uint64_t vd, uint64_t vn,
+                                                                   uint64_t vm,
+                                                                   uint64_t vec_bytes)
+{
+    tcti_simd_cmge_helper(cpu, vd, vn, vm, vec_bytes);
+}
+
+__attribute__((naked)) void gadget_simd_cmhi_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t"
+                 "ldr x20, [x28], #8\n\t"
+                 "ldr x21, [x28], #8\n\t"
+                 "ldr x22, [x28], #8\n\t"
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "str x13, [x29, #112]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "mov x2, x20\n\t"
+                 "mov x3, x21\n\t"
+                 "mov x4, x22\n\t"
+                 "bl _tcti_simd_cmhi_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
+tcti_gadget_t gadget_simd_cmhi = gadget_simd_cmhi_impl;
+
+__attribute__((visibility("default"))) void _tcti_simd_cmhi_helper(struct cpu_state *cpu,
+                                                                   uint64_t vd, uint64_t vn,
+                                                                   uint64_t vm,
+                                                                   uint64_t vec_bytes)
+{
+    tcti_simd_cmhi_helper(cpu, vd, vn, vm, vec_bytes);
+}
+
+__attribute__((naked)) void gadget_simd_cmhs_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t"
+                 "ldr x20, [x28], #8\n\t"
+                 "ldr x21, [x28], #8\n\t"
+                 "ldr x22, [x28], #8\n\t"
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "str x13, [x29, #112]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "mov x2, x20\n\t"
+                 "mov x3, x21\n\t"
+                 "mov x4, x22\n\t"
+                 "bl _tcti_simd_cmhs_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
+tcti_gadget_t gadget_simd_cmhs = gadget_simd_cmhs_impl;
+
+__attribute__((visibility("default"))) void _tcti_simd_cmhs_helper(struct cpu_state *cpu,
+                                                                   uint64_t vd, uint64_t vn,
+                                                                   uint64_t vm,
+                                                                   uint64_t vec_bytes)
+{
+    tcti_simd_cmhs_helper(cpu, vd, vn, vm, vec_bytes);
+}
+
 __attribute__((naked)) void gadget_simd_cmgt_impl(void)
 {
     asm volatile("ldr x19, [x28], #8\n\t"
@@ -6038,6 +6226,113 @@ __attribute__((visibility("default"))) void _tcti_simd_cmgt_helper(struct cpu_st
                                                                    uint64_t vec_bytes)
 {
     tcti_simd_cmgt_helper(cpu, vd, vn, vm, vec_bytes);
+}
+
+__attribute__((naked)) void gadget_simd_cmle_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t"
+                 "ldr x20, [x28], #8\n\t"
+                 "ldr x21, [x28], #8\n\t"
+                 "ldr x22, [x28], #8\n\t"
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "str x13, [x29, #112]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "mov x2, x20\n\t"
+                 "mov x3, x21\n\t"
+                 "mov x4, x22\n\t"
+                 "bl _tcti_simd_cmle_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
+tcti_gadget_t gadget_simd_cmle = gadget_simd_cmle_impl;
+
+__attribute__((visibility("default"))) void _tcti_simd_cmle_helper(struct cpu_state *cpu,
+                                                                   uint64_t vd, uint64_t vn,
+                                                                   uint64_t vm,
+                                                                   uint64_t vec_bytes)
+{
+    (void)vm;
+    tcti_simd_cmle_helper(cpu, vd, vn, vec_bytes);
+}
+
+__attribute__((naked)) void gadget_simd_cmlt_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t"
+                 "ldr x20, [x28], #8\n\t"
+                 "ldr x21, [x28], #8\n\t"
+                 "ldr x22, [x28], #8\n\t"
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "str x13, [x29, #112]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "mov x2, x20\n\t"
+                 "mov x3, x21\n\t"
+                 "mov x4, x22\n\t"
+                 "bl _tcti_simd_cmlt_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
+tcti_gadget_t gadget_simd_cmlt = gadget_simd_cmlt_impl;
+
+__attribute__((visibility("default"))) void _tcti_simd_cmlt_helper(struct cpu_state *cpu,
+                                                                   uint64_t vd, uint64_t vn,
+                                                                   uint64_t vm,
+                                                                   uint64_t vec_bytes)
+{
+    (void)vm;
+    tcti_simd_cmlt_helper(cpu, vd, vn, vec_bytes);
+}
+
+__attribute__((naked)) void gadget_simd_cmtst_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t"
+                 "ldr x20, [x28], #8\n\t"
+                 "ldr x21, [x28], #8\n\t"
+                 "ldr x22, [x28], #8\n\t"
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "str x13, [x29, #112]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "mov x2, x20\n\t"
+                 "mov x3, x21\n\t"
+                 "mov x4, x22\n\t"
+                 "bl _tcti_simd_cmtst_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
+tcti_gadget_t gadget_simd_cmtst = gadget_simd_cmtst_impl;
+
+__attribute__((visibility("default"))) void _tcti_simd_cmtst_helper(struct cpu_state *cpu,
+                                                                    uint64_t vd, uint64_t vn,
+                                                                    uint64_t vm,
+                                                                    uint64_t vec_bytes)
+{
+    tcti_simd_cmtst_helper(cpu, vd, vn, vm, vec_bytes);
 }
 
 __attribute__((naked)) void gadget_simd_mla_impl(void)
