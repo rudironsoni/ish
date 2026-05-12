@@ -302,9 +302,10 @@ static inline a64_category_t a64_get_category(uint32_t insn) {
     // Load/store exclusive and ordered atomic forms use top-level bits 28:25
     // that otherwise look like data-processing register. Classify them as
     // load/store before the generic category fallback.
-    if (((insn >> 24) & 0x3F) == 0x08) {
+    uint32_t atomic_class = (insn >> 24) & 0x3F;
+    if (atomic_class == 0x08 || atomic_class == 0x38) {
         uint32_t op3 = (insn >> 12) & 0xF;
-        if (op3 == 0xE || op3 == 0xF || ((insn >> 21) & 1))
+        if (op3 == 0x7 || op3 == 0xE || op3 == 0xF || ((insn >> 21) & 1))
             return A64_LD_ST;
     }
 

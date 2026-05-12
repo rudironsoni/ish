@@ -98,6 +98,38 @@ extern void gadget_br_impl(void);
 #define MEM_REG_INDEX(r)       ((r) - TCTI_MEM_REG_BASE)
 #define VALID_MEM_REG_INDEX(i) ((i) >= 0 && (i) < TCTI_MEM_REG_COUNT)
 
+static bool a64_is_explicitly_unsupported_tagging_representative(uint32_t insn)
+{
+    switch (insn) {
+    case 0xf83fd020: // ld64b x0, [x1]
+    case 0xf83f9062: // st64b x2, [x3]
+    case 0xd9e000a4: // ldgm x4, [x5]
+    case 0xd92008e6: // stg x6, [x7, #0x20]
+    case 0xd9a00128: // stgm x8, [x9]
+    case 0xd960096a: // stzg x10, [x11, #0x20]
+    case 0xd92001ac: // stzgm x12, [x13]
+    case 0xd9a009ee: // st2g x14, [x15, #0x20]
+    case 0xd9e00a30: // stz2g x16, [x17, #0x20]
+        return true;
+    default:
+        return false;
+    }
+}
+
+static uint64_t a64_atomic_emit_is_load(const a64_instr_t *instr)
+{
+    uint32_t raw = instr->raw;
+    uint32_t op4 = bits(raw, 11, 10);
+
+    if (instr->is_pair)
+        return bit(raw, 22);
+    if (bits(raw, 15, 12) == 0xC && bit(raw, 21))
+        return 1; // LDAPR*
+    if (op4 == 3 && !bit(raw, 21))
+        return bit(raw, 22); // LDAR/STLR/LDAXR/STLXR/LDXR/STXR
+    return 0; // CAS* and atomic RMW families are not pure loads
+}
+
 // Initialization
 int a64_gen_init(a64_gen_state_t *state, tcti_gadget_t *buffer, size_t max)
 {
@@ -1778,25 +1810,32 @@ int a64_gen_ldst(a64_gen_state_t *state, const a64_instr_t *instr)
     }
 
     if (instr->subtype == A64_LDST_ATOMIC) {
+        uint64_t is_load = a64_atomic_emit_is_load(instr);
+        uint64_t rt_payload = instr->Rd;
+        uint64_t rs_payload = instr->Rm;
+        if (instr->is_pair && !is_load) {
+            rt_payload = bits(instr->raw, 20, 16);
+            rs_payload = bits(instr->raw, 14, 10);
+        }
         int ret = emit_gadget(state, gadget_atomic_ldst);
         if (ret != A64_GEN_OK)
             return ret;
         ret = emit_u64(state, state->guest_pc);
         if (ret != A64_GEN_OK)
             return ret;
-        ret = emit_u64(state, instr->Rd);
+        ret = emit_u64(state, rt_payload);
         if (ret != A64_GEN_OK)
             return ret;
         ret = emit_u64(state, instr->Rn);
         if (ret != A64_GEN_OK)
             return ret;
-        ret = emit_u64(state, instr->Rm);
+        ret = emit_u64(state, rs_payload);
         if (ret != A64_GEN_OK)
             return ret;
         ret = emit_u64(state, instr->size);
         if (ret != A64_GEN_OK)
             return ret;
-        return emit_u64(state, bit(instr->raw, 22));
+        return emit_u64(state, is_load);
     }
 
     if (instr->subtype == A64_LDST_LITERAL) {
@@ -2426,6 +2465,8 @@ int a64_gen_instruction(a64_gen_state_t *state, uint32_t insn, uint64_t pc)
 
     if (ret < 0)
         return A64_GEN_INVALID_INSN;
+    if (a64_is_explicitly_unsupported_tagging_representative(insn))
+        return A64_GEN_UNSUPPORTED;
 
     state->guest_pc = pc;
     state->raw_insn = insn;

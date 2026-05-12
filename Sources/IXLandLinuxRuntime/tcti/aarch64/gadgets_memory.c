@@ -1006,11 +1006,45 @@ static int tcti_atomic_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uin
     (void)a64_fetch_insn(cpu, cpu->tlb, fault_pc, &raw_opcode);
     int ret = A64_MEM_FAULT;
     int atomic_kind = bits(raw_opcode, 23, 22);
-    bool is_compare_swap = bit(raw_opcode, 21);
-    bool is_ordered_load = is_load && !is_compare_swap && atomic_kind == 3;
+    int op3 = bits(raw_opcode, 15, 12);
+    int op4 = bits(raw_opcode, 11, 10);
+    bool is_pair = op4 == 1 || op4 == 2;
+    bool is_compare_swap = bit(raw_opcode, 21) && op4 == 3;
+    bool is_rmw = bit(raw_opcode, 21) && op4 == 0 && op3 <= 8;
+    bool is_ordered_load = is_load && !is_pair && op3 == 0xC;
     bool is_ordered_store = !is_load && !is_compare_swap && atomic_kind == 2 && rs == 31;
 
-    if (is_compare_swap) {
+    if (is_pair) {
+        if (size != A64_SIZE_W) {
+            ret = A64_MEM_FAULT;
+        } else if (is_load) {
+            uint32_t first = 0;
+            uint32_t second = 0;
+            ret = a64_guest_read32(cpu, cpu->tlb, addr, &first);
+            if (ret == A64_MEM_OK)
+                ret = a64_guest_read32(cpu, cpu->tlb, addr + 4, &second);
+            if (ret == A64_MEM_OK) {
+                a64_set_exclusive(cpu, addr, 8);
+                tcti_write_reg_or_zr(cpu, bits(raw_opcode, 4, 0), first, 0);
+                tcti_write_reg_or_zr(cpu, bits(raw_opcode, 14, 10), second, 0);
+            }
+        } else {
+            uint32_t first = (uint32_t)tcti_read_reg_or_zr(cpu, bits(raw_opcode, 4, 0));
+            uint32_t second = (uint32_t)tcti_read_reg_or_zr(cpu, bits(raw_opcode, 14, 10));
+            int status_reg = bits(raw_opcode, 20, 16);
+            int success = a64_check_exclusive(cpu, addr, 8);
+            ret = A64_MEM_OK;
+            if (success) {
+                ret = a64_guest_write32(cpu, cpu->tlb, addr, first);
+                if (ret == A64_MEM_OK)
+                    ret = a64_guest_write32(cpu, cpu->tlb, addr + 4, second);
+                if (ret == A64_MEM_OK)
+                    a64_clear_exclusive(cpu);
+            }
+            if (ret == A64_MEM_OK)
+                tcti_write_reg_or_zr(cpu, status_reg, success ? 0 : 1, 0);
+        }
+    } else if (is_compare_swap) {
         uint64_t compare_value = tcti_read_reg_or_zr(cpu, (int)rs);
         uint64_t swap_value = tcti_read_reg_or_zr(cpu, (int)rt);
         uint64_t old_value = 0;
@@ -1126,6 +1160,120 @@ static int tcti_atomic_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uin
         }
         trace_tcti_atomic_access(cpu, fault_pc, raw_opcode, rt, rn, rs, size, is_load, addr, value,
                                  ret, -1);
+    } else if (is_rmw) {
+        uint64_t source_value = tcti_read_reg_or_zr(cpu, (int)rs);
+        uint64_t old_value = 0;
+        uint64_t new_value = 0;
+        uint8_t width = 0;
+
+        switch (size) {
+        case A64_SIZE_B: {
+            uint8_t tmp = 0;
+            ret = a64_guest_read8(cpu, cpu->tlb, addr, &tmp);
+            old_value = tmp;
+            width = 1;
+            if (ret == A64_MEM_OK) {
+                uint8_t old8 = (uint8_t)old_value;
+                uint8_t src8 = (uint8_t)source_value;
+                switch (op3) {
+                case 0x0: new_value = (uint8_t)(old8 + src8); break;
+                case 0x1: new_value = (uint8_t)(old8 & (uint8_t)~src8); break;
+                case 0x2: new_value = (uint8_t)(old8 ^ src8); break;
+                case 0x3: new_value = (uint8_t)(old8 | src8); break;
+                case 0x4: new_value = (int8_t)old8 > (int8_t)src8 ? old8 : src8; break;
+                case 0x5: new_value = (int8_t)old8 < (int8_t)src8 ? old8 : src8; break;
+                case 0x6: new_value = old8 > src8 ? old8 : src8; break;
+                case 0x7: new_value = old8 < src8 ? old8 : src8; break;
+                case 0x8: new_value = src8; break;
+                default: ret = A64_MEM_FAULT; break;
+                }
+                if (ret == A64_MEM_OK)
+                    ret = a64_guest_write8(cpu, cpu->tlb, addr, (uint8_t)new_value);
+            }
+            break;
+        }
+        case A64_SIZE_H: {
+            uint16_t tmp = 0;
+            ret = a64_guest_read16(cpu, cpu->tlb, addr, &tmp);
+            old_value = tmp;
+            width = 2;
+            if (ret == A64_MEM_OK) {
+                uint16_t old16 = (uint16_t)old_value;
+                uint16_t src16 = (uint16_t)source_value;
+                switch (op3) {
+                case 0x0: new_value = (uint16_t)(old16 + src16); break;
+                case 0x1: new_value = (uint16_t)(old16 & (uint16_t)~src16); break;
+                case 0x2: new_value = (uint16_t)(old16 ^ src16); break;
+                case 0x3: new_value = (uint16_t)(old16 | src16); break;
+                case 0x4: new_value = (int16_t)old16 > (int16_t)src16 ? old16 : src16; break;
+                case 0x5: new_value = (int16_t)old16 < (int16_t)src16 ? old16 : src16; break;
+                case 0x6: new_value = old16 > src16 ? old16 : src16; break;
+                case 0x7: new_value = old16 < src16 ? old16 : src16; break;
+                case 0x8: new_value = src16; break;
+                default: ret = A64_MEM_FAULT; break;
+                }
+                if (ret == A64_MEM_OK)
+                    ret = a64_guest_write16(cpu, cpu->tlb, addr, (uint16_t)new_value);
+            }
+            break;
+        }
+        case A64_SIZE_W: {
+            uint32_t tmp = 0;
+            ret = a64_guest_read32(cpu, cpu->tlb, addr, &tmp);
+            old_value = tmp;
+            width = 4;
+            if (ret == A64_MEM_OK) {
+                uint32_t old32 = (uint32_t)old_value;
+                uint32_t src32 = (uint32_t)source_value;
+                switch (op3) {
+                case 0x0: new_value = (uint32_t)(old32 + src32); break;
+                case 0x1: new_value = (uint32_t)(old32 & ~src32); break;
+                case 0x2: new_value = (uint32_t)(old32 ^ src32); break;
+                case 0x3: new_value = (uint32_t)(old32 | src32); break;
+                case 0x4: new_value = (int32_t)old32 > (int32_t)src32 ? old32 : src32; break;
+                case 0x5: new_value = (int32_t)old32 < (int32_t)src32 ? old32 : src32; break;
+                case 0x6: new_value = old32 > src32 ? old32 : src32; break;
+                case 0x7: new_value = old32 < src32 ? old32 : src32; break;
+                case 0x8: new_value = src32; break;
+                default: ret = A64_MEM_FAULT; break;
+                }
+                if (ret == A64_MEM_OK)
+                    ret = a64_guest_write32(cpu, cpu->tlb, addr, (uint32_t)new_value);
+            }
+            break;
+        }
+        case A64_SIZE_X:
+            ret = a64_guest_read64(cpu, cpu->tlb, addr, &old_value);
+            width = 8;
+            if (ret == A64_MEM_OK) {
+                switch (op3) {
+                case 0x0: new_value = old_value + source_value; break;
+                case 0x1: new_value = old_value & ~source_value; break;
+                case 0x2: new_value = old_value ^ source_value; break;
+                case 0x3: new_value = old_value | source_value; break;
+                case 0x4: new_value = (int64_t)old_value > (int64_t)source_value ? old_value : source_value; break;
+                case 0x5: new_value = (int64_t)old_value < (int64_t)source_value ? old_value : source_value; break;
+                case 0x6: new_value = old_value > source_value ? old_value : source_value; break;
+                case 0x7: new_value = old_value < source_value ? old_value : source_value; break;
+                case 0x8: new_value = source_value; break;
+                default: ret = A64_MEM_FAULT; break;
+                }
+                if (ret == A64_MEM_OK)
+                    ret = a64_guest_write64(cpu, cpu->tlb, addr, new_value);
+            }
+            break;
+        default:
+            ret = A64_MEM_FAULT;
+            break;
+        }
+
+        if (ret == A64_MEM_OK) {
+            tcti_write_reg_or_zr(cpu, (int)rt, old_value, size == A64_SIZE_X);
+            tcti_trace_record_mem_access(cpu, fault_pc, 0, addr, new_value, addr, 0, width, 0,
+                                         (int)rt, (int)rn, (int)rs, A64_INDEX_OFFSET);
+        }
+        trace_tcti_atomic_access(cpu, fault_pc, raw_opcode, rt, rn, rs, size, is_load, addr,
+                                 ret == A64_MEM_OK ? new_value : old_value, ret, -1);
     } else {
         uint64_t value = tcti_read_reg_or_zr(cpu, (int)rt);
         uint8_t width = 0;

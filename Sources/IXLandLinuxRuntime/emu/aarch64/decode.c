@@ -1318,7 +1318,24 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out)
     // Exclusive and ordered atomic load/store forms occupy the same broad load/store
     // space as the imm9 single-register forms. Decode them first so LDAXR/STLXR do
     // not corrupt guest state by falling through as pre-indexed LDR/STR.
-    if (bits(insn, 29, 24) == 0x08 && (op3 == 0xE || op3 == 0xF || bit(insn, 21))) {
+    int atomic_class = bits(insn, 29, 24);
+    if ((atomic_class == 0x08 || atomic_class == 0x38) && bit(insn, 21) &&
+        (op4 == 1 || op4 == 2)) {
+        out->Rd = bits(insn, 4, 0);
+        out->Rn = bits(insn, 9, 5);
+        out->Rm = bits(insn, 14, 10);
+        out->Ra = bits(insn, 20, 16);
+        out->imm = 0;
+        out->is_pair = true;
+        out->is_signed = false;
+        out->is_64bit = op0 == A64_SIZE_X;
+        out->subtype = A64_LDST_ATOMIC;
+        out->idx_mode = A64_INDEX_OFFSET;
+        return 0;
+    }
+
+    if ((atomic_class == 0x08 || atomic_class == 0x38) &&
+        (op3 == 0x7 || op3 == 0xE || op3 == 0xF || bit(insn, 21))) {
         out->Rd = bits(insn, 4, 0);   // Rt
         out->Rn = bits(insn, 9, 5);   // Rn
         out->Rm = bits(insn, 20, 16); // Rs for stores, ZR encoding for loads
