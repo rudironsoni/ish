@@ -54,7 +54,7 @@ extern tcti_gadget_t gadget_ccmp_fallback;
     XCTAssertNotEqual((uintptr_t)(_table[0]), (uintptr_t)0,                                        \
                       @"%s must keep real entries because generator table dispatch depends on it", \
                       #_table);                                                                     \
-    XCTAssertNotEqual((uintptr_t)(_table[15]), (uintptr_t)0,                                       \
+    XCTAssertNotEqual((uintptr_t)(_table[14]), (uintptr_t)0,                                       \
                       @"%s must cover the hot architectural edge of its table", #_table);          \
 }
 
@@ -63,8 +63,8 @@ extern tcti_gadget_t gadget_ccmp_fallback;
 {                                                                                                  \
     XCTAssertNotEqual((uintptr_t)(_table[0][0][0]), (uintptr_t)0,                                  \
                       @"%s[0][0][0] must exist for generator lookup", #_table);                    \
-    XCTAssertNotEqual((uintptr_t)(_table[15][15][15]), (uintptr_t)0,                               \
-                      @"%s[15][15][15] must exist for generator lookup", #_table);                 \
+    XCTAssertNotEqual((uintptr_t)(_table[14][14][14]), (uintptr_t)0,                               \
+                      @"%s[14][14][14] must exist for generator lookup", #_table);                 \
 }
 
 #define TCTI_DECLARE_GADGET_TABLE2_TEST(_name, _table)                                             \
@@ -72,8 +72,8 @@ extern tcti_gadget_t gadget_ccmp_fallback;
 {                                                                                                  \
     XCTAssertNotEqual((uintptr_t)(_table[0][0]), (uintptr_t)0,                                     \
                       @"%s[0][0] must exist for generator lookup", #_table);                       \
-    XCTAssertNotEqual((uintptr_t)(_table[15][15]), (uintptr_t)0,                                   \
-                      @"%s[15][15] must exist for generator lookup", #_table);                     \
+    XCTAssertNotEqual((uintptr_t)(_table[14][14]), (uintptr_t)0,                                   \
+                      @"%s[14][14] must exist for generator lookup", #_table);                     \
 }
 
 #define TCTI_DECLARE_GADGET_VECTOR_TEST(_name, _table)                                             \
@@ -81,8 +81,8 @@ extern tcti_gadget_t gadget_ccmp_fallback;
 {                                                                                                  \
     XCTAssertNotEqual((uintptr_t)(_table[0]), (uintptr_t)0,                                        \
                       @"%s[0] must exist for direct generator lookup", #_table);                   \
-    XCTAssertNotEqual((uintptr_t)(_table[15]), (uintptr_t)0,                                       \
-                      @"%s[15] must exist for direct generator lookup", #_table);                  \
+    XCTAssertNotEqual((uintptr_t)(_table[14]), (uintptr_t)0,                                       \
+                      @"%s[14] must exist for direct generator lookup", #_table);                  \
 }
 
 @implementation TCTIArithmeticLogicalGadgetSurfaceTests

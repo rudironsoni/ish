@@ -280,7 +280,7 @@ static inline a64_category_t a64_get_category(uint32_t insn) {
     // instructions such as CMP/SUBS register.
     if ((insn & 0x7c000000) == 0x14000000) { // B/BL
         return A64_BRANCH;
-    } else if ((insn & 0xff000010) == 0x54000000) { // B.cond
+    } else if ((insn & 0xff000000) == 0x54000000) { // B.cond / BC.cond
         return A64_BRANCH;
     } else if ((insn & 0x7e000000) == 0x34000000) { // CBZ/CBNZ
         return A64_BRANCH;

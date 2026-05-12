@@ -1223,7 +1223,7 @@ int a64_decode_branch(uint32_t insn, a64_instr_t *out)
         return 0;
     }
 
-    if ((insn & 0xff000010) == 0x54000000) {
+    if ((insn & 0xff000000) == 0x54000000) {
         int64_t imm19 = bits(insn, 23, 5);
         int cond = bits(insn, 3, 0);
         out->imm = sign_extend(imm19, 19) << 2;
@@ -1370,6 +1370,21 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out)
     // Pair encodings were already handled by the dedicated top7 check above.
     // Do not use a broad `op2 == 1` test here: register-offset stores like
     // `f82278a6` also satisfy that and would be misdecoded as pairs.
+
+    // LDAPUR*/STLUR* ordered unprivileged forms alias the literal top7 patterns,
+    // so they must be recognized before the broad load-literal check below.
+    if (!out->is_vector && bits(insn, 29, 24) == 0x19 && op4 == 0) {
+        int opc = bits(insn, 23, 22);
+        out->Rd = bits(insn, 4, 0);
+        out->Rn = bits(insn, 9, 5);
+        out->imm = 0;
+        out->is_signed = (opc & 2) != 0;
+        if (out->is_signed)
+            out->is_64bit = (opc == 2);
+        out->subtype = A64_LDST_SINGLE;
+        out->idx_mode = A64_INDEX_OFFSET;
+        return 0;
+    }
 
     // Load literal. Real literal encodings have top7 patterns 0x0c/0x2c/0x4c/0x6c;
     // the old broad bit test also matched post-index stores like f800845f.
