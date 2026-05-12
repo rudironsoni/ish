@@ -7,8 +7,54 @@
 
 typedef void (*tcti_gadget_t)(void);
 
+extern tcti_gadget_t gadget_simd_and;
+extern tcti_gadget_t gadget_simd_cnt;
+extern tcti_gadget_t gadget_simd_dup_gpr;
+extern tcti_gadget_t gadget_simd_ins_gpr;
+extern tcti_gadget_t gadget_simd_movi_imm;
+extern tcti_gadget_t gadget_simd_zip1;
+extern tcti_gadget_t gadget_simd_tbl;
+extern tcti_gadget_t gadget_simd_tbx;
+extern tcti_gadget_t gadget_simd_xtn;
+extern tcti_gadget_t gadget_simd_trn1;
+extern tcti_gadget_t gadget_simd_uzp1;
+extern tcti_gadget_t gadget_simd_bic;
+extern tcti_gadget_t gadget_simd_orn;
+extern tcti_gadget_t gadget_simd_bsl;
+extern tcti_gadget_t gadget_simd_bit;
+extern tcti_gadget_t gadget_simd_bif;
+extern tcti_gadget_t gadget_simd_cmeq;
+extern tcti_gadget_t gadget_simd_cmgt;
+extern tcti_gadget_t gadget_simd_mla;
+extern tcti_gadget_t gadget_simd_mls;
+
 @interface TCTISIMDAndSpecialRegisterCarrierSurfaceTests : XCTestCase
 @end
+
+#define TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(_name, _insn, _pc, _gadget, _rd, _rn, _rm, _bytes) \
+- (void)testRegisterCarrierSurface_##_name                                                         \
+{                                                                                                  \
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];                                              \
+    a64_gen_state_t state;                                                                         \
+    [self generateInstruction:_insn atPC:_pc state:&state gadgets:gadgets];                       \
+    XCTAssertEqual(gadgets[0], _gadget);                                                           \
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[1], (uint64_t)_rd);                               \
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[2], (uint64_t)_rn);                               \
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[3], (uint64_t)_rm);                               \
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[4], (uint64_t)_bytes);                            \
+}
+
+#define TCTI_DECLARE_SIMD_UNARY_CARRIER_TEST(_name, _insn, _pc, _gadget, _rd, _rn, _bytes)       \
+- (void)testRegisterCarrierSurface_##_name                                                         \
+{                                                                                                  \
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];                                              \
+    a64_gen_state_t state;                                                                         \
+    [self generateInstruction:_insn atPC:_pc state:&state gadgets:gadgets];                       \
+    XCTAssertEqual(gadgets[0], _gadget);                                                           \
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[1], (uint64_t)_rd);                               \
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[2], (uint64_t)_rn);                               \
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[3], (uint64_t)_bytes);                            \
+}
 
 @implementation TCTISIMDAndSpecialRegisterCarrierSurfaceTests
 
@@ -28,7 +74,7 @@ typedef void (*tcti_gadget_t)(void);
     tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
     a64_gen_state_t state;
     [self generateInstruction:0x4e221c20 atPC:0xb0010 state:&state gadgets:gadgets];
-    XCTAssertEqual((void *)gadgets[0], dlsym(RTLD_DEFAULT, "gadget_simd_and"));
+    XCTAssertEqual(gadgets[0], gadget_simd_and);
     XCTAssertEqual((uint64_t)(uintptr_t)gadgets[1], 0ULL);
     XCTAssertEqual((uint64_t)(uintptr_t)gadgets[2], 1ULL);
     XCTAssertEqual((uint64_t)(uintptr_t)gadgets[3], 2ULL);
@@ -40,7 +86,7 @@ typedef void (*tcti_gadget_t)(void);
     tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
     a64_gen_state_t state;
     [self generateInstruction:0x4e205820 atPC:0xb0014 state:&state gadgets:gadgets];
-    XCTAssertEqual((void *)gadgets[0], dlsym(RTLD_DEFAULT, "gadget_simd_cnt"));
+    XCTAssertEqual(gadgets[0], gadget_simd_cnt);
     XCTAssertEqual((uint64_t)(uintptr_t)gadgets[1], 0ULL);
     XCTAssertEqual((uint64_t)(uintptr_t)gadgets[2], 1ULL);
     XCTAssertEqual((uint64_t)(uintptr_t)gadgets[3], 16ULL);
@@ -60,7 +106,7 @@ typedef void (*tcti_gadget_t)(void);
     tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
     a64_gen_state_t state;
     [self generateInstruction:0x4e010c20 atPC:0xb0018 state:&state gadgets:gadgets]; // dup v0.16b, w1
-    XCTAssertEqual((void *)gadgets[0], dlsym(RTLD_DEFAULT, "gadget_simd_dup_gpr"));
+    XCTAssertEqual(gadgets[0], gadget_simd_dup_gpr);
     XCTAssertEqual((uint64_t)(uintptr_t)gadgets[1], 0ULL);
     XCTAssertEqual((uint64_t)(uintptr_t)gadgets[2], 1ULL);
 }
@@ -70,7 +116,7 @@ typedef void (*tcti_gadget_t)(void);
     tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
     a64_gen_state_t state;
     [self generateInstruction:0x4e071c20 atPC:0xb001c state:&state gadgets:gadgets]; // ins v0.b[7], w1
-    XCTAssertEqual((void *)gadgets[0], dlsym(RTLD_DEFAULT, "gadget_simd_ins_gpr"));
+    XCTAssertEqual(gadgets[0], gadget_simd_ins_gpr);
     XCTAssertEqual((uint64_t)(uintptr_t)gadgets[1], 0ULL);
     XCTAssertEqual((uint64_t)(uintptr_t)gadgets[2], 1ULL);
 }
@@ -80,7 +126,7 @@ typedef void (*tcti_gadget_t)(void);
     tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
     a64_gen_state_t state;
     [self generateInstruction:0x4f00e400 atPC:0xb0020 state:&state gadgets:gadgets]; // movi v0.16b,#0
-    XCTAssertEqual((void *)gadgets[0], dlsym(RTLD_DEFAULT, "gadget_simd_movi_imm"));
+    XCTAssertEqual(gadgets[0], gadget_simd_movi_imm);
     XCTAssertEqual((uint64_t)(uintptr_t)gadgets[1], 0ULL);
 }
 
@@ -89,12 +135,41 @@ typedef void (*tcti_gadget_t)(void);
     tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
     a64_gen_state_t state;
     [self generateInstruction:0x4e021820 atPC:0xb0024 state:&state gadgets:gadgets]; // zip1 v0.16b,v1.16b,v2.16b
-    XCTAssertEqual((void *)gadgets[0], dlsym(RTLD_DEFAULT, "gadget_simd_zip1"));
+    XCTAssertEqual(gadgets[0], gadget_simd_zip1);
     XCTAssertEqual((uint64_t)(uintptr_t)gadgets[1], 0ULL);
     XCTAssertEqual((uint64_t)(uintptr_t)gadgets[2], 1ULL);
     XCTAssertEqual((uint64_t)(uintptr_t)gadgets[3], 2ULL);
     XCTAssertEqual((uint64_t)(uintptr_t)gadgets[4], 16ULL);
 }
+
+TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDTBLLoweringCarriesRdRnRmAndWidth, 0x0e020020, 0xb0028,
+                                      gadget_simd_tbl, 0, 1, 2, 8)
+TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDTBXLoweringCarriesRdRnRmAndWidth, 0x0e021020, 0xb002c,
+                                      gadget_simd_tbx, 0, 1, 2, 8)
+TCTI_DECLARE_SIMD_UNARY_CARRIER_TEST(SIMDXTNLoweringCarriesRdRnAndWidth, 0x4e212820, 0xb0030,
+                                     gadget_simd_xtn, 0, 1, 16)
+TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDTRN1LoweringCarriesRdRnRmAndWidth, 0x4e022820, 0xb0034,
+                                      gadget_simd_trn1, 0, 1, 2, 16)
+TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDUZP1LoweringCarriesRdRnRmAndWidth, 0x4e021820, 0xb0038,
+                                      gadget_simd_uzp1, 0, 1, 2, 16)
+TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDBICLoweringCarriesRdRnRmAndWidth, 0x4e621c20, 0xb003c,
+                                      gadget_simd_bic, 0, 1, 2, 16)
+TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDORNLoweringCarriesRdRnRmAndWidth, 0x4ee21c20, 0xb0040,
+                                      gadget_simd_orn, 0, 1, 2, 16)
+TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDBSLLoweringCarriesRdRnRmAndWidth, 0x6e621c20, 0xb0044,
+                                      gadget_simd_bsl, 0, 1, 2, 16)
+TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDBITLoweringCarriesRdRnRmAndWidth, 0x6ea21c20, 0xb0048,
+                                      gadget_simd_bit, 0, 1, 2, 16)
+TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDBIFLoweringCarriesRdRnRmAndWidth, 0x6ee21c20, 0xb004c,
+                                      gadget_simd_bif, 0, 1, 2, 16)
+TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDCMEQLoweringCarriesRdRnRmAndWidth, 0x6e229420, 0xb0050,
+                                      gadget_simd_cmeq, 0, 1, 2, 16)
+TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDCMGTLoweringCarriesRdRnRmAndWidth, 0x4e223420, 0xb0054,
+                                      gadget_simd_cmgt, 0, 1, 2, 16)
+TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDMLALoweringCarriesRdRnRmAndWidth, 0x4e229420, 0xb0058,
+                                      gadget_simd_mla, 0, 1, 2, 16)
+TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDMLSLoweringCarriesRdRnRmAndWidth, 0x4ea29420, 0xb005c,
+                                      gadget_simd_mls, 0, 1, 2, 16)
 
 - (void)testRegisterCarrierSurface_SIMDFMOVGPRBridgePreservesScalarFPRegisterIndices
 {
@@ -117,7 +192,7 @@ typedef void (*tcti_gadget_t)(void);
     a64_instr_t decoded;
     XCTAssertEqual(a64_decode(0xd53bd040, &decoded), 0); // mrs x0,tpidr_el0
     XCTAssertEqual(decoded.Rd, 0);
-    XCTAssertEqual(decoded.op, 0x5e82);
+    XCTAssertEqual(decoded.sysreg, 0x5e82);
 }
 
 - (void)testRegisterCarrierSurface_SystemBarrierPreservesOperationSelector

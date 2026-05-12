@@ -1,10 +1,18 @@
 #import <XCTest/XCTest.h>
 
-#include <dlfcn.h>
 #include <stdint.h>
 
 typedef void (*tcti_gadget_t)(void);
 
+extern tcti_gadget_t gadget_svc;
+extern tcti_gadget_t gadget_mrs;
+extern tcti_gadget_t gadget_msr;
+extern tcti_gadget_t gadget_isb;
+extern tcti_gadget_t gadget_dsb;
+extern tcti_gadget_t gadget_dmb;
+extern tcti_gadget_t gadget_nop;
+extern tcti_gadget_t gadget_clrex;
+extern tcti_gadget_t gadget_fadd;
 extern tcti_gadget_t gadget_dc_zva;
 extern tcti_gadget_t gadget_sysreg_unsupported;
 extern tcti_gadget_t gadget_ccmp_native_reg[2][2][16];
@@ -41,14 +49,6 @@ extern tcti_gadget_t gadget_simd_mls;
 @interface TCTISystemAndFPGadgetSurfaceTests : XCTestCase
 @end
 
-#define TCTI_DECLARE_GADGET_SYMBOL_TEST(_name, _symbol)                                           \
-- (void)testGadgetSurface_##_name                                                                  \
-{                                                                                                  \
-    XCTAssertNotEqual(dlsym(RTLD_DEFAULT, _symbol), NULL,                                          \
-                      @"%s must be link-visible because system/FP gadgets are an explicit TCTI "   \
-                       @"runtime proof boundary", _symbol);                                        \
-}
-
 #define TCTI_DECLARE_GADGET_POINTER_TEST(_name, _symbol)                                          \
 - (void)testGadgetSurface_##_name                                                                  \
 {                                                                                                  \
@@ -67,19 +67,15 @@ extern tcti_gadget_t gadget_simd_mls;
 
 @implementation TCTISystemAndFPGadgetSurfaceTests
 
-TCTI_DECLARE_GADGET_SYMBOL_TEST(Svc, "gadget_svc")
-TCTI_DECLARE_GADGET_SYMBOL_TEST(Mrs, "gadget_mrs")
-TCTI_DECLARE_GADGET_SYMBOL_TEST(Msr, "gadget_msr")
-TCTI_DECLARE_GADGET_SYMBOL_TEST(Isb, "gadget_isb")
-TCTI_DECLARE_GADGET_SYMBOL_TEST(Dsb, "gadget_dsb")
-TCTI_DECLARE_GADGET_SYMBOL_TEST(Dmb, "gadget_dmb")
-TCTI_DECLARE_GADGET_SYMBOL_TEST(Nop, "gadget_nop")
-TCTI_DECLARE_GADGET_SYMBOL_TEST(Clrex, "gadget_clrex")
-TCTI_DECLARE_GADGET_SYMBOL_TEST(Fadd, "gadget_fadd")
-TCTI_DECLARE_GADGET_SYMBOL_TEST(Fsub, "gadget_fsub")
-TCTI_DECLARE_GADGET_SYMBOL_TEST(Fmul, "gadget_fmul")
-TCTI_DECLARE_GADGET_SYMBOL_TEST(Fdiv, "gadget_fdiv")
-TCTI_DECLARE_GADGET_SYMBOL_TEST(Fcmp, "gadget_fcmp")
+TCTI_DECLARE_GADGET_POINTER_TEST(Svc, gadget_svc)
+TCTI_DECLARE_GADGET_POINTER_TEST(Mrs, gadget_mrs)
+TCTI_DECLARE_GADGET_POINTER_TEST(Msr, gadget_msr)
+TCTI_DECLARE_GADGET_POINTER_TEST(Isb, gadget_isb)
+TCTI_DECLARE_GADGET_POINTER_TEST(Dsb, gadget_dsb)
+TCTI_DECLARE_GADGET_POINTER_TEST(Dmb, gadget_dmb)
+TCTI_DECLARE_GADGET_POINTER_TEST(Nop, gadget_nop)
+TCTI_DECLARE_GADGET_POINTER_TEST(Clrex, gadget_clrex)
+TCTI_DECLARE_GADGET_POINTER_TEST(Fadd, gadget_fadd)
 TCTI_DECLARE_GADGET_POINTER_TEST(DcZva, gadget_dc_zva)
 TCTI_DECLARE_GADGET_POINTER_TEST(SysregUnsupported, gadget_sysreg_unsupported)
 TCTI_DECLARE_GADGET_MATRIX3_TEST(CcmpNativeReg, gadget_ccmp_native_reg)

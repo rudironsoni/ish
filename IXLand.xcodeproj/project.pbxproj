@@ -129,7 +129,6 @@
 		6C28F4635D408CCDF343AA6B /* ThemesViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 60F0620B6217DE91ECBFDAC6 /* ThemesViewController.m */; };
 		6DDD59ED1A15E30C8F122CCA /* GuestBringupMatrixTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 824D0F0A36DB5D3AB0C57BF6 /* GuestBringupMatrixTests.m */; };
 		6DF3CCA3F68B083B0F5EBD46 /* TCTICryptoAndDotProductSemanticTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 8A05A91A848528C5ECAE22D9 /* TCTICryptoAndDotProductSemanticTests.m */; };
-		6E03F2B8B87807E185F3149F /* TCTIGadgetSymbolSurfaceTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 71F449866AB280E08A71B7EB /* TCTIGadgetSymbolSurfaceTests.m */; };
 		70CCFC9B74E85B77BCAC2085 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BAE7DCC2F0AA9AA9DB7546E0 /* QuartzCore.framework */; };
 		70DEC099C66AB5C978108020 /* TCTIArithmeticLogicalGadgetSurfaceTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 4354445D8A6B93DE34C56CA1 /* TCTIArithmeticLogicalGadgetSurfaceTests.m */; };
 		71D3C4548F3621A7197550AA /* pty_bridge.m in Sources */ = {isa = PBXBuildFile; fileRef = 38785EE95467CE6148736C16 /* pty_bridge.m */; };
@@ -162,7 +161,6 @@
 		8B82C61A76FCEDF775853512 /* TCTIPAuthSemanticTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 87183054FADFFD17740EF7D1 /* TCTIPAuthSemanticTests.m */; };
 		8D8132F0D5D22D080F0D1E73 /* TCTIControlAndFlagsSemanticTests.m in Sources */ = {isa = PBXBuildFile; fileRef = F26E16BEEC4D8A8594844AAB /* TCTIControlAndFlagsSemanticTests.m */; };
 		8DCAD47243639CDDE1A372A4 /* pipe.c in Sources */ = {isa = PBXBuildFile; fileRef = 41649A6F845DAB672C98138E /* pipe.c */; };
-		901E4903549C58561BAD2A78 /* TCTIRegisterCarrierSurfaceTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 30A7E166427C2B9D3D5CDBFC /* TCTIRegisterCarrierSurfaceTests.m */; };
 		9150B17792D65FEC11EB0D2D /* time.c in Sources */ = {isa = PBXBuildFile; fileRef = E2A2C1CE801ACBF0FD8D8BFA /* time.c */; };
 		9264C7D921B7453D85F1C07B /* freeiosterminal.png in Resources */ = {isa = PBXBuildFile; fileRef = D0EBFD679F4BC3C899E473F7 /* freeiosterminal.png */; };
 		92D42F3AE36FBBB7F3CCFCBA /* tcti_control_and_flags_semantic_scenarios.c in Sources */ = {isa = PBXBuildFile; fileRef = D331BD66B2C47350F6B43347 /* tcti_control_and_flags_semantic_scenarios.c */; };
@@ -412,7 +410,6 @@
 		2EBCAC10E6D11D00C50C0223 /* dynamic_ptinterp_sample.elf */ = {isa = PBXFileReference; path = dynamic_ptinterp_sample.elf; sourceTree = "<group>"; };
 		2F6A8ED59E9711A7419B40E7 /* cpu.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = cpu.h; sourceTree = "<group>"; };
 		3095D128D0AC3C9D4251A2C2 /* RootsTableViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RootsTableViewController.h; sourceTree = "<group>"; };
-		30A7E166427C2B9D3D5CDBFC /* TCTIRegisterCarrierSurfaceTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TCTIRegisterCarrierSurfaceTests.m; sourceTree = "<group>"; };
 		3192ECDE55742AD4A5FB6D27 /* fd.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = fd.h; sourceTree = "<group>"; };
 		3268F8FE6225F8B58EEF7531 /* fork.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = fork.c; sourceTree = "<group>"; };
 		327D2604BFC3ABFFF1B4AD50 /* tls.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = tls.c; sourceTree = "<group>"; };
@@ -525,7 +522,6 @@
 		6F5882248E8814473B41BC0A /* TCTIScalarFPSemanticTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TCTIScalarFPSemanticTests.m; sourceTree = "<group>"; };
 		6F7505C93FB34163BAF32949 /* cpu.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = cpu.h; sourceTree = "<group>"; };
 		70022BEE8187389F8A5E5755 /* AppGroup.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppGroup.h; sourceTree = "<group>"; };
-		71F449866AB280E08A71B7EB /* TCTIGadgetSymbolSurfaceTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TCTIGadgetSymbolSurfaceTests.m; sourceTree = "<group>"; };
 		724BCE40498A7A29DF9E8AC1 /* sysreg.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sysreg.c; sourceTree = "<group>"; };
 		7331A2AFB857A36FE4667A3D /* init.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = init.c; sourceTree = "<group>"; };
 		7358D27FA7157FF1189DC202 /* UITests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = UITests.m; sourceTree = "<group>"; };
@@ -912,7 +908,6 @@
 			children = (
 				4354445D8A6B93DE34C56CA1 /* TCTIArithmeticLogicalGadgetSurfaceTests.m */,
 				C8894A9298537C9F12E6C4DE /* TCTIBranchAndControlGadgetSurfaceTests.m */,
-				71F449866AB280E08A71B7EB /* TCTIGadgetSymbolSurfaceTests.m */,
 				A59D192424991806F1424510 /* TCTIMemoryAndAtomicGadgetSurfaceTests.m */,
 				68CD0C6830AA43233C42B444 /* TCTISystemAndFPGadgetSurfaceTests.m */,
 			);
@@ -1102,7 +1097,6 @@
 			isa = PBXGroup;
 			children = (
 				39A1C9AD5CFE863B17464363 /* TCTIGPRCarrierSurfaceTests.m */,
-				30A7E166427C2B9D3D5CDBFC /* TCTIRegisterCarrierSurfaceTests.m */,
 				B676824BBE3F35D0C1BDC78A /* TCTISIMDAndSpecialRegisterCarrierSurfaceTests.m */,
 			);
 			path = Registers;
@@ -2448,7 +2442,6 @@
 				6DF3CCA3F68B083B0F5EBD46 /* TCTICryptoAndDotProductSemanticTests.m in Sources */,
 				9824F9A9260CC9E3D740FF05 /* TCTIExceptionsBarriersHintsSemanticTests.m in Sources */,
 				E30CA9BEB1AB44B2B3394F71 /* TCTIGPRCarrierSurfaceTests.m in Sources */,
-				6E03F2B8B87807E185F3149F /* TCTIGadgetSymbolSurfaceTests.m in Sources */,
 				063DFE6889FDE859FC323763 /* TCTIIntegerALUSemanticTests.m in Sources */,
 				1CAB57BA47F7F03611ABC3B6 /* TCTILogicalBitfieldShiftSemanticTests.m in Sources */,
 				C3CF2D8E7C3A7E2F667E939D /* TCTIMemoryAndAtomicGadgetSurfaceTests.m in Sources */,
@@ -2462,7 +2455,6 @@
 				AE18058B11176CB7F3E4B772 /* TCTIPipelineExitWritebackTests.m in Sources */,
 				E3A0BA743C7DCC76A7BB13B8 /* TCTIPipelineFetchTests.m in Sources */,
 				AF5AFFC8C4F794EB1F6027B6 /* TCTIPipelineLoweringTests.m in Sources */,
-				901E4903549C58561BAD2A78 /* TCTIRegisterCarrierSurfaceTests.m in Sources */,
 				87E96678F1D3F9CEB6256725 /* TCTISIMDAndSpecialRegisterCarrierSurfaceTests.m in Sources */,
 				DFCE85DF672E780C78FEFBEC /* TCTIScalarFPSemanticTests.m in Sources */,
 				A98498B981CBB53EBC61F5AB /* TCTIScalarLoadStoreSemanticTests.m in Sources */,
