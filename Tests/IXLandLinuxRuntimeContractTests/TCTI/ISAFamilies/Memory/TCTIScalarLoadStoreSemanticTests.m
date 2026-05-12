@@ -171,6 +171,32 @@ static int tcti_scalar_guest_read_width(struct cpu_state *cpu, struct tlb *tlb, 
                     "offset metadata and materialize the loaded 32-bit word into guest x7");
 }
 
+- (void)testSemanticExecutionContract_GeneratedHotHotLDRX0X1X0ReadsExpectedQword
+{
+    XCTAssertEqual(tcti_semantic_case_generated_hot_hot_ldr_x0_x1_x0_reads_expected_qword(), 0ULL,
+                   @"The generated TCTI block for LDR X0, [X1, X0] must preserve hot-hot "
+                    "register-offset addressing when Rt aliases Rm, because musl GNU bloom-word "
+                    "loads depend on that exact owner surface.");
+}
+
+- (void)testSemanticExecutionContract_GeneratedHotHotLDRBW4X0X3ReadsExpectedByte
+{
+    XCTAssertEqual(tcti_semantic_case_generated_hot_hot_ldrb_w4_x0_x3_reads_expected_byte(), 0ULL,
+                   @"The generated TCTI block for LDRB W4, [X0, X3] must preserve hot-hot byte "
+                    "register-offset loads, because musl strncmp uses that exact byte fetch in "
+                    "its reserved-libc prefix compare.");
+}
+
+- (void)testSemanticExecutionContract_GeneratedMemoryBackedLDRX0X24X23LSL3ReadsExpectedQword
+{
+    XCTAssertEqual(
+        tcti_semantic_case_generated_memory_backed_ldr_x0_x24_x23_lsl3_reads_expected_qword(),
+        0ULL,
+        @"The generated TCTI block for LDR X0, [X24, X23, LSL #3] must preserve memory-backed "
+         "base and offset addressing, because musl's post-open callback scan walks callback "
+         "slots through that exact scaled register-offset load.");
+}
+
 - (void)testSemanticExecutionContract_MuslFrameStridePrefixThenLDRInNextBlock
 {
     XCTAssertEqual(tcti_semantic_case_musl_frame_stride_prefix_then_ldr_in_next_block(), 0ULL,

@@ -151,6 +151,43 @@ extern void gadget_br_impl(void);
     XCTAssertEqual(gadgets[0], gadget_orr_reg[0][1][2]);
 }
 
+- (void)testRegisterCarrierSurface_GPRRegisterOffsetLDRX0X1X0CarriesRegOffsetMeta
+{
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
+    a64_gen_state_t state;
+    [self generateInstruction:0xf8606820 atPC:0xb000e state:&state gadgets:gadgets];
+    XCTAssertGreaterThanOrEqual(state.num_gadgets, (size_t)8);
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[2], 0ULL);
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[3], 1ULL);
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[7],
+                   (1ULL << 8) | ((uint64_t)A64_EXT_LSL << 24) | (1ULL << 40));
+}
+
+- (void)testRegisterCarrierSurface_GPRRegisterOffsetLDRBW4X0X3CarriesRegOffsetMeta
+{
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
+    a64_gen_state_t state;
+    [self generateInstruction:0x38636804 atPC:0xb0012 state:&state gadgets:gadgets];
+    XCTAssertGreaterThanOrEqual(state.num_gadgets, (size_t)8);
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[2], 4ULL);
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[3], 0ULL);
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[7],
+                   (1ULL << 8) | ((uint64_t)3 << 16) | ((uint64_t)A64_EXT_LSL << 24));
+}
+
+- (void)testRegisterCarrierSurface_GPRRegisterOffsetLDRX0X24X23LSL3CarriesShiftedRegOffsetMeta
+{
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
+    a64_gen_state_t state;
+    [self generateInstruction:0xf8777b00 atPC:0xb0016 state:&state gadgets:gadgets];
+    XCTAssertGreaterThanOrEqual(state.num_gadgets, (size_t)8);
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[2], 0ULL);
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[3], 24ULL);
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[7],
+                   (1ULL << 8) | ((uint64_t)23 << 16) | ((uint64_t)A64_EXT_LSL << 24) |
+                       ((uint64_t)3 << 32) | (1ULL << 40));
+}
+
 - (void)testRegisterCarrierSurface_GPRCompareBranchLoweringCarriesTargetAndFallthrough
 {
     tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];

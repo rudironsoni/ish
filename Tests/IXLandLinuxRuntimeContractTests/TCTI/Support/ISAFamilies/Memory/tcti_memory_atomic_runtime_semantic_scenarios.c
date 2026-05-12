@@ -487,6 +487,96 @@ uint64_t tcti_semantic_case_generated_ldr_w_reg_offset_reads_hot_x0_offset(void)
     return 0;
 }
 
+uint64_t tcti_semantic_case_generated_hot_hot_ldr_x0_x1_x0_reads_expected_qword(void)
+{
+    enum {
+        hashtab_addr = 0x120000,
+        bloom_offset = 0x18,
+        expected_qword = 0x0123456789abcdefULL,
+    };
+
+    struct mem mem;
+    mem_init(&mem);
+    if (pt_map_nothing(&mem, PAGE(hashtab_addr), 1, P_READ | P_WRITE) < 0) {
+        mem_destroy(&mem);
+        return UINT64_MAX;
+    }
+
+    struct tlb tlb = {};
+    tlb_refresh(&tlb, &mem.mmu);
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.mmu = &mem.mmu;
+    cpu.tlb = &tlb;
+    cpu.pc = 0x6989c;
+    cpu.x[0] = bloom_offset;
+    cpu.x[1] = hashtab_addr;
+
+    if (a64_guest_write64(&cpu, &tlb, hashtab_addr + bloom_offset, expected_qword) != A64_MEM_OK) {
+        mem_destroy(&mem);
+        return UINT64_MAX - 1;
+    }
+
+    static const uint32_t insn = 0xf8606820; // ldr x0, [x1, x0]
+    int run_ret = a64_cpu_execute_code_block(&cpu, cpu.pc, &insn, 1);
+    if (run_ret < 0) {
+        uint64_t fault = cpu.fault_addr & 0x0000ffffffffffffULL;
+        mem_destroy(&mem);
+        return 0x1000000000000000ULL | (((uint64_t)(uint8_t)(-run_ret)) << 48) | fault;
+    }
+
+    uint64_t result = cpu.x[0];
+    mem_destroy(&mem);
+    return result == expected_qword ? 0ULL : (0x2000000000000000ULL | result);
+}
+
+uint64_t tcti_semantic_case_generated_hot_hot_ldrb_w4_x0_x3_reads_expected_byte(void)
+{
+    enum {
+        left_addr = 0x120000,
+        load_offset = 1,
+        expected_byte = '.',
+    };
+
+    struct mem mem;
+    mem_init(&mem);
+    if (pt_map_nothing(&mem, PAGE(left_addr), 1, P_READ | P_WRITE) < 0) {
+        mem_destroy(&mem);
+        return UINT64_MAX;
+    }
+
+    struct tlb tlb = {};
+    tlb_refresh(&tlb, &mem.mmu);
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.mmu = &mem.mmu;
+    cpu.tlb = &tlb;
+    cpu.pc = 0x5ee70;
+    cpu.x[0] = left_addr;
+    cpu.x[3] = load_offset;
+    cpu.x[4] = 0xffffffffffffffffULL;
+
+    if (a64_guest_write8(&cpu, &tlb, left_addr + load_offset, expected_byte) != A64_MEM_OK) {
+        mem_destroy(&mem);
+        return UINT64_MAX - 1;
+    }
+
+    static const uint32_t insn = 0x38636804; // ldrb w4, [x0, x3]
+    int run_ret = a64_cpu_execute_code_block(&cpu, cpu.pc, &insn, 1);
+    if (run_ret < 0) {
+        uint64_t fault = cpu.fault_addr & 0x0000ffffffffffffULL;
+        mem_destroy(&mem);
+        return 0x3000000000000000ULL | (((uint64_t)(uint8_t)(-run_ret)) << 48) | fault;
+    }
+
+    uint64_t result = cpu.x[4];
+    mem_destroy(&mem);
+    return result == (uint64_t)(uint8_t)expected_byte ? 0ULL
+                                                       : (0x4000000000000000ULL | result);
+}
+
 uint64_t tcti_semantic_case_generated_reg_offset_ldr_x0_alias_base_reads_expected_qword(void)
 {
     enum {
@@ -527,6 +617,50 @@ uint64_t tcti_semantic_case_generated_reg_offset_ldr_x0_alias_base_reads_expecte
     uint64_t result = cpu.x[0];
     mem_destroy(&mem);
     return result == expected_qword ? 0ULL : (0x4000000000000000ULL | result);
+}
+
+uint64_t tcti_semantic_case_generated_memory_backed_ldr_x0_x24_x23_lsl3_reads_expected_qword(void)
+{
+    enum {
+        table_addr = 0x140000,
+        slot_index = 3,
+        expected_qword = 0x1122334455667788ULL,
+    };
+
+    struct mem mem;
+    mem_init(&mem);
+    if (pt_map_nothing(&mem, PAGE(table_addr), 1, P_READ | P_WRITE) < 0) {
+        mem_destroy(&mem);
+        return UINT64_MAX;
+    }
+
+    struct tlb tlb = {};
+    tlb_refresh(&tlb, &mem.mmu);
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.mmu = &mem.mmu;
+    cpu.tlb = &tlb;
+    cpu.pc = 0x7c0a4;
+    cpu.x[23] = slot_index;
+    cpu.x[24] = table_addr;
+
+    if (a64_guest_write64(&cpu, &tlb, table_addr + slot_index * 8, expected_qword) != A64_MEM_OK) {
+        mem_destroy(&mem);
+        return UINT64_MAX - 1;
+    }
+
+    static const uint32_t insn = 0xf8777b00; // ldr x0, [x24, x23, lsl #3]
+    int run_ret = a64_cpu_execute_code_block(&cpu, cpu.pc, &insn, 1);
+    if (run_ret < 0) {
+        uint64_t fault = cpu.fault_addr & 0x0000ffffffffffffULL;
+        mem_destroy(&mem);
+        return 0x5000000000000000ULL | (((uint64_t)(uint8_t)(-run_ret)) << 48) | fault;
+    }
+
+    uint64_t result = cpu.x[0];
+    mem_destroy(&mem);
+    return result == expected_qword ? 0ULL : (0x6000000000000000ULL | result);
 }
 
 uint64_t tcti_semantic_case_ldp_x2_x0_from_memory_backed_x21(void)
