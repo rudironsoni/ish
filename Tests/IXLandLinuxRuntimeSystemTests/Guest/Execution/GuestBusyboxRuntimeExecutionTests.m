@@ -344,6 +344,41 @@ extern bool exit_should_pthread_exit;
     return predicate();
 }
 
+- (BOOL)prepareInteractiveBusyboxShellSecondLsTurnCpu:(struct cpu_state **)cpuOut
+                                      secondTurnPcOut:(uint64_t *)secondTurnPcOut
+{
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    if (![self execInteractiveBusyboxShellAndWaitForPrompt])
+        return NO;
+
+    const char command[] = "ls\n";
+    if (![self sendInputThroughControllingPseudoMaster:command length:sizeof(command) - 1])
+        return NO;
+
+    XCTAssertNotEqual(current, NULL, @"current must exist after PTY command injection");
+    if (current == NULL)
+        return NO;
+
+    struct cpu_state *cpu = &current->cpu;
+    XCTAssertNotEqual(cpu->mmu, NULL, @"interactive PTY command path must preserve an MMU before the second resumed turn");
+    if (cpu->mmu == NULL)
+        return NO;
+
+    struct tlb firstTurnTlb = {};
+    tlb_refresh(&firstTurnTlb, cpu->mmu);
+    exit_should_pthread_exit = false;
+    a64_cpu_run_limited(cpu, &firstTurnTlb, 5000);
+
+    if (cpuOut)
+        *cpuOut = cpu;
+    if (secondTurnPcOut)
+        *secondTurnPcOut = cpu->pc;
+    return YES;
+}
+
 - (void)testRootfsRootDirectoryCanBeOpenedAndReadDirectly
 {
     [self configureFocusedTraceLevel];
@@ -1897,32 +1932,11 @@ extern bool exit_should_pthread_exit;
 
 - (void)testInteractiveBusyboxShellSecondShortTurnAfterPlainLsDoesNotHostCrash
 {
-    [self configureFocusedTraceLevel];
-    guest_execution_trace_sink_init();
-    guest_execution_trace_sink_reset();
-
-    if (![self execInteractiveBusyboxShellAndWaitForPrompt])
+    struct cpu_state *cpu = NULL;
+    uint64_t secondTurnStartPc = 0;
+    if (![self prepareInteractiveBusyboxShellSecondLsTurnCpu:&cpu secondTurnPcOut:&secondTurnStartPc])
         return;
 
-    const char command[] = "ls\n";
-    if (![self sendInputThroughControllingPseudoMaster:command length:sizeof(command) - 1])
-        return;
-
-    XCTAssertNotEqual(current, NULL, @"current must exist after PTY command injection");
-    if (current == NULL)
-        return;
-
-    struct cpu_state *cpu = &current->cpu;
-    XCTAssertNotEqual(cpu->mmu, NULL, @"interactive PTY command path must preserve an MMU before the second short resumed turn");
-    if (cpu->mmu == NULL)
-        return;
-
-    struct tlb firstTurnTlb = {};
-    tlb_refresh(&firstTurnTlb, cpu->mmu);
-    exit_should_pthread_exit = false;
-    a64_cpu_run_limited(cpu, &firstTurnTlb, 5000);
-
-    uint64_t secondTurnStartPc = cpu->pc;
     struct tlb secondTurnTlb = {};
     tlb_refresh(&secondTurnTlb, cpu->mmu);
     exit_should_pthread_exit = false;
@@ -1930,6 +1944,111 @@ extern bool exit_should_pthread_exit;
 
     XCTAssertTrue(guest_execution_trace_sink_exit_observed() || cpu->pc != secondTurnStartPc,
                   @"a bounded second resumed turn after interactive ls must either advance guest control "
+                   @"flow or report a guest exit instead of crashing the host; start_pc=0x%llx end_pc=0x%llx "
+                   @"exit_observed=%d exit_code=%d",
+                  (unsigned long long)secondTurnStartPc, (unsigned long long)cpu->pc,
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code());
+}
+
+- (void)testInteractiveBusyboxShellSecondTurnSixtyFourStepsAfterPlainLsDoesNotHostCrash
+{
+    struct cpu_state *cpu = NULL;
+    uint64_t secondTurnStartPc = 0;
+    if (![self prepareInteractiveBusyboxShellSecondLsTurnCpu:&cpu secondTurnPcOut:&secondTurnStartPc])
+        return;
+
+    struct tlb secondTurnTlb = {};
+    tlb_refresh(&secondTurnTlb, cpu->mmu);
+    exit_should_pthread_exit = false;
+    a64_cpu_run_limited(cpu, &secondTurnTlb, 64);
+
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed() || cpu->pc != secondTurnStartPc,
+                  @"a 64-step second resumed turn after interactive ls must either advance guest control "
+                   @"flow or report a guest exit instead of crashing the host; start_pc=0x%llx end_pc=0x%llx "
+                   @"exit_observed=%d exit_code=%d",
+                  (unsigned long long)secondTurnStartPc, (unsigned long long)cpu->pc,
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code());
+}
+
+- (void)testInteractiveBusyboxShellSecondTurnOneHundredTwentyEightStepsAfterPlainLsDoesNotHostCrash
+{
+    struct cpu_state *cpu = NULL;
+    uint64_t secondTurnStartPc = 0;
+    if (![self prepareInteractiveBusyboxShellSecondLsTurnCpu:&cpu secondTurnPcOut:&secondTurnStartPc])
+        return;
+
+    struct tlb secondTurnTlb = {};
+    tlb_refresh(&secondTurnTlb, cpu->mmu);
+    exit_should_pthread_exit = false;
+    a64_cpu_run_limited(cpu, &secondTurnTlb, 128);
+
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed() || cpu->pc != secondTurnStartPc,
+                  @"a 128-step second resumed turn after interactive ls must either advance guest control "
+                   @"flow or report a guest exit instead of crashing the host; start_pc=0x%llx end_pc=0x%llx "
+                   @"exit_observed=%d exit_code=%d",
+                  (unsigned long long)secondTurnStartPc, (unsigned long long)cpu->pc,
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code());
+}
+
+- (void)testInteractiveBusyboxShellSecondTurnFiveHundredTwelveStepsAfterPlainLsDoesNotHostCrash
+{
+    struct cpu_state *cpu = NULL;
+    uint64_t secondTurnStartPc = 0;
+    if (![self prepareInteractiveBusyboxShellSecondLsTurnCpu:&cpu secondTurnPcOut:&secondTurnStartPc])
+        return;
+
+    struct tlb secondTurnTlb = {};
+    tlb_refresh(&secondTurnTlb, cpu->mmu);
+    exit_should_pthread_exit = false;
+    a64_cpu_run_limited(cpu, &secondTurnTlb, 512);
+
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed() || cpu->pc != secondTurnStartPc,
+                  @"a 512-step second resumed turn after interactive ls must either advance guest control "
+                   @"flow or report a guest exit instead of crashing the host; start_pc=0x%llx end_pc=0x%llx "
+                   @"exit_observed=%d exit_code=%d",
+                  (unsigned long long)secondTurnStartPc, (unsigned long long)cpu->pc,
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code());
+}
+
+- (void)testInteractiveBusyboxShellSecondTurnOneThousandTwentyFourStepsAfterPlainLsDoesNotHostCrash
+{
+    struct cpu_state *cpu = NULL;
+    uint64_t secondTurnStartPc = 0;
+    if (![self prepareInteractiveBusyboxShellSecondLsTurnCpu:&cpu secondTurnPcOut:&secondTurnStartPc])
+        return;
+
+    struct tlb secondTurnTlb = {};
+    tlb_refresh(&secondTurnTlb, cpu->mmu);
+    exit_should_pthread_exit = false;
+    a64_cpu_run_limited(cpu, &secondTurnTlb, 1024);
+
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed() || cpu->pc != secondTurnStartPc,
+                  @"a 1024-step second resumed turn after interactive ls must either advance guest control "
+                   @"flow or report a guest exit instead of crashing the host; start_pc=0x%llx end_pc=0x%llx "
+                   @"exit_observed=%d exit_code=%d",
+                  (unsigned long long)secondTurnStartPc, (unsigned long long)cpu->pc,
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code());
+}
+
+- (void)testInteractiveBusyboxShellSecondTurnFourThousandNinetySixStepsAfterPlainLsDoesNotHostCrash
+{
+    struct cpu_state *cpu = NULL;
+    uint64_t secondTurnStartPc = 0;
+    if (![self prepareInteractiveBusyboxShellSecondLsTurnCpu:&cpu secondTurnPcOut:&secondTurnStartPc])
+        return;
+
+    struct tlb secondTurnTlb = {};
+    tlb_refresh(&secondTurnTlb, cpu->mmu);
+    exit_should_pthread_exit = false;
+    a64_cpu_run_limited(cpu, &secondTurnTlb, 4096);
+
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed() || cpu->pc != secondTurnStartPc,
+                  @"a 4096-step second resumed turn after interactive ls must either advance guest control "
                    @"flow or report a guest exit instead of crashing the host; start_pc=0x%llx end_pc=0x%llx "
                    @"exit_observed=%d exit_code=%d",
                   (unsigned long long)secondTurnStartPc, (unsigned long long)cpu->pc,
