@@ -295,7 +295,7 @@ static inline a64_category_t a64_get_category(uint32_t insn) {
         return A64_LD_ST;
     }
 
-    if (((insn >> 25) & 0x1F) == 0x1E) {
+    if (((insn >> 25) & 0x1F) == 0x1C || ((insn >> 25) & 0x1F) == 0x1E) {
         return A64_LD_ST;
     }
 
@@ -305,7 +305,8 @@ static inline a64_category_t a64_get_category(uint32_t insn) {
     uint32_t atomic_class = (insn >> 24) & 0x3F;
     if (atomic_class == 0x08 || atomic_class == 0x38) {
         uint32_t op3 = (insn >> 12) & 0xF;
-        if (op3 == 0x7 || op3 == 0xE || op3 == 0xF || ((insn >> 21) & 1))
+        if ((atomic_class == 0x08 && (op3 == 0x7 || op3 == 0xE || op3 == 0xF)) ||
+            ((insn >> 21) & 1))
             return A64_LD_ST;
     }
 

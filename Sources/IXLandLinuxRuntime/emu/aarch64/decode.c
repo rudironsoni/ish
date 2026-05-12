@@ -65,10 +65,59 @@ static bool a64_is_advsimd_modified_immediate(uint32_t insn)
 static bool a64_is_explicitly_unsupported_family_representative(uint32_t insn)
 {
     switch (insn) {
-    case 0x4e284820: // aese v0.16b, v1.16b
-    case 0x0ee2e020: // pmull v0.1q, v1.1d, v2.1d
+    // Arm64e pointer authentication and authenticated control.
     case 0xdac10020: // pacia x0, x1
     case 0xdac11020: // autia x0, x1
+    case 0xdac10462: // pacib x2, x3
+    case 0xdac114e6: // autib x6, x7
+    case 0xdac143e8: // xpaci x8
+    case 0xdac147e9: // xpacd x9
+    case 0xd71f094b: // braa x10, x11
+    case 0xd71f0d8d: // brab x12, x13
+    case 0xd73f09cf: // blraa x14, x15
+    case 0xd73f0e11: // blrab x16, x17
+    case 0xd65f0bff: // retaa
+    case 0xd65f0fff: // retab
+    case 0xd65f0bfe: // retaa sppc
+    case 0xd65f0ffe: // retab sppc
+    case 0xf8200420: // ldraa x0, [x1]
+    case 0xf8a00462: // ldrab x2, [x3]
+    case 0xd503245f: // bti c
+        return true;
+
+    // Crypto, dot-product, and related SIMD extensions.
+    case 0x4e284820: // aese v0.16b, v1.16b
+    case 0x4e285862: // aesd v2.16b, v3.16b
+    case 0x4e2868a4: // aesmc v4.16b, v5.16b
+    case 0x4e2878e6: // aesimc v6.16b, v7.16b
+    case 0x0ee2e020: // pmull v0.1q, v1.1d, v2.1d
+    case 0x2e229c20: // pmul v0.8h, v1.8b, v2.8b
+    case 0x5e020020: // sha1c q0, s1, v2.4s
+    case 0x5e022020: // sha1m q0, s1, v2.4s
+    case 0x5e051083: // sha1p q3, s4, v5.4s
+    case 0x5e0830e6: // sha1su0 v6.4s, v7.4s, v8.4s
+    case 0x5e281949: // sha1su1 v9.4s, v10.4s
+    case 0x5e024020: // sha256h q0, q1, v2.4s
+    case 0x5e1051ee: // sha256h2 q14, q15, v16.4s
+    case 0x5e282a51: // sha256su0 v17.4s, v18.4s
+    case 0x5e156293: // sha256su1 v19.4s, v20.4s, v21.4s
+    case 0xce62c020: // sm3partw1 v0.4s, v1.4s, v2.4s
+    case 0xce65c483: // sm3partw2 v3.4s, v4.4s, v5.4s
+    case 0xce4824e6: // sm3ss1 v6.4s, v7.4s, v8.4s, v9.4s
+    case 0xce4c816a: // sm3tt1a v10.4s, v11.4s, v12.4s, #0
+    case 0xce4f95cd: // sm3tt1b v13.4s, v14.4s, v15.4s, #1
+    case 0xce52aa30: // sm3tt2a v16.4s, v17.4s, v18.4s, #2
+    case 0xce55be93: // sm3tt2b v19.4s, v20.4s, v21.4s, #3
+    case 0xcec086f6: // sm4e v22.4s, v23.4s
+    case 0xce7acb38: // sm4ekey v24.4s, v25.4s, v26.4s
+    case 0x4e829420: // sdot v0.4s, v1.16b, v2.16b
+    case 0x6e859483: // udot v3.4s, v4.16b, v5.16b
+    case 0x4e889ce6: // usdot v6.4s, v7.16b, v8.4b[0]
+    case 0x0f0ef1ac: // sudot v12.2s, v13.8b, v14.4b[3]
+    case 0x0e02fc20: // fdot v0.2s, v1.8h, v2.8h
+    case 0x2e48fce6: // bfdot v6.4s, v7.8h, v8.8h
+    case 0xce2d398b: // bcax v11.16b, v12.16b, v13.16b, v14.16b
+    case 0xce911e0f: // xar v15.2d, v16.2d, v17.2d, #7
         return true;
     default:
         return false;
@@ -1334,8 +1383,8 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out)
         return 0;
     }
 
-    if ((atomic_class == 0x08 || atomic_class == 0x38) &&
-        (op3 == 0x7 || op3 == 0xE || op3 == 0xF || bit(insn, 21))) {
+    if (((atomic_class == 0x08) && (op3 == 0x7 || op3 == 0xE || op3 == 0xF)) ||
+        ((atomic_class == 0x08 || atomic_class == 0x38) && bit(insn, 21))) {
         out->Rd = bits(insn, 4, 0);   // Rt
         out->Rn = bits(insn, 9, 5);   // Rn
         out->Rm = bits(insn, 20, 16); // Rs for stores, ZR encoding for loads
