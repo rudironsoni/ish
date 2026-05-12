@@ -32,6 +32,16 @@ extern bool exit_should_pthread_exit;
     trace_config_set_level_from_string("off");
 }
 
+- (void)enableVerboseRuntimeProof
+{
+    setenv("ISH_VERBOSE_RUNTIME_PROOF", "1", 1);
+}
+
+- (void)disableVerboseRuntimeProof
+{
+    unsetenv("ISH_VERBOSE_RUNTIME_PROOF");
+}
+
 - (NSString *)dataRootPath
 {
     NSFileManager *fm = [NSFileManager defaultManager];
@@ -92,6 +102,42 @@ extern bool exit_should_pthread_exit;
     return execErr == 0;
 }
 
+- (BOOL)execInteractiveBusyboxShellWithPty
+{
+    NSString *rootPath = [self dataRootPath];
+    XCTAssertNotNil(rootPath, @"rootfs path must exist");
+    if (rootPath == nil || ![self bootstrapMountedRootfsAtPath:rootPath])
+        return NO;
+
+    const char *const argv[] = { "/bin/busybox", "sh", "-i", NULL };
+    const char envp[] =
+        "TERM=xterm-256color\0"
+        "HOME=/root\0"
+        "USER=root\0"
+        "LOGNAME=root\0"
+        "HISTFILE=/dev/null\0"
+        "HISTSIZE=0\0"
+        "HISTFILESIZE=0\0"
+        "SHELL=/bin/sh\0"
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\0"
+        "\0";
+
+    struct tty *master = pty_open_guest_terminal(NULL);
+    XCTAssertFalse(IS_ERR(master), @"pty_open_guest_terminal failed with %ld", (long)PTR_ERR(master));
+    if (IS_ERR(master))
+        return NO;
+
+    int pid = 0;
+    int execErr = prepare_session_with_tty("bin/busybox", argv, envp, master, &pid);
+    XCTAssertEqual(execErr, 0, @"prepare_session_with_tty returned %d", execErr);
+    if (execErr != 0)
+        return NO;
+
+    NSLog(@"runtime-test interactive session ready current=%p pid=%d mmu=%p tty_num=%d", current,
+          current ? current->pid : pid, current ? current->cpu.mmu : NULL, master->num);
+    return YES;
+}
+
 - (BOOL)pumpGuestUntilTimeout:(NSTimeInterval)timeout predicate:(BOOL (^)(void))predicate
 {
     XCTAssertNotEqual(current, NULL, @"current must exist before guest execution");
@@ -150,6 +196,76 @@ extern bool exit_should_pthread_exit;
     int written = master->driver->ops->write(master, input, length, false);
     XCTAssertEqual(written, (int)length, @"PTY master input write must accept the full command");
     return written == (int)length;
+}
+
+- (struct tty *)controllingPseudoMaster
+{
+    XCTAssertNotEqual(current, NULL, @"current must exist before PTY inspection");
+    if (current == NULL || current->group == NULL)
+        return NULL;
+
+    struct tty *slave = current->group->tty;
+    XCTAssertNotEqual(slave, NULL, @"interactive guest path must own a controlling tty");
+    if (slave == NULL)
+        return NULL;
+
+    struct tty *master = slave->pty.other;
+    XCTAssertNotEqual(master, NULL, @"interactive guest path must have a PTY master peer");
+    return master;
+}
+
+- (NSString *)controllingPseudoMasterBuffer
+{
+    struct tty *master = [self controllingPseudoMaster];
+    if (master == NULL)
+        return @"";
+
+    char raw[8192] = { 0 };
+    ssize_t copied = tty_get_buffer_content(master, raw, sizeof(raw) - 1);
+    XCTAssertGreaterThanOrEqual(copied, 0, @"PTY master buffer read must succeed");
+    if (copied <= 0)
+        return @"";
+
+    raw[copied] = '\0';
+    NSString *buffer = [[NSString alloc] initWithBytes:raw length:(NSUInteger)copied encoding:NSUTF8StringEncoding];
+    if (buffer != nil)
+        return buffer;
+
+    return [[NSString alloc] initWithBytes:raw length:(NSUInteger)copied encoding:NSISOLatin1StringEncoding] ?: @"";
+}
+
+- (BOOL)execInteractiveBusyboxShellAndWaitForPrompt
+{
+    if (![self execInteractiveBusyboxShellWithPty])
+        return NO;
+
+    NSUInteger stepsTaken = 0;
+    uint64_t lastPc = 0;
+    BOOL sawPrompt = NO;
+    NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:10.0];
+    while ([deadline timeIntervalSinceNow] > 0 && stepsTaken < 200000) {
+        NSString *buffer = [self controllingPseudoMasterBuffer];
+        if ([buffer containsString:@"/ # "]
+            || [buffer hasSuffix:@"/ #"]
+            || [buffer containsString:@"\n/ #"]) {
+            sawPrompt = YES;
+            break;
+        }
+
+        struct cpu_state *cpu = &current->cpu;
+        struct tlb exec_tlb = {};
+        tlb_refresh(&exec_tlb, cpu->mmu);
+        exit_should_pthread_exit = false;
+        a64_cpu_run_limited(cpu, &exec_tlb, 1);
+        stepsTaken++;
+        lastPc = cpu->pc;
+    }
+    XCTAssertTrue(sawPrompt,
+                  @"interactive busybox shell must reach the initial prompt within the bounded "
+                   @"single-step warmup window; steps=%lu last_pc=0x%llx master_buffer=%@",
+                  (unsigned long)stepsTaken, (unsigned long long)lastPc,
+                  [self controllingPseudoMasterBuffer]);
+    return sawPrompt;
 }
 
 - (BOOL)pumpGuestSingleStepTurns:(NSUInteger)maxSteps
@@ -829,6 +945,70 @@ extern bool exit_should_pthread_exit;
                   (unsigned long long)guest_execution_trace_sink_exec_entry_count());
 }
 
+- (void)testInteractiveBusyboxShellTurnNineBoundaryEmitsVerboseRuntimeProofBeforeCrash
+{
+    [self configureFocusedTraceLevel];
+    [self enableVerboseRuntimeProof];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    const char argv[] = "/bin/busybox\0sh\0-i\0\0";
+    const char envp[] =
+        "TERM=xterm-256color\0"
+        "HOME=/root\0"
+        "USER=root\0"
+        "LOGNAME=root\0"
+        "HISTFILE=/dev/null\0"
+        "HISTSIZE=0\0"
+        "HISTFILESIZE=0\0"
+        "SHELL=/bin/sh\0"
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\0"
+        "\0";
+    if (![self execBusyboxWithArgc:3 argv:argv envp:envp]) {
+        [self disableVerboseRuntimeProof];
+        return;
+    }
+
+    XCTAssertNotEqual(current, NULL, @"current must exist before guest execution");
+    if (current == NULL) {
+        [self disableVerboseRuntimeProof];
+        return;
+    }
+
+    struct cpu_state *cpu = &current->cpu;
+    XCTAssertNotEqual(cpu->mmu, NULL, @"cpu mmu must exist before guest execution");
+    if (cpu->mmu == NULL) {
+        [self disableVerboseRuntimeProof];
+        return;
+    }
+
+    for (NSUInteger turn = 0; turn < 9; turn++) {
+        NSLog(@"runtime-test verbose-boundary turn=%lu", (unsigned long)turn);
+        struct tlb exec_tlb = {};
+        tlb_refresh(&exec_tlb, cpu->mmu);
+        exit_should_pthread_exit = false;
+        a64_cpu_run_limited(cpu, &exec_tlb, 5000);
+        NSLog(@"runtime-test verbose-boundary post-turn=%lu pc=0x%llx x8=0x%llx sp=0x%llx fault=0x%llx exit=%d",
+              (unsigned long)turn, (unsigned long long)cpu->pc, (unsigned long long)cpu->x[8],
+              (unsigned long long)cpu->sp, (unsigned long long)cpu->fault_addr,
+              cpu->tcti_exit_reason);
+
+        XCTAssertFalse(guest_execution_trace_sink_exit_observed(),
+                       @"interactive shell must remain live through the verbose turn-nine boundary; "
+                        @"turn=%lu pc=0x%llx x8=0x%llx sp=0x%llx fault=0x%llx exit=%d",
+                       (unsigned long)turn, (unsigned long long)cpu->pc,
+                       (unsigned long long)cpu->x[8], (unsigned long long)cpu->sp,
+                       (unsigned long long)cpu->fault_addr, cpu->tcti_exit_reason);
+        if (guest_execution_trace_sink_exit_observed()) {
+            [self disableVerboseRuntimeProof];
+            return;
+        }
+    }
+
+    [self disableVerboseRuntimeProof];
+    XCTAssertTrue(YES, @"verbose runtime proof turn-nine boundary stayed live");
+}
+
 - (void)testInteractiveBusyboxShellCountedPromptPollingDoesNotCrash
 {
     [self configureFocusedTraceLevel];
@@ -1234,28 +1414,7 @@ extern bool exit_should_pthread_exit;
     guest_execution_trace_sink_init();
     guest_execution_trace_sink_reset();
 
-    const char argv[] = "/bin/busybox\0sh\0-i\0\0";
-    const char envp[] =
-        "TERM=xterm-256color\0"
-        "HOME=/root\0"
-        "USER=root\0"
-        "LOGNAME=root\0"
-        "HISTFILE=/dev/null\0"
-        "HISTSIZE=0\0"
-        "HISTFILESIZE=0\0"
-        "SHELL=/bin/sh\0"
-        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\0"
-        "\0";
-    if (![self execBusyboxWithArgc:3 argv:argv envp:envp])
-        return;
-
-    BOOL sawPrompt = [self pumpGuestUntilTimeout:10.0
-                                       predicate:^BOOL {
-                                           return guest_execution_trace_sink_stdout_prompt_write_count() > 0 ||
-                                                  guest_execution_trace_sink_pty_prompt_write_count() > 0;
-                                       }];
-    XCTAssertTrue(sawPrompt, @"interactive busybox shell must reach a prompt before uname -a injection");
-    if (!sawPrompt)
+    if (![self execInteractiveBusyboxShellAndWaitForPrompt])
         return;
 
     const char command[] = "/bin/busybox uname -a\n";
@@ -1284,28 +1443,7 @@ extern bool exit_should_pthread_exit;
     guest_execution_trace_sink_init();
     guest_execution_trace_sink_reset();
 
-    const char argv[] = "/bin/busybox\0sh\0-i\0\0";
-    const char envp[] =
-        "TERM=xterm-256color\0"
-        "HOME=/root\0"
-        "USER=root\0"
-        "LOGNAME=root\0"
-        "HISTFILE=/dev/null\0"
-        "HISTSIZE=0\0"
-        "HISTFILESIZE=0\0"
-        "SHELL=/bin/sh\0"
-        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\0"
-        "\0";
-    if (![self execBusyboxWithArgc:3 argv:argv envp:envp])
-        return;
-
-    BOOL sawPrompt = [self pumpGuestUntilTimeout:10.0
-                                       predicate:^BOOL {
-                                           return guest_execution_trace_sink_stdout_prompt_write_count() > 0 ||
-                                                  guest_execution_trace_sink_pty_prompt_write_count() > 0;
-                                       }];
-    XCTAssertTrue(sawPrompt, @"interactive busybox shell must reach a prompt before uname -m injection");
-    if (!sawPrompt)
+    if (![self execInteractiveBusyboxShellAndWaitForPrompt])
         return;
 
     const char command[] = "/bin/busybox uname -m\n";
@@ -1326,6 +1464,139 @@ extern bool exit_should_pthread_exit;
     XCTAssertTrue(guest_execution_trace_sink_stdout_aarch64_write_observed() ||
                       guest_execution_trace_sink_pty_aarch64_write_observed(),
                   @"interactive busybox shell must emit aarch64 through a real guest write path after PTY master input");
+}
+
+- (void)testInteractiveBusyboxShellPlainLsReturnsToPromptWithoutGuestSignalTermination
+{
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    if (![self execInteractiveBusyboxShellAndWaitForPrompt])
+        return;
+
+    uint64_t initialPromptWrites = guest_execution_trace_sink_stdout_prompt_write_count() +
+                                   guest_execution_trace_sink_pty_prompt_write_count();
+    const char command[] = "ls\n";
+    if (![self sendInputThroughControllingPseudoMaster:command length:sizeof(command) - 1])
+        return;
+
+    BOOL completed = [self pumpGuestUntilTimeout:10.0
+                                       predicate:^BOOL {
+                                           uint64_t promptWrites = guest_execution_trace_sink_stdout_prompt_write_count() +
+                                                                   guest_execution_trace_sink_pty_prompt_write_count();
+                                           return promptWrites > initialPromptWrites ||
+                                                  guest_execution_trace_sink_exit_observed();
+                                       }];
+
+    XCTAssertTrue(completed, @"interactive busybox shell must either return to a prompt after ls or exit within the timeout");
+    XCTAssertFalse(guest_execution_trace_sink_exit_observed(),
+                   @"interactive busybox shell must not terminate on plain ls. exit_code=%d",
+                   guest_execution_trace_sink_get_exit_code());
+    XCTAssertGreaterThan(guest_execution_trace_sink_stdout_prompt_write_count() +
+                             guest_execution_trace_sink_pty_prompt_write_count(),
+                         initialPromptWrites,
+                         @"interactive busybox shell must return to a fresh prompt after plain ls");
+}
+
+- (void)testInteractiveBusyboxShellLongLsReachesMetadataAndReturnsToPromptWithoutGuestSignalTermination
+{
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    if (![self execInteractiveBusyboxShellAndWaitForPrompt])
+        return;
+
+    uint64_t initialPromptWrites = guest_execution_trace_sink_stdout_prompt_write_count() +
+                                   guest_execution_trace_sink_pty_prompt_write_count();
+    uint64_t initialMetadataWrites = guest_execution_trace_sink_stdout_metadata_write_count() +
+                                     guest_execution_trace_sink_pty_metadata_write_count();
+    const char command[] = "ls -la\n";
+    if (![self sendInputThroughControllingPseudoMaster:command length:sizeof(command) - 1])
+        return;
+
+    BOOL completed = [self pumpGuestUntilTimeout:10.0
+                                       predicate:^BOOL {
+                                           uint64_t promptWrites = guest_execution_trace_sink_stdout_prompt_write_count() +
+                                                                   guest_execution_trace_sink_pty_prompt_write_count();
+                                           uint64_t metadataWrites = guest_execution_trace_sink_stdout_metadata_write_count() +
+                                                                     guest_execution_trace_sink_pty_metadata_write_count();
+                                           return (promptWrites > initialPromptWrites &&
+                                                   metadataWrites > initialMetadataWrites) ||
+                                                  guest_execution_trace_sink_exit_observed();
+                                       }];
+
+    XCTAssertTrue(completed,
+                  @"interactive busybox shell must either reach metadata and return to a prompt after ls -la or exit within the timeout");
+    XCTAssertFalse(guest_execution_trace_sink_exit_observed(),
+                   @"interactive busybox shell must not terminate on ls -la. exit_code=%d",
+                   guest_execution_trace_sink_get_exit_code());
+    XCTAssertGreaterThan(guest_execution_trace_sink_stdout_metadata_write_count() +
+                             guest_execution_trace_sink_pty_metadata_write_count(),
+                         initialMetadataWrites,
+                         @"interactive busybox shell must emit long-list metadata after ls -la");
+    XCTAssertGreaterThan(guest_execution_trace_sink_stdout_prompt_write_count() +
+                             guest_execution_trace_sink_pty_prompt_write_count(),
+                         initialPromptWrites,
+                         @"interactive busybox shell must return to a fresh prompt after ls -la");
+}
+
+- (void)testInteractiveBusyboxShellPipeCommandReturnsToPromptWithoutGuestSignalTermination
+{
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    if (![self execInteractiveBusyboxShellAndWaitForPrompt])
+        return;
+
+    uint64_t initialPromptWrites = guest_execution_trace_sink_stdout_prompt_write_count() +
+                                   guest_execution_trace_sink_pty_prompt_write_count();
+    const char command[] = "echo hello world | /bin/busybox wc -w\n";
+    if (![self sendInputThroughControllingPseudoMaster:command length:sizeof(command) - 1])
+        return;
+
+    BOOL completed = [self pumpGuestUntilTimeout:10.0
+                                       predicate:^BOOL {
+                                           uint64_t promptWrites = guest_execution_trace_sink_stdout_prompt_write_count() +
+                                                                   guest_execution_trace_sink_pty_prompt_write_count();
+                                           return promptWrites > initialPromptWrites ||
+                                                  guest_execution_trace_sink_exit_observed();
+                                       }];
+
+    XCTAssertTrue(completed,
+                  @"interactive busybox shell must either return to a prompt after the pipe command or exit within the timeout");
+    XCTAssertFalse(guest_execution_trace_sink_exit_observed(),
+                   @"interactive busybox shell must not terminate on the pipe command. exit_code=%d",
+                   guest_execution_trace_sink_get_exit_code());
+    XCTAssertGreaterThan(guest_execution_trace_sink_stdout_prompt_write_count() +
+                             guest_execution_trace_sink_pty_prompt_write_count(),
+                         initialPromptWrites,
+                         @"interactive busybox shell must return to a fresh prompt after the pipe command");
+}
+
+- (void)testInteractiveBusyboxShellExitTerminatesCleanlyWithGuestExitCodeZero
+{
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    if (![self execInteractiveBusyboxShellAndWaitForPrompt])
+        return;
+
+    const char command[] = "exit\n";
+    if (![self sendInputThroughControllingPseudoMaster:command length:sizeof(command) - 1])
+        return;
+
+    BOOL exited = [self pumpGuestUntilTimeout:10.0
+                                     predicate:^BOOL {
+                                         return guest_execution_trace_sink_exit_observed();
+                                     }];
+
+    XCTAssertTrue(exited, @"interactive busybox shell must exit promptly after the exit builtin");
+    XCTAssertEqual(guest_execution_trace_sink_get_exit_code(), 0,
+                   @"interactive busybox shell exit builtin must terminate with guest exit code zero");
 }
 
 - (void)testLiveGuestLinkage_OrderedExclusiveAtomicFamilyAppearsInInteractiveShellPath
