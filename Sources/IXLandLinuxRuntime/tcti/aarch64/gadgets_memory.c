@@ -4069,6 +4069,8 @@ __attribute__((naked)) void gadget_csel_fallback_impl(void)
                  "stp x9, x10, [x29, #80]\n\t"
                  "stp x11, x12, [x29, #96]\n\t"
                  "str x13, [x29, #112]\n\t"
+                 "mrs x25, nzcv\n\t"
+                 "str x25, [x29, %[pstate_off]]\n\t"
                  "bl _tcti_c_call_prologue\n\t"
                  "mov x0, x29\n\t"
                  "mov x1, x19\n\t"

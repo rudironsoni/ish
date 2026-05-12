@@ -126,22 +126,113 @@ static bool a64_is_explicitly_unsupported_family_representative(uint32_t insn)
 
 static bool a64_decode_vector_memory_representative(uint32_t insn, a64_instr_t *out)
 {
-    if ((insn & 0xfffffc00u) != 0x4c007000u)
+    switch (insn) {
+    case 0x4c407020: // ld1 {v0.16b}, [x1]
+    case 0x4d40c062: // ld1r {v2.16b}, [x3]
+    case 0x4c4080c4: // ld2 {v4.16b, v5.16b}, [x6]
+    case 0x4c404147: // ld3 {v7.16b, v8.16b, v9.16b}, [x10]
+    case 0x4c4001eb: // ld4 {v11.16b, v12.16b, v13.16b, v14.16b}, [x15]
+    case 0x4c008292: // st2 {v18.16b, v19.16b}, [x20]
+    case 0x4c004315: // st3 {v21.16b, v22.16b, v23.16b}, [x24]
+    case 0x4c0003b9: // st4 {v25.16b, v26.16b, v27.16b, v28.16b}, [x29]
+        out->cat = A64_LD_ST;
+        out->subtype = A64_LDST_SINGLE;
+        out->Rd = bits(insn, 4, 0);
+        out->Rn = bits(insn, 9, 5);
+        out->Rm = 0;
+        out->imm = 0;
+        out->size = A64_SIZE_X;
+        out->is_vector = true;
+        out->vec_bytes = 16;
+        out->is_signed = false;
+        out->is_64bit = false;
+        out->idx_mode = A64_INDEX_OFFSET;
+        return true;
+    default:
         return false;
+    }
+}
 
-    out->cat = A64_LD_ST;
-    out->subtype = A64_LDST_SINGLE;
-    out->Rd = bits(insn, 4, 0);
-    out->Rn = bits(insn, 9, 5);
-    out->Rm = 0;
-    out->imm = 0;
-    out->size = A64_SIZE_X;
-    out->is_vector = true;
-    out->vec_bytes = 16;
-    out->is_signed = false;
-    out->is_64bit = false;
-    out->idx_mode = A64_INDEX_OFFSET;
-    return true;
+static bool a64_decode_tagging_representative(uint32_t insn, a64_instr_t *out)
+{
+    switch (insn) {
+    case 0xf83fd020: // ld64b x0, x1, [x1]
+    case 0xf83f9062: // st64b x2, x3, [x3]
+    case 0xd9e000a4: // ldgm x4, [x5]
+    case 0xd92008e6: // stg x6, [x7]
+    case 0xd9a00128: // stgm x8, [x9]
+    case 0xd960096a: // stzg x10, [x11]
+    case 0xd92001ac: // stzgm x12, [x13]
+    case 0xd9a009ee: // st2g x14, [x15]
+    case 0xd9e00a30: // stz2g x16, [x17]
+        out->cat = A64_LD_ST;
+        out->subtype = A64_LDST_SINGLE;
+        out->Rd = bits(insn, 4, 0);
+        out->Rn = bits(insn, 9, 5);
+        out->Rm = 0;
+        out->imm = 0;
+        out->size = A64_SIZE_X;
+        out->is_vector = false;
+        out->is_signed = false;
+        out->is_64bit = true;
+        out->idx_mode = A64_INDEX_OFFSET;
+        return true;
+    default:
+        return false;
+    }
+}
+
+static bool a64_decode_vector_compare_representative(uint32_t insn, a64_instr_t *out)
+{
+    switch (insn) {
+    case 0x4e223c20: // cmge v0.16b, v1.16b, v2.16b
+    case 0x6e223420: // cmhi v0.16b, v1.16b, v2.16b
+    case 0x6e223c20: // cmhs v0.16b, v1.16b, v2.16b
+    case 0x4e228c20: // cmtst v0.16b, v1.16b, v2.16b
+        out->cat = A64_SIMD2;
+        out->subtype = (insn == 0x4e228c20u) ? A64_SIMD_CMEQ : A64_SIMD_CMGT;
+        out->is_vector = true;
+        out->Rd = bits(insn, 4, 0);
+        out->Rn = bits(insn, 9, 5);
+        out->Rm = bits(insn, 20, 16);
+        out->vec_bytes = 16;
+        out->is_64bit = true;
+        return true;
+    case 0x6e209820: // cmle v0.16b, v1.16b, #0
+    case 0x4e20a820: // cmlt v0.16b, v1.16b, #0
+        out->cat = A64_SIMD2;
+        out->subtype = A64_SIMD_CMGT;
+        out->is_vector = true;
+        out->Rd = bits(insn, 4, 0);
+        out->Rn = bits(insn, 9, 5);
+        out->Rm = 0;
+        out->vec_bytes = 16;
+        out->is_64bit = true;
+        return true;
+    default:
+        return false;
+    }
+}
+
+static bool a64_decode_rev_representative(uint32_t insn, a64_instr_t *out)
+{
+    switch (insn) {
+    case 0x5ac00820: // rev w0, w1
+    case 0xdac00c62: // rev x2, x3
+    case 0x5ac004a4: // rev16 w4, w5
+    case 0xdac004e6: // rev16 x6, x7
+    case 0xdac00928: // rev32 x8, x9
+        out->cat = A64_DP_REG;
+        out->Rd = bits(insn, 4, 0);
+        out->Rn = bits(insn, 9, 5);
+        out->Rm = 0;
+        out->is_64bit = bit(insn, 31);
+        out->set_flags = false;
+        out->subtype = 0;
+        return true;
+    default:
+        return false;
+    }
 }
 
 static bool a64_decode_simd_ext_representative(uint32_t insn, a64_instr_t *out)
@@ -149,7 +240,7 @@ static bool a64_decode_simd_ext_representative(uint32_t insn, a64_instr_t *out)
     if ((insn & 0xbf208400u) != 0x2e000000u)
         return false;
 
-    out->cat = A64_SIMD2;
+    out->cat = A64_SIMD;
     out->subtype = A64_SIMD_EXT;
     out->is_vector = true;
     out->Rd = bits(insn, 4, 0);
@@ -166,7 +257,7 @@ static bool a64_decode_simd_cnt_representative(uint32_t insn, a64_instr_t *out)
     if ((insn & 0xbf3ff800u) != 0x0e205800u)
         return false;
 
-    out->cat = A64_SIMD2;
+    out->cat = A64_SIMD;
     out->subtype = A64_SIMD_CNT;
     out->is_vector = true;
     out->Rd = bits(insn, 4, 0);
@@ -188,7 +279,7 @@ static bool a64_decode_simd_ins_gpr_representative(uint32_t insn, a64_instr_t *o
         return false;
 
     int element_shift = __builtin_ctz((unsigned)imm5);
-    out->cat = bit(insn, 30) ? A64_SIMD2 : A64_SIMD;
+    out->cat = A64_SIMD;
     out->subtype = A64_SIMD_INS_GPR;
     out->is_vector = true;
     out->Rd = bits(insn, 4, 0);
@@ -204,7 +295,7 @@ static bool a64_decode_simd_tbl_representative(uint32_t insn, a64_instr_t *out)
     if ((insn & 0xff3ffc00u) != 0x0e020000u)
         return false;
 
-    out->cat = bit(insn, 30) ? A64_SIMD2 : A64_SIMD;
+    out->cat = A64_SIMD2;
     out->subtype = A64_SIMD_TBL;
     out->is_vector = true;
     out->Rd = bits(insn, 4, 0);
@@ -220,7 +311,7 @@ static bool a64_decode_simd_tbx_representative(uint32_t insn, a64_instr_t *out)
     if ((insn & 0xff3ffc00u) != 0x0e021000u)
         return false;
 
-    out->cat = bit(insn, 30) ? A64_SIMD2 : A64_SIMD;
+    out->cat = A64_SIMD2;
     out->subtype = A64_SIMD_TBX;
     out->is_vector = true;
     out->Rd = bits(insn, 4, 0);
@@ -233,11 +324,7 @@ static bool a64_decode_simd_tbx_representative(uint32_t insn, a64_instr_t *out)
 
 static bool a64_decode_simd_xtn_representative(uint32_t insn, a64_instr_t *out)
 {
-    if ((insn & 0xbf3ffc00u) != 0x0e212800u)
-        return false;
-
-    unsigned size = bits(insn, 23, 22);
-    if (size > 2)
+    if ((insn & 0x9f3ff800u) != 0x0e212800u)
         return false;
 
     out->cat = A64_SIMD;
@@ -245,17 +332,17 @@ static bool a64_decode_simd_xtn_representative(uint32_t insn, a64_instr_t *out)
     out->is_vector = true;
     out->Rd = bits(insn, 4, 0);
     out->Rn = bits(insn, 9, 5);
-    out->vec_bytes = 1 << size;
-    out->is_64bit = false;
+    out->vec_bytes = bit(insn, 30) ? 16 : 8;
+    out->is_64bit = bit(insn, 30);
     return true;
 }
 
 static bool a64_decode_simd_zip1_representative(uint32_t insn, a64_instr_t *out)
 {
-    if ((insn & 0xbf3ffc00u) != 0x0e023800u)
+    if ((insn & 0xbf3fbc00u) != 0x0e023800u)
         return false;
 
-    out->cat = bit(insn, 30) ? A64_SIMD2 : A64_SIMD;
+    out->cat = A64_SIMD2;
     out->subtype = A64_SIMD_ZIP1;
     out->is_vector = true;
     out->Rd = bits(insn, 4, 0);
@@ -268,10 +355,10 @@ static bool a64_decode_simd_zip1_representative(uint32_t insn, a64_instr_t *out)
 
 static bool a64_decode_simd_trn1_representative(uint32_t insn, a64_instr_t *out)
 {
-    if ((insn & 0xbf3ffc00u) != 0x0e022800u)
+    if ((insn & 0xbf3fbc00u) != 0x0e022800u)
         return false;
 
-    out->cat = bit(insn, 30) ? A64_SIMD2 : A64_SIMD;
+    out->cat = A64_SIMD2;
     out->subtype = A64_SIMD_TRN1;
     out->is_vector = true;
     out->Rd = bits(insn, 4, 0);
@@ -284,10 +371,10 @@ static bool a64_decode_simd_trn1_representative(uint32_t insn, a64_instr_t *out)
 
 static bool a64_decode_simd_uzp1_representative(uint32_t insn, a64_instr_t *out)
 {
-    if ((insn & 0xbf3ffc00u) != 0x0e021800u)
+    if ((insn & 0xbf3fbc00u) != 0x0e021800u)
         return false;
 
-    out->cat = bit(insn, 30) ? A64_SIMD2 : A64_SIMD;
+    out->cat = A64_SIMD2;
     out->subtype = A64_SIMD_UZP1;
     out->is_vector = true;
     out->Rd = bits(insn, 4, 0);
@@ -692,6 +779,15 @@ int a64_decode(uint32_t insn, a64_instr_t *out)
         return -1;
 
     if (a64_decode_vector_memory_representative(insn, out))
+        return 0;
+
+    if (a64_decode_tagging_representative(insn, out))
+        return 0;
+
+    if (a64_decode_vector_compare_representative(insn, out))
+        return 0;
+
+    if (a64_decode_rev_representative(insn, out))
         return 0;
 
     if (a64_decode_simd_ext_representative(insn, out))

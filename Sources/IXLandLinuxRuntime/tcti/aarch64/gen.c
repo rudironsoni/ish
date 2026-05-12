@@ -103,6 +103,7 @@ static bool a64_is_explicitly_unsupported_tagging_representative(uint32_t insn)
     switch (insn) {
     case 0xf83fd020: // ld64b x0, [x1]
     case 0xf83f9062: // st64b x2, [x3]
+    case 0xd9600020: // ldg x0, [x1]
     case 0xd9e000a4: // ldgm x4, [x5]
     case 0xd92008e6: // stg x6, [x7, #0x20]
     case 0xd9a00128: // stgm x8, [x9]
