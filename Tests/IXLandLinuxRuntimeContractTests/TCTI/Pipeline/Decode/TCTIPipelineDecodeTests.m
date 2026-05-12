@@ -5,6 +5,16 @@
 @interface TCTIPipelineDecodeTests : XCTestCase
 @end
 
+#define TCTI_DECLARE_COND_BRANCH_DECODE_TEST(_name, _insn, _cond)                                 \
+- (void)testDecodeContract_##_name                                                                 \
+{                                                                                                  \
+    a64_instr_t decoded = [self decodeInstruction:_insn];                                          \
+    XCTAssertEqual(decoded.cat, A64_BRANCH);                                                       \
+    XCTAssertEqual(decoded.subtype, A64_BRANCH_COND);                                              \
+    XCTAssertEqual(decoded.cond, _cond);                                                           \
+    XCTAssertEqual(decoded.imm, 0LL);                                                              \
+}
+
 #define TCTI_DECLARE_ATOMIC_DECODE_TEST(_name, _insn, _rd, _rn, _rm, _size, _is64)               \
 - (void)testDecodeContract_##_name                                                                 \
 {                                                                                                  \
@@ -46,6 +56,49 @@
     XCTAssertEqual(decoded.Rm, _rm);                                                               \
     XCTAssertEqual(decoded.vec_bytes, _vecBytes);                                                  \
     XCTAssertTrue(decoded.is_vector);                                                              \
+}
+
+#define TCTI_DECLARE_VECTOR_SUBTYPE_DECODE_TEST(_name, _insn, _subtype, _rd, _rn, _rm, _vecBytes) \
+- (void)testDecodeContract_##_name                                                                  \
+{                                                                                                   \
+    a64_instr_t decoded = [self decodeInstruction:_insn];                                           \
+    XCTAssertEqual(decoded.cat, A64_SIMD2);                                                         \
+    XCTAssertEqual(decoded.subtype, _subtype);                                                      \
+    XCTAssertEqual(decoded.Rd, _rd);                                                                \
+    XCTAssertEqual(decoded.Rn, _rn);                                                                \
+    XCTAssertEqual(decoded.Rm, _rm);                                                                \
+    XCTAssertEqual(decoded.vec_bytes, _vecBytes);                                                   \
+    XCTAssertTrue(decoded.is_vector);                                                               \
+}
+
+#define TCTI_DECLARE_VECTOR_UNARY_DECODE_TEST(_name, _insn, _subtype, _rd, _rn, _vecBytes)       \
+- (void)testDecodeContract_##_name                                                                 \
+{                                                                                                  \
+    a64_instr_t decoded = [self decodeInstruction:_insn];                                          \
+    XCTAssertEqual(decoded.cat, A64_SIMD);                                                         \
+    XCTAssertEqual(decoded.subtype, _subtype);                                                     \
+    XCTAssertEqual(decoded.Rd, _rd);                                                               \
+    XCTAssertEqual(decoded.Rn, _rn);                                                               \
+    XCTAssertEqual(decoded.vec_bytes, _vecBytes);                                                  \
+}
+
+#define TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(_name, _insn)                                 \
+- (void)testDecodeContract_##_name                                                                 \
+{                                                                                                  \
+    a64_instr_t decoded;                                                                           \
+    XCTAssertLessThan(a64_decode(_insn, &decoded), 0,                                              \
+                      @"Unsupported-family decode must reject `%s` explicitly instead of "         \
+                       @"silently aliasing an older form", #_name);                                \
+}
+
+#define TCTI_DECLARE_TAGGING_CLASSIFY_DECODE_TEST(_name, _insn, _rd, _rn)                         \
+- (void)testDecodeContract_##_name                                                                 \
+{                                                                                                  \
+    a64_instr_t decoded = [self decodeInstruction:_insn];                                          \
+    XCTAssertEqual(decoded.cat, A64_LD_ST);                                                        \
+    XCTAssertEqual(decoded.Rd, _rd);                                                               \
+    XCTAssertEqual(decoded.Rn, _rn);                                                               \
+    XCTAssertNotEqual(decoded.subtype, A64_LDST_ATOMIC);                                           \
 }
 
 @implementation TCTIPipelineDecodeTests
@@ -97,6 +150,152 @@
     XCTAssertEqual(decoded.imm, -8LL,
                    @"Conditional branches must publish the signed PC-relative delta expected by "
                     "the real dispatcher, not the raw encoded field");
+}
+
+TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BEQCarriesConditionCode, 0x54000000, 0)
+TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BNEZeroOffsetCarriesConditionCode, 0x54000001, 1)
+TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BHSZeroOffsetCarriesConditionCode, 0x54000002, 2)
+TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BLOZeroOffsetCarriesConditionCode, 0x54000003, 3)
+TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BMIZeroOffsetCarriesConditionCode, 0x54000004, 4)
+TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BPLZeroOffsetCarriesConditionCode, 0x54000005, 5)
+TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BVSZeroOffsetCarriesConditionCode, 0x54000006, 6)
+TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BVCZeroOffsetCarriesConditionCode, 0x54000007, 7)
+TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BHIZeroOffsetCarriesConditionCode, 0x54000008, 8)
+TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BLSZeroOffsetCarriesConditionCode, 0x54000009, 9)
+TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BGEZeroOffsetCarriesConditionCode, 0x5400000a, 10)
+TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BLTZeroOffsetCarriesConditionCode, 0x5400000b, 11)
+TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BGTZeroOffsetCarriesConditionCode, 0x5400000c, 12)
+TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BLEZeroOffsetCarriesConditionCode, 0x5400000d, 13)
+
+TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BCEQCarriesConditionCode, 0x54000010, 0)
+TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BCNEZeroOffsetCarriesConditionCode, 0x54000011, 1)
+TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BCSHSZeroOffsetCarriesConditionCode, 0x54000012, 2)
+TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BCCLOZeroOffsetCarriesConditionCode, 0x54000013, 3)
+TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BCMIZeroOffsetCarriesConditionCode, 0x54000014, 4)
+TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BCPLZeroOffsetCarriesConditionCode, 0x54000015, 5)
+TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BCVSZeroOffsetCarriesConditionCode, 0x54000016, 6)
+TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BCVCZeroOffsetCarriesConditionCode, 0x54000017, 7)
+TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BCHIZeroOffsetCarriesConditionCode, 0x54000018, 8)
+TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BCLSZeroOffsetCarriesConditionCode, 0x54000019, 9)
+TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BCGEZeroOffsetCarriesConditionCode, 0x5400001a, 10)
+TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BCLTZeroOffsetCarriesConditionCode, 0x5400001b, 11)
+TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BCGTZeroOffsetCarriesConditionCode, 0x5400001c, 12)
+TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BCLEZeroOffsetCarriesConditionCode, 0x5400001d, 13)
+
+- (void)testDecodeContract_REVWClassifiesAsOneSourceBitPermutation
+{
+    a64_instr_t decoded = [self decodeInstruction:0x5ac00820];
+    XCTAssertEqual(decoded.cat, A64_DP_REG);
+    XCTAssertEqual(decoded.Rd, 0);
+    XCTAssertEqual(decoded.Rn, 1);
+    XCTAssertFalse(decoded.is_64bit);
+}
+
+- (void)testDecodeContract_REVXClassifiesAsOneSourceBitPermutation
+{
+    a64_instr_t decoded = [self decodeInstruction:0xdac00c62];
+    XCTAssertEqual(decoded.cat, A64_DP_REG);
+    XCTAssertEqual(decoded.Rd, 2);
+    XCTAssertEqual(decoded.Rn, 3);
+    XCTAssertTrue(decoded.is_64bit);
+}
+
+- (void)testDecodeContract_REV16WClassifiesAsOneSourceBitPermutation
+{
+    a64_instr_t decoded = [self decodeInstruction:0x5ac004a4];
+    XCTAssertEqual(decoded.cat, A64_DP_REG);
+    XCTAssertEqual(decoded.Rd, 4);
+    XCTAssertEqual(decoded.Rn, 5);
+    XCTAssertFalse(decoded.is_64bit);
+}
+
+- (void)testDecodeContract_REV16XClassifiesAsOneSourceBitPermutation
+{
+    a64_instr_t decoded = [self decodeInstruction:0xdac004e6];
+    XCTAssertEqual(decoded.cat, A64_DP_REG);
+    XCTAssertEqual(decoded.Rd, 6);
+    XCTAssertEqual(decoded.Rn, 7);
+    XCTAssertTrue(decoded.is_64bit);
+}
+
+- (void)testDecodeContract_REV32XClassifiesAsOneSourceBitPermutation
+{
+    a64_instr_t decoded = [self decodeInstruction:0xdac00928];
+    XCTAssertEqual(decoded.cat, A64_DP_REG);
+    XCTAssertEqual(decoded.Rd, 8);
+    XCTAssertEqual(decoded.Rn, 9);
+    XCTAssertTrue(decoded.is_64bit);
+}
+
+- (void)testDecodeContract_VectorMemory_LD1ClassifiesAsVectorLoadStore
+{
+    a64_instr_t decoded = [self decodeInstruction:0x4c407020];
+    XCTAssertEqual(decoded.cat, A64_LD_ST);
+    XCTAssertTrue(decoded.is_vector);
+}
+
+- (void)testDecodeContract_VectorMemory_LD1RClassifiesAsVectorLoadStore
+{
+    a64_instr_t decoded = [self decodeInstruction:0x4d40c062];
+    XCTAssertEqual(decoded.cat, A64_LD_ST);
+    XCTAssertTrue(decoded.is_vector);
+}
+
+- (void)testDecodeContract_VectorMemory_LD2ClassifiesAsVectorLoadStore
+{
+    a64_instr_t decoded = [self decodeInstruction:0x4c4080c4];
+    XCTAssertEqual(decoded.cat, A64_LD_ST);
+    XCTAssertTrue(decoded.is_vector);
+}
+
+- (void)testDecodeContract_VectorMemory_LD3ClassifiesAsVectorLoadStore
+{
+    a64_instr_t decoded = [self decodeInstruction:0x4c404147];
+    XCTAssertEqual(decoded.cat, A64_LD_ST);
+    XCTAssertTrue(decoded.is_vector);
+}
+
+- (void)testDecodeContract_VectorMemory_LD4ClassifiesAsVectorLoadStore
+{
+    a64_instr_t decoded = [self decodeInstruction:0x4c4001eb];
+    XCTAssertEqual(decoded.cat, A64_LD_ST);
+    XCTAssertTrue(decoded.is_vector);
+}
+
+- (void)testDecodeContract_VectorMemory_LDURQClassifiesAsVectorLoadStore
+{
+    a64_instr_t decoded = [self decodeInstruction:0x3cdf0020];
+    XCTAssertEqual(decoded.cat, A64_LD_ST);
+    XCTAssertTrue(decoded.is_vector);
+}
+
+- (void)testDecodeContract_VectorMemory_LDPQClassifiesAsVectorLoadStore
+{
+    a64_instr_t decoded = [self decodeInstruction:0xad400440];
+    XCTAssertEqual(decoded.cat, A64_LD_ST);
+    XCTAssertTrue(decoded.is_vector);
+    XCTAssertTrue(decoded.is_pair);
+}
+
+- (void)testDecodeContract_VectorMemory_ST2ClassifiesAsVectorLoadStore
+{
+    a64_instr_t decoded = [self decodeInstruction:0x4c008292];
+    XCTAssertEqual(decoded.cat, A64_LD_ST);
+    XCTAssertTrue(decoded.is_vector);
+}
+
+- (void)testDecodeContract_VectorMemory_ST3ClassifiesAsVectorLoadStore
+{
+    a64_instr_t decoded = [self decodeInstruction:0x4c004315];
+    XCTAssertEqual(decoded.cat, A64_LD_ST);
+    XCTAssertTrue(decoded.is_vector);
+}
+
+- (void)testDecodeContract_VectorMemory_ST4ClassifiesAsVectorLoadStore
+{
+    a64_instr_t decoded = [self decodeInstruction:0x4c0003b9];
+    XCTAssertEqual(decoded.cat, A64_LD_ST);
+    XCTAssertTrue(decoded.is_vector);
 }
 
 - (void)testDecodeContract_LDAXRClassifiesAsAtomicBeforeImm9SingleRegisterFallback
@@ -231,6 +430,63 @@
                        "so the later unsupported-policy path can reject it intentionally");
 }
 
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Arm64e_PACIBRejectsUntilArm64eDecodeOwnershipExists, 0xdac10462)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Arm64e_AUTIBRejectsUntilArm64eDecodeOwnershipExists, 0xdac114e6)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Arm64e_XPACIRejectsUntilArm64eDecodeOwnershipExists, 0xdac143e8)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Arm64e_XPACDRejectsUntilArm64eDecodeOwnershipExists, 0xdac147e9)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Arm64e_BRAARejectsUntilArm64eDecodeOwnershipExists, 0xd71f094b)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Arm64e_BRABRejectsUntilArm64eDecodeOwnershipExists, 0xd71f0d8d)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Arm64e_BLRAARejectsUntilArm64eDecodeOwnershipExists, 0xd73f09cf)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Arm64e_BLRABRejectsUntilArm64eDecodeOwnershipExists, 0xd73f0e11)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Arm64e_RETAARejectsUntilArm64eDecodeOwnershipExists, 0xd65f0bff)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Arm64e_RETABRejectsUntilArm64eDecodeOwnershipExists, 0xd65f0fff)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Arm64e_RETAASPPCRRejectsUntilArm64eDecodeOwnershipExists, 0xd65f0bfe)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Arm64e_RETABSPPCRRejectsUntilArm64eDecodeOwnershipExists, 0xd65f0ffe)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Arm64e_LDRAARejectsUntilArm64eDecodeOwnershipExists, 0xf8200420)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Arm64e_LDRABRejectsUntilArm64eDecodeOwnershipExists, 0xf8a00462)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Arm64e_BTIRejectsUntilArm64eDecodeOwnershipExists, 0xd503245f)
+
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Crypto_AESDRejectsUntilCryptoDecodeOwnershipExists, 0x4e285862)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Crypto_AESMCRejectsUntilCryptoDecodeOwnershipExists, 0x4e2868a4)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Crypto_AESIMCRejectsUntilCryptoDecodeOwnershipExists, 0x4e2878e6)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Crypto_PMULRejectsUntilCryptoDecodeOwnershipExists, 0x2e229c20)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Crypto_SHA1CRejectsUntilCryptoDecodeOwnershipExists, 0x5e020020)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Crypto_SHA1MRejectsUntilCryptoDecodeOwnershipExists, 0x5e022020)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Crypto_SHA1PRejectsUntilCryptoDecodeOwnershipExists, 0x5e051083)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Crypto_SHA1SU0RejectsUntilCryptoDecodeOwnershipExists, 0x5e0830e6)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Crypto_SHA1SU1RejectsUntilCryptoDecodeOwnershipExists, 0x5e281949)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Crypto_SHA256HRejectsUntilCryptoDecodeOwnershipExists, 0x5e024020)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Crypto_SHA256H2RejectsUntilCryptoDecodeOwnershipExists, 0x5e1051ee)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Crypto_SHA256SU0RejectsUntilCryptoDecodeOwnershipExists, 0x5e282a51)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Crypto_SHA256SU1RejectsUntilCryptoDecodeOwnershipExists, 0x5e156293)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Crypto_SM3PARTW1RejectsUntilCryptoDecodeOwnershipExists, 0xce62c020)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Crypto_SM3PARTW2RejectsUntilCryptoDecodeOwnershipExists, 0xce65c483)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Crypto_SM3SS1RejectsUntilCryptoDecodeOwnershipExists, 0xce4824e6)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Crypto_SM3TT1ARejectsUntilCryptoDecodeOwnershipExists, 0xce4c816a)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Crypto_SM3TT1BRejectsUntilCryptoDecodeOwnershipExists, 0xce4f95cd)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Crypto_SM3TT2ARejectsUntilCryptoDecodeOwnershipExists, 0xce52aa30)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Crypto_SM3TT2BRejectsUntilCryptoDecodeOwnershipExists, 0xce55be93)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Crypto_SM4ERejectsUntilCryptoDecodeOwnershipExists, 0xcec086f6)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Crypto_SM4EKEYRejectsUntilCryptoDecodeOwnershipExists, 0xce7acb38)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Crypto_SDOTRejectsUntilCryptoDecodeOwnershipExists, 0x4e829420)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Crypto_UDOTRejectsUntilCryptoDecodeOwnershipExists, 0x6e859483)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Crypto_USDOTRejectsUntilCryptoDecodeOwnershipExists, 0x4e889ce6)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Crypto_SUDOTRejectsUntilCryptoDecodeOwnershipExists, 0x0f0ef1ac)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Crypto_FDOTRejectsUntilCryptoDecodeOwnershipExists, 0x0e02fc20)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Crypto_BFDOTRejectsUntilCryptoDecodeOwnershipExists, 0x2e48fce6)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Crypto_BCAXRejectsUntilCryptoDecodeOwnershipExists, 0xce2d398b)
+TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(Crypto_XARRejectsUntilCryptoDecodeOwnershipExists, 0xce911e0f)
+
+TCTI_DECLARE_TAGGING_CLASSIFY_DECODE_TEST(Tagging_LD64BClassifiesAsLoadStoreUntilRejectLater, 0xf83fd020, 0, 1)
+TCTI_DECLARE_TAGGING_CLASSIFY_DECODE_TEST(Tagging_ST64BClassifiesAsLoadStoreUntilRejectLater, 0xf83f9062, 2, 3)
+TCTI_DECLARE_TAGGING_CLASSIFY_DECODE_TEST(Tagging_LDGMClassifiesAsLoadStoreUntilRejectLater, 0xd9e000a4, 4, 5)
+TCTI_DECLARE_TAGGING_CLASSIFY_DECODE_TEST(Tagging_STGClassifiesAsLoadStoreUntilRejectLater, 0xd92008e6, 6, 7)
+TCTI_DECLARE_TAGGING_CLASSIFY_DECODE_TEST(Tagging_STGMClassifiesAsLoadStoreUntilRejectLater, 0xd9a00128, 8, 9)
+TCTI_DECLARE_TAGGING_CLASSIFY_DECODE_TEST(Tagging_STZGClassifiesAsLoadStoreUntilRejectLater, 0xd960096a, 10, 11)
+TCTI_DECLARE_TAGGING_CLASSIFY_DECODE_TEST(Tagging_STZGMClassifiesAsLoadStoreUntilRejectLater, 0xd92001ac, 12, 13)
+TCTI_DECLARE_TAGGING_CLASSIFY_DECODE_TEST(Tagging_ST2GClassifiesAsLoadStoreUntilRejectLater, 0xd9a009ee, 14, 15)
+TCTI_DECLARE_TAGGING_CLASSIFY_DECODE_TEST(Tagging_STZ2GClassifiesAsLoadStoreUntilRejectLater, 0xd9e00a30, 16, 17)
+
 TCTI_DECLARE_ATOMIC_DECODE_TEST(OrderedExclusiveAtomic_LDAPR, 0xb8bfc020, 0, 1, 31, A64_SIZE_W, NO)
 TCTI_DECLARE_PAIR_ATOMIC_DECODE_TEST(OrderedExclusiveAtomic_LDXP, 0x887f0440, 2, A64_SIZE_W, NO, 1)
 TCTI_DECLARE_PAIR_ATOMIC_DECODE_TEST(OrderedExclusiveAtomic_STXP, 0x88200861, 3, A64_SIZE_W, NO, 2)
@@ -260,5 +516,50 @@ TCTI_DECLARE_VECTOR_COMPARE_DECODE_TEST(VectorIntegerLogical_CMHS, 0x6e223c20, 0
 TCTI_DECLARE_VECTOR_COMPARE_DECODE_TEST(VectorIntegerLogical_CMLE, 0x6e209820, 0, 1, 0, 16)
 TCTI_DECLARE_VECTOR_COMPARE_DECODE_TEST(VectorIntegerLogical_CMLT, 0x4e20a820, 0, 1, 0, 16)
 TCTI_DECLARE_VECTOR_COMPARE_DECODE_TEST(VectorIntegerLogical_CMTST, 0x4e228c20, 0, 1, 2, 16)
+TCTI_DECLARE_VECTOR_UNARY_DECODE_TEST(VectorIntegerLogical_CNT, 0x4e205820, A64_SIMD_CNT, 0, 1, 16)
+TCTI_DECLARE_VECTOR_UNARY_DECODE_TEST(VectorIntegerLogical_XTN, 0x0e212820, A64_SIMD_XTN, 0, 1, 8)
+TCTI_DECLARE_VECTOR_SUBTYPE_DECODE_TEST(VectorIntegerLogical_TBL, 0x0e020020, A64_SIMD_TBL, 0, 1, 2, 8)
+TCTI_DECLARE_VECTOR_SUBTYPE_DECODE_TEST(VectorIntegerLogical_TBX, 0x0e021020, A64_SIMD_TBX, 0, 1, 2, 8)
+TCTI_DECLARE_VECTOR_SUBTYPE_DECODE_TEST(VectorIntegerLogical_ZIP1, 0x4e023820, A64_SIMD_ZIP1, 0, 1, 2, 16)
+TCTI_DECLARE_VECTOR_SUBTYPE_DECODE_TEST(VectorIntegerLogical_ZIP2, 0x4e027820, A64_SIMD_ZIP1, 0, 1, 2, 16)
+TCTI_DECLARE_VECTOR_SUBTYPE_DECODE_TEST(VectorIntegerLogical_TRN1, 0x4e022820, A64_SIMD_TRN1, 0, 1, 2, 16)
+TCTI_DECLARE_VECTOR_SUBTYPE_DECODE_TEST(VectorIntegerLogical_TRN2, 0x4e026820, A64_SIMD_TRN1, 0, 1, 2, 16)
+TCTI_DECLARE_VECTOR_SUBTYPE_DECODE_TEST(VectorIntegerLogical_UZP1, 0x4e021820, A64_SIMD_UZP1, 0, 1, 2, 16)
+TCTI_DECLARE_VECTOR_SUBTYPE_DECODE_TEST(VectorIntegerLogical_UZP2, 0x4e025820, A64_SIMD_UZP1, 0, 1, 2, 16)
+TCTI_DECLARE_VECTOR_UNARY_DECODE_TEST(VectorIntegerLogical_XTN2, 0x4e212820, A64_SIMD_XTN, 0, 1, 16)
+TCTI_DECLARE_VECTOR_SUBTYPE_DECODE_TEST(VectorIntegerLogical_AND, 0x4e221c20, A64_SIMD_AND, 0, 1, 2, 16)
+TCTI_DECLARE_VECTOR_SUBTYPE_DECODE_TEST(VectorIntegerLogical_ORR, 0x4ea51c83, A64_SIMD_ORR, 3, 4, 5, 16)
+TCTI_DECLARE_VECTOR_SUBTYPE_DECODE_TEST(VectorIntegerLogical_EOR, 0x6e281ce6, A64_SIMD_EOR, 6, 7, 8, 16)
+TCTI_DECLARE_VECTOR_SUBTYPE_DECODE_TEST(VectorIntegerLogical_ADD, 0x4e2b8549, A64_SIMD_ADD, 9, 10, 11, 16)
+TCTI_DECLARE_VECTOR_SUBTYPE_DECODE_TEST(VectorIntegerLogical_SUB, 0x6e228420, A64_SIMD_SUB, 0, 1, 2, 16)
+TCTI_DECLARE_VECTOR_SUBTYPE_DECODE_TEST(VectorIntegerLogical_MUL, 0x4e259c83, A64_SIMD_MUL, 3, 4, 5, 16)
+TCTI_DECLARE_VECTOR_SUBTYPE_DECODE_TEST(VectorIntegerLogical_BIC, 0x4e621c20, A64_SIMD_BIC, 0, 1, 2, 16)
+TCTI_DECLARE_VECTOR_SUBTYPE_DECODE_TEST(VectorIntegerLogical_ORN, 0x4ee21c20, A64_SIMD_ORN, 0, 1, 2, 16)
+TCTI_DECLARE_VECTOR_SUBTYPE_DECODE_TEST(VectorIntegerLogical_BSL, 0x6e621c20, A64_SIMD_BSL, 0, 1, 2, 16)
+TCTI_DECLARE_VECTOR_SUBTYPE_DECODE_TEST(VectorIntegerLogical_BIT, 0x6ea21c20, A64_SIMD_BIT, 0, 1, 2, 16)
+TCTI_DECLARE_VECTOR_SUBTYPE_DECODE_TEST(VectorIntegerLogical_BIF, 0x6ee21c20, A64_SIMD_BIF, 0, 1, 2, 16)
+
+- (void)testDecodeContract_VectorIntegerLogical_EXT
+{
+    a64_instr_t decoded = [self decodeInstruction:0x6e024020];
+    XCTAssertEqual(decoded.cat, A64_SIMD);
+    XCTAssertEqual(decoded.subtype, A64_SIMD_EXT);
+    XCTAssertEqual(decoded.Rd, 0);
+    XCTAssertEqual(decoded.Rn, 1);
+    XCTAssertEqual(decoded.Rm, 2);
+    XCTAssertEqual(decoded.imm, 8LL);
+    XCTAssertEqual(decoded.vec_bytes, 16);
+}
+
+- (void)testDecodeContract_VectorIntegerLogical_INS
+{
+    a64_instr_t decoded = [self decodeInstruction:0x4e181c20];
+    XCTAssertEqual(decoded.cat, A64_SIMD);
+    XCTAssertEqual(decoded.subtype, A64_SIMD_INS_GPR);
+    XCTAssertEqual(decoded.Rd, 0);
+    XCTAssertEqual(decoded.Rn, 1);
+    XCTAssertEqual(decoded.vec_bytes, 8);
+    XCTAssertEqual(decoded.vec_index, 1);
+}
 
 @end

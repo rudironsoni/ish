@@ -1,11 +1,25 @@
 #import <XCTest/XCTest.h>
 
+#import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
+
 #include "../../Support/ISAFamilies/BaseScalar/tcti_scalar_runtime_semantic_scenarios.h"
 #include "../../Support/ISAFamilies/Memory/tcti_memory_atomic_runtime_semantic_scenarios.h"
 #include "../../Support/ISAFamilies/Memory/tcti_memory_pair_semantic_scenarios.h"
 
 @interface TCTILogicalBitfieldShiftSemanticTests : XCTestCase
 @end
+
+#define TCTI_DECLARE_REV_SEMANTIC_TEST(_name, _insn, _pc, _srcReg, _dstReg, _srcValue, _expected) \
+- (void)testSemanticExecutionContract_##_name                                                       \
+{                                                                                                   \
+    struct cpu_state cpu;                                                                           \
+    static const uint32_t insn = _insn;                                                             \
+    memset(&cpu, 0, sizeof(cpu));                                                                   \
+    cpu.pc = _pc;                                                                                   \
+    cpu.x[_srcReg] = _srcValue;                                                                     \
+    XCTAssertEqual(a64_cpu_execute_code_block(&cpu, _pc, &insn, 1), 0);                            \
+    XCTAssertEqual(cpu.x[_dstReg], (uint64_t)_expected);                                            \
+}
 
 @implementation TCTILogicalBitfieldShiftSemanticTests
 
@@ -69,6 +83,17 @@
                     "musl qsort's live shift/merge block consumes values produced earlier in the "
                     "same generated block before the next comparator call.");
 }
+
+TCTI_DECLARE_REV_SEMANTIC_TEST(REVWByteSwapsLowWord, 0x5ac00820, 0x71000, 1, 0, 0x0000000011223344ULL,
+                               0x0000000044332211ULL)
+TCTI_DECLARE_REV_SEMANTIC_TEST(REVXByteSwapsFullDoubleword, 0xdac00c62, 0x71004, 3, 2,
+                               0x1122334455667788ULL, 0x8877665544332211ULL)
+TCTI_DECLARE_REV_SEMANTIC_TEST(REV16WSwapsBytesWithinHalfwords, 0x5ac004a4, 0x71008, 5, 4,
+                               0x0000000011223344ULL, 0x0000000022114433ULL)
+TCTI_DECLARE_REV_SEMANTIC_TEST(REV16XSwapsBytesWithinHalfwordsAcrossDoubleword, 0xdac004e6, 0x7100c,
+                               7, 6, 0x1122334455667788ULL, 0x2211443366558877ULL)
+TCTI_DECLARE_REV_SEMANTIC_TEST(REV32XSwapsBytesWithinWordsAcrossDoubleword, 0xdac00928, 0x71010, 9, 8,
+                               0x1122334455667788ULL, 0x4433221188776655ULL)
 
 - (void)testSemanticExecutionContract_MuslUBFIZSymbolIndexPreservesShiftedBits
 {

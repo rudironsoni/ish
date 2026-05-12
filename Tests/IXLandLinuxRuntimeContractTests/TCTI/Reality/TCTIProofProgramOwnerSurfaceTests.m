@@ -344,7 +344,8 @@ typedef NS_ENUM(NSUInteger, TCTIOwnerMatrixSection) {
               containsTokens:@[
                   @"MuslMutexLDAXRSTLXRRoundtripsLockWord",
                   @"CASWWAtomicallySwapsMatchingValue",
-                  @"TCTI_DECLARE_ATOMIC_SEMANTIC_GAP_TEST(OrderedExclusiveAtomic_LDAPR",
+                  @"LDAPRWLoadsWordThroughOrderedAcquirePath",
+                  @"STUMINWPublishesUnsignedMinWithoutPublishingOldValue",
               ]
                        label:@"Memory/OrderedExclusiveAtomic"];
 }
@@ -396,7 +397,8 @@ typedef NS_ENUM(NSUInteger, TCTIOwnerMatrixSection) {
                   @"CNTComputesPerBytePopulationCount",
                   @"TBLLooksUpBytesAndZeroesOutOfRangeIndices",
                   @"MLSSubtractsVectorProductsFromDestination",
-                  @"TCTI_DECLARE_VECTOR_SEMANTIC_GAP_TEST(VectorIntegerLogical_CMGE",
+                  @"CMGEPublishesSignedGreaterOrEqualMask",
+                  @"CMTSTPublishesNonzeroBitIntersectionMask",
               ]
                        label:@"SIMDFP/VectorIntegerLogical"];
 }
@@ -450,15 +452,11 @@ typedef NS_ENUM(NSUInteger, TCTIOwnerMatrixSection) {
 {
     [self assertRelativePath:@"Tests/IXLandLinuxRuntimePerfTests/Perf/TCTIHotPath/TCTIHotPathPerfTests.m"
               containsTokens:@[
-                  @"testFetchLatency_HotInstructions",
-                  @"testDecodeLatency_CommonInstructions",
-                  @"testLoweringLatency_ALUOperations",
-                  @"testGadgetChains_HotSequences",
-                  @"testPerfGapInventory_FetchProofStillSynthetic",
-                  @"testPerfGapInventory_DecodeProofStillSynthetic",
-                  @"testPerfGapInventory_LoweringProofStillSynthetic",
-                  @"testPerfGapInventory_BlockCacheAndGenerationProofStillSynthetic",
-                  @"testPerfGapInventory_AtomicAndExclusiveEngineProofStillMissing",
+                  @"testFetchLatency_RealGuestFetchPath",
+                  @"testDecodeLatency_RealInstructionMix",
+                  @"testLoweringLatency_RealGenerationPath",
+                  @"testBlockCacheAndGenerationLatency_RealCompileAndCachePath",
+                  @"testAtomicAndExclusiveEngineLatency_RealAtomicExecutionPath",
               ]
                        label:@"Perf layer"];
 }

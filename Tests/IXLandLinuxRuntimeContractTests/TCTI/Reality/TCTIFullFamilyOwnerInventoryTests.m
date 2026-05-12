@@ -201,7 +201,8 @@
                   @"MuslMutexLDAXRSTLXRRoundtripsLockWord",
                   @"LDARWLoadsWordWithoutRequiringPreexistingExclusiveMonitor",
                   @"CASWWAtomicallySwapsMatchingValue",
-                  @"TCTI_DECLARE_ATOMIC_SEMANTIC_GAP_TEST(OrderedExclusiveAtomic_LDAPR",
+                  @"LDAPRWLoadsWordThroughOrderedAcquirePath",
+                  @"STUMINWPublishesUnsignedMinWithoutPublishingOldValue",
               ]
                        label:@"Family/Memory/OrderedExclusiveAtomic"];
 }
@@ -253,7 +254,8 @@
                   @"CNTComputesPerBytePopulationCount",
                   @"TBLLooksUpBytesAndZeroesOutOfRangeIndices",
                   @"MLSSubtractsVectorProductsFromDestination",
-                  @"TCTI_DECLARE_VECTOR_SEMANTIC_GAP_TEST(VectorIntegerLogical_CMGE",
+                  @"CMGEPublishesSignedGreaterOrEqualMask",
+                  @"CMTSTPublishesNonzeroBitIntersectionMask",
               ]
                        label:@"Family/SIMDFP/VectorIntegerLogical"];
 }
@@ -307,12 +309,11 @@
 {
     [self assertRelativePath:@"Tests/IXLandLinuxRuntimePerfTests/Perf/TCTIHotPath/TCTIHotPathPerfTests.m"
               containsTokens:@[
-                  @"testFetchLatency_HotInstructions",
-                  @"testDecodeLatency_CommonInstructions",
-                  @"testLoweringLatency_ALUOperations",
-                  @"testGadgetChains_HotSequences",
-                  @"testPerfGapInventory_FetchProofStillSynthetic",
-                  @"testPerfGapInventory_AtomicAndExclusiveEngineProofStillMissing",
+                  @"testFetchLatency_RealGuestFetchPath",
+                  @"testDecodeLatency_RealInstructionMix",
+                  @"testLoweringLatency_RealGenerationPath",
+                  @"testBlockCacheAndGenerationLatency_RealCompileAndCachePath",
+                  @"testAtomicAndExclusiveEngineLatency_RealAtomicExecutionPath",
               ]
                        label:@"Runtime/PerfLayer"];
 }

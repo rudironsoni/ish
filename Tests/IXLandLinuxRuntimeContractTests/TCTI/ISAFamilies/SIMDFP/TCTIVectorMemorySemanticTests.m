@@ -82,4 +82,64 @@
     mem_destroy(&mem);
 }
 
+- (void)testSemanticExecutionContract_LDURQLoadsFull128BitVectorFromNegativeOffset
+{
+    enum { textPC = 0x93040, dataBase = 0x242000 };
+    static const uint32_t insn = 0x3cdf0020; // ldur q0, [x1, #-16]
+
+    struct mem mem;
+    mem_init(&mem);
+    XCTAssertEqual(pt_map_nothing(&mem, PAGE(dataBase), 1, P_READ | P_WRITE), 0);
+
+    struct tlb tlb = {};
+    tlb_refresh(&tlb, &mem.mmu);
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.mmu = &mem.mmu;
+    cpu.tlb = &tlb;
+    cpu.x[1] = dataBase + 16;
+
+    XCTAssertEqual(a64_guest_write64(&cpu, &tlb, dataBase + 0, 0x0102030405060708ULL), A64_MEM_OK);
+    XCTAssertEqual(a64_guest_write64(&cpu, &tlb, dataBase + 8, 0x1112131415161718ULL), A64_MEM_OK);
+
+    XCTAssertEqual(a64_cpu_execute_code_block(&cpu, textPC, &insn, 1), 0);
+    XCTAssertEqual(cpu.vregs[0].d[0], 0x0102030405060708ULL);
+    XCTAssertEqual(cpu.vregs[0].d[1], 0x1112131415161718ULL);
+
+    mem_destroy(&mem);
+}
+
+- (void)testSemanticExecutionContract_LDPQLoadsAdjacent128BitVectors
+{
+    enum { textPC = 0x93060, dataBase = 0x243000 };
+    static const uint32_t insn = 0xad400440; // ldp q0, q1, [x2]
+
+    struct mem mem;
+    mem_init(&mem);
+    XCTAssertEqual(pt_map_nothing(&mem, PAGE(dataBase), 1, P_READ | P_WRITE), 0);
+
+    struct tlb tlb = {};
+    tlb_refresh(&tlb, &mem.mmu);
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.mmu = &mem.mmu;
+    cpu.tlb = &tlb;
+    cpu.x[2] = dataBase;
+
+    XCTAssertEqual(a64_guest_write64(&cpu, &tlb, dataBase + 0, 0x0011223344556677ULL), A64_MEM_OK);
+    XCTAssertEqual(a64_guest_write64(&cpu, &tlb, dataBase + 8, 0x8899aabbccddeeffULL), A64_MEM_OK);
+    XCTAssertEqual(a64_guest_write64(&cpu, &tlb, dataBase + 16, 0x1021324354657687ULL), A64_MEM_OK);
+    XCTAssertEqual(a64_guest_write64(&cpu, &tlb, dataBase + 24, 0x98a9babbdcddededULL), A64_MEM_OK);
+
+    XCTAssertEqual(a64_cpu_execute_code_block(&cpu, textPC, &insn, 1), 0);
+    XCTAssertEqual(cpu.vregs[0].d[0], 0x0011223344556677ULL);
+    XCTAssertEqual(cpu.vregs[0].d[1], 0x8899aabbccddeeffULL);
+    XCTAssertEqual(cpu.vregs[1].d[0], 0x1021324354657687ULL);
+    XCTAssertEqual(cpu.vregs[1].d[1], 0x98a9babbdcddededULL);
+
+    mem_destroy(&mem);
+}
+
 @end

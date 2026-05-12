@@ -13,6 +13,23 @@
 @interface TCTIControlAndFlagsSemanticTests : XCTestCase
 @end
 
+static void tcti_init_cond_branch_cpu(struct cpu_state *cpu, uint64_t pc, uint64_t pstate)
+{
+    memset(cpu, 0, sizeof(*cpu));
+    cpu->pc = pc;
+    cpu->pstate = pstate;
+}
+
+#define TCTI_DECLARE_COND_BRANCH_SEMANTIC_TEST(_name, _insn, _pc, _pstate, _expectedPC)          \
+- (void)testSemanticExecutionContract_##_name                                                      \
+{                                                                                                  \
+    struct cpu_state cpu;                                                                          \
+    static const uint32_t insn = _insn;                                                            \
+    tcti_init_cond_branch_cpu(&cpu, _pc, _pstate);                                                \
+    XCTAssertEqual(a64_cpu_execute_code_block(&cpu, _pc, &insn, 1), 0);                           \
+    XCTAssertEqual(cpu.pc, (uint64_t)_expectedPC);                                                 \
+}
+
 @implementation TCTIControlAndFlagsSemanticTests
 - (void)testSemanticExecutionContract_MOVRegProducesCorrectResult
 {
@@ -34,6 +51,63 @@
     XCTAssertEqual(tcti_semantic_case_entry_restores_pstate_for_bcond_ne(), 0x2000ULL,
                    @"TCTI block entry must restore guest NZCV from cpu->pstate before B.cond");
 }
+
+TCTI_DECLARE_COND_BRANCH_SEMANTIC_TEST(BEQTakenOnZeroFlag, 0x54000000, 0x70000, 0x40000000ULL,
+                                       0x70000)
+TCTI_DECLARE_COND_BRANCH_SEMANTIC_TEST(BNETakenOnNonZeroFlag, 0x54000001, 0x70004, 0ULL,
+                                       0x70004)
+TCTI_DECLARE_COND_BRANCH_SEMANTIC_TEST(BHSTakenOnCarryFlag, 0x54000002, 0x70008, 0x20000000ULL,
+                                       0x70008)
+TCTI_DECLARE_COND_BRANCH_SEMANTIC_TEST(BLOTakenOnCarryClear, 0x54000003, 0x7000c, 0ULL, 0x7000c)
+TCTI_DECLARE_COND_BRANCH_SEMANTIC_TEST(BMITakenOnNegativeFlag, 0x54000004, 0x70010, 0x80000000ULL,
+                                       0x70010)
+TCTI_DECLARE_COND_BRANCH_SEMANTIC_TEST(BPLTakenOnNegativeClear, 0x54000005, 0x70014, 0ULL,
+                                       0x70014)
+TCTI_DECLARE_COND_BRANCH_SEMANTIC_TEST(BVSTakenOnOverflowFlag, 0x54000006, 0x70018, 0x10000000ULL,
+                                       0x70018)
+TCTI_DECLARE_COND_BRANCH_SEMANTIC_TEST(BVCTakenOnOverflowClear, 0x54000007, 0x7001c, 0ULL,
+                                       0x7001c)
+TCTI_DECLARE_COND_BRANCH_SEMANTIC_TEST(BHITakenOnCarrySetAndZeroClear, 0x54000008, 0x70020,
+                                       0x20000000ULL, 0x70020)
+TCTI_DECLARE_COND_BRANCH_SEMANTIC_TEST(BLSTakenOnZeroSet, 0x54000009, 0x70024, 0x40000000ULL,
+                                       0x70024)
+TCTI_DECLARE_COND_BRANCH_SEMANTIC_TEST(BGETakenOnMatchingSignAndOverflow, 0x5400000a, 0x70028,
+                                       0ULL, 0x70028)
+TCTI_DECLARE_COND_BRANCH_SEMANTIC_TEST(BLTTakenOnMismatchedSignAndOverflow, 0x5400000b, 0x7002c,
+                                       0x80000000ULL, 0x7002c)
+TCTI_DECLARE_COND_BRANCH_SEMANTIC_TEST(BGTTakenOnZeroClearAndMatchingSignOverflow, 0x5400000c,
+                                       0x70030, 0ULL, 0x70030)
+TCTI_DECLARE_COND_BRANCH_SEMANTIC_TEST(BLETakenOnZeroSet, 0x5400000d, 0x70034, 0x40000000ULL,
+                                       0x70034)
+
+TCTI_DECLARE_COND_BRANCH_SEMANTIC_TEST(BCEQTakenOnZeroFlag, 0x54000010, 0x70038, 0x40000000ULL,
+                                       0x70038)
+TCTI_DECLARE_COND_BRANCH_SEMANTIC_TEST(BCNETakenOnNonZeroFlag, 0x54000011, 0x7003c, 0ULL,
+                                       0x7003c)
+TCTI_DECLARE_COND_BRANCH_SEMANTIC_TEST(BCSHSTakenOnCarryFlag, 0x54000012, 0x70040, 0x20000000ULL,
+                                       0x70040)
+TCTI_DECLARE_COND_BRANCH_SEMANTIC_TEST(BCCLOTakenOnCarryClear, 0x54000013, 0x70044, 0ULL,
+                                       0x70044)
+TCTI_DECLARE_COND_BRANCH_SEMANTIC_TEST(BCMITakenOnNegativeFlag, 0x54000014, 0x70048, 0x80000000ULL,
+                                       0x70048)
+TCTI_DECLARE_COND_BRANCH_SEMANTIC_TEST(BCPLTakenOnNegativeClear, 0x54000015, 0x7004c, 0ULL,
+                                       0x7004c)
+TCTI_DECLARE_COND_BRANCH_SEMANTIC_TEST(BCVSTakenOnOverflowFlag, 0x54000016, 0x70050, 0x10000000ULL,
+                                       0x70050)
+TCTI_DECLARE_COND_BRANCH_SEMANTIC_TEST(BCVCTakenOnOverflowClear, 0x54000017, 0x70054, 0ULL,
+                                       0x70054)
+TCTI_DECLARE_COND_BRANCH_SEMANTIC_TEST(BCHITakenOnCarrySetAndZeroClear, 0x54000018, 0x70058,
+                                       0x20000000ULL, 0x70058)
+TCTI_DECLARE_COND_BRANCH_SEMANTIC_TEST(BCLSTakenOnZeroSet, 0x54000019, 0x7005c, 0x40000000ULL,
+                                       0x7005c)
+TCTI_DECLARE_COND_BRANCH_SEMANTIC_TEST(BCGETakenOnMatchingSignAndOverflow, 0x5400001a, 0x70060,
+                                       0ULL, 0x70060)
+TCTI_DECLARE_COND_BRANCH_SEMANTIC_TEST(BCLTTakenOnMismatchedSignAndOverflow, 0x5400001b, 0x70064,
+                                       0x80000000ULL, 0x70064)
+TCTI_DECLARE_COND_BRANCH_SEMANTIC_TEST(BCGTTakenOnZeroClearAndMatchingSignOverflow, 0x5400001c,
+                                       0x70068, 0ULL, 0x70068)
+TCTI_DECLARE_COND_BRANCH_SEMANTIC_TEST(BCLETakenOnZeroSet, 0x5400001d, 0x7006c, 0x40000000ULL,
+                                       0x7006c)
 
 - (void)testSemanticExecutionContract_FlagSettingFallbackLeavesGuestNZCVLiveForCCMP
 {

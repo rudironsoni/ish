@@ -123,6 +123,12 @@ static bool uname_syscall_returned = false;
 static uint64_t uname_syscall_return_value = 0;
 static bool stdout_aarch64_write_observed = false;
 static bool pty_aarch64_write_observed = false;
+static bool ordered_exclusive_atomic_family_hit_observed = false;
+static uint64_t ordered_exclusive_atomic_family_hit_count = 0;
+static uint64_t ordered_exclusive_atomic_last_pc = 0;
+static bool vector_integer_logical_family_hit_observed = false;
+static uint64_t vector_integer_logical_family_hit_count = 0;
+static uint64_t vector_integer_logical_last_pc = 0;
 
 static size_t compile_pc_slot(uint64_t mmu, uint64_t pc);
 
@@ -456,6 +462,28 @@ static void test_sink_record_event(ixland_instrumentation_origin_t origin, const
         os_unfair_lock_lock(&sink_state_lock);
         root_stat_fail_count++;
         os_unfair_lock_unlock(&sink_state_lock);
+        return;
+    }
+
+    if (strncmp(event_name, "tcti.family.hit=family:", 23) == 0) {
+        unsigned long long pc = 0ULL;
+        char family[64] = { 0 };
+        char mnemonic[32] = { 0 };
+        if (sscanf(event_name, "tcti.family.hit=family:%63[^,],mnemonic:%31[^,],pc:0x%llx",
+                   family, mnemonic, &pc) >= 2) {
+            (void)mnemonic;
+            os_unfair_lock_lock(&sink_state_lock);
+            if (strcmp(family, "Memory/OrderedExclusiveAtomic") == 0) {
+                ordered_exclusive_atomic_family_hit_observed = true;
+                ordered_exclusive_atomic_family_hit_count++;
+                ordered_exclusive_atomic_last_pc = (uint64_t)pc;
+            } else if (strcmp(family, "SIMDFP/VectorIntegerLogical") == 0) {
+                vector_integer_logical_family_hit_observed = true;
+                vector_integer_logical_family_hit_count++;
+                vector_integer_logical_last_pc = (uint64_t)pc;
+            }
+            os_unfair_lock_unlock(&sink_state_lock);
+        }
         return;
     }
 
@@ -1001,6 +1029,12 @@ void guest_execution_trace_sink_reset(void)
     uname_syscall_return_value = 0;
     stdout_aarch64_write_observed = false;
     pty_aarch64_write_observed = false;
+    ordered_exclusive_atomic_family_hit_observed = false;
+    ordered_exclusive_atomic_family_hit_count = 0;
+    ordered_exclusive_atomic_last_pc = 0;
+    vector_integer_logical_family_hit_observed = false;
+    vector_integer_logical_family_hit_count = 0;
+    vector_integer_logical_last_pc = 0;
     os_unfair_lock_unlock(&sink_state_lock);
 }
 
@@ -1238,6 +1272,54 @@ bool guest_execution_trace_sink_pty_aarch64_write_observed(void) {
     bool value;
     os_unfair_lock_lock(&sink_state_lock);
     value = pty_aarch64_write_observed;
+    os_unfair_lock_unlock(&sink_state_lock);
+    return value;
+}
+
+bool guest_execution_trace_sink_ordered_exclusive_atomic_family_hit_observed(void) {
+    bool value;
+    os_unfair_lock_lock(&sink_state_lock);
+    value = ordered_exclusive_atomic_family_hit_observed;
+    os_unfair_lock_unlock(&sink_state_lock);
+    return value;
+}
+
+uint64_t guest_execution_trace_sink_ordered_exclusive_atomic_family_hit_count(void) {
+    uint64_t value;
+    os_unfair_lock_lock(&sink_state_lock);
+    value = ordered_exclusive_atomic_family_hit_count;
+    os_unfair_lock_unlock(&sink_state_lock);
+    return value;
+}
+
+uint64_t guest_execution_trace_sink_ordered_exclusive_atomic_last_pc(void) {
+    uint64_t value;
+    os_unfair_lock_lock(&sink_state_lock);
+    value = ordered_exclusive_atomic_last_pc;
+    os_unfair_lock_unlock(&sink_state_lock);
+    return value;
+}
+
+bool guest_execution_trace_sink_vector_integer_logical_family_hit_observed(void) {
+    bool value;
+    os_unfair_lock_lock(&sink_state_lock);
+    value = vector_integer_logical_family_hit_observed;
+    os_unfair_lock_unlock(&sink_state_lock);
+    return value;
+}
+
+uint64_t guest_execution_trace_sink_vector_integer_logical_family_hit_count(void) {
+    uint64_t value;
+    os_unfair_lock_lock(&sink_state_lock);
+    value = vector_integer_logical_family_hit_count;
+    os_unfair_lock_unlock(&sink_state_lock);
+    return value;
+}
+
+uint64_t guest_execution_trace_sink_vector_integer_logical_last_pc(void) {
+    uint64_t value;
+    os_unfair_lock_lock(&sink_state_lock);
+    value = vector_integer_logical_last_pc;
     os_unfair_lock_unlock(&sink_state_lock);
     return value;
 }

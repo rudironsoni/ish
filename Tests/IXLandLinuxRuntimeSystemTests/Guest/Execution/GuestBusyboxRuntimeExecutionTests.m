@@ -1328,22 +1328,74 @@ extern bool exit_should_pthread_exit;
                   @"interactive busybox shell must emit aarch64 through a real guest write path after PTY master input");
 }
 
-- (void)testLiveGuestGapInventory_OrderedExclusiveAtomicFamilyLinkageRemainsIndirect
+- (void)testLiveGuestLinkage_OrderedExclusiveAtomicFamilyAppearsInInteractiveShellPath
 {
-    XCTFail(@"Live guest proof is still indirect for Memory/OrderedExclusiveAtomic. Current "
-             @"busybox shell stalls/crashes are not yet attributed to OrderedExclusiveAtomic by "
-             @"name from a guest-visible path. The current harsh path still centers on prompt "
-             @"stall/crash PCs around 0x797a4 and 0x7b4d8, not a named OrderedExclusiveAtomic "
-             @"guest bucket, so this family must stay red.");
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    const char argv[] = "/bin/busybox\0sh\0-i\0\0";
+    const char envp[] =
+        "TERM=xterm-256color\0"
+        "HOME=/root\0"
+        "USER=root\0"
+        "LOGNAME=root\0"
+        "HISTFILE=/dev/null\0"
+        "HISTSIZE=0\0"
+        "HISTFILESIZE=0\0"
+        "SHELL=/bin/sh\0"
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\0"
+        "\0";
+    if (![self execBusyboxWithArgc:3 argv:argv envp:envp])
+        return;
+
+    BOOL observed = [self pumpGuestUntilTimeout:10.0
+                                      predicate:^BOOL {
+                                          return guest_execution_trace_sink_ordered_exclusive_atomic_family_hit_observed() ||
+                                                 guest_execution_trace_sink_exit_observed();
+                                      }];
+
+    XCTAssertTrue(observed, @"interactive shell must either hit OrderedExclusiveAtomic or exit within the timeout");
+    XCTAssertTrue(guest_execution_trace_sink_ordered_exclusive_atomic_family_hit_observed(),
+                  @"interactive shell still lacks named OrderedExclusiveAtomic linkage. count=%llu last_pc=0x%llx exit=%d",
+                  guest_execution_trace_sink_ordered_exclusive_atomic_family_hit_count(),
+                  guest_execution_trace_sink_ordered_exclusive_atomic_last_pc(),
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0);
 }
 
-- (void)testLiveGuestGapInventory_VectorIntegerLogicalFamilyLinkageRemainsIndirect
+- (void)testLiveGuestLinkage_VectorIntegerLogicalFamilyAppearsInInteractiveShellPath
 {
-    XCTFail(@"Live guest proof is still indirect for SIMDFP/VectorIntegerLogical. Current "
-             @"busybox shell stalls/crashes are not yet attributed to VectorIntegerLogical by "
-             @"name from a guest-visible path. The current harsh path still centers on prompt "
-             @"stall/crash PCs around 0x797a4 and 0x7b4d8, not a named VectorIntegerLogical "
-             @"guest bucket, so this family must stay red.");
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    const char argv[] = "/bin/busybox\0sh\0-i\0\0";
+    const char envp[] =
+        "TERM=xterm-256color\0"
+        "HOME=/root\0"
+        "USER=root\0"
+        "LOGNAME=root\0"
+        "HISTFILE=/dev/null\0"
+        "HISTSIZE=0\0"
+        "HISTFILESIZE=0\0"
+        "SHELL=/bin/sh\0"
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\0"
+        "\0";
+    if (![self execBusyboxWithArgc:3 argv:argv envp:envp])
+        return;
+
+    BOOL observed = [self pumpGuestUntilTimeout:10.0
+                                      predicate:^BOOL {
+                                          return guest_execution_trace_sink_vector_integer_logical_family_hit_observed() ||
+                                                 guest_execution_trace_sink_exit_observed();
+                                      }];
+
+    XCTAssertTrue(observed, @"interactive shell must either hit VectorIntegerLogical or exit within the timeout");
+    XCTAssertTrue(guest_execution_trace_sink_vector_integer_logical_family_hit_observed(),
+                  @"interactive shell still lacks named VectorIntegerLogical linkage. count=%llu last_pc=0x%llx exit=%d",
+                  guest_execution_trace_sink_vector_integer_logical_family_hit_count(),
+                  guest_execution_trace_sink_vector_integer_logical_last_pc(),
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0);
 }
 
 @end

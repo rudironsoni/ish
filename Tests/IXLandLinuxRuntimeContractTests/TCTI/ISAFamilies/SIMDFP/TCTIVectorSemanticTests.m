@@ -356,6 +356,96 @@
     }
 }
 
+- (void)testSemanticExecutionContract_ZIP2InterleavesHighHalvesOfTwoVectors
+{
+    enum { textPC = 0x98120 };
+    static const uint32_t insn = 0x4e027820; // zip2 v0.16b, v1.16b, v2.16b
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+
+    for (int i = 0; i < 16; i++) {
+        cpu.vregs[1].b[i] = (uint8_t)(0x10 + i);
+        cpu.vregs[2].b[i] = (uint8_t)(0x80 + i);
+    }
+
+    static const uint8_t expected[16] = {
+        0x18, 0x88, 0x19, 0x89, 0x1a, 0x8a, 0x1b, 0x8b,
+        0x1c, 0x8c, 0x1d, 0x8d, 0x1e, 0x8e, 0x1f, 0x8f,
+    };
+
+    XCTAssertEqual(a64_cpu_execute_code_block(&cpu, textPC, &insn, 1), 0);
+    for (int i = 0; i < 16; i++)
+        XCTAssertEqual(cpu.vregs[0].b[i], expected[i]);
+}
+
+- (void)testSemanticExecutionContract_TRN2InterleavesOddLanesFromTwoVectors
+{
+    enum { textPC = 0x98140 };
+    static const uint32_t insn = 0x4e026820; // trn2 v0.16b, v1.16b, v2.16b
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+
+    for (int i = 0; i < 16; i++) {
+        cpu.vregs[1].b[i] = (uint8_t)(0x10 + i);
+        cpu.vregs[2].b[i] = (uint8_t)(0x80 + i);
+    }
+
+    static const uint8_t expected[16] = {
+        0x11, 0x81, 0x13, 0x83, 0x15, 0x85, 0x17, 0x87,
+        0x19, 0x89, 0x1b, 0x8b, 0x1d, 0x8d, 0x1f, 0x8f,
+    };
+
+    XCTAssertEqual(a64_cpu_execute_code_block(&cpu, textPC, &insn, 1), 0);
+    for (int i = 0; i < 16; i++)
+        XCTAssertEqual(cpu.vregs[0].b[i], expected[i]);
+}
+
+- (void)testSemanticExecutionContract_UZP2PacksOddLanesFromBothVectors
+{
+    enum { textPC = 0x98160 };
+    static const uint32_t insn = 0x4e025820; // uzp2 v0.16b, v1.16b, v2.16b
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+
+    for (int i = 0; i < 16; i++) {
+        cpu.vregs[1].b[i] = (uint8_t)(0x10 + i);
+        cpu.vregs[2].b[i] = (uint8_t)(0x80 + i);
+    }
+
+    static const uint8_t expected[16] = {
+        0x11, 0x13, 0x15, 0x17, 0x19, 0x1b, 0x1d, 0x1f,
+        0x81, 0x83, 0x85, 0x87, 0x89, 0x8b, 0x8d, 0x8f,
+    };
+
+    XCTAssertEqual(a64_cpu_execute_code_block(&cpu, textPC, &insn, 1), 0);
+    for (int i = 0; i < 16; i++)
+        XCTAssertEqual(cpu.vregs[0].b[i], expected[i]);
+}
+
+- (void)testSemanticExecutionContract_XTN2NarrowsHalfwordsIntoUpperByteHalf
+{
+    enum { textPC = 0x98180 };
+    static const uint32_t insn = 0x4e212820; // xtn2 v0.16b, v1.8h
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    memset(cpu.vregs[0].b, 0xaa, sizeof(cpu.vregs[0].b));
+
+    static const uint16_t source[8] = {
+        0x0102, 0x0304, 0x0506, 0x0708, 0x090a, 0x0b0c, 0x0d0e, 0x0f10,
+    };
+    for (int i = 0; i < 8; i++)
+        cpu.vregs[1].h[i] = source[i];
+
+    static const uint8_t expected[16] = {
+        0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa,
+        0x02, 0x04, 0x06, 0x08, 0x0a, 0x0c, 0x0e, 0x10,
+    };
+
+    XCTAssertEqual(a64_cpu_execute_code_block(&cpu, textPC, &insn, 1), 0);
+    for (int i = 0; i < 16; i++)
+        XCTAssertEqual(cpu.vregs[0].b[i], expected[i]);
+}
+
 - (void)testSemanticExecutionContract_ANDComputesPerByteVectorMask
 {
     enum {

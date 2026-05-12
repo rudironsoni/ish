@@ -61,6 +61,7 @@ static void tcti_trace_record_mem_access(struct cpu_state *cpu, uint64_t pc, uin
                                          uint64_t addr, uint64_t value, uint64_t base,
                                          uint64_t offset, uint8_t width, uint8_t is_load, int rt,
                                          int rn, int rm, int idx_mode);
+static void trace_tcti_family_hit(const char *family, const char *mnemonic, uint64_t guest_pc);
 
 static void trace_hot_ldso_helper_access(uint64_t fault_pc, uint64_t rt, uint64_t rn,
                                          uint64_t base, uint64_t addr, uint64_t value,
@@ -172,6 +173,7 @@ static int tcti_simd_vec_access(struct cpu_state *cpu, uint64_t addr, uint64_t v
 __attribute__((used)) static void tcti_simd_dup_gpr_helper(struct cpu_state *cpu, uint64_t vd,
                                                            uint64_t rn, uint64_t vec_bytes)
 {
+    trace_tcti_family_hit("SIMDFP/VectorIntegerLogical", "DUP", cpu ? cpu->pc : 0);
     uint64_t value = tcti_read_reg_or_zr(cpu, (int)rn);
     if (vd >= 32)
         return;
@@ -249,6 +251,7 @@ __attribute__((used)) static void tcti_simd_movi_imm_helper(struct cpu_state *cp
                                                             uint64_t imm8, uint64_t cmode,
                                                             uint64_t op, uint64_t q)
 {
+    trace_tcti_family_hit("SIMDFP/VectorIntegerLogical", op ? "MVNI" : "MOVI", cpu ? cpu->pc : 0);
     if (vd >= 32)
         return;
 
@@ -354,6 +357,7 @@ __attribute__((used)) static void tcti_simd_ext_helper(struct cpu_state *cpu, ui
 __attribute__((used)) static void tcti_simd_cnt_helper(struct cpu_state *cpu, uint64_t vd,
                                                        uint64_t vn, uint64_t vec_bytes)
 {
+    trace_tcti_family_hit("SIMDFP/VectorIntegerLogical", "CNT", cpu ? cpu->pc : 0);
     if (vd >= 32 || vn >= 32 || (vec_bytes != 8 && vec_bytes != 16))
         return;
 
@@ -483,6 +487,7 @@ __attribute__((used)) static void tcti_simd_and_helper(struct cpu_state *cpu, ui
                                                        uint64_t vn, uint64_t vm,
                                                        uint64_t vec_bytes)
 {
+    trace_tcti_family_hit("SIMDFP/VectorIntegerLogical", "AND", cpu ? cpu->pc : 0);
     if (vd >= 32 || vn >= 32 || vm >= 32 || (vec_bytes != 8 && vec_bytes != 16))
         return;
 
@@ -505,6 +510,7 @@ __attribute__((used)) static void tcti_simd_orr_helper(struct cpu_state *cpu, ui
                                                        uint64_t vn, uint64_t vm,
                                                        uint64_t vec_bytes)
 {
+    trace_tcti_family_hit("SIMDFP/VectorIntegerLogical", "ORR", cpu ? cpu->pc : 0);
     if (vd >= 32 || vn >= 32 || vm >= 32 || (vec_bytes != 8 && vec_bytes != 16))
         return;
 
@@ -575,6 +581,7 @@ __attribute__((used)) static void tcti_simd_eor_helper(struct cpu_state *cpu, ui
                                                        uint64_t vn, uint64_t vm,
                                                        uint64_t vec_bytes)
 {
+    trace_tcti_family_hit("SIMDFP/VectorIntegerLogical", "EOR", cpu ? cpu->pc : 0);
     if (vd >= 32 || vn >= 32 || vm >= 32 || (vec_bytes != 8 && vec_bytes != 16))
         return;
 
@@ -619,6 +626,7 @@ __attribute__((used)) static void tcti_simd_cmeq_helper(struct cpu_state *cpu, u
                                                         uint64_t vn, uint64_t vm,
                                                         uint64_t vec_bytes)
 {
+    trace_tcti_family_hit("SIMDFP/VectorIntegerLogical", "CMEQ", cpu ? cpu->pc : 0);
     if (vd >= 32 || vn >= 32 || vm >= 32 || (vec_bytes != 8 && vec_bytes != 16))
         return;
 
@@ -630,6 +638,7 @@ __attribute__((used)) static void tcti_simd_cmgt_helper(struct cpu_state *cpu, u
                                                         uint64_t vn, uint64_t vm,
                                                         uint64_t vec_bytes)
 {
+    trace_tcti_family_hit("SIMDFP/VectorIntegerLogical", "CMGT", cpu ? cpu->pc : 0);
     if (vd >= 32 || vn >= 32 || vm >= 32 || (vec_bytes != 8 && vec_bytes != 16))
         return;
 
@@ -644,6 +653,7 @@ __attribute__((used)) static void tcti_simd_mla_helper(struct cpu_state *cpu, ui
                                                        uint64_t vn, uint64_t vm,
                                                        uint64_t vec_bytes)
 {
+    trace_tcti_family_hit("SIMDFP/VectorIntegerLogical", "MLA", cpu ? cpu->pc : 0);
     if (vd >= 32 || vn >= 32 || vm >= 32 || (vec_bytes != 8 && vec_bytes != 16))
         return;
 
@@ -658,6 +668,7 @@ __attribute__((used)) static void tcti_simd_mls_helper(struct cpu_state *cpu, ui
                                                        uint64_t vn, uint64_t vm,
                                                        uint64_t vec_bytes)
 {
+    trace_tcti_family_hit("SIMDFP/VectorIntegerLogical", "MLS", cpu ? cpu->pc : 0);
     if (vd >= 32 || vn >= 32 || vm >= 32 || (vec_bytes != 8 && vec_bytes != 16))
         return;
 
@@ -857,6 +868,17 @@ static void trace_tcti_reg_write(int reg, uint64_t old_val, uint64_t new_val, in
                               sizeof(fields) / sizeof(fields[0]));
 }
 
+static void trace_tcti_family_hit(const char *family, const char *mnemonic, uint64_t guest_pc)
+{
+    if (!family || !mnemonic || !trace_should_emit_event("tcti.family"))
+        return;
+
+    char event[256];
+    snprintf(event, sizeof(event), "tcti.family.hit=family:%s,mnemonic:%s,pc:0x%llx", family,
+             mnemonic, (unsigned long long)guest_pc);
+    trace_record_event(TRACE_ORIGIN_TCTI, event);
+}
+
 static void trace_tcti_ldst_access(struct cpu_state *cpu, const char *event_name,
                                    uint64_t instance_id, uint64_t fault_pc, uint32_t raw_opcode,
                                    uint64_t rt, uint64_t rn, int64_t imm, uint64_t size,
@@ -978,6 +1000,7 @@ static void tcti_write_reg_or_zr(struct cpu_state *cpu, int reg, uint64_t value,
 static int tcti_atomic_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uint64_t rt,
                                    uint64_t rn, uint64_t rs, uint64_t size, uint64_t is_load)
 {
+    trace_tcti_family_hit("Memory/OrderedExclusiveAtomic", "ATOMIC", fault_pc);
     uint64_t addr = tcti_read_base_reg_or_sp(cpu, (int)rn);
     uint32_t raw_opcode = 0;
     (void)a64_fetch_insn(cpu, cpu->tlb, fault_pc, &raw_opcode);
