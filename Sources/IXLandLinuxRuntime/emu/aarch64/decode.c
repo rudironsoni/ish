@@ -425,6 +425,70 @@ static bool a64_decode_simd_bif_representative(uint32_t insn, a64_instr_t *out)
     return true;
 }
 
+static bool a64_decode_simd_cmeq_representative(uint32_t insn, a64_instr_t *out)
+{
+    if ((insn & 0xff20fc00u) != 0x6e208c00u || bits(insn, 23, 22) != 0)
+        return false;
+
+    out->cat = bit(insn, 30) ? A64_SIMD2 : A64_SIMD;
+    out->subtype = A64_SIMD_CMEQ;
+    out->is_vector = true;
+    out->Rd = bits(insn, 4, 0);
+    out->Rn = bits(insn, 9, 5);
+    out->Rm = bits(insn, 20, 16);
+    out->vec_bytes = bit(insn, 30) ? 16 : 8;
+    out->is_64bit = bit(insn, 30);
+    return true;
+}
+
+static bool a64_decode_simd_cmgt_representative(uint32_t insn, a64_instr_t *out)
+{
+    if ((insn & 0xff20fc00u) != 0x4e203400u || bits(insn, 23, 22) != 0)
+        return false;
+
+    out->cat = bit(insn, 30) ? A64_SIMD2 : A64_SIMD;
+    out->subtype = A64_SIMD_CMGT;
+    out->is_vector = true;
+    out->Rd = bits(insn, 4, 0);
+    out->Rn = bits(insn, 9, 5);
+    out->Rm = bits(insn, 20, 16);
+    out->vec_bytes = bit(insn, 30) ? 16 : 8;
+    out->is_64bit = bit(insn, 30);
+    return true;
+}
+
+static bool a64_decode_simd_mla_representative(uint32_t insn, a64_instr_t *out)
+{
+    if ((insn & 0xff20fc00u) != 0x4e209400u || bits(insn, 23, 22) != 0)
+        return false;
+
+    out->cat = bit(insn, 30) ? A64_SIMD2 : A64_SIMD;
+    out->subtype = A64_SIMD_MLA;
+    out->is_vector = true;
+    out->Rd = bits(insn, 4, 0);
+    out->Rn = bits(insn, 9, 5);
+    out->Rm = bits(insn, 20, 16);
+    out->vec_bytes = bit(insn, 30) ? 16 : 8;
+    out->is_64bit = bit(insn, 30);
+    return true;
+}
+
+static bool a64_decode_simd_mls_representative(uint32_t insn, a64_instr_t *out)
+{
+    if ((insn & 0xff20fc00u) != 0x6e209400u || bits(insn, 23, 22) != 0)
+        return false;
+
+    out->cat = bit(insn, 30) ? A64_SIMD2 : A64_SIMD;
+    out->subtype = A64_SIMD_MLS;
+    out->is_vector = true;
+    out->Rd = bits(insn, 4, 0);
+    out->Rn = bits(insn, 9, 5);
+    out->Rm = bits(insn, 20, 16);
+    out->vec_bytes = bit(insn, 30) ? 16 : 8;
+    out->is_64bit = bit(insn, 30);
+    return true;
+}
+
 static bool a64_decode_cond_select_family(uint32_t insn, a64_instr_t *out)
 {
     // Conditional select family:
@@ -639,6 +703,18 @@ int a64_decode(uint32_t insn, a64_instr_t *out)
         return 0;
 
     if (a64_decode_simd_bif_representative(insn, out))
+        return 0;
+
+    if (a64_decode_simd_cmeq_representative(insn, out))
+        return 0;
+
+    if (a64_decode_simd_cmgt_representative(insn, out))
+        return 0;
+
+    if (a64_decode_simd_mla_representative(insn, out))
+        return 0;
+
+    if (a64_decode_simd_mls_representative(insn, out))
         return 0;
 
     // Check for system instructions first (SVC, HVC, hints, barriers)
@@ -1242,7 +1318,7 @@ int a64_decode_ldst(uint32_t insn, a64_instr_t *out)
     // Exclusive and ordered atomic load/store forms occupy the same broad load/store
     // space as the imm9 single-register forms. Decode them first so LDAXR/STLXR do
     // not corrupt guest state by falling through as pre-indexed LDR/STR.
-    if (bits(insn, 29, 24) == 0x08 && (op3 == 0xE || op3 == 0xF)) {
+    if (bits(insn, 29, 24) == 0x08 && (op3 == 0xE || op3 == 0xF || bit(insn, 21))) {
         out->Rd = bits(insn, 4, 0);   // Rt
         out->Rn = bits(insn, 9, 5);   // Rn
         out->Rm = bits(insn, 20, 16); // Rs for stores, ZR encoding for loads

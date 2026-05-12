@@ -10,6 +10,51 @@
 
 @implementation TCTIVectorSemanticTests
 
+- (void)assertVectorMaskInstruction:(uint32_t)insn
+                               textPC:(uint64_t)textPC
+                              destReg:(int)destReg
+                               lhsReg:(int)lhsReg
+                               rhsReg:(int)rhsReg
+                                  lhs:(const uint8_t[16])lhs
+                                  rhs:(const uint8_t[16])rhs
+                             expected:(const uint8_t[16])expected
+                             mnemonic:(const char *)mnemonic
+{
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    memcpy(cpu.vregs[lhsReg].b, lhs, 16);
+    memcpy(cpu.vregs[rhsReg].b, rhs, 16);
+
+    XCTAssertEqual(a64_cpu_execute_code_block(&cpu, textPC, &insn, 1), 0,
+                   @"%s must execute through TCTI", mnemonic);
+
+    for (int i = 0; i < 16; i++) {
+        XCTAssertEqual(cpu.vregs[destReg].b[i], expected[i],
+                       @"%s must publish the architectural byte-lane mask", mnemonic);
+    }
+}
+
+- (void)assertVectorMaskAgainstZeroInstruction:(uint32_t)insn
+                                          textPC:(uint64_t)textPC
+                                         destReg:(int)destReg
+                                          srcReg:(int)srcReg
+                                             src:(const uint8_t[16])src
+                                        expected:(const uint8_t[16])expected
+                                        mnemonic:(const char *)mnemonic
+{
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+    memcpy(cpu.vregs[srcReg].b, src, 16);
+
+    XCTAssertEqual(a64_cpu_execute_code_block(&cpu, textPC, &insn, 1), 0,
+                   @"%s must execute through TCTI", mnemonic);
+
+    for (int i = 0; i < 16; i++) {
+        XCTAssertEqual(cpu.vregs[destReg].b[i], expected[i],
+                       @"%s must publish the architectural byte-lane mask", mnemonic);
+    }
+}
+
 - (void)testSemanticExecutionContract_MuslSnprintfFILEWposInit
 {
     XCTAssertEqual(tcti_semantic_case_musl_snprintf_file_wpos_init(), 0ULL,
@@ -730,6 +775,256 @@
         XCTAssertEqual(cpu.vregs[0].b[i], expected[i],
                        @"BIF v0.16b, v1.16b, v2.16b must publish (old & mask) | (src & ~mask)");
     }
+}
+
+- (void)testSemanticExecutionContract_CMEQPublishesAllOnesForEqualByteLanes
+{
+    enum {
+        textPC = 0x98180,
+    };
+
+    static const uint32_t insn = 0x6e228c20; // cmeq v0.16b, v1.16b, v2.16b
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+
+    for (int i = 0; i < 16; i++) {
+        cpu.vregs[1].b[i] = (uint8_t)(0x20 + i);
+        cpu.vregs[2].b[i] = (uint8_t)(0x20 + i);
+    }
+    cpu.vregs[2].b[3] ^= 0x1;
+    cpu.vregs[2].b[11] ^= 0x80;
+
+    XCTAssertEqual(a64_cpu_execute_code_block(&cpu, textPC, &insn, 1), 0,
+                   @"CMEQ must execute through TCTI and publish per-byte equality masks");
+
+    for (int i = 0; i < 16; i++) {
+        uint8_t expected = (i == 3 || i == 11) ? 0x00 : 0xff;
+        XCTAssertEqual(cpu.vregs[0].b[i], expected,
+                       @"CMEQ must write 0xff for equal lanes and 0x00 for mismatches");
+    }
+}
+
+- (void)testSemanticExecutionContract_CMGTPublishesAllOnesOnlyForGreaterThanByteLanes
+{
+    enum {
+        textPC = 0x981a0,
+    };
+
+    static const uint32_t insn = 0x4e253483; // cmgt v3.16b, v4.16b, v5.16b
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+
+    static const int8_t lhs[16] = { 5, 4, 3, 2, 1, 0, -1, -2, 10, 20, 30, 40, -10, -20, 100, -100 };
+    static const int8_t rhs[16] = { 4, 4, 2, 3, 1, -1, -2, -2, 11, 19, 30, 39, -11, -10, 99, -90 };
+    for (int i = 0; i < 16; i++) {
+        cpu.vregs[4].b[i] = (uint8_t)lhs[i];
+        cpu.vregs[5].b[i] = (uint8_t)rhs[i];
+    }
+
+    XCTAssertEqual(a64_cpu_execute_code_block(&cpu, textPC, &insn, 1), 0,
+                   @"CMGT must execute through TCTI and compare signed byte lanes");
+
+    for (int i = 0; i < 16; i++) {
+        uint8_t expected = lhs[i] > rhs[i] ? 0xff : 0x00;
+        XCTAssertEqual(cpu.vregs[3].b[i], expected,
+                       @"CMGT must write 0xff only where the signed lhs byte is greater");
+    }
+}
+
+- (void)testSemanticExecutionContract_MLAAccumulatesVectorProductsIntoDestination
+{
+    enum {
+        textPC = 0x981c0,
+    };
+
+    static const uint32_t insn = 0x4e2894e6; // mla v6.16b, v7.16b, v8.16b
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+
+    for (int i = 0; i < 16; i++) {
+        cpu.vregs[6].b[i] = (uint8_t)(i + 1);
+        cpu.vregs[7].b[i] = (uint8_t)(i + 2);
+        cpu.vregs[8].b[i] = (uint8_t)(i + 3);
+    }
+
+    XCTAssertEqual(a64_cpu_execute_code_block(&cpu, textPC, &insn, 1), 0,
+                   @"MLA must execute through TCTI and accumulate byte-lane products into the "
+                    "destination vector");
+
+    for (int i = 0; i < 16; i++) {
+        uint8_t expected = (uint8_t)((i + 1) + ((i + 2) * (i + 3)));
+        XCTAssertEqual(cpu.vregs[6].b[i], expected,
+                       @"MLA must add each per-byte product into the destination lane");
+    }
+}
+
+- (void)testSemanticExecutionContract_MLSSubtractsVectorProductsFromDestination
+{
+    enum {
+        textPC = 0x981e0,
+    };
+
+    static const uint32_t insn = 0x6e2b9549; // mls v9.16b, v10.16b, v11.16b
+
+    struct cpu_state cpu;
+    memset(&cpu, 0, sizeof(cpu));
+
+    for (int i = 0; i < 16; i++) {
+        cpu.vregs[9].b[i] = (uint8_t)(0x80 + i);
+        cpu.vregs[10].b[i] = (uint8_t)(i + 1);
+        cpu.vregs[11].b[i] = (uint8_t)(i + 2);
+    }
+
+    XCTAssertEqual(a64_cpu_execute_code_block(&cpu, textPC, &insn, 1), 0,
+                   @"MLS must execute through TCTI and subtract byte-lane products from the "
+                    "destination vector");
+
+    for (int i = 0; i < 16; i++) {
+        uint8_t expected = (uint8_t)((0x80 + i) - ((i + 1) * (i + 2)));
+        XCTAssertEqual(cpu.vregs[9].b[i], expected,
+                       @"MLS must subtract each per-byte product from the destination lane");
+    }
+}
+
+- (void)testSemanticExecutionContract_CMGEPublishesSignedGreaterOrEqualMask
+{
+    static const uint8_t lhs[16] = {
+        0xff, 0x80, 0x81, 0x00, 0x01, 0x7f, 0x7e, 0xfe,
+        0x10, 0x20, 0x30, 0xf0, 0xd0, 0x40, 0x90, 0x05,
+    };
+    static const uint8_t rhs[16] = {
+        0xff, 0x7f, 0x81, 0x01, 0x00, 0x7f, 0x7f, 0xfd,
+        0x11, 0x10, 0x30, 0xef, 0xe0, 0x50, 0x90, 0x06,
+    };
+    static const uint8_t expected[16] = {
+        0xff, 0x00, 0xff, 0x00, 0xff, 0xff, 0x00, 0x00,
+        0x00, 0xff, 0xff, 0x00, 0x00, 0x00, 0xff, 0x00,
+    };
+    [self assertVectorMaskInstruction:0x4e223c20
+                               textPC:0x98200
+                              destReg:0
+                               lhsReg:1
+                               rhsReg:2
+                                  lhs:lhs
+                                  rhs:rhs
+                             expected:expected
+                             mnemonic:"cmge v0.16b, v1.16b, v2.16b"];
+}
+
+- (void)testSemanticExecutionContract_CMHIPublishesUnsignedGreaterThanMask
+{
+    static const uint8_t lhs[16] = {
+        0x10, 0x20, 0x30, 0x40, 0xf0, 0xff, 0x00, 0x80,
+        0x7f, 0x01, 0x02, 0x03, 0xaa, 0x55, 0x11, 0x99,
+    };
+    static const uint8_t rhs[16] = {
+        0x0f, 0x20, 0x31, 0x3f, 0xe0, 0xff, 0x01, 0x7f,
+        0x80, 0x00, 0x03, 0x02, 0xaa, 0x54, 0x12, 0x98,
+    };
+    static const uint8_t expected[16] = {
+        0xff, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0xff,
+        0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff,
+    };
+    [self assertVectorMaskInstruction:0x6e223420
+                               textPC:0x98220
+                              destReg:0
+                               lhsReg:1
+                               rhsReg:2
+                                  lhs:lhs
+                                  rhs:rhs
+                             expected:expected
+                             mnemonic:"cmhi v0.16b, v1.16b, v2.16b"];
+}
+
+- (void)testSemanticExecutionContract_CMHSPublishesUnsignedGreaterOrEqualMask
+{
+    static const uint8_t lhs[16] = {
+        0x00, 0x01, 0x7f, 0x80, 0xfe, 0xff, 0x10, 0x20,
+        0x30, 0x40, 0x50, 0x60, 0x70, 0x81, 0x90, 0xa0,
+    };
+    static const uint8_t rhs[16] = {
+        0x00, 0x02, 0x7f, 0x7f, 0xff, 0xfe, 0x10, 0x21,
+        0x20, 0x40, 0x51, 0x60, 0x71, 0x81, 0x8f, 0xa1,
+    };
+    static const uint8_t expected[16] = {
+        0xff, 0x00, 0xff, 0xff, 0x00, 0xff, 0xff, 0x00,
+        0xff, 0xff, 0x00, 0xff, 0x00, 0xff, 0xff, 0x00,
+    };
+    [self assertVectorMaskInstruction:0x6e223c20
+                               textPC:0x98240
+                              destReg:0
+                               lhsReg:1
+                               rhsReg:2
+                                  lhs:lhs
+                                  rhs:rhs
+                             expected:expected
+                             mnemonic:"cmhs v0.16b, v1.16b, v2.16b"];
+}
+
+- (void)testSemanticExecutionContract_CMLEPublishesSignedLessOrEqualZeroMask
+{
+    static const uint8_t src[16] = {
+        0x00, 0x01, 0xff, 0x80, 0x7f, 0xfe, 0x02, 0xfd,
+        0x10, 0xf0, 0x20, 0xe0, 0x30, 0xd0, 0x40, 0xc0,
+    };
+    static const uint8_t expected[16] = {
+        0xff, 0x00, 0xff, 0xff, 0x00, 0xff, 0x00, 0xff,
+        0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff,
+    };
+    [self assertVectorMaskAgainstZeroInstruction:0x6e209820
+                                          textPC:0x98260
+                                         destReg:0
+                                          srcReg:1
+                                             src:src
+                                        expected:expected
+                                        mnemonic:"cmle v0.16b, v1.16b, #0"];
+}
+
+- (void)testSemanticExecutionContract_CMLTPublishesSignedLessThanZeroMask
+{
+    static const uint8_t src[16] = {
+        0x00, 0x01, 0xff, 0x80, 0x7f, 0xfe, 0x02, 0xfd,
+        0x10, 0xf0, 0x20, 0xe0, 0x30, 0xd0, 0x40, 0xc0,
+    };
+    static const uint8_t expected[16] = {
+        0x00, 0x00, 0xff, 0xff, 0x00, 0xff, 0x00, 0xff,
+        0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff,
+    };
+    [self assertVectorMaskAgainstZeroInstruction:0x4e20a820
+                                          textPC:0x98280
+                                         destReg:0
+                                          srcReg:1
+                                             src:src
+                                        expected:expected
+                                        mnemonic:"cmlt v0.16b, v1.16b, #0"];
+}
+
+- (void)testSemanticExecutionContract_CMTSTPublishesNonzeroBitIntersectionMask
+{
+    static const uint8_t lhs[16] = {
+        0x00, 0x01, 0x03, 0x04, 0x08, 0x10, 0x30, 0x40,
+        0x80, 0xff, 0x55, 0xaa, 0x0f, 0xf0, 0x11, 0x22,
+    };
+    static const uint8_t rhs[16] = {
+        0x00, 0x02, 0x01, 0x04, 0x00, 0x08, 0x10, 0x80,
+        0x80, 0x01, 0xaa, 0x55, 0xf0, 0x0f, 0x10, 0x44,
+    };
+    static const uint8_t expected[16] = {
+        0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0xff, 0x00,
+        0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0xff, 0x00,
+    };
+    [self assertVectorMaskInstruction:0x4e228c20
+                               textPC:0x982a0
+                              destReg:0
+                               lhsReg:1
+                               rhsReg:2
+                                  lhs:lhs
+                                  rhs:rhs
+                             expected:expected
+                             mnemonic:"cmtst v0.16b, v1.16b, v2.16b"];
 }
 
 @end

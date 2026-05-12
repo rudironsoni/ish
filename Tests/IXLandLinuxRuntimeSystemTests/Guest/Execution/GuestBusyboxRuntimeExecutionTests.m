@@ -754,10 +754,19 @@ extern bool exit_should_pthread_exit;
         tlb_refresh(&exec_tlb, cpu->mmu);
         exit_should_pthread_exit = false;
         a64_cpu_run_limited(cpu, &exec_tlb, 5000);
+
+        XCTAssertFalse(guest_execution_trace_sink_exit_observed(),
+                       @"interactive shell must remain live through eight traced turns; "
+                        @"turn=%lu pc=0x%llx x8=0x%llx exit=%d",
+                       (unsigned long)turn, (unsigned long long)cpu->pc,
+                       (unsigned long long)cpu->x[8], cpu->tcti_exit_reason);
+        if (guest_execution_trace_sink_exit_observed())
+            return;
     }
 
-    XCTAssertTrue(YES,
-                  @"eight 5000-block runtime turns completed with trace enabled and a no-op active sink");
+    XCTAssertGreaterThan(guest_execution_trace_sink_exec_entry_count(), 0ULL,
+                         @"interactive shell must execute real guest blocks during the traced "
+                          @"eight-turn warmup");
 }
 
 - (void)testInteractiveBusyboxShellTwelveLongTurnsDoNotCrashWithTraceOnAndNoopActiveSink
@@ -799,10 +808,25 @@ extern bool exit_should_pthread_exit;
         NSLog(@"runtime-test traced-noop post-turn=%lu pc=0x%llx x8=0x%llx exit=%d",
               (unsigned long)turn, (unsigned long long)cpu->pc,
               (unsigned long long)cpu->x[8], cpu->tcti_exit_reason);
+
+        XCTAssertFalse(guest_execution_trace_sink_exit_observed(),
+                       @"interactive shell must stay live across twelve traced turns; "
+                        @"turn=%lu pc=0x%llx x8=0x%llx exit=%d",
+                       (unsigned long)turn, (unsigned long long)cpu->pc,
+                       (unsigned long long)cpu->x[8], cpu->tcti_exit_reason);
+        if (guest_execution_trace_sink_exit_observed())
+            return;
     }
 
-    XCTAssertTrue(YES,
-                  @"twelve 5000-block runtime turns completed with trace enabled and a no-op active sink");
+    XCTAssertTrue(guest_execution_trace_sink_stdout_prompt_write_count() > 0 ||
+                      guest_execution_trace_sink_pty_prompt_write_count() > 0,
+                  @"interactive shell must reach a real prompt write boundary within twelve "
+                   @"traced turns; stdout_prompts=%llu pty_prompts=%llu hottest_pc=0x%llx "
+                   @"hottest_count=%llu",
+                  (unsigned long long)guest_execution_trace_sink_stdout_prompt_write_count(),
+                  (unsigned long long)guest_execution_trace_sink_pty_prompt_write_count(),
+                  (unsigned long long)cpu->pc,
+                  (unsigned long long)guest_execution_trace_sink_exec_entry_count());
 }
 
 - (void)testInteractiveBusyboxShellCountedPromptPollingDoesNotCrash
@@ -835,6 +859,7 @@ extern bool exit_should_pthread_exit;
     if (cpu->mmu == NULL)
         return;
 
+    BOOL sawPrompt = NO;
     for (NSUInteger turn = 0; turn < 16; turn++) {
         struct tlb exec_tlb = {};
         tlb_refresh(&exec_tlb, cpu->mmu);
@@ -843,11 +868,25 @@ extern bool exit_should_pthread_exit;
 
         uint64_t stdoutPromptCount = guest_execution_trace_sink_stdout_prompt_write_count();
         uint64_t ptyPromptCount = guest_execution_trace_sink_pty_prompt_write_count();
-        if (stdoutPromptCount > 0 || ptyPromptCount > 0)
+        sawPrompt = stdoutPromptCount > 0 || ptyPromptCount > 0;
+        XCTAssertFalse(guest_execution_trace_sink_exit_observed(),
+                       @"interactive shell must remain live while prompt polling; "
+                        @"turn=%lu pc=0x%llx stdout_prompts=%llu pty_prompts=%llu exit=%d",
+                       (unsigned long)turn, (unsigned long long)cpu->pc,
+                       (unsigned long long)stdoutPromptCount,
+                       (unsigned long long)ptyPromptCount, cpu->tcti_exit_reason);
+        if (guest_execution_trace_sink_exit_observed())
+            return;
+        if (sawPrompt)
             break;
     }
 
-    XCTAssertTrue(YES, @"counted prompt polling remained stable across repeated traced turns");
+    XCTAssertTrue(sawPrompt,
+                  @"interactive shell prompt polling must observe a real prompt boundary within "
+                   @"sixteen traced turns; stdout_prompts=%llu pty_prompts=%llu exec_entries=%llu",
+                  (unsigned long long)guest_execution_trace_sink_stdout_prompt_write_count(),
+                  (unsigned long long)guest_execution_trace_sink_pty_prompt_write_count(),
+                  (unsigned long long)guest_execution_trace_sink_exec_entry_count());
 }
 
 - (void)testInteractiveBusyboxShellStartupDoesNotFallIntoStackChkFailPath
@@ -1024,9 +1063,15 @@ extern bool exit_should_pthread_exit;
     uint64_t maxCompileCount = guest_execution_trace_sink_compile_max_count_per_pc();
     uint64_t maxGenerationCount =
         guest_execution_trace_sink_compile_max_generation_count_per_pc();
+    uint64_t rootStatAttempts = guest_execution_trace_sink_root_stat_attempt_count();
+    uint64_t rootStatFailures = guest_execution_trace_sink_root_stat_fail_count();
 
     XCTAssertTrue(exited, @"direct busybox ls must exit promptly");
     XCTAssertGreaterThan(compileEntries, 0ULL, @"trace sink must observe TCTI compile activity");
+    XCTAssertGreaterThan(rootStatAttempts, 0ULL,
+                         @"direct busybox ls -a / must reach the root stat path before exit");
+    XCTAssertEqual(rootStatFailures, 0ULL,
+                   @"direct busybox ls -a / must not fail the root stat path before exit");
     XCTAssertEqual(maxCompileCount, maxGenerationCount,
                    @"direct busybox ls must not recompile the same guest pc more than once per "
                     @"code generation");
@@ -1281,6 +1326,24 @@ extern bool exit_should_pthread_exit;
     XCTAssertTrue(guest_execution_trace_sink_stdout_aarch64_write_observed() ||
                       guest_execution_trace_sink_pty_aarch64_write_observed(),
                   @"interactive busybox shell must emit aarch64 through a real guest write path after PTY master input");
+}
+
+- (void)testLiveGuestGapInventory_OrderedExclusiveAtomicFamilyLinkageRemainsIndirect
+{
+    XCTFail(@"Live guest proof is still indirect for Memory/OrderedExclusiveAtomic. Current "
+             @"busybox shell stalls/crashes are not yet attributed to OrderedExclusiveAtomic by "
+             @"name from a guest-visible path. The current harsh path still centers on prompt "
+             @"stall/crash PCs around 0x797a4 and 0x7b4d8, not a named OrderedExclusiveAtomic "
+             @"guest bucket, so this family must stay red.");
+}
+
+- (void)testLiveGuestGapInventory_VectorIntegerLogicalFamilyLinkageRemainsIndirect
+{
+    XCTFail(@"Live guest proof is still indirect for SIMDFP/VectorIntegerLogical. Current "
+             @"busybox shell stalls/crashes are not yet attributed to VectorIntegerLogical by "
+             @"name from a guest-visible path. The current harsh path still centers on prompt "
+             @"stall/crash PCs around 0x797a4 and 0x7b4d8, not a named VectorIntegerLogical "
+             @"guest bucket, so this family must stay red.");
 }
 
 @end

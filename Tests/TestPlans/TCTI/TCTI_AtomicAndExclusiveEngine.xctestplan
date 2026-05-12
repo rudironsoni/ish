@@ -1,8 +1,8 @@
 {
   "configurations" : [
     {
-      "id" : "TCTI_Lowering_Config",
-      "name" : "TCTI.Lowering Configuration",
+      "id" : "TCTI_AtomicAndExclusiveEngine_Config",
+      "name" : "TCTI.AtomicAndExclusiveEngine Configuration",
       "options" : {
         "testExecutionOrdering" : "random"
       }
@@ -13,7 +13,7 @@
     "environmentVariableEntries" : [
       {
         "key" : "TCTI_CONTRACT_GROUP",
-        "value" : "TCTI.Lowering"
+        "value" : "TCTI.AtomicAndExclusiveEngine"
       }
     ]
   },
@@ -25,7 +25,7 @@
         "name" : "IXLandLinuxRuntimeContractTests"
       },
       "testClasses" : [
-        "TCTIPipelineLoweringTests"
+        "TCTIPipelineAtomicAndExclusiveEngineTests"
       ]
     }
   ],

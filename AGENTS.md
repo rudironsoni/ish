@@ -100,7 +100,7 @@ Do not invent a local architecture if upstream already expresses the intended sh
 
 The authoritative local migration plan is:
 
-- `docs/plans/ixlandsystem-alignment-plan.md`
+- `docs/plans/a64-tcti-proof-program.md`
 
 Treat that file as the repo-local execution baseline.
 Keep it aligned with current upstream `IXLandSystem` structure and current local repo truth.
@@ -276,8 +276,10 @@ Rules:
 - Host bridge tests prove host seams only.
 - Compile-smoke tests prove header resolution, not runtime semantics.
 - Guest-visible terminal/runtime regressions are still required where relevant.
-- Contract and TCTI tests are enforcement tools, not the destination. They must isolate emulator/runtime defects, protect architectural contracts, and prevent regressions, but they do not by themselves define product progress.
-- Guest-runtime system proof and app/E2E proof are the north star. Choose work based on the user-visible runtime path first, then add or tighten the contract coverage needed to make that progress robust.
+- Contract and TCTI tests have independent value. They must isolate emulator/runtime defects, protect architectural contracts, enforce invariants, and prevent regressions even when the visible app path is not the immediate surface under test.
+- Contract and TCTI tests are not, by themselves, the definition of meaningful product progress. Do not let an internal green bubble substitute for guest-runtime or app/package improvement.
+- Guest-runtime system proof and app/E2E proof are the north star for prioritization and completion. Choose work based on the user-visible runtime path and the whole package first, then add or tighten the contract coverage needed to make that progress robust.
+- The goal is not merely to make internal tests green. The goal is to make the emulator, guest runtime, terminal, and overall package more reliable, faster, more robust, and better in the contexts users actually hit.
 - Runtime work streams should normally close with both layers of proof:
   1. a focused contract/runtime test that isolates the exact defect or invariant
   2. a relevant guest/system or app/E2E proof that shows the fix matters in the real product path

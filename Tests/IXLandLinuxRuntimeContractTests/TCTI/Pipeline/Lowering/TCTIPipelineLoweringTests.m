@@ -1,11 +1,67 @@
 #import <XCTest/XCTest.h>
 
+#include <dlfcn.h>
+
 #import <IXLandLinuxRuntime/emu/aarch64/decode.h>
 #import <IXLandLinuxRuntime/tcti/aarch64/gen.h>
 
 typedef void (*tcti_gadget_t)(void);
 extern void gadget_br_impl(void);
 extern void gadget_ccmp_fallback_impl(void);
+
+#define TCTI_DECLARE_ATOMIC_LOWERING_TEST(_name, _insn, _pc, _rd, _rn, _rm, _size, _isLoad)      \
+- (void)testLoweringContract_##_name                                                               \
+{                                                                                                  \
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];                                              \
+    a64_gen_state_t state;                                                                         \
+    [self generateInstruction:_insn atPC:_pc state:&state gadgets:gadgets];                       \
+    void *expected = dlsym(RTLD_DEFAULT, "gadget_atomic_ldst");                                    \
+    XCTAssertNotEqual(expected, NULL, @"gadget_atomic_ldst must be link-visible for lowering");   \
+    XCTAssertEqual((void *)gadgets[0], expected);                                                  \
+    XCTAssertGreaterThanOrEqual(state.num_gadgets, (size_t)7);                                     \
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[1], (uint64_t)_pc);                               \
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[2], (uint64_t)_rd);                               \
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[3], (uint64_t)_rn);                               \
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[4], (uint64_t)_rm);                               \
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[5], (uint64_t)_size);                             \
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[6], (uint64_t)_isLoad);                           \
+}
+
+#define TCTI_DECLARE_PAIR_ATOMIC_LOWERING_TEST(_name, _insn, _pc, _rn, _size, _isLoad, _rt2)     \
+- (void)testLoweringContract_##_name                                                               \
+{                                                                                                  \
+    a64_instr_t decoded = [self decodeInstruction:_insn];                                          \
+    XCTAssertTrue(decoded.is_pair,                                                                  \
+                  @"Pair-exclusive lowering must begin from a pair-classified decode");            \
+    XCTAssertEqual(bits(_insn, 14, 10), _rt2);                                                     \
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];                                              \
+    a64_gen_state_t state;                                                                         \
+    [self generateInstruction:_insn atPC:_pc state:&state gadgets:gadgets];                       \
+    void *expected = dlsym(RTLD_DEFAULT, "gadget_atomic_ldst");                                    \
+    XCTAssertNotEqual(expected, NULL);                                                              \
+    XCTAssertEqual((void *)gadgets[0], expected);                                                  \
+    XCTAssertGreaterThanOrEqual(state.num_gadgets, (size_t)7);                                     \
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[1], (uint64_t)_pc);                               \
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[3], (uint64_t)_rn);                               \
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[5], (uint64_t)_size);                             \
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[6], (uint64_t)_isLoad);                           \
+}
+
+#define TCTI_DECLARE_VECTOR_LOWERING_TEST(_name, _insn, _pc, _symbol, _rd, _rn, _rm, _vecBytes)  \
+- (void)testLoweringContract_##_name                                                               \
+{                                                                                                  \
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];                                              \
+    a64_gen_state_t state;                                                                         \
+    [self generateInstruction:_insn atPC:_pc state:&state gadgets:gadgets];                       \
+    void *expected = dlsym(RTLD_DEFAULT, _symbol);                                                 \
+    XCTAssertNotEqual(expected, NULL, @"%s must be link-visible for lowering", _symbol);          \
+    XCTAssertEqual((void *)gadgets[0], expected);                                                  \
+    XCTAssertGreaterThanOrEqual(state.num_gadgets, (size_t)5);                                     \
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[1], (uint64_t)_rd);                               \
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[2], (uint64_t)_rn);                               \
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[3], (uint64_t)_rm);                               \
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[4], (uint64_t)_vecBytes);                         \
+}
 
 // TCTI.Pipeline.Lowering Contract Tests
 // Tests for stage [3] LOWERING: semantic op -> gadget chain plan
@@ -33,6 +89,19 @@ extern void gadget_ccmp_fallback_impl(void);
     a64_gen_reset(state, pc);
     XCTAssertEqual(a64_gen_instruction(state, insn, pc), A64_GEN_OK);
     XCTAssertGreaterThan(state->num_gadgets, (size_t)0);
+}
+
+- (void)rejectInstruction:(uint32_t)insn
+                     atPC:(uint64_t)pc
+                    state:(a64_gen_state_t *)state
+                  gadgets:(tcti_gadget_t *)gadgets
+{
+    XCTAssertEqual(a64_gen_init(state, gadgets, A64_MAX_GADGETS_PER_BLOCK), A64_GEN_OK);
+    a64_gen_reset(state, pc);
+    XCTAssertNotEqual(a64_gen_instruction(state, insn, pc), A64_GEN_OK,
+                      @"Unsupported decode-owned instructions must reject explicitly during "
+                       "lowering instead of producing a partial gadget stream");
+    XCTAssertEqual(state->num_gadgets, (size_t)0);
 }
 
 - (void)testLoweringContract_SUBExtendedSPSourceAndDestinationLowers
@@ -841,5 +910,178 @@ extern void gadget_ccmp_fallback_impl(void);
     XCTAssertGreaterThan(state.num_gadgets, (size_t)0);
     XCTAssertFalse(state.is_complete);
 }
+
+- (void)testLoweringContract_CASDecodesAndLowersAsAtomicTCTI
+{
+    uint32_t casW4W5X6 = 0x88a47cc5;
+    a64_instr_t decoded;
+    XCTAssertEqual(a64_decode(casW4W5X6, &decoded), 0);
+    XCTAssertEqual(decoded.cat, A64_LD_ST);
+    XCTAssertEqual(decoded.subtype, A64_LDST_ATOMIC);
+    XCTAssertEqual(decoded.Rd, 5);
+    XCTAssertEqual(decoded.Rn, 6);
+    XCTAssertEqual(decoded.Rm, 4);
+    XCTAssertEqual(decoded.size, A64_SIZE_W);
+    XCTAssertFalse(decoded.is_64bit);
+
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
+    a64_gen_state_t state;
+    XCTAssertEqual(a64_gen_init(&state, gadgets, A64_MAX_GADGETS_PER_BLOCK), A64_GEN_OK);
+    a64_gen_reset(&state, 0x29048);
+
+    XCTAssertEqual(a64_gen_instruction(&state, casW4W5X6, 0x29048), A64_GEN_OK);
+    XCTAssertGreaterThan(state.num_gadgets, (size_t)0);
+    XCTAssertFalse(state.is_complete);
+}
+
+- (void)testLoweringContract_CMEQLowersThroughVectorCompareMaskGadget
+{
+    uint32_t cmeqV0V1V2 = 0x6e228c20;
+    a64_instr_t decoded;
+    XCTAssertEqual(a64_decode(cmeqV0V1V2, &decoded), 0);
+    XCTAssertEqual(decoded.subtype, A64_SIMD_CMEQ);
+
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
+    a64_gen_state_t state;
+    XCTAssertEqual(a64_gen_init(&state, gadgets, A64_MAX_GADGETS_PER_BLOCK), A64_GEN_OK);
+    a64_gen_reset(&state, 0x98180);
+
+    XCTAssertEqual(a64_gen_instruction(&state, cmeqV0V1V2, 0x98180), A64_GEN_OK);
+    XCTAssertGreaterThan(state.num_gadgets, (size_t)0);
+    XCTAssertFalse(state.is_complete);
+}
+
+- (void)testLoweringContract_CMGTLowersThroughSignedVectorCompareGadget
+{
+    uint32_t cmgtV3V4V5 = 0x4e253483;
+    a64_instr_t decoded;
+    XCTAssertEqual(a64_decode(cmgtV3V4V5, &decoded), 0);
+    XCTAssertEqual(decoded.subtype, A64_SIMD_CMGT);
+
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
+    a64_gen_state_t state;
+    XCTAssertEqual(a64_gen_init(&state, gadgets, A64_MAX_GADGETS_PER_BLOCK), A64_GEN_OK);
+    a64_gen_reset(&state, 0x981a0);
+
+    XCTAssertEqual(a64_gen_instruction(&state, cmgtV3V4V5, 0x981a0), A64_GEN_OK);
+    XCTAssertGreaterThan(state.num_gadgets, (size_t)0);
+    XCTAssertFalse(state.is_complete);
+}
+
+- (void)testLoweringContract_MLALowersThroughVectorAccumulateGadget
+{
+    uint32_t mlaV6V7V8 = 0x4e2894e6;
+    a64_instr_t decoded;
+    XCTAssertEqual(a64_decode(mlaV6V7V8, &decoded), 0);
+    XCTAssertEqual(decoded.subtype, A64_SIMD_MLA);
+
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
+    a64_gen_state_t state;
+    XCTAssertEqual(a64_gen_init(&state, gadgets, A64_MAX_GADGETS_PER_BLOCK), A64_GEN_OK);
+    a64_gen_reset(&state, 0x981c0);
+
+    XCTAssertEqual(a64_gen_instruction(&state, mlaV6V7V8, 0x981c0), A64_GEN_OK);
+    XCTAssertGreaterThan(state.num_gadgets, (size_t)0);
+    XCTAssertFalse(state.is_complete);
+}
+
+- (void)testLoweringContract_MLSLowersThroughVectorMultiplySubtractGadget
+{
+    uint32_t mlsV9V10V11 = 0x6e2b9549;
+    a64_instr_t decoded;
+    XCTAssertEqual(a64_decode(mlsV9V10V11, &decoded), 0);
+    XCTAssertEqual(decoded.subtype, A64_SIMD_MLS);
+
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
+    a64_gen_state_t state;
+    XCTAssertEqual(a64_gen_init(&state, gadgets, A64_MAX_GADGETS_PER_BLOCK), A64_GEN_OK);
+    a64_gen_reset(&state, 0x981e0);
+
+    XCTAssertEqual(a64_gen_instruction(&state, mlsV9V10V11, 0x981e0), A64_GEN_OK);
+    XCTAssertGreaterThan(state.num_gadgets, (size_t)0);
+    XCTAssertFalse(state.is_complete);
+}
+
+- (void)testLoweringContract_PACIARejectsUntilArm64eLoweringOwnershipExists
+{
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
+    a64_gen_state_t state;
+    uint32_t paciaX0X1 = 0xdac10020;
+    [self rejectInstruction:paciaX0X1 atPC:0x96000 state:&state gadgets:gadgets];
+}
+
+- (void)testLoweringContract_AESERejectsUntilCryptoLoweringOwnershipExists
+{
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
+    a64_gen_state_t state;
+    uint32_t aeseV0V1 = 0x4e284820;
+    [self rejectInstruction:aeseV0V1 atPC:0x94000 state:&state gadgets:gadgets];
+}
+
+- (void)testLoweringContract_LDGRejectsUntilTaggingLoweringOwnershipExists
+{
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
+    a64_gen_state_t state;
+    uint32_t ldgX0X1 = 0xd9600020;
+    [self rejectInstruction:ldgX0X1 atPC:0x95000 state:&state gadgets:gadgets];
+}
+
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDAPR, 0xb8bfc020, 0x98200, 0, 1, 31,
+                                  A64_SIZE_W, 1)
+TCTI_DECLARE_PAIR_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDXP, 0x887f0440, 0x98220, 2,
+                                       A64_SIZE_W, 1, 1)
+TCTI_DECLARE_PAIR_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STXP, 0x88200861, 0x98240, 3,
+                                       A64_SIZE_W, 0, 2)
+TCTI_DECLARE_PAIR_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDAXP, 0x887f8440, 0x98260, 2,
+                                       A64_SIZE_W, 1, 1)
+TCTI_DECLARE_PAIR_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STLXP, 0x88208861, 0x98280, 3,
+                                       A64_SIZE_W, 0, 2)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_SWP, 0xb8208041, 0x982a0, 1, 2, 0,
+                                  A64_SIZE_W, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDADD, 0xb8200041, 0x982c0, 1, 2, 0,
+                                  A64_SIZE_W, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDCLR, 0xb8201041, 0x982e0, 1, 2, 0,
+                                  A64_SIZE_W, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDEOR, 0xb8202041, 0x98300, 1, 2, 0,
+                                  A64_SIZE_W, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDSET, 0xb8203041, 0x98320, 1, 2, 0,
+                                  A64_SIZE_W, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDSMAX, 0xb8204041, 0x98340, 1, 2, 0,
+                                  A64_SIZE_W, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDSMIN, 0xb8205041, 0x98360, 1, 2, 0,
+                                  A64_SIZE_W, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDUMAX, 0xb8206041, 0x98380, 1, 2, 0,
+                                  A64_SIZE_W, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDUMIN, 0xb8207041, 0x983a0, 1, 2, 0,
+                                  A64_SIZE_W, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STADD, 0xb820005f, 0x983c0, 31, 2, 0,
+                                  A64_SIZE_W, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STCLR, 0xb820105f, 0x983e0, 31, 2, 0,
+                                  A64_SIZE_W, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STEOR, 0xb820205f, 0x98400, 31, 2, 0,
+                                  A64_SIZE_W, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STSET, 0xb820305f, 0x98420, 31, 2, 0,
+                                  A64_SIZE_W, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STSMAX, 0xb820405f, 0x98440, 31, 2, 0,
+                                  A64_SIZE_W, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STSMIN, 0xb820505f, 0x98460, 31, 2, 0,
+                                  A64_SIZE_W, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STUMAX, 0xb820605f, 0x98480, 31, 2, 0,
+                                  A64_SIZE_W, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STUMIN, 0xb820705f, 0x984a0, 31, 2, 0,
+                                  A64_SIZE_W, 0)
+
+TCTI_DECLARE_VECTOR_LOWERING_TEST(VectorIntegerLogical_CMGE, 0x4e223c20, 0x984c0,
+                                  "gadget_simd_cmge", 0, 1, 2, 16)
+TCTI_DECLARE_VECTOR_LOWERING_TEST(VectorIntegerLogical_CMHI, 0x6e223420, 0x984e0,
+                                  "gadget_simd_cmhi", 0, 1, 2, 16)
+TCTI_DECLARE_VECTOR_LOWERING_TEST(VectorIntegerLogical_CMHS, 0x6e223c20, 0x98500,
+                                  "gadget_simd_cmhs", 0, 1, 2, 16)
+TCTI_DECLARE_VECTOR_LOWERING_TEST(VectorIntegerLogical_CMLE, 0x6e209820, 0x98520,
+                                  "gadget_simd_cmle", 0, 1, 0, 16)
+TCTI_DECLARE_VECTOR_LOWERING_TEST(VectorIntegerLogical_CMLT, 0x4e20a820, 0x98540,
+                                  "gadget_simd_cmlt", 0, 1, 0, 16)
+TCTI_DECLARE_VECTOR_LOWERING_TEST(VectorIntegerLogical_CMTST, 0x4e228c20, 0x98560,
+                                  "gadget_simd_cmtst", 0, 1, 2, 16)
 
 @end

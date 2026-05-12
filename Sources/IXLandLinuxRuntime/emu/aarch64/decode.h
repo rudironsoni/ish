@@ -117,6 +117,10 @@ typedef enum {
     A64_SIMD_BSL = 23,           // BSL bitwise select using destination mask
     A64_SIMD_BIT = 24,           // BIT bitwise insert where mask bits are set
     A64_SIMD_BIF = 25,           // BIF bitwise insert where mask bits are clear
+    A64_SIMD_CMEQ = 26,          // CMEQ per-lane equality mask
+    A64_SIMD_CMGT = 27,          // CMGT signed per-lane greater-than mask
+    A64_SIMD_MLA = 28,           // MLA multiply-accumulate into destination
+    A64_SIMD_MLS = 29,           // MLS multiply-subtract from destination
 } a64_simd_subtype_t;
 
 /* Indexing modes for load/store */
@@ -300,7 +304,7 @@ static inline a64_category_t a64_get_category(uint32_t insn) {
     // load/store before the generic category fallback.
     if (((insn >> 24) & 0x3F) == 0x08) {
         uint32_t op3 = (insn >> 12) & 0xF;
-        if (op3 == 0xE || op3 == 0xF)
+        if (op3 == 0xE || op3 == 0xF || ((insn >> 21) & 1))
             return A64_LD_ST;
     }
 

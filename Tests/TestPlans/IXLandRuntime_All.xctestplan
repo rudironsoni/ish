@@ -1,0 +1,38 @@
+{
+  "configurations" : [
+    {
+      "id" : "IXLandRuntime_All_Config",
+      "name" : "IXLandRuntime.All Configuration",
+      "options" : {
+        "testExecutionOrdering" : "random"
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "testExecutionOrdering" : "random"
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:IXLand.xcodeproj",
+        "identifier" : "0FD7BE69CB0D9F25F29530F8",
+        "name" : "IXLandLinuxRuntimeContractTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:IXLand.xcodeproj",
+        "identifier" : "0C2FDD307143694F1619D143",
+        "name" : "IXLandLinuxRuntimeSystemTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:IXLand.xcodeproj",
+        "identifier" : "C4D7C070C3B997D534A19472",
+        "name" : "IXLandLinuxRuntimePerfTests"
+      }
+    }
+  ],
+  "version" : 1
+}

@@ -1,20 +1,33 @@
 {
-  "configurations": [
+  "configurations" : [
     {
-      "id": "TCTI_Fetch_Config",
-      "name": "TCTI.Fetch Configuration",
-      "options": {}
-    }
-  ],
-  "defaultOptions": {},
-  "testTargets": [
-    {
-      "target": {
-        "containerPath": "container:IXLand.xcodeproj",
-        "identifier": "IXLandLinuxRuntimeContractTests",
-        "name": "IXLandLinuxRuntimeContractTests"
+      "id" : "TCTI_Fetch_Config",
+      "name" : "TCTI.Fetch Configuration",
+      "options" : {
+        "testExecutionOrdering" : "random"
       }
     }
   ],
-  "version": 1
+  "defaultOptions" : {
+    "testExecutionOrdering" : "random",
+    "environmentVariableEntries" : [
+      {
+        "key" : "TCTI_CONTRACT_GROUP",
+        "value" : "TCTI.Fetch"
+      }
+    ]
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:IXLand.xcodeproj",
+        "identifier" : "0FD7BE69CB0D9F25F29530F8",
+        "name" : "IXLandLinuxRuntimeContractTests"
+      },
+      "testClasses" : [
+        "TCTIPipelineFetchTests"
+      ]
+    }
+  ],
+  "version" : 1
 }

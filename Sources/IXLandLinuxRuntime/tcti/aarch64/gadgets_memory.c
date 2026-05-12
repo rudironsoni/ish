@@ -615,6 +615,59 @@ __attribute__((used)) static void tcti_simd_mul_helper(struct cpu_state *cpu, ui
         cpu->vregs[vd].b[i] = (uint8_t)(cpu->vregs[vn].b[i] * cpu->vregs[vm].b[i]);
 }
 
+__attribute__((used)) static void tcti_simd_cmeq_helper(struct cpu_state *cpu, uint64_t vd,
+                                                        uint64_t vn, uint64_t vm,
+                                                        uint64_t vec_bytes)
+{
+    if (vd >= 32 || vn >= 32 || vm >= 32 || (vec_bytes != 8 && vec_bytes != 16))
+        return;
+
+    for (uint64_t i = 0; i < vec_bytes; i++)
+        cpu->vregs[vd].b[i] = cpu->vregs[vn].b[i] == cpu->vregs[vm].b[i] ? 0xff : 0x00;
+}
+
+__attribute__((used)) static void tcti_simd_cmgt_helper(struct cpu_state *cpu, uint64_t vd,
+                                                        uint64_t vn, uint64_t vm,
+                                                        uint64_t vec_bytes)
+{
+    if (vd >= 32 || vn >= 32 || vm >= 32 || (vec_bytes != 8 && vec_bytes != 16))
+        return;
+
+    for (uint64_t i = 0; i < vec_bytes; i++) {
+        int8_t lhs = (int8_t)cpu->vregs[vn].b[i];
+        int8_t rhs = (int8_t)cpu->vregs[vm].b[i];
+        cpu->vregs[vd].b[i] = lhs > rhs ? 0xff : 0x00;
+    }
+}
+
+__attribute__((used)) static void tcti_simd_mla_helper(struct cpu_state *cpu, uint64_t vd,
+                                                       uint64_t vn, uint64_t vm,
+                                                       uint64_t vec_bytes)
+{
+    if (vd >= 32 || vn >= 32 || vm >= 32 || (vec_bytes != 8 && vec_bytes != 16))
+        return;
+
+    for (uint64_t i = 0; i < vec_bytes; i++) {
+        uint8_t accum = cpu->vregs[vd].b[i];
+        cpu->vregs[vd].b[i] =
+            (uint8_t)(accum + (uint8_t)(cpu->vregs[vn].b[i] * cpu->vregs[vm].b[i]));
+    }
+}
+
+__attribute__((used)) static void tcti_simd_mls_helper(struct cpu_state *cpu, uint64_t vd,
+                                                       uint64_t vn, uint64_t vm,
+                                                       uint64_t vec_bytes)
+{
+    if (vd >= 32 || vn >= 32 || vm >= 32 || (vec_bytes != 8 && vec_bytes != 16))
+        return;
+
+    for (uint64_t i = 0; i < vec_bytes; i++) {
+        uint8_t accum = cpu->vregs[vd].b[i];
+        cpu->vregs[vd].b[i] =
+            (uint8_t)(accum - (uint8_t)(cpu->vregs[vn].b[i] * cpu->vregs[vm].b[i]));
+    }
+}
+
 __attribute__((used)) static int tcti_simd_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc,
                                                        uint64_t rt, uint64_t rt2, uint64_t rn,
                                                        int64_t imm, uint64_t vec_bytes,
@@ -929,15 +982,82 @@ static int tcti_atomic_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uin
     uint32_t raw_opcode = 0;
     (void)a64_fetch_insn(cpu, cpu->tlb, fault_pc, &raw_opcode);
     int ret = A64_MEM_FAULT;
+    int atomic_kind = bits(raw_opcode, 23, 22);
+    bool is_compare_swap = bit(raw_opcode, 21);
+    bool is_ordered_load = is_load && !is_compare_swap && atomic_kind == 3;
+    bool is_ordered_store = !is_load && !is_compare_swap && atomic_kind == 2 && rs == 31;
 
-    if (is_load) {
+    if (is_compare_swap) {
+        uint64_t compare_value = tcti_read_reg_or_zr(cpu, (int)rs);
+        uint64_t swap_value = tcti_read_reg_or_zr(cpu, (int)rt);
+        uint64_t old_value = 0;
+        uint8_t width = 0;
+        bool should_store = false;
+
+        switch (size) {
+        case A64_SIZE_B: {
+            uint8_t tmp = 0;
+            ret = a64_guest_read8(cpu, cpu->tlb, addr, &tmp);
+            old_value = tmp;
+            width = 1;
+            should_store = ret == A64_MEM_OK && tmp == (uint8_t)compare_value;
+            if (should_store)
+                ret = a64_guest_write8(cpu, cpu->tlb, addr, (uint8_t)swap_value);
+            break;
+        }
+        case A64_SIZE_H: {
+            uint16_t tmp = 0;
+            ret = a64_guest_read16(cpu, cpu->tlb, addr, &tmp);
+            old_value = tmp;
+            width = 2;
+            should_store = ret == A64_MEM_OK && tmp == (uint16_t)compare_value;
+            if (should_store)
+                ret = a64_guest_write16(cpu, cpu->tlb, addr, (uint16_t)swap_value);
+            break;
+        }
+        case A64_SIZE_W: {
+            uint32_t tmp = 0;
+            ret = a64_guest_read32(cpu, cpu->tlb, addr, &tmp);
+            old_value = tmp;
+            width = 4;
+            should_store = ret == A64_MEM_OK && tmp == (uint32_t)compare_value;
+            if (should_store)
+                ret = a64_guest_write32(cpu, cpu->tlb, addr, (uint32_t)swap_value);
+            break;
+        }
+        case A64_SIZE_X:
+            ret = a64_guest_read64(cpu, cpu->tlb, addr, &old_value);
+            width = 8;
+            should_store = ret == A64_MEM_OK && old_value == swap_value;
+            if (ret == A64_MEM_OK)
+                should_store = old_value == compare_value;
+            if (should_store)
+                ret = a64_guest_write64(cpu, cpu->tlb, addr, swap_value);
+            break;
+        default:
+            ret = A64_MEM_FAULT;
+            break;
+        }
+
+        if (ret == A64_MEM_OK) {
+            tcti_write_reg_or_zr(cpu, (int)rs, old_value, size == A64_SIZE_X);
+            if (should_store) {
+                tcti_trace_record_mem_access(cpu, fault_pc, 0, addr, swap_value, addr, 0, width,
+                                             0, (int)rt, (int)rn, -1, A64_INDEX_OFFSET);
+            }
+        }
+        trace_tcti_atomic_access(cpu, fault_pc, raw_opcode, rt, rn, rs, size, is_load, addr,
+                                 should_store ? swap_value : old_value, ret,
+                                 should_store ? 0 : 1);
+    } else if (is_ordered_load || is_load) {
         uint64_t value = 0;
         uint8_t width = 0;
 
         switch (size) {
         case A64_SIZE_B: {
             uint8_t tmp = 0;
-            ret = a64_guest_ldxr8(cpu, cpu->tlb, addr, &tmp);
+            ret = is_ordered_load ? a64_guest_read8(cpu, cpu->tlb, addr, &tmp) :
+                                    a64_guest_ldxr8(cpu, cpu->tlb, addr, &tmp);
             value = tmp;
             width = 1;
             if (ret == A64_MEM_OK)
@@ -946,7 +1066,8 @@ static int tcti_atomic_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uin
         }
         case A64_SIZE_H: {
             uint16_t tmp = 0;
-            ret = a64_guest_ldxr16(cpu, cpu->tlb, addr, &tmp);
+            ret = is_ordered_load ? a64_guest_read16(cpu, cpu->tlb, addr, &tmp) :
+                                    a64_guest_ldxr16(cpu, cpu->tlb, addr, &tmp);
             value = tmp;
             width = 2;
             if (ret == A64_MEM_OK)
@@ -955,7 +1076,8 @@ static int tcti_atomic_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uin
         }
         case A64_SIZE_W: {
             uint32_t tmp = 0;
-            ret = a64_guest_ldxr32(cpu, cpu->tlb, addr, &tmp);
+            ret = is_ordered_load ? a64_guest_read32(cpu, cpu->tlb, addr, &tmp) :
+                                    a64_guest_ldxr32(cpu, cpu->tlb, addr, &tmp);
             value = tmp;
             width = 4;
             if (ret == A64_MEM_OK)
@@ -963,7 +1085,8 @@ static int tcti_atomic_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uin
             break;
         }
         case A64_SIZE_X: {
-            ret = a64_guest_ldxr64(cpu, cpu->tlb, addr, &value);
+            ret = is_ordered_load ? a64_guest_read64(cpu, cpu->tlb, addr, &value) :
+                                    a64_guest_ldxr64(cpu, cpu->tlb, addr, &value);
             width = 8;
             if (ret == A64_MEM_OK)
                 tcti_write_reg_or_zr(cpu, (int)rt, value, 1);
@@ -988,19 +1111,34 @@ static int tcti_atomic_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uin
         switch (size) {
         case A64_SIZE_B:
             width = 1;
-            ret = a64_guest_stxr8(cpu, cpu->tlb, addr, (uint8_t)value, &success);
+            ret = is_ordered_store ?
+                      a64_guest_write8(cpu, cpu->tlb, addr, (uint8_t)value) :
+                      a64_guest_stxr8(cpu, cpu->tlb, addr, (uint8_t)value, &success);
+            if (is_ordered_store)
+                success = 1;
             break;
         case A64_SIZE_H:
             width = 2;
-            ret = a64_guest_stxr16(cpu, cpu->tlb, addr, (uint16_t)value, &success);
+            ret = is_ordered_store ?
+                      a64_guest_write16(cpu, cpu->tlb, addr, (uint16_t)value) :
+                      a64_guest_stxr16(cpu, cpu->tlb, addr, (uint16_t)value, &success);
+            if (is_ordered_store)
+                success = 1;
             break;
         case A64_SIZE_W:
             width = 4;
-            ret = a64_guest_stxr32(cpu, cpu->tlb, addr, (uint32_t)value, &success);
+            ret = is_ordered_store ?
+                      a64_guest_write32(cpu, cpu->tlb, addr, (uint32_t)value) :
+                      a64_guest_stxr32(cpu, cpu->tlb, addr, (uint32_t)value, &success);
+            if (is_ordered_store)
+                success = 1;
             break;
         case A64_SIZE_X:
             width = 8;
-            ret = a64_guest_stxr64(cpu, cpu->tlb, addr, value, &success);
+            ret = is_ordered_store ? a64_guest_write64(cpu, cpu->tlb, addr, value) :
+                                     a64_guest_stxr64(cpu, cpu->tlb, addr, value, &success);
+            if (is_ordered_store)
+                success = 1;
             break;
         default:
             ret = A64_MEM_FAULT;
@@ -1012,7 +1150,8 @@ static int tcti_atomic_ldst_helper(struct cpu_state *cpu, uint64_t fault_pc, uin
                 tcti_trace_record_mem_access(cpu, fault_pc, 0, addr, value, addr, 0, width, 0,
                                              (int)rt, (int)rn, -1, A64_INDEX_OFFSET);
             }
-            tcti_write_reg_or_zr(cpu, (int)rs, success ? 0 : 1, 0);
+            if (!is_ordered_store)
+                tcti_write_reg_or_zr(cpu, (int)rs, success ? 0 : 1, 0);
         }
         trace_tcti_atomic_access(cpu, fault_pc, raw_opcode, rt, rn, rs, size, is_load, addr, value,
                                  ret, success ? 0 : 1);
@@ -5467,6 +5606,146 @@ __attribute__((visibility("default"))) void _tcti_simd_mul_helper(struct cpu_sta
                                                                   uint64_t vec_bytes)
 {
     tcti_simd_mul_helper(cpu, vd, vn, vm, vec_bytes);
+}
+
+__attribute__((naked)) void gadget_simd_cmeq_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t"
+                 "ldr x20, [x28], #8\n\t"
+                 "ldr x21, [x28], #8\n\t"
+                 "ldr x22, [x28], #8\n\t"
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "str x13, [x29, #112]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "mov x2, x20\n\t"
+                 "mov x3, x21\n\t"
+                 "mov x4, x22\n\t"
+                 "bl _tcti_simd_cmeq_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
+tcti_gadget_t gadget_simd_cmeq = gadget_simd_cmeq_impl;
+
+__attribute__((visibility("default"))) void _tcti_simd_cmeq_helper(struct cpu_state *cpu,
+                                                                   uint64_t vd, uint64_t vn,
+                                                                   uint64_t vm,
+                                                                   uint64_t vec_bytes)
+{
+    tcti_simd_cmeq_helper(cpu, vd, vn, vm, vec_bytes);
+}
+
+__attribute__((naked)) void gadget_simd_cmgt_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t"
+                 "ldr x20, [x28], #8\n\t"
+                 "ldr x21, [x28], #8\n\t"
+                 "ldr x22, [x28], #8\n\t"
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "str x13, [x29, #112]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "mov x2, x20\n\t"
+                 "mov x3, x21\n\t"
+                 "mov x4, x22\n\t"
+                 "bl _tcti_simd_cmgt_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
+tcti_gadget_t gadget_simd_cmgt = gadget_simd_cmgt_impl;
+
+__attribute__((visibility("default"))) void _tcti_simd_cmgt_helper(struct cpu_state *cpu,
+                                                                   uint64_t vd, uint64_t vn,
+                                                                   uint64_t vm,
+                                                                   uint64_t vec_bytes)
+{
+    tcti_simd_cmgt_helper(cpu, vd, vn, vm, vec_bytes);
+}
+
+__attribute__((naked)) void gadget_simd_mla_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t"
+                 "ldr x20, [x28], #8\n\t"
+                 "ldr x21, [x28], #8\n\t"
+                 "ldr x22, [x28], #8\n\t"
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "str x13, [x29, #112]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "mov x2, x20\n\t"
+                 "mov x3, x21\n\t"
+                 "mov x4, x22\n\t"
+                 "bl _tcti_simd_mla_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
+tcti_gadget_t gadget_simd_mla = gadget_simd_mla_impl;
+
+__attribute__((visibility("default"))) void _tcti_simd_mla_helper(struct cpu_state *cpu,
+                                                                  uint64_t vd, uint64_t vn,
+                                                                  uint64_t vm,
+                                                                  uint64_t vec_bytes)
+{
+    tcti_simd_mla_helper(cpu, vd, vn, vm, vec_bytes);
+}
+
+__attribute__((naked)) void gadget_simd_mls_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t"
+                 "ldr x20, [x28], #8\n\t"
+                 "ldr x21, [x28], #8\n\t"
+                 "ldr x22, [x28], #8\n\t"
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "str x13, [x29, #112]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "mov x2, x20\n\t"
+                 "mov x3, x21\n\t"
+                 "mov x4, x22\n\t"
+                 "bl _tcti_simd_mls_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
+tcti_gadget_t gadget_simd_mls = gadget_simd_mls_impl;
+
+__attribute__((visibility("default"))) void _tcti_simd_mls_helper(struct cpu_state *cpu,
+                                                                  uint64_t vd, uint64_t vn,
+                                                                  uint64_t vm,
+                                                                  uint64_t vec_bytes)
+{
+    tcti_simd_mls_helper(cpu, vd, vn, vm, vec_bytes);
 }
 
 __attribute__((naked)) void gadget_fadd_impl(void)

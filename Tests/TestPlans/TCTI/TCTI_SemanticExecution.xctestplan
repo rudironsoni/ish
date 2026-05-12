@@ -21,11 +21,25 @@
     {
       "target" : {
         "containerPath" : "container:IXLand.xcodeproj",
-        "identifier" : "IXLandLinuxRuntimeContractTests",
+        "identifier" : "0FD7BE69CB0D9F25F29530F8",
         "name" : "IXLandLinuxRuntimeContractTests"
       },
       "testClasses" : [
-        "TCTISemanticExecutionTests"
+        "TCTIPAuthSemanticTests",
+        "TCTIControlAndFlagsSemanticTests",
+        "TCTIIntegerALUSemanticTests",
+        "TCTILogicalBitfieldShiftSemanticTests",
+        "TCTIMoveImmediateAndAddressSemanticTests",
+        "TCTIAtomicAndExclusiveSemanticTests",
+        "TCTIPairAndFrameSemanticTests",
+        "TCTIScalarLoadStoreSemanticTests",
+        "TCTISpecialAndTaggingSemanticTests",
+        "TCTIExceptionsBarriersHintsSemanticTests",
+        "TCTISysregCacheTLBSemanticTests",
+        "TCTICryptoAndDotProductSemanticTests",
+        "TCTIScalarFPSemanticTests",
+        "TCTIVectorMemorySemanticTests",
+        "TCTIVectorSemanticTests"
       ]
     }
   ],

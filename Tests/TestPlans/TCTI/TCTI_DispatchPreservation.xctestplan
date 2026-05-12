@@ -21,11 +21,11 @@
     {
       "target" : {
         "containerPath" : "container:IXLand.xcodeproj",
-        "identifier" : "IXLandLinuxRuntimeContractTests",
+        "identifier" : "0FD7BE69CB0D9F25F29530F8",
         "name" : "IXLandLinuxRuntimeContractTests"
       },
       "testClasses" : [
-        "TCTIDispatchPreservationTests"
+        "TCTIPipelineDispatchPreservationTests"
       ]
     }
   ],
