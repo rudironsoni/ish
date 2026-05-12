@@ -145,6 +145,11 @@ extern const tcti_gadget_t gadget_rbit_wreg[16][16];
 extern const tcti_gadget_t gadget_rbit_xreg[16][16];
 extern const tcti_gadget_t gadget_clz_wreg[16][16];
 extern const tcti_gadget_t gadget_clz_xreg[16][16];
+extern const tcti_gadget_t gadget_rev_wreg[16][16];
+extern const tcti_gadget_t gadget_rev_xreg[16][16];
+extern const tcti_gadget_t gadget_rev16_wreg[16][16];
+extern const tcti_gadget_t gadget_rev16_xreg[16][16];
+extern const tcti_gadget_t gadget_rev32_xreg[16][16];
 
 // ============================================================================
 // Branch Gadgets
@@ -719,13 +724,18 @@ __attribute__((naked)) void {func_name}(void) {{
 
 
 def generate_one_source_reg_gadgets():
-    """Generate RBIT/CLZ register gadgets."""
+    """Generate one-source register gadgets."""
     gadgets = []
     operations = [
         ("rbit_wreg", "rbit", "w"),
         ("rbit_xreg", "rbit", "x"),
         ("clz_wreg", "clz", "w"),
         ("clz_xreg", "clz", "x"),
+        ("rev_wreg", "rev", "w"),
+        ("rev_xreg", "rev", "x"),
+        ("rev16_wreg", "rev16", "w"),
+        ("rev16_xreg", "rev16", "x"),
+        ("rev32_xreg", "rev32", "x"),
     ]
 
     for table_name, mnemonic, width in operations:
@@ -952,7 +962,17 @@ def generate_lookup_tables():
     tables.append("};")
     tables.append("")
 
-    for table_name in ["rbit_wreg", "rbit_xreg", "clz_wreg", "clz_xreg"]:
+    for table_name in [
+        "rbit_wreg",
+        "rbit_xreg",
+        "clz_wreg",
+        "clz_xreg",
+        "rev_wreg",
+        "rev_xreg",
+        "rev16_wreg",
+        "rev16_xreg",
+        "rev32_xreg",
+    ]:
         tables.append(f"// {table_name} lookup table: gadget_{table_name}[dst][src]")
         tables.append(f"const tcti_gadget_t gadget_{table_name}[16][16] = {{")
         for rd in range(MAX_TCTI_REGS):

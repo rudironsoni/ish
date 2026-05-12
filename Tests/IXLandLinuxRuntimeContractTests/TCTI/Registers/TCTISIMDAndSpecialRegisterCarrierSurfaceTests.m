@@ -10,6 +10,7 @@ typedef void (*tcti_gadget_t)(void);
 extern tcti_gadget_t gadget_simd_and;
 extern tcti_gadget_t gadget_simd_cnt;
 extern tcti_gadget_t gadget_simd_dup_gpr;
+extern tcti_gadget_t gadget_scalar_fp;
 extern tcti_gadget_t gadget_simd_ins_gpr;
 extern tcti_gadget_t gadget_simd_movi_imm;
 extern tcti_gadget_t gadget_simd_zip1;
@@ -156,7 +157,7 @@ extern tcti_gadget_t gadget_simd_mls;
 {
     tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
     a64_gen_state_t state;
-    [self generateInstruction:0x4e021820 atPC:0xb0024 state:&state gadgets:gadgets]; // zip1 v0.16b,v1.16b,v2.16b
+    [self generateInstruction:0x4e023820 atPC:0xb0024 state:&state gadgets:gadgets]; // zip1 v0.16b,v1.16b,v2.16b
     XCTAssertEqual(gadgets[0], gadget_simd_zip1);
     XCTAssertEqual((uint64_t)(uintptr_t)gadgets[1], 0ULL);
     XCTAssertEqual((uint64_t)(uintptr_t)gadgets[2], 1ULL);
@@ -192,7 +193,7 @@ TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDBITLoweringCarriesRdRnRmAndWidth, 0x6e
                                       gadget_simd_bit, 0, 1, 2, 16)
 TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDBIFLoweringCarriesRdRnRmAndWidth, 0x6ee21c20, 0xb004c,
                                       gadget_simd_bif, 0, 1, 2, 16)
-TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDCMEQLoweringCarriesRdRnRmAndWidth, 0x6e229420, 0xb0050,
+TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDCMEQLoweringCarriesRdRnRmAndWidth, 0x6e228c20, 0xb0050,
                                       gadget_simd_cmeq, 0, 1, 2, 16)
 TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDCMGTLoweringCarriesRdRnRmAndWidth, 0x4e223420, 0xb0054,
                                       gadget_simd_cmgt, 0, 1, 2, 16)
@@ -210,8 +211,8 @@ TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDCMTSTLoweringCarriesRdRnRmAndWidth, 0x
                                       gadget_simd_cmtst, 0, 1, 2, 16)
 TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDMLALoweringCarriesRdRnRmAndWidth, 0x4e229420, 0xb005b,
                                       gadget_simd_mla, 0, 1, 2, 16)
-TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDMLSLoweringCarriesRdRnRmAndWidth, 0x4ea29420, 0xb005c,
-                                      gadget_simd_mls, 0, 1, 2, 16)
+TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDMLSLoweringCarriesRdRnRmAndWidth, 0x6e2b9549, 0xb005c,
+                                      gadget_simd_mls, 9, 10, 11, 16)
 
 - (void)testRegisterCarrierSurface_SIMDFMOVGPRBridgePreservesScalarFPRegisterIndices
 {
@@ -220,6 +221,33 @@ TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDMLSLoweringCarriesRdRnRmAndWidth, 0x4e
     XCTAssertEqual(decoded.Rd, 1);
     XCTAssertEqual(decoded.Rn, 1);
     XCTAssertEqual(decoded.vec_bytes, 8);
+}
+
+- (void)testRegisterCarrierSurface_ScalarFPSCVTFLoweringCarriesExactRawInstructionPayload
+{
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
+    a64_gen_state_t state;
+    [self generateInstruction:0x9e6202b4 atPC:0xb005d state:&state gadgets:gadgets]; // scvtf d20, x21
+    XCTAssertEqual(gadgets[0], gadget_scalar_fp);
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[1], 0x9e6202b4ULL);
+}
+
+- (void)testRegisterCarrierSurface_ScalarFPFCMPLoweringCarriesExactRawInstructionPayload
+{
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
+    a64_gen_state_t state;
+    [self generateInstruction:0x1e612000 atPC:0xb005e state:&state gadgets:gadgets]; // fcmp d0, d1
+    XCTAssertEqual(gadgets[0], gadget_scalar_fp);
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[1], 0x1e612000ULL);
+}
+
+- (void)testRegisterCarrierSurface_ScalarFPFCSELLoweringCarriesExactRawInstructionPayload
+{
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
+    a64_gen_state_t state;
+    [self generateInstruction:0x1e621c20 atPC:0xb005f state:&state gadgets:gadgets]; // fcsel d0, d1, d2, ne
+    XCTAssertEqual(gadgets[0], gadget_scalar_fp);
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[1], 0x1e621c20ULL);
 }
 
 - (void)testRegisterCarrierSurface_SystemRegisterMovePreservesSysregOperationClass

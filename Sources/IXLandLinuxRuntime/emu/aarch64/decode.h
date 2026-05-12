@@ -131,6 +131,7 @@ typedef enum {
     A64_SIMD_ZIP2 = 37,          // ZIP2 interleave high halves of two vectors
     A64_SIMD_TRN2 = 38,          // TRN2 transpose odd lanes from two vectors
     A64_SIMD_UZP2 = 39,          // UZP2 pack odd lanes from two vectors
+    A64_SIMD_SCALAR_FP_GENERIC = 40, // Scalar FP helper family beyond FMOV/FADD
 } a64_simd_subtype_t;
 
 /* Indexing modes for load/store */
@@ -165,6 +166,9 @@ typedef enum {
     A64_DP_REG_CLZ = 45,        // Count leading zeros
     A64_DP_REG_UMULH = 46,      // Unsigned multiply high
     A64_DP_REG_SMULH = 47,      // Signed multiply high
+    A64_DP_REG_REV = 48,        // Reverse bytes
+    A64_DP_REG_REV16 = 49,      // Reverse bytes in 16-bit halfwords
+    A64_DP_REG_REV32 = 50,      // Reverse bytes in 32-bit words
 } a64_dp_reg_subtype_t;
 
 /* Condition codes for conditional instructions */

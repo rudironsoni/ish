@@ -13,6 +13,7 @@ extern tcti_gadget_t gadget_dmb;
 extern tcti_gadget_t gadget_nop;
 extern tcti_gadget_t gadget_clrex;
 extern tcti_gadget_t gadget_fadd;
+extern tcti_gadget_t gadget_scalar_fp;
 extern tcti_gadget_t gadget_dc_zva;
 extern tcti_gadget_t gadget_sysreg_unsupported;
 extern tcti_gadget_t gadget_ccmp_native_reg[2][2][16];
@@ -86,6 +87,7 @@ TCTI_DECLARE_GADGET_POINTER_TEST(Dmb, gadget_dmb)
 TCTI_DECLARE_GADGET_POINTER_TEST(Nop, gadget_nop)
 TCTI_DECLARE_GADGET_POINTER_TEST(Clrex, gadget_clrex)
 TCTI_DECLARE_GADGET_POINTER_TEST(Fadd, gadget_fadd)
+TCTI_DECLARE_GADGET_POINTER_TEST(ScalarFp, gadget_scalar_fp)
 TCTI_DECLARE_GADGET_POINTER_TEST(DcZva, gadget_dc_zva)
 TCTI_DECLARE_GADGET_POINTER_TEST(SysregUnsupported, gadget_sysreg_unsupported)
 TCTI_DECLARE_GADGET_MATRIX3_TEST(CcmpNativeReg, gadget_ccmp_native_reg)

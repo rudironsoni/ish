@@ -29,12 +29,18 @@ extern tcti_gadget_t gadget_simd_bif;
 extern tcti_gadget_t gadget_simd_ext;
 extern tcti_gadget_t gadget_simd_cnt;
 extern tcti_gadget_t gadget_simd_ins_gpr;
+extern tcti_gadget_t gadget_scalar_fp;
 extern tcti_gadget_t gadget_simd_cmge;
 extern tcti_gadget_t gadget_simd_cmhi;
 extern tcti_gadget_t gadget_simd_cmhs;
 extern tcti_gadget_t gadget_simd_cmle;
 extern tcti_gadget_t gadget_simd_cmlt;
 extern tcti_gadget_t gadget_simd_cmtst;
+extern const tcti_gadget_t gadget_rev_wreg[16][16];
+extern const tcti_gadget_t gadget_rev_xreg[16][16];
+extern const tcti_gadget_t gadget_rev16_wreg[16][16];
+extern const tcti_gadget_t gadget_rev16_xreg[16][16];
+extern const tcti_gadget_t gadget_rev32_xreg[16][16];
 extern void gadget_br_impl(void);
 extern void gadget_ccmp_fallback_impl(void);
 
@@ -771,6 +777,73 @@ extern void gadget_ccmp_fallback_impl(void);
     XCTAssertGreaterThan(state.num_gadgets, (size_t)0);
 }
 
+- (void)testLoweringContract_ScalarFPSCVTFLowersThroughRawInstructionHelperGadget
+{
+    uint32_t scvtfD20X21 = 0x9e6202b4;
+    a64_instr_t decoded;
+    XCTAssertEqual(a64_decode(scvtfD20X21, &decoded), 0);
+    XCTAssertEqual(decoded.subtype, A64_SIMD_SCALAR_FP_GENERIC);
+    XCTAssertEqual(decoded.Rd, 20);
+    XCTAssertEqual(decoded.Rn, 21);
+
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
+    a64_gen_state_t state;
+    [self generateInstruction:scvtfD20X21 atPC:0x61a40 state:&state gadgets:gadgets];
+    XCTAssertEqual(gadgets[0], gadget_scalar_fp);
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[1], (uint64_t)scvtfD20X21);
+}
+
+- (void)testLoweringContract_ScalarFPFSUBLowersThroughRawInstructionHelperGadget
+{
+    uint32_t fsubD0D1D2 = 0x1e623820;
+    a64_instr_t decoded;
+    XCTAssertEqual(a64_decode(fsubD0D1D2, &decoded), 0);
+    XCTAssertEqual(decoded.subtype, A64_SIMD_SCALAR_FP_GENERIC);
+    XCTAssertEqual(decoded.Rd, 0);
+    XCTAssertEqual(decoded.Rn, 1);
+    XCTAssertEqual(decoded.Rm, 2);
+
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
+    a64_gen_state_t state;
+    [self generateInstruction:fsubD0D1D2 atPC:0x61a44 state:&state gadgets:gadgets];
+    XCTAssertEqual(gadgets[0], gadget_scalar_fp);
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[1], (uint64_t)fsubD0D1D2);
+}
+
+- (void)testLoweringContract_ScalarFPFCMPLowersThroughRawInstructionHelperGadget
+{
+    uint32_t fcmpD0D1 = 0x1e612000;
+    a64_instr_t decoded;
+    XCTAssertEqual(a64_decode(fcmpD0D1, &decoded), 0);
+    XCTAssertEqual(decoded.subtype, A64_SIMD_SCALAR_FP_GENERIC);
+    XCTAssertEqual(decoded.Rn, 0);
+    XCTAssertEqual(decoded.Rm, 1);
+
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
+    a64_gen_state_t state;
+    [self generateInstruction:fcmpD0D1 atPC:0x61a48 state:&state gadgets:gadgets];
+    XCTAssertEqual(gadgets[0], gadget_scalar_fp);
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[1], (uint64_t)fcmpD0D1);
+}
+
+- (void)testLoweringContract_ScalarFPFCSELLowersThroughRawInstructionHelperGadget
+{
+    uint32_t fcselD0D1D2Ne = 0x1e621c20;
+    a64_instr_t decoded;
+    XCTAssertEqual(a64_decode(fcselD0D1D2Ne, &decoded), 0);
+    XCTAssertEqual(decoded.subtype, A64_SIMD_SCALAR_FP_GENERIC);
+    XCTAssertEqual(decoded.Rd, 0);
+    XCTAssertEqual(decoded.Rn, 1);
+    XCTAssertEqual(decoded.Rm, 2);
+    XCTAssertEqual(decoded.cond, A64_NE);
+
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
+    a64_gen_state_t state;
+    [self generateInstruction:fcselD0D1D2Ne atPC:0x61a4c state:&state gadgets:gadgets];
+    XCTAssertEqual(gadgets[0], gadget_scalar_fp);
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[1], (uint64_t)fcselD0D1D2Ne);
+}
+
 - (void)testLoweringContract_SIMDSTRQUnsignedImmediateLowers
 {
     uint32_t strQ0X0Imm16 = 0x3d800400;
@@ -1101,7 +1174,7 @@ TCTI_DECLARE_COND_BRANCH_LOWERING_TEST(BCLEZeroOffsetLowersThroughNativeTCTICond
     tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
     a64_gen_state_t state;
     [self generateInstruction:0x5ac00820 atPC:0x6a6d0 state:&state gadgets:gadgets];
-    XCTAssertGreaterThan(state.num_gadgets, (size_t)0);
+    XCTAssertEqual(gadgets[0], gadget_rev_wreg[0][1]);
     XCTAssertFalse(state.is_complete);
 }
 
@@ -1110,7 +1183,7 @@ TCTI_DECLARE_COND_BRANCH_LOWERING_TEST(BCLEZeroOffsetLowersThroughNativeTCTICond
     tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
     a64_gen_state_t state;
     [self generateInstruction:0xdac00c62 atPC:0x6a6d4 state:&state gadgets:gadgets];
-    XCTAssertGreaterThan(state.num_gadgets, (size_t)0);
+    XCTAssertEqual(gadgets[0], gadget_rev_xreg[2][3]);
     XCTAssertFalse(state.is_complete);
 }
 
@@ -1119,7 +1192,7 @@ TCTI_DECLARE_COND_BRANCH_LOWERING_TEST(BCLEZeroOffsetLowersThroughNativeTCTICond
     tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
     a64_gen_state_t state;
     [self generateInstruction:0x5ac004a4 atPC:0x6a6d8 state:&state gadgets:gadgets];
-    XCTAssertGreaterThan(state.num_gadgets, (size_t)0);
+    XCTAssertEqual(gadgets[0], gadget_rev16_wreg[4][5]);
     XCTAssertFalse(state.is_complete);
 }
 
@@ -1128,7 +1201,7 @@ TCTI_DECLARE_COND_BRANCH_LOWERING_TEST(BCLEZeroOffsetLowersThroughNativeTCTICond
     tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
     a64_gen_state_t state;
     [self generateInstruction:0xdac004e6 atPC:0x6a6dc state:&state gadgets:gadgets];
-    XCTAssertGreaterThan(state.num_gadgets, (size_t)0);
+    XCTAssertEqual(gadgets[0], gadget_rev16_xreg[6][7]);
     XCTAssertFalse(state.is_complete);
 }
 
@@ -1137,7 +1210,7 @@ TCTI_DECLARE_COND_BRANCH_LOWERING_TEST(BCLEZeroOffsetLowersThroughNativeTCTICond
     tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
     a64_gen_state_t state;
     [self generateInstruction:0xdac00928 atPC:0x6a6e0 state:&state gadgets:gadgets];
-    XCTAssertGreaterThan(state.num_gadgets, (size_t)0);
+    XCTAssertEqual(gadgets[0], gadget_rev32_xreg[8][9]);
     XCTAssertFalse(state.is_complete);
 }
 

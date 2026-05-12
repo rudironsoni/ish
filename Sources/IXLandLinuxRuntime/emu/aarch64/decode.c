@@ -62,6 +62,79 @@ static bool a64_is_advsimd_modified_immediate(uint32_t insn)
     return (insn & 0x9e000400) == 0x0e000400;
 }
 
+#define A64_RD_MASK        0x0000001fu
+#define A64_RN_MASK        0x000003e0u
+#define A64_COND_MASK      0x0000f000u
+#define A64_RA_MASK        0x00007c00u
+#define A64_NZCVIMM_MASK   0x0000000fu
+#define A64_RM_MASK        0x001f0000u
+#define A64_FP_UNARY_MASK  (A64_RD_MASK | A64_RN_MASK)
+#define A64_FP_BINARY_MASK (A64_RD_MASK | A64_RN_MASK | A64_RM_MASK)
+#define A64_FP_TERNARY_MASK (A64_RD_MASK | A64_RN_MASK | A64_RM_MASK | A64_RA_MASK)
+#define A64_FP_COMPARE_MASK (A64_RN_MASK | A64_RM_MASK)
+#define A64_FP_CONDSEL_MASK (A64_RD_MASK | A64_RN_MASK | A64_RM_MASK | A64_COND_MASK)
+#define A64_FP_CONDCMP_MASK (A64_RN_MASK | A64_RM_MASK | A64_COND_MASK | A64_NZCVIMM_MASK)
+
+#define A64_MATCH_WITH_MASK(_insn, _repr, _mask) (((_insn) & ~(_mask)) == ((_repr) & ~(_mask)))
+
+static bool a64_decode_scalar_fp_owned(uint32_t insn, a64_instr_t *out)
+{
+    if (A64_MATCH_WITH_MASK(insn, 0x9e640020u, A64_FP_UNARY_MASK) || // fcvtas xd, dn
+        A64_MATCH_WITH_MASK(insn, 0x9e650062u, A64_FP_UNARY_MASK) || // fcvtau xd, dn
+        A64_MATCH_WITH_MASK(insn, 0x9e7000a4u, A64_FP_UNARY_MASK) || // fcvtms xd, dn
+        A64_MATCH_WITH_MASK(insn, 0x9e7100e6u, A64_FP_UNARY_MASK) || // fcvtmu xd, dn
+        A64_MATCH_WITH_MASK(insn, 0x9e600128u, A64_FP_UNARY_MASK) || // fcvtns xd, dn
+        A64_MATCH_WITH_MASK(insn, 0x9e61016au, A64_FP_UNARY_MASK) || // fcvtnu xd, dn
+        A64_MATCH_WITH_MASK(insn, 0x9e6801acu, A64_FP_UNARY_MASK) || // fcvtps xd, dn
+        A64_MATCH_WITH_MASK(insn, 0x9e6901eeu, A64_FP_UNARY_MASK) || // fcvtpu xd, dn
+        A64_MATCH_WITH_MASK(insn, 0x9e780230u, A64_FP_UNARY_MASK) || // fcvtzs xd, dn
+        A64_MATCH_WITH_MASK(insn, 0x9e790272u, A64_FP_UNARY_MASK) || // fcvtzu xd, dn
+        A64_MATCH_WITH_MASK(insn, 0x9e6202b4u, A64_FP_UNARY_MASK) || // scvtf dd, xn
+        A64_MATCH_WITH_MASK(insn, 0x9e6302f6u, A64_FP_UNARY_MASK) || // ucvtf dd, xn
+        A64_MATCH_WITH_MASK(insn, 0x1e664338u, A64_FP_UNARY_MASK) || // frinta dd, dn
+        A64_MATCH_WITH_MASK(insn, 0x1e67c37au, A64_FP_UNARY_MASK) || // frinti dd, dn
+        A64_MATCH_WITH_MASK(insn, 0x1e6543bcu, A64_FP_UNARY_MASK) || // frintm dd, dn
+        A64_MATCH_WITH_MASK(insn, 0x1e644020u, A64_FP_UNARY_MASK) || // frintn dd, dn
+        A64_MATCH_WITH_MASK(insn, 0x1e64c062u, A64_FP_UNARY_MASK) || // frintp dd, dn
+        A64_MATCH_WITH_MASK(insn, 0x1e6740a4u, A64_FP_UNARY_MASK) || // frintx dd, dn
+        A64_MATCH_WITH_MASK(insn, 0x1e65c0e6u, A64_FP_UNARY_MASK) || // frintz dd, dn
+        A64_MATCH_WITH_MASK(insn, 0x1e61c128u, A64_FP_UNARY_MASK) || // fsqrt dd, dn
+        A64_MATCH_WITH_MASK(insn, 0x5ee1d96au, A64_FP_UNARY_MASK) || // frecpe dd, dn
+        A64_MATCH_WITH_MASK(insn, 0x5ee1fa0fu, A64_FP_UNARY_MASK) || // frecpx dd, dn
+        A64_MATCH_WITH_MASK(insn, 0x7ee1da51u, A64_FP_UNARY_MASK) || // frsqrte dd, dn
+        A64_MATCH_WITH_MASK(insn, 0x1e614020u, A64_FP_UNARY_MASK) || // fneg dd, dn
+        A64_MATCH_WITH_MASK(insn, 0x1e60c020u, A64_FP_UNARY_MASK) || // fabs dd, dn
+        A64_MATCH_WITH_MASK(insn, 0x1e7e0359u, A64_FP_UNARY_MASK) || // fjcvtzs xd, dn
+        A64_MATCH_WITH_MASK(insn, 0x1e623820u, A64_FP_BINARY_MASK) || // fsub dd, dn, dm
+        A64_MATCH_WITH_MASK(insn, 0x1e620820u, A64_FP_BINARY_MASK) || // fmul dd, dn, dm
+        A64_MATCH_WITH_MASK(insn, 0x1e621820u, A64_FP_BINARY_MASK) || // fdiv dd, dn, dm
+        A64_MATCH_WITH_MASK(insn, 0x5e6efdacu, A64_FP_BINARY_MASK) || // frecps dd, dn, dm
+        A64_MATCH_WITH_MASK(insn, 0x5ef5fe93u, A64_FP_BINARY_MASK) || // frsqrts dd, dn, dm
+        A64_MATCH_WITH_MASK(insn, 0x1f420c20u, A64_FP_TERNARY_MASK) || // fmadd dd, dn, dm, da
+        A64_MATCH_WITH_MASK(insn, 0x1f428c20u, A64_FP_TERNARY_MASK) || // fmsub dd, dn, dm, da
+        A64_MATCH_WITH_MASK(insn, 0x1f620c20u, A64_FP_TERNARY_MASK) || // fnmadd dd, dn, dm, da
+        A64_MATCH_WITH_MASK(insn, 0x1f628c20u, A64_FP_TERNARY_MASK) || // fnmsub dd, dn, dm, da
+        A64_MATCH_WITH_MASK(insn, 0x1e612000u, A64_FP_COMPARE_MASK) || // fcmp dn, dm
+        A64_MATCH_WITH_MASK(insn, 0x1e612010u, A64_FP_COMPARE_MASK) || // fcmpe dn, dm
+        A64_MATCH_WITH_MASK(insn, 0x1e611404u, A64_FP_CONDCMP_MASK) || // fccmp dn, dm, #nzcv, cond
+        A64_MATCH_WITH_MASK(insn, 0x1e611414u, A64_FP_CONDCMP_MASK) || // fccmpe dn, dm, #nzcv, cond
+        A64_MATCH_WITH_MASK(insn, 0x1e621c20u, A64_FP_CONDSEL_MASK)) { // fcsel dd, dn, dm, cond
+        out->cat = bit(insn, 31) ? A64_SIMD2 : A64_SIMD;
+        out->subtype = A64_SIMD_SCALAR_FP_GENERIC;
+        out->Rd = bits(insn, 4, 0);
+        out->Rn = bits(insn, 9, 5);
+        out->Rm = bits(insn, 20, 16);
+        out->Ra = bits(insn, 14, 10);
+        out->cond = (a64_cond_t)bits(insn, 15, 12);
+        out->is_vector = false;
+        out->vec_bytes = bit(insn, 22) ? 8 : 4;
+        out->is_64bit = out->vec_bytes == 8;
+        return true;
+    }
+
+    return false;
+}
+
 static bool a64_is_explicitly_unsupported_family_representative(uint32_t insn)
 {
     switch (insn) {
@@ -224,21 +297,31 @@ static bool a64_decode_rev_representative(uint32_t insn, a64_instr_t *out)
 {
     switch (insn) {
     case 0x5ac00820: // rev w0, w1
+        out->subtype = A64_DP_REG_REV;
+        break;
     case 0xdac00c62: // rev x2, x3
+        out->subtype = A64_DP_REG_REV;
+        break;
     case 0x5ac004a4: // rev16 w4, w5
+        out->subtype = A64_DP_REG_REV16;
+        break;
     case 0xdac004e6: // rev16 x6, x7
+        out->subtype = A64_DP_REG_REV16;
+        break;
     case 0xdac00928: // rev32 x8, x9
-        out->cat = A64_DP_REG;
-        out->Rd = bits(insn, 4, 0);
-        out->Rn = bits(insn, 9, 5);
-        out->Rm = 0;
-        out->is_64bit = bit(insn, 31);
-        out->set_flags = false;
-        out->subtype = 0;
-        return true;
+        out->subtype = A64_DP_REG_REV32;
+        break;
     default:
         return false;
     }
+
+    out->cat = A64_DP_REG;
+    out->Rd = bits(insn, 4, 0);
+    out->Rn = bits(insn, 9, 5);
+    out->Rm = -1;
+    out->is_64bit = bit(insn, 31);
+    out->set_flags = false;
+    return true;
 }
 
 static bool a64_decode_simd_ext_representative(uint32_t insn, a64_instr_t *out)
@@ -868,6 +951,9 @@ int a64_decode(uint32_t insn, a64_instr_t *out)
     if (a64_decode_simd_mls_representative(insn, out))
         return 0;
 
+    if (a64_decode_scalar_fp_owned(insn, out))
+        return 0;
+
     // Check for system instructions first (SVC, HVC, hints, barriers)
     // These have top 8 bits = 0xD4 or 0xD5 (exception and system)
     uint8_t top_byte = (insn >> 24) & 0xFF;
@@ -1208,6 +1294,17 @@ int a64_decode_dp_reg(uint32_t insn, a64_instr_t *out)
         switch (opcode) {
         case 0:
             out->subtype = A64_DP_REG_RBIT;
+            return 0;
+        case 1:
+            out->subtype = A64_DP_REG_REV16;
+            return 0;
+        case 2:
+            out->subtype = out->is_64bit ? A64_DP_REG_REV32 : A64_DP_REG_REV;
+            return 0;
+        case 3:
+            if (!out->is_64bit)
+                break;
+            out->subtype = A64_DP_REG_REV;
             return 0;
         case 4:
             out->subtype = A64_DP_REG_CLZ;

@@ -34,6 +34,7 @@
 #import <IXLandLinuxRuntime/tcti/gadgets_tcti.h>
 #include <assert.h>
 #include <limits.h>
+#include <math.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -105,6 +106,9 @@ _Static_assert(PSTATE_OFFSET == 280, "pstate offset check");
 // TCTI_EXIT_OFFSET verified to be 364 via runtime check
 
 #define REG_OFFSET(n) (XREG_OFFSET(n))
+
+static void tcti_write_reg_or_zr(struct cpu_state *cpu, int reg, uint64_t value, int is_64bit);
+static int tcti_cond_holds(uint64_t nzcv, uint64_t cond);
 
 static uint64_t tcti_read_base_reg_or_sp(struct cpu_state *cpu, int reg)
 {
@@ -336,6 +340,270 @@ __attribute__((used)) static void tcti_scalar_fadd_helper(struct cpu_state *cpu,
 
     if (vec_bytes == 8)
         cpu->vregs[vd].f64[0] = cpu->vregs[vn].f64[0] + cpu->vregs[vm].f64[0];
+}
+
+#define TCTI_FP_RD_MASK         0x0000001fu
+#define TCTI_FP_RN_MASK         0x000003e0u
+#define TCTI_FP_COND_MASK       0x0000f000u
+#define TCTI_FP_RA_MASK         0x00007c00u
+#define TCTI_FP_NZCVIMM_MASK    0x0000000fu
+#define TCTI_FP_RM_MASK         0x001f0000u
+#define TCTI_FP_UNARY_MASK      (TCTI_FP_RD_MASK | TCTI_FP_RN_MASK)
+#define TCTI_FP_BINARY_MASK     (TCTI_FP_RD_MASK | TCTI_FP_RN_MASK | TCTI_FP_RM_MASK)
+#define TCTI_FP_TERNARY_MASK    (TCTI_FP_RD_MASK | TCTI_FP_RN_MASK | TCTI_FP_RM_MASK | TCTI_FP_RA_MASK)
+#define TCTI_FP_COMPARE_MASK    (TCTI_FP_RN_MASK | TCTI_FP_RM_MASK)
+#define TCTI_FP_CONDSEL_MASK    (TCTI_FP_RD_MASK | TCTI_FP_RN_MASK | TCTI_FP_RM_MASK | TCTI_FP_COND_MASK)
+#define TCTI_FP_CONDCMP_MASK    (TCTI_FP_RN_MASK | TCTI_FP_RM_MASK | TCTI_FP_COND_MASK | TCTI_FP_NZCVIMM_MASK)
+#define TCTI_FP_MATCH(_raw, _repr, _mask) (((_raw) & ~(_mask)) == ((_repr) & ~(_mask)))
+
+enum {
+    TCTI_SCALAR_FP_RET_SYNC_GPR = 1u << 0,
+    TCTI_SCALAR_FP_RET_SYNC_NZCV = 1u << 1,
+};
+
+static double tcti_scalar_fp_round_away_from_zero(double value)
+{
+    return value >= 0.0 ? floor(value + 0.5) : ceil(value - 0.5);
+}
+
+static uint64_t tcti_scalar_fp_compare_nzcv(double lhs, double rhs)
+{
+    if (isnan(lhs) || isnan(rhs))
+        return 0x30000000ULL;
+    if (lhs < rhs)
+        return 0x80000000ULL;
+    if (lhs > rhs)
+        return 0x20000000ULL;
+    return 0x60000000ULL;
+}
+
+static float tcti_scalar_fp_read_f32(struct cpu_state *cpu, uint64_t reg)
+{
+    return cpu->vregs[reg].f32[0];
+}
+
+static double tcti_scalar_fp_read_f64(struct cpu_state *cpu, uint64_t reg)
+{
+    return cpu->vregs[reg].f64[0];
+}
+
+static void tcti_scalar_fp_write_f32(struct cpu_state *cpu, uint64_t reg, float value)
+{
+    cpu->vregs[reg].f32[0] = value;
+}
+
+static void tcti_scalar_fp_write_f64(struct cpu_state *cpu, uint64_t reg, double value)
+{
+    cpu->vregs[reg].f64[0] = value;
+}
+
+__attribute__((used)) static uint64_t tcti_scalar_fp_helper(struct cpu_state *cpu, uint32_t raw)
+{
+    uint64_t rd = bits(raw, 4, 0);
+    uint64_t rn = bits(raw, 9, 5);
+    uint64_t rm = bits(raw, 20, 16);
+    uint64_t ra = bits(raw, 14, 10);
+    uint64_t cond = bits(raw, 15, 12);
+    uint64_t vec_bytes = bit(raw, 22) ? 8 : 4;
+    uint64_t gpr_is_64bit = bit(raw, 31) ? 1 : 0;
+
+    if (rd >= 32 || rn >= 32 || rm >= 32 || ra >= 32)
+        return 0;
+    if (vec_bytes != 4 && vec_bytes != 8)
+        return 0;
+
+    if (TCTI_FP_MATCH(raw, 0x9e640020u, TCTI_FP_UNARY_MASK) || // fcvtas xd, dn
+        TCTI_FP_MATCH(raw, 0x9e650062u, TCTI_FP_UNARY_MASK) || // fcvtau xd, dn
+        TCTI_FP_MATCH(raw, 0x9e7000a4u, TCTI_FP_UNARY_MASK) || // fcvtms xd, dn
+        TCTI_FP_MATCH(raw, 0x9e7100e6u, TCTI_FP_UNARY_MASK) || // fcvtmu xd, dn
+        TCTI_FP_MATCH(raw, 0x9e600128u, TCTI_FP_UNARY_MASK) || // fcvtns xd, dn
+        TCTI_FP_MATCH(raw, 0x9e61016au, TCTI_FP_UNARY_MASK) || // fcvtnu xd, dn
+        TCTI_FP_MATCH(raw, 0x9e6801acu, TCTI_FP_UNARY_MASK) || // fcvtps xd, dn
+        TCTI_FP_MATCH(raw, 0x9e6901eeu, TCTI_FP_UNARY_MASK) || // fcvtpu xd, dn
+        TCTI_FP_MATCH(raw, 0x9e780230u, TCTI_FP_UNARY_MASK) || // fcvtzs xd, dn
+        TCTI_FP_MATCH(raw, 0x9e790272u, TCTI_FP_UNARY_MASK) || // fcvtzu xd, dn
+        TCTI_FP_MATCH(raw, 0x1e7e0359u, TCTI_FP_UNARY_MASK)) { // fjcvtzs xd, dn
+        double source = vec_bytes == 8 ? tcti_scalar_fp_read_f64(cpu, rn) : (double)tcti_scalar_fp_read_f32(cpu, rn);
+        uint64_t value = 0;
+
+        if (TCTI_FP_MATCH(raw, 0x9e640020u, TCTI_FP_UNARY_MASK))
+            value = (uint64_t)(int64_t)tcti_scalar_fp_round_away_from_zero(source);
+        else if (TCTI_FP_MATCH(raw, 0x9e650062u, TCTI_FP_UNARY_MASK))
+            value = (uint64_t)(source <= 0.0 ? 0.0 : tcti_scalar_fp_round_away_from_zero(source));
+        else if (TCTI_FP_MATCH(raw, 0x9e7000a4u, TCTI_FP_UNARY_MASK))
+            value = (uint64_t)(int64_t)floor(source);
+        else if (TCTI_FP_MATCH(raw, 0x9e7100e6u, TCTI_FP_UNARY_MASK))
+            value = (uint64_t)(source <= 0.0 ? 0.0 : floor(source));
+        else if (TCTI_FP_MATCH(raw, 0x9e600128u, TCTI_FP_UNARY_MASK))
+            value = (uint64_t)(int64_t)nearbyint(source);
+        else if (TCTI_FP_MATCH(raw, 0x9e61016au, TCTI_FP_UNARY_MASK))
+            value = (uint64_t)(source <= 0.0 ? 0.0 : nearbyint(source));
+        else if (TCTI_FP_MATCH(raw, 0x9e6801acu, TCTI_FP_UNARY_MASK))
+            value = (uint64_t)(int64_t)ceil(source);
+        else if (TCTI_FP_MATCH(raw, 0x9e6901eeu, TCTI_FP_UNARY_MASK))
+            value = (uint64_t)(source <= 0.0 ? 0.0 : ceil(source));
+        else if (TCTI_FP_MATCH(raw, 0x9e780230u, TCTI_FP_UNARY_MASK))
+            value = (uint64_t)(int64_t)trunc(source);
+        else if (TCTI_FP_MATCH(raw, 0x9e790272u, TCTI_FP_UNARY_MASK))
+            value = (uint64_t)(source <= 0.0 ? 0.0 : trunc(source));
+        else
+            value = (uint64_t)(int64_t)(int32_t)trunc(source);
+
+        tcti_write_reg_or_zr(cpu, (int)rd, value, gpr_is_64bit != 0);
+        return TCTI_SCALAR_FP_RET_SYNC_GPR;
+    }
+
+    if (TCTI_FP_MATCH(raw, 0x9e6202b4u, TCTI_FP_UNARY_MASK) || // scvtf dd, xn
+        TCTI_FP_MATCH(raw, 0x9e6302f6u, TCTI_FP_UNARY_MASK)) { // ucvtf dd, xn
+        if (TCTI_FP_MATCH(raw, 0x9e6202b4u, TCTI_FP_UNARY_MASK)) {
+            double value = gpr_is_64bit ? (double)(int64_t)cpu->x[rn] : (double)(int32_t)cpu->x[rn];
+            if (vec_bytes == 8)
+                tcti_scalar_fp_write_f64(cpu, rd, value);
+            else
+                tcti_scalar_fp_write_f32(cpu, rd, (float)value);
+        } else {
+            double value = gpr_is_64bit ? (double)cpu->x[rn] : (double)(uint32_t)cpu->x[rn];
+            if (vec_bytes == 8)
+                tcti_scalar_fp_write_f64(cpu, rd, value);
+            else
+                tcti_scalar_fp_write_f32(cpu, rd, (float)value);
+        }
+        return 0;
+    }
+
+    if (TCTI_FP_MATCH(raw, 0x1e664338u, TCTI_FP_UNARY_MASK) || // frinta
+        TCTI_FP_MATCH(raw, 0x1e67c37au, TCTI_FP_UNARY_MASK) || // frinti
+        TCTI_FP_MATCH(raw, 0x1e6543bcu, TCTI_FP_UNARY_MASK) || // frintm
+        TCTI_FP_MATCH(raw, 0x1e644020u, TCTI_FP_UNARY_MASK) || // frintn
+        TCTI_FP_MATCH(raw, 0x1e64c062u, TCTI_FP_UNARY_MASK) || // frintp
+        TCTI_FP_MATCH(raw, 0x1e6740a4u, TCTI_FP_UNARY_MASK) || // frintx
+        TCTI_FP_MATCH(raw, 0x1e65c0e6u, TCTI_FP_UNARY_MASK) || // frintz
+        TCTI_FP_MATCH(raw, 0x1e61c128u, TCTI_FP_UNARY_MASK) || // fsqrt
+        TCTI_FP_MATCH(raw, 0x5ee1d96au, TCTI_FP_UNARY_MASK) || // frecpe
+        TCTI_FP_MATCH(raw, 0x5ee1fa0fu, TCTI_FP_UNARY_MASK) || // frecpx
+        TCTI_FP_MATCH(raw, 0x7ee1da51u, TCTI_FP_UNARY_MASK) || // frsqrte
+        TCTI_FP_MATCH(raw, 0x1e614020u, TCTI_FP_UNARY_MASK) || // fneg
+        TCTI_FP_MATCH(raw, 0x1e60c020u, TCTI_FP_UNARY_MASK)) { // fabs
+        double source = vec_bytes == 8 ? tcti_scalar_fp_read_f64(cpu, rn) : (double)tcti_scalar_fp_read_f32(cpu, rn);
+        double result = source;
+
+        if (TCTI_FP_MATCH(raw, 0x1e664338u, TCTI_FP_UNARY_MASK))
+            result = tcti_scalar_fp_round_away_from_zero(source);
+        else if (TCTI_FP_MATCH(raw, 0x1e67c37au, TCTI_FP_UNARY_MASK) ||
+                 TCTI_FP_MATCH(raw, 0x1e644020u, TCTI_FP_UNARY_MASK) ||
+                 TCTI_FP_MATCH(raw, 0x1e6740a4u, TCTI_FP_UNARY_MASK))
+            result = nearbyint(source);
+        else if (TCTI_FP_MATCH(raw, 0x1e6543bcu, TCTI_FP_UNARY_MASK))
+            result = floor(source);
+        else if (TCTI_FP_MATCH(raw, 0x1e64c062u, TCTI_FP_UNARY_MASK))
+            result = ceil(source);
+        else if (TCTI_FP_MATCH(raw, 0x1e65c0e6u, TCTI_FP_UNARY_MASK))
+            result = trunc(source);
+        else if (TCTI_FP_MATCH(raw, 0x1e61c128u, TCTI_FP_UNARY_MASK))
+            result = sqrt(source);
+        else if (TCTI_FP_MATCH(raw, 0x5ee1d96au, TCTI_FP_UNARY_MASK) ||
+                 TCTI_FP_MATCH(raw, 0x5ee1fa0fu, TCTI_FP_UNARY_MASK))
+            result = 1.0 / source;
+        else if (TCTI_FP_MATCH(raw, 0x7ee1da51u, TCTI_FP_UNARY_MASK))
+            result = 1.0 / sqrt(source);
+        else if (TCTI_FP_MATCH(raw, 0x1e614020u, TCTI_FP_UNARY_MASK))
+            result = -source;
+        else if (TCTI_FP_MATCH(raw, 0x1e60c020u, TCTI_FP_UNARY_MASK))
+            result = fabs(source);
+
+        if (vec_bytes == 8)
+            tcti_scalar_fp_write_f64(cpu, rd, result);
+        else
+            tcti_scalar_fp_write_f32(cpu, rd, (float)result);
+        return 0;
+    }
+
+    if (TCTI_FP_MATCH(raw, 0x1e623820u, TCTI_FP_BINARY_MASK) || // fsub
+        TCTI_FP_MATCH(raw, 0x1e620820u, TCTI_FP_BINARY_MASK) || // fmul
+        TCTI_FP_MATCH(raw, 0x1e621820u, TCTI_FP_BINARY_MASK) || // fdiv
+        TCTI_FP_MATCH(raw, 0x5e6efdacu, TCTI_FP_BINARY_MASK) || // frecps
+        TCTI_FP_MATCH(raw, 0x5ef5fe93u, TCTI_FP_BINARY_MASK)) { // frsqrts
+        double lhs = vec_bytes == 8 ? tcti_scalar_fp_read_f64(cpu, rn) : (double)tcti_scalar_fp_read_f32(cpu, rn);
+        double rhs = vec_bytes == 8 ? tcti_scalar_fp_read_f64(cpu, rm) : (double)tcti_scalar_fp_read_f32(cpu, rm);
+        double result = lhs;
+
+        if (TCTI_FP_MATCH(raw, 0x1e623820u, TCTI_FP_BINARY_MASK))
+            result = lhs - rhs;
+        else if (TCTI_FP_MATCH(raw, 0x1e620820u, TCTI_FP_BINARY_MASK))
+            result = lhs * rhs;
+        else if (TCTI_FP_MATCH(raw, 0x1e621820u, TCTI_FP_BINARY_MASK))
+            result = lhs / rhs;
+        else if (TCTI_FP_MATCH(raw, 0x5e6efdacu, TCTI_FP_BINARY_MASK))
+            result = 2.0 - (lhs * rhs);
+        else if (TCTI_FP_MATCH(raw, 0x5ef5fe93u, TCTI_FP_BINARY_MASK))
+            result = (3.0 - (lhs * rhs)) * 0.5;
+
+        if (vec_bytes == 8)
+            tcti_scalar_fp_write_f64(cpu, rd, result);
+        else
+            tcti_scalar_fp_write_f32(cpu, rd, (float)result);
+        return 0;
+    }
+
+    if (TCTI_FP_MATCH(raw, 0x1f420c20u, TCTI_FP_TERNARY_MASK) || // fmadd
+        TCTI_FP_MATCH(raw, 0x1f428c20u, TCTI_FP_TERNARY_MASK) || // fmsub
+        TCTI_FP_MATCH(raw, 0x1f620c20u, TCTI_FP_TERNARY_MASK) || // fnmadd
+        TCTI_FP_MATCH(raw, 0x1f628c20u, TCTI_FP_TERNARY_MASK)) { // fnmsub
+        double lhs = vec_bytes == 8 ? tcti_scalar_fp_read_f64(cpu, rn) : (double)tcti_scalar_fp_read_f32(cpu, rn);
+        double rhs = vec_bytes == 8 ? tcti_scalar_fp_read_f64(cpu, rm) : (double)tcti_scalar_fp_read_f32(cpu, rm);
+        double accum = vec_bytes == 8 ? tcti_scalar_fp_read_f64(cpu, ra) : (double)tcti_scalar_fp_read_f32(cpu, ra);
+        double product = lhs * rhs;
+        double result = product + accum;
+
+        if (TCTI_FP_MATCH(raw, 0x1f428c20u, TCTI_FP_TERNARY_MASK))
+            result = product - accum;
+        else if (TCTI_FP_MATCH(raw, 0x1f620c20u, TCTI_FP_TERNARY_MASK))
+            result = accum - product;
+        else if (TCTI_FP_MATCH(raw, 0x1f628c20u, TCTI_FP_TERNARY_MASK))
+            result = -(product + accum);
+
+        if (vec_bytes == 8)
+            tcti_scalar_fp_write_f64(cpu, rd, result);
+        else
+            tcti_scalar_fp_write_f32(cpu, rd, (float)result);
+        return 0;
+    }
+
+    if (TCTI_FP_MATCH(raw, 0x1e612000u, TCTI_FP_COMPARE_MASK) || // fcmp
+        TCTI_FP_MATCH(raw, 0x1e612010u, TCTI_FP_COMPARE_MASK)) { // fcmpe
+        double lhs = vec_bytes == 8 ? tcti_scalar_fp_read_f64(cpu, rn) : (double)tcti_scalar_fp_read_f32(cpu, rn);
+        double rhs = vec_bytes == 8 ? tcti_scalar_fp_read_f64(cpu, rm) : (double)tcti_scalar_fp_read_f32(cpu, rm);
+        cpu->pstate = tcti_scalar_fp_compare_nzcv(lhs, rhs);
+        return TCTI_SCALAR_FP_RET_SYNC_NZCV;
+    }
+
+    if (TCTI_FP_MATCH(raw, 0x1e611404u, TCTI_FP_CONDCMP_MASK) || // fccmp
+        TCTI_FP_MATCH(raw, 0x1e611414u, TCTI_FP_CONDCMP_MASK)) { // fccmpe
+        uint64_t nzcv_imm = (uint64_t)(raw & 0xf);
+        if (tcti_cond_holds(cpu->pstate, cond)) {
+            double lhs = vec_bytes == 8 ? tcti_scalar_fp_read_f64(cpu, rn) : (double)tcti_scalar_fp_read_f32(cpu, rn);
+            double rhs = vec_bytes == 8 ? tcti_scalar_fp_read_f64(cpu, rm) : (double)tcti_scalar_fp_read_f32(cpu, rm);
+            cpu->pstate = tcti_scalar_fp_compare_nzcv(lhs, rhs);
+        } else {
+            cpu->pstate = nzcv_imm << 28;
+        }
+        return TCTI_SCALAR_FP_RET_SYNC_NZCV;
+    }
+
+    if (TCTI_FP_MATCH(raw, 0x1e621c20u, TCTI_FP_CONDSEL_MASK)) { // fcsel
+        if (vec_bytes == 8) {
+            double value = tcti_cond_holds(cpu->pstate, cond) ? tcti_scalar_fp_read_f64(cpu, rn)
+                                                               : tcti_scalar_fp_read_f64(cpu, rm);
+            tcti_scalar_fp_write_f64(cpu, rd, value);
+        } else {
+            float value = tcti_cond_holds(cpu->pstate, cond) ? tcti_scalar_fp_read_f32(cpu, rn)
+                                                             : tcti_scalar_fp_read_f32(cpu, rm);
+            tcti_scalar_fp_write_f32(cpu, rd, value);
+        }
+        return 0;
+    }
+
+    return 0;
 }
 
 __attribute__((used)) static void tcti_simd_ext_helper(struct cpu_state *cpu, uint64_t vd,
@@ -6430,6 +6698,56 @@ __attribute__((visibility("default"))) void _tcti_scalar_fadd_helper(struct cpu_
                                                                      uint64_t vec_bytes)
 {
     tcti_scalar_fadd_helper(cpu, vd, vn, vm, vec_bytes);
+}
+
+__attribute__((naked)) void gadget_scalar_fp_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t"
+                 "str x19, [sp, #-16]!\n\t"
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "str x13, [x29, #112]\n\t"
+                 "mrs x25, nzcv\n\t"
+                 "str x25, [x29, %[pstate_off]]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "bl _tcti_scalar_fp_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "ldr x19, [sp], #16\n\t"
+                 "ldp x1, x2, [x29, #16]\n\t"
+                 "ldp x3, x4, [x29, #32]\n\t"
+                 "ldp x5, x6, [x29, #48]\n\t"
+                 "ldp x7, x8, [x29, #64]\n\t"
+                 "ldp x9, x10, [x29, #80]\n\t"
+                 "ldp x11, x12, [x29, #96]\n\t"
+                 "ldr x13, [x29, #112]\n\t"
+                 "tbz x0, #0, 1f\n\t"
+                 "and x26, x19, #0x1f\n\t"
+                 "cmp x26, #13\n\t"
+                 "b.hs 1f\n\t"
+                 "bl _tcti_sync_hot_reg_from_cpu\n\t"
+                 "1:\n\t"
+                 "tbz x0, #1, 2f\n\t"
+                 "ldr x21, [x29, %[pstate_off]]\n\t"
+                 "msr nzcv, x21\n\t"
+                 "2:\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t"
+                 :
+                 : [pstate_off] "i"(PSTATE_OFFSET));
+}
+
+tcti_gadget_t gadget_scalar_fp = gadget_scalar_fp_impl;
+
+__attribute__((visibility("default"))) uint64_t _tcti_scalar_fp_helper(struct cpu_state *cpu,
+                                                                       uint64_t raw)
+{
+    return tcti_scalar_fp_helper(cpu, (uint32_t)raw);
 }
 
 __attribute__((naked)) void gadget_atomic_ldst_impl(void)

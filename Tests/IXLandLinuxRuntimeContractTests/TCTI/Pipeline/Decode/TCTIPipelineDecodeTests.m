@@ -112,6 +112,20 @@
     XCTAssertEqual(decoded.vec_bytes, _vecBytes);                                                  \
 }
 
+#define TCTI_DECLARE_SCALAR_FP_DECODE_TEST(_name, _insn, _rd, _rn, _rm, _ra, _cond, _vecBytes)   \
+- (void)testDecodeContract_##_name                                                                 \
+{                                                                                                  \
+    a64_instr_t decoded = [self decodeInstruction:_insn];                                          \
+    XCTAssertEqual(decoded.subtype, A64_SIMD_SCALAR_FP_GENERIC);                                   \
+    XCTAssertEqual(decoded.Rd, _rd);                                                               \
+    XCTAssertEqual(decoded.Rn, _rn);                                                               \
+    XCTAssertEqual(decoded.Rm, _rm);                                                               \
+    XCTAssertEqual(decoded.Ra, _ra);                                                               \
+    XCTAssertEqual(decoded.cond, _cond);                                                           \
+    XCTAssertEqual(decoded.vec_bytes, _vecBytes);                                                  \
+    XCTAssertFalse(decoded.is_vector);                                                             \
+}
+
 #define TCTI_DECLARE_UNSUPPORTED_REJECT_DECODE_TEST(_name, _insn)                                 \
 - (void)testDecodeContract_##_name                                                                 \
 {                                                                                                  \
@@ -211,11 +225,24 @@ TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BCGEZeroOffsetCarriesConditionCode, 0x54000
 TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BCLTZeroOffsetCarriesConditionCode, 0x5400001b, 11)
 TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BCGTZeroOffsetCarriesConditionCode, 0x5400001c, 12)
 TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BCLEZeroOffsetCarriesConditionCode, 0x5400001d, 13)
+TCTI_DECLARE_SCALAR_FP_DECODE_TEST(ScalarFPSCVTFClassifiesAsOwnedHelperFamily, 0x9e6202b4, 20, 21,
+                                   2, 0, 0, 8)
+TCTI_DECLARE_SCALAR_FP_DECODE_TEST(ScalarFPFRINTAClassifiesAsOwnedHelperFamily, 0x1e664338, 24, 25,
+                                   6, 16, 4, 8)
+TCTI_DECLARE_SCALAR_FP_DECODE_TEST(ScalarFPFSUBClassifiesAsOwnedHelperFamily, 0x1e623820, 0, 1, 2,
+                                   14, 3, 8)
+TCTI_DECLARE_SCALAR_FP_DECODE_TEST(ScalarFPFCMPClassifiesAsOwnedHelperFamily, 0x1e612000, 0, 0, 1,
+                                   8, 2, 8)
+TCTI_DECLARE_SCALAR_FP_DECODE_TEST(ScalarFPFCSELClassifiesAsOwnedHelperFamily, 0x1e621c20, 0, 1, 2,
+                                   7, 1, 8)
+TCTI_DECLARE_SCALAR_FP_DECODE_TEST(ScalarFPFMADDClassifiesAsOwnedHelperFamily, 0x1f420c20, 0, 1, 2,
+                                   3, 0, 8)
 
 - (void)testDecodeContract_REVWClassifiesAsOneSourceBitPermutation
 {
     a64_instr_t decoded = [self decodeInstruction:0x5ac00820];
     XCTAssertEqual(decoded.cat, A64_DP_REG);
+    XCTAssertEqual(decoded.subtype, A64_DP_REG_REV);
     XCTAssertEqual(decoded.Rd, 0);
     XCTAssertEqual(decoded.Rn, 1);
     XCTAssertFalse(decoded.is_64bit);
@@ -225,6 +252,7 @@ TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BCLEZeroOffsetCarriesConditionCode, 0x54000
 {
     a64_instr_t decoded = [self decodeInstruction:0xdac00c62];
     XCTAssertEqual(decoded.cat, A64_DP_REG);
+    XCTAssertEqual(decoded.subtype, A64_DP_REG_REV);
     XCTAssertEqual(decoded.Rd, 2);
     XCTAssertEqual(decoded.Rn, 3);
     XCTAssertTrue(decoded.is_64bit);
@@ -234,6 +262,7 @@ TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BCLEZeroOffsetCarriesConditionCode, 0x54000
 {
     a64_instr_t decoded = [self decodeInstruction:0x5ac004a4];
     XCTAssertEqual(decoded.cat, A64_DP_REG);
+    XCTAssertEqual(decoded.subtype, A64_DP_REG_REV16);
     XCTAssertEqual(decoded.Rd, 4);
     XCTAssertEqual(decoded.Rn, 5);
     XCTAssertFalse(decoded.is_64bit);
@@ -243,6 +272,7 @@ TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BCLEZeroOffsetCarriesConditionCode, 0x54000
 {
     a64_instr_t decoded = [self decodeInstruction:0xdac004e6];
     XCTAssertEqual(decoded.cat, A64_DP_REG);
+    XCTAssertEqual(decoded.subtype, A64_DP_REG_REV16);
     XCTAssertEqual(decoded.Rd, 6);
     XCTAssertEqual(decoded.Rn, 7);
     XCTAssertTrue(decoded.is_64bit);
@@ -252,6 +282,7 @@ TCTI_DECLARE_COND_BRANCH_DECODE_TEST(BCLEZeroOffsetCarriesConditionCode, 0x54000
 {
     a64_instr_t decoded = [self decodeInstruction:0xdac00928];
     XCTAssertEqual(decoded.cat, A64_DP_REG);
+    XCTAssertEqual(decoded.subtype, A64_DP_REG_REV32);
     XCTAssertEqual(decoded.Rd, 8);
     XCTAssertEqual(decoded.Rn, 9);
     XCTAssertTrue(decoded.is_64bit);

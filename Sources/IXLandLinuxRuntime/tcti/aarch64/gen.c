@@ -39,6 +39,15 @@ extern void gadget_csel_eq_0_1_2(void);
 extern void gadget_csel_ne_0_1_2(void);
 extern void gadget_csel_cs_0_1_2(void);
 extern void gadget_csel_cc_0_1_2(void);
+extern const tcti_gadget_t gadget_rbit_wreg[16][16];
+extern const tcti_gadget_t gadget_rbit_xreg[16][16];
+extern const tcti_gadget_t gadget_clz_wreg[16][16];
+extern const tcti_gadget_t gadget_clz_xreg[16][16];
+extern const tcti_gadget_t gadget_rev_wreg[16][16];
+extern const tcti_gadget_t gadget_rev_xreg[16][16];
+extern const tcti_gadget_t gadget_rev16_wreg[16][16];
+extern const tcti_gadget_t gadget_rev16_xreg[16][16];
+extern const tcti_gadget_t gadget_rev32_xreg[16][16];
 extern tcti_gadget_t gadget_movk;
 extern tcti_gadget_t gadget_write_reg_imm;
 extern tcti_gadget_t gadget_addsub_imm_fallback;
@@ -58,6 +67,7 @@ extern tcti_gadget_t gadget_simd_dup_gpr;
 extern tcti_gadget_t gadget_simd_mov_gpr_from_vec;
 extern tcti_gadget_t gadget_simd_movi_imm;
 extern tcti_gadget_t gadget_simd_fmov_gpr;
+extern tcti_gadget_t gadget_scalar_fp;
 extern tcti_gadget_t gadget_simd_ext;
 extern tcti_gadget_t gadget_simd_cnt;
 extern tcti_gadget_t gadget_simd_ins_gpr;
@@ -610,15 +620,15 @@ int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr)
 
             if (dst_is_memory) {
                 return emit_write_reg_imm(state, rd, target_pc, instr->is_64bit, 0);
+            } else {
+                // Emit load of immediate followed by store gadget
+                ret = emit_gadget(state, gadget_mov_imm[eff_rd]);
+                if (ret != A64_GEN_OK)
+                    return ret;
+                ret = emit_u64(state, target_pc);
+                if (ret != A64_GEN_OK)
+                    return ret;
             }
-
-            // Emit load of immediate followed by store gadget
-            ret = emit_gadget(state, gadget_mov_imm[eff_rd]);
-            if (ret != A64_GEN_OK)
-                return ret;
-            ret = emit_u64(state, target_pc);
-            if (ret != A64_GEN_OK)
-                return ret;
         } else {
             // MOVN Xd, #imm - move negative immediate to register
             uint64_t value =
@@ -628,14 +638,14 @@ int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr)
 
             if (dst_is_memory) {
                 return emit_write_reg_imm(state, rd, value, instr->is_64bit, 0);
+            } else {
+                ret = emit_gadget(state, gadget_mov_imm[eff_rd]);
+                if (ret != A64_GEN_OK)
+                    return ret;
+                ret = emit_u64(state, value);
+                if (ret != A64_GEN_OK)
+                    return ret;
             }
-
-            ret = emit_gadget(state, gadget_mov_imm[eff_rd]);
-            if (ret != A64_GEN_OK)
-                return ret;
-            ret = emit_u64(state, value);
-            if (ret != A64_GEN_OK)
-                return ret;
         }
         // Emit store if destination is memory-backed
         if (dst_is_memory) {
@@ -659,14 +669,14 @@ int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr)
 
             if (dst_is_memory) {
                 return emit_write_reg_imm(state, rd, target_pc, instr->is_64bit, 0);
+            } else {
+                ret = emit_gadget(state, gadget_mov_imm[eff_rd]);
+                if (ret != A64_GEN_OK)
+                    return ret;
+                ret = emit_u64(state, target_pc);
+                if (ret != A64_GEN_OK)
+                    return ret;
             }
-
-            ret = emit_gadget(state, gadget_mov_imm[eff_rd]);
-            if (ret != A64_GEN_OK)
-                return ret;
-            ret = emit_u64(state, target_pc);
-            if (ret != A64_GEN_OK)
-                return ret;
         } else {
             // MOVZ Xd, #imm - moves immediate to register, zeroing upper bits
             // The decoder sets imm = imm16 << (hw * 16)
@@ -675,14 +685,14 @@ int a64_gen_dp_imm(a64_gen_state_t *state, const a64_instr_t *instr)
 
             if (dst_is_memory) {
                 return emit_write_reg_imm(state, rd, (uint64_t)instr->imm, instr->is_64bit, 0);
+            } else {
+                ret = emit_gadget(state, gadget_mov_imm[eff_rd]);
+                if (ret != A64_GEN_OK)
+                    return ret;
+                ret = emit_u64(state, (uint64_t)instr->imm);
+                if (ret != A64_GEN_OK)
+                    return ret;
             }
-
-            ret = emit_gadget(state, gadget_mov_imm[eff_rd]);
-            if (ret != A64_GEN_OK)
-                return ret;
-            ret = emit_u64(state, (uint64_t)instr->imm);
-            if (ret != A64_GEN_OK)
-                return ret;
         }
         // Emit store if destination is memory-backed
         if (dst_is_memory) {
@@ -1121,7 +1131,9 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr)
 
     tcti_gadget_t gadget = NULL;
 
-    if (instr->subtype == A64_DP_REG_RBIT || instr->subtype == A64_DP_REG_CLZ) {
+    if (instr->subtype == A64_DP_REG_RBIT || instr->subtype == A64_DP_REG_CLZ ||
+        instr->subtype == A64_DP_REG_REV || instr->subtype == A64_DP_REG_REV16 ||
+        instr->subtype == A64_DP_REG_REV32) {
         int ret;
         const tcti_gadget_t(*table)[16] = NULL;
 
@@ -1139,8 +1151,14 @@ int a64_gen_dp_reg(a64_gen_state_t *state, const a64_instr_t *instr)
 
         if (instr->subtype == A64_DP_REG_RBIT)
             table = instr->is_64bit ? gadget_rbit_xreg : gadget_rbit_wreg;
-        else
+        else if (instr->subtype == A64_DP_REG_CLZ)
             table = instr->is_64bit ? gadget_clz_xreg : gadget_clz_wreg;
+        else if (instr->subtype == A64_DP_REG_REV)
+            table = instr->is_64bit ? gadget_rev_xreg : gadget_rev_wreg;
+        else if (instr->subtype == A64_DP_REG_REV16)
+            table = instr->is_64bit ? gadget_rev16_xreg : gadget_rev16_wreg;
+        else
+            table = gadget_rev32_xreg;
 
         ret = emit_gadget(state, table[eff_rd][eff_rn]);
         if (ret != A64_GEN_OK)
@@ -2016,6 +2034,12 @@ static int a64_gen_simd(a64_gen_state_t *state, const a64_instr_t *instr)
         if (ret != A64_GEN_OK)
             return ret;
         return emit_u64(state, instr->vec_bytes);
+
+    case A64_SIMD_SCALAR_FP_GENERIC:
+        ret = emit_gadget(state, gadget_scalar_fp);
+        if (ret != A64_GEN_OK)
+            return ret;
+        return emit_u64(state, instr->raw);
 
     case A64_SIMD_EXT:
         ret = emit_gadget(state, gadget_simd_ext);

@@ -20,6 +20,11 @@ extern const tcti_gadget_t gadget_rbit_wreg[16][16];
 extern const tcti_gadget_t gadget_rbit_xreg[16][16];
 extern const tcti_gadget_t gadget_clz_wreg[16][16];
 extern const tcti_gadget_t gadget_clz_xreg[16][16];
+extern const tcti_gadget_t gadget_rev_wreg[16][16];
+extern const tcti_gadget_t gadget_rev_xreg[16][16];
+extern const tcti_gadget_t gadget_rev16_wreg[16][16];
+extern const tcti_gadget_t gadget_rev16_xreg[16][16];
+extern const tcti_gadget_t gadget_rev32_xreg[16][16];
 extern tcti_gadget_t gadget_sbfm;
 extern tcti_gadget_t gadget_bfm;
 extern tcti_gadget_t gadget_ubfm;
@@ -103,6 +108,11 @@ TCTI_DECLARE_GADGET_TABLE2_TEST(RbitWRegTable, gadget_rbit_wreg)
 TCTI_DECLARE_GADGET_TABLE2_TEST(RbitXRegTable, gadget_rbit_xreg)
 TCTI_DECLARE_GADGET_TABLE2_TEST(ClzWRegTable, gadget_clz_wreg)
 TCTI_DECLARE_GADGET_TABLE2_TEST(ClzXRegTable, gadget_clz_xreg)
+TCTI_DECLARE_GADGET_TABLE2_TEST(RevWRegTable, gadget_rev_wreg)
+TCTI_DECLARE_GADGET_TABLE2_TEST(RevXRegTable, gadget_rev_xreg)
+TCTI_DECLARE_GADGET_TABLE2_TEST(Rev16WRegTable, gadget_rev16_wreg)
+TCTI_DECLARE_GADGET_TABLE2_TEST(Rev16XRegTable, gadget_rev16_xreg)
+TCTI_DECLARE_GADGET_TABLE2_TEST(Rev32XRegTable, gadget_rev32_xreg)
 TCTI_DECLARE_GADGET_POINTER_TEST(Sbfm, gadget_sbfm)
 TCTI_DECLARE_GADGET_POINTER_TEST(Bfm, gadget_bfm)
 TCTI_DECLARE_GADGET_POINTER_TEST(Ubfm, gadget_ubfm)

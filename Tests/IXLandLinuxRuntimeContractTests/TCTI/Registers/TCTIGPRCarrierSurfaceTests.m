@@ -35,6 +35,7 @@ extern tcti_gadget_t gadget_ccmp_native_imm[2][2][16];
 extern tcti_gadget_t gadget_mrs;
 extern tcti_gadget_t gadget_msr;
 extern tcti_gadget_t gadget_dc_zva;
+extern tcti_gadget_t gadget_ldr_x;
 extern void gadget_load_sp(void);
 extern void gadget_store_sp(void);
 extern const tcti_gadget_t gadget_load_xreg_16_to_30[18];
@@ -216,7 +217,7 @@ extern void gadget_br_impl(void);
     tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
     a64_gen_state_t state;
     [self generateInstruction:0x93407c20 atPC:0xb0018 state:&state gadgets:gadgets];
-    XCTAssertEqual(gadgets[0], gadget_ubfm);
+    XCTAssertEqual(gadgets[0], gadget_sbfm);
     XCTAssertEqual((uint64_t)(uintptr_t)gadgets[1], 0xb0018ULL);
     XCTAssertEqual((uint64_t)(uintptr_t)gadgets[2], 0ULL);
     XCTAssertEqual((uint64_t)(uintptr_t)gadgets[3], 1ULL);
@@ -325,7 +326,9 @@ extern void gadget_br_impl(void);
     XCTAssertEqual((uint64_t)(uintptr_t)gadgets[2], 0x1234ULL);
     XCTAssertEqual((uint64_t)(uintptr_t)gadgets[3], 1ULL);
     XCTAssertEqual((uint64_t)(uintptr_t)gadgets[4], 0ULL);
-    XCTAssertEqual(gadgets[5], gadget_store_xreg_16_to_30[7]);
+    XCTAssertEqual(gadgets[5], gadget_pc_advance);
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[6], 0xb002cULL);
+    XCTAssertEqual(state.num_gadgets, (size_t)7);
 }
 
 - (void)testRegisterCarrierSurface_GPRMoveKeepLoweringCarriesDestinationImmediateShiftAndWidth
@@ -381,7 +384,7 @@ extern void gadget_br_impl(void);
     XCTAssertEqual((uint64_t)(uintptr_t)gadgets[1], 5ULL);
     XCTAssertEqual((uint64_t)(uintptr_t)gadgets[2], 0ULL);
     XCTAssertEqual((uint64_t)(uintptr_t)gadgets[3], 5ULL);
-    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[4], 2ULL);
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[4], 0ULL);
     XCTAssertEqual((uint64_t)(uintptr_t)gadgets[5], 0ULL);
     XCTAssertEqual((uint64_t)(uintptr_t)gadgets[6], 4ULL);
 }
@@ -525,8 +528,8 @@ extern void gadget_br_impl(void);
     tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
     a64_gen_state_t state;
     [self generateInstruction:0xd61f0200 atPC:0xb0060 state:&state gadgets:gadgets];
-    XCTAssertEqual(gadgets[0], gadget_load_xreg_16_to_30[3]);
-    XCTAssertEqual(gadgets[1], (tcti_gadget_t)gadget_br_impl);
+    XCTAssertEqual(gadgets[0], (tcti_gadget_t)gadget_br_impl);
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[1], 16ULL);
 }
 
 - (void)testRegisterCarrierSurface_GPRSPBaseWritesBackThroughDedicatedLoadStoreAndAdvanceCarriers
@@ -534,9 +537,12 @@ extern void gadget_br_impl(void);
     tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];
     a64_gen_state_t state;
     [self generateInstruction:0xf84007e0 atPC:0xb0064 state:&state gadgets:gadgets]; // ldr x0,[sp],#0
-    XCTAssertEqual(gadgets[0], (tcti_gadget_t)gadget_load_sp);
-    XCTAssertEqual(gadgets[state.num_gadgets - 2], (tcti_gadget_t)gadget_store_sp);
-    XCTAssertEqual(gadgets[state.num_gadgets - 1], gadget_pc_advance);
+    XCTAssertEqual(gadgets[0], gadget_ldr_x);
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[1], 0xb0064ULL);
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[2], 0ULL);
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[3], 31ULL);
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[4], 0ULL);
+    XCTAssertEqual((uint64_t)(uintptr_t)gadgets[6], (uint64_t)A64_POST_INDEX);
 }
 
 - (void)testRegisterCarrierSurface_SPBaseRoleStaysDistinctFromZRForScalarLoadStore

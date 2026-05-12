@@ -8,7 +8,7 @@
  * 
  * Source of truth: tcti/aarch64/tcti-gadget-gen.py
  * Generator version: 1.0.0
- * Generation date: 2026-05-02 11:41:35
+ * Generation date: 2026-05-12 23:13:02
  * Generator hash: unknown
  * 
  * If you need to change gadget behavior:
@@ -303795,6 +303795,10131 @@ __attribute__((naked)) void gadget_clz_xreg_14_14(void) {
     );
 }
 
+// REV w0, w0
+__attribute__((naked)) void gadget_rev_wreg_0_0(void) {
+    asm volatile(
+        "rev w1, w1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w0, w1
+__attribute__((naked)) void gadget_rev_wreg_0_1(void) {
+    asm volatile(
+        "rev w1, w2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w0, w2
+__attribute__((naked)) void gadget_rev_wreg_0_2(void) {
+    asm volatile(
+        "rev w1, w3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w0, w3
+__attribute__((naked)) void gadget_rev_wreg_0_3(void) {
+    asm volatile(
+        "rev w1, w4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w0, w4
+__attribute__((naked)) void gadget_rev_wreg_0_4(void) {
+    asm volatile(
+        "rev w1, w5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w0, w5
+__attribute__((naked)) void gadget_rev_wreg_0_5(void) {
+    asm volatile(
+        "rev w1, w6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w0, w6
+__attribute__((naked)) void gadget_rev_wreg_0_6(void) {
+    asm volatile(
+        "rev w1, w7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w0, w7
+__attribute__((naked)) void gadget_rev_wreg_0_7(void) {
+    asm volatile(
+        "rev w1, w8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w0, w8
+__attribute__((naked)) void gadget_rev_wreg_0_8(void) {
+    asm volatile(
+        "rev w1, w9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w0, w9
+__attribute__((naked)) void gadget_rev_wreg_0_9(void) {
+    asm volatile(
+        "rev w1, w10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w0, w10
+__attribute__((naked)) void gadget_rev_wreg_0_10(void) {
+    asm volatile(
+        "rev w1, w11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w0, w11
+__attribute__((naked)) void gadget_rev_wreg_0_11(void) {
+    asm volatile(
+        "rev w1, w12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w0, w12
+__attribute__((naked)) void gadget_rev_wreg_0_12(void) {
+    asm volatile(
+        "rev w1, w13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w0, w13
+__attribute__((naked)) void gadget_rev_wreg_0_13(void) {
+    asm volatile(
+        "rev w1, w14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w0, w14
+__attribute__((naked)) void gadget_rev_wreg_0_14(void) {
+    asm volatile(
+        "rev w1, w15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w1, w0
+__attribute__((naked)) void gadget_rev_wreg_1_0(void) {
+    asm volatile(
+        "rev w2, w1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w1, w1
+__attribute__((naked)) void gadget_rev_wreg_1_1(void) {
+    asm volatile(
+        "rev w2, w2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w1, w2
+__attribute__((naked)) void gadget_rev_wreg_1_2(void) {
+    asm volatile(
+        "rev w2, w3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w1, w3
+__attribute__((naked)) void gadget_rev_wreg_1_3(void) {
+    asm volatile(
+        "rev w2, w4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w1, w4
+__attribute__((naked)) void gadget_rev_wreg_1_4(void) {
+    asm volatile(
+        "rev w2, w5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w1, w5
+__attribute__((naked)) void gadget_rev_wreg_1_5(void) {
+    asm volatile(
+        "rev w2, w6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w1, w6
+__attribute__((naked)) void gadget_rev_wreg_1_6(void) {
+    asm volatile(
+        "rev w2, w7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w1, w7
+__attribute__((naked)) void gadget_rev_wreg_1_7(void) {
+    asm volatile(
+        "rev w2, w8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w1, w8
+__attribute__((naked)) void gadget_rev_wreg_1_8(void) {
+    asm volatile(
+        "rev w2, w9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w1, w9
+__attribute__((naked)) void gadget_rev_wreg_1_9(void) {
+    asm volatile(
+        "rev w2, w10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w1, w10
+__attribute__((naked)) void gadget_rev_wreg_1_10(void) {
+    asm volatile(
+        "rev w2, w11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w1, w11
+__attribute__((naked)) void gadget_rev_wreg_1_11(void) {
+    asm volatile(
+        "rev w2, w12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w1, w12
+__attribute__((naked)) void gadget_rev_wreg_1_12(void) {
+    asm volatile(
+        "rev w2, w13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w1, w13
+__attribute__((naked)) void gadget_rev_wreg_1_13(void) {
+    asm volatile(
+        "rev w2, w14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w1, w14
+__attribute__((naked)) void gadget_rev_wreg_1_14(void) {
+    asm volatile(
+        "rev w2, w15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w2, w0
+__attribute__((naked)) void gadget_rev_wreg_2_0(void) {
+    asm volatile(
+        "rev w3, w1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w2, w1
+__attribute__((naked)) void gadget_rev_wreg_2_1(void) {
+    asm volatile(
+        "rev w3, w2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w2, w2
+__attribute__((naked)) void gadget_rev_wreg_2_2(void) {
+    asm volatile(
+        "rev w3, w3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w2, w3
+__attribute__((naked)) void gadget_rev_wreg_2_3(void) {
+    asm volatile(
+        "rev w3, w4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w2, w4
+__attribute__((naked)) void gadget_rev_wreg_2_4(void) {
+    asm volatile(
+        "rev w3, w5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w2, w5
+__attribute__((naked)) void gadget_rev_wreg_2_5(void) {
+    asm volatile(
+        "rev w3, w6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w2, w6
+__attribute__((naked)) void gadget_rev_wreg_2_6(void) {
+    asm volatile(
+        "rev w3, w7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w2, w7
+__attribute__((naked)) void gadget_rev_wreg_2_7(void) {
+    asm volatile(
+        "rev w3, w8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w2, w8
+__attribute__((naked)) void gadget_rev_wreg_2_8(void) {
+    asm volatile(
+        "rev w3, w9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w2, w9
+__attribute__((naked)) void gadget_rev_wreg_2_9(void) {
+    asm volatile(
+        "rev w3, w10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w2, w10
+__attribute__((naked)) void gadget_rev_wreg_2_10(void) {
+    asm volatile(
+        "rev w3, w11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w2, w11
+__attribute__((naked)) void gadget_rev_wreg_2_11(void) {
+    asm volatile(
+        "rev w3, w12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w2, w12
+__attribute__((naked)) void gadget_rev_wreg_2_12(void) {
+    asm volatile(
+        "rev w3, w13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w2, w13
+__attribute__((naked)) void gadget_rev_wreg_2_13(void) {
+    asm volatile(
+        "rev w3, w14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w2, w14
+__attribute__((naked)) void gadget_rev_wreg_2_14(void) {
+    asm volatile(
+        "rev w3, w15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w3, w0
+__attribute__((naked)) void gadget_rev_wreg_3_0(void) {
+    asm volatile(
+        "rev w4, w1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w3, w1
+__attribute__((naked)) void gadget_rev_wreg_3_1(void) {
+    asm volatile(
+        "rev w4, w2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w3, w2
+__attribute__((naked)) void gadget_rev_wreg_3_2(void) {
+    asm volatile(
+        "rev w4, w3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w3, w3
+__attribute__((naked)) void gadget_rev_wreg_3_3(void) {
+    asm volatile(
+        "rev w4, w4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w3, w4
+__attribute__((naked)) void gadget_rev_wreg_3_4(void) {
+    asm volatile(
+        "rev w4, w5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w3, w5
+__attribute__((naked)) void gadget_rev_wreg_3_5(void) {
+    asm volatile(
+        "rev w4, w6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w3, w6
+__attribute__((naked)) void gadget_rev_wreg_3_6(void) {
+    asm volatile(
+        "rev w4, w7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w3, w7
+__attribute__((naked)) void gadget_rev_wreg_3_7(void) {
+    asm volatile(
+        "rev w4, w8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w3, w8
+__attribute__((naked)) void gadget_rev_wreg_3_8(void) {
+    asm volatile(
+        "rev w4, w9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w3, w9
+__attribute__((naked)) void gadget_rev_wreg_3_9(void) {
+    asm volatile(
+        "rev w4, w10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w3, w10
+__attribute__((naked)) void gadget_rev_wreg_3_10(void) {
+    asm volatile(
+        "rev w4, w11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w3, w11
+__attribute__((naked)) void gadget_rev_wreg_3_11(void) {
+    asm volatile(
+        "rev w4, w12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w3, w12
+__attribute__((naked)) void gadget_rev_wreg_3_12(void) {
+    asm volatile(
+        "rev w4, w13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w3, w13
+__attribute__((naked)) void gadget_rev_wreg_3_13(void) {
+    asm volatile(
+        "rev w4, w14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w3, w14
+__attribute__((naked)) void gadget_rev_wreg_3_14(void) {
+    asm volatile(
+        "rev w4, w15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w4, w0
+__attribute__((naked)) void gadget_rev_wreg_4_0(void) {
+    asm volatile(
+        "rev w5, w1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w4, w1
+__attribute__((naked)) void gadget_rev_wreg_4_1(void) {
+    asm volatile(
+        "rev w5, w2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w4, w2
+__attribute__((naked)) void gadget_rev_wreg_4_2(void) {
+    asm volatile(
+        "rev w5, w3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w4, w3
+__attribute__((naked)) void gadget_rev_wreg_4_3(void) {
+    asm volatile(
+        "rev w5, w4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w4, w4
+__attribute__((naked)) void gadget_rev_wreg_4_4(void) {
+    asm volatile(
+        "rev w5, w5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w4, w5
+__attribute__((naked)) void gadget_rev_wreg_4_5(void) {
+    asm volatile(
+        "rev w5, w6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w4, w6
+__attribute__((naked)) void gadget_rev_wreg_4_6(void) {
+    asm volatile(
+        "rev w5, w7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w4, w7
+__attribute__((naked)) void gadget_rev_wreg_4_7(void) {
+    asm volatile(
+        "rev w5, w8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w4, w8
+__attribute__((naked)) void gadget_rev_wreg_4_8(void) {
+    asm volatile(
+        "rev w5, w9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w4, w9
+__attribute__((naked)) void gadget_rev_wreg_4_9(void) {
+    asm volatile(
+        "rev w5, w10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w4, w10
+__attribute__((naked)) void gadget_rev_wreg_4_10(void) {
+    asm volatile(
+        "rev w5, w11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w4, w11
+__attribute__((naked)) void gadget_rev_wreg_4_11(void) {
+    asm volatile(
+        "rev w5, w12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w4, w12
+__attribute__((naked)) void gadget_rev_wreg_4_12(void) {
+    asm volatile(
+        "rev w5, w13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w4, w13
+__attribute__((naked)) void gadget_rev_wreg_4_13(void) {
+    asm volatile(
+        "rev w5, w14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w4, w14
+__attribute__((naked)) void gadget_rev_wreg_4_14(void) {
+    asm volatile(
+        "rev w5, w15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w5, w0
+__attribute__((naked)) void gadget_rev_wreg_5_0(void) {
+    asm volatile(
+        "rev w6, w1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w5, w1
+__attribute__((naked)) void gadget_rev_wreg_5_1(void) {
+    asm volatile(
+        "rev w6, w2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w5, w2
+__attribute__((naked)) void gadget_rev_wreg_5_2(void) {
+    asm volatile(
+        "rev w6, w3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w5, w3
+__attribute__((naked)) void gadget_rev_wreg_5_3(void) {
+    asm volatile(
+        "rev w6, w4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w5, w4
+__attribute__((naked)) void gadget_rev_wreg_5_4(void) {
+    asm volatile(
+        "rev w6, w5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w5, w5
+__attribute__((naked)) void gadget_rev_wreg_5_5(void) {
+    asm volatile(
+        "rev w6, w6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w5, w6
+__attribute__((naked)) void gadget_rev_wreg_5_6(void) {
+    asm volatile(
+        "rev w6, w7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w5, w7
+__attribute__((naked)) void gadget_rev_wreg_5_7(void) {
+    asm volatile(
+        "rev w6, w8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w5, w8
+__attribute__((naked)) void gadget_rev_wreg_5_8(void) {
+    asm volatile(
+        "rev w6, w9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w5, w9
+__attribute__((naked)) void gadget_rev_wreg_5_9(void) {
+    asm volatile(
+        "rev w6, w10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w5, w10
+__attribute__((naked)) void gadget_rev_wreg_5_10(void) {
+    asm volatile(
+        "rev w6, w11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w5, w11
+__attribute__((naked)) void gadget_rev_wreg_5_11(void) {
+    asm volatile(
+        "rev w6, w12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w5, w12
+__attribute__((naked)) void gadget_rev_wreg_5_12(void) {
+    asm volatile(
+        "rev w6, w13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w5, w13
+__attribute__((naked)) void gadget_rev_wreg_5_13(void) {
+    asm volatile(
+        "rev w6, w14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w5, w14
+__attribute__((naked)) void gadget_rev_wreg_5_14(void) {
+    asm volatile(
+        "rev w6, w15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w6, w0
+__attribute__((naked)) void gadget_rev_wreg_6_0(void) {
+    asm volatile(
+        "rev w7, w1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w6, w1
+__attribute__((naked)) void gadget_rev_wreg_6_1(void) {
+    asm volatile(
+        "rev w7, w2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w6, w2
+__attribute__((naked)) void gadget_rev_wreg_6_2(void) {
+    asm volatile(
+        "rev w7, w3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w6, w3
+__attribute__((naked)) void gadget_rev_wreg_6_3(void) {
+    asm volatile(
+        "rev w7, w4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w6, w4
+__attribute__((naked)) void gadget_rev_wreg_6_4(void) {
+    asm volatile(
+        "rev w7, w5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w6, w5
+__attribute__((naked)) void gadget_rev_wreg_6_5(void) {
+    asm volatile(
+        "rev w7, w6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w6, w6
+__attribute__((naked)) void gadget_rev_wreg_6_6(void) {
+    asm volatile(
+        "rev w7, w7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w6, w7
+__attribute__((naked)) void gadget_rev_wreg_6_7(void) {
+    asm volatile(
+        "rev w7, w8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w6, w8
+__attribute__((naked)) void gadget_rev_wreg_6_8(void) {
+    asm volatile(
+        "rev w7, w9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w6, w9
+__attribute__((naked)) void gadget_rev_wreg_6_9(void) {
+    asm volatile(
+        "rev w7, w10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w6, w10
+__attribute__((naked)) void gadget_rev_wreg_6_10(void) {
+    asm volatile(
+        "rev w7, w11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w6, w11
+__attribute__((naked)) void gadget_rev_wreg_6_11(void) {
+    asm volatile(
+        "rev w7, w12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w6, w12
+__attribute__((naked)) void gadget_rev_wreg_6_12(void) {
+    asm volatile(
+        "rev w7, w13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w6, w13
+__attribute__((naked)) void gadget_rev_wreg_6_13(void) {
+    asm volatile(
+        "rev w7, w14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w6, w14
+__attribute__((naked)) void gadget_rev_wreg_6_14(void) {
+    asm volatile(
+        "rev w7, w15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w7, w0
+__attribute__((naked)) void gadget_rev_wreg_7_0(void) {
+    asm volatile(
+        "rev w8, w1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w7, w1
+__attribute__((naked)) void gadget_rev_wreg_7_1(void) {
+    asm volatile(
+        "rev w8, w2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w7, w2
+__attribute__((naked)) void gadget_rev_wreg_7_2(void) {
+    asm volatile(
+        "rev w8, w3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w7, w3
+__attribute__((naked)) void gadget_rev_wreg_7_3(void) {
+    asm volatile(
+        "rev w8, w4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w7, w4
+__attribute__((naked)) void gadget_rev_wreg_7_4(void) {
+    asm volatile(
+        "rev w8, w5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w7, w5
+__attribute__((naked)) void gadget_rev_wreg_7_5(void) {
+    asm volatile(
+        "rev w8, w6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w7, w6
+__attribute__((naked)) void gadget_rev_wreg_7_6(void) {
+    asm volatile(
+        "rev w8, w7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w7, w7
+__attribute__((naked)) void gadget_rev_wreg_7_7(void) {
+    asm volatile(
+        "rev w8, w8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w7, w8
+__attribute__((naked)) void gadget_rev_wreg_7_8(void) {
+    asm volatile(
+        "rev w8, w9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w7, w9
+__attribute__((naked)) void gadget_rev_wreg_7_9(void) {
+    asm volatile(
+        "rev w8, w10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w7, w10
+__attribute__((naked)) void gadget_rev_wreg_7_10(void) {
+    asm volatile(
+        "rev w8, w11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w7, w11
+__attribute__((naked)) void gadget_rev_wreg_7_11(void) {
+    asm volatile(
+        "rev w8, w12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w7, w12
+__attribute__((naked)) void gadget_rev_wreg_7_12(void) {
+    asm volatile(
+        "rev w8, w13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w7, w13
+__attribute__((naked)) void gadget_rev_wreg_7_13(void) {
+    asm volatile(
+        "rev w8, w14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w7, w14
+__attribute__((naked)) void gadget_rev_wreg_7_14(void) {
+    asm volatile(
+        "rev w8, w15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w8, w0
+__attribute__((naked)) void gadget_rev_wreg_8_0(void) {
+    asm volatile(
+        "rev w9, w1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w8, w1
+__attribute__((naked)) void gadget_rev_wreg_8_1(void) {
+    asm volatile(
+        "rev w9, w2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w8, w2
+__attribute__((naked)) void gadget_rev_wreg_8_2(void) {
+    asm volatile(
+        "rev w9, w3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w8, w3
+__attribute__((naked)) void gadget_rev_wreg_8_3(void) {
+    asm volatile(
+        "rev w9, w4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w8, w4
+__attribute__((naked)) void gadget_rev_wreg_8_4(void) {
+    asm volatile(
+        "rev w9, w5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w8, w5
+__attribute__((naked)) void gadget_rev_wreg_8_5(void) {
+    asm volatile(
+        "rev w9, w6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w8, w6
+__attribute__((naked)) void gadget_rev_wreg_8_6(void) {
+    asm volatile(
+        "rev w9, w7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w8, w7
+__attribute__((naked)) void gadget_rev_wreg_8_7(void) {
+    asm volatile(
+        "rev w9, w8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w8, w8
+__attribute__((naked)) void gadget_rev_wreg_8_8(void) {
+    asm volatile(
+        "rev w9, w9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w8, w9
+__attribute__((naked)) void gadget_rev_wreg_8_9(void) {
+    asm volatile(
+        "rev w9, w10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w8, w10
+__attribute__((naked)) void gadget_rev_wreg_8_10(void) {
+    asm volatile(
+        "rev w9, w11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w8, w11
+__attribute__((naked)) void gadget_rev_wreg_8_11(void) {
+    asm volatile(
+        "rev w9, w12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w8, w12
+__attribute__((naked)) void gadget_rev_wreg_8_12(void) {
+    asm volatile(
+        "rev w9, w13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w8, w13
+__attribute__((naked)) void gadget_rev_wreg_8_13(void) {
+    asm volatile(
+        "rev w9, w14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w8, w14
+__attribute__((naked)) void gadget_rev_wreg_8_14(void) {
+    asm volatile(
+        "rev w9, w15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w9, w0
+__attribute__((naked)) void gadget_rev_wreg_9_0(void) {
+    asm volatile(
+        "rev w10, w1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w9, w1
+__attribute__((naked)) void gadget_rev_wreg_9_1(void) {
+    asm volatile(
+        "rev w10, w2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w9, w2
+__attribute__((naked)) void gadget_rev_wreg_9_2(void) {
+    asm volatile(
+        "rev w10, w3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w9, w3
+__attribute__((naked)) void gadget_rev_wreg_9_3(void) {
+    asm volatile(
+        "rev w10, w4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w9, w4
+__attribute__((naked)) void gadget_rev_wreg_9_4(void) {
+    asm volatile(
+        "rev w10, w5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w9, w5
+__attribute__((naked)) void gadget_rev_wreg_9_5(void) {
+    asm volatile(
+        "rev w10, w6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w9, w6
+__attribute__((naked)) void gadget_rev_wreg_9_6(void) {
+    asm volatile(
+        "rev w10, w7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w9, w7
+__attribute__((naked)) void gadget_rev_wreg_9_7(void) {
+    asm volatile(
+        "rev w10, w8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w9, w8
+__attribute__((naked)) void gadget_rev_wreg_9_8(void) {
+    asm volatile(
+        "rev w10, w9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w9, w9
+__attribute__((naked)) void gadget_rev_wreg_9_9(void) {
+    asm volatile(
+        "rev w10, w10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w9, w10
+__attribute__((naked)) void gadget_rev_wreg_9_10(void) {
+    asm volatile(
+        "rev w10, w11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w9, w11
+__attribute__((naked)) void gadget_rev_wreg_9_11(void) {
+    asm volatile(
+        "rev w10, w12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w9, w12
+__attribute__((naked)) void gadget_rev_wreg_9_12(void) {
+    asm volatile(
+        "rev w10, w13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w9, w13
+__attribute__((naked)) void gadget_rev_wreg_9_13(void) {
+    asm volatile(
+        "rev w10, w14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w9, w14
+__attribute__((naked)) void gadget_rev_wreg_9_14(void) {
+    asm volatile(
+        "rev w10, w15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w10, w0
+__attribute__((naked)) void gadget_rev_wreg_10_0(void) {
+    asm volatile(
+        "rev w11, w1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w10, w1
+__attribute__((naked)) void gadget_rev_wreg_10_1(void) {
+    asm volatile(
+        "rev w11, w2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w10, w2
+__attribute__((naked)) void gadget_rev_wreg_10_2(void) {
+    asm volatile(
+        "rev w11, w3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w10, w3
+__attribute__((naked)) void gadget_rev_wreg_10_3(void) {
+    asm volatile(
+        "rev w11, w4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w10, w4
+__attribute__((naked)) void gadget_rev_wreg_10_4(void) {
+    asm volatile(
+        "rev w11, w5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w10, w5
+__attribute__((naked)) void gadget_rev_wreg_10_5(void) {
+    asm volatile(
+        "rev w11, w6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w10, w6
+__attribute__((naked)) void gadget_rev_wreg_10_6(void) {
+    asm volatile(
+        "rev w11, w7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w10, w7
+__attribute__((naked)) void gadget_rev_wreg_10_7(void) {
+    asm volatile(
+        "rev w11, w8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w10, w8
+__attribute__((naked)) void gadget_rev_wreg_10_8(void) {
+    asm volatile(
+        "rev w11, w9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w10, w9
+__attribute__((naked)) void gadget_rev_wreg_10_9(void) {
+    asm volatile(
+        "rev w11, w10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w10, w10
+__attribute__((naked)) void gadget_rev_wreg_10_10(void) {
+    asm volatile(
+        "rev w11, w11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w10, w11
+__attribute__((naked)) void gadget_rev_wreg_10_11(void) {
+    asm volatile(
+        "rev w11, w12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w10, w12
+__attribute__((naked)) void gadget_rev_wreg_10_12(void) {
+    asm volatile(
+        "rev w11, w13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w10, w13
+__attribute__((naked)) void gadget_rev_wreg_10_13(void) {
+    asm volatile(
+        "rev w11, w14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w10, w14
+__attribute__((naked)) void gadget_rev_wreg_10_14(void) {
+    asm volatile(
+        "rev w11, w15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w11, w0
+__attribute__((naked)) void gadget_rev_wreg_11_0(void) {
+    asm volatile(
+        "rev w12, w1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w11, w1
+__attribute__((naked)) void gadget_rev_wreg_11_1(void) {
+    asm volatile(
+        "rev w12, w2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w11, w2
+__attribute__((naked)) void gadget_rev_wreg_11_2(void) {
+    asm volatile(
+        "rev w12, w3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w11, w3
+__attribute__((naked)) void gadget_rev_wreg_11_3(void) {
+    asm volatile(
+        "rev w12, w4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w11, w4
+__attribute__((naked)) void gadget_rev_wreg_11_4(void) {
+    asm volatile(
+        "rev w12, w5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w11, w5
+__attribute__((naked)) void gadget_rev_wreg_11_5(void) {
+    asm volatile(
+        "rev w12, w6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w11, w6
+__attribute__((naked)) void gadget_rev_wreg_11_6(void) {
+    asm volatile(
+        "rev w12, w7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w11, w7
+__attribute__((naked)) void gadget_rev_wreg_11_7(void) {
+    asm volatile(
+        "rev w12, w8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w11, w8
+__attribute__((naked)) void gadget_rev_wreg_11_8(void) {
+    asm volatile(
+        "rev w12, w9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w11, w9
+__attribute__((naked)) void gadget_rev_wreg_11_9(void) {
+    asm volatile(
+        "rev w12, w10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w11, w10
+__attribute__((naked)) void gadget_rev_wreg_11_10(void) {
+    asm volatile(
+        "rev w12, w11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w11, w11
+__attribute__((naked)) void gadget_rev_wreg_11_11(void) {
+    asm volatile(
+        "rev w12, w12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w11, w12
+__attribute__((naked)) void gadget_rev_wreg_11_12(void) {
+    asm volatile(
+        "rev w12, w13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w11, w13
+__attribute__((naked)) void gadget_rev_wreg_11_13(void) {
+    asm volatile(
+        "rev w12, w14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w11, w14
+__attribute__((naked)) void gadget_rev_wreg_11_14(void) {
+    asm volatile(
+        "rev w12, w15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w12, w0
+__attribute__((naked)) void gadget_rev_wreg_12_0(void) {
+    asm volatile(
+        "rev w13, w1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w12, w1
+__attribute__((naked)) void gadget_rev_wreg_12_1(void) {
+    asm volatile(
+        "rev w13, w2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w12, w2
+__attribute__((naked)) void gadget_rev_wreg_12_2(void) {
+    asm volatile(
+        "rev w13, w3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w12, w3
+__attribute__((naked)) void gadget_rev_wreg_12_3(void) {
+    asm volatile(
+        "rev w13, w4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w12, w4
+__attribute__((naked)) void gadget_rev_wreg_12_4(void) {
+    asm volatile(
+        "rev w13, w5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w12, w5
+__attribute__((naked)) void gadget_rev_wreg_12_5(void) {
+    asm volatile(
+        "rev w13, w6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w12, w6
+__attribute__((naked)) void gadget_rev_wreg_12_6(void) {
+    asm volatile(
+        "rev w13, w7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w12, w7
+__attribute__((naked)) void gadget_rev_wreg_12_7(void) {
+    asm volatile(
+        "rev w13, w8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w12, w8
+__attribute__((naked)) void gadget_rev_wreg_12_8(void) {
+    asm volatile(
+        "rev w13, w9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w12, w9
+__attribute__((naked)) void gadget_rev_wreg_12_9(void) {
+    asm volatile(
+        "rev w13, w10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w12, w10
+__attribute__((naked)) void gadget_rev_wreg_12_10(void) {
+    asm volatile(
+        "rev w13, w11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w12, w11
+__attribute__((naked)) void gadget_rev_wreg_12_11(void) {
+    asm volatile(
+        "rev w13, w12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w12, w12
+__attribute__((naked)) void gadget_rev_wreg_12_12(void) {
+    asm volatile(
+        "rev w13, w13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w12, w13
+__attribute__((naked)) void gadget_rev_wreg_12_13(void) {
+    asm volatile(
+        "rev w13, w14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w12, w14
+__attribute__((naked)) void gadget_rev_wreg_12_14(void) {
+    asm volatile(
+        "rev w13, w15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w13, w0
+__attribute__((naked)) void gadget_rev_wreg_13_0(void) {
+    asm volatile(
+        "rev w14, w1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w13, w1
+__attribute__((naked)) void gadget_rev_wreg_13_1(void) {
+    asm volatile(
+        "rev w14, w2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w13, w2
+__attribute__((naked)) void gadget_rev_wreg_13_2(void) {
+    asm volatile(
+        "rev w14, w3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w13, w3
+__attribute__((naked)) void gadget_rev_wreg_13_3(void) {
+    asm volatile(
+        "rev w14, w4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w13, w4
+__attribute__((naked)) void gadget_rev_wreg_13_4(void) {
+    asm volatile(
+        "rev w14, w5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w13, w5
+__attribute__((naked)) void gadget_rev_wreg_13_5(void) {
+    asm volatile(
+        "rev w14, w6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w13, w6
+__attribute__((naked)) void gadget_rev_wreg_13_6(void) {
+    asm volatile(
+        "rev w14, w7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w13, w7
+__attribute__((naked)) void gadget_rev_wreg_13_7(void) {
+    asm volatile(
+        "rev w14, w8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w13, w8
+__attribute__((naked)) void gadget_rev_wreg_13_8(void) {
+    asm volatile(
+        "rev w14, w9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w13, w9
+__attribute__((naked)) void gadget_rev_wreg_13_9(void) {
+    asm volatile(
+        "rev w14, w10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w13, w10
+__attribute__((naked)) void gadget_rev_wreg_13_10(void) {
+    asm volatile(
+        "rev w14, w11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w13, w11
+__attribute__((naked)) void gadget_rev_wreg_13_11(void) {
+    asm volatile(
+        "rev w14, w12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w13, w12
+__attribute__((naked)) void gadget_rev_wreg_13_12(void) {
+    asm volatile(
+        "rev w14, w13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w13, w13
+__attribute__((naked)) void gadget_rev_wreg_13_13(void) {
+    asm volatile(
+        "rev w14, w14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w13, w14
+__attribute__((naked)) void gadget_rev_wreg_13_14(void) {
+    asm volatile(
+        "rev w14, w15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w14, w0
+__attribute__((naked)) void gadget_rev_wreg_14_0(void) {
+    asm volatile(
+        "rev w15, w1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w14, w1
+__attribute__((naked)) void gadget_rev_wreg_14_1(void) {
+    asm volatile(
+        "rev w15, w2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w14, w2
+__attribute__((naked)) void gadget_rev_wreg_14_2(void) {
+    asm volatile(
+        "rev w15, w3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w14, w3
+__attribute__((naked)) void gadget_rev_wreg_14_3(void) {
+    asm volatile(
+        "rev w15, w4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w14, w4
+__attribute__((naked)) void gadget_rev_wreg_14_4(void) {
+    asm volatile(
+        "rev w15, w5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w14, w5
+__attribute__((naked)) void gadget_rev_wreg_14_5(void) {
+    asm volatile(
+        "rev w15, w6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w14, w6
+__attribute__((naked)) void gadget_rev_wreg_14_6(void) {
+    asm volatile(
+        "rev w15, w7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w14, w7
+__attribute__((naked)) void gadget_rev_wreg_14_7(void) {
+    asm volatile(
+        "rev w15, w8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w14, w8
+__attribute__((naked)) void gadget_rev_wreg_14_8(void) {
+    asm volatile(
+        "rev w15, w9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w14, w9
+__attribute__((naked)) void gadget_rev_wreg_14_9(void) {
+    asm volatile(
+        "rev w15, w10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w14, w10
+__attribute__((naked)) void gadget_rev_wreg_14_10(void) {
+    asm volatile(
+        "rev w15, w11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w14, w11
+__attribute__((naked)) void gadget_rev_wreg_14_11(void) {
+    asm volatile(
+        "rev w15, w12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w14, w12
+__attribute__((naked)) void gadget_rev_wreg_14_12(void) {
+    asm volatile(
+        "rev w15, w13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w14, w13
+__attribute__((naked)) void gadget_rev_wreg_14_13(void) {
+    asm volatile(
+        "rev w15, w14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV w14, w14
+__attribute__((naked)) void gadget_rev_wreg_14_14(void) {
+    asm volatile(
+        "rev w15, w15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x0, x0
+__attribute__((naked)) void gadget_rev_xreg_0_0(void) {
+    asm volatile(
+        "rev x1, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x0, x1
+__attribute__((naked)) void gadget_rev_xreg_0_1(void) {
+    asm volatile(
+        "rev x1, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x0, x2
+__attribute__((naked)) void gadget_rev_xreg_0_2(void) {
+    asm volatile(
+        "rev x1, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x0, x3
+__attribute__((naked)) void gadget_rev_xreg_0_3(void) {
+    asm volatile(
+        "rev x1, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x0, x4
+__attribute__((naked)) void gadget_rev_xreg_0_4(void) {
+    asm volatile(
+        "rev x1, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x0, x5
+__attribute__((naked)) void gadget_rev_xreg_0_5(void) {
+    asm volatile(
+        "rev x1, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x0, x6
+__attribute__((naked)) void gadget_rev_xreg_0_6(void) {
+    asm volatile(
+        "rev x1, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x0, x7
+__attribute__((naked)) void gadget_rev_xreg_0_7(void) {
+    asm volatile(
+        "rev x1, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x0, x8
+__attribute__((naked)) void gadget_rev_xreg_0_8(void) {
+    asm volatile(
+        "rev x1, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x0, x9
+__attribute__((naked)) void gadget_rev_xreg_0_9(void) {
+    asm volatile(
+        "rev x1, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x0, x10
+__attribute__((naked)) void gadget_rev_xreg_0_10(void) {
+    asm volatile(
+        "rev x1, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x0, x11
+__attribute__((naked)) void gadget_rev_xreg_0_11(void) {
+    asm volatile(
+        "rev x1, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x0, x12
+__attribute__((naked)) void gadget_rev_xreg_0_12(void) {
+    asm volatile(
+        "rev x1, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x0, x13
+__attribute__((naked)) void gadget_rev_xreg_0_13(void) {
+    asm volatile(
+        "rev x1, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x0, x14
+__attribute__((naked)) void gadget_rev_xreg_0_14(void) {
+    asm volatile(
+        "rev x1, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x1, x0
+__attribute__((naked)) void gadget_rev_xreg_1_0(void) {
+    asm volatile(
+        "rev x2, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x1, x1
+__attribute__((naked)) void gadget_rev_xreg_1_1(void) {
+    asm volatile(
+        "rev x2, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x1, x2
+__attribute__((naked)) void gadget_rev_xreg_1_2(void) {
+    asm volatile(
+        "rev x2, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x1, x3
+__attribute__((naked)) void gadget_rev_xreg_1_3(void) {
+    asm volatile(
+        "rev x2, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x1, x4
+__attribute__((naked)) void gadget_rev_xreg_1_4(void) {
+    asm volatile(
+        "rev x2, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x1, x5
+__attribute__((naked)) void gadget_rev_xreg_1_5(void) {
+    asm volatile(
+        "rev x2, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x1, x6
+__attribute__((naked)) void gadget_rev_xreg_1_6(void) {
+    asm volatile(
+        "rev x2, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x1, x7
+__attribute__((naked)) void gadget_rev_xreg_1_7(void) {
+    asm volatile(
+        "rev x2, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x1, x8
+__attribute__((naked)) void gadget_rev_xreg_1_8(void) {
+    asm volatile(
+        "rev x2, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x1, x9
+__attribute__((naked)) void gadget_rev_xreg_1_9(void) {
+    asm volatile(
+        "rev x2, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x1, x10
+__attribute__((naked)) void gadget_rev_xreg_1_10(void) {
+    asm volatile(
+        "rev x2, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x1, x11
+__attribute__((naked)) void gadget_rev_xreg_1_11(void) {
+    asm volatile(
+        "rev x2, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x1, x12
+__attribute__((naked)) void gadget_rev_xreg_1_12(void) {
+    asm volatile(
+        "rev x2, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x1, x13
+__attribute__((naked)) void gadget_rev_xreg_1_13(void) {
+    asm volatile(
+        "rev x2, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x1, x14
+__attribute__((naked)) void gadget_rev_xreg_1_14(void) {
+    asm volatile(
+        "rev x2, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x2, x0
+__attribute__((naked)) void gadget_rev_xreg_2_0(void) {
+    asm volatile(
+        "rev x3, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x2, x1
+__attribute__((naked)) void gadget_rev_xreg_2_1(void) {
+    asm volatile(
+        "rev x3, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x2, x2
+__attribute__((naked)) void gadget_rev_xreg_2_2(void) {
+    asm volatile(
+        "rev x3, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x2, x3
+__attribute__((naked)) void gadget_rev_xreg_2_3(void) {
+    asm volatile(
+        "rev x3, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x2, x4
+__attribute__((naked)) void gadget_rev_xreg_2_4(void) {
+    asm volatile(
+        "rev x3, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x2, x5
+__attribute__((naked)) void gadget_rev_xreg_2_5(void) {
+    asm volatile(
+        "rev x3, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x2, x6
+__attribute__((naked)) void gadget_rev_xreg_2_6(void) {
+    asm volatile(
+        "rev x3, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x2, x7
+__attribute__((naked)) void gadget_rev_xreg_2_7(void) {
+    asm volatile(
+        "rev x3, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x2, x8
+__attribute__((naked)) void gadget_rev_xreg_2_8(void) {
+    asm volatile(
+        "rev x3, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x2, x9
+__attribute__((naked)) void gadget_rev_xreg_2_9(void) {
+    asm volatile(
+        "rev x3, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x2, x10
+__attribute__((naked)) void gadget_rev_xreg_2_10(void) {
+    asm volatile(
+        "rev x3, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x2, x11
+__attribute__((naked)) void gadget_rev_xreg_2_11(void) {
+    asm volatile(
+        "rev x3, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x2, x12
+__attribute__((naked)) void gadget_rev_xreg_2_12(void) {
+    asm volatile(
+        "rev x3, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x2, x13
+__attribute__((naked)) void gadget_rev_xreg_2_13(void) {
+    asm volatile(
+        "rev x3, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x2, x14
+__attribute__((naked)) void gadget_rev_xreg_2_14(void) {
+    asm volatile(
+        "rev x3, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x3, x0
+__attribute__((naked)) void gadget_rev_xreg_3_0(void) {
+    asm volatile(
+        "rev x4, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x3, x1
+__attribute__((naked)) void gadget_rev_xreg_3_1(void) {
+    asm volatile(
+        "rev x4, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x3, x2
+__attribute__((naked)) void gadget_rev_xreg_3_2(void) {
+    asm volatile(
+        "rev x4, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x3, x3
+__attribute__((naked)) void gadget_rev_xreg_3_3(void) {
+    asm volatile(
+        "rev x4, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x3, x4
+__attribute__((naked)) void gadget_rev_xreg_3_4(void) {
+    asm volatile(
+        "rev x4, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x3, x5
+__attribute__((naked)) void gadget_rev_xreg_3_5(void) {
+    asm volatile(
+        "rev x4, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x3, x6
+__attribute__((naked)) void gadget_rev_xreg_3_6(void) {
+    asm volatile(
+        "rev x4, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x3, x7
+__attribute__((naked)) void gadget_rev_xreg_3_7(void) {
+    asm volatile(
+        "rev x4, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x3, x8
+__attribute__((naked)) void gadget_rev_xreg_3_8(void) {
+    asm volatile(
+        "rev x4, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x3, x9
+__attribute__((naked)) void gadget_rev_xreg_3_9(void) {
+    asm volatile(
+        "rev x4, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x3, x10
+__attribute__((naked)) void gadget_rev_xreg_3_10(void) {
+    asm volatile(
+        "rev x4, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x3, x11
+__attribute__((naked)) void gadget_rev_xreg_3_11(void) {
+    asm volatile(
+        "rev x4, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x3, x12
+__attribute__((naked)) void gadget_rev_xreg_3_12(void) {
+    asm volatile(
+        "rev x4, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x3, x13
+__attribute__((naked)) void gadget_rev_xreg_3_13(void) {
+    asm volatile(
+        "rev x4, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x3, x14
+__attribute__((naked)) void gadget_rev_xreg_3_14(void) {
+    asm volatile(
+        "rev x4, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x4, x0
+__attribute__((naked)) void gadget_rev_xreg_4_0(void) {
+    asm volatile(
+        "rev x5, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x4, x1
+__attribute__((naked)) void gadget_rev_xreg_4_1(void) {
+    asm volatile(
+        "rev x5, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x4, x2
+__attribute__((naked)) void gadget_rev_xreg_4_2(void) {
+    asm volatile(
+        "rev x5, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x4, x3
+__attribute__((naked)) void gadget_rev_xreg_4_3(void) {
+    asm volatile(
+        "rev x5, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x4, x4
+__attribute__((naked)) void gadget_rev_xreg_4_4(void) {
+    asm volatile(
+        "rev x5, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x4, x5
+__attribute__((naked)) void gadget_rev_xreg_4_5(void) {
+    asm volatile(
+        "rev x5, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x4, x6
+__attribute__((naked)) void gadget_rev_xreg_4_6(void) {
+    asm volatile(
+        "rev x5, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x4, x7
+__attribute__((naked)) void gadget_rev_xreg_4_7(void) {
+    asm volatile(
+        "rev x5, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x4, x8
+__attribute__((naked)) void gadget_rev_xreg_4_8(void) {
+    asm volatile(
+        "rev x5, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x4, x9
+__attribute__((naked)) void gadget_rev_xreg_4_9(void) {
+    asm volatile(
+        "rev x5, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x4, x10
+__attribute__((naked)) void gadget_rev_xreg_4_10(void) {
+    asm volatile(
+        "rev x5, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x4, x11
+__attribute__((naked)) void gadget_rev_xreg_4_11(void) {
+    asm volatile(
+        "rev x5, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x4, x12
+__attribute__((naked)) void gadget_rev_xreg_4_12(void) {
+    asm volatile(
+        "rev x5, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x4, x13
+__attribute__((naked)) void gadget_rev_xreg_4_13(void) {
+    asm volatile(
+        "rev x5, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x4, x14
+__attribute__((naked)) void gadget_rev_xreg_4_14(void) {
+    asm volatile(
+        "rev x5, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x5, x0
+__attribute__((naked)) void gadget_rev_xreg_5_0(void) {
+    asm volatile(
+        "rev x6, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x5, x1
+__attribute__((naked)) void gadget_rev_xreg_5_1(void) {
+    asm volatile(
+        "rev x6, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x5, x2
+__attribute__((naked)) void gadget_rev_xreg_5_2(void) {
+    asm volatile(
+        "rev x6, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x5, x3
+__attribute__((naked)) void gadget_rev_xreg_5_3(void) {
+    asm volatile(
+        "rev x6, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x5, x4
+__attribute__((naked)) void gadget_rev_xreg_5_4(void) {
+    asm volatile(
+        "rev x6, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x5, x5
+__attribute__((naked)) void gadget_rev_xreg_5_5(void) {
+    asm volatile(
+        "rev x6, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x5, x6
+__attribute__((naked)) void gadget_rev_xreg_5_6(void) {
+    asm volatile(
+        "rev x6, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x5, x7
+__attribute__((naked)) void gadget_rev_xreg_5_7(void) {
+    asm volatile(
+        "rev x6, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x5, x8
+__attribute__((naked)) void gadget_rev_xreg_5_8(void) {
+    asm volatile(
+        "rev x6, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x5, x9
+__attribute__((naked)) void gadget_rev_xreg_5_9(void) {
+    asm volatile(
+        "rev x6, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x5, x10
+__attribute__((naked)) void gadget_rev_xreg_5_10(void) {
+    asm volatile(
+        "rev x6, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x5, x11
+__attribute__((naked)) void gadget_rev_xreg_5_11(void) {
+    asm volatile(
+        "rev x6, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x5, x12
+__attribute__((naked)) void gadget_rev_xreg_5_12(void) {
+    asm volatile(
+        "rev x6, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x5, x13
+__attribute__((naked)) void gadget_rev_xreg_5_13(void) {
+    asm volatile(
+        "rev x6, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x5, x14
+__attribute__((naked)) void gadget_rev_xreg_5_14(void) {
+    asm volatile(
+        "rev x6, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x6, x0
+__attribute__((naked)) void gadget_rev_xreg_6_0(void) {
+    asm volatile(
+        "rev x7, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x6, x1
+__attribute__((naked)) void gadget_rev_xreg_6_1(void) {
+    asm volatile(
+        "rev x7, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x6, x2
+__attribute__((naked)) void gadget_rev_xreg_6_2(void) {
+    asm volatile(
+        "rev x7, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x6, x3
+__attribute__((naked)) void gadget_rev_xreg_6_3(void) {
+    asm volatile(
+        "rev x7, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x6, x4
+__attribute__((naked)) void gadget_rev_xreg_6_4(void) {
+    asm volatile(
+        "rev x7, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x6, x5
+__attribute__((naked)) void gadget_rev_xreg_6_5(void) {
+    asm volatile(
+        "rev x7, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x6, x6
+__attribute__((naked)) void gadget_rev_xreg_6_6(void) {
+    asm volatile(
+        "rev x7, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x6, x7
+__attribute__((naked)) void gadget_rev_xreg_6_7(void) {
+    asm volatile(
+        "rev x7, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x6, x8
+__attribute__((naked)) void gadget_rev_xreg_6_8(void) {
+    asm volatile(
+        "rev x7, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x6, x9
+__attribute__((naked)) void gadget_rev_xreg_6_9(void) {
+    asm volatile(
+        "rev x7, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x6, x10
+__attribute__((naked)) void gadget_rev_xreg_6_10(void) {
+    asm volatile(
+        "rev x7, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x6, x11
+__attribute__((naked)) void gadget_rev_xreg_6_11(void) {
+    asm volatile(
+        "rev x7, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x6, x12
+__attribute__((naked)) void gadget_rev_xreg_6_12(void) {
+    asm volatile(
+        "rev x7, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x6, x13
+__attribute__((naked)) void gadget_rev_xreg_6_13(void) {
+    asm volatile(
+        "rev x7, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x6, x14
+__attribute__((naked)) void gadget_rev_xreg_6_14(void) {
+    asm volatile(
+        "rev x7, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x7, x0
+__attribute__((naked)) void gadget_rev_xreg_7_0(void) {
+    asm volatile(
+        "rev x8, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x7, x1
+__attribute__((naked)) void gadget_rev_xreg_7_1(void) {
+    asm volatile(
+        "rev x8, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x7, x2
+__attribute__((naked)) void gadget_rev_xreg_7_2(void) {
+    asm volatile(
+        "rev x8, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x7, x3
+__attribute__((naked)) void gadget_rev_xreg_7_3(void) {
+    asm volatile(
+        "rev x8, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x7, x4
+__attribute__((naked)) void gadget_rev_xreg_7_4(void) {
+    asm volatile(
+        "rev x8, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x7, x5
+__attribute__((naked)) void gadget_rev_xreg_7_5(void) {
+    asm volatile(
+        "rev x8, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x7, x6
+__attribute__((naked)) void gadget_rev_xreg_7_6(void) {
+    asm volatile(
+        "rev x8, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x7, x7
+__attribute__((naked)) void gadget_rev_xreg_7_7(void) {
+    asm volatile(
+        "rev x8, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x7, x8
+__attribute__((naked)) void gadget_rev_xreg_7_8(void) {
+    asm volatile(
+        "rev x8, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x7, x9
+__attribute__((naked)) void gadget_rev_xreg_7_9(void) {
+    asm volatile(
+        "rev x8, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x7, x10
+__attribute__((naked)) void gadget_rev_xreg_7_10(void) {
+    asm volatile(
+        "rev x8, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x7, x11
+__attribute__((naked)) void gadget_rev_xreg_7_11(void) {
+    asm volatile(
+        "rev x8, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x7, x12
+__attribute__((naked)) void gadget_rev_xreg_7_12(void) {
+    asm volatile(
+        "rev x8, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x7, x13
+__attribute__((naked)) void gadget_rev_xreg_7_13(void) {
+    asm volatile(
+        "rev x8, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x7, x14
+__attribute__((naked)) void gadget_rev_xreg_7_14(void) {
+    asm volatile(
+        "rev x8, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x8, x0
+__attribute__((naked)) void gadget_rev_xreg_8_0(void) {
+    asm volatile(
+        "rev x9, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x8, x1
+__attribute__((naked)) void gadget_rev_xreg_8_1(void) {
+    asm volatile(
+        "rev x9, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x8, x2
+__attribute__((naked)) void gadget_rev_xreg_8_2(void) {
+    asm volatile(
+        "rev x9, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x8, x3
+__attribute__((naked)) void gadget_rev_xreg_8_3(void) {
+    asm volatile(
+        "rev x9, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x8, x4
+__attribute__((naked)) void gadget_rev_xreg_8_4(void) {
+    asm volatile(
+        "rev x9, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x8, x5
+__attribute__((naked)) void gadget_rev_xreg_8_5(void) {
+    asm volatile(
+        "rev x9, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x8, x6
+__attribute__((naked)) void gadget_rev_xreg_8_6(void) {
+    asm volatile(
+        "rev x9, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x8, x7
+__attribute__((naked)) void gadget_rev_xreg_8_7(void) {
+    asm volatile(
+        "rev x9, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x8, x8
+__attribute__((naked)) void gadget_rev_xreg_8_8(void) {
+    asm volatile(
+        "rev x9, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x8, x9
+__attribute__((naked)) void gadget_rev_xreg_8_9(void) {
+    asm volatile(
+        "rev x9, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x8, x10
+__attribute__((naked)) void gadget_rev_xreg_8_10(void) {
+    asm volatile(
+        "rev x9, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x8, x11
+__attribute__((naked)) void gadget_rev_xreg_8_11(void) {
+    asm volatile(
+        "rev x9, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x8, x12
+__attribute__((naked)) void gadget_rev_xreg_8_12(void) {
+    asm volatile(
+        "rev x9, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x8, x13
+__attribute__((naked)) void gadget_rev_xreg_8_13(void) {
+    asm volatile(
+        "rev x9, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x8, x14
+__attribute__((naked)) void gadget_rev_xreg_8_14(void) {
+    asm volatile(
+        "rev x9, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x9, x0
+__attribute__((naked)) void gadget_rev_xreg_9_0(void) {
+    asm volatile(
+        "rev x10, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x9, x1
+__attribute__((naked)) void gadget_rev_xreg_9_1(void) {
+    asm volatile(
+        "rev x10, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x9, x2
+__attribute__((naked)) void gadget_rev_xreg_9_2(void) {
+    asm volatile(
+        "rev x10, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x9, x3
+__attribute__((naked)) void gadget_rev_xreg_9_3(void) {
+    asm volatile(
+        "rev x10, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x9, x4
+__attribute__((naked)) void gadget_rev_xreg_9_4(void) {
+    asm volatile(
+        "rev x10, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x9, x5
+__attribute__((naked)) void gadget_rev_xreg_9_5(void) {
+    asm volatile(
+        "rev x10, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x9, x6
+__attribute__((naked)) void gadget_rev_xreg_9_6(void) {
+    asm volatile(
+        "rev x10, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x9, x7
+__attribute__((naked)) void gadget_rev_xreg_9_7(void) {
+    asm volatile(
+        "rev x10, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x9, x8
+__attribute__((naked)) void gadget_rev_xreg_9_8(void) {
+    asm volatile(
+        "rev x10, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x9, x9
+__attribute__((naked)) void gadget_rev_xreg_9_9(void) {
+    asm volatile(
+        "rev x10, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x9, x10
+__attribute__((naked)) void gadget_rev_xreg_9_10(void) {
+    asm volatile(
+        "rev x10, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x9, x11
+__attribute__((naked)) void gadget_rev_xreg_9_11(void) {
+    asm volatile(
+        "rev x10, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x9, x12
+__attribute__((naked)) void gadget_rev_xreg_9_12(void) {
+    asm volatile(
+        "rev x10, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x9, x13
+__attribute__((naked)) void gadget_rev_xreg_9_13(void) {
+    asm volatile(
+        "rev x10, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x9, x14
+__attribute__((naked)) void gadget_rev_xreg_9_14(void) {
+    asm volatile(
+        "rev x10, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x10, x0
+__attribute__((naked)) void gadget_rev_xreg_10_0(void) {
+    asm volatile(
+        "rev x11, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x10, x1
+__attribute__((naked)) void gadget_rev_xreg_10_1(void) {
+    asm volatile(
+        "rev x11, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x10, x2
+__attribute__((naked)) void gadget_rev_xreg_10_2(void) {
+    asm volatile(
+        "rev x11, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x10, x3
+__attribute__((naked)) void gadget_rev_xreg_10_3(void) {
+    asm volatile(
+        "rev x11, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x10, x4
+__attribute__((naked)) void gadget_rev_xreg_10_4(void) {
+    asm volatile(
+        "rev x11, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x10, x5
+__attribute__((naked)) void gadget_rev_xreg_10_5(void) {
+    asm volatile(
+        "rev x11, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x10, x6
+__attribute__((naked)) void gadget_rev_xreg_10_6(void) {
+    asm volatile(
+        "rev x11, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x10, x7
+__attribute__((naked)) void gadget_rev_xreg_10_7(void) {
+    asm volatile(
+        "rev x11, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x10, x8
+__attribute__((naked)) void gadget_rev_xreg_10_8(void) {
+    asm volatile(
+        "rev x11, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x10, x9
+__attribute__((naked)) void gadget_rev_xreg_10_9(void) {
+    asm volatile(
+        "rev x11, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x10, x10
+__attribute__((naked)) void gadget_rev_xreg_10_10(void) {
+    asm volatile(
+        "rev x11, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x10, x11
+__attribute__((naked)) void gadget_rev_xreg_10_11(void) {
+    asm volatile(
+        "rev x11, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x10, x12
+__attribute__((naked)) void gadget_rev_xreg_10_12(void) {
+    asm volatile(
+        "rev x11, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x10, x13
+__attribute__((naked)) void gadget_rev_xreg_10_13(void) {
+    asm volatile(
+        "rev x11, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x10, x14
+__attribute__((naked)) void gadget_rev_xreg_10_14(void) {
+    asm volatile(
+        "rev x11, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x11, x0
+__attribute__((naked)) void gadget_rev_xreg_11_0(void) {
+    asm volatile(
+        "rev x12, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x11, x1
+__attribute__((naked)) void gadget_rev_xreg_11_1(void) {
+    asm volatile(
+        "rev x12, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x11, x2
+__attribute__((naked)) void gadget_rev_xreg_11_2(void) {
+    asm volatile(
+        "rev x12, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x11, x3
+__attribute__((naked)) void gadget_rev_xreg_11_3(void) {
+    asm volatile(
+        "rev x12, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x11, x4
+__attribute__((naked)) void gadget_rev_xreg_11_4(void) {
+    asm volatile(
+        "rev x12, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x11, x5
+__attribute__((naked)) void gadget_rev_xreg_11_5(void) {
+    asm volatile(
+        "rev x12, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x11, x6
+__attribute__((naked)) void gadget_rev_xreg_11_6(void) {
+    asm volatile(
+        "rev x12, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x11, x7
+__attribute__((naked)) void gadget_rev_xreg_11_7(void) {
+    asm volatile(
+        "rev x12, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x11, x8
+__attribute__((naked)) void gadget_rev_xreg_11_8(void) {
+    asm volatile(
+        "rev x12, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x11, x9
+__attribute__((naked)) void gadget_rev_xreg_11_9(void) {
+    asm volatile(
+        "rev x12, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x11, x10
+__attribute__((naked)) void gadget_rev_xreg_11_10(void) {
+    asm volatile(
+        "rev x12, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x11, x11
+__attribute__((naked)) void gadget_rev_xreg_11_11(void) {
+    asm volatile(
+        "rev x12, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x11, x12
+__attribute__((naked)) void gadget_rev_xreg_11_12(void) {
+    asm volatile(
+        "rev x12, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x11, x13
+__attribute__((naked)) void gadget_rev_xreg_11_13(void) {
+    asm volatile(
+        "rev x12, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x11, x14
+__attribute__((naked)) void gadget_rev_xreg_11_14(void) {
+    asm volatile(
+        "rev x12, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x12, x0
+__attribute__((naked)) void gadget_rev_xreg_12_0(void) {
+    asm volatile(
+        "rev x13, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x12, x1
+__attribute__((naked)) void gadget_rev_xreg_12_1(void) {
+    asm volatile(
+        "rev x13, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x12, x2
+__attribute__((naked)) void gadget_rev_xreg_12_2(void) {
+    asm volatile(
+        "rev x13, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x12, x3
+__attribute__((naked)) void gadget_rev_xreg_12_3(void) {
+    asm volatile(
+        "rev x13, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x12, x4
+__attribute__((naked)) void gadget_rev_xreg_12_4(void) {
+    asm volatile(
+        "rev x13, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x12, x5
+__attribute__((naked)) void gadget_rev_xreg_12_5(void) {
+    asm volatile(
+        "rev x13, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x12, x6
+__attribute__((naked)) void gadget_rev_xreg_12_6(void) {
+    asm volatile(
+        "rev x13, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x12, x7
+__attribute__((naked)) void gadget_rev_xreg_12_7(void) {
+    asm volatile(
+        "rev x13, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x12, x8
+__attribute__((naked)) void gadget_rev_xreg_12_8(void) {
+    asm volatile(
+        "rev x13, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x12, x9
+__attribute__((naked)) void gadget_rev_xreg_12_9(void) {
+    asm volatile(
+        "rev x13, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x12, x10
+__attribute__((naked)) void gadget_rev_xreg_12_10(void) {
+    asm volatile(
+        "rev x13, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x12, x11
+__attribute__((naked)) void gadget_rev_xreg_12_11(void) {
+    asm volatile(
+        "rev x13, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x12, x12
+__attribute__((naked)) void gadget_rev_xreg_12_12(void) {
+    asm volatile(
+        "rev x13, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x12, x13
+__attribute__((naked)) void gadget_rev_xreg_12_13(void) {
+    asm volatile(
+        "rev x13, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x12, x14
+__attribute__((naked)) void gadget_rev_xreg_12_14(void) {
+    asm volatile(
+        "rev x13, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x13, x0
+__attribute__((naked)) void gadget_rev_xreg_13_0(void) {
+    asm volatile(
+        "rev x14, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x13, x1
+__attribute__((naked)) void gadget_rev_xreg_13_1(void) {
+    asm volatile(
+        "rev x14, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x13, x2
+__attribute__((naked)) void gadget_rev_xreg_13_2(void) {
+    asm volatile(
+        "rev x14, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x13, x3
+__attribute__((naked)) void gadget_rev_xreg_13_3(void) {
+    asm volatile(
+        "rev x14, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x13, x4
+__attribute__((naked)) void gadget_rev_xreg_13_4(void) {
+    asm volatile(
+        "rev x14, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x13, x5
+__attribute__((naked)) void gadget_rev_xreg_13_5(void) {
+    asm volatile(
+        "rev x14, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x13, x6
+__attribute__((naked)) void gadget_rev_xreg_13_6(void) {
+    asm volatile(
+        "rev x14, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x13, x7
+__attribute__((naked)) void gadget_rev_xreg_13_7(void) {
+    asm volatile(
+        "rev x14, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x13, x8
+__attribute__((naked)) void gadget_rev_xreg_13_8(void) {
+    asm volatile(
+        "rev x14, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x13, x9
+__attribute__((naked)) void gadget_rev_xreg_13_9(void) {
+    asm volatile(
+        "rev x14, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x13, x10
+__attribute__((naked)) void gadget_rev_xreg_13_10(void) {
+    asm volatile(
+        "rev x14, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x13, x11
+__attribute__((naked)) void gadget_rev_xreg_13_11(void) {
+    asm volatile(
+        "rev x14, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x13, x12
+__attribute__((naked)) void gadget_rev_xreg_13_12(void) {
+    asm volatile(
+        "rev x14, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x13, x13
+__attribute__((naked)) void gadget_rev_xreg_13_13(void) {
+    asm volatile(
+        "rev x14, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x13, x14
+__attribute__((naked)) void gadget_rev_xreg_13_14(void) {
+    asm volatile(
+        "rev x14, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x14, x0
+__attribute__((naked)) void gadget_rev_xreg_14_0(void) {
+    asm volatile(
+        "rev x15, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x14, x1
+__attribute__((naked)) void gadget_rev_xreg_14_1(void) {
+    asm volatile(
+        "rev x15, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x14, x2
+__attribute__((naked)) void gadget_rev_xreg_14_2(void) {
+    asm volatile(
+        "rev x15, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x14, x3
+__attribute__((naked)) void gadget_rev_xreg_14_3(void) {
+    asm volatile(
+        "rev x15, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x14, x4
+__attribute__((naked)) void gadget_rev_xreg_14_4(void) {
+    asm volatile(
+        "rev x15, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x14, x5
+__attribute__((naked)) void gadget_rev_xreg_14_5(void) {
+    asm volatile(
+        "rev x15, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x14, x6
+__attribute__((naked)) void gadget_rev_xreg_14_6(void) {
+    asm volatile(
+        "rev x15, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x14, x7
+__attribute__((naked)) void gadget_rev_xreg_14_7(void) {
+    asm volatile(
+        "rev x15, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x14, x8
+__attribute__((naked)) void gadget_rev_xreg_14_8(void) {
+    asm volatile(
+        "rev x15, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x14, x9
+__attribute__((naked)) void gadget_rev_xreg_14_9(void) {
+    asm volatile(
+        "rev x15, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x14, x10
+__attribute__((naked)) void gadget_rev_xreg_14_10(void) {
+    asm volatile(
+        "rev x15, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x14, x11
+__attribute__((naked)) void gadget_rev_xreg_14_11(void) {
+    asm volatile(
+        "rev x15, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x14, x12
+__attribute__((naked)) void gadget_rev_xreg_14_12(void) {
+    asm volatile(
+        "rev x15, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x14, x13
+__attribute__((naked)) void gadget_rev_xreg_14_13(void) {
+    asm volatile(
+        "rev x15, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV x14, x14
+__attribute__((naked)) void gadget_rev_xreg_14_14(void) {
+    asm volatile(
+        "rev x15, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w0, w0
+__attribute__((naked)) void gadget_rev16_wreg_0_0(void) {
+    asm volatile(
+        "rev16 w1, w1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w0, w1
+__attribute__((naked)) void gadget_rev16_wreg_0_1(void) {
+    asm volatile(
+        "rev16 w1, w2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w0, w2
+__attribute__((naked)) void gadget_rev16_wreg_0_2(void) {
+    asm volatile(
+        "rev16 w1, w3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w0, w3
+__attribute__((naked)) void gadget_rev16_wreg_0_3(void) {
+    asm volatile(
+        "rev16 w1, w4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w0, w4
+__attribute__((naked)) void gadget_rev16_wreg_0_4(void) {
+    asm volatile(
+        "rev16 w1, w5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w0, w5
+__attribute__((naked)) void gadget_rev16_wreg_0_5(void) {
+    asm volatile(
+        "rev16 w1, w6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w0, w6
+__attribute__((naked)) void gadget_rev16_wreg_0_6(void) {
+    asm volatile(
+        "rev16 w1, w7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w0, w7
+__attribute__((naked)) void gadget_rev16_wreg_0_7(void) {
+    asm volatile(
+        "rev16 w1, w8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w0, w8
+__attribute__((naked)) void gadget_rev16_wreg_0_8(void) {
+    asm volatile(
+        "rev16 w1, w9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w0, w9
+__attribute__((naked)) void gadget_rev16_wreg_0_9(void) {
+    asm volatile(
+        "rev16 w1, w10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w0, w10
+__attribute__((naked)) void gadget_rev16_wreg_0_10(void) {
+    asm volatile(
+        "rev16 w1, w11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w0, w11
+__attribute__((naked)) void gadget_rev16_wreg_0_11(void) {
+    asm volatile(
+        "rev16 w1, w12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w0, w12
+__attribute__((naked)) void gadget_rev16_wreg_0_12(void) {
+    asm volatile(
+        "rev16 w1, w13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w0, w13
+__attribute__((naked)) void gadget_rev16_wreg_0_13(void) {
+    asm volatile(
+        "rev16 w1, w14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w0, w14
+__attribute__((naked)) void gadget_rev16_wreg_0_14(void) {
+    asm volatile(
+        "rev16 w1, w15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w1, w0
+__attribute__((naked)) void gadget_rev16_wreg_1_0(void) {
+    asm volatile(
+        "rev16 w2, w1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w1, w1
+__attribute__((naked)) void gadget_rev16_wreg_1_1(void) {
+    asm volatile(
+        "rev16 w2, w2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w1, w2
+__attribute__((naked)) void gadget_rev16_wreg_1_2(void) {
+    asm volatile(
+        "rev16 w2, w3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w1, w3
+__attribute__((naked)) void gadget_rev16_wreg_1_3(void) {
+    asm volatile(
+        "rev16 w2, w4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w1, w4
+__attribute__((naked)) void gadget_rev16_wreg_1_4(void) {
+    asm volatile(
+        "rev16 w2, w5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w1, w5
+__attribute__((naked)) void gadget_rev16_wreg_1_5(void) {
+    asm volatile(
+        "rev16 w2, w6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w1, w6
+__attribute__((naked)) void gadget_rev16_wreg_1_6(void) {
+    asm volatile(
+        "rev16 w2, w7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w1, w7
+__attribute__((naked)) void gadget_rev16_wreg_1_7(void) {
+    asm volatile(
+        "rev16 w2, w8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w1, w8
+__attribute__((naked)) void gadget_rev16_wreg_1_8(void) {
+    asm volatile(
+        "rev16 w2, w9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w1, w9
+__attribute__((naked)) void gadget_rev16_wreg_1_9(void) {
+    asm volatile(
+        "rev16 w2, w10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w1, w10
+__attribute__((naked)) void gadget_rev16_wreg_1_10(void) {
+    asm volatile(
+        "rev16 w2, w11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w1, w11
+__attribute__((naked)) void gadget_rev16_wreg_1_11(void) {
+    asm volatile(
+        "rev16 w2, w12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w1, w12
+__attribute__((naked)) void gadget_rev16_wreg_1_12(void) {
+    asm volatile(
+        "rev16 w2, w13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w1, w13
+__attribute__((naked)) void gadget_rev16_wreg_1_13(void) {
+    asm volatile(
+        "rev16 w2, w14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w1, w14
+__attribute__((naked)) void gadget_rev16_wreg_1_14(void) {
+    asm volatile(
+        "rev16 w2, w15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w2, w0
+__attribute__((naked)) void gadget_rev16_wreg_2_0(void) {
+    asm volatile(
+        "rev16 w3, w1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w2, w1
+__attribute__((naked)) void gadget_rev16_wreg_2_1(void) {
+    asm volatile(
+        "rev16 w3, w2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w2, w2
+__attribute__((naked)) void gadget_rev16_wreg_2_2(void) {
+    asm volatile(
+        "rev16 w3, w3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w2, w3
+__attribute__((naked)) void gadget_rev16_wreg_2_3(void) {
+    asm volatile(
+        "rev16 w3, w4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w2, w4
+__attribute__((naked)) void gadget_rev16_wreg_2_4(void) {
+    asm volatile(
+        "rev16 w3, w5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w2, w5
+__attribute__((naked)) void gadget_rev16_wreg_2_5(void) {
+    asm volatile(
+        "rev16 w3, w6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w2, w6
+__attribute__((naked)) void gadget_rev16_wreg_2_6(void) {
+    asm volatile(
+        "rev16 w3, w7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w2, w7
+__attribute__((naked)) void gadget_rev16_wreg_2_7(void) {
+    asm volatile(
+        "rev16 w3, w8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w2, w8
+__attribute__((naked)) void gadget_rev16_wreg_2_8(void) {
+    asm volatile(
+        "rev16 w3, w9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w2, w9
+__attribute__((naked)) void gadget_rev16_wreg_2_9(void) {
+    asm volatile(
+        "rev16 w3, w10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w2, w10
+__attribute__((naked)) void gadget_rev16_wreg_2_10(void) {
+    asm volatile(
+        "rev16 w3, w11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w2, w11
+__attribute__((naked)) void gadget_rev16_wreg_2_11(void) {
+    asm volatile(
+        "rev16 w3, w12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w2, w12
+__attribute__((naked)) void gadget_rev16_wreg_2_12(void) {
+    asm volatile(
+        "rev16 w3, w13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w2, w13
+__attribute__((naked)) void gadget_rev16_wreg_2_13(void) {
+    asm volatile(
+        "rev16 w3, w14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w2, w14
+__attribute__((naked)) void gadget_rev16_wreg_2_14(void) {
+    asm volatile(
+        "rev16 w3, w15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w3, w0
+__attribute__((naked)) void gadget_rev16_wreg_3_0(void) {
+    asm volatile(
+        "rev16 w4, w1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w3, w1
+__attribute__((naked)) void gadget_rev16_wreg_3_1(void) {
+    asm volatile(
+        "rev16 w4, w2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w3, w2
+__attribute__((naked)) void gadget_rev16_wreg_3_2(void) {
+    asm volatile(
+        "rev16 w4, w3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w3, w3
+__attribute__((naked)) void gadget_rev16_wreg_3_3(void) {
+    asm volatile(
+        "rev16 w4, w4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w3, w4
+__attribute__((naked)) void gadget_rev16_wreg_3_4(void) {
+    asm volatile(
+        "rev16 w4, w5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w3, w5
+__attribute__((naked)) void gadget_rev16_wreg_3_5(void) {
+    asm volatile(
+        "rev16 w4, w6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w3, w6
+__attribute__((naked)) void gadget_rev16_wreg_3_6(void) {
+    asm volatile(
+        "rev16 w4, w7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w3, w7
+__attribute__((naked)) void gadget_rev16_wreg_3_7(void) {
+    asm volatile(
+        "rev16 w4, w8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w3, w8
+__attribute__((naked)) void gadget_rev16_wreg_3_8(void) {
+    asm volatile(
+        "rev16 w4, w9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w3, w9
+__attribute__((naked)) void gadget_rev16_wreg_3_9(void) {
+    asm volatile(
+        "rev16 w4, w10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w3, w10
+__attribute__((naked)) void gadget_rev16_wreg_3_10(void) {
+    asm volatile(
+        "rev16 w4, w11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w3, w11
+__attribute__((naked)) void gadget_rev16_wreg_3_11(void) {
+    asm volatile(
+        "rev16 w4, w12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w3, w12
+__attribute__((naked)) void gadget_rev16_wreg_3_12(void) {
+    asm volatile(
+        "rev16 w4, w13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w3, w13
+__attribute__((naked)) void gadget_rev16_wreg_3_13(void) {
+    asm volatile(
+        "rev16 w4, w14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w3, w14
+__attribute__((naked)) void gadget_rev16_wreg_3_14(void) {
+    asm volatile(
+        "rev16 w4, w15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w4, w0
+__attribute__((naked)) void gadget_rev16_wreg_4_0(void) {
+    asm volatile(
+        "rev16 w5, w1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w4, w1
+__attribute__((naked)) void gadget_rev16_wreg_4_1(void) {
+    asm volatile(
+        "rev16 w5, w2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w4, w2
+__attribute__((naked)) void gadget_rev16_wreg_4_2(void) {
+    asm volatile(
+        "rev16 w5, w3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w4, w3
+__attribute__((naked)) void gadget_rev16_wreg_4_3(void) {
+    asm volatile(
+        "rev16 w5, w4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w4, w4
+__attribute__((naked)) void gadget_rev16_wreg_4_4(void) {
+    asm volatile(
+        "rev16 w5, w5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w4, w5
+__attribute__((naked)) void gadget_rev16_wreg_4_5(void) {
+    asm volatile(
+        "rev16 w5, w6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w4, w6
+__attribute__((naked)) void gadget_rev16_wreg_4_6(void) {
+    asm volatile(
+        "rev16 w5, w7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w4, w7
+__attribute__((naked)) void gadget_rev16_wreg_4_7(void) {
+    asm volatile(
+        "rev16 w5, w8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w4, w8
+__attribute__((naked)) void gadget_rev16_wreg_4_8(void) {
+    asm volatile(
+        "rev16 w5, w9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w4, w9
+__attribute__((naked)) void gadget_rev16_wreg_4_9(void) {
+    asm volatile(
+        "rev16 w5, w10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w4, w10
+__attribute__((naked)) void gadget_rev16_wreg_4_10(void) {
+    asm volatile(
+        "rev16 w5, w11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w4, w11
+__attribute__((naked)) void gadget_rev16_wreg_4_11(void) {
+    asm volatile(
+        "rev16 w5, w12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w4, w12
+__attribute__((naked)) void gadget_rev16_wreg_4_12(void) {
+    asm volatile(
+        "rev16 w5, w13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w4, w13
+__attribute__((naked)) void gadget_rev16_wreg_4_13(void) {
+    asm volatile(
+        "rev16 w5, w14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w4, w14
+__attribute__((naked)) void gadget_rev16_wreg_4_14(void) {
+    asm volatile(
+        "rev16 w5, w15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w5, w0
+__attribute__((naked)) void gadget_rev16_wreg_5_0(void) {
+    asm volatile(
+        "rev16 w6, w1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w5, w1
+__attribute__((naked)) void gadget_rev16_wreg_5_1(void) {
+    asm volatile(
+        "rev16 w6, w2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w5, w2
+__attribute__((naked)) void gadget_rev16_wreg_5_2(void) {
+    asm volatile(
+        "rev16 w6, w3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w5, w3
+__attribute__((naked)) void gadget_rev16_wreg_5_3(void) {
+    asm volatile(
+        "rev16 w6, w4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w5, w4
+__attribute__((naked)) void gadget_rev16_wreg_5_4(void) {
+    asm volatile(
+        "rev16 w6, w5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w5, w5
+__attribute__((naked)) void gadget_rev16_wreg_5_5(void) {
+    asm volatile(
+        "rev16 w6, w6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w5, w6
+__attribute__((naked)) void gadget_rev16_wreg_5_6(void) {
+    asm volatile(
+        "rev16 w6, w7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w5, w7
+__attribute__((naked)) void gadget_rev16_wreg_5_7(void) {
+    asm volatile(
+        "rev16 w6, w8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w5, w8
+__attribute__((naked)) void gadget_rev16_wreg_5_8(void) {
+    asm volatile(
+        "rev16 w6, w9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w5, w9
+__attribute__((naked)) void gadget_rev16_wreg_5_9(void) {
+    asm volatile(
+        "rev16 w6, w10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w5, w10
+__attribute__((naked)) void gadget_rev16_wreg_5_10(void) {
+    asm volatile(
+        "rev16 w6, w11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w5, w11
+__attribute__((naked)) void gadget_rev16_wreg_5_11(void) {
+    asm volatile(
+        "rev16 w6, w12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w5, w12
+__attribute__((naked)) void gadget_rev16_wreg_5_12(void) {
+    asm volatile(
+        "rev16 w6, w13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w5, w13
+__attribute__((naked)) void gadget_rev16_wreg_5_13(void) {
+    asm volatile(
+        "rev16 w6, w14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w5, w14
+__attribute__((naked)) void gadget_rev16_wreg_5_14(void) {
+    asm volatile(
+        "rev16 w6, w15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w6, w0
+__attribute__((naked)) void gadget_rev16_wreg_6_0(void) {
+    asm volatile(
+        "rev16 w7, w1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w6, w1
+__attribute__((naked)) void gadget_rev16_wreg_6_1(void) {
+    asm volatile(
+        "rev16 w7, w2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w6, w2
+__attribute__((naked)) void gadget_rev16_wreg_6_2(void) {
+    asm volatile(
+        "rev16 w7, w3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w6, w3
+__attribute__((naked)) void gadget_rev16_wreg_6_3(void) {
+    asm volatile(
+        "rev16 w7, w4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w6, w4
+__attribute__((naked)) void gadget_rev16_wreg_6_4(void) {
+    asm volatile(
+        "rev16 w7, w5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w6, w5
+__attribute__((naked)) void gadget_rev16_wreg_6_5(void) {
+    asm volatile(
+        "rev16 w7, w6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w6, w6
+__attribute__((naked)) void gadget_rev16_wreg_6_6(void) {
+    asm volatile(
+        "rev16 w7, w7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w6, w7
+__attribute__((naked)) void gadget_rev16_wreg_6_7(void) {
+    asm volatile(
+        "rev16 w7, w8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w6, w8
+__attribute__((naked)) void gadget_rev16_wreg_6_8(void) {
+    asm volatile(
+        "rev16 w7, w9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w6, w9
+__attribute__((naked)) void gadget_rev16_wreg_6_9(void) {
+    asm volatile(
+        "rev16 w7, w10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w6, w10
+__attribute__((naked)) void gadget_rev16_wreg_6_10(void) {
+    asm volatile(
+        "rev16 w7, w11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w6, w11
+__attribute__((naked)) void gadget_rev16_wreg_6_11(void) {
+    asm volatile(
+        "rev16 w7, w12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w6, w12
+__attribute__((naked)) void gadget_rev16_wreg_6_12(void) {
+    asm volatile(
+        "rev16 w7, w13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w6, w13
+__attribute__((naked)) void gadget_rev16_wreg_6_13(void) {
+    asm volatile(
+        "rev16 w7, w14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w6, w14
+__attribute__((naked)) void gadget_rev16_wreg_6_14(void) {
+    asm volatile(
+        "rev16 w7, w15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w7, w0
+__attribute__((naked)) void gadget_rev16_wreg_7_0(void) {
+    asm volatile(
+        "rev16 w8, w1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w7, w1
+__attribute__((naked)) void gadget_rev16_wreg_7_1(void) {
+    asm volatile(
+        "rev16 w8, w2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w7, w2
+__attribute__((naked)) void gadget_rev16_wreg_7_2(void) {
+    asm volatile(
+        "rev16 w8, w3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w7, w3
+__attribute__((naked)) void gadget_rev16_wreg_7_3(void) {
+    asm volatile(
+        "rev16 w8, w4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w7, w4
+__attribute__((naked)) void gadget_rev16_wreg_7_4(void) {
+    asm volatile(
+        "rev16 w8, w5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w7, w5
+__attribute__((naked)) void gadget_rev16_wreg_7_5(void) {
+    asm volatile(
+        "rev16 w8, w6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w7, w6
+__attribute__((naked)) void gadget_rev16_wreg_7_6(void) {
+    asm volatile(
+        "rev16 w8, w7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w7, w7
+__attribute__((naked)) void gadget_rev16_wreg_7_7(void) {
+    asm volatile(
+        "rev16 w8, w8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w7, w8
+__attribute__((naked)) void gadget_rev16_wreg_7_8(void) {
+    asm volatile(
+        "rev16 w8, w9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w7, w9
+__attribute__((naked)) void gadget_rev16_wreg_7_9(void) {
+    asm volatile(
+        "rev16 w8, w10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w7, w10
+__attribute__((naked)) void gadget_rev16_wreg_7_10(void) {
+    asm volatile(
+        "rev16 w8, w11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w7, w11
+__attribute__((naked)) void gadget_rev16_wreg_7_11(void) {
+    asm volatile(
+        "rev16 w8, w12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w7, w12
+__attribute__((naked)) void gadget_rev16_wreg_7_12(void) {
+    asm volatile(
+        "rev16 w8, w13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w7, w13
+__attribute__((naked)) void gadget_rev16_wreg_7_13(void) {
+    asm volatile(
+        "rev16 w8, w14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w7, w14
+__attribute__((naked)) void gadget_rev16_wreg_7_14(void) {
+    asm volatile(
+        "rev16 w8, w15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w8, w0
+__attribute__((naked)) void gadget_rev16_wreg_8_0(void) {
+    asm volatile(
+        "rev16 w9, w1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w8, w1
+__attribute__((naked)) void gadget_rev16_wreg_8_1(void) {
+    asm volatile(
+        "rev16 w9, w2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w8, w2
+__attribute__((naked)) void gadget_rev16_wreg_8_2(void) {
+    asm volatile(
+        "rev16 w9, w3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w8, w3
+__attribute__((naked)) void gadget_rev16_wreg_8_3(void) {
+    asm volatile(
+        "rev16 w9, w4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w8, w4
+__attribute__((naked)) void gadget_rev16_wreg_8_4(void) {
+    asm volatile(
+        "rev16 w9, w5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w8, w5
+__attribute__((naked)) void gadget_rev16_wreg_8_5(void) {
+    asm volatile(
+        "rev16 w9, w6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w8, w6
+__attribute__((naked)) void gadget_rev16_wreg_8_6(void) {
+    asm volatile(
+        "rev16 w9, w7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w8, w7
+__attribute__((naked)) void gadget_rev16_wreg_8_7(void) {
+    asm volatile(
+        "rev16 w9, w8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w8, w8
+__attribute__((naked)) void gadget_rev16_wreg_8_8(void) {
+    asm volatile(
+        "rev16 w9, w9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w8, w9
+__attribute__((naked)) void gadget_rev16_wreg_8_9(void) {
+    asm volatile(
+        "rev16 w9, w10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w8, w10
+__attribute__((naked)) void gadget_rev16_wreg_8_10(void) {
+    asm volatile(
+        "rev16 w9, w11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w8, w11
+__attribute__((naked)) void gadget_rev16_wreg_8_11(void) {
+    asm volatile(
+        "rev16 w9, w12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w8, w12
+__attribute__((naked)) void gadget_rev16_wreg_8_12(void) {
+    asm volatile(
+        "rev16 w9, w13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w8, w13
+__attribute__((naked)) void gadget_rev16_wreg_8_13(void) {
+    asm volatile(
+        "rev16 w9, w14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w8, w14
+__attribute__((naked)) void gadget_rev16_wreg_8_14(void) {
+    asm volatile(
+        "rev16 w9, w15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w9, w0
+__attribute__((naked)) void gadget_rev16_wreg_9_0(void) {
+    asm volatile(
+        "rev16 w10, w1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w9, w1
+__attribute__((naked)) void gadget_rev16_wreg_9_1(void) {
+    asm volatile(
+        "rev16 w10, w2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w9, w2
+__attribute__((naked)) void gadget_rev16_wreg_9_2(void) {
+    asm volatile(
+        "rev16 w10, w3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w9, w3
+__attribute__((naked)) void gadget_rev16_wreg_9_3(void) {
+    asm volatile(
+        "rev16 w10, w4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w9, w4
+__attribute__((naked)) void gadget_rev16_wreg_9_4(void) {
+    asm volatile(
+        "rev16 w10, w5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w9, w5
+__attribute__((naked)) void gadget_rev16_wreg_9_5(void) {
+    asm volatile(
+        "rev16 w10, w6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w9, w6
+__attribute__((naked)) void gadget_rev16_wreg_9_6(void) {
+    asm volatile(
+        "rev16 w10, w7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w9, w7
+__attribute__((naked)) void gadget_rev16_wreg_9_7(void) {
+    asm volatile(
+        "rev16 w10, w8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w9, w8
+__attribute__((naked)) void gadget_rev16_wreg_9_8(void) {
+    asm volatile(
+        "rev16 w10, w9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w9, w9
+__attribute__((naked)) void gadget_rev16_wreg_9_9(void) {
+    asm volatile(
+        "rev16 w10, w10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w9, w10
+__attribute__((naked)) void gadget_rev16_wreg_9_10(void) {
+    asm volatile(
+        "rev16 w10, w11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w9, w11
+__attribute__((naked)) void gadget_rev16_wreg_9_11(void) {
+    asm volatile(
+        "rev16 w10, w12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w9, w12
+__attribute__((naked)) void gadget_rev16_wreg_9_12(void) {
+    asm volatile(
+        "rev16 w10, w13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w9, w13
+__attribute__((naked)) void gadget_rev16_wreg_9_13(void) {
+    asm volatile(
+        "rev16 w10, w14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w9, w14
+__attribute__((naked)) void gadget_rev16_wreg_9_14(void) {
+    asm volatile(
+        "rev16 w10, w15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w10, w0
+__attribute__((naked)) void gadget_rev16_wreg_10_0(void) {
+    asm volatile(
+        "rev16 w11, w1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w10, w1
+__attribute__((naked)) void gadget_rev16_wreg_10_1(void) {
+    asm volatile(
+        "rev16 w11, w2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w10, w2
+__attribute__((naked)) void gadget_rev16_wreg_10_2(void) {
+    asm volatile(
+        "rev16 w11, w3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w10, w3
+__attribute__((naked)) void gadget_rev16_wreg_10_3(void) {
+    asm volatile(
+        "rev16 w11, w4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w10, w4
+__attribute__((naked)) void gadget_rev16_wreg_10_4(void) {
+    asm volatile(
+        "rev16 w11, w5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w10, w5
+__attribute__((naked)) void gadget_rev16_wreg_10_5(void) {
+    asm volatile(
+        "rev16 w11, w6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w10, w6
+__attribute__((naked)) void gadget_rev16_wreg_10_6(void) {
+    asm volatile(
+        "rev16 w11, w7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w10, w7
+__attribute__((naked)) void gadget_rev16_wreg_10_7(void) {
+    asm volatile(
+        "rev16 w11, w8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w10, w8
+__attribute__((naked)) void gadget_rev16_wreg_10_8(void) {
+    asm volatile(
+        "rev16 w11, w9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w10, w9
+__attribute__((naked)) void gadget_rev16_wreg_10_9(void) {
+    asm volatile(
+        "rev16 w11, w10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w10, w10
+__attribute__((naked)) void gadget_rev16_wreg_10_10(void) {
+    asm volatile(
+        "rev16 w11, w11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w10, w11
+__attribute__((naked)) void gadget_rev16_wreg_10_11(void) {
+    asm volatile(
+        "rev16 w11, w12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w10, w12
+__attribute__((naked)) void gadget_rev16_wreg_10_12(void) {
+    asm volatile(
+        "rev16 w11, w13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w10, w13
+__attribute__((naked)) void gadget_rev16_wreg_10_13(void) {
+    asm volatile(
+        "rev16 w11, w14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w10, w14
+__attribute__((naked)) void gadget_rev16_wreg_10_14(void) {
+    asm volatile(
+        "rev16 w11, w15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w11, w0
+__attribute__((naked)) void gadget_rev16_wreg_11_0(void) {
+    asm volatile(
+        "rev16 w12, w1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w11, w1
+__attribute__((naked)) void gadget_rev16_wreg_11_1(void) {
+    asm volatile(
+        "rev16 w12, w2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w11, w2
+__attribute__((naked)) void gadget_rev16_wreg_11_2(void) {
+    asm volatile(
+        "rev16 w12, w3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w11, w3
+__attribute__((naked)) void gadget_rev16_wreg_11_3(void) {
+    asm volatile(
+        "rev16 w12, w4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w11, w4
+__attribute__((naked)) void gadget_rev16_wreg_11_4(void) {
+    asm volatile(
+        "rev16 w12, w5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w11, w5
+__attribute__((naked)) void gadget_rev16_wreg_11_5(void) {
+    asm volatile(
+        "rev16 w12, w6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w11, w6
+__attribute__((naked)) void gadget_rev16_wreg_11_6(void) {
+    asm volatile(
+        "rev16 w12, w7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w11, w7
+__attribute__((naked)) void gadget_rev16_wreg_11_7(void) {
+    asm volatile(
+        "rev16 w12, w8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w11, w8
+__attribute__((naked)) void gadget_rev16_wreg_11_8(void) {
+    asm volatile(
+        "rev16 w12, w9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w11, w9
+__attribute__((naked)) void gadget_rev16_wreg_11_9(void) {
+    asm volatile(
+        "rev16 w12, w10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w11, w10
+__attribute__((naked)) void gadget_rev16_wreg_11_10(void) {
+    asm volatile(
+        "rev16 w12, w11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w11, w11
+__attribute__((naked)) void gadget_rev16_wreg_11_11(void) {
+    asm volatile(
+        "rev16 w12, w12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w11, w12
+__attribute__((naked)) void gadget_rev16_wreg_11_12(void) {
+    asm volatile(
+        "rev16 w12, w13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w11, w13
+__attribute__((naked)) void gadget_rev16_wreg_11_13(void) {
+    asm volatile(
+        "rev16 w12, w14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w11, w14
+__attribute__((naked)) void gadget_rev16_wreg_11_14(void) {
+    asm volatile(
+        "rev16 w12, w15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w12, w0
+__attribute__((naked)) void gadget_rev16_wreg_12_0(void) {
+    asm volatile(
+        "rev16 w13, w1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w12, w1
+__attribute__((naked)) void gadget_rev16_wreg_12_1(void) {
+    asm volatile(
+        "rev16 w13, w2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w12, w2
+__attribute__((naked)) void gadget_rev16_wreg_12_2(void) {
+    asm volatile(
+        "rev16 w13, w3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w12, w3
+__attribute__((naked)) void gadget_rev16_wreg_12_3(void) {
+    asm volatile(
+        "rev16 w13, w4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w12, w4
+__attribute__((naked)) void gadget_rev16_wreg_12_4(void) {
+    asm volatile(
+        "rev16 w13, w5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w12, w5
+__attribute__((naked)) void gadget_rev16_wreg_12_5(void) {
+    asm volatile(
+        "rev16 w13, w6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w12, w6
+__attribute__((naked)) void gadget_rev16_wreg_12_6(void) {
+    asm volatile(
+        "rev16 w13, w7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w12, w7
+__attribute__((naked)) void gadget_rev16_wreg_12_7(void) {
+    asm volatile(
+        "rev16 w13, w8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w12, w8
+__attribute__((naked)) void gadget_rev16_wreg_12_8(void) {
+    asm volatile(
+        "rev16 w13, w9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w12, w9
+__attribute__((naked)) void gadget_rev16_wreg_12_9(void) {
+    asm volatile(
+        "rev16 w13, w10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w12, w10
+__attribute__((naked)) void gadget_rev16_wreg_12_10(void) {
+    asm volatile(
+        "rev16 w13, w11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w12, w11
+__attribute__((naked)) void gadget_rev16_wreg_12_11(void) {
+    asm volatile(
+        "rev16 w13, w12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w12, w12
+__attribute__((naked)) void gadget_rev16_wreg_12_12(void) {
+    asm volatile(
+        "rev16 w13, w13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w12, w13
+__attribute__((naked)) void gadget_rev16_wreg_12_13(void) {
+    asm volatile(
+        "rev16 w13, w14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w12, w14
+__attribute__((naked)) void gadget_rev16_wreg_12_14(void) {
+    asm volatile(
+        "rev16 w13, w15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w13, w0
+__attribute__((naked)) void gadget_rev16_wreg_13_0(void) {
+    asm volatile(
+        "rev16 w14, w1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w13, w1
+__attribute__((naked)) void gadget_rev16_wreg_13_1(void) {
+    asm volatile(
+        "rev16 w14, w2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w13, w2
+__attribute__((naked)) void gadget_rev16_wreg_13_2(void) {
+    asm volatile(
+        "rev16 w14, w3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w13, w3
+__attribute__((naked)) void gadget_rev16_wreg_13_3(void) {
+    asm volatile(
+        "rev16 w14, w4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w13, w4
+__attribute__((naked)) void gadget_rev16_wreg_13_4(void) {
+    asm volatile(
+        "rev16 w14, w5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w13, w5
+__attribute__((naked)) void gadget_rev16_wreg_13_5(void) {
+    asm volatile(
+        "rev16 w14, w6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w13, w6
+__attribute__((naked)) void gadget_rev16_wreg_13_6(void) {
+    asm volatile(
+        "rev16 w14, w7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w13, w7
+__attribute__((naked)) void gadget_rev16_wreg_13_7(void) {
+    asm volatile(
+        "rev16 w14, w8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w13, w8
+__attribute__((naked)) void gadget_rev16_wreg_13_8(void) {
+    asm volatile(
+        "rev16 w14, w9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w13, w9
+__attribute__((naked)) void gadget_rev16_wreg_13_9(void) {
+    asm volatile(
+        "rev16 w14, w10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w13, w10
+__attribute__((naked)) void gadget_rev16_wreg_13_10(void) {
+    asm volatile(
+        "rev16 w14, w11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w13, w11
+__attribute__((naked)) void gadget_rev16_wreg_13_11(void) {
+    asm volatile(
+        "rev16 w14, w12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w13, w12
+__attribute__((naked)) void gadget_rev16_wreg_13_12(void) {
+    asm volatile(
+        "rev16 w14, w13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w13, w13
+__attribute__((naked)) void gadget_rev16_wreg_13_13(void) {
+    asm volatile(
+        "rev16 w14, w14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w13, w14
+__attribute__((naked)) void gadget_rev16_wreg_13_14(void) {
+    asm volatile(
+        "rev16 w14, w15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w14, w0
+__attribute__((naked)) void gadget_rev16_wreg_14_0(void) {
+    asm volatile(
+        "rev16 w15, w1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w14, w1
+__attribute__((naked)) void gadget_rev16_wreg_14_1(void) {
+    asm volatile(
+        "rev16 w15, w2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w14, w2
+__attribute__((naked)) void gadget_rev16_wreg_14_2(void) {
+    asm volatile(
+        "rev16 w15, w3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w14, w3
+__attribute__((naked)) void gadget_rev16_wreg_14_3(void) {
+    asm volatile(
+        "rev16 w15, w4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w14, w4
+__attribute__((naked)) void gadget_rev16_wreg_14_4(void) {
+    asm volatile(
+        "rev16 w15, w5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w14, w5
+__attribute__((naked)) void gadget_rev16_wreg_14_5(void) {
+    asm volatile(
+        "rev16 w15, w6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w14, w6
+__attribute__((naked)) void gadget_rev16_wreg_14_6(void) {
+    asm volatile(
+        "rev16 w15, w7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w14, w7
+__attribute__((naked)) void gadget_rev16_wreg_14_7(void) {
+    asm volatile(
+        "rev16 w15, w8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w14, w8
+__attribute__((naked)) void gadget_rev16_wreg_14_8(void) {
+    asm volatile(
+        "rev16 w15, w9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w14, w9
+__attribute__((naked)) void gadget_rev16_wreg_14_9(void) {
+    asm volatile(
+        "rev16 w15, w10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w14, w10
+__attribute__((naked)) void gadget_rev16_wreg_14_10(void) {
+    asm volatile(
+        "rev16 w15, w11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w14, w11
+__attribute__((naked)) void gadget_rev16_wreg_14_11(void) {
+    asm volatile(
+        "rev16 w15, w12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w14, w12
+__attribute__((naked)) void gadget_rev16_wreg_14_12(void) {
+    asm volatile(
+        "rev16 w15, w13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w14, w13
+__attribute__((naked)) void gadget_rev16_wreg_14_13(void) {
+    asm volatile(
+        "rev16 w15, w14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 w14, w14
+__attribute__((naked)) void gadget_rev16_wreg_14_14(void) {
+    asm volatile(
+        "rev16 w15, w15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x0, x0
+__attribute__((naked)) void gadget_rev16_xreg_0_0(void) {
+    asm volatile(
+        "rev16 x1, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x0, x1
+__attribute__((naked)) void gadget_rev16_xreg_0_1(void) {
+    asm volatile(
+        "rev16 x1, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x0, x2
+__attribute__((naked)) void gadget_rev16_xreg_0_2(void) {
+    asm volatile(
+        "rev16 x1, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x0, x3
+__attribute__((naked)) void gadget_rev16_xreg_0_3(void) {
+    asm volatile(
+        "rev16 x1, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x0, x4
+__attribute__((naked)) void gadget_rev16_xreg_0_4(void) {
+    asm volatile(
+        "rev16 x1, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x0, x5
+__attribute__((naked)) void gadget_rev16_xreg_0_5(void) {
+    asm volatile(
+        "rev16 x1, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x0, x6
+__attribute__((naked)) void gadget_rev16_xreg_0_6(void) {
+    asm volatile(
+        "rev16 x1, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x0, x7
+__attribute__((naked)) void gadget_rev16_xreg_0_7(void) {
+    asm volatile(
+        "rev16 x1, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x0, x8
+__attribute__((naked)) void gadget_rev16_xreg_0_8(void) {
+    asm volatile(
+        "rev16 x1, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x0, x9
+__attribute__((naked)) void gadget_rev16_xreg_0_9(void) {
+    asm volatile(
+        "rev16 x1, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x0, x10
+__attribute__((naked)) void gadget_rev16_xreg_0_10(void) {
+    asm volatile(
+        "rev16 x1, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x0, x11
+__attribute__((naked)) void gadget_rev16_xreg_0_11(void) {
+    asm volatile(
+        "rev16 x1, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x0, x12
+__attribute__((naked)) void gadget_rev16_xreg_0_12(void) {
+    asm volatile(
+        "rev16 x1, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x0, x13
+__attribute__((naked)) void gadget_rev16_xreg_0_13(void) {
+    asm volatile(
+        "rev16 x1, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x0, x14
+__attribute__((naked)) void gadget_rev16_xreg_0_14(void) {
+    asm volatile(
+        "rev16 x1, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x1, x0
+__attribute__((naked)) void gadget_rev16_xreg_1_0(void) {
+    asm volatile(
+        "rev16 x2, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x1, x1
+__attribute__((naked)) void gadget_rev16_xreg_1_1(void) {
+    asm volatile(
+        "rev16 x2, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x1, x2
+__attribute__((naked)) void gadget_rev16_xreg_1_2(void) {
+    asm volatile(
+        "rev16 x2, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x1, x3
+__attribute__((naked)) void gadget_rev16_xreg_1_3(void) {
+    asm volatile(
+        "rev16 x2, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x1, x4
+__attribute__((naked)) void gadget_rev16_xreg_1_4(void) {
+    asm volatile(
+        "rev16 x2, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x1, x5
+__attribute__((naked)) void gadget_rev16_xreg_1_5(void) {
+    asm volatile(
+        "rev16 x2, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x1, x6
+__attribute__((naked)) void gadget_rev16_xreg_1_6(void) {
+    asm volatile(
+        "rev16 x2, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x1, x7
+__attribute__((naked)) void gadget_rev16_xreg_1_7(void) {
+    asm volatile(
+        "rev16 x2, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x1, x8
+__attribute__((naked)) void gadget_rev16_xreg_1_8(void) {
+    asm volatile(
+        "rev16 x2, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x1, x9
+__attribute__((naked)) void gadget_rev16_xreg_1_9(void) {
+    asm volatile(
+        "rev16 x2, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x1, x10
+__attribute__((naked)) void gadget_rev16_xreg_1_10(void) {
+    asm volatile(
+        "rev16 x2, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x1, x11
+__attribute__((naked)) void gadget_rev16_xreg_1_11(void) {
+    asm volatile(
+        "rev16 x2, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x1, x12
+__attribute__((naked)) void gadget_rev16_xreg_1_12(void) {
+    asm volatile(
+        "rev16 x2, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x1, x13
+__attribute__((naked)) void gadget_rev16_xreg_1_13(void) {
+    asm volatile(
+        "rev16 x2, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x1, x14
+__attribute__((naked)) void gadget_rev16_xreg_1_14(void) {
+    asm volatile(
+        "rev16 x2, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x2, x0
+__attribute__((naked)) void gadget_rev16_xreg_2_0(void) {
+    asm volatile(
+        "rev16 x3, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x2, x1
+__attribute__((naked)) void gadget_rev16_xreg_2_1(void) {
+    asm volatile(
+        "rev16 x3, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x2, x2
+__attribute__((naked)) void gadget_rev16_xreg_2_2(void) {
+    asm volatile(
+        "rev16 x3, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x2, x3
+__attribute__((naked)) void gadget_rev16_xreg_2_3(void) {
+    asm volatile(
+        "rev16 x3, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x2, x4
+__attribute__((naked)) void gadget_rev16_xreg_2_4(void) {
+    asm volatile(
+        "rev16 x3, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x2, x5
+__attribute__((naked)) void gadget_rev16_xreg_2_5(void) {
+    asm volatile(
+        "rev16 x3, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x2, x6
+__attribute__((naked)) void gadget_rev16_xreg_2_6(void) {
+    asm volatile(
+        "rev16 x3, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x2, x7
+__attribute__((naked)) void gadget_rev16_xreg_2_7(void) {
+    asm volatile(
+        "rev16 x3, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x2, x8
+__attribute__((naked)) void gadget_rev16_xreg_2_8(void) {
+    asm volatile(
+        "rev16 x3, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x2, x9
+__attribute__((naked)) void gadget_rev16_xreg_2_9(void) {
+    asm volatile(
+        "rev16 x3, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x2, x10
+__attribute__((naked)) void gadget_rev16_xreg_2_10(void) {
+    asm volatile(
+        "rev16 x3, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x2, x11
+__attribute__((naked)) void gadget_rev16_xreg_2_11(void) {
+    asm volatile(
+        "rev16 x3, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x2, x12
+__attribute__((naked)) void gadget_rev16_xreg_2_12(void) {
+    asm volatile(
+        "rev16 x3, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x2, x13
+__attribute__((naked)) void gadget_rev16_xreg_2_13(void) {
+    asm volatile(
+        "rev16 x3, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x2, x14
+__attribute__((naked)) void gadget_rev16_xreg_2_14(void) {
+    asm volatile(
+        "rev16 x3, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x3, x0
+__attribute__((naked)) void gadget_rev16_xreg_3_0(void) {
+    asm volatile(
+        "rev16 x4, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x3, x1
+__attribute__((naked)) void gadget_rev16_xreg_3_1(void) {
+    asm volatile(
+        "rev16 x4, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x3, x2
+__attribute__((naked)) void gadget_rev16_xreg_3_2(void) {
+    asm volatile(
+        "rev16 x4, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x3, x3
+__attribute__((naked)) void gadget_rev16_xreg_3_3(void) {
+    asm volatile(
+        "rev16 x4, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x3, x4
+__attribute__((naked)) void gadget_rev16_xreg_3_4(void) {
+    asm volatile(
+        "rev16 x4, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x3, x5
+__attribute__((naked)) void gadget_rev16_xreg_3_5(void) {
+    asm volatile(
+        "rev16 x4, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x3, x6
+__attribute__((naked)) void gadget_rev16_xreg_3_6(void) {
+    asm volatile(
+        "rev16 x4, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x3, x7
+__attribute__((naked)) void gadget_rev16_xreg_3_7(void) {
+    asm volatile(
+        "rev16 x4, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x3, x8
+__attribute__((naked)) void gadget_rev16_xreg_3_8(void) {
+    asm volatile(
+        "rev16 x4, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x3, x9
+__attribute__((naked)) void gadget_rev16_xreg_3_9(void) {
+    asm volatile(
+        "rev16 x4, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x3, x10
+__attribute__((naked)) void gadget_rev16_xreg_3_10(void) {
+    asm volatile(
+        "rev16 x4, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x3, x11
+__attribute__((naked)) void gadget_rev16_xreg_3_11(void) {
+    asm volatile(
+        "rev16 x4, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x3, x12
+__attribute__((naked)) void gadget_rev16_xreg_3_12(void) {
+    asm volatile(
+        "rev16 x4, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x3, x13
+__attribute__((naked)) void gadget_rev16_xreg_3_13(void) {
+    asm volatile(
+        "rev16 x4, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x3, x14
+__attribute__((naked)) void gadget_rev16_xreg_3_14(void) {
+    asm volatile(
+        "rev16 x4, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x4, x0
+__attribute__((naked)) void gadget_rev16_xreg_4_0(void) {
+    asm volatile(
+        "rev16 x5, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x4, x1
+__attribute__((naked)) void gadget_rev16_xreg_4_1(void) {
+    asm volatile(
+        "rev16 x5, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x4, x2
+__attribute__((naked)) void gadget_rev16_xreg_4_2(void) {
+    asm volatile(
+        "rev16 x5, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x4, x3
+__attribute__((naked)) void gadget_rev16_xreg_4_3(void) {
+    asm volatile(
+        "rev16 x5, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x4, x4
+__attribute__((naked)) void gadget_rev16_xreg_4_4(void) {
+    asm volatile(
+        "rev16 x5, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x4, x5
+__attribute__((naked)) void gadget_rev16_xreg_4_5(void) {
+    asm volatile(
+        "rev16 x5, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x4, x6
+__attribute__((naked)) void gadget_rev16_xreg_4_6(void) {
+    asm volatile(
+        "rev16 x5, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x4, x7
+__attribute__((naked)) void gadget_rev16_xreg_4_7(void) {
+    asm volatile(
+        "rev16 x5, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x4, x8
+__attribute__((naked)) void gadget_rev16_xreg_4_8(void) {
+    asm volatile(
+        "rev16 x5, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x4, x9
+__attribute__((naked)) void gadget_rev16_xreg_4_9(void) {
+    asm volatile(
+        "rev16 x5, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x4, x10
+__attribute__((naked)) void gadget_rev16_xreg_4_10(void) {
+    asm volatile(
+        "rev16 x5, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x4, x11
+__attribute__((naked)) void gadget_rev16_xreg_4_11(void) {
+    asm volatile(
+        "rev16 x5, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x4, x12
+__attribute__((naked)) void gadget_rev16_xreg_4_12(void) {
+    asm volatile(
+        "rev16 x5, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x4, x13
+__attribute__((naked)) void gadget_rev16_xreg_4_13(void) {
+    asm volatile(
+        "rev16 x5, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x4, x14
+__attribute__((naked)) void gadget_rev16_xreg_4_14(void) {
+    asm volatile(
+        "rev16 x5, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x5, x0
+__attribute__((naked)) void gadget_rev16_xreg_5_0(void) {
+    asm volatile(
+        "rev16 x6, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x5, x1
+__attribute__((naked)) void gadget_rev16_xreg_5_1(void) {
+    asm volatile(
+        "rev16 x6, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x5, x2
+__attribute__((naked)) void gadget_rev16_xreg_5_2(void) {
+    asm volatile(
+        "rev16 x6, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x5, x3
+__attribute__((naked)) void gadget_rev16_xreg_5_3(void) {
+    asm volatile(
+        "rev16 x6, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x5, x4
+__attribute__((naked)) void gadget_rev16_xreg_5_4(void) {
+    asm volatile(
+        "rev16 x6, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x5, x5
+__attribute__((naked)) void gadget_rev16_xreg_5_5(void) {
+    asm volatile(
+        "rev16 x6, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x5, x6
+__attribute__((naked)) void gadget_rev16_xreg_5_6(void) {
+    asm volatile(
+        "rev16 x6, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x5, x7
+__attribute__((naked)) void gadget_rev16_xreg_5_7(void) {
+    asm volatile(
+        "rev16 x6, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x5, x8
+__attribute__((naked)) void gadget_rev16_xreg_5_8(void) {
+    asm volatile(
+        "rev16 x6, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x5, x9
+__attribute__((naked)) void gadget_rev16_xreg_5_9(void) {
+    asm volatile(
+        "rev16 x6, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x5, x10
+__attribute__((naked)) void gadget_rev16_xreg_5_10(void) {
+    asm volatile(
+        "rev16 x6, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x5, x11
+__attribute__((naked)) void gadget_rev16_xreg_5_11(void) {
+    asm volatile(
+        "rev16 x6, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x5, x12
+__attribute__((naked)) void gadget_rev16_xreg_5_12(void) {
+    asm volatile(
+        "rev16 x6, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x5, x13
+__attribute__((naked)) void gadget_rev16_xreg_5_13(void) {
+    asm volatile(
+        "rev16 x6, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x5, x14
+__attribute__((naked)) void gadget_rev16_xreg_5_14(void) {
+    asm volatile(
+        "rev16 x6, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x6, x0
+__attribute__((naked)) void gadget_rev16_xreg_6_0(void) {
+    asm volatile(
+        "rev16 x7, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x6, x1
+__attribute__((naked)) void gadget_rev16_xreg_6_1(void) {
+    asm volatile(
+        "rev16 x7, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x6, x2
+__attribute__((naked)) void gadget_rev16_xreg_6_2(void) {
+    asm volatile(
+        "rev16 x7, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x6, x3
+__attribute__((naked)) void gadget_rev16_xreg_6_3(void) {
+    asm volatile(
+        "rev16 x7, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x6, x4
+__attribute__((naked)) void gadget_rev16_xreg_6_4(void) {
+    asm volatile(
+        "rev16 x7, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x6, x5
+__attribute__((naked)) void gadget_rev16_xreg_6_5(void) {
+    asm volatile(
+        "rev16 x7, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x6, x6
+__attribute__((naked)) void gadget_rev16_xreg_6_6(void) {
+    asm volatile(
+        "rev16 x7, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x6, x7
+__attribute__((naked)) void gadget_rev16_xreg_6_7(void) {
+    asm volatile(
+        "rev16 x7, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x6, x8
+__attribute__((naked)) void gadget_rev16_xreg_6_8(void) {
+    asm volatile(
+        "rev16 x7, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x6, x9
+__attribute__((naked)) void gadget_rev16_xreg_6_9(void) {
+    asm volatile(
+        "rev16 x7, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x6, x10
+__attribute__((naked)) void gadget_rev16_xreg_6_10(void) {
+    asm volatile(
+        "rev16 x7, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x6, x11
+__attribute__((naked)) void gadget_rev16_xreg_6_11(void) {
+    asm volatile(
+        "rev16 x7, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x6, x12
+__attribute__((naked)) void gadget_rev16_xreg_6_12(void) {
+    asm volatile(
+        "rev16 x7, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x6, x13
+__attribute__((naked)) void gadget_rev16_xreg_6_13(void) {
+    asm volatile(
+        "rev16 x7, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x6, x14
+__attribute__((naked)) void gadget_rev16_xreg_6_14(void) {
+    asm volatile(
+        "rev16 x7, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x7, x0
+__attribute__((naked)) void gadget_rev16_xreg_7_0(void) {
+    asm volatile(
+        "rev16 x8, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x7, x1
+__attribute__((naked)) void gadget_rev16_xreg_7_1(void) {
+    asm volatile(
+        "rev16 x8, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x7, x2
+__attribute__((naked)) void gadget_rev16_xreg_7_2(void) {
+    asm volatile(
+        "rev16 x8, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x7, x3
+__attribute__((naked)) void gadget_rev16_xreg_7_3(void) {
+    asm volatile(
+        "rev16 x8, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x7, x4
+__attribute__((naked)) void gadget_rev16_xreg_7_4(void) {
+    asm volatile(
+        "rev16 x8, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x7, x5
+__attribute__((naked)) void gadget_rev16_xreg_7_5(void) {
+    asm volatile(
+        "rev16 x8, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x7, x6
+__attribute__((naked)) void gadget_rev16_xreg_7_6(void) {
+    asm volatile(
+        "rev16 x8, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x7, x7
+__attribute__((naked)) void gadget_rev16_xreg_7_7(void) {
+    asm volatile(
+        "rev16 x8, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x7, x8
+__attribute__((naked)) void gadget_rev16_xreg_7_8(void) {
+    asm volatile(
+        "rev16 x8, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x7, x9
+__attribute__((naked)) void gadget_rev16_xreg_7_9(void) {
+    asm volatile(
+        "rev16 x8, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x7, x10
+__attribute__((naked)) void gadget_rev16_xreg_7_10(void) {
+    asm volatile(
+        "rev16 x8, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x7, x11
+__attribute__((naked)) void gadget_rev16_xreg_7_11(void) {
+    asm volatile(
+        "rev16 x8, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x7, x12
+__attribute__((naked)) void gadget_rev16_xreg_7_12(void) {
+    asm volatile(
+        "rev16 x8, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x7, x13
+__attribute__((naked)) void gadget_rev16_xreg_7_13(void) {
+    asm volatile(
+        "rev16 x8, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x7, x14
+__attribute__((naked)) void gadget_rev16_xreg_7_14(void) {
+    asm volatile(
+        "rev16 x8, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x8, x0
+__attribute__((naked)) void gadget_rev16_xreg_8_0(void) {
+    asm volatile(
+        "rev16 x9, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x8, x1
+__attribute__((naked)) void gadget_rev16_xreg_8_1(void) {
+    asm volatile(
+        "rev16 x9, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x8, x2
+__attribute__((naked)) void gadget_rev16_xreg_8_2(void) {
+    asm volatile(
+        "rev16 x9, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x8, x3
+__attribute__((naked)) void gadget_rev16_xreg_8_3(void) {
+    asm volatile(
+        "rev16 x9, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x8, x4
+__attribute__((naked)) void gadget_rev16_xreg_8_4(void) {
+    asm volatile(
+        "rev16 x9, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x8, x5
+__attribute__((naked)) void gadget_rev16_xreg_8_5(void) {
+    asm volatile(
+        "rev16 x9, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x8, x6
+__attribute__((naked)) void gadget_rev16_xreg_8_6(void) {
+    asm volatile(
+        "rev16 x9, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x8, x7
+__attribute__((naked)) void gadget_rev16_xreg_8_7(void) {
+    asm volatile(
+        "rev16 x9, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x8, x8
+__attribute__((naked)) void gadget_rev16_xreg_8_8(void) {
+    asm volatile(
+        "rev16 x9, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x8, x9
+__attribute__((naked)) void gadget_rev16_xreg_8_9(void) {
+    asm volatile(
+        "rev16 x9, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x8, x10
+__attribute__((naked)) void gadget_rev16_xreg_8_10(void) {
+    asm volatile(
+        "rev16 x9, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x8, x11
+__attribute__((naked)) void gadget_rev16_xreg_8_11(void) {
+    asm volatile(
+        "rev16 x9, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x8, x12
+__attribute__((naked)) void gadget_rev16_xreg_8_12(void) {
+    asm volatile(
+        "rev16 x9, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x8, x13
+__attribute__((naked)) void gadget_rev16_xreg_8_13(void) {
+    asm volatile(
+        "rev16 x9, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x8, x14
+__attribute__((naked)) void gadget_rev16_xreg_8_14(void) {
+    asm volatile(
+        "rev16 x9, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x9, x0
+__attribute__((naked)) void gadget_rev16_xreg_9_0(void) {
+    asm volatile(
+        "rev16 x10, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x9, x1
+__attribute__((naked)) void gadget_rev16_xreg_9_1(void) {
+    asm volatile(
+        "rev16 x10, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x9, x2
+__attribute__((naked)) void gadget_rev16_xreg_9_2(void) {
+    asm volatile(
+        "rev16 x10, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x9, x3
+__attribute__((naked)) void gadget_rev16_xreg_9_3(void) {
+    asm volatile(
+        "rev16 x10, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x9, x4
+__attribute__((naked)) void gadget_rev16_xreg_9_4(void) {
+    asm volatile(
+        "rev16 x10, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x9, x5
+__attribute__((naked)) void gadget_rev16_xreg_9_5(void) {
+    asm volatile(
+        "rev16 x10, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x9, x6
+__attribute__((naked)) void gadget_rev16_xreg_9_6(void) {
+    asm volatile(
+        "rev16 x10, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x9, x7
+__attribute__((naked)) void gadget_rev16_xreg_9_7(void) {
+    asm volatile(
+        "rev16 x10, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x9, x8
+__attribute__((naked)) void gadget_rev16_xreg_9_8(void) {
+    asm volatile(
+        "rev16 x10, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x9, x9
+__attribute__((naked)) void gadget_rev16_xreg_9_9(void) {
+    asm volatile(
+        "rev16 x10, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x9, x10
+__attribute__((naked)) void gadget_rev16_xreg_9_10(void) {
+    asm volatile(
+        "rev16 x10, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x9, x11
+__attribute__((naked)) void gadget_rev16_xreg_9_11(void) {
+    asm volatile(
+        "rev16 x10, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x9, x12
+__attribute__((naked)) void gadget_rev16_xreg_9_12(void) {
+    asm volatile(
+        "rev16 x10, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x9, x13
+__attribute__((naked)) void gadget_rev16_xreg_9_13(void) {
+    asm volatile(
+        "rev16 x10, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x9, x14
+__attribute__((naked)) void gadget_rev16_xreg_9_14(void) {
+    asm volatile(
+        "rev16 x10, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x10, x0
+__attribute__((naked)) void gadget_rev16_xreg_10_0(void) {
+    asm volatile(
+        "rev16 x11, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x10, x1
+__attribute__((naked)) void gadget_rev16_xreg_10_1(void) {
+    asm volatile(
+        "rev16 x11, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x10, x2
+__attribute__((naked)) void gadget_rev16_xreg_10_2(void) {
+    asm volatile(
+        "rev16 x11, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x10, x3
+__attribute__((naked)) void gadget_rev16_xreg_10_3(void) {
+    asm volatile(
+        "rev16 x11, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x10, x4
+__attribute__((naked)) void gadget_rev16_xreg_10_4(void) {
+    asm volatile(
+        "rev16 x11, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x10, x5
+__attribute__((naked)) void gadget_rev16_xreg_10_5(void) {
+    asm volatile(
+        "rev16 x11, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x10, x6
+__attribute__((naked)) void gadget_rev16_xreg_10_6(void) {
+    asm volatile(
+        "rev16 x11, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x10, x7
+__attribute__((naked)) void gadget_rev16_xreg_10_7(void) {
+    asm volatile(
+        "rev16 x11, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x10, x8
+__attribute__((naked)) void gadget_rev16_xreg_10_8(void) {
+    asm volatile(
+        "rev16 x11, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x10, x9
+__attribute__((naked)) void gadget_rev16_xreg_10_9(void) {
+    asm volatile(
+        "rev16 x11, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x10, x10
+__attribute__((naked)) void gadget_rev16_xreg_10_10(void) {
+    asm volatile(
+        "rev16 x11, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x10, x11
+__attribute__((naked)) void gadget_rev16_xreg_10_11(void) {
+    asm volatile(
+        "rev16 x11, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x10, x12
+__attribute__((naked)) void gadget_rev16_xreg_10_12(void) {
+    asm volatile(
+        "rev16 x11, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x10, x13
+__attribute__((naked)) void gadget_rev16_xreg_10_13(void) {
+    asm volatile(
+        "rev16 x11, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x10, x14
+__attribute__((naked)) void gadget_rev16_xreg_10_14(void) {
+    asm volatile(
+        "rev16 x11, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x11, x0
+__attribute__((naked)) void gadget_rev16_xreg_11_0(void) {
+    asm volatile(
+        "rev16 x12, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x11, x1
+__attribute__((naked)) void gadget_rev16_xreg_11_1(void) {
+    asm volatile(
+        "rev16 x12, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x11, x2
+__attribute__((naked)) void gadget_rev16_xreg_11_2(void) {
+    asm volatile(
+        "rev16 x12, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x11, x3
+__attribute__((naked)) void gadget_rev16_xreg_11_3(void) {
+    asm volatile(
+        "rev16 x12, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x11, x4
+__attribute__((naked)) void gadget_rev16_xreg_11_4(void) {
+    asm volatile(
+        "rev16 x12, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x11, x5
+__attribute__((naked)) void gadget_rev16_xreg_11_5(void) {
+    asm volatile(
+        "rev16 x12, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x11, x6
+__attribute__((naked)) void gadget_rev16_xreg_11_6(void) {
+    asm volatile(
+        "rev16 x12, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x11, x7
+__attribute__((naked)) void gadget_rev16_xreg_11_7(void) {
+    asm volatile(
+        "rev16 x12, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x11, x8
+__attribute__((naked)) void gadget_rev16_xreg_11_8(void) {
+    asm volatile(
+        "rev16 x12, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x11, x9
+__attribute__((naked)) void gadget_rev16_xreg_11_9(void) {
+    asm volatile(
+        "rev16 x12, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x11, x10
+__attribute__((naked)) void gadget_rev16_xreg_11_10(void) {
+    asm volatile(
+        "rev16 x12, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x11, x11
+__attribute__((naked)) void gadget_rev16_xreg_11_11(void) {
+    asm volatile(
+        "rev16 x12, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x11, x12
+__attribute__((naked)) void gadget_rev16_xreg_11_12(void) {
+    asm volatile(
+        "rev16 x12, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x11, x13
+__attribute__((naked)) void gadget_rev16_xreg_11_13(void) {
+    asm volatile(
+        "rev16 x12, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x11, x14
+__attribute__((naked)) void gadget_rev16_xreg_11_14(void) {
+    asm volatile(
+        "rev16 x12, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x12, x0
+__attribute__((naked)) void gadget_rev16_xreg_12_0(void) {
+    asm volatile(
+        "rev16 x13, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x12, x1
+__attribute__((naked)) void gadget_rev16_xreg_12_1(void) {
+    asm volatile(
+        "rev16 x13, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x12, x2
+__attribute__((naked)) void gadget_rev16_xreg_12_2(void) {
+    asm volatile(
+        "rev16 x13, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x12, x3
+__attribute__((naked)) void gadget_rev16_xreg_12_3(void) {
+    asm volatile(
+        "rev16 x13, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x12, x4
+__attribute__((naked)) void gadget_rev16_xreg_12_4(void) {
+    asm volatile(
+        "rev16 x13, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x12, x5
+__attribute__((naked)) void gadget_rev16_xreg_12_5(void) {
+    asm volatile(
+        "rev16 x13, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x12, x6
+__attribute__((naked)) void gadget_rev16_xreg_12_6(void) {
+    asm volatile(
+        "rev16 x13, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x12, x7
+__attribute__((naked)) void gadget_rev16_xreg_12_7(void) {
+    asm volatile(
+        "rev16 x13, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x12, x8
+__attribute__((naked)) void gadget_rev16_xreg_12_8(void) {
+    asm volatile(
+        "rev16 x13, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x12, x9
+__attribute__((naked)) void gadget_rev16_xreg_12_9(void) {
+    asm volatile(
+        "rev16 x13, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x12, x10
+__attribute__((naked)) void gadget_rev16_xreg_12_10(void) {
+    asm volatile(
+        "rev16 x13, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x12, x11
+__attribute__((naked)) void gadget_rev16_xreg_12_11(void) {
+    asm volatile(
+        "rev16 x13, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x12, x12
+__attribute__((naked)) void gadget_rev16_xreg_12_12(void) {
+    asm volatile(
+        "rev16 x13, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x12, x13
+__attribute__((naked)) void gadget_rev16_xreg_12_13(void) {
+    asm volatile(
+        "rev16 x13, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x12, x14
+__attribute__((naked)) void gadget_rev16_xreg_12_14(void) {
+    asm volatile(
+        "rev16 x13, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x13, x0
+__attribute__((naked)) void gadget_rev16_xreg_13_0(void) {
+    asm volatile(
+        "rev16 x14, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x13, x1
+__attribute__((naked)) void gadget_rev16_xreg_13_1(void) {
+    asm volatile(
+        "rev16 x14, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x13, x2
+__attribute__((naked)) void gadget_rev16_xreg_13_2(void) {
+    asm volatile(
+        "rev16 x14, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x13, x3
+__attribute__((naked)) void gadget_rev16_xreg_13_3(void) {
+    asm volatile(
+        "rev16 x14, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x13, x4
+__attribute__((naked)) void gadget_rev16_xreg_13_4(void) {
+    asm volatile(
+        "rev16 x14, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x13, x5
+__attribute__((naked)) void gadget_rev16_xreg_13_5(void) {
+    asm volatile(
+        "rev16 x14, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x13, x6
+__attribute__((naked)) void gadget_rev16_xreg_13_6(void) {
+    asm volatile(
+        "rev16 x14, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x13, x7
+__attribute__((naked)) void gadget_rev16_xreg_13_7(void) {
+    asm volatile(
+        "rev16 x14, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x13, x8
+__attribute__((naked)) void gadget_rev16_xreg_13_8(void) {
+    asm volatile(
+        "rev16 x14, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x13, x9
+__attribute__((naked)) void gadget_rev16_xreg_13_9(void) {
+    asm volatile(
+        "rev16 x14, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x13, x10
+__attribute__((naked)) void gadget_rev16_xreg_13_10(void) {
+    asm volatile(
+        "rev16 x14, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x13, x11
+__attribute__((naked)) void gadget_rev16_xreg_13_11(void) {
+    asm volatile(
+        "rev16 x14, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x13, x12
+__attribute__((naked)) void gadget_rev16_xreg_13_12(void) {
+    asm volatile(
+        "rev16 x14, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x13, x13
+__attribute__((naked)) void gadget_rev16_xreg_13_13(void) {
+    asm volatile(
+        "rev16 x14, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x13, x14
+__attribute__((naked)) void gadget_rev16_xreg_13_14(void) {
+    asm volatile(
+        "rev16 x14, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x14, x0
+__attribute__((naked)) void gadget_rev16_xreg_14_0(void) {
+    asm volatile(
+        "rev16 x15, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x14, x1
+__attribute__((naked)) void gadget_rev16_xreg_14_1(void) {
+    asm volatile(
+        "rev16 x15, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x14, x2
+__attribute__((naked)) void gadget_rev16_xreg_14_2(void) {
+    asm volatile(
+        "rev16 x15, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x14, x3
+__attribute__((naked)) void gadget_rev16_xreg_14_3(void) {
+    asm volatile(
+        "rev16 x15, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x14, x4
+__attribute__((naked)) void gadget_rev16_xreg_14_4(void) {
+    asm volatile(
+        "rev16 x15, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x14, x5
+__attribute__((naked)) void gadget_rev16_xreg_14_5(void) {
+    asm volatile(
+        "rev16 x15, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x14, x6
+__attribute__((naked)) void gadget_rev16_xreg_14_6(void) {
+    asm volatile(
+        "rev16 x15, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x14, x7
+__attribute__((naked)) void gadget_rev16_xreg_14_7(void) {
+    asm volatile(
+        "rev16 x15, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x14, x8
+__attribute__((naked)) void gadget_rev16_xreg_14_8(void) {
+    asm volatile(
+        "rev16 x15, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x14, x9
+__attribute__((naked)) void gadget_rev16_xreg_14_9(void) {
+    asm volatile(
+        "rev16 x15, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x14, x10
+__attribute__((naked)) void gadget_rev16_xreg_14_10(void) {
+    asm volatile(
+        "rev16 x15, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x14, x11
+__attribute__((naked)) void gadget_rev16_xreg_14_11(void) {
+    asm volatile(
+        "rev16 x15, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x14, x12
+__attribute__((naked)) void gadget_rev16_xreg_14_12(void) {
+    asm volatile(
+        "rev16 x15, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x14, x13
+__attribute__((naked)) void gadget_rev16_xreg_14_13(void) {
+    asm volatile(
+        "rev16 x15, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV16 x14, x14
+__attribute__((naked)) void gadget_rev16_xreg_14_14(void) {
+    asm volatile(
+        "rev16 x15, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x0, x0
+__attribute__((naked)) void gadget_rev32_xreg_0_0(void) {
+    asm volatile(
+        "rev32 x1, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x0, x1
+__attribute__((naked)) void gadget_rev32_xreg_0_1(void) {
+    asm volatile(
+        "rev32 x1, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x0, x2
+__attribute__((naked)) void gadget_rev32_xreg_0_2(void) {
+    asm volatile(
+        "rev32 x1, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x0, x3
+__attribute__((naked)) void gadget_rev32_xreg_0_3(void) {
+    asm volatile(
+        "rev32 x1, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x0, x4
+__attribute__((naked)) void gadget_rev32_xreg_0_4(void) {
+    asm volatile(
+        "rev32 x1, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x0, x5
+__attribute__((naked)) void gadget_rev32_xreg_0_5(void) {
+    asm volatile(
+        "rev32 x1, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x0, x6
+__attribute__((naked)) void gadget_rev32_xreg_0_6(void) {
+    asm volatile(
+        "rev32 x1, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x0, x7
+__attribute__((naked)) void gadget_rev32_xreg_0_7(void) {
+    asm volatile(
+        "rev32 x1, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x0, x8
+__attribute__((naked)) void gadget_rev32_xreg_0_8(void) {
+    asm volatile(
+        "rev32 x1, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x0, x9
+__attribute__((naked)) void gadget_rev32_xreg_0_9(void) {
+    asm volatile(
+        "rev32 x1, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x0, x10
+__attribute__((naked)) void gadget_rev32_xreg_0_10(void) {
+    asm volatile(
+        "rev32 x1, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x0, x11
+__attribute__((naked)) void gadget_rev32_xreg_0_11(void) {
+    asm volatile(
+        "rev32 x1, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x0, x12
+__attribute__((naked)) void gadget_rev32_xreg_0_12(void) {
+    asm volatile(
+        "rev32 x1, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x0, x13
+__attribute__((naked)) void gadget_rev32_xreg_0_13(void) {
+    asm volatile(
+        "rev32 x1, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x0, x14
+__attribute__((naked)) void gadget_rev32_xreg_0_14(void) {
+    asm volatile(
+        "rev32 x1, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x1, x0
+__attribute__((naked)) void gadget_rev32_xreg_1_0(void) {
+    asm volatile(
+        "rev32 x2, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x1, x1
+__attribute__((naked)) void gadget_rev32_xreg_1_1(void) {
+    asm volatile(
+        "rev32 x2, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x1, x2
+__attribute__((naked)) void gadget_rev32_xreg_1_2(void) {
+    asm volatile(
+        "rev32 x2, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x1, x3
+__attribute__((naked)) void gadget_rev32_xreg_1_3(void) {
+    asm volatile(
+        "rev32 x2, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x1, x4
+__attribute__((naked)) void gadget_rev32_xreg_1_4(void) {
+    asm volatile(
+        "rev32 x2, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x1, x5
+__attribute__((naked)) void gadget_rev32_xreg_1_5(void) {
+    asm volatile(
+        "rev32 x2, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x1, x6
+__attribute__((naked)) void gadget_rev32_xreg_1_6(void) {
+    asm volatile(
+        "rev32 x2, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x1, x7
+__attribute__((naked)) void gadget_rev32_xreg_1_7(void) {
+    asm volatile(
+        "rev32 x2, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x1, x8
+__attribute__((naked)) void gadget_rev32_xreg_1_8(void) {
+    asm volatile(
+        "rev32 x2, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x1, x9
+__attribute__((naked)) void gadget_rev32_xreg_1_9(void) {
+    asm volatile(
+        "rev32 x2, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x1, x10
+__attribute__((naked)) void gadget_rev32_xreg_1_10(void) {
+    asm volatile(
+        "rev32 x2, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x1, x11
+__attribute__((naked)) void gadget_rev32_xreg_1_11(void) {
+    asm volatile(
+        "rev32 x2, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x1, x12
+__attribute__((naked)) void gadget_rev32_xreg_1_12(void) {
+    asm volatile(
+        "rev32 x2, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x1, x13
+__attribute__((naked)) void gadget_rev32_xreg_1_13(void) {
+    asm volatile(
+        "rev32 x2, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x1, x14
+__attribute__((naked)) void gadget_rev32_xreg_1_14(void) {
+    asm volatile(
+        "rev32 x2, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x2, x0
+__attribute__((naked)) void gadget_rev32_xreg_2_0(void) {
+    asm volatile(
+        "rev32 x3, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x2, x1
+__attribute__((naked)) void gadget_rev32_xreg_2_1(void) {
+    asm volatile(
+        "rev32 x3, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x2, x2
+__attribute__((naked)) void gadget_rev32_xreg_2_2(void) {
+    asm volatile(
+        "rev32 x3, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x2, x3
+__attribute__((naked)) void gadget_rev32_xreg_2_3(void) {
+    asm volatile(
+        "rev32 x3, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x2, x4
+__attribute__((naked)) void gadget_rev32_xreg_2_4(void) {
+    asm volatile(
+        "rev32 x3, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x2, x5
+__attribute__((naked)) void gadget_rev32_xreg_2_5(void) {
+    asm volatile(
+        "rev32 x3, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x2, x6
+__attribute__((naked)) void gadget_rev32_xreg_2_6(void) {
+    asm volatile(
+        "rev32 x3, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x2, x7
+__attribute__((naked)) void gadget_rev32_xreg_2_7(void) {
+    asm volatile(
+        "rev32 x3, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x2, x8
+__attribute__((naked)) void gadget_rev32_xreg_2_8(void) {
+    asm volatile(
+        "rev32 x3, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x2, x9
+__attribute__((naked)) void gadget_rev32_xreg_2_9(void) {
+    asm volatile(
+        "rev32 x3, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x2, x10
+__attribute__((naked)) void gadget_rev32_xreg_2_10(void) {
+    asm volatile(
+        "rev32 x3, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x2, x11
+__attribute__((naked)) void gadget_rev32_xreg_2_11(void) {
+    asm volatile(
+        "rev32 x3, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x2, x12
+__attribute__((naked)) void gadget_rev32_xreg_2_12(void) {
+    asm volatile(
+        "rev32 x3, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x2, x13
+__attribute__((naked)) void gadget_rev32_xreg_2_13(void) {
+    asm volatile(
+        "rev32 x3, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x2, x14
+__attribute__((naked)) void gadget_rev32_xreg_2_14(void) {
+    asm volatile(
+        "rev32 x3, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x3, x0
+__attribute__((naked)) void gadget_rev32_xreg_3_0(void) {
+    asm volatile(
+        "rev32 x4, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x3, x1
+__attribute__((naked)) void gadget_rev32_xreg_3_1(void) {
+    asm volatile(
+        "rev32 x4, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x3, x2
+__attribute__((naked)) void gadget_rev32_xreg_3_2(void) {
+    asm volatile(
+        "rev32 x4, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x3, x3
+__attribute__((naked)) void gadget_rev32_xreg_3_3(void) {
+    asm volatile(
+        "rev32 x4, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x3, x4
+__attribute__((naked)) void gadget_rev32_xreg_3_4(void) {
+    asm volatile(
+        "rev32 x4, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x3, x5
+__attribute__((naked)) void gadget_rev32_xreg_3_5(void) {
+    asm volatile(
+        "rev32 x4, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x3, x6
+__attribute__((naked)) void gadget_rev32_xreg_3_6(void) {
+    asm volatile(
+        "rev32 x4, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x3, x7
+__attribute__((naked)) void gadget_rev32_xreg_3_7(void) {
+    asm volatile(
+        "rev32 x4, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x3, x8
+__attribute__((naked)) void gadget_rev32_xreg_3_8(void) {
+    asm volatile(
+        "rev32 x4, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x3, x9
+__attribute__((naked)) void gadget_rev32_xreg_3_9(void) {
+    asm volatile(
+        "rev32 x4, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x3, x10
+__attribute__((naked)) void gadget_rev32_xreg_3_10(void) {
+    asm volatile(
+        "rev32 x4, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x3, x11
+__attribute__((naked)) void gadget_rev32_xreg_3_11(void) {
+    asm volatile(
+        "rev32 x4, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x3, x12
+__attribute__((naked)) void gadget_rev32_xreg_3_12(void) {
+    asm volatile(
+        "rev32 x4, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x3, x13
+__attribute__((naked)) void gadget_rev32_xreg_3_13(void) {
+    asm volatile(
+        "rev32 x4, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x3, x14
+__attribute__((naked)) void gadget_rev32_xreg_3_14(void) {
+    asm volatile(
+        "rev32 x4, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x4, x0
+__attribute__((naked)) void gadget_rev32_xreg_4_0(void) {
+    asm volatile(
+        "rev32 x5, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x4, x1
+__attribute__((naked)) void gadget_rev32_xreg_4_1(void) {
+    asm volatile(
+        "rev32 x5, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x4, x2
+__attribute__((naked)) void gadget_rev32_xreg_4_2(void) {
+    asm volatile(
+        "rev32 x5, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x4, x3
+__attribute__((naked)) void gadget_rev32_xreg_4_3(void) {
+    asm volatile(
+        "rev32 x5, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x4, x4
+__attribute__((naked)) void gadget_rev32_xreg_4_4(void) {
+    asm volatile(
+        "rev32 x5, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x4, x5
+__attribute__((naked)) void gadget_rev32_xreg_4_5(void) {
+    asm volatile(
+        "rev32 x5, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x4, x6
+__attribute__((naked)) void gadget_rev32_xreg_4_6(void) {
+    asm volatile(
+        "rev32 x5, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x4, x7
+__attribute__((naked)) void gadget_rev32_xreg_4_7(void) {
+    asm volatile(
+        "rev32 x5, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x4, x8
+__attribute__((naked)) void gadget_rev32_xreg_4_8(void) {
+    asm volatile(
+        "rev32 x5, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x4, x9
+__attribute__((naked)) void gadget_rev32_xreg_4_9(void) {
+    asm volatile(
+        "rev32 x5, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x4, x10
+__attribute__((naked)) void gadget_rev32_xreg_4_10(void) {
+    asm volatile(
+        "rev32 x5, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x4, x11
+__attribute__((naked)) void gadget_rev32_xreg_4_11(void) {
+    asm volatile(
+        "rev32 x5, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x4, x12
+__attribute__((naked)) void gadget_rev32_xreg_4_12(void) {
+    asm volatile(
+        "rev32 x5, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x4, x13
+__attribute__((naked)) void gadget_rev32_xreg_4_13(void) {
+    asm volatile(
+        "rev32 x5, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x4, x14
+__attribute__((naked)) void gadget_rev32_xreg_4_14(void) {
+    asm volatile(
+        "rev32 x5, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x5, x0
+__attribute__((naked)) void gadget_rev32_xreg_5_0(void) {
+    asm volatile(
+        "rev32 x6, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x5, x1
+__attribute__((naked)) void gadget_rev32_xreg_5_1(void) {
+    asm volatile(
+        "rev32 x6, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x5, x2
+__attribute__((naked)) void gadget_rev32_xreg_5_2(void) {
+    asm volatile(
+        "rev32 x6, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x5, x3
+__attribute__((naked)) void gadget_rev32_xreg_5_3(void) {
+    asm volatile(
+        "rev32 x6, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x5, x4
+__attribute__((naked)) void gadget_rev32_xreg_5_4(void) {
+    asm volatile(
+        "rev32 x6, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x5, x5
+__attribute__((naked)) void gadget_rev32_xreg_5_5(void) {
+    asm volatile(
+        "rev32 x6, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x5, x6
+__attribute__((naked)) void gadget_rev32_xreg_5_6(void) {
+    asm volatile(
+        "rev32 x6, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x5, x7
+__attribute__((naked)) void gadget_rev32_xreg_5_7(void) {
+    asm volatile(
+        "rev32 x6, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x5, x8
+__attribute__((naked)) void gadget_rev32_xreg_5_8(void) {
+    asm volatile(
+        "rev32 x6, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x5, x9
+__attribute__((naked)) void gadget_rev32_xreg_5_9(void) {
+    asm volatile(
+        "rev32 x6, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x5, x10
+__attribute__((naked)) void gadget_rev32_xreg_5_10(void) {
+    asm volatile(
+        "rev32 x6, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x5, x11
+__attribute__((naked)) void gadget_rev32_xreg_5_11(void) {
+    asm volatile(
+        "rev32 x6, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x5, x12
+__attribute__((naked)) void gadget_rev32_xreg_5_12(void) {
+    asm volatile(
+        "rev32 x6, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x5, x13
+__attribute__((naked)) void gadget_rev32_xreg_5_13(void) {
+    asm volatile(
+        "rev32 x6, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x5, x14
+__attribute__((naked)) void gadget_rev32_xreg_5_14(void) {
+    asm volatile(
+        "rev32 x6, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x6, x0
+__attribute__((naked)) void gadget_rev32_xreg_6_0(void) {
+    asm volatile(
+        "rev32 x7, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x6, x1
+__attribute__((naked)) void gadget_rev32_xreg_6_1(void) {
+    asm volatile(
+        "rev32 x7, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x6, x2
+__attribute__((naked)) void gadget_rev32_xreg_6_2(void) {
+    asm volatile(
+        "rev32 x7, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x6, x3
+__attribute__((naked)) void gadget_rev32_xreg_6_3(void) {
+    asm volatile(
+        "rev32 x7, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x6, x4
+__attribute__((naked)) void gadget_rev32_xreg_6_4(void) {
+    asm volatile(
+        "rev32 x7, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x6, x5
+__attribute__((naked)) void gadget_rev32_xreg_6_5(void) {
+    asm volatile(
+        "rev32 x7, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x6, x6
+__attribute__((naked)) void gadget_rev32_xreg_6_6(void) {
+    asm volatile(
+        "rev32 x7, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x6, x7
+__attribute__((naked)) void gadget_rev32_xreg_6_7(void) {
+    asm volatile(
+        "rev32 x7, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x6, x8
+__attribute__((naked)) void gadget_rev32_xreg_6_8(void) {
+    asm volatile(
+        "rev32 x7, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x6, x9
+__attribute__((naked)) void gadget_rev32_xreg_6_9(void) {
+    asm volatile(
+        "rev32 x7, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x6, x10
+__attribute__((naked)) void gadget_rev32_xreg_6_10(void) {
+    asm volatile(
+        "rev32 x7, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x6, x11
+__attribute__((naked)) void gadget_rev32_xreg_6_11(void) {
+    asm volatile(
+        "rev32 x7, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x6, x12
+__attribute__((naked)) void gadget_rev32_xreg_6_12(void) {
+    asm volatile(
+        "rev32 x7, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x6, x13
+__attribute__((naked)) void gadget_rev32_xreg_6_13(void) {
+    asm volatile(
+        "rev32 x7, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x6, x14
+__attribute__((naked)) void gadget_rev32_xreg_6_14(void) {
+    asm volatile(
+        "rev32 x7, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x7, x0
+__attribute__((naked)) void gadget_rev32_xreg_7_0(void) {
+    asm volatile(
+        "rev32 x8, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x7, x1
+__attribute__((naked)) void gadget_rev32_xreg_7_1(void) {
+    asm volatile(
+        "rev32 x8, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x7, x2
+__attribute__((naked)) void gadget_rev32_xreg_7_2(void) {
+    asm volatile(
+        "rev32 x8, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x7, x3
+__attribute__((naked)) void gadget_rev32_xreg_7_3(void) {
+    asm volatile(
+        "rev32 x8, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x7, x4
+__attribute__((naked)) void gadget_rev32_xreg_7_4(void) {
+    asm volatile(
+        "rev32 x8, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x7, x5
+__attribute__((naked)) void gadget_rev32_xreg_7_5(void) {
+    asm volatile(
+        "rev32 x8, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x7, x6
+__attribute__((naked)) void gadget_rev32_xreg_7_6(void) {
+    asm volatile(
+        "rev32 x8, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x7, x7
+__attribute__((naked)) void gadget_rev32_xreg_7_7(void) {
+    asm volatile(
+        "rev32 x8, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x7, x8
+__attribute__((naked)) void gadget_rev32_xreg_7_8(void) {
+    asm volatile(
+        "rev32 x8, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x7, x9
+__attribute__((naked)) void gadget_rev32_xreg_7_9(void) {
+    asm volatile(
+        "rev32 x8, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x7, x10
+__attribute__((naked)) void gadget_rev32_xreg_7_10(void) {
+    asm volatile(
+        "rev32 x8, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x7, x11
+__attribute__((naked)) void gadget_rev32_xreg_7_11(void) {
+    asm volatile(
+        "rev32 x8, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x7, x12
+__attribute__((naked)) void gadget_rev32_xreg_7_12(void) {
+    asm volatile(
+        "rev32 x8, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x7, x13
+__attribute__((naked)) void gadget_rev32_xreg_7_13(void) {
+    asm volatile(
+        "rev32 x8, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x7, x14
+__attribute__((naked)) void gadget_rev32_xreg_7_14(void) {
+    asm volatile(
+        "rev32 x8, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x8, x0
+__attribute__((naked)) void gadget_rev32_xreg_8_0(void) {
+    asm volatile(
+        "rev32 x9, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x8, x1
+__attribute__((naked)) void gadget_rev32_xreg_8_1(void) {
+    asm volatile(
+        "rev32 x9, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x8, x2
+__attribute__((naked)) void gadget_rev32_xreg_8_2(void) {
+    asm volatile(
+        "rev32 x9, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x8, x3
+__attribute__((naked)) void gadget_rev32_xreg_8_3(void) {
+    asm volatile(
+        "rev32 x9, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x8, x4
+__attribute__((naked)) void gadget_rev32_xreg_8_4(void) {
+    asm volatile(
+        "rev32 x9, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x8, x5
+__attribute__((naked)) void gadget_rev32_xreg_8_5(void) {
+    asm volatile(
+        "rev32 x9, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x8, x6
+__attribute__((naked)) void gadget_rev32_xreg_8_6(void) {
+    asm volatile(
+        "rev32 x9, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x8, x7
+__attribute__((naked)) void gadget_rev32_xreg_8_7(void) {
+    asm volatile(
+        "rev32 x9, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x8, x8
+__attribute__((naked)) void gadget_rev32_xreg_8_8(void) {
+    asm volatile(
+        "rev32 x9, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x8, x9
+__attribute__((naked)) void gadget_rev32_xreg_8_9(void) {
+    asm volatile(
+        "rev32 x9, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x8, x10
+__attribute__((naked)) void gadget_rev32_xreg_8_10(void) {
+    asm volatile(
+        "rev32 x9, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x8, x11
+__attribute__((naked)) void gadget_rev32_xreg_8_11(void) {
+    asm volatile(
+        "rev32 x9, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x8, x12
+__attribute__((naked)) void gadget_rev32_xreg_8_12(void) {
+    asm volatile(
+        "rev32 x9, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x8, x13
+__attribute__((naked)) void gadget_rev32_xreg_8_13(void) {
+    asm volatile(
+        "rev32 x9, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x8, x14
+__attribute__((naked)) void gadget_rev32_xreg_8_14(void) {
+    asm volatile(
+        "rev32 x9, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x9, x0
+__attribute__((naked)) void gadget_rev32_xreg_9_0(void) {
+    asm volatile(
+        "rev32 x10, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x9, x1
+__attribute__((naked)) void gadget_rev32_xreg_9_1(void) {
+    asm volatile(
+        "rev32 x10, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x9, x2
+__attribute__((naked)) void gadget_rev32_xreg_9_2(void) {
+    asm volatile(
+        "rev32 x10, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x9, x3
+__attribute__((naked)) void gadget_rev32_xreg_9_3(void) {
+    asm volatile(
+        "rev32 x10, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x9, x4
+__attribute__((naked)) void gadget_rev32_xreg_9_4(void) {
+    asm volatile(
+        "rev32 x10, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x9, x5
+__attribute__((naked)) void gadget_rev32_xreg_9_5(void) {
+    asm volatile(
+        "rev32 x10, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x9, x6
+__attribute__((naked)) void gadget_rev32_xreg_9_6(void) {
+    asm volatile(
+        "rev32 x10, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x9, x7
+__attribute__((naked)) void gadget_rev32_xreg_9_7(void) {
+    asm volatile(
+        "rev32 x10, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x9, x8
+__attribute__((naked)) void gadget_rev32_xreg_9_8(void) {
+    asm volatile(
+        "rev32 x10, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x9, x9
+__attribute__((naked)) void gadget_rev32_xreg_9_9(void) {
+    asm volatile(
+        "rev32 x10, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x9, x10
+__attribute__((naked)) void gadget_rev32_xreg_9_10(void) {
+    asm volatile(
+        "rev32 x10, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x9, x11
+__attribute__((naked)) void gadget_rev32_xreg_9_11(void) {
+    asm volatile(
+        "rev32 x10, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x9, x12
+__attribute__((naked)) void gadget_rev32_xreg_9_12(void) {
+    asm volatile(
+        "rev32 x10, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x9, x13
+__attribute__((naked)) void gadget_rev32_xreg_9_13(void) {
+    asm volatile(
+        "rev32 x10, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x9, x14
+__attribute__((naked)) void gadget_rev32_xreg_9_14(void) {
+    asm volatile(
+        "rev32 x10, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x10, x0
+__attribute__((naked)) void gadget_rev32_xreg_10_0(void) {
+    asm volatile(
+        "rev32 x11, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x10, x1
+__attribute__((naked)) void gadget_rev32_xreg_10_1(void) {
+    asm volatile(
+        "rev32 x11, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x10, x2
+__attribute__((naked)) void gadget_rev32_xreg_10_2(void) {
+    asm volatile(
+        "rev32 x11, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x10, x3
+__attribute__((naked)) void gadget_rev32_xreg_10_3(void) {
+    asm volatile(
+        "rev32 x11, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x10, x4
+__attribute__((naked)) void gadget_rev32_xreg_10_4(void) {
+    asm volatile(
+        "rev32 x11, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x10, x5
+__attribute__((naked)) void gadget_rev32_xreg_10_5(void) {
+    asm volatile(
+        "rev32 x11, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x10, x6
+__attribute__((naked)) void gadget_rev32_xreg_10_6(void) {
+    asm volatile(
+        "rev32 x11, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x10, x7
+__attribute__((naked)) void gadget_rev32_xreg_10_7(void) {
+    asm volatile(
+        "rev32 x11, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x10, x8
+__attribute__((naked)) void gadget_rev32_xreg_10_8(void) {
+    asm volatile(
+        "rev32 x11, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x10, x9
+__attribute__((naked)) void gadget_rev32_xreg_10_9(void) {
+    asm volatile(
+        "rev32 x11, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x10, x10
+__attribute__((naked)) void gadget_rev32_xreg_10_10(void) {
+    asm volatile(
+        "rev32 x11, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x10, x11
+__attribute__((naked)) void gadget_rev32_xreg_10_11(void) {
+    asm volatile(
+        "rev32 x11, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x10, x12
+__attribute__((naked)) void gadget_rev32_xreg_10_12(void) {
+    asm volatile(
+        "rev32 x11, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x10, x13
+__attribute__((naked)) void gadget_rev32_xreg_10_13(void) {
+    asm volatile(
+        "rev32 x11, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x10, x14
+__attribute__((naked)) void gadget_rev32_xreg_10_14(void) {
+    asm volatile(
+        "rev32 x11, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x11, x0
+__attribute__((naked)) void gadget_rev32_xreg_11_0(void) {
+    asm volatile(
+        "rev32 x12, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x11, x1
+__attribute__((naked)) void gadget_rev32_xreg_11_1(void) {
+    asm volatile(
+        "rev32 x12, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x11, x2
+__attribute__((naked)) void gadget_rev32_xreg_11_2(void) {
+    asm volatile(
+        "rev32 x12, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x11, x3
+__attribute__((naked)) void gadget_rev32_xreg_11_3(void) {
+    asm volatile(
+        "rev32 x12, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x11, x4
+__attribute__((naked)) void gadget_rev32_xreg_11_4(void) {
+    asm volatile(
+        "rev32 x12, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x11, x5
+__attribute__((naked)) void gadget_rev32_xreg_11_5(void) {
+    asm volatile(
+        "rev32 x12, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x11, x6
+__attribute__((naked)) void gadget_rev32_xreg_11_6(void) {
+    asm volatile(
+        "rev32 x12, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x11, x7
+__attribute__((naked)) void gadget_rev32_xreg_11_7(void) {
+    asm volatile(
+        "rev32 x12, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x11, x8
+__attribute__((naked)) void gadget_rev32_xreg_11_8(void) {
+    asm volatile(
+        "rev32 x12, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x11, x9
+__attribute__((naked)) void gadget_rev32_xreg_11_9(void) {
+    asm volatile(
+        "rev32 x12, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x11, x10
+__attribute__((naked)) void gadget_rev32_xreg_11_10(void) {
+    asm volatile(
+        "rev32 x12, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x11, x11
+__attribute__((naked)) void gadget_rev32_xreg_11_11(void) {
+    asm volatile(
+        "rev32 x12, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x11, x12
+__attribute__((naked)) void gadget_rev32_xreg_11_12(void) {
+    asm volatile(
+        "rev32 x12, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x11, x13
+__attribute__((naked)) void gadget_rev32_xreg_11_13(void) {
+    asm volatile(
+        "rev32 x12, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x11, x14
+__attribute__((naked)) void gadget_rev32_xreg_11_14(void) {
+    asm volatile(
+        "rev32 x12, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x12, x0
+__attribute__((naked)) void gadget_rev32_xreg_12_0(void) {
+    asm volatile(
+        "rev32 x13, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x12, x1
+__attribute__((naked)) void gadget_rev32_xreg_12_1(void) {
+    asm volatile(
+        "rev32 x13, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x12, x2
+__attribute__((naked)) void gadget_rev32_xreg_12_2(void) {
+    asm volatile(
+        "rev32 x13, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x12, x3
+__attribute__((naked)) void gadget_rev32_xreg_12_3(void) {
+    asm volatile(
+        "rev32 x13, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x12, x4
+__attribute__((naked)) void gadget_rev32_xreg_12_4(void) {
+    asm volatile(
+        "rev32 x13, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x12, x5
+__attribute__((naked)) void gadget_rev32_xreg_12_5(void) {
+    asm volatile(
+        "rev32 x13, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x12, x6
+__attribute__((naked)) void gadget_rev32_xreg_12_6(void) {
+    asm volatile(
+        "rev32 x13, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x12, x7
+__attribute__((naked)) void gadget_rev32_xreg_12_7(void) {
+    asm volatile(
+        "rev32 x13, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x12, x8
+__attribute__((naked)) void gadget_rev32_xreg_12_8(void) {
+    asm volatile(
+        "rev32 x13, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x12, x9
+__attribute__((naked)) void gadget_rev32_xreg_12_9(void) {
+    asm volatile(
+        "rev32 x13, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x12, x10
+__attribute__((naked)) void gadget_rev32_xreg_12_10(void) {
+    asm volatile(
+        "rev32 x13, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x12, x11
+__attribute__((naked)) void gadget_rev32_xreg_12_11(void) {
+    asm volatile(
+        "rev32 x13, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x12, x12
+__attribute__((naked)) void gadget_rev32_xreg_12_12(void) {
+    asm volatile(
+        "rev32 x13, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x12, x13
+__attribute__((naked)) void gadget_rev32_xreg_12_13(void) {
+    asm volatile(
+        "rev32 x13, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x12, x14
+__attribute__((naked)) void gadget_rev32_xreg_12_14(void) {
+    asm volatile(
+        "rev32 x13, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x13, x0
+__attribute__((naked)) void gadget_rev32_xreg_13_0(void) {
+    asm volatile(
+        "rev32 x14, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x13, x1
+__attribute__((naked)) void gadget_rev32_xreg_13_1(void) {
+    asm volatile(
+        "rev32 x14, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x13, x2
+__attribute__((naked)) void gadget_rev32_xreg_13_2(void) {
+    asm volatile(
+        "rev32 x14, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x13, x3
+__attribute__((naked)) void gadget_rev32_xreg_13_3(void) {
+    asm volatile(
+        "rev32 x14, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x13, x4
+__attribute__((naked)) void gadget_rev32_xreg_13_4(void) {
+    asm volatile(
+        "rev32 x14, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x13, x5
+__attribute__((naked)) void gadget_rev32_xreg_13_5(void) {
+    asm volatile(
+        "rev32 x14, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x13, x6
+__attribute__((naked)) void gadget_rev32_xreg_13_6(void) {
+    asm volatile(
+        "rev32 x14, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x13, x7
+__attribute__((naked)) void gadget_rev32_xreg_13_7(void) {
+    asm volatile(
+        "rev32 x14, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x13, x8
+__attribute__((naked)) void gadget_rev32_xreg_13_8(void) {
+    asm volatile(
+        "rev32 x14, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x13, x9
+__attribute__((naked)) void gadget_rev32_xreg_13_9(void) {
+    asm volatile(
+        "rev32 x14, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x13, x10
+__attribute__((naked)) void gadget_rev32_xreg_13_10(void) {
+    asm volatile(
+        "rev32 x14, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x13, x11
+__attribute__((naked)) void gadget_rev32_xreg_13_11(void) {
+    asm volatile(
+        "rev32 x14, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x13, x12
+__attribute__((naked)) void gadget_rev32_xreg_13_12(void) {
+    asm volatile(
+        "rev32 x14, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x13, x13
+__attribute__((naked)) void gadget_rev32_xreg_13_13(void) {
+    asm volatile(
+        "rev32 x14, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x13, x14
+__attribute__((naked)) void gadget_rev32_xreg_13_14(void) {
+    asm volatile(
+        "rev32 x14, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x14, x0
+__attribute__((naked)) void gadget_rev32_xreg_14_0(void) {
+    asm volatile(
+        "rev32 x15, x1\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x14, x1
+__attribute__((naked)) void gadget_rev32_xreg_14_1(void) {
+    asm volatile(
+        "rev32 x15, x2\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x14, x2
+__attribute__((naked)) void gadget_rev32_xreg_14_2(void) {
+    asm volatile(
+        "rev32 x15, x3\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x14, x3
+__attribute__((naked)) void gadget_rev32_xreg_14_3(void) {
+    asm volatile(
+        "rev32 x15, x4\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x14, x4
+__attribute__((naked)) void gadget_rev32_xreg_14_4(void) {
+    asm volatile(
+        "rev32 x15, x5\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x14, x5
+__attribute__((naked)) void gadget_rev32_xreg_14_5(void) {
+    asm volatile(
+        "rev32 x15, x6\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x14, x6
+__attribute__((naked)) void gadget_rev32_xreg_14_6(void) {
+    asm volatile(
+        "rev32 x15, x7\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x14, x7
+__attribute__((naked)) void gadget_rev32_xreg_14_7(void) {
+    asm volatile(
+        "rev32 x15, x8\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x14, x8
+__attribute__((naked)) void gadget_rev32_xreg_14_8(void) {
+    asm volatile(
+        "rev32 x15, x9\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x14, x9
+__attribute__((naked)) void gadget_rev32_xreg_14_9(void) {
+    asm volatile(
+        "rev32 x15, x10\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x14, x10
+__attribute__((naked)) void gadget_rev32_xreg_14_10(void) {
+    asm volatile(
+        "rev32 x15, x11\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x14, x11
+__attribute__((naked)) void gadget_rev32_xreg_14_11(void) {
+    asm volatile(
+        "rev32 x15, x12\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x14, x12
+__attribute__((naked)) void gadget_rev32_xreg_14_12(void) {
+    asm volatile(
+        "rev32 x15, x13\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x14, x13
+__attribute__((naked)) void gadget_rev32_xreg_14_13(void) {
+    asm volatile(
+        "rev32 x15, x14\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
+// REV32 x14, x14
+__attribute__((naked)) void gadget_rev32_xreg_14_14(void) {
+    asm volatile(
+        "rev32 x15, x15\n\t"
+        "ldr x27, [x28], #8\n\t"
+        "br x27\n\t"
+    );
+}
+
 // ============================================================================
 // Gadget Lookup Tables
 // ============================================================================
@@ -331445,4 +341570,99 @@ const tcti_gadget_t gadget_clz_xreg[16][16] = {
     {gadget_clz_xreg_12_0, gadget_clz_xreg_12_1, gadget_clz_xreg_12_2, gadget_clz_xreg_12_3, gadget_clz_xreg_12_4, gadget_clz_xreg_12_5, gadget_clz_xreg_12_6, gadget_clz_xreg_12_7, gadget_clz_xreg_12_8, gadget_clz_xreg_12_9, gadget_clz_xreg_12_10, gadget_clz_xreg_12_11, gadget_clz_xreg_12_12, gadget_clz_xreg_12_13, gadget_clz_xreg_12_14},
     {gadget_clz_xreg_13_0, gadget_clz_xreg_13_1, gadget_clz_xreg_13_2, gadget_clz_xreg_13_3, gadget_clz_xreg_13_4, gadget_clz_xreg_13_5, gadget_clz_xreg_13_6, gadget_clz_xreg_13_7, gadget_clz_xreg_13_8, gadget_clz_xreg_13_9, gadget_clz_xreg_13_10, gadget_clz_xreg_13_11, gadget_clz_xreg_13_12, gadget_clz_xreg_13_13, gadget_clz_xreg_13_14},
     {gadget_clz_xreg_14_0, gadget_clz_xreg_14_1, gadget_clz_xreg_14_2, gadget_clz_xreg_14_3, gadget_clz_xreg_14_4, gadget_clz_xreg_14_5, gadget_clz_xreg_14_6, gadget_clz_xreg_14_7, gadget_clz_xreg_14_8, gadget_clz_xreg_14_9, gadget_clz_xreg_14_10, gadget_clz_xreg_14_11, gadget_clz_xreg_14_12, gadget_clz_xreg_14_13, gadget_clz_xreg_14_14},
+};
+
+// rev_wreg lookup table: gadget_rev_wreg[dst][src]
+const tcti_gadget_t gadget_rev_wreg[16][16] = {
+    {gadget_rev_wreg_0_0, gadget_rev_wreg_0_1, gadget_rev_wreg_0_2, gadget_rev_wreg_0_3, gadget_rev_wreg_0_4, gadget_rev_wreg_0_5, gadget_rev_wreg_0_6, gadget_rev_wreg_0_7, gadget_rev_wreg_0_8, gadget_rev_wreg_0_9, gadget_rev_wreg_0_10, gadget_rev_wreg_0_11, gadget_rev_wreg_0_12, gadget_rev_wreg_0_13, gadget_rev_wreg_0_14},
+    {gadget_rev_wreg_1_0, gadget_rev_wreg_1_1, gadget_rev_wreg_1_2, gadget_rev_wreg_1_3, gadget_rev_wreg_1_4, gadget_rev_wreg_1_5, gadget_rev_wreg_1_6, gadget_rev_wreg_1_7, gadget_rev_wreg_1_8, gadget_rev_wreg_1_9, gadget_rev_wreg_1_10, gadget_rev_wreg_1_11, gadget_rev_wreg_1_12, gadget_rev_wreg_1_13, gadget_rev_wreg_1_14},
+    {gadget_rev_wreg_2_0, gadget_rev_wreg_2_1, gadget_rev_wreg_2_2, gadget_rev_wreg_2_3, gadget_rev_wreg_2_4, gadget_rev_wreg_2_5, gadget_rev_wreg_2_6, gadget_rev_wreg_2_7, gadget_rev_wreg_2_8, gadget_rev_wreg_2_9, gadget_rev_wreg_2_10, gadget_rev_wreg_2_11, gadget_rev_wreg_2_12, gadget_rev_wreg_2_13, gadget_rev_wreg_2_14},
+    {gadget_rev_wreg_3_0, gadget_rev_wreg_3_1, gadget_rev_wreg_3_2, gadget_rev_wreg_3_3, gadget_rev_wreg_3_4, gadget_rev_wreg_3_5, gadget_rev_wreg_3_6, gadget_rev_wreg_3_7, gadget_rev_wreg_3_8, gadget_rev_wreg_3_9, gadget_rev_wreg_3_10, gadget_rev_wreg_3_11, gadget_rev_wreg_3_12, gadget_rev_wreg_3_13, gadget_rev_wreg_3_14},
+    {gadget_rev_wreg_4_0, gadget_rev_wreg_4_1, gadget_rev_wreg_4_2, gadget_rev_wreg_4_3, gadget_rev_wreg_4_4, gadget_rev_wreg_4_5, gadget_rev_wreg_4_6, gadget_rev_wreg_4_7, gadget_rev_wreg_4_8, gadget_rev_wreg_4_9, gadget_rev_wreg_4_10, gadget_rev_wreg_4_11, gadget_rev_wreg_4_12, gadget_rev_wreg_4_13, gadget_rev_wreg_4_14},
+    {gadget_rev_wreg_5_0, gadget_rev_wreg_5_1, gadget_rev_wreg_5_2, gadget_rev_wreg_5_3, gadget_rev_wreg_5_4, gadget_rev_wreg_5_5, gadget_rev_wreg_5_6, gadget_rev_wreg_5_7, gadget_rev_wreg_5_8, gadget_rev_wreg_5_9, gadget_rev_wreg_5_10, gadget_rev_wreg_5_11, gadget_rev_wreg_5_12, gadget_rev_wreg_5_13, gadget_rev_wreg_5_14},
+    {gadget_rev_wreg_6_0, gadget_rev_wreg_6_1, gadget_rev_wreg_6_2, gadget_rev_wreg_6_3, gadget_rev_wreg_6_4, gadget_rev_wreg_6_5, gadget_rev_wreg_6_6, gadget_rev_wreg_6_7, gadget_rev_wreg_6_8, gadget_rev_wreg_6_9, gadget_rev_wreg_6_10, gadget_rev_wreg_6_11, gadget_rev_wreg_6_12, gadget_rev_wreg_6_13, gadget_rev_wreg_6_14},
+    {gadget_rev_wreg_7_0, gadget_rev_wreg_7_1, gadget_rev_wreg_7_2, gadget_rev_wreg_7_3, gadget_rev_wreg_7_4, gadget_rev_wreg_7_5, gadget_rev_wreg_7_6, gadget_rev_wreg_7_7, gadget_rev_wreg_7_8, gadget_rev_wreg_7_9, gadget_rev_wreg_7_10, gadget_rev_wreg_7_11, gadget_rev_wreg_7_12, gadget_rev_wreg_7_13, gadget_rev_wreg_7_14},
+    {gadget_rev_wreg_8_0, gadget_rev_wreg_8_1, gadget_rev_wreg_8_2, gadget_rev_wreg_8_3, gadget_rev_wreg_8_4, gadget_rev_wreg_8_5, gadget_rev_wreg_8_6, gadget_rev_wreg_8_7, gadget_rev_wreg_8_8, gadget_rev_wreg_8_9, gadget_rev_wreg_8_10, gadget_rev_wreg_8_11, gadget_rev_wreg_8_12, gadget_rev_wreg_8_13, gadget_rev_wreg_8_14},
+    {gadget_rev_wreg_9_0, gadget_rev_wreg_9_1, gadget_rev_wreg_9_2, gadget_rev_wreg_9_3, gadget_rev_wreg_9_4, gadget_rev_wreg_9_5, gadget_rev_wreg_9_6, gadget_rev_wreg_9_7, gadget_rev_wreg_9_8, gadget_rev_wreg_9_9, gadget_rev_wreg_9_10, gadget_rev_wreg_9_11, gadget_rev_wreg_9_12, gadget_rev_wreg_9_13, gadget_rev_wreg_9_14},
+    {gadget_rev_wreg_10_0, gadget_rev_wreg_10_1, gadget_rev_wreg_10_2, gadget_rev_wreg_10_3, gadget_rev_wreg_10_4, gadget_rev_wreg_10_5, gadget_rev_wreg_10_6, gadget_rev_wreg_10_7, gadget_rev_wreg_10_8, gadget_rev_wreg_10_9, gadget_rev_wreg_10_10, gadget_rev_wreg_10_11, gadget_rev_wreg_10_12, gadget_rev_wreg_10_13, gadget_rev_wreg_10_14},
+    {gadget_rev_wreg_11_0, gadget_rev_wreg_11_1, gadget_rev_wreg_11_2, gadget_rev_wreg_11_3, gadget_rev_wreg_11_4, gadget_rev_wreg_11_5, gadget_rev_wreg_11_6, gadget_rev_wreg_11_7, gadget_rev_wreg_11_8, gadget_rev_wreg_11_9, gadget_rev_wreg_11_10, gadget_rev_wreg_11_11, gadget_rev_wreg_11_12, gadget_rev_wreg_11_13, gadget_rev_wreg_11_14},
+    {gadget_rev_wreg_12_0, gadget_rev_wreg_12_1, gadget_rev_wreg_12_2, gadget_rev_wreg_12_3, gadget_rev_wreg_12_4, gadget_rev_wreg_12_5, gadget_rev_wreg_12_6, gadget_rev_wreg_12_7, gadget_rev_wreg_12_8, gadget_rev_wreg_12_9, gadget_rev_wreg_12_10, gadget_rev_wreg_12_11, gadget_rev_wreg_12_12, gadget_rev_wreg_12_13, gadget_rev_wreg_12_14},
+    {gadget_rev_wreg_13_0, gadget_rev_wreg_13_1, gadget_rev_wreg_13_2, gadget_rev_wreg_13_3, gadget_rev_wreg_13_4, gadget_rev_wreg_13_5, gadget_rev_wreg_13_6, gadget_rev_wreg_13_7, gadget_rev_wreg_13_8, gadget_rev_wreg_13_9, gadget_rev_wreg_13_10, gadget_rev_wreg_13_11, gadget_rev_wreg_13_12, gadget_rev_wreg_13_13, gadget_rev_wreg_13_14},
+    {gadget_rev_wreg_14_0, gadget_rev_wreg_14_1, gadget_rev_wreg_14_2, gadget_rev_wreg_14_3, gadget_rev_wreg_14_4, gadget_rev_wreg_14_5, gadget_rev_wreg_14_6, gadget_rev_wreg_14_7, gadget_rev_wreg_14_8, gadget_rev_wreg_14_9, gadget_rev_wreg_14_10, gadget_rev_wreg_14_11, gadget_rev_wreg_14_12, gadget_rev_wreg_14_13, gadget_rev_wreg_14_14},
+};
+
+// rev_xreg lookup table: gadget_rev_xreg[dst][src]
+const tcti_gadget_t gadget_rev_xreg[16][16] = {
+    {gadget_rev_xreg_0_0, gadget_rev_xreg_0_1, gadget_rev_xreg_0_2, gadget_rev_xreg_0_3, gadget_rev_xreg_0_4, gadget_rev_xreg_0_5, gadget_rev_xreg_0_6, gadget_rev_xreg_0_7, gadget_rev_xreg_0_8, gadget_rev_xreg_0_9, gadget_rev_xreg_0_10, gadget_rev_xreg_0_11, gadget_rev_xreg_0_12, gadget_rev_xreg_0_13, gadget_rev_xreg_0_14},
+    {gadget_rev_xreg_1_0, gadget_rev_xreg_1_1, gadget_rev_xreg_1_2, gadget_rev_xreg_1_3, gadget_rev_xreg_1_4, gadget_rev_xreg_1_5, gadget_rev_xreg_1_6, gadget_rev_xreg_1_7, gadget_rev_xreg_1_8, gadget_rev_xreg_1_9, gadget_rev_xreg_1_10, gadget_rev_xreg_1_11, gadget_rev_xreg_1_12, gadget_rev_xreg_1_13, gadget_rev_xreg_1_14},
+    {gadget_rev_xreg_2_0, gadget_rev_xreg_2_1, gadget_rev_xreg_2_2, gadget_rev_xreg_2_3, gadget_rev_xreg_2_4, gadget_rev_xreg_2_5, gadget_rev_xreg_2_6, gadget_rev_xreg_2_7, gadget_rev_xreg_2_8, gadget_rev_xreg_2_9, gadget_rev_xreg_2_10, gadget_rev_xreg_2_11, gadget_rev_xreg_2_12, gadget_rev_xreg_2_13, gadget_rev_xreg_2_14},
+    {gadget_rev_xreg_3_0, gadget_rev_xreg_3_1, gadget_rev_xreg_3_2, gadget_rev_xreg_3_3, gadget_rev_xreg_3_4, gadget_rev_xreg_3_5, gadget_rev_xreg_3_6, gadget_rev_xreg_3_7, gadget_rev_xreg_3_8, gadget_rev_xreg_3_9, gadget_rev_xreg_3_10, gadget_rev_xreg_3_11, gadget_rev_xreg_3_12, gadget_rev_xreg_3_13, gadget_rev_xreg_3_14},
+    {gadget_rev_xreg_4_0, gadget_rev_xreg_4_1, gadget_rev_xreg_4_2, gadget_rev_xreg_4_3, gadget_rev_xreg_4_4, gadget_rev_xreg_4_5, gadget_rev_xreg_4_6, gadget_rev_xreg_4_7, gadget_rev_xreg_4_8, gadget_rev_xreg_4_9, gadget_rev_xreg_4_10, gadget_rev_xreg_4_11, gadget_rev_xreg_4_12, gadget_rev_xreg_4_13, gadget_rev_xreg_4_14},
+    {gadget_rev_xreg_5_0, gadget_rev_xreg_5_1, gadget_rev_xreg_5_2, gadget_rev_xreg_5_3, gadget_rev_xreg_5_4, gadget_rev_xreg_5_5, gadget_rev_xreg_5_6, gadget_rev_xreg_5_7, gadget_rev_xreg_5_8, gadget_rev_xreg_5_9, gadget_rev_xreg_5_10, gadget_rev_xreg_5_11, gadget_rev_xreg_5_12, gadget_rev_xreg_5_13, gadget_rev_xreg_5_14},
+    {gadget_rev_xreg_6_0, gadget_rev_xreg_6_1, gadget_rev_xreg_6_2, gadget_rev_xreg_6_3, gadget_rev_xreg_6_4, gadget_rev_xreg_6_5, gadget_rev_xreg_6_6, gadget_rev_xreg_6_7, gadget_rev_xreg_6_8, gadget_rev_xreg_6_9, gadget_rev_xreg_6_10, gadget_rev_xreg_6_11, gadget_rev_xreg_6_12, gadget_rev_xreg_6_13, gadget_rev_xreg_6_14},
+    {gadget_rev_xreg_7_0, gadget_rev_xreg_7_1, gadget_rev_xreg_7_2, gadget_rev_xreg_7_3, gadget_rev_xreg_7_4, gadget_rev_xreg_7_5, gadget_rev_xreg_7_6, gadget_rev_xreg_7_7, gadget_rev_xreg_7_8, gadget_rev_xreg_7_9, gadget_rev_xreg_7_10, gadget_rev_xreg_7_11, gadget_rev_xreg_7_12, gadget_rev_xreg_7_13, gadget_rev_xreg_7_14},
+    {gadget_rev_xreg_8_0, gadget_rev_xreg_8_1, gadget_rev_xreg_8_2, gadget_rev_xreg_8_3, gadget_rev_xreg_8_4, gadget_rev_xreg_8_5, gadget_rev_xreg_8_6, gadget_rev_xreg_8_7, gadget_rev_xreg_8_8, gadget_rev_xreg_8_9, gadget_rev_xreg_8_10, gadget_rev_xreg_8_11, gadget_rev_xreg_8_12, gadget_rev_xreg_8_13, gadget_rev_xreg_8_14},
+    {gadget_rev_xreg_9_0, gadget_rev_xreg_9_1, gadget_rev_xreg_9_2, gadget_rev_xreg_9_3, gadget_rev_xreg_9_4, gadget_rev_xreg_9_5, gadget_rev_xreg_9_6, gadget_rev_xreg_9_7, gadget_rev_xreg_9_8, gadget_rev_xreg_9_9, gadget_rev_xreg_9_10, gadget_rev_xreg_9_11, gadget_rev_xreg_9_12, gadget_rev_xreg_9_13, gadget_rev_xreg_9_14},
+    {gadget_rev_xreg_10_0, gadget_rev_xreg_10_1, gadget_rev_xreg_10_2, gadget_rev_xreg_10_3, gadget_rev_xreg_10_4, gadget_rev_xreg_10_5, gadget_rev_xreg_10_6, gadget_rev_xreg_10_7, gadget_rev_xreg_10_8, gadget_rev_xreg_10_9, gadget_rev_xreg_10_10, gadget_rev_xreg_10_11, gadget_rev_xreg_10_12, gadget_rev_xreg_10_13, gadget_rev_xreg_10_14},
+    {gadget_rev_xreg_11_0, gadget_rev_xreg_11_1, gadget_rev_xreg_11_2, gadget_rev_xreg_11_3, gadget_rev_xreg_11_4, gadget_rev_xreg_11_5, gadget_rev_xreg_11_6, gadget_rev_xreg_11_7, gadget_rev_xreg_11_8, gadget_rev_xreg_11_9, gadget_rev_xreg_11_10, gadget_rev_xreg_11_11, gadget_rev_xreg_11_12, gadget_rev_xreg_11_13, gadget_rev_xreg_11_14},
+    {gadget_rev_xreg_12_0, gadget_rev_xreg_12_1, gadget_rev_xreg_12_2, gadget_rev_xreg_12_3, gadget_rev_xreg_12_4, gadget_rev_xreg_12_5, gadget_rev_xreg_12_6, gadget_rev_xreg_12_7, gadget_rev_xreg_12_8, gadget_rev_xreg_12_9, gadget_rev_xreg_12_10, gadget_rev_xreg_12_11, gadget_rev_xreg_12_12, gadget_rev_xreg_12_13, gadget_rev_xreg_12_14},
+    {gadget_rev_xreg_13_0, gadget_rev_xreg_13_1, gadget_rev_xreg_13_2, gadget_rev_xreg_13_3, gadget_rev_xreg_13_4, gadget_rev_xreg_13_5, gadget_rev_xreg_13_6, gadget_rev_xreg_13_7, gadget_rev_xreg_13_8, gadget_rev_xreg_13_9, gadget_rev_xreg_13_10, gadget_rev_xreg_13_11, gadget_rev_xreg_13_12, gadget_rev_xreg_13_13, gadget_rev_xreg_13_14},
+    {gadget_rev_xreg_14_0, gadget_rev_xreg_14_1, gadget_rev_xreg_14_2, gadget_rev_xreg_14_3, gadget_rev_xreg_14_4, gadget_rev_xreg_14_5, gadget_rev_xreg_14_6, gadget_rev_xreg_14_7, gadget_rev_xreg_14_8, gadget_rev_xreg_14_9, gadget_rev_xreg_14_10, gadget_rev_xreg_14_11, gadget_rev_xreg_14_12, gadget_rev_xreg_14_13, gadget_rev_xreg_14_14},
+};
+
+// rev16_wreg lookup table: gadget_rev16_wreg[dst][src]
+const tcti_gadget_t gadget_rev16_wreg[16][16] = {
+    {gadget_rev16_wreg_0_0, gadget_rev16_wreg_0_1, gadget_rev16_wreg_0_2, gadget_rev16_wreg_0_3, gadget_rev16_wreg_0_4, gadget_rev16_wreg_0_5, gadget_rev16_wreg_0_6, gadget_rev16_wreg_0_7, gadget_rev16_wreg_0_8, gadget_rev16_wreg_0_9, gadget_rev16_wreg_0_10, gadget_rev16_wreg_0_11, gadget_rev16_wreg_0_12, gadget_rev16_wreg_0_13, gadget_rev16_wreg_0_14},
+    {gadget_rev16_wreg_1_0, gadget_rev16_wreg_1_1, gadget_rev16_wreg_1_2, gadget_rev16_wreg_1_3, gadget_rev16_wreg_1_4, gadget_rev16_wreg_1_5, gadget_rev16_wreg_1_6, gadget_rev16_wreg_1_7, gadget_rev16_wreg_1_8, gadget_rev16_wreg_1_9, gadget_rev16_wreg_1_10, gadget_rev16_wreg_1_11, gadget_rev16_wreg_1_12, gadget_rev16_wreg_1_13, gadget_rev16_wreg_1_14},
+    {gadget_rev16_wreg_2_0, gadget_rev16_wreg_2_1, gadget_rev16_wreg_2_2, gadget_rev16_wreg_2_3, gadget_rev16_wreg_2_4, gadget_rev16_wreg_2_5, gadget_rev16_wreg_2_6, gadget_rev16_wreg_2_7, gadget_rev16_wreg_2_8, gadget_rev16_wreg_2_9, gadget_rev16_wreg_2_10, gadget_rev16_wreg_2_11, gadget_rev16_wreg_2_12, gadget_rev16_wreg_2_13, gadget_rev16_wreg_2_14},
+    {gadget_rev16_wreg_3_0, gadget_rev16_wreg_3_1, gadget_rev16_wreg_3_2, gadget_rev16_wreg_3_3, gadget_rev16_wreg_3_4, gadget_rev16_wreg_3_5, gadget_rev16_wreg_3_6, gadget_rev16_wreg_3_7, gadget_rev16_wreg_3_8, gadget_rev16_wreg_3_9, gadget_rev16_wreg_3_10, gadget_rev16_wreg_3_11, gadget_rev16_wreg_3_12, gadget_rev16_wreg_3_13, gadget_rev16_wreg_3_14},
+    {gadget_rev16_wreg_4_0, gadget_rev16_wreg_4_1, gadget_rev16_wreg_4_2, gadget_rev16_wreg_4_3, gadget_rev16_wreg_4_4, gadget_rev16_wreg_4_5, gadget_rev16_wreg_4_6, gadget_rev16_wreg_4_7, gadget_rev16_wreg_4_8, gadget_rev16_wreg_4_9, gadget_rev16_wreg_4_10, gadget_rev16_wreg_4_11, gadget_rev16_wreg_4_12, gadget_rev16_wreg_4_13, gadget_rev16_wreg_4_14},
+    {gadget_rev16_wreg_5_0, gadget_rev16_wreg_5_1, gadget_rev16_wreg_5_2, gadget_rev16_wreg_5_3, gadget_rev16_wreg_5_4, gadget_rev16_wreg_5_5, gadget_rev16_wreg_5_6, gadget_rev16_wreg_5_7, gadget_rev16_wreg_5_8, gadget_rev16_wreg_5_9, gadget_rev16_wreg_5_10, gadget_rev16_wreg_5_11, gadget_rev16_wreg_5_12, gadget_rev16_wreg_5_13, gadget_rev16_wreg_5_14},
+    {gadget_rev16_wreg_6_0, gadget_rev16_wreg_6_1, gadget_rev16_wreg_6_2, gadget_rev16_wreg_6_3, gadget_rev16_wreg_6_4, gadget_rev16_wreg_6_5, gadget_rev16_wreg_6_6, gadget_rev16_wreg_6_7, gadget_rev16_wreg_6_8, gadget_rev16_wreg_6_9, gadget_rev16_wreg_6_10, gadget_rev16_wreg_6_11, gadget_rev16_wreg_6_12, gadget_rev16_wreg_6_13, gadget_rev16_wreg_6_14},
+    {gadget_rev16_wreg_7_0, gadget_rev16_wreg_7_1, gadget_rev16_wreg_7_2, gadget_rev16_wreg_7_3, gadget_rev16_wreg_7_4, gadget_rev16_wreg_7_5, gadget_rev16_wreg_7_6, gadget_rev16_wreg_7_7, gadget_rev16_wreg_7_8, gadget_rev16_wreg_7_9, gadget_rev16_wreg_7_10, gadget_rev16_wreg_7_11, gadget_rev16_wreg_7_12, gadget_rev16_wreg_7_13, gadget_rev16_wreg_7_14},
+    {gadget_rev16_wreg_8_0, gadget_rev16_wreg_8_1, gadget_rev16_wreg_8_2, gadget_rev16_wreg_8_3, gadget_rev16_wreg_8_4, gadget_rev16_wreg_8_5, gadget_rev16_wreg_8_6, gadget_rev16_wreg_8_7, gadget_rev16_wreg_8_8, gadget_rev16_wreg_8_9, gadget_rev16_wreg_8_10, gadget_rev16_wreg_8_11, gadget_rev16_wreg_8_12, gadget_rev16_wreg_8_13, gadget_rev16_wreg_8_14},
+    {gadget_rev16_wreg_9_0, gadget_rev16_wreg_9_1, gadget_rev16_wreg_9_2, gadget_rev16_wreg_9_3, gadget_rev16_wreg_9_4, gadget_rev16_wreg_9_5, gadget_rev16_wreg_9_6, gadget_rev16_wreg_9_7, gadget_rev16_wreg_9_8, gadget_rev16_wreg_9_9, gadget_rev16_wreg_9_10, gadget_rev16_wreg_9_11, gadget_rev16_wreg_9_12, gadget_rev16_wreg_9_13, gadget_rev16_wreg_9_14},
+    {gadget_rev16_wreg_10_0, gadget_rev16_wreg_10_1, gadget_rev16_wreg_10_2, gadget_rev16_wreg_10_3, gadget_rev16_wreg_10_4, gadget_rev16_wreg_10_5, gadget_rev16_wreg_10_6, gadget_rev16_wreg_10_7, gadget_rev16_wreg_10_8, gadget_rev16_wreg_10_9, gadget_rev16_wreg_10_10, gadget_rev16_wreg_10_11, gadget_rev16_wreg_10_12, gadget_rev16_wreg_10_13, gadget_rev16_wreg_10_14},
+    {gadget_rev16_wreg_11_0, gadget_rev16_wreg_11_1, gadget_rev16_wreg_11_2, gadget_rev16_wreg_11_3, gadget_rev16_wreg_11_4, gadget_rev16_wreg_11_5, gadget_rev16_wreg_11_6, gadget_rev16_wreg_11_7, gadget_rev16_wreg_11_8, gadget_rev16_wreg_11_9, gadget_rev16_wreg_11_10, gadget_rev16_wreg_11_11, gadget_rev16_wreg_11_12, gadget_rev16_wreg_11_13, gadget_rev16_wreg_11_14},
+    {gadget_rev16_wreg_12_0, gadget_rev16_wreg_12_1, gadget_rev16_wreg_12_2, gadget_rev16_wreg_12_3, gadget_rev16_wreg_12_4, gadget_rev16_wreg_12_5, gadget_rev16_wreg_12_6, gadget_rev16_wreg_12_7, gadget_rev16_wreg_12_8, gadget_rev16_wreg_12_9, gadget_rev16_wreg_12_10, gadget_rev16_wreg_12_11, gadget_rev16_wreg_12_12, gadget_rev16_wreg_12_13, gadget_rev16_wreg_12_14},
+    {gadget_rev16_wreg_13_0, gadget_rev16_wreg_13_1, gadget_rev16_wreg_13_2, gadget_rev16_wreg_13_3, gadget_rev16_wreg_13_4, gadget_rev16_wreg_13_5, gadget_rev16_wreg_13_6, gadget_rev16_wreg_13_7, gadget_rev16_wreg_13_8, gadget_rev16_wreg_13_9, gadget_rev16_wreg_13_10, gadget_rev16_wreg_13_11, gadget_rev16_wreg_13_12, gadget_rev16_wreg_13_13, gadget_rev16_wreg_13_14},
+    {gadget_rev16_wreg_14_0, gadget_rev16_wreg_14_1, gadget_rev16_wreg_14_2, gadget_rev16_wreg_14_3, gadget_rev16_wreg_14_4, gadget_rev16_wreg_14_5, gadget_rev16_wreg_14_6, gadget_rev16_wreg_14_7, gadget_rev16_wreg_14_8, gadget_rev16_wreg_14_9, gadget_rev16_wreg_14_10, gadget_rev16_wreg_14_11, gadget_rev16_wreg_14_12, gadget_rev16_wreg_14_13, gadget_rev16_wreg_14_14},
+};
+
+// rev16_xreg lookup table: gadget_rev16_xreg[dst][src]
+const tcti_gadget_t gadget_rev16_xreg[16][16] = {
+    {gadget_rev16_xreg_0_0, gadget_rev16_xreg_0_1, gadget_rev16_xreg_0_2, gadget_rev16_xreg_0_3, gadget_rev16_xreg_0_4, gadget_rev16_xreg_0_5, gadget_rev16_xreg_0_6, gadget_rev16_xreg_0_7, gadget_rev16_xreg_0_8, gadget_rev16_xreg_0_9, gadget_rev16_xreg_0_10, gadget_rev16_xreg_0_11, gadget_rev16_xreg_0_12, gadget_rev16_xreg_0_13, gadget_rev16_xreg_0_14},
+    {gadget_rev16_xreg_1_0, gadget_rev16_xreg_1_1, gadget_rev16_xreg_1_2, gadget_rev16_xreg_1_3, gadget_rev16_xreg_1_4, gadget_rev16_xreg_1_5, gadget_rev16_xreg_1_6, gadget_rev16_xreg_1_7, gadget_rev16_xreg_1_8, gadget_rev16_xreg_1_9, gadget_rev16_xreg_1_10, gadget_rev16_xreg_1_11, gadget_rev16_xreg_1_12, gadget_rev16_xreg_1_13, gadget_rev16_xreg_1_14},
+    {gadget_rev16_xreg_2_0, gadget_rev16_xreg_2_1, gadget_rev16_xreg_2_2, gadget_rev16_xreg_2_3, gadget_rev16_xreg_2_4, gadget_rev16_xreg_2_5, gadget_rev16_xreg_2_6, gadget_rev16_xreg_2_7, gadget_rev16_xreg_2_8, gadget_rev16_xreg_2_9, gadget_rev16_xreg_2_10, gadget_rev16_xreg_2_11, gadget_rev16_xreg_2_12, gadget_rev16_xreg_2_13, gadget_rev16_xreg_2_14},
+    {gadget_rev16_xreg_3_0, gadget_rev16_xreg_3_1, gadget_rev16_xreg_3_2, gadget_rev16_xreg_3_3, gadget_rev16_xreg_3_4, gadget_rev16_xreg_3_5, gadget_rev16_xreg_3_6, gadget_rev16_xreg_3_7, gadget_rev16_xreg_3_8, gadget_rev16_xreg_3_9, gadget_rev16_xreg_3_10, gadget_rev16_xreg_3_11, gadget_rev16_xreg_3_12, gadget_rev16_xreg_3_13, gadget_rev16_xreg_3_14},
+    {gadget_rev16_xreg_4_0, gadget_rev16_xreg_4_1, gadget_rev16_xreg_4_2, gadget_rev16_xreg_4_3, gadget_rev16_xreg_4_4, gadget_rev16_xreg_4_5, gadget_rev16_xreg_4_6, gadget_rev16_xreg_4_7, gadget_rev16_xreg_4_8, gadget_rev16_xreg_4_9, gadget_rev16_xreg_4_10, gadget_rev16_xreg_4_11, gadget_rev16_xreg_4_12, gadget_rev16_xreg_4_13, gadget_rev16_xreg_4_14},
+    {gadget_rev16_xreg_5_0, gadget_rev16_xreg_5_1, gadget_rev16_xreg_5_2, gadget_rev16_xreg_5_3, gadget_rev16_xreg_5_4, gadget_rev16_xreg_5_5, gadget_rev16_xreg_5_6, gadget_rev16_xreg_5_7, gadget_rev16_xreg_5_8, gadget_rev16_xreg_5_9, gadget_rev16_xreg_5_10, gadget_rev16_xreg_5_11, gadget_rev16_xreg_5_12, gadget_rev16_xreg_5_13, gadget_rev16_xreg_5_14},
+    {gadget_rev16_xreg_6_0, gadget_rev16_xreg_6_1, gadget_rev16_xreg_6_2, gadget_rev16_xreg_6_3, gadget_rev16_xreg_6_4, gadget_rev16_xreg_6_5, gadget_rev16_xreg_6_6, gadget_rev16_xreg_6_7, gadget_rev16_xreg_6_8, gadget_rev16_xreg_6_9, gadget_rev16_xreg_6_10, gadget_rev16_xreg_6_11, gadget_rev16_xreg_6_12, gadget_rev16_xreg_6_13, gadget_rev16_xreg_6_14},
+    {gadget_rev16_xreg_7_0, gadget_rev16_xreg_7_1, gadget_rev16_xreg_7_2, gadget_rev16_xreg_7_3, gadget_rev16_xreg_7_4, gadget_rev16_xreg_7_5, gadget_rev16_xreg_7_6, gadget_rev16_xreg_7_7, gadget_rev16_xreg_7_8, gadget_rev16_xreg_7_9, gadget_rev16_xreg_7_10, gadget_rev16_xreg_7_11, gadget_rev16_xreg_7_12, gadget_rev16_xreg_7_13, gadget_rev16_xreg_7_14},
+    {gadget_rev16_xreg_8_0, gadget_rev16_xreg_8_1, gadget_rev16_xreg_8_2, gadget_rev16_xreg_8_3, gadget_rev16_xreg_8_4, gadget_rev16_xreg_8_5, gadget_rev16_xreg_8_6, gadget_rev16_xreg_8_7, gadget_rev16_xreg_8_8, gadget_rev16_xreg_8_9, gadget_rev16_xreg_8_10, gadget_rev16_xreg_8_11, gadget_rev16_xreg_8_12, gadget_rev16_xreg_8_13, gadget_rev16_xreg_8_14},
+    {gadget_rev16_xreg_9_0, gadget_rev16_xreg_9_1, gadget_rev16_xreg_9_2, gadget_rev16_xreg_9_3, gadget_rev16_xreg_9_4, gadget_rev16_xreg_9_5, gadget_rev16_xreg_9_6, gadget_rev16_xreg_9_7, gadget_rev16_xreg_9_8, gadget_rev16_xreg_9_9, gadget_rev16_xreg_9_10, gadget_rev16_xreg_9_11, gadget_rev16_xreg_9_12, gadget_rev16_xreg_9_13, gadget_rev16_xreg_9_14},
+    {gadget_rev16_xreg_10_0, gadget_rev16_xreg_10_1, gadget_rev16_xreg_10_2, gadget_rev16_xreg_10_3, gadget_rev16_xreg_10_4, gadget_rev16_xreg_10_5, gadget_rev16_xreg_10_6, gadget_rev16_xreg_10_7, gadget_rev16_xreg_10_8, gadget_rev16_xreg_10_9, gadget_rev16_xreg_10_10, gadget_rev16_xreg_10_11, gadget_rev16_xreg_10_12, gadget_rev16_xreg_10_13, gadget_rev16_xreg_10_14},
+    {gadget_rev16_xreg_11_0, gadget_rev16_xreg_11_1, gadget_rev16_xreg_11_2, gadget_rev16_xreg_11_3, gadget_rev16_xreg_11_4, gadget_rev16_xreg_11_5, gadget_rev16_xreg_11_6, gadget_rev16_xreg_11_7, gadget_rev16_xreg_11_8, gadget_rev16_xreg_11_9, gadget_rev16_xreg_11_10, gadget_rev16_xreg_11_11, gadget_rev16_xreg_11_12, gadget_rev16_xreg_11_13, gadget_rev16_xreg_11_14},
+    {gadget_rev16_xreg_12_0, gadget_rev16_xreg_12_1, gadget_rev16_xreg_12_2, gadget_rev16_xreg_12_3, gadget_rev16_xreg_12_4, gadget_rev16_xreg_12_5, gadget_rev16_xreg_12_6, gadget_rev16_xreg_12_7, gadget_rev16_xreg_12_8, gadget_rev16_xreg_12_9, gadget_rev16_xreg_12_10, gadget_rev16_xreg_12_11, gadget_rev16_xreg_12_12, gadget_rev16_xreg_12_13, gadget_rev16_xreg_12_14},
+    {gadget_rev16_xreg_13_0, gadget_rev16_xreg_13_1, gadget_rev16_xreg_13_2, gadget_rev16_xreg_13_3, gadget_rev16_xreg_13_4, gadget_rev16_xreg_13_5, gadget_rev16_xreg_13_6, gadget_rev16_xreg_13_7, gadget_rev16_xreg_13_8, gadget_rev16_xreg_13_9, gadget_rev16_xreg_13_10, gadget_rev16_xreg_13_11, gadget_rev16_xreg_13_12, gadget_rev16_xreg_13_13, gadget_rev16_xreg_13_14},
+    {gadget_rev16_xreg_14_0, gadget_rev16_xreg_14_1, gadget_rev16_xreg_14_2, gadget_rev16_xreg_14_3, gadget_rev16_xreg_14_4, gadget_rev16_xreg_14_5, gadget_rev16_xreg_14_6, gadget_rev16_xreg_14_7, gadget_rev16_xreg_14_8, gadget_rev16_xreg_14_9, gadget_rev16_xreg_14_10, gadget_rev16_xreg_14_11, gadget_rev16_xreg_14_12, gadget_rev16_xreg_14_13, gadget_rev16_xreg_14_14},
+};
+
+// rev32_xreg lookup table: gadget_rev32_xreg[dst][src]
+const tcti_gadget_t gadget_rev32_xreg[16][16] = {
+    {gadget_rev32_xreg_0_0, gadget_rev32_xreg_0_1, gadget_rev32_xreg_0_2, gadget_rev32_xreg_0_3, gadget_rev32_xreg_0_4, gadget_rev32_xreg_0_5, gadget_rev32_xreg_0_6, gadget_rev32_xreg_0_7, gadget_rev32_xreg_0_8, gadget_rev32_xreg_0_9, gadget_rev32_xreg_0_10, gadget_rev32_xreg_0_11, gadget_rev32_xreg_0_12, gadget_rev32_xreg_0_13, gadget_rev32_xreg_0_14},
+    {gadget_rev32_xreg_1_0, gadget_rev32_xreg_1_1, gadget_rev32_xreg_1_2, gadget_rev32_xreg_1_3, gadget_rev32_xreg_1_4, gadget_rev32_xreg_1_5, gadget_rev32_xreg_1_6, gadget_rev32_xreg_1_7, gadget_rev32_xreg_1_8, gadget_rev32_xreg_1_9, gadget_rev32_xreg_1_10, gadget_rev32_xreg_1_11, gadget_rev32_xreg_1_12, gadget_rev32_xreg_1_13, gadget_rev32_xreg_1_14},
+    {gadget_rev32_xreg_2_0, gadget_rev32_xreg_2_1, gadget_rev32_xreg_2_2, gadget_rev32_xreg_2_3, gadget_rev32_xreg_2_4, gadget_rev32_xreg_2_5, gadget_rev32_xreg_2_6, gadget_rev32_xreg_2_7, gadget_rev32_xreg_2_8, gadget_rev32_xreg_2_9, gadget_rev32_xreg_2_10, gadget_rev32_xreg_2_11, gadget_rev32_xreg_2_12, gadget_rev32_xreg_2_13, gadget_rev32_xreg_2_14},
+    {gadget_rev32_xreg_3_0, gadget_rev32_xreg_3_1, gadget_rev32_xreg_3_2, gadget_rev32_xreg_3_3, gadget_rev32_xreg_3_4, gadget_rev32_xreg_3_5, gadget_rev32_xreg_3_6, gadget_rev32_xreg_3_7, gadget_rev32_xreg_3_8, gadget_rev32_xreg_3_9, gadget_rev32_xreg_3_10, gadget_rev32_xreg_3_11, gadget_rev32_xreg_3_12, gadget_rev32_xreg_3_13, gadget_rev32_xreg_3_14},
+    {gadget_rev32_xreg_4_0, gadget_rev32_xreg_4_1, gadget_rev32_xreg_4_2, gadget_rev32_xreg_4_3, gadget_rev32_xreg_4_4, gadget_rev32_xreg_4_5, gadget_rev32_xreg_4_6, gadget_rev32_xreg_4_7, gadget_rev32_xreg_4_8, gadget_rev32_xreg_4_9, gadget_rev32_xreg_4_10, gadget_rev32_xreg_4_11, gadget_rev32_xreg_4_12, gadget_rev32_xreg_4_13, gadget_rev32_xreg_4_14},
+    {gadget_rev32_xreg_5_0, gadget_rev32_xreg_5_1, gadget_rev32_xreg_5_2, gadget_rev32_xreg_5_3, gadget_rev32_xreg_5_4, gadget_rev32_xreg_5_5, gadget_rev32_xreg_5_6, gadget_rev32_xreg_5_7, gadget_rev32_xreg_5_8, gadget_rev32_xreg_5_9, gadget_rev32_xreg_5_10, gadget_rev32_xreg_5_11, gadget_rev32_xreg_5_12, gadget_rev32_xreg_5_13, gadget_rev32_xreg_5_14},
+    {gadget_rev32_xreg_6_0, gadget_rev32_xreg_6_1, gadget_rev32_xreg_6_2, gadget_rev32_xreg_6_3, gadget_rev32_xreg_6_4, gadget_rev32_xreg_6_5, gadget_rev32_xreg_6_6, gadget_rev32_xreg_6_7, gadget_rev32_xreg_6_8, gadget_rev32_xreg_6_9, gadget_rev32_xreg_6_10, gadget_rev32_xreg_6_11, gadget_rev32_xreg_6_12, gadget_rev32_xreg_6_13, gadget_rev32_xreg_6_14},
+    {gadget_rev32_xreg_7_0, gadget_rev32_xreg_7_1, gadget_rev32_xreg_7_2, gadget_rev32_xreg_7_3, gadget_rev32_xreg_7_4, gadget_rev32_xreg_7_5, gadget_rev32_xreg_7_6, gadget_rev32_xreg_7_7, gadget_rev32_xreg_7_8, gadget_rev32_xreg_7_9, gadget_rev32_xreg_7_10, gadget_rev32_xreg_7_11, gadget_rev32_xreg_7_12, gadget_rev32_xreg_7_13, gadget_rev32_xreg_7_14},
+    {gadget_rev32_xreg_8_0, gadget_rev32_xreg_8_1, gadget_rev32_xreg_8_2, gadget_rev32_xreg_8_3, gadget_rev32_xreg_8_4, gadget_rev32_xreg_8_5, gadget_rev32_xreg_8_6, gadget_rev32_xreg_8_7, gadget_rev32_xreg_8_8, gadget_rev32_xreg_8_9, gadget_rev32_xreg_8_10, gadget_rev32_xreg_8_11, gadget_rev32_xreg_8_12, gadget_rev32_xreg_8_13, gadget_rev32_xreg_8_14},
+    {gadget_rev32_xreg_9_0, gadget_rev32_xreg_9_1, gadget_rev32_xreg_9_2, gadget_rev32_xreg_9_3, gadget_rev32_xreg_9_4, gadget_rev32_xreg_9_5, gadget_rev32_xreg_9_6, gadget_rev32_xreg_9_7, gadget_rev32_xreg_9_8, gadget_rev32_xreg_9_9, gadget_rev32_xreg_9_10, gadget_rev32_xreg_9_11, gadget_rev32_xreg_9_12, gadget_rev32_xreg_9_13, gadget_rev32_xreg_9_14},
+    {gadget_rev32_xreg_10_0, gadget_rev32_xreg_10_1, gadget_rev32_xreg_10_2, gadget_rev32_xreg_10_3, gadget_rev32_xreg_10_4, gadget_rev32_xreg_10_5, gadget_rev32_xreg_10_6, gadget_rev32_xreg_10_7, gadget_rev32_xreg_10_8, gadget_rev32_xreg_10_9, gadget_rev32_xreg_10_10, gadget_rev32_xreg_10_11, gadget_rev32_xreg_10_12, gadget_rev32_xreg_10_13, gadget_rev32_xreg_10_14},
+    {gadget_rev32_xreg_11_0, gadget_rev32_xreg_11_1, gadget_rev32_xreg_11_2, gadget_rev32_xreg_11_3, gadget_rev32_xreg_11_4, gadget_rev32_xreg_11_5, gadget_rev32_xreg_11_6, gadget_rev32_xreg_11_7, gadget_rev32_xreg_11_8, gadget_rev32_xreg_11_9, gadget_rev32_xreg_11_10, gadget_rev32_xreg_11_11, gadget_rev32_xreg_11_12, gadget_rev32_xreg_11_13, gadget_rev32_xreg_11_14},
+    {gadget_rev32_xreg_12_0, gadget_rev32_xreg_12_1, gadget_rev32_xreg_12_2, gadget_rev32_xreg_12_3, gadget_rev32_xreg_12_4, gadget_rev32_xreg_12_5, gadget_rev32_xreg_12_6, gadget_rev32_xreg_12_7, gadget_rev32_xreg_12_8, gadget_rev32_xreg_12_9, gadget_rev32_xreg_12_10, gadget_rev32_xreg_12_11, gadget_rev32_xreg_12_12, gadget_rev32_xreg_12_13, gadget_rev32_xreg_12_14},
+    {gadget_rev32_xreg_13_0, gadget_rev32_xreg_13_1, gadget_rev32_xreg_13_2, gadget_rev32_xreg_13_3, gadget_rev32_xreg_13_4, gadget_rev32_xreg_13_5, gadget_rev32_xreg_13_6, gadget_rev32_xreg_13_7, gadget_rev32_xreg_13_8, gadget_rev32_xreg_13_9, gadget_rev32_xreg_13_10, gadget_rev32_xreg_13_11, gadget_rev32_xreg_13_12, gadget_rev32_xreg_13_13, gadget_rev32_xreg_13_14},
+    {gadget_rev32_xreg_14_0, gadget_rev32_xreg_14_1, gadget_rev32_xreg_14_2, gadget_rev32_xreg_14_3, gadget_rev32_xreg_14_4, gadget_rev32_xreg_14_5, gadget_rev32_xreg_14_6, gadget_rev32_xreg_14_7, gadget_rev32_xreg_14_8, gadget_rev32_xreg_14_9, gadget_rev32_xreg_14_10, gadget_rev32_xreg_14_11, gadget_rev32_xreg_14_12, gadget_rev32_xreg_14_13, gadget_rev32_xreg_14_14},
 };
