@@ -27,9 +27,13 @@ extern tcti_gadget_t gadget_simd_ins_gpr;
 extern tcti_gadget_t gadget_simd_tbl;
 extern tcti_gadget_t gadget_simd_tbx;
 extern tcti_gadget_t gadget_simd_xtn;
+extern tcti_gadget_t gadget_simd_xtn2;
 extern tcti_gadget_t gadget_simd_zip1;
+extern tcti_gadget_t gadget_simd_zip2;
 extern tcti_gadget_t gadget_simd_trn1;
+extern tcti_gadget_t gadget_simd_trn2;
 extern tcti_gadget_t gadget_simd_uzp1;
+extern tcti_gadget_t gadget_simd_uzp2;
 extern tcti_gadget_t gadget_simd_bic;
 extern tcti_gadget_t gadget_simd_and;
 extern tcti_gadget_t gadget_simd_orr;
@@ -90,9 +94,13 @@ TCTI_DECLARE_GADGET_POINTER_TEST(SimdInsGpr, gadget_simd_ins_gpr)
 TCTI_DECLARE_GADGET_POINTER_TEST(SimdTbl, gadget_simd_tbl)
 TCTI_DECLARE_GADGET_POINTER_TEST(SimdTbx, gadget_simd_tbx)
 TCTI_DECLARE_GADGET_POINTER_TEST(SimdXtn, gadget_simd_xtn)
+TCTI_DECLARE_GADGET_POINTER_TEST(SimdXtn2, gadget_simd_xtn2)
 TCTI_DECLARE_GADGET_POINTER_TEST(SimdZip1, gadget_simd_zip1)
+TCTI_DECLARE_GADGET_POINTER_TEST(SimdZip2, gadget_simd_zip2)
 TCTI_DECLARE_GADGET_POINTER_TEST(SimdTrn1, gadget_simd_trn1)
+TCTI_DECLARE_GADGET_POINTER_TEST(SimdTrn2, gadget_simd_trn2)
 TCTI_DECLARE_GADGET_POINTER_TEST(SimdUzp1, gadget_simd_uzp1)
+TCTI_DECLARE_GADGET_POINTER_TEST(SimdUzp2, gadget_simd_uzp2)
 TCTI_DECLARE_GADGET_POINTER_TEST(SimdBic, gadget_simd_bic)
 TCTI_DECLARE_GADGET_POINTER_TEST(SimdAnd, gadget_simd_and)
 TCTI_DECLARE_GADGET_POINTER_TEST(SimdOrr, gadget_simd_orr)

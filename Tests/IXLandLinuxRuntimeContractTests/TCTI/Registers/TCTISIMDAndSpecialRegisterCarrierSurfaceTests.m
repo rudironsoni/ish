@@ -13,11 +13,15 @@ extern tcti_gadget_t gadget_simd_dup_gpr;
 extern tcti_gadget_t gadget_simd_ins_gpr;
 extern tcti_gadget_t gadget_simd_movi_imm;
 extern tcti_gadget_t gadget_simd_zip1;
+extern tcti_gadget_t gadget_simd_zip2;
 extern tcti_gadget_t gadget_simd_tbl;
 extern tcti_gadget_t gadget_simd_tbx;
 extern tcti_gadget_t gadget_simd_xtn;
+extern tcti_gadget_t gadget_simd_xtn2;
 extern tcti_gadget_t gadget_simd_trn1;
+extern tcti_gadget_t gadget_simd_trn2;
 extern tcti_gadget_t gadget_simd_uzp1;
+extern tcti_gadget_t gadget_simd_uzp2;
 extern tcti_gadget_t gadget_simd_bic;
 extern tcti_gadget_t gadget_simd_orn;
 extern tcti_gadget_t gadget_simd_bsl;
@@ -146,12 +150,20 @@ TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDTBLLoweringCarriesRdRnRmAndWidth, 0x0e
                                       gadget_simd_tbl, 0, 1, 2, 8)
 TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDTBXLoweringCarriesRdRnRmAndWidth, 0x0e021020, 0xb002c,
                                       gadget_simd_tbx, 0, 1, 2, 8)
-TCTI_DECLARE_SIMD_UNARY_CARRIER_TEST(SIMDXTNLoweringCarriesRdRnAndWidth, 0x4e212820, 0xb0030,
-                                     gadget_simd_xtn, 0, 1, 16)
+TCTI_DECLARE_SIMD_UNARY_CARRIER_TEST(SIMDXTNLoweringCarriesRdRnAndWidth, 0x0e212820, 0xb0030,
+                                     gadget_simd_xtn, 0, 1, 8)
+TCTI_DECLARE_SIMD_UNARY_CARRIER_TEST(SIMDXTN2LoweringCarriesRdRnAndWidth, 0x4e212820, 0xb0032,
+                                     gadget_simd_xtn2, 0, 1, 16)
 TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDTRN1LoweringCarriesRdRnRmAndWidth, 0x4e022820, 0xb0034,
                                       gadget_simd_trn1, 0, 1, 2, 16)
+TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDTRN2LoweringCarriesRdRnRmAndWidth, 0x4e026820, 0xb0036,
+                                      gadget_simd_trn2, 0, 1, 2, 16)
 TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDUZP1LoweringCarriesRdRnRmAndWidth, 0x4e021820, 0xb0038,
                                       gadget_simd_uzp1, 0, 1, 2, 16)
+TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDUZP2LoweringCarriesRdRnRmAndWidth, 0x4e025820, 0xb003a,
+                                      gadget_simd_uzp2, 0, 1, 2, 16)
+TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDZIP2LoweringCarriesRdRnRmAndWidth, 0x4e027820, 0xb003b,
+                                      gadget_simd_zip2, 0, 1, 2, 16)
 TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDBICLoweringCarriesRdRnRmAndWidth, 0x4e621c20, 0xb003c,
                                       gadget_simd_bic, 0, 1, 2, 16)
 TCTI_DECLARE_SIMD_BINARY_CARRIER_TEST(SIMDORNLoweringCarriesRdRnRmAndWidth, 0x4ee21c20, 0xb0040,

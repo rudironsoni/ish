@@ -8,9 +8,13 @@ extern tcti_gadget_t gadget_atomic_ldst;
 extern tcti_gadget_t gadget_simd_tbl;
 extern tcti_gadget_t gadget_simd_tbx;
 extern tcti_gadget_t gadget_simd_xtn;
+extern tcti_gadget_t gadget_simd_xtn2;
 extern tcti_gadget_t gadget_simd_zip1;
+extern tcti_gadget_t gadget_simd_zip2;
 extern tcti_gadget_t gadget_simd_trn1;
+extern tcti_gadget_t gadget_simd_trn2;
 extern tcti_gadget_t gadget_simd_uzp1;
+extern tcti_gadget_t gadget_simd_uzp2;
 extern tcti_gadget_t gadget_simd_and;
 extern tcti_gadget_t gadget_simd_orr;
 extern tcti_gadget_t gadget_simd_eor;
@@ -1731,17 +1735,17 @@ TCTI_DECLARE_VECTOR_LOWERING_TEST(VectorIntegerLogical_TBX, 0x0e021020, 0x985c0,
 TCTI_DECLARE_VECTOR_LOWERING_TEST(VectorIntegerLogical_ZIP1, 0x4e023820, 0x985e0,
                                   gadget_simd_zip1, 0, 1, 2, 16)
 TCTI_DECLARE_VECTOR_LOWERING_TEST(VectorIntegerLogical_ZIP2, 0x4e027820, 0x985f0,
-                                  gadget_simd_zip1, 0, 1, 2, 16)
+                                  gadget_simd_zip2, 0, 1, 2, 16)
 TCTI_DECLARE_VECTOR_LOWERING_TEST(VectorIntegerLogical_TRN1, 0x4e022820, 0x98600,
                                   gadget_simd_trn1, 0, 1, 2, 16)
 TCTI_DECLARE_VECTOR_LOWERING_TEST(VectorIntegerLogical_TRN2, 0x4e026820, 0x98610,
-                                  gadget_simd_trn1, 0, 1, 2, 16)
+                                  gadget_simd_trn2, 0, 1, 2, 16)
 TCTI_DECLARE_VECTOR_LOWERING_TEST(VectorIntegerLogical_UZP1, 0x4e021820, 0x98620,
                                   gadget_simd_uzp1, 0, 1, 2, 16)
 TCTI_DECLARE_VECTOR_LOWERING_TEST(VectorIntegerLogical_UZP2, 0x4e025820, 0x98630,
-                                  gadget_simd_uzp1, 0, 1, 2, 16)
+                                  gadget_simd_uzp2, 0, 1, 2, 16)
 TCTI_DECLARE_VECTOR_UNARY_LOWERING_TEST(VectorIntegerLogical_XTN2, 0x4e212820, 0x98635,
-                                        gadget_simd_xtn, 0, 1, 16)
+                                        gadget_simd_xtn2, 0, 1, 16)
 TCTI_DECLARE_VECTOR_LOWERING_TEST(VectorIntegerLogical_AND, 0x4e221c20, 0x98640,
                                   gadget_simd_and, 0, 1, 2, 16)
 TCTI_DECLARE_VECTOR_LOWERING_TEST(VectorIntegerLogical_ORR, 0x4ea51c83, 0x98660,

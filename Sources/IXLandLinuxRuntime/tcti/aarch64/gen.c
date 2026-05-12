@@ -64,9 +64,13 @@ extern tcti_gadget_t gadget_simd_ins_gpr;
 extern tcti_gadget_t gadget_simd_tbl;
 extern tcti_gadget_t gadget_simd_tbx;
 extern tcti_gadget_t gadget_simd_xtn;
+extern tcti_gadget_t gadget_simd_xtn2;
 extern tcti_gadget_t gadget_simd_zip1;
+extern tcti_gadget_t gadget_simd_zip2;
 extern tcti_gadget_t gadget_simd_trn1;
+extern tcti_gadget_t gadget_simd_trn2;
 extern tcti_gadget_t gadget_simd_uzp1;
+extern tcti_gadget_t gadget_simd_uzp2;
 extern tcti_gadget_t gadget_simd_bic;
 extern tcti_gadget_t gadget_simd_and;
 extern tcti_gadget_t gadget_simd_orr;
@@ -2094,8 +2098,35 @@ static int a64_gen_simd(a64_gen_state_t *state, const a64_instr_t *instr)
             return ret;
         return emit_u64(state, instr->vec_bytes);
 
+    case A64_SIMD_XTN2:
+        ret = emit_gadget(state, gadget_simd_xtn2);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rd);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rn);
+        if (ret != A64_GEN_OK)
+            return ret;
+        return emit_u64(state, instr->vec_bytes);
+
     case A64_SIMD_ZIP1:
         ret = emit_gadget(state, gadget_simd_zip1);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rd);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rn);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rm);
+        if (ret != A64_GEN_OK)
+            return ret;
+        return emit_u64(state, instr->vec_bytes);
+
+    case A64_SIMD_ZIP2:
+        ret = emit_gadget(state, gadget_simd_zip2);
         if (ret != A64_GEN_OK)
             return ret;
         ret = emit_u64(state, instr->Rd);
@@ -2124,8 +2155,38 @@ static int a64_gen_simd(a64_gen_state_t *state, const a64_instr_t *instr)
             return ret;
         return emit_u64(state, instr->vec_bytes);
 
+    case A64_SIMD_TRN2:
+        ret = emit_gadget(state, gadget_simd_trn2);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rd);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rn);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rm);
+        if (ret != A64_GEN_OK)
+            return ret;
+        return emit_u64(state, instr->vec_bytes);
+
     case A64_SIMD_UZP1:
         ret = emit_gadget(state, gadget_simd_uzp1);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rd);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rn);
+        if (ret != A64_GEN_OK)
+            return ret;
+        ret = emit_u64(state, instr->Rm);
+        if (ret != A64_GEN_OK)
+            return ret;
+        return emit_u64(state, instr->vec_bytes);
+
+    case A64_SIMD_UZP2:
+        ret = emit_gadget(state, gadget_simd_uzp2);
         if (ret != A64_GEN_OK)
             return ret;
         ret = emit_u64(state, instr->Rd);

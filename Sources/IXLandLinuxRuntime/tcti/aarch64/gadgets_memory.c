@@ -424,19 +424,27 @@ __attribute__((used)) static void tcti_simd_tbx_helper(struct cpu_state *cpu, ui
 }
 
 __attribute__((used)) static void tcti_simd_xtn_helper(struct cpu_state *cpu, uint64_t vd,
-                                                       uint64_t vn, uint64_t elem_bytes)
+                                                       uint64_t vn, uint64_t vec_bytes)
 {
-    if (vd >= 32 || vn >= 32 || (elem_bytes != 1 && elem_bytes != 2 && elem_bytes != 4))
+    if (vd >= 32 || vn >= 32 || (vec_bytes != 8 && vec_bytes != 16))
         return;
 
-    uint64_t source_elem_bytes = elem_bytes << 1;
-    uint64_t lanes = 8 / elem_bytes;
+    uint64_t lanes = 8;
 
     for (uint64_t lane = 0; lane < lanes; lane++) {
-        memcpy(&cpu->vregs[vd].b[lane * elem_bytes],
-               &cpu->vregs[vn].b[lane * source_elem_bytes], (size_t)elem_bytes);
+        cpu->vregs[vd].b[lane] = cpu->vregs[vn].b[lane * 2];
     }
     memset(&cpu->vregs[vd].b[8], 0, 8);
+}
+
+__attribute__((used)) static void tcti_simd_xtn2_helper(struct cpu_state *cpu, uint64_t vd,
+                                                        uint64_t vn, uint64_t vec_bytes)
+{
+    if (vd >= 32 || vn >= 32 || vec_bytes != 16)
+        return;
+
+    for (uint64_t lane = 0; lane < 8; lane++)
+        cpu->vregs[vd].b[8 + lane] = cpu->vregs[vn].b[lane * 2];
 }
 
 __attribute__((used)) static void tcti_simd_zip1_helper(struct cpu_state *cpu, uint64_t vd,
@@ -450,6 +458,20 @@ __attribute__((used)) static void tcti_simd_zip1_helper(struct cpu_state *cpu, u
     for (uint64_t i = 0; i < half; i++) {
         cpu->vregs[vd].b[(i * 2)] = cpu->vregs[vn].b[i];
         cpu->vregs[vd].b[(i * 2) + 1] = cpu->vregs[vm].b[i];
+    }
+}
+
+__attribute__((used)) static void tcti_simd_zip2_helper(struct cpu_state *cpu, uint64_t vd,
+                                                        uint64_t vn, uint64_t vm,
+                                                        uint64_t vec_bytes)
+{
+    if (vd >= 32 || vn >= 32 || vm >= 32 || (vec_bytes != 8 && vec_bytes != 16))
+        return;
+
+    uint64_t half = vec_bytes / 2;
+    for (uint64_t i = 0; i < half; i++) {
+        cpu->vregs[vd].b[(i * 2)] = cpu->vregs[vn].b[half + i];
+        cpu->vregs[vd].b[(i * 2) + 1] = cpu->vregs[vm].b[half + i];
     }
 }
 
@@ -468,6 +490,21 @@ __attribute__((used)) static void tcti_simd_trn1_helper(struct cpu_state *cpu, u
     }
 }
 
+__attribute__((used)) static void tcti_simd_trn2_helper(struct cpu_state *cpu, uint64_t vd,
+                                                        uint64_t vn, uint64_t vm,
+                                                        uint64_t vec_bytes)
+{
+    if (vd >= 32 || vn >= 32 || vm >= 32 || (vec_bytes != 8 && vec_bytes != 16))
+        return;
+
+    uint64_t half = vec_bytes / 2;
+    for (uint64_t i = 0; i < half; i++) {
+        uint64_t src_index = (i * 2) + 1;
+        cpu->vregs[vd].b[(i * 2)] = cpu->vregs[vn].b[src_index];
+        cpu->vregs[vd].b[(i * 2) + 1] = cpu->vregs[vm].b[src_index];
+    }
+}
+
 __attribute__((used)) static void tcti_simd_uzp1_helper(struct cpu_state *cpu, uint64_t vd,
                                                         uint64_t vn, uint64_t vm,
                                                         uint64_t vec_bytes)
@@ -478,6 +515,21 @@ __attribute__((used)) static void tcti_simd_uzp1_helper(struct cpu_state *cpu, u
     uint64_t half = vec_bytes / 2;
     for (uint64_t i = 0; i < half; i++) {
         uint64_t src_index = i * 2;
+        cpu->vregs[vd].b[i] = cpu->vregs[vn].b[src_index];
+        cpu->vregs[vd].b[i + half] = cpu->vregs[vm].b[src_index];
+    }
+}
+
+__attribute__((used)) static void tcti_simd_uzp2_helper(struct cpu_state *cpu, uint64_t vd,
+                                                        uint64_t vn, uint64_t vm,
+                                                        uint64_t vec_bytes)
+{
+    if (vd >= 32 || vn >= 32 || vm >= 32 || (vec_bytes != 8 && vec_bytes != 16))
+        return;
+
+    uint64_t half = vec_bytes / 2;
+    for (uint64_t i = 0; i < half; i++) {
+        uint64_t src_index = (i * 2) + 1;
         cpu->vregs[vd].b[i] = cpu->vregs[vn].b[src_index];
         cpu->vregs[vd].b[i + half] = cpu->vregs[vm].b[src_index];
     }
@@ -5286,9 +5338,41 @@ tcti_gadget_t gadget_simd_xtn = gadget_simd_xtn_impl;
 
 __attribute__((visibility("default"))) void _tcti_simd_xtn_helper(struct cpu_state *cpu,
                                                                   uint64_t vd, uint64_t vn,
-                                                                  uint64_t elem_bytes)
+                                                                  uint64_t vec_bytes)
 {
-    tcti_simd_xtn_helper(cpu, vd, vn, elem_bytes);
+    tcti_simd_xtn_helper(cpu, vd, vn, vec_bytes);
+}
+
+__attribute__((naked)) void gadget_simd_xtn2_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t"
+                 "ldr x20, [x28], #8\n\t"
+                 "ldr x21, [x28], #8\n\t"
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "str x13, [x29, #112]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "mov x2, x20\n\t"
+                 "mov x3, x21\n\t"
+                 "bl _tcti_simd_xtn2_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
+tcti_gadget_t gadget_simd_xtn2 = gadget_simd_xtn2_impl;
+
+__attribute__((visibility("default"))) void _tcti_simd_xtn2_helper(struct cpu_state *cpu,
+                                                                   uint64_t vd, uint64_t vn,
+                                                                   uint64_t vec_bytes)
+{
+    tcti_simd_xtn2_helper(cpu, vd, vn, vec_bytes);
 }
 
 __attribute__((naked)) void gadget_simd_zip1_impl(void)
@@ -5326,6 +5410,41 @@ __attribute__((visibility("default"))) void _tcti_simd_zip1_helper(struct cpu_st
     tcti_simd_zip1_helper(cpu, vd, vn, vm, vec_bytes);
 }
 
+__attribute__((naked)) void gadget_simd_zip2_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t"
+                 "ldr x20, [x28], #8\n\t"
+                 "ldr x21, [x28], #8\n\t"
+                 "ldr x22, [x28], #8\n\t"
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "str x13, [x29, #112]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "mov x2, x20\n\t"
+                 "mov x3, x21\n\t"
+                 "mov x4, x22\n\t"
+                 "bl _tcti_simd_zip2_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
+tcti_gadget_t gadget_simd_zip2 = gadget_simd_zip2_impl;
+
+__attribute__((visibility("default"))) void _tcti_simd_zip2_helper(struct cpu_state *cpu,
+                                                                   uint64_t vd, uint64_t vn,
+                                                                   uint64_t vm,
+                                                                   uint64_t vec_bytes)
+{
+    tcti_simd_zip2_helper(cpu, vd, vn, vm, vec_bytes);
+}
+
 __attribute__((naked)) void gadget_simd_trn1_impl(void)
 {
     asm volatile("ldr x19, [x28], #8\n\t"
@@ -5361,6 +5480,41 @@ __attribute__((visibility("default"))) void _tcti_simd_trn1_helper(struct cpu_st
     tcti_simd_trn1_helper(cpu, vd, vn, vm, vec_bytes);
 }
 
+__attribute__((naked)) void gadget_simd_trn2_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t"
+                 "ldr x20, [x28], #8\n\t"
+                 "ldr x21, [x28], #8\n\t"
+                 "ldr x22, [x28], #8\n\t"
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "str x13, [x29, #112]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "mov x2, x20\n\t"
+                 "mov x3, x21\n\t"
+                 "mov x4, x22\n\t"
+                 "bl _tcti_simd_trn2_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
+tcti_gadget_t gadget_simd_trn2 = gadget_simd_trn2_impl;
+
+__attribute__((visibility("default"))) void _tcti_simd_trn2_helper(struct cpu_state *cpu,
+                                                                   uint64_t vd, uint64_t vn,
+                                                                   uint64_t vm,
+                                                                   uint64_t vec_bytes)
+{
+    tcti_simd_trn2_helper(cpu, vd, vn, vm, vec_bytes);
+}
+
 __attribute__((naked)) void gadget_simd_uzp1_impl(void)
 {
     asm volatile("ldr x19, [x28], #8\n\t"
@@ -5394,6 +5548,41 @@ __attribute__((visibility("default"))) void _tcti_simd_uzp1_helper(struct cpu_st
                                                                    uint64_t vec_bytes)
 {
     tcti_simd_uzp1_helper(cpu, vd, vn, vm, vec_bytes);
+}
+
+__attribute__((naked)) void gadget_simd_uzp2_impl(void)
+{
+    asm volatile("ldr x19, [x28], #8\n\t"
+                 "ldr x20, [x28], #8\n\t"
+                 "ldr x21, [x28], #8\n\t"
+                 "ldr x22, [x28], #8\n\t"
+                 "stp x1, x2, [x29, #16]\n\t"
+                 "stp x3, x4, [x29, #32]\n\t"
+                 "stp x5, x6, [x29, #48]\n\t"
+                 "stp x7, x8, [x29, #64]\n\t"
+                 "stp x9, x10, [x29, #80]\n\t"
+                 "stp x11, x12, [x29, #96]\n\t"
+                 "str x13, [x29, #112]\n\t"
+                 "bl _tcti_c_call_prologue\n\t"
+                 "mov x0, x29\n\t"
+                 "mov x1, x19\n\t"
+                 "mov x2, x20\n\t"
+                 "mov x3, x21\n\t"
+                 "mov x4, x22\n\t"
+                 "bl _tcti_simd_uzp2_helper\n\t"
+                 "bl _tcti_c_call_epilogue\n\t"
+                 "ldr x27, [x28], #8\n\t"
+                 "br x27\n\t");
+}
+
+tcti_gadget_t gadget_simd_uzp2 = gadget_simd_uzp2_impl;
+
+__attribute__((visibility("default"))) void _tcti_simd_uzp2_helper(struct cpu_state *cpu,
+                                                                   uint64_t vd, uint64_t vn,
+                                                                   uint64_t vm,
+                                                                   uint64_t vec_bytes)
+{
+    tcti_simd_uzp2_helper(cpu, vd, vn, vm, vec_bytes);
 }
 
 __attribute__((naked)) void gadget_simd_and_impl(void)

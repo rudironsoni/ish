@@ -121,6 +121,10 @@ typedef enum {
     A64_SIMD_CMGT = 27,          // CMGT signed per-lane greater-than mask
     A64_SIMD_MLA = 28,           // MLA multiply-accumulate into destination
     A64_SIMD_MLS = 29,           // MLS multiply-subtract from destination
+    A64_SIMD_XTN2 = 30,          // XTN2 narrow vector elements into upper half
+    A64_SIMD_ZIP2 = 31,          // ZIP2 interleave high halves of two vectors
+    A64_SIMD_TRN2 = 32,          // TRN2 transpose odd lanes from two vectors
+    A64_SIMD_UZP2 = 33,          // UZP2 pack odd lanes from two vectors
 } a64_simd_subtype_t;
 
 /* Indexing modes for load/store */

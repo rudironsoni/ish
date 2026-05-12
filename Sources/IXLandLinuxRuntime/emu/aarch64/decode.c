@@ -328,7 +328,7 @@ static bool a64_decode_simd_xtn_representative(uint32_t insn, a64_instr_t *out)
         return false;
 
     out->cat = A64_SIMD;
-    out->subtype = A64_SIMD_XTN;
+    out->subtype = bit(insn, 30) ? A64_SIMD_XTN2 : A64_SIMD_XTN;
     out->is_vector = true;
     out->Rd = bits(insn, 4, 0);
     out->Rn = bits(insn, 9, 5);
@@ -343,7 +343,7 @@ static bool a64_decode_simd_zip1_representative(uint32_t insn, a64_instr_t *out)
         return false;
 
     out->cat = A64_SIMD2;
-    out->subtype = A64_SIMD_ZIP1;
+    out->subtype = bit(insn, 14) ? A64_SIMD_ZIP2 : A64_SIMD_ZIP1;
     out->is_vector = true;
     out->Rd = bits(insn, 4, 0);
     out->Rn = bits(insn, 9, 5);
@@ -359,7 +359,7 @@ static bool a64_decode_simd_trn1_representative(uint32_t insn, a64_instr_t *out)
         return false;
 
     out->cat = A64_SIMD2;
-    out->subtype = A64_SIMD_TRN1;
+    out->subtype = bit(insn, 14) ? A64_SIMD_TRN2 : A64_SIMD_TRN1;
     out->is_vector = true;
     out->Rd = bits(insn, 4, 0);
     out->Rn = bits(insn, 9, 5);
@@ -375,7 +375,7 @@ static bool a64_decode_simd_uzp1_representative(uint32_t insn, a64_instr_t *out)
         return false;
 
     out->cat = A64_SIMD2;
-    out->subtype = A64_SIMD_UZP1;
+    out->subtype = bit(insn, 14) ? A64_SIMD_UZP2 : A64_SIMD_UZP1;
     out->is_vector = true;
     out->Rd = bits(insn, 4, 0);
     out->Rn = bits(insn, 9, 5);
