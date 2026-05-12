@@ -1,0 +1,123 @@
+#import <XCTest/XCTest.h>
+
+#include <dlfcn.h>
+#include <stdint.h>
+
+typedef void (*tcti_gadget_t)(void);
+
+extern const tcti_gadget_t gadget_adds_reg[16][16][16];
+extern const tcti_gadget_t gadget_subs_reg[16][16][16];
+extern const tcti_gadget_t gadget_rbit_wreg[16][16];
+extern const tcti_gadget_t gadget_rbit_xreg[16][16];
+extern const tcti_gadget_t gadget_clz_wreg[16][16];
+extern const tcti_gadget_t gadget_clz_xreg[16][16];
+extern tcti_gadget_t gadget_sbfm;
+extern tcti_gadget_t gadget_bfm;
+extern tcti_gadget_t gadget_ubfm;
+extern tcti_gadget_t gadget_movk;
+extern tcti_gadget_t gadget_write_reg_imm;
+extern tcti_gadget_t gadget_addsub_imm_fallback;
+extern tcti_gadget_t gadget_addsub_reg_fallback;
+extern tcti_gadget_t gadget_addsub_ext_fallback;
+extern tcti_gadget_t gadget_logical_imm_fallback;
+extern tcti_gadget_t gadget_logical_reg_fallback;
+extern tcti_gadget_t gadget_multiply_add_fallback;
+extern tcti_gadget_t gadget_shift_reg_fallback;
+extern tcti_gadget_t gadget_extract_fallback;
+extern tcti_gadget_t gadget_div_fallback;
+extern tcti_gadget_t gadget_csel_fallback;
+extern tcti_gadget_t gadget_ccmp_fallback;
+
+@interface TCTIArithmeticLogicalGadgetSurfaceTests : XCTestCase
+@end
+
+#define TCTI_DECLARE_GADGET_SYMBOL_TEST(_name, _symbol)                                           \
+- (void)testGadgetSurface_##_name                                                                  \
+{                                                                                                  \
+    XCTAssertNotEqual(dlsym(RTLD_DEFAULT, _symbol), NULL,                                          \
+                      @"%s must be link-visible because this arithmetic/logical gadget family is " \
+                       @"an explicit TCTI proof boundary", _symbol);                               \
+}
+
+#define TCTI_DECLARE_GADGET_POINTER_TEST(_name, _symbol)                                          \
+- (void)testGadgetSurface_##_name                                                                  \
+{                                                                                                  \
+    XCTAssertNotEqual((uintptr_t)(_symbol), (uintptr_t)0,                                          \
+                      @"%s must stay populated because arithmetic/logical lowering consumes it",   \
+                      #_symbol);                                                                    \
+}
+
+#define TCTI_DECLARE_GADGET_TABLE_TEST(_name, _table)                                              \
+- (void)testGadgetSurface_##_name                                                                  \
+{                                                                                                  \
+    XCTAssertNotEqual((uintptr_t)(_table[0]), (uintptr_t)0,                                        \
+                      @"%s must keep real entries because generator table dispatch depends on it", \
+                      #_table);                                                                     \
+    XCTAssertNotEqual((uintptr_t)(_table[15]), (uintptr_t)0,                                       \
+                      @"%s must cover the hot architectural edge of its table", #_table);          \
+}
+
+#define TCTI_DECLARE_GADGET_MATRIX_TEST(_name, _table)                                             \
+- (void)testGadgetSurface_##_name                                                                  \
+{                                                                                                  \
+    XCTAssertNotEqual((uintptr_t)(_table[0][0][0]), (uintptr_t)0,                                  \
+                      @"%s[0][0][0] must exist for generator lookup", #_table);                    \
+    XCTAssertNotEqual((uintptr_t)(_table[15][15][15]), (uintptr_t)0,                               \
+                      @"%s[15][15][15] must exist for generator lookup", #_table);                 \
+}
+
+#define TCTI_DECLARE_GADGET_TABLE2_TEST(_name, _table)                                             \
+- (void)testGadgetSurface_##_name                                                                  \
+{                                                                                                  \
+    XCTAssertNotEqual((uintptr_t)(_table[0][0]), (uintptr_t)0,                                     \
+                      @"%s[0][0] must exist for generator lookup", #_table);                       \
+    XCTAssertNotEqual((uintptr_t)(_table[15][15]), (uintptr_t)0,                                   \
+                      @"%s[15][15] must exist for generator lookup", #_table);                     \
+}
+
+@implementation TCTIArithmeticLogicalGadgetSurfaceTests
+
+TCTI_DECLARE_GADGET_SYMBOL_TEST(AddImm, "gadget_add_imm")
+TCTI_DECLARE_GADGET_SYMBOL_TEST(AddReg, "gadget_add_reg")
+TCTI_DECLARE_GADGET_SYMBOL_TEST(SubImm, "gadget_sub_imm")
+TCTI_DECLARE_GADGET_SYMBOL_TEST(SubReg, "gadget_sub_reg")
+TCTI_DECLARE_GADGET_SYMBOL_TEST(AndImm, "gadget_and_imm")
+TCTI_DECLARE_GADGET_SYMBOL_TEST(AndReg, "gadget_and_reg")
+TCTI_DECLARE_GADGET_SYMBOL_TEST(OrrImm, "gadget_orr_imm")
+TCTI_DECLARE_GADGET_SYMBOL_TEST(OrrReg, "gadget_orr_reg")
+TCTI_DECLARE_GADGET_SYMBOL_TEST(EorImm, "gadget_eor_imm")
+TCTI_DECLARE_GADGET_SYMBOL_TEST(EorReg, "gadget_eor_reg")
+TCTI_DECLARE_GADGET_SYMBOL_TEST(MovReg, "gadget_mov_reg")
+TCTI_DECLARE_GADGET_SYMBOL_TEST(MovImm, "gadget_mov_imm")
+TCTI_DECLARE_GADGET_SYMBOL_TEST(MvnReg, "gadget_mvn_reg")
+TCTI_DECLARE_GADGET_SYMBOL_TEST(LslImm, "gadget_lsl_imm")
+TCTI_DECLARE_GADGET_SYMBOL_TEST(LsrImm, "gadget_lsr_imm")
+TCTI_DECLARE_GADGET_SYMBOL_TEST(AsrImm, "gadget_asr_imm")
+TCTI_DECLARE_GADGET_SYMBOL_TEST(CmpImm, "gadget_cmp_imm")
+TCTI_DECLARE_GADGET_SYMBOL_TEST(CmpReg, "gadget_cmp_reg")
+TCTI_DECLARE_GADGET_SYMBOL_TEST(TstImm, "gadget_tst_imm")
+TCTI_DECLARE_GADGET_SYMBOL_TEST(TstReg, "gadget_tst_reg")
+TCTI_DECLARE_GADGET_MATRIX_TEST(AddsRegTable, gadget_adds_reg)
+TCTI_DECLARE_GADGET_MATRIX_TEST(SubsRegTable, gadget_subs_reg)
+TCTI_DECLARE_GADGET_TABLE2_TEST(RbitWRegTable, gadget_rbit_wreg)
+TCTI_DECLARE_GADGET_TABLE2_TEST(RbitXRegTable, gadget_rbit_xreg)
+TCTI_DECLARE_GADGET_TABLE2_TEST(ClzWRegTable, gadget_clz_wreg)
+TCTI_DECLARE_GADGET_TABLE2_TEST(ClzXRegTable, gadget_clz_xreg)
+TCTI_DECLARE_GADGET_POINTER_TEST(Sbfm, gadget_sbfm)
+TCTI_DECLARE_GADGET_POINTER_TEST(Bfm, gadget_bfm)
+TCTI_DECLARE_GADGET_POINTER_TEST(Ubfm, gadget_ubfm)
+TCTI_DECLARE_GADGET_POINTER_TEST(Movk, gadget_movk)
+TCTI_DECLARE_GADGET_POINTER_TEST(WriteRegImm, gadget_write_reg_imm)
+TCTI_DECLARE_GADGET_POINTER_TEST(AddSubImmFallback, gadget_addsub_imm_fallback)
+TCTI_DECLARE_GADGET_POINTER_TEST(AddSubRegFallback, gadget_addsub_reg_fallback)
+TCTI_DECLARE_GADGET_POINTER_TEST(AddSubExtFallback, gadget_addsub_ext_fallback)
+TCTI_DECLARE_GADGET_POINTER_TEST(LogicalImmFallback, gadget_logical_imm_fallback)
+TCTI_DECLARE_GADGET_POINTER_TEST(LogicalRegFallback, gadget_logical_reg_fallback)
+TCTI_DECLARE_GADGET_POINTER_TEST(MultiplyAddFallback, gadget_multiply_add_fallback)
+TCTI_DECLARE_GADGET_POINTER_TEST(ShiftRegFallback, gadget_shift_reg_fallback)
+TCTI_DECLARE_GADGET_POINTER_TEST(ExtractFallback, gadget_extract_fallback)
+TCTI_DECLARE_GADGET_POINTER_TEST(DivFallback, gadget_div_fallback)
+TCTI_DECLARE_GADGET_POINTER_TEST(CselFallback, gadget_csel_fallback)
+TCTI_DECLARE_GADGET_POINTER_TEST(CcmpFallback, gadget_ccmp_fallback)
+
+@end

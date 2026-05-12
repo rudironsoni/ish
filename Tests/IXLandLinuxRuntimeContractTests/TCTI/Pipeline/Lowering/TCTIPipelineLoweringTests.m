@@ -61,6 +61,41 @@ extern void gadget_ccmp_fallback_impl(void);
     XCTAssertEqual((uint64_t)(uintptr_t)gadgets[6], (uint64_t)_isLoad);                           \
 }
 
+#define TCTI_DECLARE_SCALAR_LDST_LOWERING_TEST(_name, _insn, _pc, _rd, _rn, _size, _is64,        \
+                                               _isSigned, _idxMode, _imm)                          \
+- (void)testLoweringContract_##_name                                                               \
+{                                                                                                  \
+    a64_instr_t decoded = [self decodeInstruction:_insn];                                          \
+    XCTAssertEqual(decoded.cat, A64_LD_ST);                                                        \
+    XCTAssertEqual(decoded.subtype, A64_LDST_SINGLE);                                              \
+    XCTAssertEqual(decoded.Rd, _rd);                                                               \
+    XCTAssertEqual(decoded.Rn, _rn);                                                               \
+    XCTAssertEqual(decoded.size, _size);                                                           \
+    XCTAssertEqual(decoded.is_64bit, _is64);                                                       \
+    XCTAssertEqual(decoded.is_signed, _isSigned);                                                  \
+    XCTAssertEqual(decoded.idx_mode, _idxMode);                                                    \
+    XCTAssertEqual(decoded.imm, _imm);                                                             \
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];                                              \
+    a64_gen_state_t state;                                                                         \
+    [self generateInstruction:_insn atPC:_pc state:&state gadgets:gadgets];                       \
+    XCTAssertGreaterThan(state.num_gadgets, (size_t)0);                                            \
+}
+
+#define TCTI_DECLARE_PREFETCH_LOWERING_TEST(_name, _insn, _pc, _rn, _idxMode, _imm)               \
+- (void)testLoweringContract_##_name                                                               \
+{                                                                                                  \
+    a64_instr_t decoded = [self decodeInstruction:_insn];                                          \
+    XCTAssertEqual(decoded.cat, A64_LD_ST);                                                        \
+    XCTAssertEqual(decoded.subtype, A64_LDST_SINGLE);                                              \
+    XCTAssertEqual(decoded.Rn, _rn);                                                               \
+    XCTAssertEqual(decoded.idx_mode, _idxMode);                                                    \
+    XCTAssertEqual(decoded.imm, _imm);                                                             \
+    tcti_gadget_t gadgets[A64_MAX_GADGETS_PER_BLOCK];                                              \
+    a64_gen_state_t state;                                                                         \
+    [self generateInstruction:_insn atPC:_pc state:&state gadgets:gadgets];                       \
+    XCTAssertGreaterThan(state.num_gadgets, (size_t)0);                                            \
+}
+
 #define TCTI_DECLARE_VECTOR_LOWERING_TEST(_name, _insn, _pc, _symbol, _rd, _rn, _rm, _vecBytes)  \
 - (void)testLoweringContract_##_name                                                               \
 {                                                                                                  \
@@ -1346,6 +1381,334 @@ TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STSMIN, 0xb820505f, 0x9
 TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STUMAX, 0xb820605f, 0x98480, 31, 2, 0,
                                   A64_SIZE_W, 0)
 TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STUMIN, 0xb820705f, 0x984a0, 31, 2, 0,
+                                  A64_SIZE_W, 0)
+
+TCTI_DECLARE_SCALAR_LDST_LOWERING_TEST(ScalarLoadStore_LDRB, 0x39400020, 0x100000, 0, 1, A64_SIZE_B,
+                                       NO, NO, A64_INDEX_OFFSET, 0)
+TCTI_DECLARE_SCALAR_LDST_LOWERING_TEST(ScalarLoadStore_LDRSW, 0xb9800062, 0x100004, 2, 3, A64_SIZE_W,
+                                       YES, YES, A64_INDEX_OFFSET, 0)
+TCTI_DECLARE_SCALAR_LDST_LOWERING_TEST(ScalarLoadStore_STRB, 0x390000a4, 0x100008, 4, 5, A64_SIZE_B,
+                                       NO, NO, A64_INDEX_OFFSET, 0)
+TCTI_DECLARE_SCALAR_LDST_LOWERING_TEST(ScalarLoadStore_STRH, 0x790000e6, 0x10000c, 6, 7, A64_SIZE_H,
+                                       NO, NO, A64_INDEX_OFFSET, 0)
+TCTI_DECLARE_SCALAR_LDST_LOWERING_TEST(ScalarLoadStore_LDURH, 0x785ff128, 0x100010, 8, 9, A64_SIZE_H,
+                                       NO, NO, A64_INDEX_OFFSET, -1)
+TCTI_DECLARE_SCALAR_LDST_LOWERING_TEST(ScalarLoadStore_LDURSB, 0x389ff16a, 0x100014, 10, 11, A64_SIZE_B,
+                                       YES, YES, A64_INDEX_OFFSET, -1)
+TCTI_DECLARE_SCALAR_LDST_LOWERING_TEST(ScalarLoadStore_LDURSH, 0x789ff1ac, 0x100018, 12, 13, A64_SIZE_H,
+                                       YES, YES, A64_INDEX_OFFSET, -1)
+TCTI_DECLARE_SCALAR_LDST_LOWERING_TEST(ScalarLoadStore_LDURSW, 0xb89fc1ee, 0x10001c, 14, 15, A64_SIZE_W,
+                                       YES, YES, A64_INDEX_OFFSET, -4)
+TCTI_DECLARE_SCALAR_LDST_LOWERING_TEST(ScalarLoadStore_STURB, 0x381ff230, 0x100020, 16, 17, A64_SIZE_B,
+                                       NO, NO, A64_INDEX_OFFSET, -1)
+TCTI_DECLARE_SCALAR_LDST_LOWERING_TEST(ScalarLoadStore_STURH, 0x781fe272, 0x100024, 18, 19, A64_SIZE_H,
+                                       NO, NO, A64_INDEX_OFFSET, -2)
+TCTI_DECLARE_SCALAR_LDST_LOWERING_TEST(ScalarLoadStore_LDTR, 0xf8400ab4, 0x100028, 20, 21, A64_SIZE_X,
+                                       YES, NO, A64_INDEX_OFFSET, 0)
+TCTI_DECLARE_SCALAR_LDST_LOWERING_TEST(ScalarLoadStore_LDTRB, 0x38400af6, 0x10002c, 22, 23, A64_SIZE_B,
+                                       NO, NO, A64_INDEX_OFFSET, 0)
+TCTI_DECLARE_SCALAR_LDST_LOWERING_TEST(ScalarLoadStore_LDTRH, 0x78400b38, 0x100030, 24, 25, A64_SIZE_H,
+                                       NO, NO, A64_INDEX_OFFSET, 0)
+TCTI_DECLARE_SCALAR_LDST_LOWERING_TEST(ScalarLoadStore_LDTRSB, 0x38800b7a, 0x100034, 26, 27, A64_SIZE_B,
+                                       YES, YES, A64_INDEX_OFFSET, 0)
+TCTI_DECLARE_SCALAR_LDST_LOWERING_TEST(ScalarLoadStore_LDTRSH, 0x78800bbc, 0x100038, 28, 29, A64_SIZE_H,
+                                       YES, YES, A64_INDEX_OFFSET, 0)
+TCTI_DECLARE_SCALAR_LDST_LOWERING_TEST(ScalarLoadStore_LDTRSW, 0xb8800820, 0x10003c, 0, 1, A64_SIZE_W,
+                                       YES, YES, A64_INDEX_OFFSET, 0)
+TCTI_DECLARE_SCALAR_LDST_LOWERING_TEST(ScalarLoadStore_STTR, 0xf8000862, 0x100040, 2, 3, A64_SIZE_X,
+                                       YES, NO, A64_INDEX_OFFSET, 0)
+TCTI_DECLARE_SCALAR_LDST_LOWERING_TEST(ScalarLoadStore_STTRB, 0x380008a4, 0x100044, 4, 5, A64_SIZE_B,
+                                       NO, NO, A64_INDEX_OFFSET, 0)
+TCTI_DECLARE_SCALAR_LDST_LOWERING_TEST(ScalarLoadStore_STTRH, 0x780008e6, 0x100048, 6, 7, A64_SIZE_H,
+                                       NO, NO, A64_INDEX_OFFSET, 0)
+TCTI_DECLARE_SCALAR_LDST_LOWERING_TEST(ScalarLoadStore_LDAPUR, 0xd9400128, 0x10004c, 8, 9, A64_SIZE_X,
+                                       YES, NO, A64_INDEX_OFFSET, 0)
+TCTI_DECLARE_SCALAR_LDST_LOWERING_TEST(ScalarLoadStore_LDAPURB, 0x1940016a, 0x100050, 10, 11, A64_SIZE_B,
+                                       NO, NO, A64_INDEX_OFFSET, 0)
+TCTI_DECLARE_SCALAR_LDST_LOWERING_TEST(ScalarLoadStore_LDAPURH, 0x594001ac, 0x100054, 12, 13, A64_SIZE_H,
+                                       NO, NO, A64_INDEX_OFFSET, 0)
+TCTI_DECLARE_SCALAR_LDST_LOWERING_TEST(ScalarLoadStore_LDAPURSB, 0x198001ee, 0x100058, 14, 15, A64_SIZE_B,
+                                       YES, YES, A64_INDEX_OFFSET, 0)
+TCTI_DECLARE_SCALAR_LDST_LOWERING_TEST(ScalarLoadStore_LDAPURSH, 0x59800230, 0x10005c, 16, 17, A64_SIZE_H,
+                                       YES, YES, A64_INDEX_OFFSET, 0)
+TCTI_DECLARE_SCALAR_LDST_LOWERING_TEST(ScalarLoadStore_LDAPURSW, 0x99800272, 0x100060, 18, 19, A64_SIZE_W,
+                                       YES, YES, A64_INDEX_OFFSET, 0)
+TCTI_DECLARE_SCALAR_LDST_LOWERING_TEST(ScalarLoadStore_STLUR, 0xd90002b4, 0x100064, 20, 21, A64_SIZE_X,
+                                       YES, NO, A64_INDEX_OFFSET, 0)
+TCTI_DECLARE_SCALAR_LDST_LOWERING_TEST(ScalarLoadStore_STLURB, 0x190002f6, 0x100068, 22, 23, A64_SIZE_B,
+                                       NO, NO, A64_INDEX_OFFSET, 0)
+TCTI_DECLARE_SCALAR_LDST_LOWERING_TEST(ScalarLoadStore_STLURH, 0x59000338, 0x10006c, 24, 25, A64_SIZE_H,
+                                       NO, NO, A64_INDEX_OFFSET, 0)
+TCTI_DECLARE_PREFETCH_LOWERING_TEST(ScalarLoadStore_PRFM, 0xf9800000, 0x100070, 0, A64_INDEX_OFFSET, 0)
+TCTI_DECLARE_PREFETCH_LOWERING_TEST(ScalarLoadStore_PRFUM, 0xf8800020, 0x100074, 1, A64_INDEX_OFFSET, 0)
+
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDARB, 0x08dffc20, 0x110000, 0, 1, 31,
+                                  A64_SIZE_B, 1)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDARH, 0x48dffc62, 0x110004, 2, 3, 31,
+                                  A64_SIZE_H, 1)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STLRB, 0x089ffca4, 0x110008, 4, 5, 31,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STLRH, 0x489ffce6, 0x11000c, 6, 7, 31,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDAPRB, 0x38bfc128, 0x110010, 8, 9, 31,
+                                  A64_SIZE_B, 1)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDAPRH, 0x78bfc16a, 0x110014, 10, 11, 31,
+                                  A64_SIZE_H, 1)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDAXRB, 0x085ffdac, 0x110018, 12, 13, 31,
+                                  A64_SIZE_B, 1)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDAXRH, 0x485ffdee, 0x11001c, 14, 15, 31,
+                                  A64_SIZE_H, 1)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STLXRB, 0x0810fe51, 0x110020, 17, 18, 16,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STLXRH, 0x4813feb4, 0x110024, 20, 21, 19,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDXRB, 0x085f7ef6, 0x110028, 22, 23, 31,
+                                  A64_SIZE_B, 1)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDXRH, 0x485f7f38, 0x11002c, 24, 25, 31,
+                                  A64_SIZE_H, 1)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STXRB, 0x081a7f9b, 0x110030, 27, 28, 26,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STXRH, 0x48007c41, 0x110034, 1, 2, 0,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_CASB, 0x08a07c41, 0x110100, 1, 2, 0,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_CASH, 0x48a17c62, 0x110104, 2, 3, 1,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_CASAB, 0x08e37ca4, 0x11010c, 4, 5, 3,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_CASAH, 0x48e47cc5, 0x110110, 5, 6, 4,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_CASLB, 0x08a6fd07, 0x110118, 7, 8, 6,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_CASLH, 0x48a7fd28, 0x11011c, 8, 9, 7,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_CASALB, 0x08e9fd6a, 0x110124, 10, 11, 9,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_CASALH, 0x48eafd8b, 0x110128, 11, 12, 10,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_SWPB, 0x38208041, 0x110130, 1, 2, 0,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_SWPH, 0x78218062, 0x110134, 2, 3, 1,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_SWPAB, 0x38a380a4, 0x11013c, 4, 5, 3,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_SWPAH, 0x78a480c5, 0x110140, 5, 6, 4,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_SWPLB, 0x38668107, 0x110148, 7, 8, 6,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_SWPLH, 0x78678128, 0x11014c, 8, 9, 7,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_SWPALB, 0x38e9816a, 0x110154, 10, 11, 9,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_SWPALH, 0x78ea818b, 0x110158, 11, 12, 10,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDADDB, 0x38200041, 0x110160, 1, 2, 0,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDADDH, 0x78210062, 0x110164, 2, 3, 1,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDADDAB, 0x38a300a4, 0x11016c, 4, 5, 3,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDADDAH, 0x78a400c5, 0x110170, 5, 6, 4,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDADDLB, 0x38660107, 0x110178, 7, 8, 6,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDADDLH, 0x78670128, 0x11017c, 8, 9, 7,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDADDALB, 0x38e9016a, 0x110184, 10, 11, 9,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDADDALH, 0x78ea018b, 0x110188, 11, 12, 10,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDCLRB, 0x38201041, 0x110190, 1, 2, 0,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDCLRH, 0x78211062, 0x110194, 2, 3, 1,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDCLRAB, 0x38a310a4, 0x11019c, 4, 5, 3,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDCLRAH, 0x78a410c5, 0x1101a0, 5, 6, 4,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDCLRLB, 0x38661107, 0x1101a8, 7, 8, 6,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDCLRLH, 0x78671128, 0x1101ac, 8, 9, 7,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDCLRALB, 0x38e9116a, 0x1101b4, 10, 11, 9,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDCLRALH, 0x78ea118b, 0x1101b8, 11, 12, 10,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDEORB, 0x38202041, 0x1101c0, 1, 2, 0,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDEORH, 0x78212062, 0x1101c4, 2, 3, 1,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDEORAB, 0x38a320a4, 0x1101cc, 4, 5, 3,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDEORAH, 0x78a420c5, 0x1101d0, 5, 6, 4,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDEORLB, 0x38662107, 0x1101d8, 7, 8, 6,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDEORLH, 0x78672128, 0x1101dc, 8, 9, 7,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDEORALB, 0x38e9216a, 0x1101e4, 10, 11, 9,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDEORALH, 0x78ea218b, 0x1101e8, 11, 12, 10,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDSETB, 0x38203041, 0x1101f0, 1, 2, 0,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDSETH, 0x78213062, 0x1101f4, 2, 3, 1,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDSETAB, 0x38a330a4, 0x1101fc, 4, 5, 3,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDSETAH, 0x78a430c5, 0x110200, 5, 6, 4,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDSETLB, 0x38663107, 0x110208, 7, 8, 6,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDSETLH, 0x78673128, 0x11020c, 8, 9, 7,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDSETALB, 0x38e9316a, 0x110214, 10, 11, 9,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDSETALH, 0x78ea318b, 0x110218, 11, 12, 10,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDSMAXB, 0x38204041, 0x110220, 1, 2, 0,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDSMAXH, 0x78214062, 0x110224, 2, 3, 1,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDSMAXAB, 0x38a340a4, 0x11022c, 4, 5, 3,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDSMAXAH, 0x78a440c5, 0x110230, 5, 6, 4,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDSMAXLB, 0x38664107, 0x110238, 7, 8, 6,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDSMAXLH, 0x78674128, 0x11023c, 8, 9, 7,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDSMAXALB, 0x38e9416a, 0x110244, 10, 11, 9,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDSMAXALH, 0x78ea418b, 0x110248, 11, 12, 10,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDSMINB, 0x38205041, 0x110250, 1, 2, 0,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDSMINH, 0x78215062, 0x110254, 2, 3, 1,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDSMINAB, 0x38a350a4, 0x11025c, 4, 5, 3,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDSMINAH, 0x78a450c5, 0x110260, 5, 6, 4,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDSMINLB, 0x38665107, 0x110268, 7, 8, 6,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDSMINLH, 0x78675128, 0x11026c, 8, 9, 7,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDSMINALB, 0x38e9516a, 0x110274, 10, 11, 9,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDSMINALH, 0x78ea518b, 0x110278, 11, 12, 10,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDUMAXB, 0x38206041, 0x110280, 1, 2, 0,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDUMAXH, 0x78216062, 0x110284, 2, 3, 1,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDUMAXAB, 0x38a360a4, 0x11028c, 4, 5, 3,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDUMAXAH, 0x78a460c5, 0x110290, 5, 6, 4,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDUMAXLB, 0x38666107, 0x110298, 7, 8, 6,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDUMAXLH, 0x78676128, 0x11029c, 8, 9, 7,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDUMAXALB, 0x38e9616a, 0x1102a4, 10, 11, 9,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDUMAXALH, 0x78ea618b, 0x1102a8, 11, 12, 10,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDUMINB, 0x38207041, 0x1102b0, 1, 2, 0,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDUMINH, 0x78217062, 0x1102b4, 2, 3, 1,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDUMINAB, 0x38a370a4, 0x1102bc, 4, 5, 3,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDUMINAH, 0x78a470c5, 0x1102c0, 5, 6, 4,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDUMINLB, 0x38667107, 0x1102c8, 7, 8, 6,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDUMINLH, 0x78677128, 0x1102cc, 8, 9, 7,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDUMINALB, 0x38e9716a, 0x1102d4, 10, 11, 9,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_LDUMINALH, 0x78ea718b, 0x1102d8, 11, 12, 10,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STADDB, 0x3820003f, 0x1102e0, 31, 1, 0,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STADDH, 0x7821005f, 0x1102e4, 31, 2, 1,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STADDLB, 0x3862007f, 0x1102e8, 31, 3, 2,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STADDLH, 0x7863009f, 0x1102ec, 31, 4, 3,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STADDL, 0xb86400bf, 0x1102f0, 31, 5, 4,
+                                  A64_SIZE_W, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STCLRB, 0x3820103f, 0x1102f4, 31, 1, 0,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STCLRH, 0x7821105f, 0x1102f8, 31, 2, 1,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STCLRLB, 0x3862107f, 0x1102fc, 31, 3, 2,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STCLRLH, 0x7863109f, 0x110300, 31, 4, 3,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STCLRL, 0xb86410bf, 0x110304, 31, 5, 4,
+                                  A64_SIZE_W, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STEORB, 0x3820203f, 0x110308, 31, 1, 0,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STEORH, 0x7821205f, 0x11030c, 31, 2, 1,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STEORLB, 0x3862207f, 0x110310, 31, 3, 2,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STEORLH, 0x7863209f, 0x110314, 31, 4, 3,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STEORL, 0xb86420bf, 0x110318, 31, 5, 4,
+                                  A64_SIZE_W, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STSETB, 0x3820303f, 0x11031c, 31, 1, 0,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STSETH, 0x7821305f, 0x110320, 31, 2, 1,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STSETLB, 0x3862307f, 0x110324, 31, 3, 2,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STSETLH, 0x7863309f, 0x110328, 31, 4, 3,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STSETL, 0xb86430bf, 0x11032c, 31, 5, 4,
+                                  A64_SIZE_W, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STSMAXB, 0x3820403f, 0x110330, 31, 1, 0,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STSMAXH, 0x7821405f, 0x110334, 31, 2, 1,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STSMAXLB, 0x3862407f, 0x110338, 31, 3, 2,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STSMAXLH, 0x7863409f, 0x11033c, 31, 4, 3,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STSMAXL, 0xb86440bf, 0x110340, 31, 5, 4,
+                                  A64_SIZE_W, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STSMINB, 0x3820503f, 0x110344, 31, 1, 0,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STSMINH, 0x7821505f, 0x110348, 31, 2, 1,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STSMINLB, 0x3862507f, 0x11034c, 31, 3, 2,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STSMINLH, 0x7863509f, 0x110350, 31, 4, 3,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STSMINL, 0xb86450bf, 0x110354, 31, 5, 4,
+                                  A64_SIZE_W, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STUMAXB, 0x3820603f, 0x110358, 31, 1, 0,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STUMAXH, 0x7821605f, 0x11035c, 31, 2, 1,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STUMAXLB, 0x3862607f, 0x110360, 31, 3, 2,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STUMAXLH, 0x7863609f, 0x110364, 31, 4, 3,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STUMAXL, 0xb86460bf, 0x110368, 31, 5, 4,
+                                  A64_SIZE_W, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STUMINB, 0x3820703f, 0x11036c, 31, 1, 0,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STUMINH, 0x7821705f, 0x110370, 31, 2, 1,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STUMINLB, 0x3862707f, 0x110374, 31, 3, 2,
+                                  A64_SIZE_B, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STUMINLH, 0x7863709f, 0x110378, 31, 4, 3,
+                                  A64_SIZE_H, 0)
+TCTI_DECLARE_ATOMIC_LOWERING_TEST(OrderedExclusiveAtomic_STUMINL, 0xb86470bf, 0x11037c, 31, 5, 4,
                                   A64_SIZE_W, 0)
 
 TCTI_DECLARE_VECTOR_LOWERING_TEST(VectorIntegerLogical_CMGE, 0x4e223c20, 0x984c0,

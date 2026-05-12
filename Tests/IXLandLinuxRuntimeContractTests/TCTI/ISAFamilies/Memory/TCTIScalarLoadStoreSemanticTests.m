@@ -12,6 +12,139 @@
 @interface TCTIScalarLoadStoreSemanticTests : XCTestCase
 @end
 
+static uint64_t tcti_scalar_mask_for_size(int size)
+{
+    switch (size) {
+    case A64_SIZE_B:
+        return 0xffULL;
+    case A64_SIZE_H:
+        return 0xffffULL;
+    case A64_SIZE_W:
+        return 0xffffffffULL;
+    case A64_SIZE_X:
+    default:
+        return UINT64_MAX;
+    }
+}
+
+static int tcti_scalar_guest_write_width(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, int size,
+                                         uint64_t value)
+{
+    switch (size) {
+    case A64_SIZE_B:
+        return a64_guest_write8(cpu, tlb, addr, (uint8_t)value);
+    case A64_SIZE_H:
+        return a64_guest_write16(cpu, tlb, addr, (uint16_t)value);
+    case A64_SIZE_W:
+        return a64_guest_write32(cpu, tlb, addr, (uint32_t)value);
+    case A64_SIZE_X:
+    default:
+        return a64_guest_write64(cpu, tlb, addr, value);
+    }
+}
+
+static int tcti_scalar_guest_read_width(struct cpu_state *cpu, struct tlb *tlb, uint64_t addr, int size,
+                                        uint64_t *value)
+{
+    switch (size) {
+    case A64_SIZE_B: {
+        uint8_t tmp = 0;
+        int rc = a64_guest_read8(cpu, tlb, addr, &tmp);
+        *value = tmp;
+        return rc;
+    }
+    case A64_SIZE_H: {
+        uint16_t tmp = 0;
+        int rc = a64_guest_read16(cpu, tlb, addr, &tmp);
+        *value = tmp;
+        return rc;
+    }
+    case A64_SIZE_W: {
+        uint32_t tmp = 0;
+        int rc = a64_guest_read32(cpu, tlb, addr, &tmp);
+        *value = tmp;
+        return rc;
+    }
+    case A64_SIZE_X:
+    default: {
+        uint64_t tmp = 0;
+        int rc = a64_guest_read64(cpu, tlb, addr, &tmp);
+        *value = tmp;
+        return rc;
+    }
+    }
+}
+
+#define TCTI_DECLARE_SCALAR_LOAD_SEMANTIC_TEST(_name, _insn, _pc, _guestAddr, _baseReg, _baseValue, _dstReg, \
+                                               _size, _isSigned, _memValue, _expected)                        \
+- (void)testSemanticExecutionContract_##_name                                                                   \
+{                                                                                                               \
+    struct mem mem;                                                                                             \
+    struct tlb tlb = {};                                                                                        \
+    struct cpu_state cpu;                                                                                       \
+    mem_init(&mem);                                                                                             \
+    XCTAssertEqual(pt_map_nothing(&mem, PAGE(_guestAddr), 1, P_READ | P_WRITE), 0);                           \
+    tlb_refresh(&tlb, &mem.mmu);                                                                                \
+    memset(&cpu, 0, sizeof(cpu));                                                                               \
+    cpu.mmu = &mem.mmu;                                                                                         \
+    cpu.tlb = &tlb;                                                                                             \
+    cpu.pc = _pc;                                                                                               \
+    cpu.x[_baseReg] = _baseValue;                                                                               \
+    XCTAssertEqual(tcti_scalar_guest_write_width(&cpu, &tlb, _guestAddr, _size, _memValue), A64_MEM_OK);      \
+    static const uint32_t insn = _insn;                                                                         \
+    XCTAssertEqual(a64_cpu_execute_code_block(&cpu, _pc, &insn, 1), 0,                                         \
+                   @"%s must execute through the real TCTI scalar load/store path", #_name);                   \
+    XCTAssertEqual(cpu.x[_dstReg], (uint64_t)(_expected));                                                     \
+    mem_destroy(&mem);                                                                                          \
+}
+
+#define TCTI_DECLARE_SCALAR_STORE_SEMANTIC_TEST(_name, _insn, _pc, _guestAddr, _baseReg, _baseValue, _srcReg, \
+                                                _size, _srcValue)                                                \
+- (void)testSemanticExecutionContract_##_name                                                                    \
+{                                                                                                                \
+    struct mem mem;                                                                                              \
+    struct tlb tlb = {};                                                                                         \
+    struct cpu_state cpu;                                                                                        \
+    mem_init(&mem);                                                                                              \
+    XCTAssertEqual(pt_map_nothing(&mem, PAGE(_guestAddr), 1, P_READ | P_WRITE), 0);                            \
+    tlb_refresh(&tlb, &mem.mmu);                                                                                 \
+    memset(&cpu, 0, sizeof(cpu));                                                                                \
+    cpu.mmu = &mem.mmu;                                                                                          \
+    cpu.tlb = &tlb;                                                                                              \
+    cpu.pc = _pc;                                                                                                \
+    cpu.x[_baseReg] = _baseValue;                                                                                \
+    cpu.x[_srcReg] = (uint64_t)(_srcValue);                                                                      \
+    static const uint32_t insn = _insn;                                                                          \
+    XCTAssertEqual(a64_cpu_execute_code_block(&cpu, _pc, &insn, 1), 0,                                          \
+                   @"%s must execute through the real TCTI scalar load/store path", #_name);                    \
+    uint64_t stored = 0;                                                                                         \
+    XCTAssertEqual(tcti_scalar_guest_read_width(&cpu, &tlb, _guestAddr, _size, &stored), A64_MEM_OK);          \
+    XCTAssertEqual(stored, ((uint64_t)(_srcValue) & tcti_scalar_mask_for_size(_size)));                         \
+    mem_destroy(&mem);                                                                                           \
+}
+
+#define TCTI_DECLARE_PREFETCH_SEMANTIC_TEST(_name, _insn, _pc, _guestAddr, _baseReg)                           \
+- (void)testSemanticExecutionContract_##_name                                                                   \
+{                                                                                                               \
+    struct mem mem;                                                                                             \
+    struct tlb tlb = {};                                                                                        \
+    struct cpu_state cpu;                                                                                       \
+    mem_init(&mem);                                                                                             \
+    XCTAssertEqual(pt_map_nothing(&mem, PAGE(_guestAddr), 1, P_READ | P_WRITE), 0);                           \
+    tlb_refresh(&tlb, &mem.mmu);                                                                                \
+    memset(&cpu, 0, sizeof(cpu));                                                                               \
+    cpu.mmu = &mem.mmu;                                                                                         \
+    cpu.tlb = &tlb;                                                                                             \
+    cpu.pc = _pc;                                                                                               \
+    cpu.x[_baseReg] = _guestAddr;                                                                               \
+    cpu.x[30] = 0x1122334455667788ULL;                                                                          \
+    static const uint32_t insn = _insn;                                                                         \
+    XCTAssertEqual(a64_cpu_execute_code_block(&cpu, _pc, &insn, 1), 0,                                         \
+                   @"%s must execute through the real TCTI prefetch path", #_name);                             \
+    XCTAssertEqual(cpu.x[30], 0x1122334455667788ULL);                                                           \
+    mem_destroy(&mem);                                                                                          \
+}
+
 @implementation TCTIScalarLoadStoreSemanticTests
 
 - (void)testSemanticExecutionContract_MuslFrameStrideBlockUsesWideImmediatesAndRegOffsetLDR
@@ -282,5 +415,78 @@
                    @"TCTI must execute musl's GNU hash loop with 32-bit shifted ADD on "
                     "memory-backed registers so dynamic symbol lookup can find malloc/free");
 }
+
+TCTI_DECLARE_SCALAR_LOAD_SEMANTIC_TEST(ScalarLoadStore_LDRBReadsZeroExtendedByte, 0x39400020, 0x100000,
+                                       0x240000, 1, 0x240000, 0, A64_SIZE_B, NO, 0x5a, 0x5aULL)
+TCTI_DECLARE_SCALAR_LOAD_SEMANTIC_TEST(ScalarLoadStore_LDRSWReadsSignExtendedWord, 0xb9800062, 0x100004,
+                                       0x240040, 3, 0x240040, 2, A64_SIZE_W, YES, 0x89abcdefU,
+                                       0xffffffff89abcdefULL)
+TCTI_DECLARE_SCALAR_STORE_SEMANTIC_TEST(ScalarLoadStore_STRBStoresLowByte, 0x390000a4, 0x100008,
+                                        0x240080, 5, 0x240080, 4, A64_SIZE_B, 0x12345678U)
+TCTI_DECLARE_SCALAR_STORE_SEMANTIC_TEST(ScalarLoadStore_STRHStoresLowHalfword, 0x790000e6, 0x10000c,
+                                        0x2400c0, 7, 0x2400c0, 6, A64_SIZE_H, 0x12345678U)
+TCTI_DECLARE_SCALAR_LOAD_SEMANTIC_TEST(ScalarLoadStore_LDURHReadsUnscaledHalfword, 0x785ff128, 0x100010,
+                                       0x240100, 9, 0x240101, 8, A64_SIZE_H, NO, 0x7abcU, 0x7abcULL)
+TCTI_DECLARE_SCALAR_LOAD_SEMANTIC_TEST(ScalarLoadStore_LDURSBReadsSignExtendedByte, 0x389ff16a, 0x100014,
+                                       0x240140, 11, 0x240141, 10, A64_SIZE_B, YES, 0x80U,
+                                       0xffffffffffffff80ULL)
+TCTI_DECLARE_SCALAR_LOAD_SEMANTIC_TEST(ScalarLoadStore_LDURSHReadsSignExtendedHalfword, 0x789ff1ac, 0x100018,
+                                       0x240180, 13, 0x240181, 12, A64_SIZE_H, YES, 0x8001U,
+                                       0xffffffffffff8001ULL)
+TCTI_DECLARE_SCALAR_LOAD_SEMANTIC_TEST(ScalarLoadStore_LDURSWReadsSignExtendedWord, 0xb89fc1ee, 0x10001c,
+                                       0x2401c0, 15, 0x2401c4, 14, A64_SIZE_W, YES, 0x80000011U,
+                                       0xffffffff80000011ULL)
+TCTI_DECLARE_SCALAR_STORE_SEMANTIC_TEST(ScalarLoadStore_STURBStoresUnscaledByte, 0x381ff230, 0x100020,
+                                        0x240200, 17, 0x240201, 16, A64_SIZE_B, 0xa5U)
+TCTI_DECLARE_SCALAR_STORE_SEMANTIC_TEST(ScalarLoadStore_STURHStoresUnscaledHalfword, 0x781fe272, 0x100024,
+                                        0x240240, 19, 0x240242, 18, A64_SIZE_H, 0xbeefU)
+TCTI_DECLARE_SCALAR_LOAD_SEMANTIC_TEST(ScalarLoadStore_LDTRReadsUnprivilegedDoubleword, 0xf8400ab4, 0x100028,
+                                       0x240280, 21, 0x240280, 20, A64_SIZE_X, NO,
+                                       0x1122334455667788ULL, 0x1122334455667788ULL)
+TCTI_DECLARE_SCALAR_LOAD_SEMANTIC_TEST(ScalarLoadStore_LDTRBReadsUnprivilegedByte, 0x38400af6, 0x10002c,
+                                       0x2402c0, 23, 0x2402c0, 22, A64_SIZE_B, NO, 0x44U, 0x44ULL)
+TCTI_DECLARE_SCALAR_LOAD_SEMANTIC_TEST(ScalarLoadStore_LDTRHReadsUnprivilegedHalfword, 0x78400b38, 0x100030,
+                                       0x240300, 25, 0x240300, 24, A64_SIZE_H, NO, 0x3344U, 0x3344ULL)
+TCTI_DECLARE_SCALAR_LOAD_SEMANTIC_TEST(ScalarLoadStore_LDTRSBReadsUnprivilegedSignedByte, 0x38800b7a, 0x100034,
+                                       0x240340, 27, 0x240340, 26, A64_SIZE_B, YES, 0x81U,
+                                       0xffffffffffffff81ULL)
+TCTI_DECLARE_SCALAR_LOAD_SEMANTIC_TEST(ScalarLoadStore_LDTRSHReadsUnprivilegedSignedHalfword, 0x78800bbc, 0x100038,
+                                       0x240380, 29, 0x240380, 28, A64_SIZE_H, YES, 0x8002U,
+                                       0xffffffffffff8002ULL)
+TCTI_DECLARE_SCALAR_LOAD_SEMANTIC_TEST(ScalarLoadStore_LDTRSWReadsUnprivilegedSignedWord, 0xb8800820, 0x10003c,
+                                       0x2403c0, 1, 0x2403c0, 0, A64_SIZE_W, YES, 0x80000033U,
+                                       0xffffffff80000033ULL)
+TCTI_DECLARE_SCALAR_STORE_SEMANTIC_TEST(ScalarLoadStore_STTRStoresUnprivilegedDoubleword, 0xf8000862, 0x100040,
+                                        0x240400, 3, 0x240400, 2, A64_SIZE_X, 0x8877665544332211ULL)
+TCTI_DECLARE_SCALAR_STORE_SEMANTIC_TEST(ScalarLoadStore_STTRBStoresUnprivilegedByte, 0x380008a4, 0x100044,
+                                        0x240440, 5, 0x240440, 4, A64_SIZE_B, 0xfeU)
+TCTI_DECLARE_SCALAR_STORE_SEMANTIC_TEST(ScalarLoadStore_STTRHStoresUnprivilegedHalfword, 0x780008e6, 0x100048,
+                                        0x240480, 7, 0x240480, 6, A64_SIZE_H, 0xcafeU)
+TCTI_DECLARE_SCALAR_LOAD_SEMANTIC_TEST(ScalarLoadStore_LDAPURReadsOrderedDoubleword, 0xd9400128, 0x10004c,
+                                       0x2404c0, 9, 0x2404c0, 8, A64_SIZE_X, NO,
+                                       0x0f1e2d3c4b5a6978ULL, 0x0f1e2d3c4b5a6978ULL)
+TCTI_DECLARE_SCALAR_LOAD_SEMANTIC_TEST(ScalarLoadStore_LDAPURBReadsOrderedByte, 0x1940016a, 0x100050,
+                                       0x240500, 11, 0x240500, 10, A64_SIZE_B, NO, 0x73U, 0x73ULL)
+TCTI_DECLARE_SCALAR_LOAD_SEMANTIC_TEST(ScalarLoadStore_LDAPURHReadsOrderedHalfword, 0x594001ac, 0x100054,
+                                       0x240540, 13, 0x240540, 12, A64_SIZE_H, NO, 0x6b7cU, 0x6b7cULL)
+TCTI_DECLARE_SCALAR_LOAD_SEMANTIC_TEST(ScalarLoadStore_LDAPURSBReadsOrderedSignedByte, 0x198001ee, 0x100058,
+                                       0x240580, 15, 0x240580, 14, A64_SIZE_B, YES, 0x90U,
+                                       0xffffffffffffff90ULL)
+TCTI_DECLARE_SCALAR_LOAD_SEMANTIC_TEST(ScalarLoadStore_LDAPURSHReadsOrderedSignedHalfword, 0x59800230, 0x10005c,
+                                       0x2405c0, 17, 0x2405c0, 16, A64_SIZE_H, YES, 0x9001U,
+                                       0xffffffffffff9001ULL)
+TCTI_DECLARE_SCALAR_LOAD_SEMANTIC_TEST(ScalarLoadStore_LDAPURSWReadsOrderedSignedWord, 0x99800272, 0x100060,
+                                       0x240600, 19, 0x240600, 18, A64_SIZE_W, YES, 0x8ffff001U,
+                                       0xffffffff8ffff001ULL)
+TCTI_DECLARE_SCALAR_STORE_SEMANTIC_TEST(ScalarLoadStore_STLURStoresOrderedDoubleword, 0xd90002b4, 0x100064,
+                                        0x240640, 21, 0x240640, 20, A64_SIZE_X, 0x0102030405060708ULL)
+TCTI_DECLARE_SCALAR_STORE_SEMANTIC_TEST(ScalarLoadStore_STLURBStoresOrderedByte, 0x190002f6, 0x100068,
+                                        0x240680, 23, 0x240680, 22, A64_SIZE_B, 0x5dU)
+TCTI_DECLARE_SCALAR_STORE_SEMANTIC_TEST(ScalarLoadStore_STLURHStoresOrderedHalfword, 0x59000338, 0x10006c,
+                                        0x2406c0, 25, 0x2406c0, 24, A64_SIZE_H, 0x1357U)
+TCTI_DECLARE_PREFETCH_SEMANTIC_TEST(ScalarLoadStore_PRFMSucceedsWithoutArchitecturalClobber, 0xf9800000,
+                                    0x100070, 0x240700, 0)
+TCTI_DECLARE_PREFETCH_SEMANTIC_TEST(ScalarLoadStore_PRFUMSucceedsWithoutArchitecturalClobber, 0xf8800020,
+                                    0x100074, 0x240740, 1)
 
 @end
