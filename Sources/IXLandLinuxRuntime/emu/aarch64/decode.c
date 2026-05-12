@@ -128,6 +128,7 @@ static bool a64_decode_vector_memory_representative(uint32_t insn, a64_instr_t *
 {
     switch (insn) {
     case 0x4c407020: // ld1 {v0.16b}, [x1]
+    case 0x4c007020: // st1 {v0.16b}, [x1]
     case 0x4d40c062: // ld1r {v2.16b}, [x3]
     case 0x4c4080c4: // ld2 {v4.16b, v5.16b}, [x6]
     case 0x4c404147: // ld3 {v7.16b, v8.16b, v9.16b}, [x10]
