@@ -3431,7 +3431,9 @@ extern bool exit_should_pthread_exit;
                    @"waitid_last_options=0x%x waitid_last_child_pid=%d "
                    @"wait_probe4_exists=%d wait_probe4_zombie=%d wait_probe4_parent_pid=%d "
                    @"task_destroy_last_pid=%d task_destroy_last_parent_pid=%d task_destroy_last_zombie=%d "
-                   @"wait_reap_last_waiter_pid=%d wait_reap_last_reaped_pid=%d wait_reap_last_options=0x%x",
+                   @"wait_reap_last_waiter_pid=%d wait_reap_last_reaped_pid=%d wait_reap_last_options=0x%x "
+                   @"wait4_last_waited_pid=%d wait4_last_waited_status=%lld "
+                   @"last_do_exit_pid=%d last_do_exit_status=%d",
                   lastBuffer,
                   guest_execution_trace_sink_exit_observed() ? 1 : 0,
                   guest_execution_trace_sink_get_exit_code(),
@@ -3467,7 +3469,11 @@ extern bool exit_should_pthread_exit;
                   guest_execution_trace_sink_task_destroy_last_zombie(),
                   guest_execution_trace_sink_wait_reap_last_waiter_pid(),
                   guest_execution_trace_sink_wait_reap_last_reaped_pid(),
-                  guest_execution_trace_sink_wait_reap_last_options());
+                  guest_execution_trace_sink_wait_reap_last_options(),
+                  guest_execution_trace_sink_wait4_last_waited_pid(),
+                  guest_execution_trace_sink_wait4_last_waited_status(),
+                  guest_execution_trace_sink_last_do_exit_pid(),
+                  guest_execution_trace_sink_last_do_exit_status());
 }
 
 - (void)testNonInteractiveBusyboxShellPipeCommandCatRedirectReportsShellStatus

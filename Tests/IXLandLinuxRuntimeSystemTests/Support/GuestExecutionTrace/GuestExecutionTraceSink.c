@@ -167,6 +167,10 @@ static int task_destroy_last_zombie = -1;
 static int wait_reap_last_waiter_pid = -1;
 static int wait_reap_last_reaped_pid = -1;
 static int wait_reap_last_options = -1;
+static int wait4_last_waited_pid = -1;
+static long long wait4_last_waited_status = 0;
+static int last_do_exit_pid = -1;
+static int last_do_exit_status = 0;
 
 static size_t compile_pc_slot(uint64_t mmu, uint64_t pc);
 
@@ -1068,6 +1072,36 @@ static uint64_t test_sink_begin_interval(ixland_instrumentation_origin_t origin,
         wait_probe4_zombie = zombie;
         wait_probe4_parent_pid = parent_pid;
         os_unfair_lock_unlock(&sink_state_lock);
+    } else if (strcmp(interval_name, "guest.wait4.return") == 0) {
+        int waited_pid = -1;
+        long long waited_status = 0;
+        for (uint32_t i = 0; i < attr_count; i++) {
+            if (attrs[i].key == NULL || attrs[i].value == NULL)
+                continue;
+            if (strcmp(attrs[i].key, "waited_pid") == 0)
+                waited_pid = atoi(attrs[i].value);
+            else if (strcmp(attrs[i].key, "status") == 0)
+                waited_status = atoll(attrs[i].value);
+        }
+        os_unfair_lock_lock(&sink_state_lock);
+        wait4_last_waited_pid = waited_pid;
+        wait4_last_waited_status = waited_status;
+        os_unfair_lock_unlock(&sink_state_lock);
+    } else if (strcmp(interval_name, "guest.do_exit.entry") == 0) {
+        int pid = -1;
+        int status = 0;
+        for (uint32_t i = 0; i < attr_count; i++) {
+            if (attrs[i].key == NULL || attrs[i].value == NULL)
+                continue;
+            if (strcmp(attrs[i].key, "pid") == 0)
+                pid = atoi(attrs[i].value);
+            else if (strcmp(attrs[i].key, "status") == 0)
+                status = atoi(attrs[i].value);
+        }
+        os_unfair_lock_lock(&sink_state_lock);
+        last_do_exit_pid = pid;
+        last_do_exit_status = status;
+        os_unfair_lock_unlock(&sink_state_lock);
     } else if (strcmp(interval_name, "guest.task.destroy") == 0) {
         int pid = -1;
         int parent_pid = -1;
@@ -1366,6 +1400,26 @@ int guest_execution_trace_sink_wait_reap_last_options(void)
     return wait_reap_last_options;
 }
 
+int guest_execution_trace_sink_wait4_last_waited_pid(void)
+{
+    return wait4_last_waited_pid;
+}
+
+long long guest_execution_trace_sink_wait4_last_waited_status(void)
+{
+    return wait4_last_waited_status;
+}
+
+int guest_execution_trace_sink_last_do_exit_pid(void)
+{
+    return last_do_exit_pid;
+}
+
+int guest_execution_trace_sink_last_do_exit_status(void)
+{
+    return last_do_exit_status;
+}
+
 void guest_execution_trace_sink_set_completion_callback(
     guest_execution_trace_sink_callback_t callback)
 {
@@ -1402,6 +1456,10 @@ void guest_execution_trace_sink_reset(void)
     wait_reap_last_waiter_pid = -1;
     wait_reap_last_reaped_pid = -1;
     wait_reap_last_options = -1;
+    wait4_last_waited_pid = -1;
+    wait4_last_waited_status = 0;
+    last_do_exit_pid = -1;
+    last_do_exit_status = 0;
     completion_callback = NULL;
     interp_path_resolved = false;
     elf_exec_reached = false;
