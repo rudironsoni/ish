@@ -3332,7 +3332,10 @@ extern bool exit_should_pthread_exit;
                   guest_execution_trace_sink_get_exit_code(),
                   lastBuffer);
     XCTAssertTrue([lastBuffer containsString:@"\n2 "] || [lastBuffer containsString:@"\r\n2 "],
-                  @"non-interactive PTY shell busybox wc file-argument command must emit the wc output before exit. master_buffer=%@",
+                  @"non-interactive PTY shell busybox wc file-argument command must emit the wc output before exit. "
+                   @"exit_observed=%d exit_code=%d master_buffer=%@",
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code(),
                   lastBuffer);
     XCTAssertTrue(guest_execution_trace_sink_exit_observed(),
                   @"non-interactive PTY shell busybox wc file-argument command must exit after emitting output");
@@ -3397,7 +3400,10 @@ extern bool exit_should_pthread_exit;
                   guest_execution_trace_sink_get_exit_code(),
                   lastBuffer);
     XCTAssertTrue([lastBuffer containsString:@"hello world"],
-                  @"non-interactive PTY shell redirected echo command must emit the saved payload before exit. master_buffer=%@",
+                  @"non-interactive PTY shell redirected echo command must emit the saved payload before exit. "
+                   @"exit_observed=%d exit_code=%d master_buffer=%@",
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code(),
                   lastBuffer);
     XCTAssertTrue(guest_execution_trace_sink_exit_observed(),
                   @"non-interactive PTY shell redirected echo command must exit after emitting output");
@@ -3429,7 +3435,10 @@ extern bool exit_should_pthread_exit;
                   guest_execution_trace_sink_get_exit_code(),
                   lastBuffer);
     XCTAssertTrue([lastBuffer containsString:@"restored-ok"],
-                  @"terminal stdout must be restored for commands after redirection. master_buffer=%@",
+                  @"terminal stdout must be restored for commands after redirection. "
+                   @"exit_observed=%d exit_code=%d master_buffer=%@",
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code(),
                   lastBuffer);
     XCTAssertTrue(guest_execution_trace_sink_exit_observed(),
                   @"non-interactive redirected-then-plain echo command must exit");
@@ -3461,7 +3470,10 @@ extern bool exit_should_pthread_exit;
                   guest_execution_trace_sink_get_exit_code(),
                   lastBuffer);
     XCTAssertTrue([lastBuffer containsString:@"stderr-ok"],
-                  @"second command should execute and emit on stderr even if stdout restore is broken. master_buffer=%@",
+                  @"second command should execute and emit on stderr even if stdout restore is broken. "
+                   @"exit_observed=%d exit_code=%d master_buffer=%@",
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code(),
                   lastBuffer);
     XCTAssertTrue(guest_execution_trace_sink_exit_observed(),
                   @"non-interactive redirected-then-stderr echo command must exit");
