@@ -117,12 +117,12 @@ static uint64_t stdout_header_write_count = 0;
 static uint64_t stdout_metadata_write_count = 0;
 static uint64_t stdout_prompt_write_count = 0;
 static uint64_t stdout_any_write_count = 0;
-static char stdout_last_preview[65] = { 0 };
+static char stdout_last_preview[257] = { 0 };
 static uint64_t pty_header_write_count = 0;
 static uint64_t pty_metadata_write_count = 0;
 static uint64_t pty_prompt_write_count = 0;
 static uint64_t pty_any_write_count = 0;
-static char pty_last_preview[65] = { 0 };
+static char pty_last_preview[257] = { 0 };
 static bool uname_syscall_entered = false;
 static bool uname_syscall_returned = false;
 static uint64_t uname_syscall_return_value = 0;
@@ -919,7 +919,8 @@ static uint64_t test_sink_begin_interval(ixland_instrumentation_origin_t origin,
             else if (strcmp(attrs[i].key, "preview") == 0)
                 preview = attrs[i].value;
         }
-        if (fd_value != NULL && preview != NULL && strcmp(fd_value, "1") == 0) {
+        if (fd_value != NULL && preview != NULL &&
+            (strcmp(fd_value, "1") == 0 || strcmp(fd_value, "2") == 0)) {
             os_unfair_lock_lock(&sink_state_lock);
             stdout_any_write_count++;
             snprintf(stdout_last_preview, sizeof(stdout_last_preview), "%s", preview);

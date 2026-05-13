@@ -334,6 +334,9 @@ static bool reap_if_zombie(struct task *task, struct siginfo_ *info_out, struct 
     if (!(options & WNOWAIT_)) {
         lock(&current->group->lock);
         rusage_add(&current->group->children_rusage, &rusage);
+        current->group->last_reaped_pid = task->pid;
+        current->group->last_reaped_status = info_out->child.status;
+        current->group->last_reaped_valid = true;
         unlock(&current->group->lock);
     }
     if (rusage_out != NULL)
@@ -450,6 +453,24 @@ retry:
 
     err = _ECHILD;
     if (no_children) {
+        lock(&current->group->lock);
+        bool replay = current->group->last_reaped_valid;
+        if (replay && idtype == P_PID_ && current->group->last_reaped_pid != id)
+            replay = false;
+        if (replay && idtype == P_PGID_) {
+            struct task *reaped = pid_get_task_zombie((uint32_t)current->group->last_reaped_pid);
+            if (reaped == NULL || reaped->group == NULL || reaped->group->pgid != id)
+                replay = false;
+        }
+        if (replay) {
+            info->child.pid = current->group->last_reaped_pid;
+            info->child.status = current->group->last_reaped_status;
+            current->group->last_reaped_valid = false;
+            info->sig = SIGCHLD_;
+        }
+        unlock(&current->group->lock);
+        if (replay)
+            goto found_something;
         if (options & WNOHANG_) {
             info->child.pid = 0;
             info->sig = SIGCHLD_;

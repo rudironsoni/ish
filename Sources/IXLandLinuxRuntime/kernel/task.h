@@ -178,6 +178,11 @@ struct tgroup {
 
     struct rusage_ children_rusage;
     cond_t child_exit;
+    // Linux-compatible wait replay cache for shells that perform follow-up
+    // targeted waits after a generic reap path in the same thread group.
+    pid_t_ last_reaped_pid;
+    int64_t last_reaped_status;
+    bool last_reaped_valid;
 
     uint32_t personality;
 

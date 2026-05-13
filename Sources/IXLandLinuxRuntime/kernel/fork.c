@@ -51,6 +51,9 @@ static struct tgroup *tgroup_copy(struct tgroup *old_group)
     group->itimer = NULL;
     group->doing_group_exit = false;
     group->children_rusage = (struct rusage_){};
+    group->last_reaped_pid = 0;
+    group->last_reaped_status = 0;
+    group->last_reaped_valid = false;
     cond_init(&group->child_exit);
     cond_init(&group->stopped_cond);
     lock_init(&group->lock);

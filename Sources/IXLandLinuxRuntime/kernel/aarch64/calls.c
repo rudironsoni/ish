@@ -270,6 +270,7 @@ const char *a64_syscall_name(uint64_t num)
         [A64_SYS_gettid] = "gettid",
         [A64_SYS_clone] = "clone",
         [A64_SYS_wait4] = "wait4",
+        [A64_SYS_uname] = "uname",
         [A64_SYS_execve] = "execve",
         [A64_SYS_execveat] = "execveat",
         [A64_SYS_futex] = "futex",

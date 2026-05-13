@@ -359,6 +359,22 @@ int become_new_init_child(void)
     // task_start() call that spawns a child thread
     __sync_synchronize();
 
+    // Linux-style baseline for direct exec paths: guarantee stdio fds exist.
+    if (current->files != NULL) {
+        bool needs_stdio = false;
+        for (int fd = 0; fd < 3; fd++) {
+            if (current->files->files[fd] == NULL) {
+                needs_stdio = true;
+                break;
+            }
+        }
+        if (needs_stdio) {
+            int stdio_err = create_stdio("/dev/null", MEM_MAJOR, DEV_NULL_MINOR);
+            if (stdio_err < 0)
+                return stdio_err;
+        }
+    }
+
     return 0;
 }
 
