@@ -164,6 +164,9 @@ static int wait_probe4_parent_pid = -1;
 static int task_destroy_last_pid = -1;
 static int task_destroy_last_parent_pid = -1;
 static int task_destroy_last_zombie = -1;
+static int wait_reap_last_waiter_pid = -1;
+static int wait_reap_last_reaped_pid = -1;
+static int wait_reap_last_options = -1;
 
 static size_t compile_pc_slot(uint64_t mmu, uint64_t pc);
 
@@ -1084,6 +1087,25 @@ static uint64_t test_sink_begin_interval(ixland_instrumentation_origin_t origin,
         task_destroy_last_parent_pid = parent_pid;
         task_destroy_last_zombie = zombie;
         os_unfair_lock_unlock(&sink_state_lock);
+    } else if (strcmp(interval_name, "guest.wait.reap") == 0) {
+        int waiter_pid = -1;
+        int reaped_pid = -1;
+        int options = -1;
+        for (uint32_t i = 0; i < attr_count; i++) {
+            if (attrs[i].key == NULL || attrs[i].value == NULL)
+                continue;
+            if (strcmp(attrs[i].key, "waiter_pid") == 0)
+                waiter_pid = atoi(attrs[i].value);
+            else if (strcmp(attrs[i].key, "reaped_pid") == 0)
+                reaped_pid = atoi(attrs[i].value);
+            else if (strcmp(attrs[i].key, "options") == 0)
+                options = atoi(attrs[i].value);
+        }
+        os_unfair_lock_lock(&sink_state_lock);
+        wait_reap_last_waiter_pid = waiter_pid;
+        wait_reap_last_reaped_pid = reaped_pid;
+        wait_reap_last_options = options;
+        os_unfair_lock_unlock(&sink_state_lock);
     } else if (strcmp(interval_name, "guest.waitid.return") == 0) {
         int options = 0;
         int child_pid = 0;
@@ -1329,6 +1351,21 @@ int guest_execution_trace_sink_task_destroy_last_zombie(void)
     return task_destroy_last_zombie;
 }
 
+int guest_execution_trace_sink_wait_reap_last_waiter_pid(void)
+{
+    return wait_reap_last_waiter_pid;
+}
+
+int guest_execution_trace_sink_wait_reap_last_reaped_pid(void)
+{
+    return wait_reap_last_reaped_pid;
+}
+
+int guest_execution_trace_sink_wait_reap_last_options(void)
+{
+    return wait_reap_last_options;
+}
+
 void guest_execution_trace_sink_set_completion_callback(
     guest_execution_trace_sink_callback_t callback)
 {
@@ -1362,6 +1399,9 @@ void guest_execution_trace_sink_reset(void)
     task_destroy_last_pid = -1;
     task_destroy_last_parent_pid = -1;
     task_destroy_last_zombie = -1;
+    wait_reap_last_waiter_pid = -1;
+    wait_reap_last_reaped_pid = -1;
+    wait_reap_last_options = -1;
     completion_callback = NULL;
     interp_path_resolved = false;
     elf_exec_reached = false;

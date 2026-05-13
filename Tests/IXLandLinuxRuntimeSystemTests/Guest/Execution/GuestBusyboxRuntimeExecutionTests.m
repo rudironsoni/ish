@@ -3430,7 +3430,8 @@ extern bool exit_should_pthread_exit;
                    @"last_exit_leader_pid=%d last_exit_parent_pid=%d wait_echild_last_options=0x%x "
                    @"waitid_last_options=0x%x waitid_last_child_pid=%d "
                    @"wait_probe4_exists=%d wait_probe4_zombie=%d wait_probe4_parent_pid=%d "
-                   @"task_destroy_last_pid=%d task_destroy_last_parent_pid=%d task_destroy_last_zombie=%d",
+                   @"task_destroy_last_pid=%d task_destroy_last_parent_pid=%d task_destroy_last_zombie=%d "
+                   @"wait_reap_last_waiter_pid=%d wait_reap_last_reaped_pid=%d wait_reap_last_options=0x%x",
                   lastBuffer,
                   guest_execution_trace_sink_exit_observed() ? 1 : 0,
                   guest_execution_trace_sink_get_exit_code(),
@@ -3463,7 +3464,10 @@ extern bool exit_should_pthread_exit;
                   guest_execution_trace_sink_wait_probe4_parent_pid(),
                   guest_execution_trace_sink_task_destroy_last_pid(),
                   guest_execution_trace_sink_task_destroy_last_parent_pid(),
-                  guest_execution_trace_sink_task_destroy_last_zombie());
+                  guest_execution_trace_sink_task_destroy_last_zombie(),
+                  guest_execution_trace_sink_wait_reap_last_waiter_pid(),
+                  guest_execution_trace_sink_wait_reap_last_reaped_pid(),
+                  guest_execution_trace_sink_wait_reap_last_options());
 }
 
 - (void)testNonInteractiveBusyboxShellPipeCommandCatRedirectReportsShellStatus

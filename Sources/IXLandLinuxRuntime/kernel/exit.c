@@ -345,6 +345,22 @@ static bool reap_if_zombie(struct task *task, struct siginfo_ *info_out, struct 
     if (options & WNOWAIT_)
         return true;
 
+    {
+        char waiter_pid_buf[32];
+        char reaped_pid_buf[32];
+        char options_buf[32];
+        snprintf(waiter_pid_buf, sizeof(waiter_pid_buf), "%d", current ? current->pid : -1);
+        snprintf(reaped_pid_buf, sizeof(reaped_pid_buf), "%d", task ? task->pid : -1);
+        snprintf(options_buf, sizeof(options_buf), "%d", options);
+        ixland_instrumentation_attribute_t attrs[] = {
+            { .key = "waiter_pid", .value = waiter_pid_buf },
+            { .key = "reaped_pid", .value = reaped_pid_buf },
+            { .key = "options", .value = options_buf },
+        };
+        ixland_guest_trace_emit_attrs(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "guest.wait.reap",
+                                      attrs, sizeof(attrs) / sizeof(attrs[0]));
+    }
+
     // tear down group
     cond_destroy(&task->group->child_exit);
     task_leave_session(task);
@@ -518,6 +534,8 @@ error:
 uint32_t sys_waitid(int64_t idtype, pid_t_ id, addr_t info_addr, int64_t options)
 {
     STRACE("waitid(%d, %d, %#x, %#x)", (int)idtype, id, info_addr, (int)options);
+    if ((options & (WEXITED_ | WUNTRACED_ | WCONTINUED_)) == 0)
+        return _EINVAL;
     struct siginfo_ info = {};
     int64_t res = do_wait((int)idtype, id, &info, NULL, (int)options);
     if (res < 0 || (res == 0 && info.child.pid == 0)) {
