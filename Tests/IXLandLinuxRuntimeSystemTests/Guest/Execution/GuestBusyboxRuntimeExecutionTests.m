@@ -2317,6 +2317,174 @@ extern bool exit_should_pthread_exit;
                   guest_execution_trace_sink_get_exit_code());
 }
 
+- (void)testInteractiveBusyboxShellExitBuiltinOneHundredTwentyEightStepsAfterInjectionDoesNotHostCrash
+{
+    const char command[] = "exit\n";
+    struct cpu_state *cpu = NULL;
+    uint64_t injectedCommandPc = 0;
+    if (![self prepareInteractiveBusyboxShellInjectedCommandCpu:command
+                                                         length:sizeof(command) - 1
+                                                         cpuOut:&cpu
+                                           injectedCommandPcOut:&injectedCommandPc])
+        return;
+
+    XCTAssertNotEqual(cpu, NULL, @"exit-builtin injected-command path must preserve the guest CPU");
+    if (cpu == NULL || cpu->mmu == NULL)
+        return;
+
+    struct tlb turnTlb = {};
+    tlb_refresh(&turnTlb, cpu->mmu);
+    exit_should_pthread_exit = false;
+    a64_cpu_run_limited(cpu, &turnTlb, 128);
+
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed() || cpu->pc != 0,
+                  @"exit-builtin first one-hundred-twenty-eight post-injection steps must either advance guest control flow or report a guest exit instead of crashing the host; "
+                   @"start_pc=0x%llx end_pc=0x%llx exit_observed=%d exit_code=%d",
+                  (unsigned long long)injectedCommandPc, (unsigned long long)cpu->pc,
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code());
+}
+
+- (void)testInteractiveBusyboxShellExitBuiltinTwoHundredFiftySixStepsAfterInjectionDoesNotHostCrash
+{
+    const char command[] = "exit\n";
+    struct cpu_state *cpu = NULL;
+    uint64_t injectedCommandPc = 0;
+    if (![self prepareInteractiveBusyboxShellInjectedCommandCpu:command
+                                                         length:sizeof(command) - 1
+                                                         cpuOut:&cpu
+                                           injectedCommandPcOut:&injectedCommandPc])
+        return;
+
+    XCTAssertNotEqual(cpu, NULL, @"exit-builtin injected-command path must preserve the guest CPU");
+    if (cpu == NULL || cpu->mmu == NULL)
+        return;
+
+    struct tlb turnTlb = {};
+    tlb_refresh(&turnTlb, cpu->mmu);
+    exit_should_pthread_exit = false;
+    a64_cpu_run_limited(cpu, &turnTlb, 256);
+
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed() || cpu->pc != 0,
+                  @"exit-builtin first two-hundred-fifty-six post-injection steps must either advance guest control flow or report a guest exit instead of crashing the host; "
+                   @"start_pc=0x%llx end_pc=0x%llx exit_observed=%d exit_code=%d",
+                  (unsigned long long)injectedCommandPc, (unsigned long long)cpu->pc,
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code());
+}
+
+- (void)testInteractiveBusyboxShellExitBuiltinFiveHundredTwelveStepsAfterInjectionDoesNotHostCrash
+{
+    const char command[] = "exit\n";
+    struct cpu_state *cpu = NULL;
+    uint64_t injectedCommandPc = 0;
+    if (![self prepareInteractiveBusyboxShellInjectedCommandCpu:command
+                                                         length:sizeof(command) - 1
+                                                         cpuOut:&cpu
+                                           injectedCommandPcOut:&injectedCommandPc])
+        return;
+
+    XCTAssertNotEqual(cpu, NULL, @"exit-builtin injected-command path must preserve the guest CPU");
+    if (cpu == NULL || cpu->mmu == NULL)
+        return;
+
+    struct tlb turnTlb = {};
+    tlb_refresh(&turnTlb, cpu->mmu);
+    exit_should_pthread_exit = false;
+    a64_cpu_run_limited(cpu, &turnTlb, 512);
+
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed() || cpu->pc != 0,
+                  @"exit-builtin first five-hundred-twelve post-injection steps must either advance guest control flow or report a guest exit instead of crashing the host; "
+                   @"start_pc=0x%llx end_pc=0x%llx exit_observed=%d exit_code=%d",
+                  (unsigned long long)injectedCommandPc, (unsigned long long)cpu->pc,
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code());
+}
+
+- (void)testInteractiveBusyboxShellExitBuiltinOneThousandTwentyFourStepsAfterInjectionDoesNotHostCrash
+{
+    const char command[] = "exit\n";
+    struct cpu_state *cpu = NULL;
+    uint64_t injectedCommandPc = 0;
+    if (![self prepareInteractiveBusyboxShellInjectedCommandCpu:command
+                                                         length:sizeof(command) - 1
+                                                         cpuOut:&cpu
+                                           injectedCommandPcOut:&injectedCommandPc])
+        return;
+
+    XCTAssertNotEqual(cpu, NULL, @"exit-builtin injected-command path must preserve the guest CPU");
+    if (cpu == NULL || cpu->mmu == NULL)
+        return;
+
+    struct tlb turnTlb = {};
+    tlb_refresh(&turnTlb, cpu->mmu);
+    exit_should_pthread_exit = false;
+    a64_cpu_run_limited(cpu, &turnTlb, 1024);
+
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed() || cpu->pc != 0,
+                  @"exit-builtin first one-thousand-twenty-four post-injection steps must either advance guest control flow or report a guest exit instead of crashing the host; "
+                   @"start_pc=0x%llx end_pc=0x%llx exit_observed=%d exit_code=%d",
+                  (unsigned long long)injectedCommandPc, (unsigned long long)cpu->pc,
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code());
+}
+
+- (void)testInteractiveBusyboxShellExitBuiltinTwoThousandFortyEightStepsAfterInjectionDoesNotHostCrash
+{
+    const char command[] = "exit\n";
+    struct cpu_state *cpu = NULL;
+    uint64_t injectedCommandPc = 0;
+    if (![self prepareInteractiveBusyboxShellInjectedCommandCpu:command
+                                                         length:sizeof(command) - 1
+                                                         cpuOut:&cpu
+                                           injectedCommandPcOut:&injectedCommandPc])
+        return;
+
+    XCTAssertNotEqual(cpu, NULL, @"exit-builtin injected-command path must preserve the guest CPU");
+    if (cpu == NULL || cpu->mmu == NULL)
+        return;
+
+    struct tlb turnTlb = {};
+    tlb_refresh(&turnTlb, cpu->mmu);
+    exit_should_pthread_exit = false;
+    a64_cpu_run_limited(cpu, &turnTlb, 2048);
+
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed() || cpu->pc != 0,
+                  @"exit-builtin first two-thousand-forty-eight post-injection steps must either advance guest control flow or report a guest exit instead of crashing the host; "
+                   @"start_pc=0x%llx end_pc=0x%llx exit_observed=%d exit_code=%d",
+                  (unsigned long long)injectedCommandPc, (unsigned long long)cpu->pc,
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code());
+}
+
+- (void)testInteractiveBusyboxShellExitBuiltinFourThousandNinetySixStepsAfterInjectionDoesNotHostCrash
+{
+    const char command[] = "exit\n";
+    struct cpu_state *cpu = NULL;
+    uint64_t injectedCommandPc = 0;
+    if (![self prepareInteractiveBusyboxShellInjectedCommandCpu:command
+                                                         length:sizeof(command) - 1
+                                                         cpuOut:&cpu
+                                           injectedCommandPcOut:&injectedCommandPc])
+        return;
+
+    XCTAssertNotEqual(cpu, NULL, @"exit-builtin injected-command path must preserve the guest CPU");
+    if (cpu == NULL || cpu->mmu == NULL)
+        return;
+
+    struct tlb turnTlb = {};
+    tlb_refresh(&turnTlb, cpu->mmu);
+    exit_should_pthread_exit = false;
+    a64_cpu_run_limited(cpu, &turnTlb, 4096);
+
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed() || cpu->pc != 0,
+                  @"exit-builtin first four-thousand-ninety-six post-injection steps must either advance guest control flow or report a guest exit instead of crashing the host; "
+                   @"start_pc=0x%llx end_pc=0x%llx exit_observed=%d exit_code=%d",
+                  (unsigned long long)injectedCommandPc, (unsigned long long)cpu->pc,
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code());
+}
+
 - (void)testInteractiveBusyboxShellExitBuiltinSecondTurnFiveHundredTwelveStepsDoNotHostCrash
 {
     const char command[] = "exit\n";
