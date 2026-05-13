@@ -347,6 +347,18 @@ extern bool exit_should_pthread_exit;
 - (BOOL)prepareInteractiveBusyboxShellSecondLsTurnCpu:(struct cpu_state **)cpuOut
                                       secondTurnPcOut:(uint64_t *)secondTurnPcOut
 {
+    const char command[] = "ls\n";
+    return [self prepareInteractiveBusyboxShellCommandTurnCpu:command
+                                                       length:sizeof(command) - 1
+                                                       cpuOut:cpuOut
+                                              commandTurnPcOut:secondTurnPcOut];
+}
+
+- (BOOL)prepareInteractiveBusyboxShellInjectedCommandCpu:(const char *)command
+                                                   length:(size_t)length
+                                                   cpuOut:(struct cpu_state **)cpuOut
+                                     injectedCommandPcOut:(uint64_t *)injectedCommandPcOut
+{
     [self configureFocusedTraceLevel];
     guest_execution_trace_sink_init();
     guest_execution_trace_sink_reset();
@@ -354,8 +366,7 @@ extern bool exit_should_pthread_exit;
     if (![self execInteractiveBusyboxShellAndWaitForPrompt])
         return NO;
 
-    const char command[] = "ls\n";
-    if (![self sendInputThroughControllingPseudoMaster:command length:sizeof(command) - 1])
+    if (![self sendInputThroughControllingPseudoMaster:command length:length])
         return NO;
 
     XCTAssertNotEqual(current, NULL, @"current must exist after PTY command injection");
@@ -363,8 +374,27 @@ extern bool exit_should_pthread_exit;
         return NO;
 
     struct cpu_state *cpu = &current->cpu;
-    XCTAssertNotEqual(cpu->mmu, NULL, @"interactive PTY command path must preserve an MMU before the second resumed turn");
+    XCTAssertNotEqual(cpu->mmu, NULL, @"interactive PTY command path must preserve an MMU after injection");
     if (cpu->mmu == NULL)
+        return NO;
+
+    if (cpuOut)
+        *cpuOut = cpu;
+    if (injectedCommandPcOut)
+        *injectedCommandPcOut = cpu->pc;
+    return YES;
+}
+
+- (BOOL)prepareInteractiveBusyboxShellCommandTurnCpu:(const char *)command
+                                              length:(size_t)length
+                                              cpuOut:(struct cpu_state **)cpuOut
+                                     commandTurnPcOut:(uint64_t *)commandTurnPcOut
+{
+    struct cpu_state *cpu = NULL;
+    if (![self prepareInteractiveBusyboxShellInjectedCommandCpu:command
+                                                         length:length
+                                                         cpuOut:&cpu
+                                           injectedCommandPcOut:NULL])
         return NO;
 
     struct tlb firstTurnTlb = {};
@@ -374,8 +404,8 @@ extern bool exit_should_pthread_exit;
 
     if (cpuOut)
         *cpuOut = cpu;
-    if (secondTurnPcOut)
-        *secondTurnPcOut = cpu->pc;
+    if (commandTurnPcOut)
+        *commandTurnPcOut = cpu->pc;
     return YES;
 }
 
@@ -2153,6 +2183,164 @@ extern bool exit_should_pthread_exit;
                    @"flow or report a guest exit instead of crashing the host; last_chunk_pc=0x%llx "
                    @"exit_observed=%d exit_code=%d",
                   (unsigned long long)lastChunkPc,
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code());
+}
+
+- (void)testInteractiveBusyboxShellPipeCommandFirstTurnAfterInjectionDoesNotHostCrash
+{
+    const char command[] = "echo hello world | /bin/busybox wc -w\n";
+    struct cpu_state *cpu = NULL;
+    uint64_t commandTurnPc = 0;
+    if (![self prepareInteractiveBusyboxShellCommandTurnCpu:command
+                                                     length:sizeof(command) - 1
+                                                     cpuOut:&cpu
+                                            commandTurnPcOut:&commandTurnPc])
+        return;
+
+    XCTAssertNotEqual(cpu, NULL, @"pipe-command first resumed turn must preserve the guest CPU");
+    if (cpu == NULL)
+        return;
+
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed() || commandTurnPc != 0,
+                  @"pipe-command first resumed turn must either advance guest control flow or report a guest exit instead of crashing the host; "
+                   @"command_turn_pc=0x%llx exit_observed=%d exit_code=%d",
+                  (unsigned long long)commandTurnPc,
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code());
+}
+
+- (void)testInteractiveBusyboxShellPipeCommandSecondTurnFiveHundredTwelveStepsDoNotHostCrash
+{
+    const char command[] = "echo hello world | /bin/busybox wc -w\n";
+    struct cpu_state *cpu = NULL;
+    uint64_t secondTurnStartPc = 0;
+    if (![self prepareInteractiveBusyboxShellCommandTurnCpu:command
+                                                     length:sizeof(command) - 1
+                                                     cpuOut:&cpu
+                                            commandTurnPcOut:&secondTurnStartPc])
+        return;
+
+    XCTAssertNotEqual(cpu, NULL, @"pipe-command second resumed turn must preserve the guest CPU");
+    if (cpu == NULL || cpu->mmu == NULL)
+        return;
+
+    struct tlb secondTurnTlb = {};
+    tlb_refresh(&secondTurnTlb, cpu->mmu);
+    exit_should_pthread_exit = false;
+    a64_cpu_run_limited(cpu, &secondTurnTlb, 512);
+
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed() || cpu->pc != 0,
+                  @"pipe-command second resumed turn must either advance guest control flow or report a guest exit instead of crashing the host; "
+                   @"start_pc=0x%llx end_pc=0x%llx exit_observed=%d exit_code=%d",
+                  (unsigned long long)secondTurnStartPc, (unsigned long long)cpu->pc,
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code());
+}
+
+- (void)testInteractiveBusyboxShellExitBuiltinFirstTurnAfterInjectionDoesNotHostCrash
+{
+    const char command[] = "exit\n";
+    struct cpu_state *cpu = NULL;
+    uint64_t commandTurnPc = 0;
+    if (![self prepareInteractiveBusyboxShellCommandTurnCpu:command
+                                                     length:sizeof(command) - 1
+                                                     cpuOut:&cpu
+                                            commandTurnPcOut:&commandTurnPc])
+        return;
+
+    XCTAssertNotEqual(cpu, NULL, @"exit-builtin first resumed turn must preserve the guest CPU");
+    if (cpu == NULL)
+        return;
+
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed() || commandTurnPc != 0,
+                  @"exit-builtin first resumed turn must either advance guest control flow or report a guest exit instead of crashing the host; "
+                   @"command_turn_pc=0x%llx exit_observed=%d exit_code=%d",
+                  (unsigned long long)commandTurnPc,
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code());
+}
+
+- (void)testInteractiveBusyboxShellExitBuiltinFirstStepAfterInjectionDoesNotHostCrash
+{
+    const char command[] = "exit\n";
+    struct cpu_state *cpu = NULL;
+    uint64_t injectedCommandPc = 0;
+    if (![self prepareInteractiveBusyboxShellInjectedCommandCpu:command
+                                                         length:sizeof(command) - 1
+                                                         cpuOut:&cpu
+                                           injectedCommandPcOut:&injectedCommandPc])
+        return;
+
+    XCTAssertNotEqual(cpu, NULL, @"exit-builtin injected-command path must preserve the guest CPU");
+    if (cpu == NULL || cpu->mmu == NULL)
+        return;
+
+    struct tlb firstStepTlb = {};
+    tlb_refresh(&firstStepTlb, cpu->mmu);
+    exit_should_pthread_exit = false;
+    a64_cpu_run_limited(cpu, &firstStepTlb, 1);
+
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed() || cpu->pc != 0,
+                  @"exit-builtin first post-injection step must either advance guest control flow or report a guest exit instead of crashing the host; "
+                   @"start_pc=0x%llx end_pc=0x%llx exit_observed=%d exit_code=%d",
+                  (unsigned long long)injectedCommandPc, (unsigned long long)cpu->pc,
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code());
+}
+
+- (void)testInteractiveBusyboxShellExitBuiltinSixtyFourStepsAfterInjectionDoesNotHostCrash
+{
+    const char command[] = "exit\n";
+    struct cpu_state *cpu = NULL;
+    uint64_t injectedCommandPc = 0;
+    if (![self prepareInteractiveBusyboxShellInjectedCommandCpu:command
+                                                         length:sizeof(command) - 1
+                                                         cpuOut:&cpu
+                                           injectedCommandPcOut:&injectedCommandPc])
+        return;
+
+    XCTAssertNotEqual(cpu, NULL, @"exit-builtin injected-command path must preserve the guest CPU");
+    if (cpu == NULL || cpu->mmu == NULL)
+        return;
+
+    struct tlb firstTurnTlb = {};
+    tlb_refresh(&firstTurnTlb, cpu->mmu);
+    exit_should_pthread_exit = false;
+    a64_cpu_run_limited(cpu, &firstTurnTlb, 64);
+
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed() || cpu->pc != 0,
+                  @"exit-builtin first sixty-four post-injection steps must either advance guest control flow or report a guest exit instead of crashing the host; "
+                   @"start_pc=0x%llx end_pc=0x%llx exit_observed=%d exit_code=%d",
+                  (unsigned long long)injectedCommandPc, (unsigned long long)cpu->pc,
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code());
+}
+
+- (void)testInteractiveBusyboxShellExitBuiltinSecondTurnFiveHundredTwelveStepsDoNotHostCrash
+{
+    const char command[] = "exit\n";
+    struct cpu_state *cpu = NULL;
+    uint64_t secondTurnStartPc = 0;
+    if (![self prepareInteractiveBusyboxShellCommandTurnCpu:command
+                                                     length:sizeof(command) - 1
+                                                     cpuOut:&cpu
+                                            commandTurnPcOut:&secondTurnStartPc])
+        return;
+
+    XCTAssertNotEqual(cpu, NULL, @"exit-builtin second resumed turn must preserve the guest CPU");
+    if (cpu == NULL || cpu->mmu == NULL)
+        return;
+
+    struct tlb secondTurnTlb = {};
+    tlb_refresh(&secondTurnTlb, cpu->mmu);
+    exit_should_pthread_exit = false;
+    a64_cpu_run_limited(cpu, &secondTurnTlb, 512);
+
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed() || cpu->pc != 0,
+                  @"exit-builtin second resumed turn must either advance guest control flow or report a guest exit instead of crashing the host; "
+                   @"start_pc=0x%llx end_pc=0x%llx exit_observed=%d exit_code=%d",
+                  (unsigned long long)secondTurnStartPc, (unsigned long long)cpu->pc,
                   guest_execution_trace_sink_exit_observed() ? 1 : 0,
                   guest_execution_trace_sink_get_exit_code());
 }
