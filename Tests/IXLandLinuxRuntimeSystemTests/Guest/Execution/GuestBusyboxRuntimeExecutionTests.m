@@ -140,6 +140,40 @@ extern bool exit_should_pthread_exit;
     return YES;
 }
 
+- (BOOL)execBusyboxShellCommandWithPty:(const char *)command
+{
+    NSString *rootPath = [self dataRootPath];
+    XCTAssertNotNil(rootPath, @"rootfs path must exist");
+    if (rootPath == nil || ![self bootstrapMountedRootfsAtPath:rootPath])
+        return NO;
+
+    const char *const argv[] = { "/bin/busybox", "sh", "-c", command, NULL };
+    const char envp[] =
+        "TERM=xterm-256color\0"
+        "HOME=/root\0"
+        "USER=root\0"
+        "LOGNAME=root\0"
+        "SHELL=/bin/sh\0"
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\0"
+        "\0";
+
+    struct tty *master = pty_open_guest_terminal(NULL);
+    XCTAssertFalse(IS_ERR(master), @"pty_open_guest_terminal failed with %ld", (long)PTR_ERR(master));
+    if (IS_ERR(master))
+        return NO;
+
+    int pid = 0;
+    int execErr = prepare_session_with_tty("bin/busybox", argv, envp, master, &pid);
+    XCTAssertEqual(execErr, 0, @"prepare_session_with_tty returned %d", execErr);
+    if (execErr != 0)
+        return NO;
+
+    NSLog(@"runtime-test noninteractive shell session ready current=%p pid=%d mmu=%p tty_num=%d command=%s",
+          current, current ? current->pid : pid, current ? current->cpu.mmu : NULL, master->num,
+          command);
+    return YES;
+}
+
 - (BOOL)pumpGuestUntilTimeout:(NSTimeInterval)timeout predicate:(BOOL (^)(void))predicate
 {
     XCTAssertNotEqual(current, NULL, @"current must exist before guest execution");
@@ -2896,6 +2930,65 @@ extern bool exit_should_pthread_exit;
                   @"interactive silent pipe command must return to a fresh prompt. initial_buffer=%@ master_buffer=%@",
                   initialBuffer,
                   lastBuffer);
+}
+
+- (void)testNonInteractiveBusyboxShellPipeCommandEmitsWordCountAndExitsZero
+{
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    if (![self execBusyboxShellCommandWithPty:"echo hello world | /bin/busybox wc -w"])
+        return;
+
+    __block NSString *lastBuffer = @"";
+    BOOL completed = [self pumpGuestUntilTimeout:10.0
+                                       predicate:^BOOL {
+                                           lastBuffer = [self controllingPseudoMasterBuffer];
+                                           return [lastBuffer containsString:@"\n2\n"]
+                                               || [lastBuffer containsString:@"\r\n2\r\n"]
+                                               || [lastBuffer containsString:@"\n2\r\n"]
+                                               || guest_execution_trace_sink_exit_observed();
+                                       }];
+
+    XCTAssertTrue(completed,
+                  @"non-interactive PTY shell pipe command must either emit wc output or exit within the timeout; "
+                   @"exit_observed=%d exit_code=%d master_buffer=%@",
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code(),
+                  lastBuffer);
+    XCTAssertTrue([lastBuffer containsString:@"\n2\n"]
+                      || [lastBuffer containsString:@"\r\n2\r\n"]
+                      || [lastBuffer containsString:@"\n2\r\n"],
+                  @"non-interactive PTY shell pipe command must emit the wc output before exit. master_buffer=%@",
+                  lastBuffer);
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed(),
+                  @"non-interactive PTY shell pipe command must exit after emitting output");
+    XCTAssertEqual(guest_execution_trace_sink_get_exit_code(), 0,
+                   @"non-interactive PTY shell pipe command must exit with code zero");
+}
+
+- (void)testNonInteractiveBusyboxShellSilentPipeCommandExitsZero
+{
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    if (![self execBusyboxShellCommandWithPty:"echo hello world | /bin/busybox true"])
+        return;
+
+    __block NSString *lastBuffer = @"";
+    BOOL exited = [self pumpGuestUntilTimeout:10.0
+                                     predicate:^BOOL {
+                                         lastBuffer = [self controllingPseudoMasterBuffer];
+                                         return guest_execution_trace_sink_exit_observed();
+                                     }];
+
+    XCTAssertTrue(exited,
+                  @"non-interactive PTY shell silent pipe command must exit within the timeout. master_buffer=%@",
+                  lastBuffer);
+    XCTAssertEqual(guest_execution_trace_sink_get_exit_code(), 0,
+                   @"non-interactive PTY shell silent pipe command must exit with code zero");
 }
 
 - (void)testInteractiveBusyboxShellExitTerminatesCleanlyWithGuestExitCodeZero
