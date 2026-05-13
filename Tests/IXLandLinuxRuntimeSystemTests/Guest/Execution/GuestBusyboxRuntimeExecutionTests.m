@@ -238,6 +238,26 @@ extern bool exit_should_pthread_exit;
     return [[NSString alloc] initWithBytes:raw length:(NSUInteger)copied encoding:NSISOLatin1StringEncoding] ?: @"";
 }
 
+- (NSUInteger)promptCountInBuffer:(NSString *)buffer
+{
+    if (buffer.length == 0)
+        return 0;
+
+    NSUInteger count = 0;
+    NSRange searchRange = NSMakeRange(0, buffer.length);
+    while (YES) {
+        NSRange found = [buffer rangeOfString:@"/ # " options:0 range:searchRange];
+        if (found.location == NSNotFound)
+            break;
+        count += 1;
+        NSUInteger nextLocation = NSMaxRange(found);
+        if (nextLocation >= buffer.length)
+            break;
+        searchRange = NSMakeRange(nextLocation, buffer.length - nextLocation);
+    }
+    return count;
+}
+
 - (BOOL)execInteractiveBusyboxShellAndWaitForPrompt
 {
     if (![self execInteractiveBusyboxShellWithPty])
@@ -2789,6 +2809,52 @@ extern bool exit_should_pthread_exit;
                              guest_execution_trace_sink_pty_prompt_write_count(),
                          initialPromptWrites,
                          @"interactive busybox shell must return to a fresh prompt after the pipe command");
+}
+
+- (void)testInteractiveBusyboxShellPipeCommandEmitsWordCountOrPromptBeforeExit
+{
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    if (![self execInteractiveBusyboxShellAndWaitForPrompt])
+        return;
+
+    NSString *initialBuffer = [self controllingPseudoMasterBuffer];
+    NSUInteger initialPromptCount = [self promptCountInBuffer:initialBuffer];
+    const char command[] = "echo hello world | /bin/busybox wc -w\n";
+    if (![self sendInputThroughControllingPseudoMaster:command length:sizeof(command) - 1])
+        return;
+
+    __block NSString *lastBuffer = @"";
+    BOOL completed = [self pumpGuestUntilTimeout:10.0
+                                       predicate:^BOOL {
+                                           lastBuffer = [self controllingPseudoMasterBuffer];
+                                           NSUInteger promptCount = [self promptCountInBuffer:lastBuffer];
+                                           return [lastBuffer containsString:@"\n2\n"]
+                                               || [lastBuffer containsString:@"\r\n2\r\n"]
+                                               || [lastBuffer containsString:@"\n2\r\n"]
+                                               || promptCount > initialPromptCount
+                                               || guest_execution_trace_sink_exit_observed();
+                                       }];
+
+    XCTAssertTrue(completed,
+                  @"interactive pipe command must either emit wc output, return to a prompt, or exit within the timeout; "
+                   @"exit_observed=%d exit_code=%d master_buffer=%@",
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code(),
+                  lastBuffer);
+    XCTAssertFalse(guest_execution_trace_sink_exit_observed(),
+                   @"interactive pipe command must not exit before emitting wc output or returning to a prompt. exit_code=%d master_buffer=%@",
+                   guest_execution_trace_sink_get_exit_code(),
+                   lastBuffer);
+    XCTAssertTrue([lastBuffer containsString:@"\n2\n"]
+                      || [lastBuffer containsString:@"\r\n2\r\n"]
+                      || [lastBuffer containsString:@"\n2\r\n"]
+                      || [self promptCountInBuffer:lastBuffer] > initialPromptCount,
+                  @"interactive pipe command must either emit the wc output or reach a fresh prompt before timeout. initial_buffer=%@ master_buffer=%@",
+                  initialBuffer,
+                  lastBuffer);
 }
 
 - (void)testInteractiveBusyboxShellExitTerminatesCleanlyWithGuestExitCodeZero
