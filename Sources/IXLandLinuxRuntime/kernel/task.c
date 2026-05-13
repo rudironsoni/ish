@@ -533,6 +533,21 @@ struct task *task_create_(struct task *parent)
 
 void task_destroy(struct task *task)
 {
+    char pid_buf[32];
+    char zombie_buf[8];
+    char parent_pid_buf[32];
+    snprintf(pid_buf, sizeof(pid_buf), "%d", task ? task->pid : -1);
+    snprintf(zombie_buf, sizeof(zombie_buf), "%d", (task && task->zombie) ? 1 : 0);
+    snprintf(parent_pid_buf, sizeof(parent_pid_buf), "%d",
+             (task && task->parent) ? task->parent->pid : -1);
+    ixland_instrumentation_attribute_t attrs[] = {
+        { .key = "pid", .value = pid_buf },
+        { .key = "zombie", .value = zombie_buf },
+        { .key = "parent_pid", .value = parent_pid_buf },
+    };
+    ixland_guest_trace_emit_attrs(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "guest.task.destroy",
+                                  attrs, sizeof(attrs) / sizeof(attrs[0]));
+
     list_remove(&task->siblings);
     pid_get(task->pid)->task = NULL;
     free(task);

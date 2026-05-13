@@ -48,6 +48,9 @@ int guest_execution_trace_sink_waitid_last_child_pid(void);
 int guest_execution_trace_sink_wait_probe4_exists(void);
 int guest_execution_trace_sink_wait_probe4_zombie(void);
 int guest_execution_trace_sink_wait_probe4_parent_pid(void);
+int guest_execution_trace_sink_task_destroy_last_pid(void);
+int guest_execution_trace_sink_task_destroy_last_parent_pid(void);
+int guest_execution_trace_sink_task_destroy_last_zombie(void);
 
 // Set callback to be invoked when exit is observed
 void guest_execution_trace_sink_set_completion_callback(guest_execution_trace_sink_callback_t callback);
