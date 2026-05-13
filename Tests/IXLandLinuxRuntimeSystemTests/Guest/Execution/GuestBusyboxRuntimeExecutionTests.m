@@ -17,6 +17,9 @@
 
 extern bool exit_should_pthread_exit;
 
+#define TEST_F_GETFD_ 1
+#define TEST_F_SETFD_ 2
+
 @interface GuestBusyboxRuntimeExecutionTests : XCTestCase
 @end
 
@@ -538,6 +541,55 @@ extern bool exit_should_pthread_exit;
     XCTAssertEqual(fd_getflags(fd) & (O_NONBLOCK_ | O_CLOEXEC_), O_NONBLOCK_,
                    @"directory fd flags should preserve guest-visible nonblocking state");
     XCTAssertEqual(fd_close(fd), 0, @"fd_close(/) with libc-style flags failed");
+}
+
+- (void)testDup2ClearsDestinationCloexecBit
+{
+    [self configureFocusedTraceLevel];
+
+    NSString *rootPath = [self dataRootPath];
+    XCTAssertNotNil(rootPath, @"rootfs path must exist");
+    if (rootPath == nil || ![self bootstrapMountedRootfsAtPath:rootPath])
+        return;
+
+    struct fd *source = generic_open("/", O_RDONLY_ | O_DIRECTORY_, 0);
+    XCTAssertFalse(IS_ERR(source), @"generic_open source failed with %ld", (long)PTR_ERR(source));
+    if (IS_ERR(source))
+        return;
+
+    struct fd *dest = generic_open("/", O_RDONLY_ | O_DIRECTORY_, 0);
+    XCTAssertFalse(IS_ERR(dest), @"generic_open destination failed with %ld", (long)PTR_ERR(dest));
+    if (IS_ERR(dest)) {
+        XCTAssertEqual(fd_close(source), 0, @"fd_close(source) failed");
+        return;
+    }
+
+    fd_t sourceFd = f_install(source, 0);
+    XCTAssertGreaterThanOrEqual(sourceFd, 0, @"f_install(source) failed with %d", sourceFd);
+    if (sourceFd < 0) {
+        XCTAssertEqual(fd_close(dest), 0, @"fd_close(dest) failed");
+        return;
+    }
+
+    fd_t destFd = f_install(dest, 0);
+    XCTAssertGreaterThanOrEqual(destFd, 0, @"f_install(dest) failed with %d", destFd);
+    if (destFd < 0) {
+        XCTAssertEqual(f_close(sourceFd), 0, @"f_close(sourceFd) failed");
+        return;
+    }
+
+    XCTAssertEqual(sys_fcntl(destFd, TEST_F_SETFD_, 1), 0,
+                   @"F_SETFD(FD_CLOEXEC) on destination must succeed");
+    XCTAssertEqual(sys_fcntl(destFd, TEST_F_GETFD_, 0), 1,
+                   @"destination must report FD_CLOEXEC before dup2");
+
+    XCTAssertEqual(sys_dup2(sourceFd, destFd), (uint32_t)destFd,
+                   @"dup2 must target the requested destination fd");
+    XCTAssertEqual(sys_fcntl(destFd, TEST_F_GETFD_, 0), 0,
+                   @"dup2 must clear the destination FD_CLOEXEC bit when O_CLOEXEC is not requested");
+
+    XCTAssertEqual(f_close(destFd), 0, @"f_close(destFd) failed");
+    XCTAssertEqual(f_close(sourceFd), 0, @"f_close(sourceFd) failed");
 }
 
 - (void)testInteractiveBusyboxShellEmitsPromptAtGuestWriteBoundaryPromptly
@@ -2998,6 +3050,74 @@ extern bool exit_should_pthread_exit;
                   @"non-interactive PTY shell cat pipeline must exit after emitting output");
     XCTAssertEqual(guest_execution_trace_sink_get_exit_code(), 0,
                    @"non-interactive PTY shell cat pipeline must exit with code zero");
+}
+
+- (void)testNonInteractiveBusyboxShellBusyboxEchoPipeCatEmitsPayloadAndExitsZero
+{
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    if (![self execBusyboxShellCommandWithPty:"/bin/busybox echo hello world | /bin/busybox cat"])
+        return;
+
+    __block NSString *lastBuffer = @"";
+    BOOL completed = [self pumpGuestUntilTimeout:10.0
+                                       predicate:^BOOL {
+                                           lastBuffer = [self controllingPseudoMasterBuffer];
+                                           return [lastBuffer containsString:@"hello world"]
+                                               || guest_execution_trace_sink_exit_observed();
+                                       }];
+
+    XCTAssertTrue(completed,
+                  @"non-interactive PTY shell busybox-echo cat pipeline must either emit payload or exit within the timeout; "
+                   @"exit_observed=%d exit_code=%d master_buffer=%@",
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code(),
+                  lastBuffer);
+    XCTAssertTrue([lastBuffer containsString:@"hello world"],
+                  @"non-interactive PTY shell busybox-echo cat pipeline must emit the piped payload before exit. master_buffer=%@",
+                  lastBuffer);
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed(),
+                  @"non-interactive PTY shell busybox-echo cat pipeline must exit after emitting output");
+    XCTAssertEqual(guest_execution_trace_sink_get_exit_code(), 0,
+                   @"non-interactive PTY shell busybox-echo cat pipeline must exit with code zero");
+}
+
+- (void)testNonInteractiveBusyboxShellBusyboxEchoPipeWcEmitsWordCountAndExitsZero
+{
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    if (![self execBusyboxShellCommandWithPty:"/bin/busybox echo hello world | /bin/busybox wc -w"])
+        return;
+
+    __block NSString *lastBuffer = @"";
+    BOOL completed = [self pumpGuestUntilTimeout:10.0
+                                       predicate:^BOOL {
+                                           lastBuffer = [self controllingPseudoMasterBuffer];
+                                           return [lastBuffer containsString:@"\n2\n"]
+                                               || [lastBuffer containsString:@"\r\n2\r\n"]
+                                               || [lastBuffer containsString:@"\n2\r\n"]
+                                               || guest_execution_trace_sink_exit_observed();
+                                       }];
+
+    XCTAssertTrue(completed,
+                  @"non-interactive PTY shell busybox-echo wc pipeline must either emit wc output or exit within the timeout; "
+                   @"exit_observed=%d exit_code=%d master_buffer=%@",
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code(),
+                  lastBuffer);
+    XCTAssertTrue([lastBuffer containsString:@"\n2\n"]
+                      || [lastBuffer containsString:@"\r\n2\r\n"]
+                      || [lastBuffer containsString:@"\n2\r\n"],
+                  @"non-interactive PTY shell busybox-echo wc pipeline must emit the wc output before exit. master_buffer=%@",
+                  lastBuffer);
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed(),
+                  @"non-interactive PTY shell busybox-echo wc pipeline must exit after emitting output");
+    XCTAssertEqual(guest_execution_trace_sink_get_exit_code(), 0,
+                   @"non-interactive PTY shell busybox-echo wc pipeline must exit with code zero");
 }
 
 - (void)testNonInteractiveBusyboxShellSilentPipeCommandExitsZero
