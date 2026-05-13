@@ -489,8 +489,10 @@ struct task *task_create_(struct task *parent)
     task->waiting_lock = NULL;
     task->waiting = 0;
 
-    // Ptrace state - fresh initialization (except inherited traced flag if desired)
-    task->ptrace.traced = parent ? parent->ptrace.traced : false;
+    // Ptrace state - fresh initialization.
+    // Linux does not mark fork children as traced by default; tracing a child
+    // requires explicit ptrace semantics/options from the tracer.
+    task->ptrace.traced = false;
     task->ptrace.stopped = false;
     task->ptrace.signal = 0;
     memset(&task->ptrace.info, 0, sizeof(task->ptrace.info));
