@@ -81,8 +81,11 @@ void do_exit(int status)
     }
 
     // release all our resources
-    mm_release(current->mm);
+    struct mm *mm = current->mm;
     current->mm = NULL;
+    current->mem = NULL;
+    current->cpu.mmu = NULL;
+    mm_release(mm);
     fdtable_release(current->files);
     current->files = NULL;
     fs_info_release(current->fs);

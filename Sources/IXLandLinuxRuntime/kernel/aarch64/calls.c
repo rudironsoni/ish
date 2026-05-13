@@ -313,6 +313,12 @@ void handle_interrupt(int interrupt)
         trace_handle_interrupt_checkpoint("task.proof.handle_interrupt.after_fault_decode",
                                           interrupt, 0);
 
+        // Task teardown may invalidate current->mem/cpu.mmu before this fault
+        // handler runs; do not touch reclaimed address-space state.
+        if (current->mem == NULL || cpu->mmu == NULL || current->exiting) {
+            break;
+        }
+
         // Page fault - try to resolve via mem_ptr (handles stack growth, CoW, etc.)
         read_wrlock(&current->mem->lock);
         void *ptr =

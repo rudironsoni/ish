@@ -230,7 +230,6 @@ static void trace_stack_argv_readback(addr_t stack_base, size_t argc)
 }
 
 static inline addr_t align_stack(addr_t sp);
-static inline ssize_t user_strlen(addr_t p);
 static inline int user_memset(addr_t start, uint8_t val, addr_t len);
 static inline addr_t copy_string(addr_t sp, const char *string);
 static inline addr_t args_copy(addr_t sp, struct exec_args args);
@@ -1559,10 +1558,14 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
     // argv
     addr_t null_addr = 0;
     size_t argc = argv.count;
+    const char *argv_src = argv.args;
+    addr_t argv_user = argv_addr;
     while (argc-- > 0) {
-        if (user_put(p, argv_addr))
+        if (user_put(p, argv_user))
             return _EFAULT;
-        argv_addr += user_strlen(argv_addr) + 1;
+        size_t arg_size = strlen(argv_src) + 1;
+        argv_src += arg_size;
+        argv_user += arg_size;
         p += stack_slot_size;
     }
     if (user_put(p, null_addr))
@@ -1571,10 +1574,14 @@ static int elf_exec(struct fd *fd, const char *file, struct exec_args argv, stru
 
     // envp
     size_t envc = envp.count;
+    const char *envp_src = envp.args;
+    addr_t envp_user = envp_addr;
     while (envc-- > 0) {
-        if (user_put(p, envp_addr))
+        if (user_put(p, envp_user))
             return _EFAULT;
-        envp_addr += user_strlen(envp_addr) + 1;
+        size_t env_size = strlen(envp_src) + 1;
+        envp_src += env_size;
+        envp_user += env_size;
         p += stack_slot_size;
     }
     if (user_put(p, null_addr))
@@ -1743,18 +1750,6 @@ static inline addr_t args_copy(addr_t sp, struct exec_args args)
     if (user_write(sp, args.args, size))
         return 0;
     return sp;
-}
-
-static inline ssize_t user_strlen(addr_t p)
-{
-    size_t i = 0;
-    char c;
-    do {
-        if (user_get(p + i, c))
-            return -1;
-        i++;
-    } while (c != '\0');
-    return i - 1;
 }
 
 static inline int user_memset(addr_t start, uint8_t val, addr_t len)

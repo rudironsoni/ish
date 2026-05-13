@@ -3199,8 +3199,14 @@ extern bool exit_should_pthread_exit;
     XCTAssertTrue([lastBuffer containsString:@"\n2\n"]
                       || [lastBuffer containsString:@"\r\n2\r\n"]
                       || [lastBuffer containsString:@"\n2\r\n"],
-                  @"non-interactive PTY shell pipe command must emit the wc output before exit. master_buffer=%@",
-                  lastBuffer);
+                  @"non-interactive PTY shell pipe command must emit the wc output before exit. "
+                   @"master_buffer=%@ stdout_writes=%llu stdout_last_preview=%s "
+                   @"pty_writes=%llu pty_last_preview=%s",
+                  lastBuffer,
+                  (unsigned long long)guest_execution_trace_sink_stdout_any_write_count(),
+                  guest_execution_trace_sink_stdout_last_preview(),
+                  (unsigned long long)guest_execution_trace_sink_pty_any_write_count(),
+                  guest_execution_trace_sink_pty_last_preview());
     XCTAssertTrue(guest_execution_trace_sink_exit_observed(),
                   @"non-interactive PTY shell pipe command must exit after emitting output");
     XCTAssertEqual(guest_execution_trace_sink_get_exit_code(), 0,
@@ -3333,10 +3339,15 @@ extern bool exit_should_pthread_exit;
                   lastBuffer);
     XCTAssertTrue([lastBuffer containsString:@"\n2 "] || [lastBuffer containsString:@"\r\n2 "],
                   @"non-interactive PTY shell busybox wc file-argument command must emit the wc output before exit. "
-                   @"exit_observed=%d exit_code=%d master_buffer=%@",
+                   @"exit_observed=%d exit_code=%d master_buffer=%@ stdout_writes=%llu "
+                   @"stdout_last_preview=%s pty_writes=%llu pty_last_preview=%s",
                   guest_execution_trace_sink_exit_observed() ? 1 : 0,
                   guest_execution_trace_sink_get_exit_code(),
-                  lastBuffer);
+                  lastBuffer,
+                  (unsigned long long)guest_execution_trace_sink_stdout_any_write_count(),
+                  guest_execution_trace_sink_stdout_last_preview(),
+                  (unsigned long long)guest_execution_trace_sink_pty_any_write_count(),
+                  guest_execution_trace_sink_pty_last_preview());
     XCTAssertTrue(guest_execution_trace_sink_exit_observed(),
                   @"non-interactive PTY shell busybox wc file-argument command must exit after emitting output");
     XCTAssertEqual(guest_execution_trace_sink_get_exit_code(), 0,

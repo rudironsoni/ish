@@ -171,10 +171,8 @@ static int pty_write(struct tty *tty, const void *buf, size_t len, bool blocking
         struct tty *master = tty->pty.other;
         if (master != NULL && master->driver_data != NULL) {
             pty_host_bridge_send_output(master->driver_data, buf, (int)len);
-            return (int)len;
         } else if (tty->driver_data != NULL) {
             pty_host_bridge_send_output(tty->driver_data, buf, (int)len);
-            return (int)len;
         }
     }
 
