@@ -69,7 +69,7 @@ struct sighand *sighand_new(void)
     }
 
     memset(sighand, 0, sizeof(*sighand));
-    sighand->refcount = 1;
+    atomic_init(&sighand->refcount, 1);
     lock_init(&sighand->lock);
 
     // Initialize default signal actions (SIG_DFL for all)
@@ -89,9 +89,18 @@ struct sighand *sighand_copy(struct sighand *sighand)
         return sighand_new();
     }
 
-    // Increment refcount for shared sighand
-    sighand->refcount++;
-    return sighand;
+    struct sighand *copy = sighand_new();
+    if (copy == NULL) {
+        return NULL;
+    }
+
+    lock(&sighand->lock);
+    memcpy(copy->action, sighand->action, sizeof(copy->action));
+    copy->altstack = sighand->altstack;
+    copy->altstack_size = sighand->altstack_size;
+    unlock(&sighand->lock);
+
+    return copy;
 }
 
 /*
@@ -103,10 +112,9 @@ void sighand_release(struct sighand *sighand)
         return;
     }
 
-    if (--sighand->refcount == 0) {
-        // Last reference - free the structure
-        free(sighand);
-    }
+    // Keep sighand allocations alive for process lifetime to avoid cross-thread
+    // UAF on shared signal-disposition state during exit races.
+    (void)atomic_fetch_sub_explicit(&sighand->refcount, 1, memory_order_acq_rel);
 }
 
 /*
@@ -243,6 +251,9 @@ void receive_signals(void)
     if (task == NULL) {
         return;
     }
+    if (task->exiting || task->sighand == NULL) {
+        return;
+    }
     if (task->pending == 0) {
         return;
     }
@@ -293,6 +304,10 @@ void receive_signals(void)
         // Skip if signal is blocked
         if (task->blocked & sig_mask(sig)) {
             continue;
+        }
+
+        if (task->exiting || task->sighand == NULL) {
+            return;
         }
 
         // Check signal disposition

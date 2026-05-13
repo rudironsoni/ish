@@ -105,7 +105,7 @@ static int copy_task(struct task *task, uint32_t flags, addr_t stack, addr_t pti
     }
 
     if (flags & CLONE_SIGHAND_) {
-        task->sighand->refcount++;
+        atomic_fetch_add_explicit(&task->sighand->refcount, 1, memory_order_relaxed);
     } else {
         task->sighand = sighand_copy(task->sighand);
         if (task->sighand == NULL)

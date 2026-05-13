@@ -5,6 +5,7 @@
 #import <IXLandLinuxRuntime/kernel/calls.h>
 #import <IXLandLinuxRuntime/kernel/fs.h>
 #import <IXLandLinuxRuntime/fs/fd.h>
+#import <IXLandLinuxRuntime/fs/devices.h>
 #import <IXLandLinuxRuntime/fs/tty.h>
 #import <IXLandLinuxRuntime/emu/tlb.h>
 #import <IXLandLinuxRuntime/emu/aarch64/cpu.h>
@@ -590,6 +591,192 @@ extern bool exit_should_pthread_exit;
 
     XCTAssertEqual(f_close(destFd), 0, @"f_close(destFd) failed");
     XCTAssertEqual(f_close(sourceFd), 0, @"f_close(sourceFd) failed");
+}
+
+- (void)testPtyStdoutRedirectionRestoreKeepsLaterWritesOnTheTerminal
+{
+    [self configureFocusedTraceLevel];
+
+    NSString *rootPath = [self dataRootPath];
+    XCTAssertNotNil(rootPath, @"rootfs path must exist");
+    if (rootPath == nil || ![self bootstrapMountedRootfsAtPath:rootPath])
+        return;
+
+    struct tty *master = pty_open_guest_terminal(NULL);
+    XCTAssertFalse(IS_ERR(master), @"pty_open_guest_terminal failed with %ld", (long)PTR_ERR(master));
+    if (IS_ERR(master))
+        return;
+
+    int setsidErr = (int)sys_setsid();
+    XCTAssertTrue(setsidErr == 0 || setsidErr == _EPERM,
+                  @"sys_setsid must succeed or report existing session leadership, got %d",
+                  setsidErr);
+
+    int stdioErr = create_stdio("/dev/pts/test", TTY_PSEUDO_SLAVE_MAJOR, master->num);
+    XCTAssertEqual(stdioErr, 0, @"create_stdio failed with %d", stdioErr);
+    if (stdioErr != 0)
+        return;
+
+    struct fd *stdio = current->files->files[0];
+    XCTAssertNotNil((__bridge id _Nullable)((void *)stdio), @"stdio fd must exist after create_stdio");
+    if (stdio == NULL || stdio->ops == NULL || stdio->ops->ioctl == NULL)
+        return;
+
+    int cttyErr = stdio->ops->ioctl(stdio, TIOCSCTTY_, NULL);
+    XCTAssertEqual(cttyErr, 0, @"TIOCSCTTY must succeed, got %d", cttyErr);
+    if (cttyErr != 0)
+        return;
+
+    fd_t savedStdout = (fd_t)sys_dup(1);
+    XCTAssertGreaterThanOrEqual(savedStdout, 0, @"dup(stdout) failed with %d", savedStdout);
+    if (savedStdout < 0)
+        return;
+
+    struct fd *redirect = generic_open("/tmp/pipe_words", O_WRONLY_ | O_CREAT_ | O_TRUNC_, 0666);
+    XCTAssertFalse(IS_ERR(redirect), @"generic_open(/tmp/pipe_words) failed with %ld", (long)PTR_ERR(redirect));
+    if (IS_ERR(redirect)) {
+        XCTAssertEqual(f_close(savedStdout), 0, @"f_close(savedStdout) failed");
+        return;
+    }
+
+    fd_t redirectFd = f_install(redirect, 0);
+    XCTAssertGreaterThanOrEqual(redirectFd, 0, @"f_install(redirect) failed with %d", redirectFd);
+    if (redirectFd < 0) {
+        XCTAssertEqual(f_close(savedStdout), 0, @"f_close(savedStdout) failed");
+        return;
+    }
+
+    XCTAssertEqual(sys_dup2(redirectFd, 1), 1u, @"dup2(redirectFd, stdout) must retarget stdout");
+
+    struct fd *stdoutWhileRedirected = f_get(1);
+    XCTAssertNotNil((__bridge id _Nullable)((void *)stdoutWhileRedirected), @"stdout must remain open while redirected");
+    const char redirectedPayload[] = "redirected-output\n";
+    ssize_t redirectedWrite = stdoutWhileRedirected->ops->write(stdoutWhileRedirected,
+                                                                redirectedPayload,
+                                                                sizeof(redirectedPayload) - 1);
+    XCTAssertEqual(redirectedWrite, (ssize_t)(sizeof(redirectedPayload) - 1),
+                   @"write through redirected stdout must succeed");
+
+    XCTAssertEqual(sys_dup2(savedStdout, 1), 1u, @"dup2(savedStdout, stdout) must restore terminal stdout");
+
+    struct fd *stdoutAfterRestore = f_get(1);
+    XCTAssertNotNil((__bridge id _Nullable)((void *)stdoutAfterRestore), @"stdout must remain open after restoration");
+    const char restoredPayload[] = "restored-terminal-output\n";
+    ssize_t restoredWrite = stdoutAfterRestore->ops->write(stdoutAfterRestore,
+                                                           restoredPayload,
+                                                           sizeof(restoredPayload) - 1);
+    XCTAssertEqual(restoredWrite, (ssize_t)(sizeof(restoredPayload) - 1),
+                   @"write through restored stdout must succeed");
+
+    NSString *masterBuffer = [self controllingPseudoMasterBuffer];
+    XCTAssertFalse([masterBuffer containsString:@"redirected-output"],
+                   @"redirected payload must not go to the terminal PTY buffer. master_buffer=%@",
+                   masterBuffer);
+    XCTAssertTrue([masterBuffer containsString:@"restored-terminal-output"],
+                  @"restored stdout payload must reach the terminal PTY buffer. master_buffer=%@",
+                  masterBuffer);
+
+    struct fd *savedFile = generic_open("/tmp/pipe_words", O_RDONLY_, 0);
+    XCTAssertFalse(IS_ERR(savedFile), @"generic_open(/tmp/pipe_words, O_RDONLY) failed with %ld",
+                   (long)PTR_ERR(savedFile));
+    if (!IS_ERR(savedFile)) {
+        char savedRaw[128] = { 0 };
+        ssize_t savedSize = savedFile->ops->read(savedFile, savedRaw, sizeof(savedRaw) - 1);
+        XCTAssertGreaterThanOrEqual(savedSize, (ssize_t)0, @"read(/tmp/pipe_words) failed with %zd", savedSize);
+        if (savedSize >= 0) {
+            savedRaw[savedSize] = '\0';
+            NSString *savedString = [[NSString alloc] initWithUTF8String:savedRaw];
+            XCTAssertTrue([savedString containsString:@"redirected-output"],
+                          @"redirected payload must reach the saved file. saved_output=%@",
+                          savedString);
+        }
+        XCTAssertEqual(fd_close(savedFile), 0, @"fd_close(savedFile) failed");
+    }
+
+    XCTAssertEqual(f_close(redirectFd), 0, @"f_close(redirectFd) failed");
+    XCTAssertEqual(f_close(savedStdout), 0, @"f_close(savedStdout) failed");
+}
+
+- (void)testCloseThenDupRestoresStdoutToTerminal
+{
+    [self configureFocusedTraceLevel];
+
+    NSString *rootPath = [self dataRootPath];
+    XCTAssertNotNil(rootPath, @"rootfs path must exist");
+    if (rootPath == nil || ![self bootstrapMountedRootfsAtPath:rootPath])
+        return;
+
+    struct tty *master = pty_open_guest_terminal(NULL);
+    XCTAssertFalse(IS_ERR(master), @"pty_open_guest_terminal failed with %ld", (long)PTR_ERR(master));
+    if (IS_ERR(master))
+        return;
+
+    int setsidErr = (int)sys_setsid();
+    XCTAssertTrue(setsidErr == 0 || setsidErr == _EPERM,
+                  @"sys_setsid must succeed or report existing session leadership, got %d",
+                  setsidErr);
+
+    int stdioErr = create_stdio("/dev/pts/test", TTY_PSEUDO_SLAVE_MAJOR, master->num);
+    XCTAssertEqual(stdioErr, 0, @"create_stdio failed with %d", stdioErr);
+    if (stdioErr != 0)
+        return;
+
+    struct fd *stdio = current->files->files[0];
+    XCTAssertNotNil((__bridge id _Nullable)((void *)stdio), @"stdio fd must exist after create_stdio");
+    if (stdio == NULL || stdio->ops == NULL || stdio->ops->ioctl == NULL)
+        return;
+
+    int cttyErr = stdio->ops->ioctl(stdio, TIOCSCTTY_, NULL);
+    XCTAssertEqual(cttyErr, 0, @"TIOCSCTTY must succeed, got %d", cttyErr);
+    if (cttyErr != 0)
+        return;
+
+    fd_t savedStdout = (fd_t)sys_dup(1);
+    XCTAssertGreaterThanOrEqual(savedStdout, 0, @"dup(stdout) failed with %d", savedStdout);
+    if (savedStdout < 0)
+        return;
+
+    struct fd *redirect = generic_open("/tmp/pipe_words", O_WRONLY_ | O_CREAT_ | O_TRUNC_, 0666);
+    XCTAssertFalse(IS_ERR(redirect), @"generic_open(/tmp/pipe_words) failed with %ld", (long)PTR_ERR(redirect));
+    if (IS_ERR(redirect)) {
+        XCTAssertEqual(f_close(savedStdout), 0, @"f_close(savedStdout) failed");
+        return;
+    }
+
+    fd_t redirectFd = f_install(redirect, 0);
+    XCTAssertGreaterThanOrEqual(redirectFd, 0, @"f_install(redirect) failed with %d", redirectFd);
+    if (redirectFd < 0) {
+        XCTAssertEqual(f_close(savedStdout), 0, @"f_close(savedStdout) failed");
+        return;
+    }
+
+    XCTAssertEqual(sys_dup2(redirectFd, 1), 1u, @"dup2(redirectFd, stdout) must retarget stdout");
+    XCTAssertEqual(sys_close(1), 0u, @"close(stdout) must succeed before dup-based restoration");
+
+    fd_t restoredFd = (fd_t)sys_dup(savedStdout);
+    XCTAssertEqual(restoredFd, 1, @"dup(savedStdout) after close(1) must restore stdout at fd 1");
+
+    struct fd *stdoutAfterRestore = f_get(1);
+    XCTAssertNotNil((__bridge id _Nullable)((void *)stdoutAfterRestore), @"stdout must exist after close+dup restore");
+    if (stdoutAfterRestore == NULL) {
+        XCTAssertEqual(f_close(redirectFd), 0, @"f_close(redirectFd) failed");
+        XCTAssertEqual(f_close(savedStdout), 0, @"f_close(savedStdout) failed");
+        return;
+    }
+    const char restoredPayload[] = "close-dup-restored\n";
+    ssize_t restoredWrite = stdoutAfterRestore->ops->write(stdoutAfterRestore,
+                                                           restoredPayload,
+                                                           sizeof(restoredPayload) - 1);
+    XCTAssertEqual(restoredWrite, (ssize_t)(sizeof(restoredPayload) - 1),
+                   @"write through close+dup restored stdout must succeed");
+
+    NSString *masterBuffer = [self controllingPseudoMasterBuffer];
+    XCTAssertTrue([masterBuffer containsString:@"close-dup-restored"],
+                  @"close+dup restored stdout must reach the terminal PTY buffer. master_buffer=%@",
+                  masterBuffer);
+
+    XCTAssertEqual(f_close(redirectFd), 0, @"f_close(redirectFd) failed");
+    XCTAssertEqual(f_close(savedStdout), 0, @"f_close(savedStdout) failed");
 }
 
 - (void)testInteractiveBusyboxShellEmitsPromptAtGuestWriteBoundaryPromptly
@@ -3118,6 +3305,168 @@ extern bool exit_should_pthread_exit;
                   @"non-interactive PTY shell busybox-echo wc pipeline must exit after emitting output");
     XCTAssertEqual(guest_execution_trace_sink_get_exit_code(), 0,
                    @"non-interactive PTY shell busybox-echo wc pipeline must exit with code zero");
+}
+
+- (void)testNonInteractiveBusyboxShellBusyboxWcFileArgumentEmitsWordCountAndExitsZero
+{
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    if (![self execBusyboxShellCommandWithPty:"/bin/busybox echo hello world >/tmp/pipe_words && /bin/busybox wc -w /tmp/pipe_words"])
+        return;
+
+    __block NSString *lastBuffer = @"";
+    BOOL completed = [self pumpGuestUntilTimeout:10.0
+                                       predicate:^BOOL {
+                                           lastBuffer = [self controllingPseudoMasterBuffer];
+                                           return [lastBuffer containsString:@"\n2 "]
+                                               || [lastBuffer containsString:@"\r\n2 "]
+                                               || guest_execution_trace_sink_exit_observed();
+                                       }];
+
+    XCTAssertTrue(completed,
+                  @"non-interactive PTY shell busybox wc file-argument command must either emit wc output or exit within the timeout; "
+                   @"exit_observed=%d exit_code=%d master_buffer=%@",
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code(),
+                  lastBuffer);
+    XCTAssertTrue([lastBuffer containsString:@"\n2 "] || [lastBuffer containsString:@"\r\n2 "],
+                  @"non-interactive PTY shell busybox wc file-argument command must emit the wc output before exit. master_buffer=%@",
+                  lastBuffer);
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed(),
+                  @"non-interactive PTY shell busybox wc file-argument command must exit after emitting output");
+    XCTAssertEqual(guest_execution_trace_sink_get_exit_code(), 0,
+                   @"non-interactive PTY shell busybox wc file-argument command must exit with code zero");
+}
+
+- (void)testNonInteractiveBusyboxShellBusyboxWcRedirectedToFileThenCatEmitsPayloadAndExitsZero
+{
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    if (![self execBusyboxShellCommandWithPty:"/bin/busybox echo hello world >/tmp/pipe_words && /bin/busybox wc -w /tmp/pipe_words >/tmp/wc_out && /bin/busybox cat /tmp/wc_out"])
+        return;
+
+    __block NSString *lastBuffer = @"";
+    BOOL completed = [self pumpGuestUntilTimeout:10.0
+                                       predicate:^BOOL {
+                                           lastBuffer = [self controllingPseudoMasterBuffer];
+                                           return [lastBuffer containsString:@"\n2 "]
+                                               || [lastBuffer containsString:@"\r\n2 "]
+                                               || guest_execution_trace_sink_exit_observed();
+                                       }];
+
+    XCTAssertTrue(completed,
+                  @"non-interactive PTY shell redirected wc command must either emit saved wc output or exit within the timeout; "
+                   @"exit_observed=%d exit_code=%d master_buffer=%@",
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code(),
+                  lastBuffer);
+    XCTAssertTrue([lastBuffer containsString:@"\n2 "] || [lastBuffer containsString:@"\r\n2 "],
+                  @"non-interactive PTY shell redirected wc command must emit the saved wc output before exit. master_buffer=%@",
+                  lastBuffer);
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed(),
+                  @"non-interactive PTY shell redirected wc command must exit after emitting output");
+    XCTAssertEqual(guest_execution_trace_sink_get_exit_code(), 0,
+                   @"non-interactive PTY shell redirected wc command must exit with code zero");
+}
+
+- (void)testNonInteractiveBusyboxShellBusyboxEchoRedirectedToFileThenCatEmitsPayloadAndExitsZero
+{
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    if (![self execBusyboxShellCommandWithPty:"/bin/busybox echo hello world >/tmp/pipe_words && /bin/busybox cat /tmp/pipe_words"])
+        return;
+
+    __block NSString *lastBuffer = @"";
+    BOOL completed = [self pumpGuestUntilTimeout:10.0
+                                       predicate:^BOOL {
+                                           lastBuffer = [self controllingPseudoMasterBuffer];
+                                           return [lastBuffer containsString:@"hello world"]
+                                               || guest_execution_trace_sink_exit_observed();
+                                     }];
+
+    XCTAssertTrue(completed,
+                  @"non-interactive PTY shell redirected echo command must either emit the saved payload or exit within the timeout; "
+                   @"exit_observed=%d exit_code=%d master_buffer=%@",
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code(),
+                  lastBuffer);
+    XCTAssertTrue([lastBuffer containsString:@"hello world"],
+                  @"non-interactive PTY shell redirected echo command must emit the saved payload before exit. master_buffer=%@",
+                  lastBuffer);
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed(),
+                  @"non-interactive PTY shell redirected echo command must exit after emitting output");
+    XCTAssertEqual(guest_execution_trace_sink_get_exit_code(), 0,
+                   @"non-interactive PTY shell redirected echo command must exit with code zero");
+}
+
+- (void)testNonInteractiveBusyboxShellRedirectedEchoThenPlainEchoRestoresTerminalStdout
+{
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    if (![self execBusyboxShellCommandWithPty:"/bin/busybox echo hello world >/tmp/pipe_words && /bin/busybox echo restored-ok"])
+        return;
+
+    __block NSString *lastBuffer = @"";
+    BOOL completed = [self pumpGuestUntilTimeout:10.0
+                                       predicate:^BOOL {
+                                           lastBuffer = [self controllingPseudoMasterBuffer];
+                                           return [lastBuffer containsString:@"restored-ok"]
+                                               || guest_execution_trace_sink_exit_observed();
+                                       }];
+
+    XCTAssertTrue(completed,
+                  @"non-interactive redirected-then-plain echo command must emit terminal output or exit within timeout; "
+                   @"exit_observed=%d exit_code=%d master_buffer=%@",
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code(),
+                  lastBuffer);
+    XCTAssertTrue([lastBuffer containsString:@"restored-ok"],
+                  @"terminal stdout must be restored for commands after redirection. master_buffer=%@",
+                  lastBuffer);
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed(),
+                  @"non-interactive redirected-then-plain echo command must exit");
+    XCTAssertEqual(guest_execution_trace_sink_get_exit_code(), 0,
+                   @"non-interactive redirected-then-plain echo command must exit with code zero");
+}
+
+- (void)testNonInteractiveBusyboxShellRedirectedEchoThenStderrEchoStillRunsSecondCommand
+{
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    if (![self execBusyboxShellCommandWithPty:"/bin/busybox echo hello world >/tmp/pipe_words && /bin/busybox echo stderr-ok 1>&2"])
+        return;
+
+    __block NSString *lastBuffer = @"";
+    BOOL completed = [self pumpGuestUntilTimeout:10.0
+                                       predicate:^BOOL {
+                                           lastBuffer = [self controllingPseudoMasterBuffer];
+                                           return [lastBuffer containsString:@"stderr-ok"]
+                                               || guest_execution_trace_sink_exit_observed();
+                                       }];
+
+    XCTAssertTrue(completed,
+                  @"non-interactive redirected-then-stderr echo command must emit output or exit within timeout; "
+                   @"exit_observed=%d exit_code=%d master_buffer=%@",
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code(),
+                  lastBuffer);
+    XCTAssertTrue([lastBuffer containsString:@"stderr-ok"],
+                  @"second command should execute and emit on stderr even if stdout restore is broken. master_buffer=%@",
+                  lastBuffer);
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed(),
+                  @"non-interactive redirected-then-stderr echo command must exit");
+    XCTAssertEqual(guest_execution_trace_sink_get_exit_code(), 0,
+                   @"non-interactive redirected-then-stderr echo command must exit with code zero");
 }
 
 - (void)testNonInteractiveBusyboxShellSilentPipeCommandExitsZero
