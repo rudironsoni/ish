@@ -379,6 +379,38 @@ extern bool exit_should_pthread_exit;
     return YES;
 }
 
+- (BOOL)runInteractiveBusyboxShellSecondTurnChunks:(NSUInteger)chunkCount
+                                         stepCount:(NSUInteger)stepCount
+                                            cpuOut:(struct cpu_state **)cpuOut
+                                    lastChunkPcOut:(uint64_t *)lastChunkPcOut
+{
+    struct cpu_state *cpu = NULL;
+    uint64_t secondTurnPc = 0;
+    if (![self prepareInteractiveBusyboxShellSecondLsTurnCpu:&cpu secondTurnPcOut:&secondTurnPc])
+        return NO;
+
+    for (NSUInteger chunk = 0; chunk < chunkCount; chunk++) {
+        uint64_t chunkStartPc = cpu->pc;
+        struct tlb chunkTlb = {};
+        tlb_refresh(&chunkTlb, cpu->mmu);
+        exit_should_pthread_exit = false;
+        a64_cpu_run_limited(cpu, &chunkTlb, (int)stepCount);
+        NSLog(@"runtime-test second-turn chunk=%lu step_count=%lu start_pc=0x%llx end_pc=0x%llx exit_observed=%d exit_code=%d",
+              (unsigned long)(chunk + 1), (unsigned long)stepCount,
+              (unsigned long long)chunkStartPc, (unsigned long long)cpu->pc,
+              guest_execution_trace_sink_exit_observed() ? 1 : 0,
+              guest_execution_trace_sink_get_exit_code());
+        if (guest_execution_trace_sink_exit_observed())
+            break;
+    }
+
+    if (cpuOut)
+        *cpuOut = cpu;
+    if (lastChunkPcOut)
+        *lastChunkPcOut = cpu->pc;
+    return YES;
+}
+
 - (void)testRootfsRootDirectoryCanBeOpenedAndReadDirectly
 {
     [self configureFocusedTraceLevel];
@@ -2052,6 +2084,75 @@ extern bool exit_should_pthread_exit;
                    @"flow or report a guest exit instead of crashing the host; start_pc=0x%llx end_pc=0x%llx "
                    @"exit_observed=%d exit_code=%d",
                   (unsigned long long)secondTurnStartPc, (unsigned long long)cpu->pc,
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code());
+}
+
+- (void)testInteractiveBusyboxShellSecondTurnTwoChunksOfFiveHundredTwelveStepsDoNotHostCrash
+{
+    struct cpu_state *cpu = NULL;
+    uint64_t lastChunkPc = 0;
+    if (![self runInteractiveBusyboxShellSecondTurnChunks:2
+                                                stepCount:512
+                                                   cpuOut:&cpu
+                                           lastChunkPcOut:&lastChunkPc])
+        return;
+
+    XCTAssertNotEqual(cpu, NULL, @"chunked second-turn execution must preserve the guest CPU");
+    if (cpu == NULL)
+        return;
+
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed() || lastChunkPc != 0,
+                  @"two 512-step second-turn chunks after interactive ls must either advance guest control "
+                   @"flow or report a guest exit instead of crashing the host; last_chunk_pc=0x%llx "
+                   @"exit_observed=%d exit_code=%d",
+                  (unsigned long long)lastChunkPc,
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code());
+}
+
+- (void)testInteractiveBusyboxShellSecondTurnFourChunksOfFiveHundredTwelveStepsDoNotHostCrash
+{
+    struct cpu_state *cpu = NULL;
+    uint64_t lastChunkPc = 0;
+    if (![self runInteractiveBusyboxShellSecondTurnChunks:4
+                                                stepCount:512
+                                                   cpuOut:&cpu
+                                           lastChunkPcOut:&lastChunkPc])
+        return;
+
+    XCTAssertNotEqual(cpu, NULL, @"chunked second-turn execution must preserve the guest CPU");
+    if (cpu == NULL)
+        return;
+
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed() || lastChunkPc != 0,
+                  @"four 512-step second-turn chunks after interactive ls must either advance guest control "
+                   @"flow or report a guest exit instead of crashing the host; last_chunk_pc=0x%llx "
+                   @"exit_observed=%d exit_code=%d",
+                  (unsigned long long)lastChunkPc,
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code());
+}
+
+- (void)testInteractiveBusyboxShellSecondTurnEightChunksOfFiveHundredTwelveStepsDoNotHostCrash
+{
+    struct cpu_state *cpu = NULL;
+    uint64_t lastChunkPc = 0;
+    if (![self runInteractiveBusyboxShellSecondTurnChunks:8
+                                                stepCount:512
+                                                   cpuOut:&cpu
+                                           lastChunkPcOut:&lastChunkPc])
+        return;
+
+    XCTAssertNotEqual(cpu, NULL, @"chunked second-turn execution must preserve the guest CPU");
+    if (cpu == NULL)
+        return;
+
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed() || lastChunkPc != 0,
+                  @"eight 512-step second-turn chunks after interactive ls must either advance guest control "
+                   @"flow or report a guest exit instead of crashing the host; last_chunk_pc=0x%llx "
+                   @"exit_observed=%d exit_code=%d",
+                  (unsigned long long)lastChunkPc,
                   guest_execution_trace_sink_exit_observed() ? 1 : 0,
                   guest_execution_trace_sink_get_exit_code());
 }
