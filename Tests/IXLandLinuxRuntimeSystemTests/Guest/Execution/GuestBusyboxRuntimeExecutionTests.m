@@ -60,6 +60,20 @@ extern bool exit_should_pthread_exit;
     unsetenv("ISH_VERBOSE_RUNTIME_PROOF");
 }
 
+- (void)resetPseudoMasterBuffer:(struct tty *)master
+{
+    if (master == NULL)
+        return;
+    lock(&master->lock);
+    master->bufsize = 0;
+    unlock(&master->lock);
+    if (master->pty.other != NULL) {
+        lock(&master->pty.other->lock);
+        master->pty.other->bufsize = 0;
+        unlock(&master->pty.other->lock);
+    }
+}
+
 - (NSString *)dataRootPath
 {
     NSFileManager *fm = [NSFileManager defaultManager];
@@ -151,6 +165,7 @@ extern bool exit_should_pthread_exit;
     if (execErr != 0)
         return NO;
 
+    [self resetPseudoMasterBuffer:master];
     _trackedPseudoMaster = master;
     NSLog(@"runtime-test interactive session ready current=%p pid=%d mmu=%p tty_num=%d", current,
           current ? current->pid : pid, current ? current->cpu.mmu : NULL, master->num);
@@ -185,6 +200,7 @@ extern bool exit_should_pthread_exit;
     if (execErr != 0)
         return NO;
 
+    [self resetPseudoMasterBuffer:master];
     _trackedPseudoMaster = master;
     NSLog(@"runtime-test noninteractive shell session ready current=%p pid=%d mmu=%p tty_num=%d command=%s",
           current, current ? current->pid : pid, current ? current->cpu.mmu : NULL, master->num,
