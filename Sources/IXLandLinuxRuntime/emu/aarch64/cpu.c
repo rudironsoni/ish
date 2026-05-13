@@ -1078,12 +1078,9 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
         uint32_t insn;
         int ret = a64_fetch_insn(cpu, tlb, gen_state.guest_pc, &insn);
         if (ret < 0) {
-            void *direct = NULL;
-            if (current && current->mem) {
-                read_wrlock(&current->mem->lock);
-                direct = mem_ptr(current->mem, gen_state.guest_pc, MEM_READ);
-                read_wrunlock(&current->mem->lock);
-            }
+            // Do not walk current->mem here. This is a fault-path diagnostic
+            // and task/mem ownership may already be transitioning.
+            int direct = 0;
             a64_trace_event("tcti.compile.fetch_fail",
                             "tcti.compile.fetch_fail=start:0x%llx,pc:0x%llx,ret:%d,"
                             "fault:0x%llx,was_write:%d,tlb_gen:%llu,mmu_gen:%llu,direct:%d",
@@ -1091,7 +1088,7 @@ struct a64_block *a64_compile_block(struct cpu_state *cpu, uint64_t pc, struct t
                             (unsigned long long)cpu->fault_addr, cpu->fault_was_write ? 1 : 0,
                             tlb ? (unsigned long long)tlb->generation : 0ULL,
                             (tlb && tlb->mmu) ? (unsigned long long)tlb->mmu->generation : 0ULL,
-                            direct ? 1 : 0);
+                            direct);
             // Page fault during fetch
             break;
         }
