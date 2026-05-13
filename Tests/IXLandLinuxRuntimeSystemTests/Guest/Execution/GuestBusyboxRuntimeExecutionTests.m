@@ -224,6 +224,10 @@ extern struct tty_driver pty_slave;
     XCTAssertEqual(execErr, 0, @"prepare_session_with_tty returned %d", execErr);
     if (execErr != 0)
         return NO;
+    NSString *requestedCommand = [NSString stringWithUTF8String:command ?: ""];
+    NSString *observedCommand = [NSString stringWithUTF8String:guest_execution_trace_sink_session_exec_arg3() ?: ""];
+    XCTAssertEqualObjects(observedCommand, requestedCommand,
+                          @"session exec argv boundary must preserve exact sh -c payload");
 
     [self resetPseudoMasterBuffer:master];
     _trackedPseudoMaster = master;

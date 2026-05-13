@@ -171,6 +171,7 @@ static int wait4_last_waited_pid = -1;
 static long long wait4_last_waited_status = 0;
 static int last_do_exit_pid = -1;
 static int last_do_exit_status = 0;
+static char session_exec_arg3[1024] = { 0 };
 
 static size_t compile_pc_slot(uint64_t mmu, uint64_t pc);
 
@@ -794,6 +795,19 @@ static uint64_t test_sink_begin_interval(ixland_instrumentation_origin_t origin,
 
     if (!interval_name)
         return 0;
+
+    if (strcmp(interval_name, "task.proof.session.exec.argv") == 0) {
+        for (uint32_t i = 0; i < attr_count; i++) {
+            if (attrs[i].key == NULL || attrs[i].value == NULL)
+                continue;
+            if (strcmp(attrs[i].key, "arg3") == 0) {
+                os_unfair_lock_lock(&sink_state_lock);
+                snprintf(session_exec_arg3, sizeof(session_exec_arg3), "%s", attrs[i].value);
+                os_unfair_lock_unlock(&sink_state_lock);
+                break;
+            }
+        }
+    }
 
     if (strcmp(interval_name, "guest.do_exit_group.entry") == 0) {
         os_unfair_lock_lock(&sink_state_lock);
@@ -1420,6 +1434,11 @@ int guest_execution_trace_sink_last_do_exit_status(void)
     return last_do_exit_status;
 }
 
+const char *guest_execution_trace_sink_session_exec_arg3(void)
+{
+    return session_exec_arg3;
+}
+
 void guest_execution_trace_sink_set_completion_callback(
     guest_execution_trace_sink_callback_t callback)
 {
@@ -1460,6 +1479,7 @@ void guest_execution_trace_sink_reset(void)
     wait4_last_waited_status = 0;
     last_do_exit_pid = -1;
     last_do_exit_status = 0;
+    session_exec_arg3[0] = '\0';
     completion_callback = NULL;
     interp_path_resolved = false;
     elf_exec_reached = false;

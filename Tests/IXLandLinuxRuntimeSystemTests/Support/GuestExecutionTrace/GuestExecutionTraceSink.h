@@ -58,6 +58,7 @@ int guest_execution_trace_sink_wait4_last_waited_pid(void);
 long long guest_execution_trace_sink_wait4_last_waited_status(void);
 int guest_execution_trace_sink_last_do_exit_pid(void);
 int guest_execution_trace_sink_last_do_exit_status(void);
+const char *guest_execution_trace_sink_session_exec_arg3(void);
 
 // Set callback to be invoked when exit is observed
 void guest_execution_trace_sink_set_completion_callback(guest_execution_trace_sink_callback_t callback);
