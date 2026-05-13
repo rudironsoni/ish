@@ -334,7 +334,6 @@ schemes:
     build:
       targets:
         IXLandTerminal: all
-        IXLandLinuxRuntime: all
         IXLandTerminalEnd2EndTests: [build-for-testing]
     run:
       config: Debug
