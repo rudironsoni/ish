@@ -14,9 +14,12 @@
 #import <IXLandLinuxRuntime/emu/aarch64/memory.h>
 #import <IXLandInstrumentationTracing/trace.h>
 #import "../../Support/GuestExecutionTrace/GuestExecutionTraceSink.h"
+#include "internal/ios/fs/pty_host_bridge.h"
 #include <sys/stat.h>
 
 extern bool exit_should_pthread_exit;
+extern struct tty_driver pty_master;
+extern struct tty_driver pty_slave;
 
 #define TEST_F_GETFD_ 1
 #define TEST_F_SETFD_ 2
@@ -72,6 +75,28 @@ extern bool exit_should_pthread_exit;
         master->pty.other->bufsize = 0;
         unlock(&master->pty.other->lock);
     }
+}
+
+- (void)resetAllGuestPtyBuffers
+{
+    lock(&ttys_lock);
+    for (unsigned i = 0; i < pty_master.limit; i++) {
+        struct tty *master = pty_master.ttys[i];
+        if (master != NULL && master != (void *)1) {
+            lock(&master->lock);
+            master->bufsize = 0;
+            unlock(&master->lock);
+        }
+    }
+    for (unsigned i = 0; i < pty_slave.limit; i++) {
+        struct tty *slave = pty_slave.ttys[i];
+        if (slave != NULL && slave != (void *)1) {
+            lock(&slave->lock);
+            slave->bufsize = 0;
+            unlock(&slave->lock);
+        }
+    }
+    unlock(&ttys_lock);
 }
 
 - (NSString *)dataRootPath
@@ -212,6 +237,18 @@ extern bool exit_should_pthread_exit;
 {
     [super setUp];
     _trackedPseudoMaster = NULL;
+    pty_host_bridge_install(NULL);
+    [self resetAllGuestPtyBuffers];
+}
+
+- (void)tearDown
+{
+    if (current != NULL && current->group != NULL && !current->exiting) {
+        exit_should_pthread_exit = false;
+        do_exit_group(0);
+    }
+    _trackedPseudoMaster = NULL;
+    [super tearDown];
 }
 
 - (BOOL)pumpGuestUntilTimeout:(NSTimeInterval)timeout predicate:(BOOL (^)(void))predicate
