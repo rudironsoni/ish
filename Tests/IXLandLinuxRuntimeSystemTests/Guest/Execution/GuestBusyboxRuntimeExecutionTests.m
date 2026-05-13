@@ -2857,6 +2857,47 @@ extern bool exit_should_pthread_exit;
                   lastBuffer);
 }
 
+- (void)testInteractiveBusyboxShellSilentPipeCommandReturnsToFreshPromptWithoutExit
+{
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    if (![self execInteractiveBusyboxShellAndWaitForPrompt])
+        return;
+
+    NSString *initialBuffer = [self controllingPseudoMasterBuffer];
+    NSUInteger initialPromptCount = [self promptCountInBuffer:initialBuffer];
+    const char command[] = "echo hello world | /bin/busybox true\n";
+    if (![self sendInputThroughControllingPseudoMaster:command length:sizeof(command) - 1])
+        return;
+
+    __block NSString *lastBuffer = @"";
+    BOOL completed = [self pumpGuestUntilTimeout:10.0
+                                       predicate:^BOOL {
+                                           lastBuffer = [self controllingPseudoMasterBuffer];
+                                           return [self promptCountInBuffer:lastBuffer] > initialPromptCount
+                                               || guest_execution_trace_sink_exit_observed();
+                                       }];
+
+    XCTAssertTrue(completed,
+                  @"interactive silent pipe command must either return to a fresh prompt or exit within the timeout; "
+                   @"exit_observed=%d exit_code=%d initial_buffer=%@ master_buffer=%@",
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code(),
+                  initialBuffer,
+                  lastBuffer);
+    XCTAssertFalse(guest_execution_trace_sink_exit_observed(),
+                   @"interactive silent pipe command must not exit the shell. exit_code=%d initial_buffer=%@ master_buffer=%@",
+                   guest_execution_trace_sink_get_exit_code(),
+                   initialBuffer,
+                   lastBuffer);
+    XCTAssertTrue([self promptCountInBuffer:lastBuffer] > initialPromptCount,
+                  @"interactive silent pipe command must return to a fresh prompt. initial_buffer=%@ master_buffer=%@",
+                  initialBuffer,
+                  lastBuffer);
+}
+
 - (void)testInteractiveBusyboxShellExitTerminatesCleanlyWithGuestExitCodeZero
 {
     [self configureFocusedTraceLevel];
