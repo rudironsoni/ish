@@ -399,8 +399,11 @@ retry:
         if (no_children)
             goto error;
     } else {
-        // check if this child is a zombie
-        struct task *task = pid_get_task_zombie(id);
+        // Wait on a specific child PID. Linux must block for a live matching
+        // child; this path must not require the child to already be zombie.
+        struct task *task = pid_get_task(id);
+        if (task == NULL)
+            task = pid_get_task_zombie(id);
         err = _ECHILD;
         if (task == NULL || task->parent == NULL || task->parent->group != current->group)
             goto error;
