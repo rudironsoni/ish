@@ -21,6 +21,7 @@
 static bool sink_registered = false;
 static bool exit_event_received = false;
 static int last_exit_code = -1;
+static int last_exit_pid = -1;
 static guest_execution_trace_sink_callback_t completion_callback = NULL;
 static os_unfair_lock sink_state_lock = OS_UNFAIR_LOCK_INIT;
 
@@ -133,6 +134,33 @@ static uint64_t ordered_exclusive_atomic_last_pc = 0;
 static bool vector_integer_logical_family_hit_observed = false;
 static uint64_t vector_integer_logical_family_hit_count = 0;
 static uint64_t vector_integer_logical_last_pc = 0;
+static uint64_t wait4_ok_count = 0;
+static uint64_t wait4_echild_count = 0;
+static uint64_t wait4_eintr_count = 0;
+static uint64_t waitid_ok_count = 0;
+static uint64_t waitid_echild_count = 0;
+static uint64_t waitid_eintr_count = 0;
+static uint64_t wait4_syscall_neg_count = 0;
+static uint64_t waitid_syscall_neg_count = 0;
+static long long wait4_last_syscall_ret = 0;
+static long long waitid_last_syscall_ret = 0;
+static uint64_t wait_echild_event_count = 0;
+static int wait_echild_last_matching_children = -1;
+static int wait_echild_last_id = 0;
+static long long clone_last_syscall_ret = 0;
+static int wait4_last_syscall_pid = 0;
+static int clone_last_syscall_pid = 0;
+static unsigned long long clone_last_flags = 0ULL;
+static uint64_t sigchld_ign_set_count = 0;
+static int last_exit_is_leader = -1;
+static int last_exit_leader_pid = -1;
+static int last_exit_parent_pid = -1;
+static int wait_echild_last_options = 0;
+static int waitid_last_options = 0;
+static int waitid_last_child_pid = 0;
+static int wait_probe4_exists = -1;
+static int wait_probe4_zombie = -1;
+static int wait_probe4_parent_pid = -1;
 
 static size_t compile_pc_slot(uint64_t mmu, uint64_t pc);
 
@@ -511,6 +539,42 @@ static void test_sink_record_event(ixland_instrumentation_origin_t origin, const
         probe_task_exit_observed(last_exit_code);
         return;
     }
+    if (strcmp(event_name, "guest.wait4.ok") == 0) {
+        os_unfair_lock_lock(&sink_state_lock);
+        wait4_ok_count++;
+        os_unfair_lock_unlock(&sink_state_lock);
+        return;
+    }
+    if (strcmp(event_name, "guest.wait4.err_echild") == 0) {
+        os_unfair_lock_lock(&sink_state_lock);
+        wait4_echild_count++;
+        os_unfair_lock_unlock(&sink_state_lock);
+        return;
+    }
+    if (strcmp(event_name, "guest.wait4.err_eintr") == 0) {
+        os_unfair_lock_lock(&sink_state_lock);
+        wait4_eintr_count++;
+        os_unfair_lock_unlock(&sink_state_lock);
+        return;
+    }
+    if (strcmp(event_name, "guest.waitid.ok") == 0) {
+        os_unfair_lock_lock(&sink_state_lock);
+        waitid_ok_count++;
+        os_unfair_lock_unlock(&sink_state_lock);
+        return;
+    }
+    if (strcmp(event_name, "guest.waitid.err_echild") == 0) {
+        os_unfair_lock_lock(&sink_state_lock);
+        waitid_echild_count++;
+        os_unfair_lock_unlock(&sink_state_lock);
+        return;
+    }
+    if (strcmp(event_name, "guest.waitid.err_eintr") == 0) {
+        os_unfair_lock_lock(&sink_state_lock);
+        waitid_eintr_count++;
+        os_unfair_lock_unlock(&sink_state_lock);
+        return;
+    }
 
     // Milestone B: Interp path resolved (only if it's a REAL path, not "none")
     if (strstr(event_name, "loader.interpreter_path=path:") != NULL) {
@@ -725,10 +789,18 @@ static uint64_t test_sink_begin_interval(ixland_instrumentation_origin_t origin,
         os_unfair_lock_lock(&sink_state_lock);
         exit_event_received = true;
         last_exit_code = -1;
+        last_exit_pid = -1;
         for (uint32_t i = 0; i < attr_count; i++) {
             if (attrs[i].key && strcmp(attrs[i].key, "status") == 0) {
                 last_exit_code = atoi(attrs[i].value);
-                break;
+            } else if (attrs[i].key && strcmp(attrs[i].key, "pid") == 0) {
+                last_exit_pid = atoi(attrs[i].value);
+            } else if (attrs[i].key && strcmp(attrs[i].key, "is_leader") == 0) {
+                last_exit_is_leader = atoi(attrs[i].value);
+            } else if (attrs[i].key && strcmp(attrs[i].key, "leader_pid") == 0) {
+                last_exit_leader_pid = atoi(attrs[i].value);
+            } else if (attrs[i].key && strcmp(attrs[i].key, "parent_pid") == 0) {
+                last_exit_parent_pid = atoi(attrs[i].value);
             }
         }
         os_unfair_lock_unlock(&sink_state_lock);
@@ -738,10 +810,18 @@ static uint64_t test_sink_begin_interval(ixland_instrumentation_origin_t origin,
         os_unfair_lock_lock(&sink_state_lock);
         exit_event_received = true;
         last_exit_code = -1;
+        last_exit_pid = -1;
         for (uint32_t i = 0; i < attr_count; i++) {
             if (attrs[i].key && strcmp(attrs[i].key, "status") == 0) {
                 last_exit_code = atoi(attrs[i].value);
-                break;
+            } else if (attrs[i].key && strcmp(attrs[i].key, "pid") == 0) {
+                last_exit_pid = atoi(attrs[i].value);
+            } else if (attrs[i].key && strcmp(attrs[i].key, "is_leader") == 0) {
+                last_exit_is_leader = atoi(attrs[i].value);
+            } else if (attrs[i].key && strcmp(attrs[i].key, "leader_pid") == 0) {
+                last_exit_leader_pid = atoi(attrs[i].value);
+            } else if (attrs[i].key && strcmp(attrs[i].key, "parent_pid") == 0) {
+                last_exit_parent_pid = atoi(attrs[i].value);
             }
         }
         os_unfair_lock_unlock(&sink_state_lock);
@@ -855,6 +935,8 @@ static uint64_t test_sink_begin_interval(ixland_instrumentation_origin_t origin,
             os_unfair_lock_unlock(&sink_state_lock);
         }
     } else if (strcmp(interval_name, "guest.syscall.enter") == 0) {
+        bool is_clone = false;
+        unsigned long long x0_flags = 0ULL;
         for (uint32_t i = 0; i < attr_count; i++) {
             if (attrs[i].key != NULL && attrs[i].value != NULL &&
                 strcmp(attrs[i].key, "name") == 0 && strcmp(attrs[i].value, "uname") == 0) {
@@ -863,17 +945,46 @@ static uint64_t test_sink_begin_interval(ixland_instrumentation_origin_t origin,
                 os_unfair_lock_unlock(&sink_state_lock);
                 break;
             }
+            if (attrs[i].key != NULL && attrs[i].value != NULL &&
+                strcmp(attrs[i].key, "name") == 0 && strcmp(attrs[i].value, "clone") == 0) {
+                is_clone = true;
+            } else if (attrs[i].key != NULL && attrs[i].value != NULL &&
+                       strcmp(attrs[i].key, "x0") == 0) {
+                x0_flags = strtoull(attrs[i].value, NULL, 0);
+            }
+        }
+        if (is_clone) {
+            os_unfair_lock_lock(&sink_state_lock);
+            clone_last_flags = x0_flags;
+            os_unfair_lock_unlock(&sink_state_lock);
         }
     } else if (strcmp(interval_name, "guest.syscall.return") == 0) {
         bool is_uname = false;
+        bool is_wait4 = false;
+        bool is_waitid = false;
+        bool is_clone = false;
+        int syscall_pid = 0;
         uint64_t ret_value = 0;
+        long long ret_value_signed = 0;
+        bool have_ret = false;
         for (uint32_t i = 0; i < attr_count; i++) {
             if (attrs[i].key == NULL || attrs[i].value == NULL)
                 continue;
             if (strcmp(attrs[i].key, "name") == 0 && strcmp(attrs[i].value, "uname") == 0)
                 is_uname = true;
-            else if (strcmp(attrs[i].key, "ret") == 0)
+            else if (strcmp(attrs[i].key, "name") == 0 && strcmp(attrs[i].value, "wait4") == 0)
+                is_wait4 = true;
+            else if (strcmp(attrs[i].key, "name") == 0 && strcmp(attrs[i].value, "waitid") == 0)
+                is_waitid = true;
+            else if (strcmp(attrs[i].key, "name") == 0 && strcmp(attrs[i].value, "clone") == 0)
+                is_clone = true;
+            else if (strcmp(attrs[i].key, "pid") == 0)
+                syscall_pid = atoi(attrs[i].value);
+            else if (strcmp(attrs[i].key, "ret") == 0) {
                 ret_value = strtoull(attrs[i].value, NULL, 0);
+                ret_value_signed = (long long)(int64_t)ret_value;
+                have_ret = true;
+            }
         }
         if (is_uname) {
             os_unfair_lock_lock(&sink_state_lock);
@@ -881,6 +992,91 @@ static uint64_t test_sink_begin_interval(ixland_instrumentation_origin_t origin,
             uname_syscall_return_value = ret_value;
             os_unfair_lock_unlock(&sink_state_lock);
         }
+        if (have_ret && (is_wait4 || is_waitid)) {
+            os_unfair_lock_lock(&sink_state_lock);
+            if (is_wait4) {
+                wait4_last_syscall_ret = ret_value_signed;
+                wait4_last_syscall_pid = syscall_pid;
+                if (ret_value_signed < 0)
+                    wait4_syscall_neg_count++;
+            }
+            if (is_waitid) {
+                waitid_last_syscall_ret = ret_value_signed;
+                if (ret_value_signed < 0)
+                    waitid_syscall_neg_count++;
+            }
+            os_unfair_lock_unlock(&sink_state_lock);
+        }
+        if (have_ret && is_clone) {
+            os_unfair_lock_lock(&sink_state_lock);
+            clone_last_syscall_ret = ret_value_signed;
+            clone_last_syscall_pid = syscall_pid;
+            os_unfair_lock_unlock(&sink_state_lock);
+        }
+    } else if (strcmp(interval_name, "guest.sigchld.disposition") == 0) {
+        for (uint32_t i = 0; i < attr_count; i++) {
+            if (attrs[i].key != NULL && attrs[i].value != NULL &&
+                strcmp(attrs[i].key, "handler") == 0 && strcmp(attrs[i].value, "1") == 0) {
+                os_unfair_lock_lock(&sink_state_lock);
+                sigchld_ign_set_count++;
+                os_unfair_lock_unlock(&sink_state_lock);
+                break;
+            }
+        }
+    } else if (strcmp(interval_name, "guest.wait.echild") == 0) {
+        int matching_children = -1;
+        int wait_id = 0;
+        int wait_options = 0;
+        for (uint32_t i = 0; i < attr_count; i++) {
+            if (attrs[i].key == NULL || attrs[i].value == NULL)
+                continue;
+            if (strcmp(attrs[i].key, "matching_children") == 0)
+                matching_children = atoi(attrs[i].value);
+            else if (strcmp(attrs[i].key, "id") == 0)
+                wait_id = atoi(attrs[i].value);
+            else if (strcmp(attrs[i].key, "options") == 0)
+                wait_options = atoi(attrs[i].value);
+        }
+        os_unfair_lock_lock(&sink_state_lock);
+        wait_echild_event_count++;
+        wait_echild_last_matching_children = matching_children;
+        wait_echild_last_id = wait_id;
+        wait_echild_last_options = wait_options;
+        os_unfair_lock_unlock(&sink_state_lock);
+    } else if (strcmp(interval_name, "guest.wait.probe4") == 0) {
+        int exists = -1;
+        int zombie = -1;
+        int parent_pid = -1;
+        for (uint32_t i = 0; i < attr_count; i++) {
+            if (attrs[i].key == NULL || attrs[i].value == NULL)
+                continue;
+            if (strcmp(attrs[i].key, "exists") == 0)
+                exists = atoi(attrs[i].value);
+            else if (strcmp(attrs[i].key, "zombie") == 0)
+                zombie = atoi(attrs[i].value);
+            else if (strcmp(attrs[i].key, "parent_pid") == 0)
+                parent_pid = atoi(attrs[i].value);
+        }
+        os_unfair_lock_lock(&sink_state_lock);
+        wait_probe4_exists = exists;
+        wait_probe4_zombie = zombie;
+        wait_probe4_parent_pid = parent_pid;
+        os_unfair_lock_unlock(&sink_state_lock);
+    } else if (strcmp(interval_name, "guest.waitid.return") == 0) {
+        int options = 0;
+        int child_pid = 0;
+        for (uint32_t i = 0; i < attr_count; i++) {
+            if (attrs[i].key == NULL || attrs[i].value == NULL)
+                continue;
+            if (strcmp(attrs[i].key, "options") == 0)
+                options = atoi(attrs[i].value);
+            else if (strcmp(attrs[i].key, "child_pid") == 0)
+                child_pid = atoi(attrs[i].value);
+        }
+        os_unfair_lock_lock(&sink_state_lock);
+        waitid_last_options = options;
+        waitid_last_child_pid = child_pid;
+        os_unfair_lock_unlock(&sink_state_lock);
     }
 
     return 0;
@@ -956,6 +1152,146 @@ int guest_execution_trace_sink_get_exit_code(void)
     return last_exit_code;
 }
 
+int guest_execution_trace_sink_get_exit_pid(void)
+{
+    return last_exit_pid;
+}
+
+uint64_t guest_execution_trace_sink_wait4_ok_count(void)
+{
+    return wait4_ok_count;
+}
+
+uint64_t guest_execution_trace_sink_wait4_echild_count(void)
+{
+    return wait4_echild_count;
+}
+
+uint64_t guest_execution_trace_sink_wait4_eintr_count(void)
+{
+    return wait4_eintr_count;
+}
+
+uint64_t guest_execution_trace_sink_waitid_ok_count(void)
+{
+    return waitid_ok_count;
+}
+
+uint64_t guest_execution_trace_sink_waitid_echild_count(void)
+{
+    return waitid_echild_count;
+}
+
+uint64_t guest_execution_trace_sink_waitid_eintr_count(void)
+{
+    return waitid_eintr_count;
+}
+
+uint64_t guest_execution_trace_sink_wait4_syscall_neg_count(void)
+{
+    return wait4_syscall_neg_count;
+}
+
+uint64_t guest_execution_trace_sink_waitid_syscall_neg_count(void)
+{
+    return waitid_syscall_neg_count;
+}
+
+long long guest_execution_trace_sink_wait4_last_syscall_ret(void)
+{
+    return wait4_last_syscall_ret;
+}
+
+long long guest_execution_trace_sink_waitid_last_syscall_ret(void)
+{
+    return waitid_last_syscall_ret;
+}
+
+uint64_t guest_execution_trace_sink_wait_echild_event_count(void)
+{
+    return wait_echild_event_count;
+}
+
+int guest_execution_trace_sink_wait_echild_last_matching_children(void)
+{
+    return wait_echild_last_matching_children;
+}
+
+int guest_execution_trace_sink_wait_echild_last_id(void)
+{
+    return wait_echild_last_id;
+}
+
+long long guest_execution_trace_sink_clone_last_syscall_ret(void)
+{
+    return clone_last_syscall_ret;
+}
+
+int guest_execution_trace_sink_wait4_last_syscall_pid(void)
+{
+    return wait4_last_syscall_pid;
+}
+
+int guest_execution_trace_sink_clone_last_syscall_pid(void)
+{
+    return clone_last_syscall_pid;
+}
+
+unsigned long long guest_execution_trace_sink_clone_last_flags(void)
+{
+    return clone_last_flags;
+}
+
+uint64_t guest_execution_trace_sink_sigchld_ign_set_count(void)
+{
+    return sigchld_ign_set_count;
+}
+
+int guest_execution_trace_sink_last_exit_is_leader(void)
+{
+    return last_exit_is_leader;
+}
+
+int guest_execution_trace_sink_last_exit_leader_pid(void)
+{
+    return last_exit_leader_pid;
+}
+
+int guest_execution_trace_sink_last_exit_parent_pid(void)
+{
+    return last_exit_parent_pid;
+}
+
+int guest_execution_trace_sink_wait_echild_last_options(void)
+{
+    return wait_echild_last_options;
+}
+
+int guest_execution_trace_sink_waitid_last_options(void)
+{
+    return waitid_last_options;
+}
+
+int guest_execution_trace_sink_waitid_last_child_pid(void)
+{
+    return waitid_last_child_pid;
+}
+
+int guest_execution_trace_sink_wait_probe4_exists(void)
+{
+    return wait_probe4_exists;
+}
+
+int guest_execution_trace_sink_wait_probe4_zombie(void)
+{
+    return wait_probe4_zombie;
+}
+
+int guest_execution_trace_sink_wait_probe4_parent_pid(void)
+{
+    return wait_probe4_parent_pid;
+}
+
 void guest_execution_trace_sink_set_completion_callback(
     guest_execution_trace_sink_callback_t callback)
 {
@@ -976,6 +1312,16 @@ void guest_execution_trace_sink_reset(void)
     os_unfair_lock_lock(&sink_state_lock);
     exit_event_received = false;
     last_exit_code = -1;
+    last_exit_pid = -1;
+    last_exit_is_leader = -1;
+    last_exit_leader_pid = -1;
+    last_exit_parent_pid = -1;
+    wait_echild_last_options = 0;
+    waitid_last_options = 0;
+    waitid_last_child_pid = 0;
+    wait_probe4_exists = -1;
+    wait_probe4_zombie = -1;
+    wait_probe4_parent_pid = -1;
     completion_callback = NULL;
     interp_path_resolved = false;
     elf_exec_reached = false;
@@ -1047,6 +1393,24 @@ void guest_execution_trace_sink_reset(void)
     vector_integer_logical_family_hit_observed = false;
     vector_integer_logical_family_hit_count = 0;
     vector_integer_logical_last_pc = 0;
+    wait4_ok_count = 0;
+    wait4_echild_count = 0;
+    wait4_eintr_count = 0;
+    waitid_ok_count = 0;
+    waitid_echild_count = 0;
+    waitid_eintr_count = 0;
+    wait4_syscall_neg_count = 0;
+    waitid_syscall_neg_count = 0;
+    wait4_last_syscall_ret = 0;
+    waitid_last_syscall_ret = 0;
+    wait_echild_event_count = 0;
+    wait_echild_last_matching_children = -1;
+    wait_echild_last_id = 0;
+    clone_last_syscall_ret = 0;
+    wait4_last_syscall_pid = 0;
+    clone_last_syscall_pid = 0;
+    clone_last_flags = 0ULL;
+    sigchld_ign_set_count = 0;
     os_unfair_lock_unlock(&sink_state_lock);
 }
 

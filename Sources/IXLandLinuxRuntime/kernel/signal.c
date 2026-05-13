@@ -438,6 +438,17 @@ int32_t sys_rt_sigaction(int32_t signum, addr_t action_addr, addr_t oldaction_ad
     struct sigaction_ old_action = current->sighand->action[signum];
     if (action_addr != 0) {
         current->sighand->action[signum] = signal_action_from_guest(guest_new_action);
+        if (signum == SIGCHLD_) {
+            char handler_buf[32];
+            snprintf(handler_buf, sizeof(handler_buf), "%llu",
+                     (unsigned long long)guest_new_action.handler);
+            ixland_instrumentation_attribute_t attrs[] = {
+                { .key = "handler", .value = handler_buf },
+            };
+            ixland_guest_trace_emit_attrs(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
+                                          "guest.sigchld.disposition", attrs,
+                                          sizeof(attrs) / sizeof(attrs[0]));
+        }
     }
     unlock(&current->sighand->lock);
 

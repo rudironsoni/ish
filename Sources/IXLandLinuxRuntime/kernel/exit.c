@@ -72,11 +72,23 @@ void do_exit(int status)
     {
         char status_buf[32];
         char pid_buf[32];
+        char leader_pid_buf[32];
+        char is_leader_buf[8];
+        char parent_pid_buf[32];
         snprintf(status_buf, sizeof(status_buf), "%d", status);
         snprintf(pid_buf, sizeof(pid_buf), "%d", current ? current->pid : -1);
+        int leader_pid = (current && current->group && current->group->leader) ? current->group->leader->pid : -1;
+        int parent_pid = (current && current->parent) ? current->parent->pid : -1;
+        snprintf(leader_pid_buf, sizeof(leader_pid_buf), "%d", leader_pid);
+        snprintf(parent_pid_buf, sizeof(parent_pid_buf), "%d", parent_pid);
+        snprintf(is_leader_buf, sizeof(is_leader_buf), "%d",
+                 (current && current->group && current->group->leader == current) ? 1 : 0);
         ixland_instrumentation_attribute_t attrs[] = {
             { .key = "status", .value = status_buf },
             { .key = "pid", .value = pid_buf },
+            { .key = "leader_pid", .value = leader_pid_buf },
+            { .key = "parent_pid", .value = parent_pid_buf },
+            { .key = "is_leader", .value = is_leader_buf },
         };
         ixland_guest_trace_emit_attrs(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR,
                                       "guest.do_exit.entry", attrs,
@@ -380,6 +392,24 @@ static bool reap_if_needed(struct task *task, struct siginfo_ *info_out, struct 
     return false;
 }
 
+static bool task_matches_wait_scope(struct task *task, int idtype, pid_t_ id)
+{
+    if (task == NULL || task->parent == NULL)
+        return false;
+    bool same_parent = (task->parent == current) ||
+                       (task->parent->pid == current->pid) ||
+                       (task->parent->tgid != 0 && task->parent->tgid == current->tgid);
+    if (!same_parent)
+        return false;
+    if (!task_is_leader(task))
+        return false;
+    if (idtype == P_PID_)
+        return task->pid == id;
+    if (idtype == P_PGID_)
+        return task->group->pgid == id;
+    return true; // P_ALL_
+}
+
 int do_wait(int idtype, pid_t_ id, struct siginfo_ *info, struct rusage_ *rusage, int options)
 {
     if (idtype != P_ALL_ && idtype != P_PID_ && idtype != P_PGID_)
@@ -389,40 +419,27 @@ int do_wait(int idtype, pid_t_ id, struct siginfo_ *info, struct rusage_ *rusage
 
     lock(&pids_lock);
     int err;
+    bool no_children = true;
 retry:
-    if (idtype != P_PID_) {
-        // look for a zombie child
-        bool no_children = true;
-        struct task *parent;
-        list_for_each_entry (&current->group->threads, parent, group_links) {
-            struct task *task;
-            list_for_each_entry (&parent->children, task, siblings) {
-                if (!task_is_leader(task))
-                    continue;
-                if (idtype == P_PGID_ && task->group->pgid != id)
-                    continue;
-                no_children = false;
-                info->child.pid = task->pid;
-                if (reap_if_needed(task, info, rusage, options))
-                    goto found_something;
-            }
-        }
-        err = _ECHILD;
-        if (no_children)
-            goto error;
-    } else {
-        // Wait on a specific child PID. Linux must block for a live matching
-        // child; this path must not require the child to already be zombie.
-        struct task *task = pid_get_task(id);
-        if (task == NULL)
-            task = pid_get_task_zombie(id);
-        err = _ECHILD;
-        if (task == NULL || task->parent == NULL || task->parent->group != current->group)
-            goto error;
-        task = task->group->leader;
-        info->child.pid = id;
+    no_children = true;
+    for (int pid = 1; pid < MAX_PID; pid++) {
+        struct task *task = pid_get_task_zombie((uint32_t)pid);
+        if (!task_matches_wait_scope(task, idtype, id))
+            continue;
+        no_children = false;
+        info->child.pid = task->pid;
         if (reap_if_needed(task, info, rusage, options))
             goto found_something;
+    }
+
+    err = _ECHILD;
+    if (no_children) {
+        if (options & WNOHANG_) {
+            info->child.pid = 0;
+            info->sig = SIGCHLD_;
+            goto found_something;
+        }
+        goto error;
     }
 
     // WNOHANG leaves the info in an implementation-defined state. set the pid
@@ -447,6 +464,53 @@ found_something:
     return 0;
 
 error:
+    if (err == _ECHILD) {
+        struct task *probe = pid_get_task_zombie(4);
+        char exists_buf[8];
+        char zombie_buf[8];
+        char probe_parent_buf[32];
+        snprintf(exists_buf, sizeof(exists_buf), "%d", probe != NULL ? 1 : 0);
+        snprintf(zombie_buf, sizeof(zombie_buf), "%d", (probe && probe->zombie) ? 1 : 0);
+        snprintf(probe_parent_buf, sizeof(probe_parent_buf), "%d",
+                 (probe && probe->parent) ? probe->parent->pid : -1);
+        ixland_instrumentation_attribute_t probe_attrs[] = {
+            { .key = "exists", .value = exists_buf },
+            { .key = "zombie", .value = zombie_buf },
+            { .key = "parent_pid", .value = probe_parent_buf },
+        };
+        ixland_guest_trace_emit_attrs(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "guest.wait.probe4",
+                                      probe_attrs, sizeof(probe_attrs) / sizeof(probe_attrs[0]));
+        int matching_children = 0;
+        struct task *parent;
+        list_for_each_entry (&current->group->threads, parent, group_links) {
+            struct task *task;
+            list_for_each_entry (&parent->children, task, siblings) {
+                if (!task_is_leader(task))
+                    continue;
+                if (idtype == P_PID_ && task->pid != id)
+                    continue;
+                if (idtype == P_PGID_ && task->group->pgid != id)
+                    continue;
+                matching_children++;
+            }
+        }
+        char idtype_buf[32];
+        char id_buf[32];
+        char options_buf[32];
+        char matching_buf[32];
+        snprintf(idtype_buf, sizeof(idtype_buf), "%d", idtype);
+        snprintf(id_buf, sizeof(id_buf), "%d", id);
+        snprintf(options_buf, sizeof(options_buf), "%d", options);
+        snprintf(matching_buf, sizeof(matching_buf), "%d", matching_children);
+        ixland_instrumentation_attribute_t attrs[] = {
+            { .key = "idtype", .value = idtype_buf },
+            { .key = "id", .value = id_buf },
+            { .key = "options", .value = options_buf },
+            { .key = "matching_children", .value = matching_buf },
+        };
+        ixland_guest_trace_emit_attrs(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "guest.wait.echild",
+                                      attrs, sizeof(attrs) / sizeof(attrs[0]));
+    }
     unlock(&pids_lock);
     return err;
 }

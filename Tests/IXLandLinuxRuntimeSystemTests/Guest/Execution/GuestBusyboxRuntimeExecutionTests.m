@@ -3422,7 +3422,14 @@ extern bool exit_should_pthread_exit;
     XCTAssertTrue([lastBuffer containsString:@"rc:0"],
                    @"cat status probe must report zero shell status. master_buffer=%@ "
                    @"exit_observed=%d exit_status=%d wait4_ok=%llu wait4_echild=%llu wait4_eintr=%llu "
-                   @"waitid_ok=%llu waitid_echild=%llu waitid_eintr=%llu",
+                   @"waitid_ok=%llu waitid_echild=%llu waitid_eintr=%llu wait4_syscall_neg=%llu "
+                   @"waitid_syscall_neg=%llu wait4_last_ret=%lld waitid_last_ret=%lld "
+                   @"wait_echild_events=%llu wait_echild_last_matching_children=%d "
+                   @"wait_echild_last_id=%d clone_last_ret=%lld wait4_last_pid=%d clone_last_pid=%d "
+                   @"clone_last_flags=0x%llx sigchld_ign_set=%llu last_exit_is_leader=%d "
+                   @"last_exit_leader_pid=%d last_exit_parent_pid=%d wait_echild_last_options=0x%x "
+                   @"waitid_last_options=0x%x waitid_last_child_pid=%d "
+                   @"wait_probe4_exists=%d wait_probe4_zombie=%d wait_probe4_parent_pid=%d",
                   lastBuffer,
                   guest_execution_trace_sink_exit_observed() ? 1 : 0,
                   guest_execution_trace_sink_get_exit_code(),
@@ -3431,7 +3438,28 @@ extern bool exit_should_pthread_exit;
                   (unsigned long long)guest_execution_trace_sink_wait4_eintr_count(),
                   (unsigned long long)guest_execution_trace_sink_waitid_ok_count(),
                   (unsigned long long)guest_execution_trace_sink_waitid_echild_count(),
-                  (unsigned long long)guest_execution_trace_sink_waitid_eintr_count());
+                  (unsigned long long)guest_execution_trace_sink_waitid_eintr_count(),
+                  (unsigned long long)guest_execution_trace_sink_wait4_syscall_neg_count(),
+                  (unsigned long long)guest_execution_trace_sink_waitid_syscall_neg_count(),
+                  guest_execution_trace_sink_wait4_last_syscall_ret(),
+                  guest_execution_trace_sink_waitid_last_syscall_ret(),
+                  (unsigned long long)guest_execution_trace_sink_wait_echild_event_count(),
+                  guest_execution_trace_sink_wait_echild_last_matching_children(),
+                  guest_execution_trace_sink_wait_echild_last_id(),
+                  guest_execution_trace_sink_clone_last_syscall_ret(),
+                  guest_execution_trace_sink_wait4_last_syscall_pid(),
+                  guest_execution_trace_sink_clone_last_syscall_pid(),
+                  guest_execution_trace_sink_clone_last_flags(),
+                  (unsigned long long)guest_execution_trace_sink_sigchld_ign_set_count(),
+                  guest_execution_trace_sink_last_exit_is_leader(),
+                  guest_execution_trace_sink_last_exit_leader_pid(),
+                  guest_execution_trace_sink_last_exit_parent_pid(),
+                  guest_execution_trace_sink_wait_echild_last_options(),
+                  guest_execution_trace_sink_waitid_last_options(),
+                  guest_execution_trace_sink_waitid_last_child_pid(),
+                  guest_execution_trace_sink_wait_probe4_exists(),
+                  guest_execution_trace_sink_wait_probe4_zombie(),
+                  guest_execution_trace_sink_wait_probe4_parent_pid());
 }
 
 - (void)testNonInteractiveBusyboxShellPipeCommandCatRedirectReportsShellStatus

@@ -104,12 +104,16 @@ int prepare_session_with_tty(const char *exe, const char *const *argv, const cha
     const char *arg0 = argc > 0 ? flat_argv : "";
     const char *arg1 = argc > 1 ? arg0 + strlen(arg0) + 1 : "";
     const char *arg2 = argc > 2 ? arg1 + strlen(arg1) + 1 : "";
+    const char *arg3 = argc > 3 ? arg2 + strlen(arg2) + 1 : "";
+    const char *arg4 = argc > 4 ? arg3 + strlen(arg3) + 1 : "";
     trace_attribute_t argv_attrs[] = {
         { "exe", exe != NULL ? exe : "" },
         { "argc", "" },
         { "arg0", arg0 },
         { "arg1", arg1 },
         { "arg2", arg2 },
+        { "arg3", arg3 },
+        { "arg4", arg4 },
     };
     char argc_buf[32];
     snprintf(argc_buf, sizeof(argc_buf), "%zu", argc);

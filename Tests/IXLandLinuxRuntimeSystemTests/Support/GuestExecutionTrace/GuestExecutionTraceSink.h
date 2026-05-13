@@ -20,6 +20,34 @@ bool guest_execution_trace_sink_exit_observed(void);
 
 // Get exit code from last observed exit
 int guest_execution_trace_sink_get_exit_code(void);
+int guest_execution_trace_sink_get_exit_pid(void);
+uint64_t guest_execution_trace_sink_wait4_ok_count(void);
+uint64_t guest_execution_trace_sink_wait4_echild_count(void);
+uint64_t guest_execution_trace_sink_wait4_eintr_count(void);
+uint64_t guest_execution_trace_sink_waitid_ok_count(void);
+uint64_t guest_execution_trace_sink_waitid_echild_count(void);
+uint64_t guest_execution_trace_sink_waitid_eintr_count(void);
+uint64_t guest_execution_trace_sink_wait4_syscall_neg_count(void);
+uint64_t guest_execution_trace_sink_waitid_syscall_neg_count(void);
+long long guest_execution_trace_sink_wait4_last_syscall_ret(void);
+long long guest_execution_trace_sink_waitid_last_syscall_ret(void);
+uint64_t guest_execution_trace_sink_wait_echild_event_count(void);
+int guest_execution_trace_sink_wait_echild_last_matching_children(void);
+int guest_execution_trace_sink_wait_echild_last_id(void);
+long long guest_execution_trace_sink_clone_last_syscall_ret(void);
+int guest_execution_trace_sink_wait4_last_syscall_pid(void);
+int guest_execution_trace_sink_clone_last_syscall_pid(void);
+unsigned long long guest_execution_trace_sink_clone_last_flags(void);
+uint64_t guest_execution_trace_sink_sigchld_ign_set_count(void);
+int guest_execution_trace_sink_last_exit_is_leader(void);
+int guest_execution_trace_sink_last_exit_leader_pid(void);
+int guest_execution_trace_sink_last_exit_parent_pid(void);
+int guest_execution_trace_sink_wait_echild_last_options(void);
+int guest_execution_trace_sink_waitid_last_options(void);
+int guest_execution_trace_sink_waitid_last_child_pid(void);
+int guest_execution_trace_sink_wait_probe4_exists(void);
+int guest_execution_trace_sink_wait_probe4_zombie(void);
+int guest_execution_trace_sink_wait_probe4_parent_pid(void);
 
 // Set callback to be invoked when exit is observed
 void guest_execution_trace_sink_set_completion_callback(guest_execution_trace_sink_callback_t callback);

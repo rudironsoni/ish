@@ -169,6 +169,7 @@ A64_WRAP0(sys_vfork, A64_RET_S32)
 A64_WRAP1(sys_exit, A64_RET_S32, uint32_t)
 A64_WRAP1(sys_exit_group, A64_RET_S32, uint32_t)
 A64_WRAP4(sys_wait4, A64_RET_S32, pid_t_, addr_t, uint32_t, addr_t)
+A64_WRAP4(sys_waitid, A64_RET_S32, int64_t, pid_t_, addr_t, int64_t)
 A64_WRAP3(sys_execve, A64_RET_S32, addr_t, addr_t, addr_t)
 A64_WRAP5(sys_execveat, A64_RET_S32, fd_t, addr_t, addr_t, addr_t, int64_t)
 A64_WRAP0(sys_getpid, A64_RET_S32)
@@ -496,6 +497,7 @@ a64_syscall_t syscall_table_a64[A64_SYS_MAX] = {
     [A64_SYS_exit] = A64_WRAP(sys_exit),
     [A64_SYS_exit_group] = A64_WRAP(sys_exit_group),
     [A64_SYS_wait4] = A64_WRAP(sys_wait4),
+    [A64_SYS_waitid] = A64_WRAP(sys_waitid),
     [A64_SYS_execve] = A64_WRAP(sys_execve),
     [A64_SYS_execveat] = A64_WRAP(sys_execveat),
     [A64_SYS_getpid] = A64_WRAP(sys_getpid),
