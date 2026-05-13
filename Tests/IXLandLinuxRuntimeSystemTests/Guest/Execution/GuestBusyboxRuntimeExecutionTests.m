@@ -2968,6 +2968,38 @@ extern bool exit_should_pthread_exit;
                    @"non-interactive PTY shell pipe command must exit with code zero");
 }
 
+- (void)testNonInteractiveBusyboxShellPipeCommandCatEmitsPayloadAndExitsZero
+{
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    if (![self execBusyboxShellCommandWithPty:"echo hello world | /bin/busybox cat"])
+        return;
+
+    __block NSString *lastBuffer = @"";
+    BOOL completed = [self pumpGuestUntilTimeout:10.0
+                                       predicate:^BOOL {
+                                           lastBuffer = [self controllingPseudoMasterBuffer];
+                                           return [lastBuffer containsString:@"hello world"]
+                                               || guest_execution_trace_sink_exit_observed();
+                                       }];
+
+    XCTAssertTrue(completed,
+                  @"non-interactive PTY shell cat pipeline must either emit payload or exit within the timeout; "
+                   @"exit_observed=%d exit_code=%d master_buffer=%@",
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code(),
+                  lastBuffer);
+    XCTAssertTrue([lastBuffer containsString:@"hello world"],
+                  @"non-interactive PTY shell cat pipeline must emit the piped payload before exit. master_buffer=%@",
+                  lastBuffer);
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed(),
+                  @"non-interactive PTY shell cat pipeline must exit after emitting output");
+    XCTAssertEqual(guest_execution_trace_sink_get_exit_code(), 0,
+                   @"non-interactive PTY shell cat pipeline must exit with code zero");
+}
+
 - (void)testNonInteractiveBusyboxShellSilentPipeCommandExitsZero
 {
     [self configureFocusedTraceLevel];
