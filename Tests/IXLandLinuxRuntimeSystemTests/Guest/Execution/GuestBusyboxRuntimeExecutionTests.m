@@ -22,9 +22,21 @@ extern bool exit_should_pthread_exit;
 #define TEST_F_SETFD_ 2
 
 @interface GuestBusyboxRuntimeExecutionTests : XCTestCase
+{
+    struct tty *_trackedPseudoMaster;
+}
 @end
 
 @implementation GuestBusyboxRuntimeExecutionTests
+
+- (int)normalizedGuestExitCodeFromWaitStatus:(int)status
+{
+    if (status < 0)
+        return status;
+    if ((status & 0x7f) != 0)
+        return 128 + (status & 0x7f);
+    return (status >> 8) & 0xff;
+}
 
 - (void)configureFocusedTraceLevel
 {
@@ -139,6 +151,7 @@ extern bool exit_should_pthread_exit;
     if (execErr != 0)
         return NO;
 
+    _trackedPseudoMaster = master;
     NSLog(@"runtime-test interactive session ready current=%p pid=%d mmu=%p tty_num=%d", current,
           current ? current->pid : pid, current ? current->cpu.mmu : NULL, master->num);
     return YES;
@@ -172,10 +185,17 @@ extern bool exit_should_pthread_exit;
     if (execErr != 0)
         return NO;
 
+    _trackedPseudoMaster = master;
     NSLog(@"runtime-test noninteractive shell session ready current=%p pid=%d mmu=%p tty_num=%d command=%s",
           current, current ? current->pid : pid, current ? current->cpu.mmu : NULL, master->num,
           command);
     return YES;
+}
+
+- (void)setUp
+{
+    [super setUp];
+    _trackedPseudoMaster = NULL;
 }
 
 - (BOOL)pumpGuestUntilTimeout:(NSTimeInterval)timeout predicate:(BOOL (^)(void))predicate
@@ -219,6 +239,49 @@ extern bool exit_should_pthread_exit;
     return predicate();
 }
 
+- (BOOL)pumpGuestUntilTimeout:(NSTimeInterval)timeout
+                     maxTurns:(NSUInteger)maxTurns
+                 stepsPerTurn:(int)stepsPerTurn
+                    predicate:(BOOL (^)(void))predicate
+{
+    XCTAssertNotEqual(current, NULL, @"current must exist before guest execution");
+    if (current == NULL)
+        return NO;
+
+    pid_t_ guestPid = current->pid;
+    NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:timeout];
+    NSUInteger turns = 0;
+    BOOL guestBecameInactive = NO;
+    while ([deadline timeIntervalSinceNow] > 0 && turns < maxTurns) {
+        if (predicate())
+            return YES;
+
+        if (!guestBecameInactive) {
+            lock(&pids_lock);
+            struct task *task = pid_get_task_zombie(guestPid);
+            unlock(&pids_lock);
+            if (task == NULL || task->exiting || task->sighand == NULL) {
+                guestBecameInactive = YES;
+            } else {
+                struct cpu_state *cpu = &task->cpu;
+                if (cpu->mmu == NULL) {
+                    guestBecameInactive = YES;
+                } else {
+                    struct tlb exec_tlb = {};
+                    tlb_refresh(&exec_tlb, cpu->mmu);
+                    exit_should_pthread_exit = false;
+                    a64_cpu_run_limited(cpu, &exec_tlb, stepsPerTurn);
+                }
+            }
+        } else {
+            // Allow PTY/output surfaces to settle after guest exit before failing.
+            [NSThread sleepForTimeInterval:0.001];
+        }
+        turns++;
+    }
+    return predicate();
+}
+
 - (BOOL)sendInputThroughControllingPseudoMaster:(const char *)input length:(size_t)length
 {
     XCTAssertNotEqual(current, NULL, @"current must exist before PTY input injection");
@@ -242,6 +305,9 @@ extern bool exit_should_pthread_exit;
 
 - (struct tty *)controllingPseudoMaster
 {
+    if (_trackedPseudoMaster != NULL)
+        return _trackedPseudoMaster;
+
     XCTAssertNotEqual(current, NULL, @"current must exist before PTY inspection");
     if (current == NULL || current->group == NULL)
         return NULL;
@@ -3179,15 +3245,19 @@ extern bool exit_should_pthread_exit;
 
     if (![self execBusyboxShellCommandWithPty:"echo hello world | /bin/busybox wc -w"])
         return;
+    const int shellPid = current ? current->pid : -1;
 
     __block NSString *lastBuffer = @"";
     BOOL completed = [self pumpGuestUntilTimeout:10.0
+                                        maxTurns:2000
+                                    stepsPerTurn:512
                                        predicate:^BOOL {
                                            lastBuffer = [self controllingPseudoMasterBuffer];
                                            return [lastBuffer containsString:@"\n2\n"]
                                                || [lastBuffer containsString:@"\r\n2\r\n"]
                                                || [lastBuffer containsString:@"\n2\r\n"]
-                                               || guest_execution_trace_sink_exit_observed();
+                                               || (guest_execution_trace_sink_exit_observed()
+                                                   && guest_execution_trace_sink_get_exit_pid() == shellPid);
                                        }];
 
     XCTAssertTrue(completed,
@@ -3198,7 +3268,10 @@ extern bool exit_should_pthread_exit;
                   lastBuffer);
     XCTAssertTrue([lastBuffer containsString:@"\n2\n"]
                       || [lastBuffer containsString:@"\r\n2\r\n"]
-                      || [lastBuffer containsString:@"\n2\r\n"],
+                      || [lastBuffer containsString:@"\n2\r\n"]
+                      || [lastBuffer isEqualToString:@"2"]
+                      || [lastBuffer isEqualToString:@"2\n"]
+                      || [lastBuffer isEqualToString:@"2\r\n"],
                   @"non-interactive PTY shell pipe command must emit the wc output before exit. "
                    @"master_buffer=%@ stdout_writes=%llu stdout_last_preview=%s "
                    @"pty_writes=%llu pty_last_preview=%s",
@@ -3207,10 +3280,66 @@ extern bool exit_should_pthread_exit;
                   guest_execution_trace_sink_stdout_last_preview(),
                   (unsigned long long)guest_execution_trace_sink_pty_any_write_count(),
                   guest_execution_trace_sink_pty_last_preview());
-    XCTAssertTrue(guest_execution_trace_sink_exit_observed(),
+    if (!guest_execution_trace_sink_exit_observed()) {
+        (void)[self pumpGuestUntilTimeout:5.0
+                                 maxTurns:1000
+                             stepsPerTurn:512
+                                predicate:^BOOL {
+                                    return guest_execution_trace_sink_exit_observed()
+                                        && guest_execution_trace_sink_get_exit_pid() == shellPid;
+                                }];
+    }
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed()
+                      && guest_execution_trace_sink_get_exit_pid() == shellPid,
                   @"non-interactive PTY shell pipe command must exit after emitting output");
-    XCTAssertEqual(guest_execution_trace_sink_get_exit_code(), 0,
+    XCTAssertEqual([self normalizedGuestExitCodeFromWaitStatus:guest_execution_trace_sink_get_exit_code()], 0,
                    @"non-interactive PTY shell pipe command must exit with code zero");
+}
+
+- (void)testNonInteractiveBusyboxShellPlainEchoEmitsPayloadAndExitsZero
+{
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    if (![self execBusyboxShellCommandWithPty:"/bin/busybox echo hello world"])
+        return;
+    const int shellPid = current ? current->pid : -1;
+
+    __block NSString *lastBuffer = @"";
+    BOOL completed = [self pumpGuestUntilTimeout:10.0
+                                        maxTurns:2000
+                                    stepsPerTurn:512
+                                       predicate:^BOOL {
+                                           lastBuffer = [self controllingPseudoMasterBuffer];
+                                           return [lastBuffer containsString:@"hello world"]
+                                               || (guest_execution_trace_sink_exit_observed()
+                                                   && guest_execution_trace_sink_get_exit_pid() == shellPid);
+                                       }];
+
+    XCTAssertTrue(completed,
+                  @"non-interactive PTY shell plain echo command must either emit payload or exit within the timeout; "
+                   @"exit_observed=%d exit_code=%d master_buffer=%@",
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code(),
+                  lastBuffer);
+    XCTAssertTrue([lastBuffer containsString:@"hello world"],
+                  @"non-interactive PTY shell plain echo command must emit payload before exit. master_buffer=%@",
+                  lastBuffer);
+    if (!guest_execution_trace_sink_exit_observed()) {
+        (void)[self pumpGuestUntilTimeout:5.0
+                                 maxTurns:1000
+                             stepsPerTurn:512
+                                predicate:^BOOL {
+                                    return guest_execution_trace_sink_exit_observed()
+                                        && guest_execution_trace_sink_get_exit_pid() == shellPid;
+                                }];
+    }
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed()
+                      && guest_execution_trace_sink_get_exit_pid() == shellPid,
+                  @"non-interactive PTY shell plain echo command must exit after emitting output");
+    XCTAssertEqual([self normalizedGuestExitCodeFromWaitStatus:guest_execution_trace_sink_get_exit_code()], 0,
+                   @"non-interactive PTY shell plain echo command must exit with code zero");
 }
 
 - (void)testNonInteractiveBusyboxShellPipeCommandCatEmitsPayloadAndExitsZero
@@ -3221,13 +3350,17 @@ extern bool exit_should_pthread_exit;
 
     if (![self execBusyboxShellCommandWithPty:"echo hello world | /bin/busybox cat"])
         return;
+    const int shellPid = current ? current->pid : -1;
 
     __block NSString *lastBuffer = @"";
     BOOL completed = [self pumpGuestUntilTimeout:10.0
+                                        maxTurns:2000
+                                    stepsPerTurn:512
                                        predicate:^BOOL {
                                            lastBuffer = [self controllingPseudoMasterBuffer];
                                            return [lastBuffer containsString:@"hello world"]
-                                               || guest_execution_trace_sink_exit_observed();
+                                               || (guest_execution_trace_sink_exit_observed()
+                                                   && guest_execution_trace_sink_get_exit_pid() == shellPid);
                                        }];
 
     XCTAssertTrue(completed,
@@ -3239,10 +3372,114 @@ extern bool exit_should_pthread_exit;
     XCTAssertTrue([lastBuffer containsString:@"hello world"],
                   @"non-interactive PTY shell cat pipeline must emit the piped payload before exit. master_buffer=%@",
                   lastBuffer);
-    XCTAssertTrue(guest_execution_trace_sink_exit_observed(),
+    if (!guest_execution_trace_sink_exit_observed()) {
+        (void)[self pumpGuestUntilTimeout:5.0
+                                 maxTurns:1000
+                             stepsPerTurn:512
+                                predicate:^BOOL {
+                                    return guest_execution_trace_sink_exit_observed()
+                                        && guest_execution_trace_sink_get_exit_pid() == shellPid;
+                                }];
+    }
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed()
+                      && guest_execution_trace_sink_get_exit_pid() == shellPid,
                   @"non-interactive PTY shell cat pipeline must exit after emitting output");
-    XCTAssertEqual(guest_execution_trace_sink_get_exit_code(), 0,
+    XCTAssertEqual([self normalizedGuestExitCodeFromWaitStatus:guest_execution_trace_sink_get_exit_code()], 0,
                    @"non-interactive PTY shell cat pipeline must exit with code zero");
+}
+
+- (void)testNonInteractiveBusyboxShellPipeCommandCatReportsShellStatus
+{
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    if (![self execBusyboxShellCommandWithPty:"echo hello world | /bin/busybox cat; /bin/busybox echo rc:$?"])
+        return;
+
+    __block NSString *lastBuffer = @"";
+    BOOL completed = [self pumpGuestUntilTimeout:10.0
+                                        maxTurns:2000
+                                    stepsPerTurn:512
+                                       predicate:^BOOL {
+                                           lastBuffer = [self controllingPseudoMasterBuffer];
+                                           return [lastBuffer containsString:@"rc:"];
+                                       }];
+
+    XCTAssertTrue(completed,
+                  @"cat status probe must emit shell rc marker. master_buffer=%@ exit_observed=%d "
+                   @"exit_status=%d wait4_ok=%llu wait4_echild=%llu wait4_eintr=%llu "
+                   @"waitid_ok=%llu waitid_echild=%llu waitid_eintr=%llu",
+                  lastBuffer,
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code(),
+                  (unsigned long long)guest_execution_trace_sink_wait4_ok_count(),
+                  (unsigned long long)guest_execution_trace_sink_wait4_echild_count(),
+                  (unsigned long long)guest_execution_trace_sink_wait4_eintr_count(),
+                  (unsigned long long)guest_execution_trace_sink_waitid_ok_count(),
+                  (unsigned long long)guest_execution_trace_sink_waitid_echild_count(),
+                  (unsigned long long)guest_execution_trace_sink_waitid_eintr_count());
+    XCTAssertTrue([lastBuffer containsString:@"rc:0"],
+                   @"cat status probe must report zero shell status. master_buffer=%@ "
+                   @"exit_observed=%d exit_status=%d wait4_ok=%llu wait4_echild=%llu wait4_eintr=%llu "
+                   @"waitid_ok=%llu waitid_echild=%llu waitid_eintr=%llu",
+                  lastBuffer,
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code(),
+                  (unsigned long long)guest_execution_trace_sink_wait4_ok_count(),
+                  (unsigned long long)guest_execution_trace_sink_wait4_echild_count(),
+                  (unsigned long long)guest_execution_trace_sink_wait4_eintr_count(),
+                  (unsigned long long)guest_execution_trace_sink_waitid_ok_count(),
+                  (unsigned long long)guest_execution_trace_sink_waitid_echild_count(),
+                  (unsigned long long)guest_execution_trace_sink_waitid_eintr_count());
+}
+
+- (void)testNonInteractiveBusyboxShellPipeCommandCatRedirectReportsShellStatus
+{
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    if (![self execBusyboxShellCommandWithPty:"echo hello world | /bin/busybox cat >/tmp/cat_out ; /bin/busybox echo rc:$? ; /bin/busybox cat /tmp/cat_out"])
+        return;
+
+    __block NSString *lastBuffer = @"";
+    BOOL completed = [self pumpGuestUntilTimeout:10.0
+                                        maxTurns:2000
+                                    stepsPerTurn:512
+                                       predicate:^BOOL {
+                                           lastBuffer = [self controllingPseudoMasterBuffer];
+                                           return [lastBuffer containsString:@"rc:"]
+                                               && [lastBuffer containsString:@"hello world"];
+                                       }];
+
+    XCTAssertTrue(completed,
+                  @"redirected cat status probe must emit rc marker and payload. master_buffer=%@",
+                  lastBuffer);
+}
+
+- (void)testNonInteractiveBusyboxShellDirectCatNullReportsShellStatus
+{
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    if (![self execBusyboxShellCommandWithPty:"/bin/busybox cat /dev/null; /bin/busybox echo rc:$?"])
+        return;
+
+    __block NSString *lastBuffer = @"";
+    BOOL completed = [self pumpGuestUntilTimeout:10.0
+                                        maxTurns:2000
+                                    stepsPerTurn:512
+                                       predicate:^BOOL {
+                                           lastBuffer = [self controllingPseudoMasterBuffer];
+                                           return [lastBuffer containsString:@"rc:"];
+                                       }];
+
+    XCTAssertTrue(completed, @"direct cat status probe must emit shell rc marker. master_buffer=%@", lastBuffer);
+    XCTAssertTrue([lastBuffer containsString:@"rc:0"],
+                  @"direct cat status probe must report zero shell status. master_buffer=%@",
+                  lastBuffer);
 }
 
 - (void)testNonInteractiveBusyboxShellBusyboxEchoPipeCatEmitsPayloadAndExitsZero

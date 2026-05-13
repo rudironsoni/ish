@@ -69,8 +69,19 @@ void do_exit(int status)
                                       sizeof(attrs) / sizeof(attrs[0]));
     }
 
-    ixland_guest_trace_emit_int(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR, "guest.do_exit.entry",
-                                "status", status);
+    {
+        char status_buf[32];
+        char pid_buf[32];
+        snprintf(status_buf, sizeof(status_buf), "%d", status);
+        snprintf(pid_buf, sizeof(pid_buf), "%d", current ? current->pid : -1);
+        ixland_instrumentation_attribute_t attrs[] = {
+            { .key = "status", .value = status_buf },
+            { .key = "pid", .value = pid_buf },
+        };
+        ixland_guest_trace_emit_attrs(IXLAND_INSTRUMENTATION_ORIGIN_EMULATOR,
+                                      "guest.do_exit.entry", attrs,
+                                      sizeof(attrs) / sizeof(attrs[0]));
+    }
 
     // has to happen before mm_release
     addr_t clear_tid = current->clear_tid;
@@ -378,8 +389,6 @@ int do_wait(int idtype, pid_t_ id, struct siginfo_ *info, struct rusage_ *rusage
 
     lock(&pids_lock);
     int err;
-    bool got_signal = false;
-
 retry:
     if (idtype != P_PID_) {
         // look for a zombie child
@@ -424,15 +433,10 @@ retry:
         goto found_something;
     }
 
-    err = _EINTR;
-    if (got_signal)
-        goto error;
-
     // no matching zombie found, wait for one
     if (wait_for(&current->group->child_exit, &pids_lock, NULL)) {
-        // maybe we got a SIGCHLD! go through the loop one more time to make
-        // sure the newly exited process is returned in that case.
-        got_signal = true;
+        // A pending signal (especially SIGCHLD) may interrupt the wait.
+        // Re-scan children first instead of surfacing EINTR immediately.
         goto retry;
     }
     goto retry;
@@ -452,8 +456,53 @@ uint32_t sys_waitid(int64_t idtype, pid_t_ id, addr_t info_addr, int64_t options
     STRACE("waitid(%d, %d, %#x, %#x)", (int)idtype, id, info_addr, (int)options);
     struct siginfo_ info = {};
     int64_t res = do_wait((int)idtype, id, &info, NULL, (int)options);
-    if (res < 0 || (res == 0 && info.child.pid == 0))
+    if (res < 0 || (res == 0 && info.child.pid == 0)) {
+        char idtype_buf[32];
+        char id_buf[32];
+        char options_buf[32];
+        char res_buf[32];
+        snprintf(idtype_buf, sizeof(idtype_buf), "%lld", (long long)idtype);
+        snprintf(id_buf, sizeof(id_buf), "%d", id);
+        snprintf(options_buf, sizeof(options_buf), "%lld", (long long)options);
+        snprintf(res_buf, sizeof(res_buf), "%lld", (long long)res);
+        ixland_instrumentation_attribute_t attrs[] = {
+            { .key = "idtype", .value = idtype_buf },
+            { .key = "id", .value = id_buf },
+            { .key = "options", .value = options_buf },
+            { .key = "result", .value = res_buf },
+        };
+        ixland_guest_trace_emit_attrs(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
+                                      "guest.waitid.return", attrs,
+                                      sizeof(attrs) / sizeof(attrs[0]));
+        if (res == _ECHILD)
+            ixland_guest_trace_emit(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "guest.waitid.err_echild");
+        else if (res == _EINTR)
+            ixland_guest_trace_emit(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "guest.waitid.err_eintr");
         return (uint32_t)res;
+    }
+    {
+        char idtype_buf[32];
+        char id_buf[32];
+        char options_buf[32];
+        char child_pid_buf[32];
+        char status_buf[32];
+        snprintf(idtype_buf, sizeof(idtype_buf), "%lld", (long long)idtype);
+        snprintf(id_buf, sizeof(id_buf), "%d", id);
+        snprintf(options_buf, sizeof(options_buf), "%lld", (long long)options);
+        snprintf(child_pid_buf, sizeof(child_pid_buf), "%d", info.child.pid);
+        snprintf(status_buf, sizeof(status_buf), "%lld", (long long)info.child.status);
+        ixland_instrumentation_attribute_t attrs[] = {
+            { .key = "idtype", .value = idtype_buf },
+            { .key = "id", .value = id_buf },
+            { .key = "options", .value = options_buf },
+            { .key = "child_pid", .value = child_pid_buf },
+            { .key = "status", .value = status_buf },
+        };
+        ixland_guest_trace_emit_attrs(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
+                                      "guest.waitid.return", attrs,
+                                      sizeof(attrs) / sizeof(attrs[0]));
+    }
+    ixland_guest_trace_emit(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "guest.waitid.ok");
     if (info_addr != 0 && user_put(info_addr, info))
         return _EFAULT;
     return 0;
@@ -481,8 +530,47 @@ uint32_t sys_wait4(pid_t_ id, addr_t status_addr, uint32_t options, addr_t rusag
     struct siginfo_ info = { .child.pid = 0xbaba };
     struct rusage_ rusage;
     int64_t res = do_wait(idtype, id, &info, &rusage, options | WEXITED_);
-    if (res < 0 || (res == 0 && info.child.pid == 0))
+    if (res < 0 || (res == 0 && info.child.pid == 0)) {
+        char req_id_buf[32];
+        char options_buf[32];
+        char res_buf[32];
+        snprintf(req_id_buf, sizeof(req_id_buf), "%d", id);
+        snprintf(options_buf, sizeof(options_buf), "%u", options);
+        snprintf(res_buf, sizeof(res_buf), "%lld", (long long)res);
+        ixland_instrumentation_attribute_t attrs[] = {
+            { .key = "request_pid", .value = req_id_buf },
+            { .key = "options", .value = options_buf },
+            { .key = "result", .value = res_buf },
+        };
+        ixland_guest_trace_emit_attrs(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
+                                      "guest.wait4.return", attrs,
+                                      sizeof(attrs) / sizeof(attrs[0]));
+        if (res == _ECHILD)
+            ixland_guest_trace_emit(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "guest.wait4.err_echild");
+        else if (res == _EINTR)
+            ixland_guest_trace_emit(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "guest.wait4.err_eintr");
         return (uint32_t)res;
+    }
+    {
+        char req_id_buf[32];
+        char options_buf[32];
+        char waited_pid_buf[32];
+        char status_buf[32];
+        snprintf(req_id_buf, sizeof(req_id_buf), "%d", id);
+        snprintf(options_buf, sizeof(options_buf), "%u", options);
+        snprintf(waited_pid_buf, sizeof(waited_pid_buf), "%d", info.child.pid);
+        snprintf(status_buf, sizeof(status_buf), "%lld", (long long)info.child.status);
+        ixland_instrumentation_attribute_t attrs[] = {
+            { .key = "request_pid", .value = req_id_buf },
+            { .key = "options", .value = options_buf },
+            { .key = "waited_pid", .value = waited_pid_buf },
+            { .key = "status", .value = status_buf },
+        };
+        ixland_guest_trace_emit_attrs(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL,
+                                      "guest.wait4.return", attrs,
+                                      sizeof(attrs) / sizeof(attrs[0]));
+    }
+    ixland_guest_trace_emit(IXLAND_INSTRUMENTATION_ORIGIN_KERNEL, "guest.wait4.ok");
     if (status_addr != 0 && user_put(status_addr, info.child.status))
         return _EFAULT;
     if (rusage_addr != 0 && user_put(rusage_addr, rusage))
