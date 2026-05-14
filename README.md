@@ -1,123 +1,134 @@
-# [iSH](https://ish.app)
+# iSH / IXLand AArch64 Runtime
 
-[![Build Status](https://github.com/ish-app/ish/actions/workflows/ci.yml/badge.svg)](https://github.com/ish-app/ish/actions)
-[![goto counter](https://img.shields.io/github/search/ish-app/ish/goto.svg)](https://github.com/ish-app/ish/search?q=goto)
-[![fuck counter](https://img.shields.io/github/search/ish-app/ish/fuck.svg)](https://github.com/ish-app/ish/search?q=fuck)
-[![shit counter](https://img.shields.io/github/search/ish-app/ish/shit.svg)](https://github.com/ish-app/ish/search?q=shit)
+This repository runs a Linux userspace shell experience on iOS by executing guest AArch64 code through a TCTI engine and translating Linux syscalls into host-backed runtime behavior.
 
-<p align="center">
-<a href="https://ish.app">
-<img src="https://ish.app/assets/github-readme.png">
-</a>
-</p>
+## Product Perspective
 
-A project to get a Linux shell running on iOS, using AArch64 usermode emulation and syscall translation.
+From a product point of view, this project is an iOS terminal app (`IXLandTerminal`) backed by a Linux runtime (`IXLandLinuxRuntime`):
 
-For the current status of the project, check the issues tab, and the commit logs.
+- Users interact with a normal terminal surface.
+- Commands run inside a guest Linux environment.
+- The north star is practical compatibility and speed for real tools (shell, BusyBox/Alpine-style workflows), not only synthetic benchmarks.
+- Reliability is measured by guest-visible behavior: commands run, output appears, prompts return, sessions remain stable.
 
-- [App Store page](https://apps.apple.com/us/app/ish-shell/id1436902243)
-- [TestFlight beta](https://testflight.apple.com/join/97i7KM8O)
-- [Discord server](https://discord.gg/HFAXj44)
-- [Wiki with help and tutorials](https://github.com/ish-app/ish/wiki)
-- [README中文](https://github.com/ish-app/ish/blob/master/README_ZH.md) (如若未能保持最新，请提交PR以更新)
+## Current AArch64 / TCTI Direction
 
-# Hacking
+This branch is AArch64 guest-only and uses TCTI as the execution engine for guest instructions.
 
-This project has a git submodule, make sure to clone with `--recurse-submodules` or run `git submodule update --init` after cloning.
+TCTI model summary:
 
-You'll need these things to build the project:
+- Decode guest AArch64 instructions.
+- Lower instructions into gadget sequences.
+- Execute gadgets in threaded style (tailcall-driven flow).
+- Exit to runtime for syscalls, faults, and signal boundaries.
 
- - Python 3
-   + Meson (`pip3 install meson`)
- - Ninja
- - Clang and LLD (on mac, `brew install llvm`, on linux, `sudo apt install clang lld` or `sudo pacman -S clang lld` or whatever)
- - sqlite3 (this is so common it may already be installed on linux and is definitely already installed on mac. if not, do something like `sudo apt install libsqlite3-dev`)
- - libarchive (`brew install libarchive`, `sudo port install libarchive`, `sudo apt install libarchive-dev`) TODO: bundle this dependency
+Key migration constraints in this repo:
 
-## Build for iOS
+- No separate interpreter fallback for guest AArch64 execution.
+- Runtime and contract work should advance TCTI path correctness directly.
+- Linux-facing semantics remain kernel-owned in runtime code; host mechanics stay in host-adapter seams.
 
-Open the project in Xcode, open iSH.xcconfig, and change `ROOT_BUNDLE_IDENTIFIER` to something unique. You'll also need to update the development team ID in the project (not target!) build settings. Then click Run. There are scripts that should do everything else automatically. If you run into any problems, open an issue and I'll try to help.
+## Project Layout
 
-## Build command line tool for testing
+Top-level runtime and app ownership:
 
-### Using Just (recommended)
+- `Sources/IXLandLinuxRuntime/`
+  Linux-facing runtime core: kernel/syscall, fs, task/signal/process, memory, emulation bridge.
+- `Sources/IXLandLinuxRuntime/emu/aarch64/`
+  AArch64 CPU loop, fetch/decode integration, block cache, exit/fault/syscall boundaries.
+- `Sources/IXLandLinuxRuntime/tcti/`
+  TCTI lowering and gadget surfaces (including generated gadget headers during build).
+- `internal/ios/`
+  Host-side iOS/Darwin bridge mechanics (filesystem and platform seams).
+- `Sources/IXLandTerminal/`
+  iOS app shell, lifecycle, terminal UI wiring, session orchestration.
 
-Install [just](https://github.com/casey/just) (`brew install just`), then run:
+Test ownership:
 
-```bash
-just build    # Build the project
-just test     # Run tests
-just lint     # Run linting
-```
+- `Tests/IXLandLinuxRuntimeContractTests/`
+  TCTI contract tests (fetch/decode/lowering/gadgets/semantic boundaries).
+- `Tests/IXLandLinuxRuntimeSystemTests/`
+  Real guest-runtime behavior tests (pty, shell behavior, command execution, ABI/system flows).
+- `Tests/IXLandLinuxRuntimePerfTests/`
+  Runtime and hot-path performance coverage.
+- `Tests/IXLandTerminalEnd2EndTests/`
+  App-level E2E user-path verification on simulator.
 
-See `just --list` for all available commands.
+Planning/docs:
 
-### Using Meson directly
+- `docs/plans/a64-tcti-proof-program.md`
+  Canonical local proof/migration plan for AArch64 TCTI coverage.
 
-To set up your environment, cd to the project and run `meson build` to create a build directory in `build`. Then cd to the build directory and run `ninja`.
+## Key Decisions
 
-To set up a self-contained Alpine linux filesystem, download the Alpine minirootfs tarball for aarch64 from the [Alpine website](https://alpinelinux.org/downloads/), extract it into a directory such as `alpine`, and then run `./ish -r alpine /bin/sh`.
+1. AArch64 guest execution is TCTI-first.
+   Runtime correctness issues should be proven and fixed on the real path.
 
+2. Product-visible runtime behavior is the completion bar.
+   Internal contract suites are required, but not sufficient by themselves.
 
+3. Separation of concerns:
+   - Linux semantics in runtime/kernel paths.
+   - Host bridge mechanics in `internal/ios`.
+   - UI/session orchestration in `IXLandTerminal`.
 
-## Logging
+4. Codebase truth lives in project/build/runtime sources.
+   In practice:
+   - `project.yml` is the source of truth for Xcode project generation and schemes.
+   - Tests are expected to run on simulator with the runtime and app schemes.
 
-iSH has several logging channels which can be enabled at build time. By default, all of them are disabled. To enable them:
+## Goals
 
-- In Xcode: Set the `ISH_LOG` setting in iSH.xcconfig to a space-separated list of log channels.
-- With Meson (command line tool for testing): Run `meson configure -Dlog="<space-separated list of log channels>"`.
+Near-term goals:
 
-Available channels:
+- Remove remaining guest crash/hang boundaries in common command flows.
+- Expand owner-surface test coverage across decode/lowering/gadget/register/semantic layers.
+- Keep regressions pinned to narrow runtime contracts before implementation changes.
 
-- `strace`: The most useful channel, logs the parameters and return value of almost every system call.
-- `instr`: Logs every instruction executed by the emulator. This slows things down a lot.
-- `verbose`: Debug logs that don't fit into another category.
-- Grep for `DEFAULT_CHANNEL` to see if more log channels have been added since this list was updated.
+Medium-term goals:
 
-## Profiling
+- Improve command/tool compatibility breadth for typical Linux shell usage.
+- Increase stability under interactive PTY workloads.
+- Reduce hot-path overhead in decode/lowering/block execution.
 
-iSH includes profiling infrastructure for performance analysis. This helps identify bottlenecks in the TCTI emulator, track translation block compilation, and analyze TLB performance.
+North-star goals:
 
-### Building with Profiling
+- Linux guest sessions that feel dependable for daily terminal usage on iOS.
+- Strong runtime correctness under App Store constraints (JIT-less execution path).
+- Sustained performance improvements without compromising Linux-shaped behavior.
 
-```bash
-meson setup builddir -Denable_profiling=true
-ninja -C builddir
-```
+## Build and Test
 
-### Running with Profiling
+### Prerequisites
 
-```bash
-# Run and capture profile
-ISH_PROFILE_OUTPUT=profile.json ./builddir/ish -f alpine /bin/sh
+- Xcode toolchain
+- Python 3
+- C/ObjC toolchain dependencies used by the repo
 
-# Or use the provided script
-./scripts/profile-run.sh -f alpine /bin/sh
-```
+### Build (Xcode)
 
-### Analyzing Profiles
+- `project.yml` defines targets and schemes.
+- Canonical schemes in this branch:
+  - `IXLandApp-6.12-arm64`
+  - `IXLandRuntime-6.12-arm64`
 
-```bash
-# Analyze profile output
-python3 tools/ish-profile-tool.py analyze profile.json
+### Simulator Defaults Used by This Repo
 
-# Generate flame graph data
-python3 tools/ish-profile-tool.py flamegraph profile.json > flame.txt
+- Simulator: `iPhone 17`
+- DerivedData: `/Volumes/1TB/Xcode/DerivedData`
+- Xcode caches: `/Volumes/1TB/Xcode/Caches`
 
-# Compare two profiles
-python3 tools/ish-profile-tool.py compare baseline.json current.json
-```
+### Test Layers
 
-### Profile Events
+Run by intent:
 
-The profiler captures events including:
-- Translation block compilation and execution
-- TLB misses and cache performance
-- Memory allocations
-- System calls
+- Runtime contract/internals: `IXLandRuntime-6.12-arm64`
+- App E2E paths: `IXLandApp-6.12-arm64`
 
-See `docs/profiling.md` for detailed documentation.
+Use focused tests for defect isolation, then rerun broader suite slices to confirm no regressions.
 
-# A note on the TCTI execution engine
+## Notes
 
-iSH uses a Threaded Code Translation and Interpretation (TCTI) engine for AArch64 guest emulation. The engine generates an array of pointers to functions called gadgets, and each gadget ends with a tailcall to the next function; like the threaded code technique used by some Forth interpreters. This branch is AArch64 guest only - there is no x86 or i386 support.
+- This README documents the current local architecture and migration direction for this branch.
+- For deep migration proof structure and family ownership, use:
+  `docs/plans/a64-tcti-proof-program.md`.
