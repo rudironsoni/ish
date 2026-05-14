@@ -2002,6 +2002,60 @@ extern struct tty_driver pty_slave;
                   @"interactive busybox shell must emit aarch64 through a real guest write path after PTY master input");
 }
 
+- (void)testInteractiveBusyboxShellUnameAllReturnsToPromptWithoutSignalTermination
+{
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    if (![self execInteractiveBusyboxShellAndWaitForPrompt])
+        return;
+    const int shellPid = current ? current->pid : -1;
+
+    uint64_t initialPromptWrites = guest_execution_trace_sink_stdout_prompt_write_count() +
+                                   guest_execution_trace_sink_pty_prompt_write_count();
+
+    const char command[] = "/bin/busybox uname -a\n";
+    if (![self sendInputThroughControllingPseudoMaster:command length:sizeof(command) - 1])
+        return;
+
+    __block NSString *lastBuffer = @"";
+    BOOL completed = [self pumpGuestUntilTimeout:10.0
+                                       predicate:^BOOL {
+                                           lastBuffer = [self controllingPseudoMasterBuffer];
+                                           uint64_t promptWrites = guest_execution_trace_sink_stdout_prompt_write_count() +
+                                                                   guest_execution_trace_sink_pty_prompt_write_count();
+                                           BOOL sawOutput = [lastBuffer containsString:@"aarch64"];
+                                           BOOL returnedPrompt = promptWrites > initialPromptWrites;
+                                           return (sawOutput && returnedPrompt) ||
+                                               (guest_execution_trace_sink_exit_observed() &&
+                                                guest_execution_trace_sink_get_exit_pid() == shellPid);
+                                       }];
+
+    XCTAssertTrue(completed,
+                  @"interactive busybox shell uname -a must either emit aarch64 and return to prompt or exit within timeout; "
+                   @"exit_observed=%d exit_code=%d master_buffer=%@",
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code(),
+                  lastBuffer);
+    XCTAssertFalse(guest_execution_trace_sink_exit_observed() &&
+                       guest_execution_trace_sink_get_exit_pid() == shellPid,
+                   @"interactive busybox shell uname -a must not terminate the interactive session. "
+                    @"exit_pid=%d shell_pid=%d exit_code=%d master_buffer=%@",
+                   guest_execution_trace_sink_get_exit_pid(),
+                   shellPid,
+                   guest_execution_trace_sink_get_exit_code(),
+                   lastBuffer);
+    XCTAssertTrue([lastBuffer containsString:@"aarch64"],
+                  @"interactive busybox shell uname -a must emit aarch64. master_buffer=%@",
+                  lastBuffer);
+    XCTAssertGreaterThan(guest_execution_trace_sink_stdout_prompt_write_count() +
+                             guest_execution_trace_sink_pty_prompt_write_count(),
+                         initialPromptWrites,
+                         @"interactive busybox shell uname -a must return to a fresh prompt boundary. master_buffer=%@",
+                         lastBuffer);
+}
+
 - (void)testInteractiveBusyboxShellUnameMachineWritesAarch64AfterPtyMasterInput
 {
     [self configureFocusedTraceLevel];
@@ -2029,6 +2083,53 @@ extern struct tty_driver pty_slave;
     XCTAssertTrue(guest_execution_trace_sink_stdout_aarch64_write_observed() ||
                       guest_execution_trace_sink_pty_aarch64_write_observed(),
                   @"interactive busybox shell must emit aarch64 through a real guest write path after PTY master input");
+}
+
+- (void)testInteractiveBusyboxShellInvalidCommandThenLsThenUnameAllDoesNotSignalTerminate
+{
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    if (![self execInteractiveBusyboxShellAndWaitForPrompt])
+        return;
+    const int shellPid = current ? current->pid : -1;
+
+    const char *commands[] = { "lsls\n", "ls\n", "/bin/busybox uname -a\n" };
+    const size_t commandCount = sizeof(commands) / sizeof(commands[0]);
+
+    for (size_t i = 0; i < commandCount; i++) {
+        uint64_t promptWritesBefore = guest_execution_trace_sink_stdout_prompt_write_count() +
+                                      guest_execution_trace_sink_pty_prompt_write_count();
+
+        const char *cmd = commands[i];
+        if (![self sendInputThroughControllingPseudoMaster:cmd length:strlen(cmd)])
+            return;
+
+        __block NSString *lastBuffer = @"";
+        BOOL completed = [self pumpGuestUntilTimeout:10.0
+                                           predicate:^BOOL {
+                                               lastBuffer = [self controllingPseudoMasterBuffer];
+                                               uint64_t promptWrites = guest_execution_trace_sink_stdout_prompt_write_count() +
+                                                                       guest_execution_trace_sink_pty_prompt_write_count();
+                                               return promptWrites > promptWritesBefore ||
+                                                   (guest_execution_trace_sink_exit_observed() &&
+                                                    guest_execution_trace_sink_get_exit_pid() == shellPid);
+                                           }];
+
+        XCTAssertTrue(completed,
+                      @"interactive shell command step %zu must either return to prompt or terminate. command=%s buffer=%@",
+                      i, cmd, lastBuffer);
+        XCTAssertFalse(guest_execution_trace_sink_exit_observed() &&
+                           guest_execution_trace_sink_get_exit_pid() == shellPid,
+                       @"interactive shell must not terminate after command step %zu. command=%s exit_code=%d buffer=%@",
+                       i, cmd, guest_execution_trace_sink_get_exit_code(), lastBuffer);
+        XCTAssertGreaterThan(guest_execution_trace_sink_stdout_prompt_write_count() +
+                                 guest_execution_trace_sink_pty_prompt_write_count(),
+                             promptWritesBefore,
+                             @"interactive shell must return to prompt after command step %zu. command=%s buffer=%@",
+                             i, cmd, lastBuffer);
+    }
 }
 
 - (void)testInteractiveBusyboxShellInitialPtyResumeBlockFetchesDecodesAndCompiles
@@ -3123,6 +3224,8 @@ extern struct tty_driver pty_slave;
     const int shellPid = current ? current->pid : -1;
     struct tty *master = [self controllingPseudoMaster];
     [self resetPseudoMasterBuffer:master];
+    uint64_t initialPromptWrites = guest_execution_trace_sink_stdout_prompt_write_count() +
+                                   guest_execution_trace_sink_pty_prompt_write_count();
     const char command[] = "ls\n";
     if (![self sendInputThroughControllingPseudoMaster:command length:sizeof(command) - 1])
         return;
@@ -3131,11 +3234,11 @@ extern struct tty_driver pty_slave;
     BOOL completed = [self pumpGuestUntilTimeout:10.0
                                        predicate:^BOOL {
                                            lastBuffer = [self controllingPseudoMasterBuffer];
+                                           uint64_t promptWrites = guest_execution_trace_sink_stdout_prompt_write_count() +
+                                                                   guest_execution_trace_sink_pty_prompt_write_count();
                                            BOOL shellExited = guest_execution_trace_sink_exit_observed()
                                                && guest_execution_trace_sink_get_exit_pid() == shellPid;
-                                           return [lastBuffer containsString:@"\n/ # "]
-                                               || [lastBuffer hasSuffix:@"/ # "]
-                                               || shellExited;
+                                           return promptWrites > initialPromptWrites || shellExited;
                                        }];
 
     XCTAssertTrue(completed, @"interactive busybox shell must either return to a prompt after ls or exit within the timeout");
@@ -3143,8 +3246,9 @@ extern struct tty_driver pty_slave;
                        && guest_execution_trace_sink_get_exit_pid() == shellPid,
                    @"interactive busybox shell must not terminate on plain ls. shell_exit_code=%d",
                    guest_execution_trace_sink_get_exit_code());
-    XCTAssertTrue([lastBuffer containsString:@"\n/ # "]
-                      || [lastBuffer hasSuffix:@"/ # "],
+    XCTAssertGreaterThan(guest_execution_trace_sink_stdout_prompt_write_count() +
+                             guest_execution_trace_sink_pty_prompt_write_count(),
+                         initialPromptWrites,
                          @"interactive busybox shell must return to a fresh prompt after plain ls");
 }
 
@@ -3176,9 +3280,7 @@ extern struct tty_driver pty_slave;
                                                                    guest_execution_trace_sink_pty_prompt_write_count();
                                            uint64_t metadataWrites = guest_execution_trace_sink_stdout_metadata_write_count() +
                                                                      guest_execution_trace_sink_pty_metadata_write_count();
-                                           BOOL sawPromptInBuffer = [lastBuffer containsString:@"\n/ # "]
-                                               || [lastBuffer hasSuffix:@"/ # "];
-                                           return ((promptWrites > initialPromptWrites || sawPromptInBuffer) &&
+                                           return ((promptWrites > initialPromptWrites) &&
                                                    metadataWrites > initialMetadataWrites) ||
                                                   (guest_execution_trace_sink_exit_observed() &&
                                                    guest_execution_trace_sink_get_exit_pid() == shellPid);
@@ -3195,8 +3297,7 @@ extern struct tty_driver pty_slave;
                          initialMetadataWrites,
                          @"interactive busybox shell must emit long-list metadata after ls -la");
     XCTAssertTrue((guest_execution_trace_sink_stdout_prompt_write_count() +
-                       guest_execution_trace_sink_pty_prompt_write_count()) > initialPromptWrites ||
-                      [lastBuffer containsString:@"\n/ # "] || [lastBuffer hasSuffix:@"/ # "],
+                       guest_execution_trace_sink_pty_prompt_write_count()) > initialPromptWrites,
                   @"interactive busybox shell must return to a fresh prompt after ls -la; buffer=%@",
                   lastBuffer);
 }
@@ -3248,8 +3349,8 @@ extern struct tty_driver pty_slave;
         return;
 
     const int shellPid = current ? current->pid : -1;
-    NSString *initialBuffer = [self controllingPseudoMasterBuffer];
-    NSUInteger initialPromptCount = [self promptCountInBuffer:initialBuffer];
+    uint64_t initialPromptWrites = guest_execution_trace_sink_stdout_prompt_write_count() +
+                                   guest_execution_trace_sink_pty_prompt_write_count();
     const char command[] = "echo hello world | /bin/busybox wc -w\n";
     if (![self sendInputThroughControllingPseudoMaster:command length:sizeof(command) - 1])
         return;
@@ -3258,11 +3359,12 @@ extern struct tty_driver pty_slave;
     BOOL completed = [self pumpGuestUntilTimeout:10.0
                                        predicate:^BOOL {
                                            lastBuffer = [self controllingPseudoMasterBuffer];
-                                           NSUInteger promptCount = [self promptCountInBuffer:lastBuffer];
+                                           uint64_t promptWrites = guest_execution_trace_sink_stdout_prompt_write_count() +
+                                                                   guest_execution_trace_sink_pty_prompt_write_count();
                                            return [lastBuffer containsString:@"\n2\n"]
                                                || [lastBuffer containsString:@"\r\n2\r\n"]
                                                || [lastBuffer containsString:@"\n2\r\n"]
-                                               || promptCount > initialPromptCount
+                                               || promptWrites > initialPromptWrites
                                                || (guest_execution_trace_sink_exit_observed() &&
                                                    guest_execution_trace_sink_get_exit_pid() == shellPid);
                                        }];
@@ -3281,9 +3383,9 @@ extern struct tty_driver pty_slave;
     XCTAssertTrue([lastBuffer containsString:@"\n2\n"]
                       || [lastBuffer containsString:@"\r\n2\r\n"]
                       || [lastBuffer containsString:@"\n2\r\n"]
-                      || [self promptCountInBuffer:lastBuffer] > initialPromptCount,
-                  @"interactive pipe command must either emit the wc output or reach a fresh prompt before timeout. initial_buffer=%@ master_buffer=%@",
-                  initialBuffer,
+                      || (guest_execution_trace_sink_stdout_prompt_write_count() +
+                          guest_execution_trace_sink_pty_prompt_write_count()) > initialPromptWrites,
+                  @"interactive pipe command must either emit the wc output or reach a fresh prompt boundary before timeout. master_buffer=%@",
                   lastBuffer);
 }
 
@@ -3297,8 +3399,8 @@ extern struct tty_driver pty_slave;
         return;
 
     const int shellPid = current ? current->pid : -1;
-    NSString *initialBuffer = [self controllingPseudoMasterBuffer];
-    NSUInteger initialPromptCount = [self promptCountInBuffer:initialBuffer];
+    uint64_t initialPromptWrites = guest_execution_trace_sink_stdout_prompt_write_count() +
+                                   guest_execution_trace_sink_pty_prompt_write_count();
     const char command[] = "echo hello world | /bin/busybox true\n";
     if (![self sendInputThroughControllingPseudoMaster:command length:sizeof(command) - 1])
         return;
@@ -3307,27 +3409,28 @@ extern struct tty_driver pty_slave;
     BOOL completed = [self pumpGuestUntilTimeout:10.0
                                        predicate:^BOOL {
                                            lastBuffer = [self controllingPseudoMasterBuffer];
-                                           return [self promptCountInBuffer:lastBuffer] > initialPromptCount
+                                           uint64_t promptWrites = guest_execution_trace_sink_stdout_prompt_write_count() +
+                                                                   guest_execution_trace_sink_pty_prompt_write_count();
+                                           return promptWrites > initialPromptWrites
                                                || (guest_execution_trace_sink_exit_observed() &&
                                                    guest_execution_trace_sink_get_exit_pid() == shellPid);
                                        }];
 
     XCTAssertTrue(completed,
-                  @"interactive silent pipe command must either return to a fresh prompt or exit within the timeout; "
-                   @"exit_observed=%d exit_code=%d initial_buffer=%@ master_buffer=%@",
+                  @"interactive silent pipe command must either return to a fresh prompt boundary or exit within the timeout; "
+                   @"exit_observed=%d exit_code=%d master_buffer=%@",
                   guest_execution_trace_sink_exit_observed() ? 1 : 0,
                   guest_execution_trace_sink_get_exit_code(),
-                  initialBuffer,
                   lastBuffer);
     XCTAssertFalse(guest_execution_trace_sink_exit_observed() &&
                        guest_execution_trace_sink_get_exit_pid() == shellPid,
-                   @"interactive silent pipe command must not exit the shell. exit_code=%d initial_buffer=%@ master_buffer=%@",
+                   @"interactive silent pipe command must not exit the shell. exit_code=%d master_buffer=%@",
                    guest_execution_trace_sink_get_exit_code(),
-                   initialBuffer,
                    lastBuffer);
-    XCTAssertTrue([self promptCountInBuffer:lastBuffer] > initialPromptCount,
-                  @"interactive silent pipe command must return to a fresh prompt. initial_buffer=%@ master_buffer=%@",
-                  initialBuffer,
+    XCTAssertGreaterThan(guest_execution_trace_sink_stdout_prompt_write_count() +
+                             guest_execution_trace_sink_pty_prompt_write_count(),
+                         initialPromptWrites,
+                  @"interactive silent pipe command must return to a fresh prompt boundary. master_buffer=%@",
                   lastBuffer);
 }
 
