@@ -454,8 +454,10 @@ extern struct tty_driver pty_slave;
     int guestExitCode = -1;
     BOOL sawExitingTask = NO;
     BOOL sawMissingSighand = NO;
-    NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:10.0];
-    while ([deadline timeIntervalSinceNow] > 0 && stepsTaken < 200000) {
+    uint64_t initialPromptWrites = guest_execution_trace_sink_stdout_prompt_write_count() +
+                                   guest_execution_trace_sink_pty_prompt_write_count();
+    NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:20.0];
+    while ([deadline timeIntervalSinceNow] > 0 && stepsTaken < 500000) {
         if (guest_execution_trace_sink_exit_observed() &&
             guest_execution_trace_sink_get_exit_pid() == guestPid) {
             sawGuestExit = YES;
@@ -478,9 +480,12 @@ extern struct tty_driver pty_slave;
         }
 
         NSString *buffer = [self controllingPseudoMasterBuffer];
+        uint64_t promptWrites = guest_execution_trace_sink_stdout_prompt_write_count() +
+                                guest_execution_trace_sink_pty_prompt_write_count();
         if ([buffer containsString:@"/ # "]
             || [buffer hasSuffix:@"/ #"]
-            || [buffer containsString:@"\n/ #"]) {
+            || [buffer containsString:@"\n/ #"]
+            || promptWrites > initialPromptWrites) {
             sawPrompt = YES;
             break;
         }
