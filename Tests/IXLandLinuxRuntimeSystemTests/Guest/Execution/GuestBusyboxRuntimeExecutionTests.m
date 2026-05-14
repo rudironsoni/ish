@@ -3345,8 +3345,10 @@ extern struct tty_driver pty_slave;
                                            return [lastBuffer containsString:@"\n2\n"]
                                                || [lastBuffer containsString:@"\r\n2\r\n"]
                                                || [lastBuffer containsString:@"\n2\r\n"]
-                                               || (guest_execution_trace_sink_exit_observed()
-                                                   && guest_execution_trace_sink_get_exit_pid() == shellPid);
+                                               || [lastBuffer isEqualToString:@"2"]
+                                               || [lastBuffer isEqualToString:@"2\n"]
+                                               || [lastBuffer isEqualToString:@"2\r\n"]
+                                               || guest_execution_trace_sink_exit_observed();
                                        }];
 
     XCTAssertTrue(completed,
@@ -3369,7 +3371,8 @@ extern struct tty_driver pty_slave;
                   guest_execution_trace_sink_stdout_last_preview(),
                   (unsigned long long)guest_execution_trace_sink_pty_any_write_count(),
                   guest_execution_trace_sink_pty_last_preview());
-    if (!guest_execution_trace_sink_exit_observed()) {
+    if (!guest_execution_trace_sink_exit_observed()
+        || guest_execution_trace_sink_get_exit_pid() != shellPid) {
         (void)[self pumpGuestUntilTimeout:5.0
                                  maxTurns:1000
                              stepsPerTurn:512
@@ -3734,6 +3737,65 @@ extern struct tty_driver pty_slave;
                   @"non-interactive PTY shell busybox-echo wc pipeline must exit after emitting output");
     XCTAssertEqual(guest_execution_trace_sink_get_exit_code(), 0,
                    @"non-interactive PTY shell busybox-echo wc pipeline must exit with code zero");
+}
+
+- (void)testNonInteractiveBusyboxShellBusyboxEchoPipeWcByteCountEmitsCountAndExitsZero
+{
+    [self configureFocusedTraceLevel];
+    guest_execution_trace_sink_init();
+    guest_execution_trace_sink_reset();
+
+    if (![self execBusyboxShellCommandWithPty:"/bin/busybox echo hello world | /bin/busybox wc -c"])
+        return;
+    const int shellPid = current ? current->pid : -1;
+
+    __block NSString *lastBuffer = @"";
+    BOOL completed = [self pumpGuestUntilTimeout:10.0
+                                        maxTurns:2000
+                                    stepsPerTurn:512
+                                       predicate:^BOOL {
+                                           lastBuffer = [self controllingPseudoMasterBuffer];
+                                           return [lastBuffer containsString:@"\n12\n"]
+                                               || [lastBuffer containsString:@"\r\n12\r\n"]
+                                               || [lastBuffer containsString:@"\n12\r\n"]
+                                               || (guest_execution_trace_sink_exit_observed()
+                                                   && guest_execution_trace_sink_get_exit_pid() == shellPid);
+                                       }];
+
+    XCTAssertTrue(completed,
+                  @"non-interactive PTY shell busybox-echo wc -c pipeline must either emit byte-count output or exit within the timeout; "
+                   @"exit_observed=%d exit_code=%d master_buffer=%@",
+                  guest_execution_trace_sink_exit_observed() ? 1 : 0,
+                  guest_execution_trace_sink_get_exit_code(),
+                  lastBuffer);
+    XCTAssertTrue([lastBuffer containsString:@"\n12\n"]
+                      || [lastBuffer containsString:@"\r\n12\r\n"]
+                      || [lastBuffer containsString:@"\n12\r\n"]
+                      || [lastBuffer isEqualToString:@"12"]
+                      || [lastBuffer isEqualToString:@"12\n"]
+                      || [lastBuffer isEqualToString:@"12\r\n"],
+                  @"non-interactive PTY shell busybox-echo wc -c pipeline must emit the byte count before exit. "
+                   @"master_buffer=%@ stdout_writes=%llu stdout_last_preview=%s "
+                   @"pty_writes=%llu pty_last_preview=%s",
+                  lastBuffer,
+                  (unsigned long long)guest_execution_trace_sink_stdout_any_write_count(),
+                  guest_execution_trace_sink_stdout_last_preview(),
+                  (unsigned long long)guest_execution_trace_sink_pty_any_write_count(),
+                  guest_execution_trace_sink_pty_last_preview());
+    if (!guest_execution_trace_sink_exit_observed()) {
+        (void)[self pumpGuestUntilTimeout:5.0
+                                 maxTurns:1000
+                             stepsPerTurn:512
+                                predicate:^BOOL {
+                                    return guest_execution_trace_sink_exit_observed()
+                                        && guest_execution_trace_sink_get_exit_pid() == shellPid;
+                                }];
+    }
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed()
+                      && guest_execution_trace_sink_get_exit_pid() == shellPid,
+                  @"non-interactive PTY shell busybox-echo wc -c pipeline must exit after emitting output");
+    XCTAssertEqual(guest_execution_trace_sink_get_exit_code(), 0,
+                   @"non-interactive PTY shell busybox-echo wc -c pipeline must exit with code zero");
 }
 
 - (void)testNonInteractiveBusyboxShellBusyboxWcFileArgumentEmitsWordCountAndExitsZero
