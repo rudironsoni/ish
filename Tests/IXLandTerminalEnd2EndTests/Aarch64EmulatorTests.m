@@ -318,6 +318,15 @@
                   @"Should count 2 words. Actual output: %@", output);
 }
 
+// Test 7b: wc file argument path
+- (void)testWcFileArgument {
+    NSString *pathToken = @"/tmp/e2e_wc_words";
+    [self typeCommand:@"echo hello world > /tmp/e2e_wc_words ; /bin/busybox wc -w /tmp/e2e_wc_words"];
+    NSString *output = [self waitForTerminalTextContaining:pathToken timeout:10.0];
+    XCTAssertTrue([output containsString:pathToken] && [output containsString:@"2"],
+                  @"Should emit wc file-argument output with a 2-word count. Actual output: %@", output);
+}
+
 // Test 8: Environment variables
 - (void)testEnvironmentVariables {
     [self typeCommand:@"export TEST_VAR=aarch64_value ; echo $TEST_VAR"];
