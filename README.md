@@ -2,14 +2,54 @@
 
 This repository runs a Linux userspace shell experience on iOS by executing guest AArch64 code through a TCTI engine and translating Linux syscalls into host-backed runtime behavior.
 
-## Product Perspective
+## Act 1 — Product
 
-From a product point of view, this project is an iOS terminal app (`IXLandTerminal`) backed by a Linux runtime (`IXLandLinuxRuntime`):
+### What This Product Is
 
-- Users interact with a normal terminal surface.
-- Commands run inside a guest Linux environment.
-- The north star is practical compatibility and speed for real tools (shell, BusyBox/Alpine-style workflows), not only synthetic benchmarks.
-- Reliability is measured by guest-visible behavior: commands run, output appears, prompts return, sessions remain stable.
+This product is a Linux shell experience on iPhone and iPad. Users open the app, type commands, and expect a real Linux-style terminal workflow: packages, scripts, shell tools, and interactive sessions that behave consistently.
+
+The app surface is `IXLandTerminal`. The user expectation is simple:
+
+- Commands run when typed.
+- Output appears correctly.
+- Prompt returns reliably.
+- Sessions stay alive unless the user exits.
+
+### Why `OrlixKernel` Exists
+
+`OrlixKernel` is the long-term direction for giving the product a stronger Linux-owned core instead of relying on app-layer or host-layer shortcuts for semantics.  
+From a user perspective, this matters because Linux behavior quality depends on kernel-owned contracts:
+
+- Process lifecycle and wait/exit behavior
+- PTY, job-control, and signal semantics
+- Filesystem and fd semantics
+- Syscall behavior matching Linux expectations
+
+Without that kernel-shaped ownership, users see instability as broken tools, hanging prompts, incorrect statuses, or crashes.
+
+### User-Facing Goals
+
+The product goals are user-visible, not just internal:
+
+- High command compatibility for daily shell usage
+- Stable interactive sessions across long runs
+- Predictable behavior for shell pipelines and scripting
+- Faster startup and command turnaround
+- Fewer terminal/session crash exits
+
+### User-Facing Features (Current Direction)
+
+- Interactive Linux shell on iOS terminal UI
+- AArch64 guest command execution through TCTI
+- Rootfs-based Linux userspace workflows
+- App-level terminal session lifecycle and restart handling
+- Runtime/system/contract test layers focused on real regressions
+
+### North Star
+
+Linux on iOS should feel dependable and fast enough for real work, not just demos.
+
+## Act 2 — Technical
 
 ## Current AArch64 / TCTI Direction
 
