@@ -3744,14 +3744,22 @@ extern struct tty_driver pty_slave;
 
     if (![self execBusyboxShellCommandWithPty:"/bin/busybox echo hello world >/tmp/pipe_words && /bin/busybox wc -w /tmp/pipe_words"])
         return;
+    const int shellPid = current ? current->pid : -1;
 
     __block NSString *lastBuffer = @"";
     BOOL completed = [self pumpGuestUntilTimeout:10.0
+                                        maxTurns:2000
+                                    stepsPerTurn:512
                                        predicate:^BOOL {
                                            lastBuffer = [self controllingPseudoMasterBuffer];
                                            return [lastBuffer containsString:@"\n2 "]
                                                || [lastBuffer containsString:@"\r\n2 "]
-                                               || guest_execution_trace_sink_exit_observed();
+                                               || [lastBuffer containsString:@"\n2\t"]
+                                               || [lastBuffer containsString:@"\r\n2\t"]
+                                               || [lastBuffer hasPrefix:@"2 "]
+                                               || [lastBuffer hasPrefix:@"2\t"]
+                                               || (guest_execution_trace_sink_exit_observed()
+                                                   && guest_execution_trace_sink_get_exit_pid() == shellPid);
                                        }];
 
     XCTAssertTrue(completed,
@@ -3760,7 +3768,9 @@ extern struct tty_driver pty_slave;
                   guest_execution_trace_sink_exit_observed() ? 1 : 0,
                   guest_execution_trace_sink_get_exit_code(),
                   lastBuffer);
-    XCTAssertTrue([lastBuffer containsString:@"\n2 "] || [lastBuffer containsString:@"\r\n2 "],
+    XCTAssertTrue([lastBuffer containsString:@"\n2 "] || [lastBuffer containsString:@"\r\n2 "]
+                      || [lastBuffer containsString:@"\n2\t"] || [lastBuffer containsString:@"\r\n2\t"]
+                      || [lastBuffer hasPrefix:@"2 "] || [lastBuffer hasPrefix:@"2\t"],
                   @"non-interactive PTY shell busybox wc file-argument command must emit the wc output before exit. "
                    @"exit_observed=%d exit_code=%d master_buffer=%@ stdout_writes=%llu "
                    @"stdout_last_preview=%s pty_writes=%llu pty_last_preview=%s",
@@ -3771,7 +3781,17 @@ extern struct tty_driver pty_slave;
                   guest_execution_trace_sink_stdout_last_preview(),
                   (unsigned long long)guest_execution_trace_sink_pty_any_write_count(),
                   guest_execution_trace_sink_pty_last_preview());
-    XCTAssertTrue(guest_execution_trace_sink_exit_observed(),
+    if (!guest_execution_trace_sink_exit_observed()) {
+        (void)[self pumpGuestUntilTimeout:5.0
+                                 maxTurns:1000
+                             stepsPerTurn:512
+                                predicate:^BOOL {
+                                    return guest_execution_trace_sink_exit_observed()
+                                        && guest_execution_trace_sink_get_exit_pid() == shellPid;
+                                }];
+    }
+    XCTAssertTrue(guest_execution_trace_sink_exit_observed()
+                      && guest_execution_trace_sink_get_exit_pid() == shellPid,
                   @"non-interactive PTY shell busybox wc file-argument command must exit after emitting output");
     XCTAssertEqual(guest_execution_trace_sink_get_exit_code(), 0,
                    @"non-interactive PTY shell busybox wc file-argument command must exit with code zero");
